@@ -174,12 +174,8 @@ def nexus_trees(text):
         if kind == 'trees':
             tm = re.search(r'translate\s(.*?);', body, flags=re.S | re.I)
             if tm:
-                for part in split_top(tm.group(1)):
-                    part = part.strip()
-                    if not part:
-                        continue
-                    k, v = part.split(None, 1)
-                    v = v.strip()
+                toks = re.findall(r"'(?:[^']|'')*'|[^\s,]+", tm.group(1))
+                for k, v in zip(toks[0::2], toks[1::2]):
                     if v.startswith("'") and v.endswith("'"):
                         v = v[1:-1].replace("''", "'")
                     translate[k] = v

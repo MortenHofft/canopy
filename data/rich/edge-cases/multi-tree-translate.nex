@@ -1,0 +1,29 @@
+#NEXUS
+[HAND-MADE TEST FILE (not real data). Multi-tree NEXUS with TAXA + TRANSLATE, [&R]/[&U] flags,
+ quoted labels with spaces and apostrophes, internal labels and support values, a polytomy.]
+BEGIN TAXA;
+  DIMENSIONS NTAX=7;
+  TAXLABELS
+    'Puma concolor'
+    Panthera_leo
+    'Lynx rufus (Bobcat)'
+    'O''Brien''s fox'
+    Canis_lupus
+    Vulpes_vulpes
+    Ursus_arctos
+  ;
+END;
+BEGIN TREES;
+  TRANSLATE
+    1 'Puma concolor',
+    2 Panthera_leo,
+    3 'Lynx rufus (Bobcat)',
+    4 'O''Brien''s fox',
+    5 Canis_lupus,
+    6 Vulpes_vulpes,
+    7 Ursus_arctos
+  ;
+  TREE rooted_tree = [&R] ((((1:0.1,2:0.12)95:0.05,3:0.2)Felidae:0.1,(4:0.15,5:0.1,6:0.12)Canidae:0.2)Carnivora:0.1,7:0.5);
+  TREE unrooted_tree = [&U] (1:0.1,2:0.2,(3:0.3,(4:0.1,(5:0.1,6:0.1):0.1):0.1):0.1,7:0.4);
+  TREE no_lengths_tree = [&R] (((1,2),3),((4,(5,6)),7));
+END;

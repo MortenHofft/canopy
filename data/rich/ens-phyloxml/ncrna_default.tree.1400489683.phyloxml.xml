@@ -1,0 +1,2107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<phyloxml xsi:schemaLocation="http://www.phyloxml.org http://www.phyloxml.org/1.10/phyloxml.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.phyloxml.org">
+  <phylogeny type="gene tree" rooted="true">
+    <clade branch_length="0">
+      <taxonomy>
+        <id>7711</id>
+        <scientific_name>Chordata</scientific_name>
+        <common_name>Chordates</common_name>
+      </taxonomy>
+      <clade branch_length="0.054762">
+        <confidence type="duplication_confidence_score">0</confidence>
+        <taxonomy>
+          <id>7742</id>
+          <scientific_name>Vertebrata</scientific_name>
+          <common_name>Vertebrates</common_name>
+        </taxonomy>
+        <events>
+          <type>speciation_or_duplication</type>
+          <duplications>1</duplications>
+        </events>
+        <property datatype="xsd:int" ref="Compara:dubious_duplication" applies_to="clade">dubious_duplication</property>
+        <clade branch_length="0">
+          <confidence type="duplication_confidence_score">0</confidence>
+          <taxonomy>
+            <id>7742</id>
+            <scientific_name>Vertebrata</scientific_name>
+            <common_name>Vertebrates</common_name>
+          </taxonomy>
+          <events>
+            <type>speciation_or_duplication</type>
+            <duplications>1</duplications>
+          </events>
+          <property datatype="xsd:int" ref="Compara:dubious_duplication" applies_to="clade">dubious_duplication</property>
+          <clade branch_length="0">
+            <confidence type="duplication_confidence_score">0</confidence>
+            <taxonomy>
+              <id>7742</id>
+              <scientific_name>Vertebrata</scientific_name>
+              <common_name>Vertebrates</common_name>
+            </taxonomy>
+            <events>
+              <type>speciation_or_duplication</type>
+              <duplications>1</duplications>
+            </events>
+            <property datatype="xsd:int" ref="Compara:dubious_duplication" applies_to="clade">dubious_duplication</property>
+            <clade branch_length="0">
+              <confidence type="bootstrap">3</confidence>
+              <taxonomy>
+                <id>7742</id>
+                <scientific_name>Vertebrata</scientific_name>
+                <common_name>Vertebrates</common_name>
+              </taxonomy>
+              <clade branch_length="0.0542659">
+                <name>ENSLACG00000021411</name>
+                <taxonomy>
+                  <id>7897</id>
+                  <scientific_name>Latimeria chalumnae</scientific_name>
+                  <common_name>Coelacanth</common_name>
+                </taxonomy>
+                <sequence>
+                  <accession source="compara">ENSLACT00000024195</accession>
+                  <location>JH127673.1:312698-312804</location>
+                </sequence>
+                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">latimeria_chalumnae</property>
+              </clade>
+              <clade branch_length="0.13414">
+                <name>ENSPMAG00000010814</name>
+                <taxonomy>
+                  <id>7757</id>
+                  <scientific_name>Petromyzon marinus</scientific_name>
+                  <common_name>Lamprey</common_name>
+                </taxonomy>
+                <sequence>
+                  <accession source="compara">ENSPMAT00000011841</accession>
+                  <name>pma-mir-217a-201</name>
+                  <location>GL476438:660387-660455</location>
+                </sequence>
+                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">petromyzon_marinus</property>
+              </clade>
+            </clade>
+            <clade branch_length="0.0248913">
+              <taxonomy>
+                <id>32525</id>
+                <scientific_name>Theria</scientific_name>
+                <common_name>Marsupials and Placental mammals</common_name>
+              </taxonomy>
+              <clade branch_length="0.017553">
+                <taxonomy>
+                  <id>9347</id>
+                  <scientific_name>Eutheria</scientific_name>
+                  <common_name>Placentals</common_name>
+                </taxonomy>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>9347</id>
+                    <scientific_name>Eutheria</scientific_name>
+                    <common_name>Placentals</common_name>
+                  </taxonomy>
+                  <clade branch_length="0">
+                    <taxonomy>
+                      <id>9347</id>
+                      <scientific_name>Eutheria</scientific_name>
+                      <common_name>Placentals</common_name>
+                    </taxonomy>
+                    <clade branch_length="0.0011796">
+                      <taxonomy>
+                        <id>9347</id>
+                        <scientific_name>Eutheria</scientific_name>
+                        <common_name>Placentals</common_name>
+                      </taxonomy>
+                      <clade branch_length="0.0015462">
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0.0173281">
+                            <name>ENSVPAG00000017098</name>
+                            <taxonomy>
+                              <id>30538</id>
+                              <scientific_name>Vicugna pacos</scientific_name>
+                              <common_name>Alpaca</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSVPAT00000016932</accession>
+                              <location>scaffold_1134:53815-53920</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">vicugna_pacos</property>
+                          </clade>
+                          <clade branch_length="0.0271163">
+                            <name>ENSSSCG00000026956</name>
+                            <taxonomy>
+                              <id>9823</id>
+                              <scientific_name>Sus scrofa reference breed</scientific_name>
+                              <common_name>Pig</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSSSCT00000028721</accession>
+                              <name>ssc-mir-217-1.1-201</name>
+                              <location>3:85341255-85341361</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">sus_scrofa</property>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0.0145752">
+                            <confidence type="bootstrap">40</confidence>
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="0.00175915">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <confidence type="bootstrap">3</confidence>
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <name>ENSBGRG00000019183</name>
+                                    <taxonomy>
+                                      <id>30521</id>
+                                      <scientific_name>Bos grunniens</scientific_name>
+                                      <common_name>Domestic yak</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSBGRT00000035235</accession>
+                                      <name>MIR217-201</name>
+                                      <location>9:59742573-59742682</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">bos_grunniens</property>
+                                  </clade>
+                                  <clade branch_length="0">
+                                    <name>ENSBTAG00000036435</name>
+                                    <taxonomy>
+                                      <id>9913</id>
+                                      <scientific_name>Bos taurus reference breed</scientific_name>
+                                      <common_name>Cattle</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSBTAT00000050935</accession>
+                                      <location>11:38628452-38628561</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">bos_taurus</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0">
+                                  <name>ENSBIXG00005017554</name>
+                                  <taxonomy>
+                                    <id>30522</id>
+                                    <scientific_name>Bos indicus x Bos taurus</scientific_name>
+                                    <common_name>Hybrid - Bos Indicus</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSBIXT00005046670</accession>
+                                    <location>11:38310815-38310924</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">bos_indicus_hybrid</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="0">
+                                <name>ENSBBBG00000011077</name>
+                                <taxonomy>
+                                  <id>43346</id>
+                                  <scientific_name>Bison bison bison</scientific_name>
+                                  <common_name>American bison</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSBBBT00000012744</accession>
+                                  <location>KN264881.1:434546-434655</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">bison_bison_bison</property>
+                              </clade>
+                            </clade>
+                            <clade branch_length="0.00935196">
+                              <name>ENSOARG00020048857</name>
+                              <taxonomy>
+                                <id>9940</id>
+                                <scientific_name>Ovis aries reference breed</scientific_name>
+                                <common_name>Sheep</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSOART00020157206</accession>
+                                <location>3:68148432-68148551</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ovis_aries</property>
+                            </clade>
+                          </clade>
+                          <clade branch_length="0.0187581">
+                            <name>ENSTTRG00000022370</name>
+                            <taxonomy>
+                              <id>9739</id>
+                              <scientific_name>Tursiops truncatus</scientific_name>
+                              <common_name>Dolphin</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSTTRT00000024019</accession>
+                              <location>GeneScaffold_906:176930-177039</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">tursiops_truncatus</property>
+                          </clade>
+                        </clade>
+                      </clade>
+                      <clade branch_length="0.0137316">
+                        <name>ENSPVAG00000024508</name>
+                        <taxonomy>
+                          <id>132908</id>
+                          <scientific_name>Pteropus vampyrus</scientific_name>
+                          <common_name>Megabat</common_name>
+                        </taxonomy>
+                        <sequence>
+                          <accession source="compara">ENSPVAT00000025320</accession>
+                          <location>GeneScaffold_1048:114191-114300</location>
+                        </sequence>
+                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pteropus_vampyrus</property>
+                      </clade>
+                    </clade>
+                    <clade branch_length="0.0164229">
+                      <confidence type="bootstrap">7</confidence>
+                      <taxonomy>
+                        <id>9347</id>
+                        <scientific_name>Eutheria</scientific_name>
+                        <common_name>Placentals</common_name>
+                      </taxonomy>
+                      <clade branch_length="0">
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0.00192086">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="0">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <name>ENSNVIG00000003748</name>
+                                    <taxonomy>
+                                      <id>452646</id>
+                                      <scientific_name>Neogale vison</scientific_name>
+                                      <common_name>American mink</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSNVIT00000005488</accession>
+                                      <location>FNWR01000283.1:1516614-1516695</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">neovison_vison</property>
+                                  </clade>
+                                  <clade branch_length="0">
+                                    <name>ENSCAFG00020026844</name>
+                                    <taxonomy>
+                                      <id>286419</id>
+                                      <scientific_name>Canis lupus dingo</scientific_name>
+                                      <common_name>Dingo</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSCAFT00020039965</accession>
+                                      <name>MIR217-201</name>
+                                      <location>QKWQ01001844.1:41826385-41826466</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">canis_lupus_dingo</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0">
+                                  <name>ENSUAMG00000004603</name>
+                                  <taxonomy>
+                                    <id>9643</id>
+                                    <scientific_name>Ursus americanus</scientific_name>
+                                    <common_name>American black bear</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSUAMT00000005812</accession>
+                                    <location>LZNR01015190.1:55503-55584</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ursus_americanus</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="0">
+                                <name>ENSCAFG00845012187</name>
+                                <taxonomy>
+                                  <id>9615</id>
+                                  <scientific_name>Canis lupus familiaris reference breed</scientific_name>
+                                  <common_name>Dog</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSCAFT00845021670</accession>
+                                  <location>10:57759472-57759553</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">canis_lupus_familiaris</property>
+                              </clade>
+                            </clade>
+                            <clade branch_length="0">
+                              <name>ENSUMAG00000018874</name>
+                              <taxonomy>
+                                <id>29073</id>
+                                <scientific_name>Ursus maritimus</scientific_name>
+                                <common_name>Polar bear</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSUMAT00000030662</accession>
+                                <location>KK498653.1:14904381-14904462</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ursus_maritimus</property>
+                            </clade>
+                          </clade>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="0">
+                              <name>ENSMPUG00000022627</name>
+                              <taxonomy>
+                                <id>9669</id>
+                                <scientific_name>Mustela putorius furo</scientific_name>
+                                <common_name>Ferret</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSMPUT00000022779</accession>
+                                <location>GL897245.1:408214-408295</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">mustela_putorius_furo</property>
+                            </clade>
+                            <clade branch_length="0">
+                              <name>ENSVVUG00000010074</name>
+                              <taxonomy>
+                                <id>9627</id>
+                                <scientific_name>Vulpes vulpes</scientific_name>
+                                <common_name>Red fox</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSVVUT00000018016</accession>
+                                <location>NBDQ01000011.1:21428038-21428119</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">vulpes_vulpes</property>
+                            </clade>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0.0102743">
+                          <confidence type="bootstrap">61</confidence>
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0">
+                            <name>ENSPTIG00000003884</name>
+                            <taxonomy>
+                              <id>74533</id>
+                              <scientific_name>Panthera tigris altaica</scientific_name>
+                              <common_name>Tiger</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSPTIT00000004259</accession>
+                              <location>KE721640.1:9424809-9424916</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">panthera_tigris_altaica</property>
+                          </clade>
+                          <clade branch_length="0">
+                            <name>ENSPPRG00000022260</name>
+                            <taxonomy>
+                              <id>9691</id>
+                              <scientific_name>Panthera pardus</scientific_name>
+                              <common_name>Leopard</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSPPRT00000032241</accession>
+                              <name>MIR217-201</name>
+                              <location>KV860272.1:16467796-16467903</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">panthera_pardus</property>
+                          </clade>
+                        </clade>
+                      </clade>
+                      <clade branch_length="0.0172087">
+                        <name>ENSSARG00000016266</name>
+                        <taxonomy>
+                          <id>42254</id>
+                          <scientific_name>Sorex araneus</scientific_name>
+                          <common_name>Shrew</common_name>
+                        </taxonomy>
+                        <sequence>
+                          <accession source="compara">ENSSART00000016271</accession>
+                          <location>scaffold_229366:93323-93425</location>
+                        </sequence>
+                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">sorex_araneus</property>
+                      </clade>
+                    </clade>
+                  </clade>
+                  <clade branch_length="0.00489707">
+                    <taxonomy>
+                      <id>9347</id>
+                      <scientific_name>Eutheria</scientific_name>
+                      <common_name>Placentals</common_name>
+                    </taxonomy>
+                    <clade branch_length="0">
+                      <taxonomy>
+                        <id>9347</id>
+                        <scientific_name>Eutheria</scientific_name>
+                        <common_name>Placentals</common_name>
+                      </taxonomy>
+                      <clade branch_length="0.0156372">
+                        <confidence type="bootstrap">53</confidence>
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0.00148652">
+                          <name>ENSCHOG00000014051</name>
+                          <taxonomy>
+                            <id>9358</id>
+                            <scientific_name>Choloepus hoffmanni</scientific_name>
+                            <common_name>Sloth</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSCHOT00000014321</accession>
+                            <location>scaffold_12477:22183-22283</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">choloepus_hoffmanni</property>
+                        </clade>
+                        <clade branch_length="0.0207357">
+                          <name>ENSDNOG00000036821</name>
+                          <taxonomy>
+                            <id>9361</id>
+                            <scientific_name>Dasypus novemcinctus</scientific_name>
+                            <common_name>Armadillo</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSDNOT00000039463</accession>
+                            <location>JH567881.1:170411-170522</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">dasypus_novemcinctus</property>
+                        </clade>
+                      </clade>
+                      <clade branch_length="0.053903">
+                        <confidence type="bootstrap">87</confidence>
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0.0163457">
+                          <name>ENSETEG00000022439</name>
+                          <taxonomy>
+                            <id>9371</id>
+                            <scientific_name>Echinops telfairi</scientific_name>
+                            <common_name>Lesser hedgehog tenrec</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSETET00000022439</accession>
+                            <location>GeneScaffold_2472:195251-195352</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">echinops_telfairi</property>
+                        </clade>
+                        <clade branch_length="0.0756084">
+                          <name>ENSLAFG00000024632</name>
+                          <taxonomy>
+                            <id>9785</id>
+                            <scientific_name>Loxodonta africana</scientific_name>
+                            <common_name>Elephant</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSLAFT00000024526</accession>
+                            <location>scaffold_52:6068100-6068206</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">loxodonta_africana</property>
+                        </clade>
+                      </clade>
+                    </clade>
+                    <clade branch_length="0">
+                      <taxonomy>
+                        <id>9347</id>
+                        <scientific_name>Eutheria</scientific_name>
+                        <common_name>Placentals</common_name>
+                      </taxonomy>
+                      <clade branch_length="0">
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="4.77908e-05">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0.012445">
+                                  <confidence type="bootstrap">2</confidence>
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <confidence type="bootstrap">3</confidence>
+                                    <confidence type="duplication_confidence_score">1</confidence>
+                                    <taxonomy>
+                                      <id>10160</id>
+                                      <scientific_name>Octodon degus</scientific_name>
+                                      <common_name>Degu</common_name>
+                                    </taxonomy>
+                                    <events>
+                                      <type>speciation_or_duplication</type>
+                                      <duplications>1</duplications>
+                                    </events>
+                                    <clade branch_length="0.00606506">
+                                      <name>ENSODEG00000022271</name>
+                                      <taxonomy>
+                                        <id>10160</id>
+                                        <scientific_name>Octodon degus</scientific_name>
+                                        <common_name>Degu</common_name>
+                                      </taxonomy>
+                                      <sequence>
+                                        <accession source="compara">ENSODET00000029336</accession>
+                                        <name>MIR217-201</name>
+                                        <location>JH651563.1:13153868-13153976</location>
+                                      </sequence>
+                                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">octodon_degus</property>
+                                    </clade>
+                                    <clade branch_length="0.0494905">
+                                      <name>ENSODEG00000022272</name>
+                                      <taxonomy>
+                                        <id>10160</id>
+                                        <scientific_name>Octodon degus</scientific_name>
+                                        <common_name>Degu</common_name>
+                                      </taxonomy>
+                                      <sequence>
+                                        <accession source="compara">ENSODET00000029337</accession>
+                                        <location>JH651687.1:5439310-5439418</location>
+                                      </sequence>
+                                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">octodon_degus</property>
+                                    </clade>
+                                  </clade>
+                                  <clade branch_length="0.0111111">
+                                    <name>ENSCLAG00000021034</name>
+                                    <taxonomy>
+                                      <id>34839</id>
+                                      <scientific_name>Chinchilla lanigera</scientific_name>
+                                      <common_name>Long-tailed chinchilla</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSCLAT00000029208</accession>
+                                      <location>JH721884.1:27127720-27127825</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">chinchilla_lanigera</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0.00699946">
+                                  <name>ENSCPOG00000032939</name>
+                                  <taxonomy>
+                                    <id>10141</id>
+                                    <scientific_name>Cavia porcellus</scientific_name>
+                                    <common_name>Guinea Pig</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSCPOT00000041204</accession>
+                                    <location>DS562903.1:8653800-8653904</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">cavia_porcellus</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="0">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0.0144129">
+                                    <confidence type="bootstrap">4</confidence>
+                                    <taxonomy>
+                                      <id>9347</id>
+                                      <scientific_name>Eutheria</scientific_name>
+                                      <common_name>Placentals</common_name>
+                                    </taxonomy>
+                                    <clade branch_length="0.00372489">
+                                      <confidence type="bootstrap">2</confidence>
+                                      <taxonomy>
+                                        <id>9347</id>
+                                        <scientific_name>Eutheria</scientific_name>
+                                        <common_name>Placentals</common_name>
+                                      </taxonomy>
+                                      <clade branch_length="0">
+                                        <confidence type="bootstrap">5</confidence>
+                                        <taxonomy>
+                                          <id>9347</id>
+                                          <scientific_name>Eutheria</scientific_name>
+                                          <common_name>Placentals</common_name>
+                                        </taxonomy>
+                                        <clade branch_length="0.0198095">
+                                          <name>ENSMOCG00000008582</name>
+                                          <taxonomy>
+                                            <id>79684</id>
+                                            <scientific_name>Microtus ochrogaster</scientific_name>
+                                            <common_name>Prairie vole</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENSMOCT00000011053</accession>
+                                            <location>JH996452.1:483866-483971</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">microtus_ochrogaster</property>
+                                        </clade>
+                                        <clade branch_length="0.0710996">
+                                          <name>ENSMAUG00000002906</name>
+                                          <taxonomy>
+                                            <id>10036</id>
+                                            <scientific_name>Mesocricetus auratus</scientific_name>
+                                            <common_name>Golden Hamster</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENSMAUT00000003730</accession>
+                                            <location>KB708149.1:2397830-2397933</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">mesocricetus_auratus</property>
+                                        </clade>
+                                      </clade>
+                                      <clade branch_length="0.0165404">
+                                        <name>ENSRNOG00000035518</name>
+                                        <taxonomy>
+                                          <id>10116</id>
+                                          <scientific_name>Rattus norvegicus reference strain</scientific_name>
+                                          <common_name>Norway rat - BN/NHsdMcwi</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSRNOT00000053641</accession>
+                                          <location>14:106732485-106732589</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">rattus_norvegicus</property>
+                                      </clade>
+                                    </clade>
+                                    <clade branch_length="0.0241792">
+                                      <name>ENSNGAG00000006859</name>
+                                      <taxonomy>
+                                        <id>1026970</id>
+                                        <scientific_name>Nannospalax galili</scientific_name>
+                                        <common_name>Upper Galilee mountains blind mole rat</common_name>
+                                      </taxonomy>
+                                      <sequence>
+                                        <accession source="compara">ENSNGAT00000008322</accession>
+                                        <location>KL205289.1:1112645-1112751</location>
+                                      </sequence>
+                                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">nannospalax_galili</property>
+                                    </clade>
+                                  </clade>
+                                  <clade branch_length="0.0078093">
+                                    <name>ENSDORG00000021150</name>
+                                    <taxonomy>
+                                      <id>10020</id>
+                                      <scientific_name>Dipodomys ordii</scientific_name>
+                                      <common_name>Kangaroo rat</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSDORT00000020272</accession>
+                                      <location>KN672383.1:14763570-14763671</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">dipodomys_ordii</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0.0389047">
+                                  <name>ENSSTOG00000026360</name>
+                                  <taxonomy>
+                                    <id>43179</id>
+                                    <scientific_name>Ictidomys tridecemlineatus</scientific_name>
+                                    <common_name>Squirrel</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSSTOT00000020286</accession>
+                                    <location>JH393301.1:2270043-2270151</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ictidomys_tridecemlineatus</property>
+                                </clade>
+                              </clade>
+                            </clade>
+                            <clade branch_length="0.0212063">
+                              <name>ENSTBEG00000018000</name>
+                              <taxonomy>
+                                <id>37347</id>
+                                <scientific_name>Tupaia belangeri</scientific_name>
+                                <common_name>Tree Shrew</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSTBET00000018004</accession>
+                                <location>GeneScaffold_1551:200979-201087</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">tupaia_belangeri</property>
+                            </clade>
+                          </clade>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="0.00731338">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0.000440537">
+                                <name>ENSPCOG00000012626</name>
+                                <taxonomy>
+                                  <id>379532</id>
+                                  <scientific_name>Propithecus coquereli</scientific_name>
+                                  <common_name>Coquerel's sifaka</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSPCOT00000014366</accession>
+                                  <name>MIR217-201</name>
+                                  <location>KQ022681.1:799000-799101</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">propithecus_coquereli</property>
+                              </clade>
+                              <clade branch_length="0.0106706">
+                                <name>ENSMICG00000018923</name>
+                                <taxonomy>
+                                  <id>30608</id>
+                                  <scientific_name>Microcebus murinus</scientific_name>
+                                  <common_name>Mouse Lemur</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSMICT00000018923</accession>
+                                  <name>MIR217-201</name>
+                                  <location>4:3897779-3897880</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">microcebus_murinus</property>
+                              </clade>
+                            </clade>
+                            <clade branch_length="0.02602">
+                              <name>ENSOGAG00000030891</name>
+                              <taxonomy>
+                                <id>30611</id>
+                                <scientific_name>Otolemur garnettii</scientific_name>
+                                <common_name>Bushbaby</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSOGAT00000032780</accession>
+                                <location>GL873543.1:13711001-13711104</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">otolemur_garnettii</property>
+                            </clade>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0.00112707">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0.00182568">
+                            <taxonomy>
+                              <id>9347</id>
+                              <scientific_name>Eutheria</scientific_name>
+                              <common_name>Placentals</common_name>
+                            </taxonomy>
+                            <clade branch_length="0">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0.00050689">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <name>ENSCCAG00000019959</name>
+                                    <taxonomy>
+                                      <id>2715852</id>
+                                      <scientific_name>Cebus imitator</scientific_name>
+                                      <common_name>Panamanian white-faced capuchin</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSCCAT00000021955</accession>
+                                      <location>KV389569.1:4907772-4907876</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">cebus_imitator</property>
+                                  </clade>
+                                  <clade branch_length="0">
+                                    <name>ENSCJAG00000047574</name>
+                                    <taxonomy>
+                                      <id>9483</id>
+                                      <scientific_name>Callithrix jacchus</scientific_name>
+                                      <common_name>White-tufted-ear marmoset</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSCJAT00000077098</accession>
+                                      <location>14:56264038-56264141</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">callithrix_jacchus</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0">
+                                  <name>ENSANAG00000001191</name>
+                                  <taxonomy>
+                                    <id>37293</id>
+                                    <scientific_name>Aotus nancymaae</scientific_name>
+                                    <common_name>Ma's night monkey</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSANAT00000001206</accession>
+                                    <name>MIR217-201</name>
+                                    <location>KZ200915.1:3770351-3770455</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">aotus_nancymaae</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="0.0106042">
+                                <name>ENSSBOG00000011215</name>
+                                <taxonomy>
+                                  <id>39432</id>
+                                  <scientific_name>Saimiri boliviensis boliviensis</scientific_name>
+                                  <common_name>Bolivian squirrel monkey</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSSBOT00000012236</accession>
+                                  <name>MIR217-201</name>
+                                  <location>JH378111.1:25177633-25177737</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">saimiri_boliviensis_boliviensis</property>
+                              </clade>
+                            </clade>
+                            <clade branch_length="7.80275e-06">
+                              <taxonomy>
+                                <id>9347</id>
+                                <scientific_name>Eutheria</scientific_name>
+                                <common_name>Placentals</common_name>
+                              </taxonomy>
+                              <clade branch_length="0">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0.00056282">
+                                    <taxonomy>
+                                      <id>9347</id>
+                                      <scientific_name>Eutheria</scientific_name>
+                                      <common_name>Placentals</common_name>
+                                    </taxonomy>
+                                    <clade branch_length="0">
+                                      <confidence type="duplication_confidence_score">1</confidence>
+                                      <taxonomy>
+                                        <id>9595</id>
+                                        <scientific_name>Gorilla gorilla gorilla</scientific_name>
+                                        <common_name>Gorilla</common_name>
+                                      </taxonomy>
+                                      <events>
+                                        <type>speciation_or_duplication</type>
+                                        <duplications>1</duplications>
+                                      </events>
+                                      <clade branch_length="0">
+                                        <name>ENSGGOG00000036138</name>
+                                        <taxonomy>
+                                          <id>9595</id>
+                                          <scientific_name>Gorilla gorilla gorilla</scientific_name>
+                                          <common_name>Gorilla</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSGGOT00000035773</accession>
+                                          <name>ggo-mir-217-201</name>
+                                          <location>2A:51008427-51008536</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">gorilla_gorilla</property>
+                                      </clade>
+                                      <clade branch_length="0">
+                                        <name>ENSGGOG00000037150</name>
+                                        <taxonomy>
+                                          <id>9595</id>
+                                          <scientific_name>Gorilla gorilla gorilla</scientific_name>
+                                          <common_name>Gorilla</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSGGOT00000038042</accession>
+                                          <name>ggo-mir-217-201</name>
+                                          <location>2A:51003282-51003391</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">gorilla_gorilla</property>
+                                      </clade>
+                                    </clade>
+                                    <clade branch_length="0">
+                                      <taxonomy>
+                                        <id>9347</id>
+                                        <scientific_name>Eutheria</scientific_name>
+                                        <common_name>Placentals</common_name>
+                                      </taxonomy>
+                                      <clade branch_length="0">
+                                        <taxonomy>
+                                          <id>9347</id>
+                                          <scientific_name>Eutheria</scientific_name>
+                                          <common_name>Placentals</common_name>
+                                        </taxonomy>
+                                        <clade branch_length="0">
+                                          <name>ENSG00000207548</name>
+                                          <taxonomy>
+                                            <id>9606</id>
+                                            <scientific_name>Homo sapiens</scientific_name>
+                                            <common_name>Human</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENST00000384817</accession>
+                                            <name>MIR217-201</name>
+                                            <location>2:55982967-55983076</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">homo_sapiens</property>
+                                        </clade>
+                                        <clade branch_length="0">
+                                          <name>ENSPTRG00000027795</name>
+                                          <taxonomy>
+                                            <id>9598</id>
+                                            <scientific_name>Pan troglodytes</scientific_name>
+                                            <common_name>Chimpanzee</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENSPTRT00000054465</accession>
+                                            <name>ptr-mir-217-201</name>
+                                            <location>2A:57250914-57251023</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pan_troglodytes</property>
+                                        </clade>
+                                      </clade>
+                                      <clade branch_length="0">
+                                        <name>ENSPPAG00000005886</name>
+                                        <taxonomy>
+                                          <id>9597</id>
+                                          <scientific_name>Pan paniscus</scientific_name>
+                                          <common_name>Bonobo</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSPPAT00000006370</accession>
+                                          <name>ppa-mir-217-201</name>
+                                          <location>2A:57275614-57275723</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pan_paniscus</property>
+                                      </clade>
+                                    </clade>
+                                  </clade>
+                                  <clade branch_length="0.0105483">
+                                    <name>ENSPPYG00000022130</name>
+                                    <taxonomy>
+                                      <id>9601</id>
+                                      <scientific_name>Pongo abelii</scientific_name>
+                                      <common_name>Sumatran orangutan</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSPPYT00000025609</accession>
+                                      <location>2A:52563050-52563159</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pongo_abelii</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0">
+                                  <name>ENSNLEG00000035954</name>
+                                  <taxonomy>
+                                    <id>61853</id>
+                                    <scientific_name>Nomascus leucogenys</scientific_name>
+                                    <common_name>Gibbon</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSNLET00000043785</accession>
+                                    <location>14:24060858-24060965</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">nomascus_leucogenys</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="1.56055e-05">
+                                <taxonomy>
+                                  <id>9347</id>
+                                  <scientific_name>Eutheria</scientific_name>
+                                  <common_name>Placentals</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <confidence type="bootstrap">2</confidence>
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <name>ENSRROG00000003151</name>
+                                    <taxonomy>
+                                      <id>61622</id>
+                                      <scientific_name>Rhinopithecus roxellana</scientific_name>
+                                      <common_name>Golden snub-nosed monkey</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSRROT00000003512</accession>
+                                      <name>MIR217-201</name>
+                                      <location>KN297574.1:521895-521999</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">rhinopithecus_roxellana</property>
+                                  </clade>
+                                  <clade branch_length="0">
+                                    <name>ENSRBIG00000006777</name>
+                                    <taxonomy>
+                                      <id>61621</id>
+                                      <scientific_name>Rhinopithecus bieti</scientific_name>
+                                      <common_name>Black snub-nosed monkey</common_name>
+                                    </taxonomy>
+                                    <sequence>
+                                      <accession source="compara">ENSRBIT00000007326</accession>
+                                      <name>MIR217-201</name>
+                                      <location>MCGX01003264.1:215555-215659</location>
+                                    </sequence>
+                                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">rhinopithecus_bieti</property>
+                                  </clade>
+                                </clade>
+                                <clade branch_length="0">
+                                  <taxonomy>
+                                    <id>9347</id>
+                                    <scientific_name>Eutheria</scientific_name>
+                                    <common_name>Placentals</common_name>
+                                  </taxonomy>
+                                  <clade branch_length="0">
+                                    <taxonomy>
+                                      <id>9347</id>
+                                      <scientific_name>Eutheria</scientific_name>
+                                      <common_name>Placentals</common_name>
+                                    </taxonomy>
+                                    <clade branch_length="0">
+                                      <taxonomy>
+                                        <id>9347</id>
+                                        <scientific_name>Eutheria</scientific_name>
+                                        <common_name>Placentals</common_name>
+                                      </taxonomy>
+                                      <clade branch_length="0">
+                                        <name>ENSMNEG00000001597</name>
+                                        <taxonomy>
+                                          <id>9545</id>
+                                          <scientific_name>Macaca nemestrina</scientific_name>
+                                          <common_name>Pig-tailed macaque</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSMNET00000001698</accession>
+                                          <location>KQ006730.1:24318709-24318816</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">macaca_nemestrina</property>
+                                      </clade>
+                                      <clade branch_length="0">
+                                        <name>ENSMMUG00000032847</name>
+                                        <taxonomy>
+                                          <id>9544</id>
+                                          <scientific_name>Macaca mulatta</scientific_name>
+                                          <common_name>Macaque</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSMMUT00000048581</accession>
+                                          <name>mml-mir-217-201</name>
+                                          <location>13:52676731-52676840</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">macaca_mulatta</property>
+                                      </clade>
+                                    </clade>
+                                    <clade branch_length="0">
+                                      <name>ENSMFAG00000040908</name>
+                                      <taxonomy>
+                                        <id>9541</id>
+                                        <scientific_name>Macaca fascicularis</scientific_name>
+                                        <common_name>Crab-eating macaque</common_name>
+                                      </taxonomy>
+                                      <sequence>
+                                        <accession source="compara">ENSMFAT00000036592</accession>
+                                        <location>13:52003051-52003160</location>
+                                      </sequence>
+                                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">macaca_fascicularis</property>
+                                    </clade>
+                                  </clade>
+                                  <clade branch_length="0">
+                                    <taxonomy>
+                                      <id>9347</id>
+                                      <scientific_name>Eutheria</scientific_name>
+                                      <common_name>Placentals</common_name>
+                                    </taxonomy>
+                                    <clade branch_length="0">
+                                      <taxonomy>
+                                        <id>9347</id>
+                                        <scientific_name>Eutheria</scientific_name>
+                                        <common_name>Placentals</common_name>
+                                      </taxonomy>
+                                      <clade branch_length="0">
+                                        <taxonomy>
+                                          <id>9347</id>
+                                          <scientific_name>Eutheria</scientific_name>
+                                          <common_name>Placentals</common_name>
+                                        </taxonomy>
+                                        <clade branch_length="0">
+                                          <name>ENSMLEG00000016480</name>
+                                          <taxonomy>
+                                            <id>9568</id>
+                                            <scientific_name>Mandrillus leucophaeus</scientific_name>
+                                            <common_name>Drill</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENSMLET00000018017</accession>
+                                            <name>MIR217-201</name>
+                                            <location>KN977431.1:578388-578495</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">mandrillus_leucophaeus</property>
+                                        </clade>
+                                        <clade branch_length="0">
+                                          <name>ENSCATG00000003616</name>
+                                          <taxonomy>
+                                            <id>9531</id>
+                                            <scientific_name>Cercocebus atys</scientific_name>
+                                            <common_name>Sooty mangabey</common_name>
+                                          </taxonomy>
+                                          <sequence>
+                                            <accession source="compara">ENSCATT00000003910</accession>
+                                            <location>KQ012397.1:3008412-3008519</location>
+                                          </sequence>
+                                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">cercocebus_atys</property>
+                                        </clade>
+                                      </clade>
+                                      <clade branch_length="0">
+                                        <name>ENSPANG00000001184</name>
+                                        <taxonomy>
+                                          <id>9555</id>
+                                          <scientific_name>Papio anubis</scientific_name>
+                                          <common_name>Olive baboon</common_name>
+                                        </taxonomy>
+                                        <sequence>
+                                          <accession source="compara">ENSPANT00000001466</accession>
+                                          <location>14:56453229-56453338</location>
+                                        </sequence>
+                                        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">papio_anubis</property>
+                                      </clade>
+                                    </clade>
+                                    <clade branch_length="0">
+                                      <name>ENSCSAG00000025521</name>
+                                      <taxonomy>
+                                        <id>60711</id>
+                                        <scientific_name>Chlorocebus sabaeus</scientific_name>
+                                        <common_name>Vervet-AGM</common_name>
+                                      </taxonomy>
+                                      <sequence>
+                                        <accession source="compara">ENSCSAT00000025611</accession>
+                                        <location>14:50929084-50929195</location>
+                                      </sequence>
+                                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">chlorocebus_sabaeus</property>
+                                    </clade>
+                                  </clade>
+                                </clade>
+                              </clade>
+                            </clade>
+                          </clade>
+                          <clade branch_length="0.00929323">
+                            <name>ENSTSYG00000032640</name>
+                            <taxonomy>
+                              <id>1868482</id>
+                              <scientific_name>Carlito syrichta</scientific_name>
+                              <common_name>Tarsier</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSTSYT00000043169</accession>
+                              <name>MIR217-201</name>
+                              <location>KE948369.1:742140-742245</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">carlito_syrichta</property>
+                          </clade>
+                        </clade>
+                      </clade>
+                      <clade branch_length="0.00250994">
+                        <taxonomy>
+                          <id>9347</id>
+                          <scientific_name>Eutheria</scientific_name>
+                          <common_name>Placentals</common_name>
+                        </taxonomy>
+                        <clade branch_length="0">
+                          <taxonomy>
+                            <id>9347</id>
+                            <scientific_name>Eutheria</scientific_name>
+                            <common_name>Placentals</common_name>
+                          </taxonomy>
+                          <clade branch_length="0.0211589">
+                            <name>ENSOCUG00000019309</name>
+                            <taxonomy>
+                              <id>9986</id>
+                              <scientific_name>Oryctolagus cuniculus</scientific_name>
+                              <common_name>Rabbit</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSOCUT00000019309</accession>
+                              <name>ocu-mir-217-201</name>
+                              <location>2:130108838-130108898</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">oryctolagus_cuniculus</property>
+                          </clade>
+                          <clade branch_length="0.0668904">
+                            <name>ENSPCAG00000019851</name>
+                            <taxonomy>
+                              <id>9813</id>
+                              <scientific_name>Procavia capensis</scientific_name>
+                              <common_name>Hyrax</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSPCAT00000019009</accession>
+                              <location>scaffold_135010:1321-1421</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">procavia_capensis</property>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0.0565353">
+                          <name>ENSEEUG00000016013</name>
+                          <taxonomy>
+                            <id>9365</id>
+                            <scientific_name>Erinaceus europaeus</scientific_name>
+                            <common_name>Hedgehog</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSEEUT00000016017</accession>
+                            <location>scaffold_304608:22915-23026</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">erinaceus_europaeus</property>
+                        </clade>
+                      </clade>
+                    </clade>
+                  </clade>
+                </clade>
+                <clade branch_length="0.0100856">
+                  <name>ENSMLUG00000018039</name>
+                  <taxonomy>
+                    <id>59463</id>
+                    <scientific_name>Myotis lucifugus</scientific_name>
+                    <common_name>Microbat</common_name>
+                  </taxonomy>
+                  <sequence>
+                    <accession source="compara">ENSMLUT00000018043</accession>
+                    <location>GL429773:6635512-6635621</location>
+                  </sequence>
+                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">myotis_lucifugus</property>
+                </clade>
+              </clade>
+              <clade branch_length="0.0240159">
+                <taxonomy>
+                  <id>9263</id>
+                  <scientific_name>Marsupialia</scientific_name>
+                  <common_name>Marsupials</common_name>
+                </taxonomy>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>38609</id>
+                    <scientific_name>Diprotodontia</scientific_name>
+                  </taxonomy>
+                  <clade branch_length="0.000575692">
+                    <name>ENSVURG00010013892</name>
+                    <taxonomy>
+                      <id>29139</id>
+                      <scientific_name>Vombatus ursinus</scientific_name>
+                      <common_name>Common wombat</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSVURT00010020688</accession>
+                      <name>MIR217-201</name>
+                      <location>UNPS02014778.1:36030851-36030955</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">vombatus_ursinus</property>
+                  </clade>
+                  <clade branch_length="0.0116194">
+                    <name>ENSMEUG00000017117</name>
+                    <taxonomy>
+                      <id>9315</id>
+                      <scientific_name>Notamacropus eugenii</scientific_name>
+                      <common_name>Wallaby</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSMEUT00000017169</accession>
+                      <location>Scaffold6573:39121-39202</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">notamacropus_eugenii</property>
+                  </clade>
+                </clade>
+                <clade branch_length="0">
+                  <name>ENSMODG00000025889</name>
+                  <taxonomy>
+                    <id>13616</id>
+                    <scientific_name>Monodelphis domestica</scientific_name>
+                    <common_name>Opossum</common_name>
+                  </taxonomy>
+                  <sequence>
+                    <accession source="compara">ENSMODT00000040349</accession>
+                    <name>mdo-mir-217-201</name>
+                    <location>1:638507640-638507721</location>
+                  </sequence>
+                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">monodelphis_domestica</property>
+                </clade>
+              </clade>
+            </clade>
+          </clade>
+          <clade branch_length="0">
+            <taxonomy>
+              <id>32523</id>
+              <scientific_name>Tetrapoda</scientific_name>
+              <common_name>Tetrapods</common_name>
+            </taxonomy>
+            <clade branch_length="0.0132318">
+              <confidence type="bootstrap">5</confidence>
+              <taxonomy>
+                <id>32561</id>
+                <scientific_name>Sauria</scientific_name>
+                <common_name>Reptiles and birds</common_name>
+              </taxonomy>
+              <clade branch_length="0.0236882">
+                <taxonomy>
+                  <id>32561</id>
+                  <scientific_name>Sauria</scientific_name>
+                  <common_name>Reptiles and birds</common_name>
+                </taxonomy>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>32561</id>
+                    <scientific_name>Sauria</scientific_name>
+                    <common_name>Reptiles and birds</common_name>
+                  </taxonomy>
+                  <clade branch_length="0">
+                    <confidence type="bootstrap">7</confidence>
+                    <taxonomy>
+                      <id>32561</id>
+                      <scientific_name>Sauria</scientific_name>
+                      <common_name>Reptiles and birds</common_name>
+                    </taxonomy>
+                    <clade branch_length="0">
+                      <name>ENSLLTG00000010885</name>
+                      <taxonomy>
+                        <id>8630</id>
+                        <scientific_name>Laticauda laticaudata</scientific_name>
+                        <common_name>Blue-ringed sea krait</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSLLTT00000014746</accession>
+                        <location>BHFT01028774.1:4180-4280</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">laticauda_laticaudata</property>
+                    </clade>
+                    <clade branch_length="0">
+                      <name>ENSPTXG00000009397</name>
+                      <taxonomy>
+                        <id>8673</id>
+                        <scientific_name>Pseudonaja textilis</scientific_name>
+                        <common_name>Eastern brown snake</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSPTXT00000013895</accession>
+                        <name>MIR217-201</name>
+                        <location>ULFR01000006.1:33177343-33177443</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pseudonaja_textilis</property>
+                    </clade>
+                  </clade>
+                  <clade branch_length="0">
+                    <name>ENSNSUG00000015656</name>
+                    <taxonomy>
+                      <id>8663</id>
+                      <scientific_name>Notechis scutatus</scientific_name>
+                      <common_name>Mainland tiger snake</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSNSUT00000022920</accession>
+                      <location>ULFQ01000086.1:1414658-1414758</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">notechis_scutatus</property>
+                  </clade>
+                </clade>
+                <clade branch_length="0">
+                  <name>ENSNNAG00000002650</name>
+                  <taxonomy>
+                    <id>35670</id>
+                    <scientific_name>Naja naja</scientific_name>
+                    <common_name>Indian cobra</common_name>
+                  </taxonomy>
+                  <sequence>
+                    <accession source="compara">ENSNNAT00000004087</accession>
+                    <location>1:37012242-37012342</location>
+                  </sequence>
+                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">naja_naja</property>
+                </clade>
+              </clade>
+              <clade branch_length="0.0452773">
+                <name>ENSACAG00000018761</name>
+                <taxonomy>
+                  <id>28377</id>
+                  <scientific_name>Anolis carolinensis reference strain</scientific_name>
+                  <common_name>Green anole</common_name>
+                </taxonomy>
+                <sequence>
+                  <accession source="compara">ENSACAT00000018833</accession>
+                  <location>1:256233867-256233953</location>
+                </sequence>
+                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">anolis_carolinensis</property>
+              </clade>
+            </clade>
+            <clade branch_length="0.139032">
+              <name>ENSXETG00000029133</name>
+              <taxonomy>
+                <id>8364</id>
+                <scientific_name>Xenopus tropicalis</scientific_name>
+                <common_name>Tropical clawed frog</common_name>
+              </taxonomy>
+              <sequence>
+                <accession source="compara">ENSXETT00000059333</accession>
+                <location>5:35366455-35366537</location>
+              </sequence>
+              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">xenopus_tropicalis</property>
+            </clade>
+          </clade>
+        </clade>
+        <clade branch_length="0">
+          <confidence type="duplication_confidence_score">0</confidence>
+          <taxonomy>
+            <id>117571</id>
+            <scientific_name>Euteleostomi</scientific_name>
+            <common_name>Bony vertebrates</common_name>
+          </taxonomy>
+          <events>
+            <type>speciation_or_duplication</type>
+            <duplications>1</duplications>
+          </events>
+          <property datatype="xsd:int" ref="Compara:dubious_duplication" applies_to="clade">dubious_duplication</property>
+          <clade branch_length="0">
+            <taxonomy>
+              <id>117571</id>
+              <scientific_name>Euteleostomi</scientific_name>
+              <common_name>Bony vertebrates</common_name>
+            </taxonomy>
+            <clade branch_length="0.00684797">
+              <taxonomy>
+                <id>32561</id>
+                <scientific_name>Sauria</scientific_name>
+                <common_name>Reptiles and birds</common_name>
+              </taxonomy>
+              <clade branch_length="0">
+                <taxonomy>
+                  <id>32561</id>
+                  <scientific_name>Sauria</scientific_name>
+                  <common_name>Reptiles and birds</common_name>
+                </taxonomy>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>32561</id>
+                    <scientific_name>Sauria</scientific_name>
+                    <common_name>Reptiles and birds</common_name>
+                  </taxonomy>
+                  <clade branch_length="0.00268175">
+                    <name>ENSCPRG00005013791</name>
+                    <taxonomy>
+                      <id>8502</id>
+                      <scientific_name>Crocodylus porosus</scientific_name>
+                      <common_name>Australian saltwater crocodile</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSCPRT00005023119</accession>
+                      <location>MDVP01000061.1:44420924-44421019</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">crocodylus_porosus</property>
+                  </clade>
+                  <clade branch_length="0.0195405">
+                    <name>ENSPSIG00000019898</name>
+                    <taxonomy>
+                      <id>13735</id>
+                      <scientific_name>Pelodiscus sinensis</scientific_name>
+                      <common_name>Chinese softshell turtle</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSPSIT00000022755</accession>
+                      <location>JH208533.1:6218625-6218731</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pelodiscus_sinensis</property>
+                  </clade>
+                </clade>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>32561</id>
+                    <scientific_name>Sauria</scientific_name>
+                    <common_name>Reptiles and birds</common_name>
+                  </taxonomy>
+                  <clade branch_length="0">
+                    <taxonomy>
+                      <id>32561</id>
+                      <scientific_name>Sauria</scientific_name>
+                      <common_name>Reptiles and birds</common_name>
+                    </taxonomy>
+                    <clade branch_length="0.000620091">
+                      <name>ENSMGAG00000000250</name>
+                      <taxonomy>
+                        <id>9103</id>
+                        <scientific_name>Meleagris gallopavo reference strain</scientific_name>
+                        <common_name>Turkey</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSMGAT00000000250</accession>
+                        <location>2:1499378-1499473</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">meleagris_gallopavo</property>
+                    </clade>
+                    <clade branch_length="0.010491">
+                      <name>ENSGALG00010019980</name>
+                      <taxonomy>
+                        <id>9031</id>
+                        <scientific_name>Gallus gallus reference breed</scientific_name>
+                        <common_name>Chicken</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSGALT00010048236</accession>
+                        <location>3:403646-403752</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">gallus_gallus</property>
+                    </clade>
+                  </clade>
+                  <clade branch_length="0">
+                    <taxonomy>
+                      <id>32561</id>
+                      <scientific_name>Sauria</scientific_name>
+                      <common_name>Reptiles and birds</common_name>
+                    </taxonomy>
+                    <clade branch_length="0">
+                      <name>ENSABRG00000020907</name>
+                      <taxonomy>
+                        <id>132585</id>
+                        <scientific_name>Anser brachyrhynchus</scientific_name>
+                        <common_name>Pink-footed goose</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSABRT00000034932</accession>
+                        <location>NXHY01000118.1:2347116-2347211</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">anser_brachyrhynchus</property>
+                    </clade>
+                    <clade branch_length="0">
+                      <name>ENSAPLG00000000337</name>
+                      <taxonomy>
+                        <id>8840</id>
+                        <scientific_name>Anas platyrhynchos platyrhynchos</scientific_name>
+                        <common_name>Duck</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSAPLT00000000337</accession>
+                        <name>MIR217-201</name>
+                        <location>3:6534968-6535063</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">anas_platyrhynchos_platyrhynchos</property>
+                    </clade>
+                  </clade>
+                </clade>
+              </clade>
+              <clade branch_length="0.0101788">
+                <taxonomy>
+                  <id>32561</id>
+                  <scientific_name>Sauria</scientific_name>
+                  <common_name>Reptiles and birds</common_name>
+                </taxonomy>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>32561</id>
+                    <scientific_name>Sauria</scientific_name>
+                    <common_name>Reptiles and birds</common_name>
+                  </taxonomy>
+                  <clade branch_length="0">
+                    <name>ENSSCAG00000014074</name>
+                    <taxonomy>
+                      <id>9135</id>
+                      <scientific_name>Serinus canaria</scientific_name>
+                      <common_name>Common canary</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSSCAT00000021769</accession>
+                      <name>MIR217-201</name>
+                      <location>HG009232.1:6964362-6964434</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">serinus_canaria</property>
+                  </clade>
+                  <clade branch_length="0">
+                    <name>ENSPMJG00000014429</name>
+                    <taxonomy>
+                      <id>9157</id>
+                      <scientific_name>Parus major</scientific_name>
+                      <common_name>Great Tit</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSPMJT00000025140</accession>
+                      <location>3:1834294-1834366</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">parus_major</property>
+                  </clade>
+                </clade>
+                <clade branch_length="0">
+                  <taxonomy>
+                    <id>32561</id>
+                    <scientific_name>Sauria</scientific_name>
+                    <common_name>Reptiles and birds</common_name>
+                  </taxonomy>
+                  <clade branch_length="0">
+                    <taxonomy>
+                      <id>32561</id>
+                      <scientific_name>Sauria</scientific_name>
+                      <common_name>Reptiles and birds</common_name>
+                    </taxonomy>
+                    <clade branch_length="0">
+                      <name>ENSTGUG00000017637</name>
+                      <taxonomy>
+                        <id>59729</id>
+                        <scientific_name>Taeniopygia guttata</scientific_name>
+                        <common_name>Zebra finch</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSTGUT00000018324</accession>
+                        <location>3:86148040-86148112</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">taeniopygia_guttata</property>
+                    </clade>
+                    <clade branch_length="0">
+                      <name>ENSGFOG00000004169</name>
+                      <taxonomy>
+                        <id>48883</id>
+                        <scientific_name>Geospiza fortis</scientific_name>
+                        <common_name>Medium ground-finch</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSGFOT00000006019</accession>
+                        <location>JH739931.1:3885374-3885446</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">geospiza_fortis</property>
+                    </clade>
+                  </clade>
+                  <clade branch_length="0">
+                    <name>ENSFALG00000016107</name>
+                    <taxonomy>
+                      <id>59894</id>
+                      <scientific_name>Ficedula albicollis</scientific_name>
+                      <common_name>Collared flycatcher</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSFALT00000016787</accession>
+                      <location>3:1097494-1097566</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ficedula_albicollis</property>
+                  </clade>
+                </clade>
+              </clade>
+            </clade>
+            <clade branch_length="0.093054">
+              <confidence type="bootstrap">2</confidence>
+              <taxonomy>
+                <id>41665</id>
+                <scientific_name>Neopterygii</scientific_name>
+                <common_name>Ray-finned fishes</common_name>
+              </taxonomy>
+              <clade branch_length="0">
+                <confidence type="bootstrap">4</confidence>
+                <taxonomy>
+                  <id>186625</id>
+                  <scientific_name>Clupeocephala</scientific_name>
+                  <common_name>Teleost fishes</common_name>
+                </taxonomy>
+                <clade branch_length="0.0480758">
+                  <confidence type="bootstrap">4</confidence>
+                  <taxonomy>
+                    <id>186625</id>
+                    <scientific_name>Clupeocephala</scientific_name>
+                    <common_name>Teleost fishes</common_name>
+                  </taxonomy>
+                  <clade branch_length="0.00628897">
+                    <taxonomy>
+                      <id>186625</id>
+                      <scientific_name>Clupeocephala</scientific_name>
+                      <common_name>Teleost fishes</common_name>
+                    </taxonomy>
+                    <clade branch_length="0">
+                      <taxonomy>
+                        <id>186625</id>
+                        <scientific_name>Clupeocephala</scientific_name>
+                        <common_name>Teleost fishes</common_name>
+                      </taxonomy>
+                      <clade branch_length="0.00746273">
+                        <confidence type="bootstrap">3</confidence>
+                        <taxonomy>
+                          <id>186625</id>
+                          <scientific_name>Clupeocephala</scientific_name>
+                          <common_name>Teleost fishes</common_name>
+                        </taxonomy>
+                        <clade branch_length="0.0410376">
+                          <confidence type="bootstrap">80</confidence>
+                          <taxonomy>
+                            <id>186625</id>
+                            <scientific_name>Clupeocephala</scientific_name>
+                            <common_name>Teleost fishes</common_name>
+                          </taxonomy>
+                          <clade branch_length="0.00410172">
+                            <name>ENSTNIG00000019984</name>
+                            <taxonomy>
+                              <id>99883</id>
+                              <scientific_name>Tetraodon nigroviridis</scientific_name>
+                              <common_name>Tetraodon</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSTNIT00000023496</accession>
+                              <name>tni-mir-217-201</name>
+                              <location>17:5748304-5748392</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">tetraodon_nigroviridis</property>
+                          </clade>
+                          <clade branch_length="0.0296061">
+                            <name>ENSTRUG00000018834</name>
+                            <taxonomy>
+                              <id>31033</id>
+                              <scientific_name>Takifugu rubripes</scientific_name>
+                              <common_name>Fugu</common_name>
+                            </taxonomy>
+                            <sequence>
+                              <accession source="compara">ENSTRUT00000048152</accession>
+                              <name>mir217-201</name>
+                              <location>4:12072959-12073058</location>
+                            </sequence>
+                            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">takifugu_rubripes</property>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0.0705728">
+                          <name>ENSPFOG00000021144</name>
+                          <taxonomy>
+                            <id>48698</id>
+                            <scientific_name>Poecilia formosa</scientific_name>
+                            <common_name>Amazon molly</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSPFOT00000021294</accession>
+                            <location>KI519798.1:909435-909533</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">poecilia_formosa</property>
+                        </clade>
+                      </clade>
+                      <clade branch_length="0.0257627">
+                        <taxonomy>
+                          <id>186625</id>
+                          <scientific_name>Clupeocephala</scientific_name>
+                          <common_name>Teleost fishes</common_name>
+                        </taxonomy>
+                        <clade branch_length="0">
+                          <taxonomy>
+                            <id>186625</id>
+                            <scientific_name>Clupeocephala</scientific_name>
+                            <common_name>Teleost fishes</common_name>
+                          </taxonomy>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>186625</id>
+                              <scientific_name>Clupeocephala</scientific_name>
+                              <common_name>Teleost fishes</common_name>
+                            </taxonomy>
+                            <clade branch_length="0">
+                              <name>ENSHBUG00000022103</name>
+                              <taxonomy>
+                                <id>8153</id>
+                                <scientific_name>Haplochromis burtoni</scientific_name>
+                                <common_name>Burton's mouthbrooder</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSHBUT00000035691</accession>
+                                <location>JH425327.1:1191738-1191796</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">haplochromis_burtoni</property>
+                            </clade>
+                            <clade branch_length="0">
+                              <name>ENSPNYG00000012605</name>
+                              <taxonomy>
+                                <id>303518</id>
+                                <scientific_name>Pundamilia nyererei</scientific_name>
+                                <common_name>Makobe Island cichlid</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSPNYT00000017097</accession>
+                                <location>JH419354.1:1379631-1379689</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">pundamilia_nyererei</property>
+                            </clade>
+                          </clade>
+                          <clade branch_length="0">
+                            <taxonomy>
+                              <id>186625</id>
+                              <scientific_name>Clupeocephala</scientific_name>
+                              <common_name>Teleost fishes</common_name>
+                            </taxonomy>
+                            <clade branch_length="0">
+                              <taxonomy>
+                                <id>186625</id>
+                                <scientific_name>Clupeocephala</scientific_name>
+                                <common_name>Teleost fishes</common_name>
+                              </taxonomy>
+                              <clade branch_length="0">
+                                <confidence type="bootstrap">2</confidence>
+                                <taxonomy>
+                                  <id>186625</id>
+                                  <scientific_name>Clupeocephala</scientific_name>
+                                  <common_name>Teleost fishes</common_name>
+                                </taxonomy>
+                                <clade branch_length="0">
+                                  <name>ENSACLG00000011769</name>
+                                  <taxonomy>
+                                    <id>8154</id>
+                                    <scientific_name>Astatotilapia calliptera reference strain</scientific_name>
+                                    <common_name>Eastern happy</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSACLT00000017664</accession>
+                                    <location>13:15205553-15205611</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">astatotilapia_calliptera</property>
+                                </clade>
+                                <clade branch_length="0">
+                                  <name>ENSONIG00000021873</name>
+                                  <taxonomy>
+                                    <id>8128</id>
+                                    <scientific_name>Oreochromis niloticus</scientific_name>
+                                    <common_name>Nile tilapia</common_name>
+                                  </taxonomy>
+                                  <sequence>
+                                    <accession source="compara">ENSONIT00000027199</accession>
+                                    <name>oni-mir-217-201</name>
+                                    <location>LG13:17237893-17237951</location>
+                                  </sequence>
+                                  <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">oreochromis_niloticus</property>
+                                </clade>
+                              </clade>
+                              <clade branch_length="0">
+                                <name>ENSACIG00000020762</name>
+                                <taxonomy>
+                                  <id>61819</id>
+                                  <scientific_name>Amphilophus citrinellus</scientific_name>
+                                  <common_name>Midas cichlid</common_name>
+                                </taxonomy>
+                                <sequence>
+                                  <accession source="compara">ENSACIT00000027516</accession>
+                                  <location>CCOE01000564.1:1445271-1445329</location>
+                                </sequence>
+                                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">amphilophus_citrinellus</property>
+                              </clade>
+                            </clade>
+                            <clade branch_length="0">
+                              <name>ENSMZEG00005027648</name>
+                              <taxonomy>
+                                <id>106582</id>
+                                <scientific_name>Maylandia zebra</scientific_name>
+                                <common_name>Zebra mbuna</common_name>
+                              </taxonomy>
+                              <sequence>
+                                <accession source="compara">ENSMZET00005038405</accession>
+                                <location>LG13:15794173-15794231</location>
+                              </sequence>
+                              <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">maylandia_zebra</property>
+                            </clade>
+                          </clade>
+                        </clade>
+                        <clade branch_length="0">
+                          <name>ENSNBRG00000020124</name>
+                          <taxonomy>
+                            <id>32507</id>
+                            <scientific_name>Neolamprologus brichardi</scientific_name>
+                            <common_name>Lyretail cichlid</common_name>
+                          </taxonomy>
+                          <sequence>
+                            <accession source="compara">ENSNBRT00000027041</accession>
+                            <location>JH422278.1:13972102-13972160</location>
+                          </sequence>
+                          <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">neolamprologus_brichardi</property>
+                        </clade>
+                      </clade>
+                    </clade>
+                    <clade branch_length="0.00310406">
+                      <name>ENSSLDG00000020440</name>
+                      <taxonomy>
+                        <id>1841481</id>
+                        <scientific_name>Seriola lalandi dorsalis</scientific_name>
+                        <common_name>Yellowtail amberjack</common_name>
+                      </taxonomy>
+                      <sequence>
+                        <accession source="compara">ENSSLDT00000027110</accession>
+                        <location>PEQF01098764.1:975723-975808</location>
+                      </sequence>
+                      <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">seriola_lalandi_dorsalis</property>
+                    </clade>
+                  </clade>
+                  <clade branch_length="0.0647774">
+                    <name>ENSGMOG00000021818</name>
+                    <taxonomy>
+                      <id>8049</id>
+                      <scientific_name>Gadus morhua</scientific_name>
+                      <common_name>Atlantic cod</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSGMOT00000023823</accession>
+                      <location>15:11143444-11143501</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">gadus_morhua</property>
+                  </clade>
+                </clade>
+                <clade branch_length="0.0541196">
+                  <confidence type="bootstrap">90</confidence>
+                  <taxonomy>
+                    <id>186625</id>
+                    <scientific_name>Clupeocephala</scientific_name>
+                    <common_name>Teleost fishes</common_name>
+                  </taxonomy>
+                  <clade branch_length="0.0144827">
+                    <name>ENSDARG00000083272</name>
+                    <taxonomy>
+                      <id>7955</id>
+                      <scientific_name>Danio rerio</scientific_name>
+                      <common_name>Zebrafish</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSDART00000117535</accession>
+                      <name>dre-mir-217.1-201</name>
+                      <location>22:28779715-28779812</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">danio_rerio</property>
+                  </clade>
+                  <clade branch_length="0.0410729">
+                    <name>ENSCCRG00000031353</name>
+                    <taxonomy>
+                      <id>630221</id>
+                      <scientific_name>Cyprinus carpio carpio</scientific_name>
+                      <common_name>Common carp</common_name>
+                    </taxonomy>
+                    <sequence>
+                      <accession source="compara">ENSCCRT00000063368</accession>
+                      <location>CAJNDQ010000006.1:8119514-8119611</location>
+                    </sequence>
+                    <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">cyprinus_carpio_carpio</property>
+                  </clade>
+                </clade>
+              </clade>
+              <clade branch_length="0.056008">
+                <name>ENSLOCG00000019388</name>
+                <taxonomy>
+                  <id>7918</id>
+                  <scientific_name>Lepisosteus oculatus</scientific_name>
+                  <common_name>Spotted gar</common_name>
+                </taxonomy>
+                <sequence>
+                  <accession source="compara">ENSLOCT00000023530</accession>
+                  <location>LG16:3942523-3942617</location>
+                </sequence>
+                <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">lepisosteus_oculatus</property>
+              </clade>
+            </clade>
+          </clade>
+          <clade branch_length="0.0033176">
+            <name>ENSOANG00000050363</name>
+            <taxonomy>
+              <id>9258</id>
+              <scientific_name>Ornithorhynchus anatinus</scientific_name>
+              <common_name>Platypus</common_name>
+            </taxonomy>
+            <sequence>
+              <accession source="compara">ENSOANT00000063640</accession>
+              <name>oan-mir-217-201</name>
+              <location>9:56814298-56814404</location>
+            </sequence>
+            <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ornithorhynchus_anatinus</property>
+          </clade>
+        </clade>
+      </clade>
+      <clade branch_length="0.280287">
+        <name>ENSCSAVG00000012046</name>
+        <taxonomy>
+          <id>51511</id>
+          <scientific_name>Ciona savignyi</scientific_name>
+          <common_name>C.savignyi</common_name>
+        </taxonomy>
+        <sequence>
+          <accession source="compara">ENSCSAVT00000020587</accession>
+          <name>csa-mir-217-201</name>
+          <location>reftig_16:3925235-3925336</location>
+        </sequence>
+        <property datatype="xsd:string" ref="Compara:genome_db_name" applies_to="clade">ciona_savignyi</property>
+      </clade>
+    </clade>
+    <property datatype="xsd:string" ref="Compara:gene_tree_stable_id" applies_to="phylogeny">RF00673</property>
+  </phylogeny>
+</phyloxml>

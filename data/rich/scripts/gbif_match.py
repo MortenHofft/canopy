@@ -11,6 +11,7 @@ Output TSV columns: input, query, matchType, status, rank, usageKey, scientificN
 A hit counts as "matched" when matchType is EXACT or FUZZY (HIGHERRANK/NONE count as unmatched);
 "species_exact" additionally requires rank SPECIES and matchType EXACT. Summary printed to stdout.
 """
+import http.client
 import json
 import re
 import sys
@@ -21,14 +22,29 @@ import urllib.request
 API = 'https://api.gbif.org/v1/'
 
 
+_CONN = [None]
+
+
 def get(url):
-    req = urllib.request.Request(url, headers={'User-Agent': 'gbif-phylo-test-data/0.1'})
-    for attempt in range(3):
+    """GET with one persistent HTTPS connection (keep-alive), reconnecting on errors."""
+    path = url[len('https://api.gbif.org'):]
+    for attempt in range(4):
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return json.load(r)
+            if _CONN[0] is None:
+                _CONN[0] = http.client.HTTPSConnection('api.gbif.org', timeout=20)
+            _CONN[0].request('GET', path, headers={'User-Agent': 'gbif-phylo-test-data/0.1', 'Accept': 'application/json'})
+            r = _CONN[0].getresponse()
+            body = r.read()
+            if r.status == 200:
+                return json.loads(body)
         except Exception:
-            time.sleep(1 + attempt)
+            pass
+        try:
+            _CONN[0].close()
+        except Exception:
+            pass
+        _CONN[0] = None
+        time.sleep(1 + attempt)
     return None
 
 
@@ -66,6 +82,7 @@ def main(a):
             tot += 1
             if not j:
                 f.write('\t'.join([nm, q, 'ERROR', '', '', '', '', '']) + '\n')
+                f.flush()
                 continue
             mt = j.get('matchType', 'NONE')
             key = j.get('usageKey', '')
@@ -80,6 +97,9 @@ def main(a):
                 occ = c.get('count', '') if c else ''
             f.write('\t'.join(str(x) for x in [nm, q, mt, j.get('status', ''), j.get('rank', ''), key,
                                                  j.get('scientificName', ''), occ]) + '\n')
+            f.flush()
+            if tot % 25 == 0:
+                print('progress', tot, file=sys.stderr, flush=True)
     print(json.dumps({'sampled': tot, 'matched_exact_or_fuzzy': matched, 'species_exact': species_exact,
                       'match_rate': round(matched / tot, 3) if tot else None,
                       'species_exact_rate': round(species_exact / tot, 3) if tot else None}))

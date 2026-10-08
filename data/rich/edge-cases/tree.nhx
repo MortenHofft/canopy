@@ -1,0 +1,1 @@
+((Human_ENSP1:0.1[&&NHX:S=Homo sapiens:T=9606:D=N],Mouse_ENSP2:0.12[&&NHX:S=Mus musculus:T=10090:D=N])[&&NHX:S=Euarchontoglires:D=Y:B=100],Chicken_ENSP3:0.3[&&NHX:S=Gallus gallus:T=9031:D=N])[&&NHX:S=Amniota:D=N];

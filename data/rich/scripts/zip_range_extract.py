@@ -6,7 +6,7 @@ Usage (python3 -I):
   zip_range_extract.py list    <url>
   zip_range_extract.py extract <url> <outdir> <member> [<member> ...]
 """
-import io, os, subprocess, sys, zipfile
+import io, os, subprocess, sys, time, zipfile
 
 
 class RangeFile(io.RawIOBase):
@@ -29,11 +29,12 @@ class RangeFile(io.RawIOBase):
             n = self.size - self.pos
         if n <= 0:
             return b''
-        for attempt in range(4):
+        for attempt in range(10):
             r = subprocess.run(['curl', '-sSL', '-m', '120', '-r', '%d-%d' % (self.pos, self.pos + n - 1), self.url],
                                capture_output=True)
             if len(r.stdout) == n:
                 break
+            time.sleep(2 + attempt)
         self.pos += len(r.stdout)
         return r.stdout
 

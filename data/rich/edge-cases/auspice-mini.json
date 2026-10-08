@@ -1,0 +1,27 @@
+{
+  "version": "v2",
+  "meta": {
+    "title": "HAND-MADE mini Auspice v2 dataset (not real data)",
+    "updated": "2026-10-08",
+    "colorings": [
+      {"key": "country", "title": "Country", "type": "categorical"},
+      {"key": "num_date", "title": "Date", "type": "continuous"}
+    ],
+    "geo_resolutions": [{"key": "country"}],
+    "panels": ["tree", "map"]
+  },
+  "tree": {
+    "name": "NODE_0000000",
+    "node_attrs": {"div": 0, "num_date": {"value": 2010.0, "confidence": [2008.5, 2011.0]}},
+    "children": [
+      {"name": "NODE_0000001",
+       "node_attrs": {"div": 0.002, "num_date": {"value": 2012.1, "confidence": [2011.0, 2013.0]}, "country": {"value": "Denmark", "confidence": {"Denmark": 0.9, "Sweden": 0.1}}},
+       "branch_attrs": {"mutations": {"nuc": ["A100G"]}},
+       "children": [
+         {"name": "tip_DK_1", "node_attrs": {"div": 0.004, "num_date": {"value": 2015.2}, "country": {"value": "Denmark"}, "author": {"value": "Doe et al"}}},
+         {"name": "tip_SE_1", "node_attrs": {"div": 0.0035, "num_date": {"value": 2014.8}, "country": {"value": "Sweden"}}}
+       ]},
+      {"name": "tip_NO_1", "node_attrs": {"div": 0.006, "num_date": {"value": 2016.0}, "country": {"value": "Norway"}}}
+    ]
+  }
+}
