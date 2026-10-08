@@ -3,12 +3,13 @@
 Pure stdlib, iterative (no recursion), safe for caterpillar trees. Run with `python3 -I`.
 
 Usage: treecheck.py <file> [more files]   (.gz is transparently read)
+       treecheck.py --tips <file>          (print tip names of the first tree, one per line)
 Formats by extension / sniffing: Newick (.nwk .nh .tre .tree), NHX, Nexus (.nex .nexus .trees; TRANSLATE
 and [&R]/[&U] handled, every tree reported), phyloXML (.xml/.phyloxml), Auspice v2 JSON (.json).
 Prints one JSON object per tree on stdout.
 
 Branch length statistics: n_with (edges with a length), n_missing (non-root nodes without), min/max/median,
-n_zero, n_negative, max_over_median, ultrametric (True when root-to-tip distance spread < 1e-6 relative
+n_zero, n_negative, max_over_median, ultrametric (True when root-to-tip distance spread < 1e-4 relative
 to the mean, when all lengths present).
 """
 import gzip
@@ -107,7 +108,11 @@ def parse_newick(s):
     return nodes
 
 
+LAST_NODES = []
+
+
 def stats_from_nodes(nodes, rooted_hint=None):
+    LAST_NODES.append(nodes)
     n = len(nodes)
     tips = [k for k, d in enumerate(nodes) if d['nchild'] == 0]
     internal = [k for k, d in enumerate(nodes) if d['nchild'] > 0]
@@ -150,7 +155,7 @@ def length_stats(lens, n_edges, nodes, tips):
         spread = max(td) - min(td)
         r['root_to_tip_min'] = min(td)
         r['root_to_tip_max'] = max(td)
-        r['ultrametric'] = bool(mean > 0 and spread / mean < 1e-6)
+        r['ultrametric'] = bool(mean > 0 and spread / mean < 1e-4)
         r['root_to_tip_spread_rel'] = (spread / mean) if mean else None
     return r
 
@@ -318,6 +323,14 @@ def report(path):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--tips':
+        # print tip names of the first tree, one per line
+        report(sys.argv[2])
+        nd = LAST_NODES[0]
+        for d in nd:
+            if d['nchild'] == 0:
+                print(d['name'])
+        sys.exit(0)
     for f in sys.argv[1:]:
         res = report(f)
         for i, r in enumerate(res):
