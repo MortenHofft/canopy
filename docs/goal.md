@@ -30,6 +30,8 @@ GBIF datasets are mostly tables (checklists, occurrences). Some publishers also 
 | 12 | **React integration:** a React component, or a thin wrapper, whose events reach callbacks and hooks and whose state (selection, highlighted tips, viewport) can be controlled from React props/state; clean mount/unmount | gbif.org is a React app; the tree must not live in a separate world |
 | 13 | **Custom node/tip rendering:** per-tip content aligned beside the tree (text, badges, thumbnails, heat maps, sequence alignments as in ETE's alignment view), driven by our metadata, ideally with React-rendered content | Occurrence counts, match status, images; some datasets will ship alignments |
 | 14 | **Semantic zoom and responsiveness:** interaction stays smooth on large trees, and what is drawn changes with zoom: when zoomed out, per-tip decorations and columns collapse into summaries (clade labels, density, counts) instead of being drawn at unreadable size | A fully zoomed-out tree with every column drawn is slow and unreadable (see the third screenshot) |
+| 15 | **Scale, stated as numbers:** target tip counts (to be confirmed with real GBIF trees; working target 100k tips smooth, 1M loadable), measured as load time and frame rate with several custom columns active | Published claims are vague; we need our own measurements |
+| 16 | **Styling hooks:** at minimum a documented way to control colours, fonts, sizes and per-node/per-branch style from code (callbacks or props) and to theme with CSS (design tokens, dark mode) | Must match the GBIF design system; per-node styling drives highlighting |
 
 ## Reference: the kind of customisation we want
 

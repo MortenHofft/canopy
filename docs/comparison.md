@@ -14,6 +14,13 @@ Judged against the criteria in [goal.md](goal.md). Facts come from the project p
 | **Phylocanvas (original / GL)** | Browser | Canvas / WebGL | Newick | Medium | LGPL-3.0 | Yes | Sanger page says it is no longer updated |
 | **Auspice (Nextstrain)** | Browser | *SVG/Canvas* | Auspice JSON | *Large* | AGPL-3.0 per docs; *recheck current licence* | Heavy, full app | Opinionated Nextstrain data model |
 | **Archaeopteryx.js** | Browser | SVG (d3 v7) | Newick, NHX, Nexus, phyloXML, Auspice JSON, BEAST/MrBayes annotations | *Unknown; no limits documented* | LGPL-3.0 | Yes, npm + TS types; full-app UI | Rectangular/circular/unrooted; metadata, heat maps, export; no documented tip focus/click API; [repo](https://github.com/cmzmasek/archaeopteryx-js) |
+| **Reactree** (`reactreejs`) | Browser | D3 zoom; SVG and canvas both mentioned | Newick (+ optional FASTA for alignment panel) | *Not stated* | MIT | Yes, React 18/19 component | Props: `newick`, `fasta`, `defaultHeight`. No callbacks or custom node rendering documented. Repo: 11 commits, 1 star, no releases (very young). Site says it is the viewer behind Phylogeny.fr. [site](https://reactree.vaaloo.fr/), [repo](https://github.com/vaaloo/reactreejs) |
+| **Phylocanvas.gl** | Browser | WebGL | Newick | 100K+ nodes (paper claim) | *Unverified* | Yes; React wrappers exist | Successor to Phylocanvas; used by Microreact. *Maintenance and licence to check.* [paper listing](https://www.academia.edu/93882553/Phylocanvas_gl_A_WebGL_powered_JavaScript_library_for_large_tree_visualisation) |
+| **react-phylogeny-tree / -gl** | Browser | Canvas / WebGL (phylocanvas based) | Newick | ~15k leaves / 100k+ leaves (npm descriptions) | *Unverified* | React component + hook, plugin system | Last npm release about 4 years ago, so effectively unmaintained. [npm](https://www.npmjs.com/package/react-phylogeny-tree), [repo](https://github.com/mkoliba/react-phylogeny-tree-gl) |
+| **PhyloScape** | Browser | WebGL (adapts Phylocanvas.gl) | *Not confirmed* | Hundreds of thousands (per search summary) | *Unverified* | JS library + plugins (maps, charts, protein structures) | 2025 paper; could not read the full text (paywalled). *Worth a closer look.* [paper](https://link.springer.com/article/10.1186/s12859-025-06203-3) |
+| **Empress** | Standalone HTML / QIIME 2 plugin | WebGL per its paper (*unverified*) | Newick | Hundreds of thousands claimed; Taxonium authors report a very large tree did not load | BSD-3-Clause | No documented JS embedding API | Multi-layer barplots, metadata colouring, collapse. [repo](https://github.com/biocore/empress) |
+| **PhyloJS** | Library (no UI) | n/a | Parse/manipulate trees | Parsing up to "10^6" tips claimed (*possible typo*) | *Unverified* | npm, zero-dependency TS | Not a renderer; a candidate parser. [paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC11199911/) |
+| **react-d3-tree** | Browser | SVG | Nested JSON (not Newick) | Small | *Unverified* | React component | Has a `renderCustomNodeElement` prop, but hierarchical layout rather than a phylogram, so not suited. [npm](https://www.npmjs.com/package/react-d3-tree) |
 | **Heat-tree** | Browser (JS; R/Python wrappers) | *Not confirmed* | Newick | *Unknown* | MIT (R package) | Yes, designed for embedding | 2026 preprint, new; *needs hands-on evaluation* |
 | **jsPhyloSVG** | Browser | SVG | Newick, phyloXML | Small | *Unknown* | Yes | 2010, *likely dormant* |
 | **IcyTree, iTOL, Microreact** | Hosted apps | n/a | n/a | n/a | n/a | Not libraries | Useful UX references; *not assessed* |
@@ -38,6 +45,39 @@ What this means:
 - **Archaeopteryx.js** is the strongest on the ETE-style alignment/heat-map view, but its API is configuration and events on `document`, not component props and per-node callbacks.
 - **phylotree.js** gives the most control but gives us the least out of the box.
 - A **thin custom renderer** (layout from d3-hierarchy, drawing in React with canvas or windowed SVG for large trees, using the level-of-detail ideas in [ete-ideas.md](ete-ideas.md)) is a real option, since it would meet 11 to 13 by construction. The price is building zoom, culling and layouts ourselves. The spike should include a prototype of this to compare against wrapping a library.
+
+## Scale and styling (criteria 15 and 16)
+
+### How many nodes can each handle?
+
+Published numbers are scarce and mostly claims, not benchmarks. Treat everything below as an order-of-magnitude hint to verify in the spike.
+
+| Tool | Stated or reported scale | Source and caveat |
+|------|--------------------------|-------------------|
+| **Taxonium** | Millions of nodes; browser unreliable above about 6M tips | Project README. The strongest evidence in this list. |
+| **Phylocanvas.gl** | 100K+ nodes | Paper claim; third parties say "hundreds of thousands". Taxonium's authors report Microreact (which uses it) locked up on a large tree (second-hand). |
+| **PhyloScape** | Hundreds of thousands | Search summary of a paper I could not read. |
+| **Empress** | "Fast and scalable"; hundreds of thousands claimed | Taxonium's authors report a very large tree failing to load (second-hand). |
+| **react-phylogeny-tree-gl** | 100,000+ leaves | npm description; unmaintained. |
+| **react-phylogeny-tree** (canvas) | About 15,000 leaves | npm description; unmaintained. |
+| **phylotree.js** | "Thousands of tips" | README. SVG. |
+| **jsPhyloSVG** (SVG, for reference) | Slows beyond about 2,000 nodes | Its own paper; shows the SVG ceiling. |
+| **Archaeopteryx.js** | No numbers published | Says it targets large gene trees and offers automatic sub-tree collapsing. SVG, so expect an SVG-class limit; test it. |
+| **Reactree** | Not stated | Very young project. |
+| **ETE 4** | Huge, server-side | Rules out nothing technically, but reported slow in practice, and out on licence. |
+| **PhyloJS** | Parsing to about a million tips (*possible typo in source*) | Parser only, useful as a data-layer building block. |
+
+Pattern: **SVG tools top out in the low thousands of nodes; canvas about tens of thousands; WebGL hundreds of thousands to millions.** If trees above roughly 5,000 tips are expected, a WebGL or canvas renderer, or aggressive collapsing with an SVG one, is required.
+
+### Styling hooks
+
+| Tool | What is known |
+|------|---------------|
+| **Reactree** | Theming through CSS tokens and a `data-theme="dark"` attribute: good for design tokens. No per-node style hook documented. |
+| **phylotree.js** | Documented: styling via CSS or JavaScript callbacks, so per-node and per-branch control. |
+| **Archaeopteryx.js** | Large config surface (colour/shape by field, legends), but some `style:` properties are not honoured yet (font name, node size, transparency, fill type). Config, not callbacks. |
+| **Taxonium, Phylocanvas.gl, Heat-tree** | *Unverified.* |
+| **Custom renderer** | Full control: CSS variables from GBIF design tokens plus per-node style functions. |
 
 ## Deployment: pros and cons
 
@@ -74,12 +114,18 @@ Preprocess trees at ingestion (could use ETE/Python or any parser): normalise to
 - Build small spikes with phylotree.js, Taxonium and Heat-tree against: a 50-tip tree, a 5k-tip tree, a 100k-tip tree, a Nexus file with a translate block.
 - Add Archaeopteryx.js to the spike, and a minimal custom React renderer built on d3-hierarchy.
 - For each: click a tip and call a React callback; highlight and focus a tip from React state; render an aligned per-tip column (a short alignment or a count badge) from our own data.
+- Test with the same 1k, 5k, 20k, 100k and 1M-tip trees for every candidate; record load time and frame rate with 3 custom columns active; note the size where each becomes unusable.
+- Check styling hooks: per-node colour from a callback, CSS theming, dark mode.
 - Measure load time, interaction frame rate, bundle size.
 - Check maintenance (latest releases/commits) and licences of the shortlist.
 - Inspect the ETE 4 `smartview/static` frontend to settle whether it could be reused standalone.
 
 ## Sources
 
+- [Reactree](https://reactree.vaaloo.fr/), [reactreejs repo](https://github.com/vaaloo/reactreejs)
+- [react-phylogeny-tree-gl](https://github.com/mkoliba/react-phylogeny-tree-gl), [react-phylotree](https://github.com/stephenshank/react-phylotree)
+- [PhyloScape paper](https://link.springer.com/article/10.1186/s12859-025-06203-3), [PhyloJS paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC11199911/), [Empress repo](https://github.com/biocore/empress)
+- [Taxonium eLife paper](https://elifesciences.org/articles/82392) (could not be fetched; second-hand comparisons above come from search snippets)
 - [ETE site](https://etetoolkit.org/), [ETE 4 repo](https://github.com/etetoolkit/ete), [SmartView tutorial](https://etetoolkit.github.io/ete/tutorial/tutorial_smartview.html)
 - [Taxonium repo](https://github.com/theosanderson/taxonium)
 - [phylotree.js repo](https://github.com/veg/phylotree.js), [phylotree.js paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6060545/)
