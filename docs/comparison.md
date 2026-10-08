@@ -13,6 +13,7 @@ Judged against the criteria in [goal.md](goal.md). Facts come from the project p
 | **Phylo.io** | Browser | SVG (D3) | Newick | Small/medium | MIT | Yes (embeddable) | Tree comparison focus; *maintenance unknown* |
 | **Phylocanvas (original / GL)** | Browser | Canvas / WebGL | Newick | Medium | LGPL-3.0 | Yes | Sanger page says it is no longer updated |
 | **Auspice (Nextstrain)** | Browser | *SVG/Canvas* | Auspice JSON | *Large* | AGPL-3.0 per docs; *recheck current licence* | Heavy, full app | Opinionated Nextstrain data model |
+| **Archaeopteryx.js** | Browser | SVG (d3 v7) | Newick, NHX, Nexus, phyloXML, Auspice JSON, BEAST/MrBayes annotations | *Unknown; no limits documented* | LGPL-3.0 | Yes, npm + TS types; full-app UI | Rectangular/circular/unrooted; metadata, heat maps, export; no documented tip focus/click API; [repo](https://github.com/cmzmasek/archaeopteryx-js) |
 | **Heat-tree** | Browser (JS; R/Python wrappers) | *Not confirmed* | Newick | *Unknown* | MIT (R package) | Yes, designed for embedding | 2026 preprint, new; *needs hands-on evaluation* |
 | **jsPhyloSVG** | Browser | SVG | Newick, phyloXML | Small | *Unknown* | Yes | 2010, *likely dormant* |
 | **IcyTree, iTOL, Microreact** | Hosted apps | n/a | n/a | n/a | n/a | Not libraries | Useful UX references; *not assessed* |
