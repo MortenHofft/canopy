@@ -1,5 +1,7 @@
 # Comparison of tree viewers for gbif.org
 
+> **Superseded in part.** This was the first, shallow pass. A deeper round with source-level checks is in [research/](research/) and the consolidated result is in [recommendation.md](recommendation.md). Known corrections: Phylocanvas.gl is MIT (not LGPL; LGPL was the old `phylocanvas`); Archaeopteryx.js batches branches into a few SVG paths and claims 50k nodes at 60 fps (self-reported), so its scale note below is too pessimistic; the PhyloJS "10^6" is a flattened superscript, not a typo; phylotree.js has no `license` field in `package.json` (the LICENSE file is MIT).
+
 Judged against the criteria in [goal.md](goal.md). Facts come from the project pages and papers listed at the end. Anything in *italics* is **unverified** (from general knowledge or not confirmed in this research round) and must be checked before we rely on it. Maintenance status in particular needs a proper look at commit/release history.
 
 ## Summary table
