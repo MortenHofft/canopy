@@ -199,6 +199,43 @@ class Tree:
         return ntips
 
 
+def length_stats(t, depths=None, tol=1e-3):
+    """Branch-length summary over all edges that carry a length (root edge excluded)."""
+    n = len(t)
+    vals, bad, missing = [], 0, 0
+    L = [0.0] * n
+    for i in range(1, n):
+        s = t.length[i]
+        if s is None:
+            missing += 1
+            continue
+        try:
+            v = float(s)
+        except ValueError:
+            bad += 1
+            continue
+        L[i] = v
+        vals.append(v)
+    if not vals:
+        return {"present": False, "edges_missing_length": missing}
+    vals.sort()
+    m = len(vals)
+    med = vals[m // 2] if m % 2 else (vals[m // 2 - 1] + vals[m // 2]) / 2
+    dist = [0.0] * n  # root-to-node distance
+    p = t.parent
+    for i in range(1, n):
+        dist[i] = dist[p[i]] + L[i]
+    td = [dist[i] for i in range(n) if t.nchild[i] == 0]
+    lo, hi = min(td), max(td)
+    return {"present": True, "edges_with_length": m, "edges_missing_length": missing,
+            "edges_unparseable": bad, "min": vals[0], "max": vals[-1], "median": med,
+            "mean": sum(vals) / m, "zero_length_edges": sum(1 for v in vals if v == 0),
+            "negative_length_edges": sum(1 for v in vals if v < 0),
+            "max_over_median": (vals[-1] / med) if med > 0 else None,
+            "root_to_tip_min": lo, "root_to_tip_max": hi,
+            "ultrametric": (hi - lo) <= tol * hi if hi > 0 else None}
+
+
 def stats(path):
     t = Tree.load(path)
     n = len(t)
@@ -213,13 +250,20 @@ def stats(path):
     inum = sum(1 for i in range(n) if t.nchild[i] != 0 and t.label[i] is not None
                and re.fullmatch(r"[0-9.eE+-]+(/[0-9.eE+-]+)*", t.label[i] or "") is not None)
     maxdeg = max(t.nchild)
+    unary = sum(1 for i in range(n) if t.nchild[i] == 1)
     binomial = sum(1 for i in range(n) if t.nchild[i] == 0 and t.label[i] and
                    re.match(r"'?[A-Z][a-z]+[_ ][a-z]", t.label[i]))
     uniq = len({t.label[i] for i in range(n) if t.nchild[i] == 0})
     raw = os.path.getsize(path)
     if path.endswith(".gz"):
         gz = raw
-        raw = None
+        raw = 0
+        with gzip.open(path, "rb") as f:
+            while True:
+                b = f.read(1 << 20)
+                if not b:
+                    break
+                raw += len(b)
     else:
         with open(path, "rb") as f:
             gz = 0
@@ -232,12 +276,14 @@ def stats(path):
                 c.write(b)
             c.close()
             gz = ctr.n
+    blstats = length_stats(t, d)
     return {"tips": tips, "internal_nodes": internal, "total_nodes": n, "unique_tip_labels": uniq,
-            "max_depth_edges": maxdepth, "max_children": maxdeg,
+            "max_depth_edges": maxdepth, "max_children": maxdeg, "unary_internal_nodes": unary,
             "tips_with_label": tl, "internal_with_label": il,
             "internal_labels_numeric": inum, "internal_label_examples": inl,
             "edges_with_length": bl, "has_branch_lengths": bl > 0,
-            "tips_binomial_like": binomial, "bytes_raw": raw, "bytes_gzip9": gz}
+            "tips_binomial_like": binomial, "branch_lengths": blstats,
+            "bytes_raw": raw, "bytes_gzip9": gz}
 
 
 class _Counter:
