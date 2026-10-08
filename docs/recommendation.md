@@ -82,6 +82,7 @@ Engineer-weeks are from the custom-renderer and data-layer agent unless noted; t
 ## Hands-on observations
 
 - **tbrowse (user, 2026-10-08, playground demo at warelab.github.io/tbrowse):** feels slow with large trees. Tip count, and whether the slowness is on load, pan/zoom or collapse, not recorded yet. This agrees with the source reading (SVG tree, no scale numbers published) and means tbrowse is a candidate for its **API and zone model**, not for large-tree rendering. Re-test with recorded tip counts.
+- **tbrowse (user):** no zoom-out to see the whole tree, which some users will miss; the tabular layout (tree, labels and data zones as aligned columns) is liked. Recorded as criterion 17 in [goal.md](goal.md). A design that keeps the row-aligned table at high zoom and switches to clade summaries at low zoom would give both.
 
 ## Proposed next steps
 
