@@ -84,6 +84,18 @@ Engineer-weeks are from the custom-renderer and data-layer agent unless noted; t
 - **tbrowse (user, 2026-10-08, playground demo at warelab.github.io/tbrowse):** feels slow with large trees. Tip count, and whether the slowness is on load, pan/zoom or collapse, not recorded yet. This agrees with the source reading (SVG tree, no scale numbers published) and means tbrowse is a candidate for its **API and zone model**, not for large-tree rendering. Re-test with recorded tip counts.
 - **tbrowse (user):** no zoom-out to see the whole tree, which some users will miss; the tabular layout (tree, labels and data zones as aligned columns) is liked. Recorded as criterion 17 in [goal.md](goal.md). A design that keeps the row-aligned table at high zoom and switches to clade summaries at low zoom would give both.
 
+## Added requirement: branch lengths (criterion 18)
+
+Branch length is central, not a detail. Implications for the design, from the research so far (agent claims, not re-checked):
+
+- **Layout:** x position is cumulative branch length (phylogram), with a cladogram mode as an alternative. react-bio-viz, Reactree, Archaeopteryx.js and Phylocanvas.gl list both modes; Taxonium can switch its x axis between distance and time; tbrowse's input has a per-node `distance` but I have not seen how it is drawn. Not checked for the others.
+- **Data model:** store cumulative x (root-to-node distance) in the typed-array tree model; a branch-length-free tree must still render (cladogram fallback).
+- **Level of detail and summaries:** a collapsed clade needs a defined width (for example max or mean depth of its tips), and the overview must not misrepresent lengths.
+- **Aligned columns:** in non-ultrametric trees tips end at different x, so aligned columns need leader lines; ultrametric (dated) trees end at the same x and need a time axis.
+- **Extreme lengths:** one very long branch can squash the rest of the tree; PhyloScape mentions an optimisation for this. We should offer a scale or transform option (for example a log or capped scale), clearly labelled.
+- **Edge cases:** missing, zero and negative lengths, and tools that write lengths as support values; the data layer should flag these.
+- **Test data:** the real-ladder and synthetic trees need to include branch lengths (ultrametric and non-ultrametric), and some without.
+
 ## Proposed next steps
 
 1. Ask for sample trees from likely publishers and record their tip counts and formats.
