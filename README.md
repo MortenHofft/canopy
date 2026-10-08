@@ -24,10 +24,18 @@ This repo is where we explore and decide how to do that. The outcome is either:
 
 ## Documents
 
-- [docs/goal.md](docs/goal.md): the goal, user stories and evaluation criteria in more detail.
-- [docs/ete-toolkit.md](docs/ete-toolkit.md): what ETE is, why it is interesting, and how well it fits a web deployment.
-- [docs/comparison.md](docs/comparison.md): ETE compared with web-native alternatives, with pros/cons for deployment and features.
+Start with [docs/recommendation.md](docs/recommendation.md): the consolidated findings, options with effort estimates, and proposed next steps.
+
+- [docs/goal.md](docs/goal.md): the goal, user stories, the 18 evaluation criteria and the ETE screenshots that show the kind of customisation we want.
+- [docs/recommendation.md](docs/recommendation.md): what the research found and what to do next.
+- [docs/comparison.md](docs/comparison.md): first, shallow comparison of viewers (partly superseded; see the note at its top).
+- [docs/ete-toolkit.md](docs/ete-toolkit.md) and [docs/ete-ideas.md](docs/ete-ideas.md): what ETE offers, why it is ruled out (GPL, Python server), and the ideas worth reimplementing.
+- [docs/research/](docs/research/): source-level reports per candidate (Taxonium, Phylocanvas.gl, phylotree.js, Reactree, Heat-tree, Archaeopteryx.js, react-bio-viz, OneZoom, discovery of others) plus the custom-renderer and data-layer studies.
+
+## Test data
+
+[data/](data/) holds trees for benchmarking and testing: a real-tree size ladder (200 to 1.5M tips), 24 richer datasets (alignments, annotations, dates, GBIF-matchable names) and seeded synthetic trees in several shapes. See [data/README.md](data/README.md) for what each is for, licences and gaps.
 
 ## Status
 
-Early research. No code yet.
+Research phase. No viewer code yet. Next steps are in the recommendation: get real tree sizes from publishers, spike tbrowse and react-bio-viz on the test trees, and draft the tree model and component API.
