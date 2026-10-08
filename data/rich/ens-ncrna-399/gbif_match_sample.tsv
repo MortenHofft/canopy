@@ -1,0 +1,102 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+ailuropoda_melanoleuca	ailuropoda melanoleuca	EXACT	ACCEPTED	SPECIES	2433399	Ailuropoda melanoleuca (David, 1869)	300
+aotus_nancymaae	aotus nancymaae	EXACT	SYNONYM	SPECIES	5219589	Aotus nancymaae Hershkovitz, 1983	84
+balaenoptera_musculus	balaenoptera musculus	EXACT	ACCEPTED	SPECIES	2440735	Balaenoptera musculus (Linnaeus, 1758)	31584
+bison_bison_bison	bison bison bison	EXACT	SYNONYM	SUBSPECIES	7194051	Bison bison bison (Linnaeus, 1758)	519
+bos_grunniens	bos grunniens	EXACT	ACCEPTED	SPECIES	2441019	Bos grunniens Linnaeus, 1766	2434
+bos_indicus_hybrid	bos indicus hybrid	HIGHERRANK	SYNONYM	SPECIES	2441023	Bos indicus Linnaeus, 1758	
+bos_mutus	bos mutus	EXACT	SYNONYM	SPECIES	5787030	Bos mutus (Przewalski, 1883)	64
+bos_taurus	bos taurus	EXACT	ACCEPTED	SPECIES	2441022	Bos taurus Linnaeus, 1758	467191
+camelus_dromedarius	camelus dromedarius	EXACT	ACCEPTED	SPECIES	9055455	Camelus dromedarius Linnaeus, 1758	10911
+canis_lupus_dingo	canis lupus dingo	EXACT	ACCEPTED	SUBSPECIES	6164184	Canis lupus dingo Meyer, 1793	279
+canis_lupus_familiaris	canis lupus familiaris	EXACT	ACCEPTED	SUBSPECIES	6164210	Canis lupus familiaris Linnaeus, 1758	122737
+capra_hircus	capra hircus	EXACT	ACCEPTED	SPECIES	2441056	Capra hircus Linnaeus, 1758	98941
+carlito_syrichta	carlito syrichta	EXACT	ACCEPTED	SPECIES	8008808	Carlito syrichta (Linnaeus, 1758)	583
+catagonus_wagneri	catagonus wagneri	EXACT	ACCEPTED	SPECIES	2440998	Catagonus wagneri (Rusconi, 1930)	360
+cavia_porcellus	cavia porcellus	EXACT	ACCEPTED	SPECIES	5219702	Cavia porcellus (Linnaeus, 1758)	1633
+cercocebus_atys	cercocebus atys	EXACT	ACCEPTED	SPECIES	7262035	Cercocebus atys (Audebert, 1797)	423
+cervus_hanglu_yarkandensis	cervus hanglu yarkandensis	EXACT	ACCEPTED	SUBSPECIES	11912030	Cervus hanglu yarkandensis	25
+chinchilla_lanigera	chinchilla lanigera	EXACT	ACCEPTED	SPECIES	5219944	Chinchilla lanigera Bennett, 1829	710
+chlorocebus_sabaeus	chlorocebus sabaeus	EXACT	ACCEPTED	SPECIES	4267116	Chlorocebus sabaeus (Linnaeus, 1766)	3146
+chrysemys_picta_bellii	chrysemys picta bellii	EXACT	ACCEPTED	SUBSPECIES	6156934	Chrysemys picta bellii (Gray, 1831)	11387
+cricetulus_griseus_picr	cricetulus griseus picr	HIGHERRANK	SYNONYM	SPECIES	7549477	Cricetulus griseus Milne-Edwards, 1867	
+crocodylus_porosus	crocodylus porosus	EXACT	ACCEPTED	SPECIES	2441333	Crocodylus porosus Schneider, 1801	108684
+cyprinodon_variegatus	cyprinodon variegatus	EXACT	ACCEPTED	SPECIES	4284440	Cyprinodon variegatus Lacepède, 1803	62372
+cyprinus_carpio_carpio	cyprinus carpio carpio	EXACT	ACCEPTED	VARIETY	8732936	Cyprinus carpio var. carpio	354
+dasypus_novemcinctus	dasypus novemcinctus	EXACT	ACCEPTED	SPECIES	2440779	Dasypus novemcinctus Linnaeus, 1758	33625
+delphinapterus_leucas	delphinapterus leucas	EXACT	ACCEPTED	SPECIES	5220003	Delphinapterus leucas (Pallas, 1776)	12966
+denticeps_clupeoides	denticeps clupeoides	EXACT	ACCEPTED	SPECIES	2413676	Denticeps clupeoides Clausen, 1959	181
+dicentrarchus_labrax	dicentrarchus labrax	EXACT	ACCEPTED	SPECIES	2394622	Dicentrarchus labrax (Linnaeus, 1758)	54599
+dipodomys_ordii	dipodomys ordii	EXACT	ACCEPTED	SPECIES	2439541	Dipodomys ordii Woodhouse, 1853	34319
+eptatretus_burgeri	eptatretus burgeri	EXACT	ACCEPTED	SPECIES	2498609	Eptatretus burgeri (Girard, 1855)	473
+equus_asinus	equus asinus	EXACT	ACCEPTED	SPECIES	2440891	Equus asinus Linnaeus, 1758	12729
+equus_caballus	equus caballus	EXACT	ACCEPTED	SPECIES	2440886	Equus caballus Linnaeus, 1758	107327
+erpetoichthys_calabaricus	erpetoichthys calabaricus	EXACT	ACCEPTED	SPECIES	2346564	Erpetoichthys calabaricus Smith, 1865	572
+felis_catus	felis catus	EXACT	ACCEPTED	SPECIES	2435035	Felis catus Linnaeus, 1758	227127
+fundulus_heteroclitus	fundulus heteroclitus	EXACT	ACCEPTED	SPECIES	5712056	Fundulus heteroclitus (Linnaeus, 1766)	16168
+gopherus_evgoodei	gopherus evgoodei	EXACT	ACCEPTED	SPECIES	9004290	Gopherus evgoodei Edwards, Karl, Vaughn, Rosen, Meléndez-Torres & Murphy, 2016	110
+gorilla_gorilla	gorilla gorilla	EXACT	ACCEPTED	SPECIES	2436441	Gorilla gorilla (Savage, 1847)	2093
+haplochromis_burtoni	haplochromis burtoni	EXACT	SYNONYM	SPECIES	2371439	Haplochromis burtoni (Günther, 1894)	755
+heterocephalus_glaber_female	heterocephalus glaber female	HIGHERRANK	ACCEPTED	SPECIES	5219654	Heterocephalus glaber Rüppell, 1842	
+homo_sapiens	homo sapiens	EXACT	ACCEPTED	SPECIES	2436436	Homo sapiens Linnaeus, 1758	24908
+hucho_hucho	hucho hucho	EXACT	ACCEPTED	SPECIES	2351413	Hucho hucho (Linnaeus, 1758)	436
+ictidomys_tridecemlineatus	ictidomys tridecemlineatus	EXACT	ACCEPTED	SPECIES	7994322	Ictidomys tridecemlineatus (Mitchill, 1821)	14332
+jaculus_jaculus	jaculus jaculus	EXACT	ACCEPTED	SPECIES	5219895	Jaculus jaculus (Linnaeus, 1758)	3927
+loxodonta_africana	loxodonta africana	EXACT	ACCEPTED	SPECIES	2435350	Loxodonta africana (Blumenbach, 1797)	30243
+macaca_fascicularis	macaca fascicularis	EXACT	ACCEPTED	SPECIES	2436603	Macaca fascicularis (Raffles, 1821)	24018
+macaca_mulatta	macaca mulatta	EXACT	ACCEPTED	SPECIES	2436604	Macaca mulatta (Zimmermann, 1780)	12787
+macaca_nemestrina	macaca nemestrina	EXACT	ACCEPTED	SPECIES	2436611	Macaca nemestrina (Linnaeus, 1766)	3582
+mandrillus_leucophaeus	mandrillus leucophaeus	EXACT	ACCEPTED	SPECIES	5219557	Mandrillus leucophaeus (F.Cuvier, 1807)	434
+marmota_marmota_marmota	marmota marmota marmota	EXACT	ACCEPTED	SUBSPECIES	4263706	Marmota marmota marmota (Linnaeus, 1758)	603
+mesocricetus_auratus	mesocricetus auratus	EXACT	ACCEPTED	SPECIES	2438482	Mesocricetus auratus (Waterhouse, 1839)	723
+microcebus_murinus	microcebus murinus	EXACT	ACCEPTED	SPECIES	2436447	Microcebus murinus (J.F.Miller, 1777)	1110
+microtus_ochrogaster	microtus ochrogaster	EXACT	ACCEPTED	SPECIES	2438671	Microtus ochrogaster (Wagner, 1842)	18890
+monodon_monoceros	monodon monoceros	EXACT	ACCEPTED	SPECIES	5220008	Monodon monoceros Linnaeus, 1758	1661
+moschus_moschiferus	moschus moschiferus	EXACT	ACCEPTED	SPECIES	2440988	Moschus moschiferus Linnaeus, 1758	298
+mus_caroli	mus caroli	EXACT	ACCEPTED	SPECIES	2438800	Mus caroli Bonhote, 1902	1367
+mus_musculus	mus musculus	EXACT	ACCEPTED	SPECIES	7429082	Mus musculus Linnaeus, 1758	251095
+mus_pahari	mus pahari	EXACT	ACCEPTED	SPECIES	2438812	Mus pahari Thomas, 1916	310
+mus_spicilegus	mus spicilegus	EXACT	ACCEPTED	SPECIES	2438805	Mus spicilegus Petényi, 1882	877
+mus_spretus	mus spretus	EXACT	ACCEPTED	SPECIES	2438793	Mus spretus Lataste, 1883	26432
+mustela_putorius_furo	mustela putorius furo	EXACT	ACCEPTED	SUBSPECIES	5218913	Mustela putorius furo Linnaeus, 1758	1980
+myotis_lucifugus	myotis lucifugus	EXACT	ACCEPTED	SPECIES	2432406	Myotis lucifugus (Le Conte, 1831)	23446
+myripristis_murdjan	myripristis murdjan	EXACT	ACCEPTED	SPECIES	2356993	Myripristis murdjan (Forsskål, 1775)	3495
+nannospalax_galili	nannospalax galili	EXACT	ACCEPTED	SPECIES	10207271	Nannospalax galili	6
+neovison_vison	neovison vison	EXACT	SYNONYM	SPECIES	2433652	Neovison vison (Schreber, 1777)	32782
+nomascus_leucogenys	nomascus leucogenys	EXACT	ACCEPTED	SPECIES	4267270	Nomascus leucogenys (Ogilby, 1840)	195
+notamacropus_eugenii	notamacropus eugenii	EXACT	SYNONYM	SPECIES	10890225	Notamacropus eugenii (Desmarest, 1817)	46049
+octodon_degus	octodon degus	EXACT	ACCEPTED	SPECIES	5219900	Octodon degus (Molina, 1782)	1618
+oreochromis_niloticus	oreochromis niloticus	EXACT	ACCEPTED	SPECIES	4285694	Oreochromis niloticus (Linnaeus, 1758)	102089
+ornithorhynchus_anatinus	ornithorhynchus anatinus	EXACT	ACCEPTED	SPECIES	2433376	Ornithorhynchus anatinus (Shaw, 1799)	31032
+oryctolagus_cuniculus	oryctolagus cuniculus	EXACT	ACCEPTED	SPECIES	2436940	Oryctolagus cuniculus (Linnaeus, 1758)	1534043
+otolemur_garnettii	otolemur garnettii	EXACT	ACCEPTED	SPECIES	2436511	Otolemur garnettii (Ogilby, 1838)	721
+ovis_aries	ovis aries	EXACT	ACCEPTED	SPECIES	2441110	Ovis aries Linnaeus, 1758	166635
+pan_paniscus	pan paniscus	EXACT	ACCEPTED	SPECIES	5219533	Pan paniscus Schwarz, 1929	169
+pan_troglodytes	pan troglodytes	EXACT	ACCEPTED	SPECIES	5219534	Pan troglodytes (Blumenbach, 1775)	7295
+panthera_leo	panthera leo	EXACT	ACCEPTED	SPECIES	5219404	Panthera leo (Linnaeus, 1758)	20020
+panthera_pardus	panthera pardus	EXACT	ACCEPTED	SPECIES	5219436	Panthera pardus (Linnaeus, 1758)	13110
+panthera_tigris_altaica	panthera tigris altaica	EXACT	ACCEPTED	SUBSPECIES	5219420	Panthera tigris altaica Temminck, 1844	356
+papio_anubis	papio anubis	EXACT	ACCEPTED	SPECIES	5707341	Papio anubis (Lesson, 1827)	9318
+peromyscus_maniculatus_bairdii	peromyscus maniculatus bairdii	EXACT	ACCEPTED	SUBSPECIES	11800518	Peromyscus maniculatus bairdii	6411
+phascolarctos_cinereus	phascolarctos cinereus	EXACT	ACCEPTED	SPECIES	2440012	Phascolarctos cinereus (Goldfuss, 1817)	454125
+phocoena_sinus	phocoena sinus	EXACT	ACCEPTED	SPECIES	2440665	Phocoena sinus Norris & McFarland, 1958	569
+physeter_catodon	physeter catodon	EXACT	SYNONYM	SPECIES	2440352	Physeter catodon Linnaeus, 1758	2644
+poecilia_reticulata	poecilia reticulata	EXACT	ACCEPTED	SPECIES	2350050	Poecilia reticulata Peters, 1859	14472
+pongo_abelii	pongo abelii	EXACT	ACCEPTED	SPECIES	5707420	Pongo abelii Lesson, 1827	971
+prolemur_simus	prolemur simus	EXACT	ACCEPTED	SPECIES	4266938	Prolemur simus (Gray, 1870)	2739
+propithecus_coquereli	propithecus coquereli	EXACT	ACCEPTED	SPECIES	5707433	Propithecus coquereli (Grandidier, 1867)	373
+pygocentrus_nattereri	pygocentrus nattereri	EXACT	ACCEPTED	SPECIES	2352479	Pygocentrus nattereri Kner, 1858	2924
+rattus_norvegicus	rattus norvegicus	EXACT	ACCEPTED	SPECIES	2439261	Rattus norvegicus (Berkenhout, 1769)	266748
+rhinopithecus_bieti	rhinopithecus bieti	EXACT	ACCEPTED	SPECIES	4267007	Rhinopithecus bieti A.Milne-Edwards, 1897	110
+rhinopithecus_roxellana	rhinopithecus roxellana	EXACT	ACCEPTED	SPECIES	7262005	Rhinopithecus roxellana (A.Milne-Edwards, 1870)	264
+sciurus_vulgaris	sciurus vulgaris	EXACT	ACCEPTED	SPECIES	8211070	Sciurus vulgaris Linnaeus, 1758	975344
+sparus_aurata	sparus aurata	EXACT	ACCEPTED	SPECIES	2392508	Sparus aurata Linnaeus, 1758	30048
+sphenodon_punctatus	sphenodon punctatus	EXACT	ACCEPTED	SPECIES	5227650	Sphenodon punctatus (Gray, 1842)	2148
+strigops_habroptila	strigops habroptila	EXACT	ACCEPTED	SPECIES	2479236	Strigops habroptila G.R.Gray, 1845	578
+sus_scrofa	sus scrofa	EXACT	ACCEPTED	SPECIES	7705930	Sus scrofa Linnaeus, 1758	1898692
+terrapene_carolina_triunguis	terrapene carolina triunguis	EXACT	ACCEPTED	SUBSPECIES	6156921	Terrapene carolina triunguis (Agassiz, 1857)	1049
+urocitellus_parryii	urocitellus parryii	EXACT	ACCEPTED	SPECIES	8303143	Urocitellus parryii (Richardson, 1825)	8115
+ursus_americanus	ursus americanus	EXACT	ACCEPTED	SPECIES	2433407	Ursus americanus Pallas, 1780	65933
+ursus_maritimus	ursus maritimus	EXACT	ACCEPTED	SPECIES	2433451	Ursus maritimus Phipps, 1774	11296
+vombatus_ursinus	vombatus ursinus	EXACT	ACCEPTED	SPECIES	2440301	Vombatus ursinus (Shaw, 1800)	134215
+vulpes_vulpes	vulpes vulpes	EXACT	ACCEPTED	SPECIES	5219243	Vulpes vulpes (Linnaeus, 1758)	1887752

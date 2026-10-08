@@ -11,7 +11,7 @@
 
 ## What extra data it carries
 
-Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species strain, gene id, symbol (olfactory receptor-like families in several), location
+Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species (strain), gene id, gene symbol where annotated, location
 
 ## Tree facts (computed by `scripts/treecheck.py`)
 
@@ -31,7 +31,7 @@ Murinae collection: species are mouse/rat strains (production names like mus_mus
 
 ## GBIF match
 
-Not computed for this dataset (tips are not plain species names or the dataset is a sibling of one that was computed).
+Not computed for this dataset (tips are not plain species names; for Ensembl gene trees see the species list in members.tsv and the match rate of ens-ncrna-399, whose sample is its 101 species).
 
 ## Provenance
 

@@ -31,7 +31,7 @@ Tip names are stable ids, not species names: map via members.tsv. NHX D=Y marks 
 
 ## GBIF match
 
-Not computed (run was not finished).
+Not computed for this dataset (tips are not plain species names; for Ensembl gene trees see the species list in members.tsv and the match rate of ens-ncrna-399, whose sample is its 101 species).
 
 ## Provenance
 

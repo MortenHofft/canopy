@@ -49,9 +49,7 @@
    "fmt": "Newick, NHX, FASTA (aligned), TSV",
    "folder": "ens-ncrna-102",
    "format_detected": "newick",
-   "gbif_match": {
-    "status": "not computed"
-   },
+   "gbif_match": null,
    "how": "`curl -O` of https://ftp.ensembl.org/pub/release-116/emf/ensembl-compara/homologies/Compara.116.ncrna_default.aln.emf.gz (the full file is 45-55 MB; kept outside the repo), then `python3 -I scripts/ensembl_emf_extract.py index <aln.emf.gz>` to list records and `... extract <aln.emf.gz> 15435 <outdir> tree` to pull record 15435 (0-based index in file order). The EMF file holds the alignment as columns; the script transposes it to aligned FASTA.",
    "id": "ens-ncrna-102",
    "internal_labelled": 0,
@@ -113,13 +111,24 @@
      "bytes": 28237,
      "path": "ens-ncrna-399/members.tsv",
      "sha256": "452535332ad75f83dddfff649a853bf9faa78fba2c4ba5f04f34d2dd6394ea61"
+    },
+    {
+     "bytes": 10943,
+     "path": "ens-ncrna-399/gbif_match_sample.tsv",
+     "sha256": "93bfd88ecff6ad56b99cef2128d13040f35dd4844f50a73d091c7c39ce22fb7d"
     }
    ],
    "fmt": "Newick, NHX, FASTA (aligned), TSV",
    "folder": "ens-ncrna-399",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 0.97,
+    "matched_exact_or_fuzzy": 98,
+    "median_occurrences": 3538.5,
+    "sample_with_zero_occurrences": 0,
+    "sampled": 101,
+    "species_exact": 87,
+    "species_exact_rate": 0.861
    },
    "how": "`curl -O` of https://ftp.ensembl.org/pub/release-116/emf/ensembl-compara/homologies/Compara.116.ncrna_default.aln.emf.gz (the full file is 45-55 MB; kept outside the repo), then `python3 -I scripts/ensembl_emf_extract.py index <aln.emf.gz>` to list records and `... extract <aln.emf.gz> 14845 <outdir> tree` to pull record 14845 (0-based index in file order). The EMF file holds the alignment as columns; the script transposes it to aligned FASTA.",
    "id": "ens-ncrna-399",
@@ -134,7 +143,7 @@
    "root_children": 2,
    "tips": 399,
    "title": "Ensembl Compara ncRNA gene tree, 399 tips, nucleotide alignment",
-   "total_bytes": 114481,
+   "total_bytes": 125424,
    "trees_in_main_file": 1,
    "url": "https://ftp.ensembl.org/pub/release-116/emf/ensembl-compara/homologies/Compara.116.ncrna_default.aln.emf.gz (record 14845) and .nhx.emf.gz"
   },
@@ -161,7 +170,7 @@
    },
    "citation": "Harrison PW et al. Ensembl 2024. Nucleic Acids Res 52(D1):D891-D899 (UNVERIFIED, from memory; release 116 is newer); Vilella AJ et al. (2009) EnsemblCompara GeneTrees. Genome Res 19:327-335, doi:10.1101/gr.073585.108",
    "comment_keys": null,
-   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species strain, gene id, symbol (olfactory receptor-like families in several), location",
+   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species (strain), gene id, gene symbol where annotated, location",
    "files": [
     {
      "bytes": 1653,
@@ -228,7 +237,7 @@
    },
    "citation": "Harrison PW et al. Ensembl 2024. Nucleic Acids Res 52(D1):D891-D899 (UNVERIFIED, from memory; release 116 is newer); Vilella AJ et al. (2009) EnsemblCompara GeneTrees. Genome Res 19:327-335, doi:10.1101/gr.073585.108",
    "comment_keys": null,
-   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species strain, gene id, symbol (olfactory receptor-like families in several), location",
+   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species (strain), gene id, gene symbol where annotated, location",
    "files": [
     {
      "bytes": 4086,
@@ -295,7 +304,7 @@
    },
    "citation": "Harrison PW et al. Ensembl 2024. Nucleic Acids Res 52(D1):D891-D899 (UNVERIFIED, from memory; release 116 is newer); Vilella AJ et al. (2009) EnsemblCompara GeneTrees. Genome Res 19:327-335, doi:10.1101/gr.073585.108",
    "comment_keys": null,
-   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species strain, gene id, symbol (olfactory receptor-like families in several), location",
+   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species (strain), gene id, gene symbol where annotated, location",
    "files": [
     {
      "bytes": 7349,
@@ -362,7 +371,7 @@
    },
    "citation": "Harrison PW et al. Ensembl 2024. Nucleic Acids Res 52(D1):D891-D899 (UNVERIFIED, from memory; release 116 is newer); Vilella AJ et al. (2009) EnsemblCompara GeneTrees. Genome Res 19:327-335, doi:10.1101/gr.073585.108",
    "comment_keys": null,
-   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species strain, gene id, symbol (olfactory receptor-like families in several), location",
+   "extra": "Substitution-scale branch lengths; NHX duplication flags; aligned protein FASTA; members.tsv with species (strain), gene id, gene symbol where annotated, location",
    "files": [
     {
      "bytes": 14324,
@@ -429,7 +438,7 @@
    },
    "citation": "Harrison PW et al. Ensembl 2024. Nucleic Acids Res 52(D1):D891-D899 (UNVERIFIED, from memory; release 116 is newer); Vilella AJ et al. (2009) EnsemblCompara GeneTrees. Genome Res 19:327-335, doi:10.1101/gr.073585.108",
    "comment_keys": null,
-   "extra": "phyloXML clade elements: `taxonomy` (NCBI id, scientific_name, common_name), `sequence` (accession, symbol name, genomic location), `confidence` (bootstrap, duplication_confidence_score), `events` (speciation/duplication counts), `property` (Compara:genome_db_name, gene_tree_stable_id). Branch lengths as `branch_length` attribute on <clade>. No alignment inside (alignments are separate in the ens-* folders)",
+   "extra": "phyloXML clade elements: `taxonomy` (NCBI id, scientific_name, common_name), `sequence` (accession, symbol name, genomic location), `confidence` (bootstrap, duplication_confidence_score), `events` (speciation/duplication counts), `property` (Compara:genome_db_name, gene_tree_stable_id). Branch lengths as `branch_length` attribute on <clade>. No alignment inside (alignments are separate in the ens-* folders). Tip counts of the three files: 101, 200 and 396 (checked with treecheck.py); the catalogue statistics are for the 101-tip file",
    "files": [
     {
      "bytes": 123022,
@@ -781,7 +790,7 @@
    "licence": "CC0 1.0 (Zenodo record metadata license \"cc-zero\"; Dryad mirror)",
    "main_tree": "beast-hcv-2k1b/2k1b_fullGenome_9GTR1clock_COO_BSSVSMJ.MCC.tree.gz",
    "polytomies": 0,
-   "quirks": "Contains one NEGATIVE branch length (-0.80; typical of MCC trees with common-ancestor heights on heterochronous data), `[&R]` rooted flag, a trailing `begin figtree` block, TAXA block without TRANSLATE (labels written in full in the tree).",
+   "quirks": "Contains one NEGATIVE branch length (-0.80; likely an artefact of summarising node heights on heterochronous data, cause unverified), `[&R]` rooted flag, a trailing `begin figtree` block, TAXA block without TRANSLATE (labels written in full in the tree).",
    "retrieved": "2026-10-08",
    "root_children": 2,
    "tips": 109,
@@ -1009,13 +1018,24 @@
      "bytes": 50286,
      "path": "fish-rabosky-1057/Rabosky1057.tre",
      "sha256": "c7b7ab2fd13c0b3d0e070e64638dcd609b8e418ff63375917426f4ef56593cd9"
+    },
+    {
+     "bytes": 23375,
+     "path": "fish-rabosky-1057/gbif_match_sample.tsv",
+     "sha256": "094bdc00d277fc21952fff60bbab23ae6aa04b862744953f9c732d1fdc1ad428"
     }
    ],
    "fmt": "Newick",
    "folder": "fish-rabosky-1057",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 1.0,
+    "matched_exact_or_fuzzy": 200,
+    "median_occurrences": 138.0,
+    "sample_with_zero_occurrences": 4,
+    "sampled": 200,
+    "species_exact": 199,
+    "species_exact_rate": 0.995
    },
    "how": "curl of https://zenodo.org/api/records/4944999/files/Rabosky1057.tre/content (Zenodo returned a transient TLS error once; retried).",
    "id": "fish-rabosky-1057",
@@ -1030,7 +1050,7 @@
    "root_children": 2,
    "tips": 1057,
    "title": "Dated ray-finned fish phylogeny (Rabosky subset), 1057 tips",
-   "total_bytes": 50286,
+   "total_bytes": 73661,
    "trees_in_main_file": 1,
    "url": "https://zenodo.org/records/4944999 (doi:10.5061/dryad.9bq5n41)"
   },
@@ -1077,13 +1097,24 @@
      "bytes": 219203,
      "path": "corvoid-mcc-680/CC_MCC.tre.gz",
      "sha256": "c73aa7a8b00d80b892a48966a7b571855385515b00ef5574527fc56d5b9830fe"
+    },
+    {
+     "bytes": 22615,
+     "path": "corvoid-mcc-680/gbif_match_sample.tsv",
+     "sha256": "283824b41a53716394136a2008a5c57c912c4aa09e732ea05cf5d82b63571a87"
     }
    ],
    "fmt": "Nexus (BEAST, TAXA + TRANSLATE, [&R])",
    "folder": "corvoid-mcc-680",
    "format_detected": "nexus",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 1.0,
+    "matched_exact_or_fuzzy": 200,
+    "median_occurrences": 4002.0,
+    "sample_with_zero_occurrences": 1,
+    "sampled": 200,
+    "species_exact": 195,
+    "species_exact_rate": 0.975
    },
    "how": "curl of https://zenodo.org/api/records/4995552/files/CC_MCC.tre/content",
    "id": "corvoid-mcc-680",
@@ -1098,7 +1129,7 @@
    "root_children": 2,
    "tips": 680,
    "title": "Dated corvoid songbird phylogeny (BEAST MCC), 680 tips",
-   "total_bytes": 219203,
+   "total_bytes": 241818,
    "trees_in_main_file": 1,
    "url": "https://zenodo.org/records/4995552 (doi:10.5061/dryad.v0np1)"
   },
@@ -1131,13 +1162,24 @@
      "bytes": 601687,
      "path": "birdtree-100-posterior/output2.nex.gz",
      "sha256": "27773da491bd8ecc1f21ff3c16851cafab78347ee3cb9629d0ad31ac134b01da"
+    },
+    {
+     "bytes": 22055,
+     "path": "birdtree-100-posterior/gbif_match_sample.tsv",
+     "sha256": "89b7b40f25938b7ece00a646c024931d15189163bb0b8a53da0484c21323a484"
     }
    ],
    "fmt": "Nexus (multi-tree, no TAXA/TRANSLATE)",
    "folder": "birdtree-100-posterior",
    "format_detected": "nexus",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 1.0,
+    "matched_exact_or_fuzzy": 200,
+    "median_occurrences": 1129250.5,
+    "sample_with_zero_occurrences": 0,
+    "sampled": 200,
+    "species_exact": 200,
+    "species_exact_rate": 1.0
    },
    "how": "curl of https://zenodo.org/api/records/8328753/files/output2.nex/content",
    "id": "birdtree-100-posterior",
@@ -1152,7 +1194,7 @@
    "root_children": 2,
    "tips": 380,
    "title": "100 posterior trees of North American birds (BirdTree subsample), 380 tips each",
-   "total_bytes": 601687,
+   "total_bytes": 623742,
    "trees_in_main_file": 100,
    "url": "https://zenodo.org/records/8328753 (doi:10.5061/dryad.j0zpc86mg; file output2.nex)"
   },
@@ -1185,13 +1227,24 @@
      "bytes": 21797,
      "path": "butterflies-europe-496/Butterflies_Europe_phylogeny_dated.nwk.txt",
      "sha256": "98bf3f88cefef5801fc9c13283a931c636e7bc1c388eeba75f42c2ccfe627f18"
+    },
+    {
+     "bytes": 21383,
+     "path": "butterflies-europe-496/gbif_match_sample.tsv",
+     "sha256": "4e96f4a312207f7cf21eee449c275cd9a7f71ebcb0488ad6ce76ab4bd71b0144"
     }
    ],
    "fmt": "Newick",
    "folder": "butterflies-europe-496",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 0.98,
+    "matched_exact_or_fuzzy": 196,
+    "median_occurrences": 7667.5,
+    "sample_with_zero_occurrences": 0,
+    "sampled": 200,
+    "species_exact": 193,
+    "species_exact_rate": 0.965
    },
    "how": "curl of https://zenodo.org/api/records/12802644/files/Butterflies_Europe_phylogeny_dated.nwk.txt/content",
    "id": "butterflies-europe-496",
@@ -1206,7 +1259,7 @@
    "root_children": 2,
    "tips": 496,
    "title": "Dated phylogeny of European butterflies, 496 species",
-   "total_bytes": 21797,
+   "total_bytes": 43180,
    "trees_in_main_file": 1,
    "url": "https://zenodo.org/records/12802644 (doi:10.5281/zenodo.12802644)"
   },
@@ -1244,13 +1297,24 @@
      "bytes": 83191,
      "path": "mammals-4071/total_dataset.csv",
      "sha256": "699cee0e9d96a70424cfb86bd72baaa68938a59805917569d08eeff54b148290"
+    },
+    {
+     "bytes": 22329,
+     "path": "mammals-4071/gbif_match_sample.tsv",
+     "sha256": "11441c862c82e1eb2c198a2d2363493ad9dac4098cee7812bbb642f4c0c7581f"
     }
    ],
    "fmt": "Newick, CSV",
    "folder": "mammals-4071",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 0.945,
+    "matched_exact_or_fuzzy": 189,
+    "median_occurrences": 368,
+    "sample_with_zero_occurrences": 2,
+    "sampled": 200,
+    "species_exact": 171,
+    "species_exact_rate": 0.855
    },
    "how": "curl of https://zenodo.org/api/records/19210896/files/mammals.tree/content and `total_dataset.csv` from the same record.",
    "id": "mammals-4071",
@@ -1265,7 +1329,7 @@
    "root_children": 2,
    "tips": 4071,
    "title": "Dated mammal phylogeny (4071 tips) with colour/NIR reflectance trait table",
-   "total_bytes": 221046,
+   "total_bytes": 243375,
    "trees_in_main_file": 1,
    "url": "https://zenodo.org/records/19210896 (doi:10.5281/zenodo.19210896)"
   },
@@ -1350,13 +1414,24 @@
      "bytes": 28010,
      "path": "otol-carnivora/carnivora.nwk",
      "sha256": "6a3788cf1c4e410ce245d7a286838fcd6dfc6c66310e06cf90932c35462b24eb"
+    },
+    {
+     "bytes": 23017,
+     "path": "otol-carnivora/gbif_match_sample.tsv",
+     "sha256": "ddfc1526179a23c587538f630da8e4a6854e3d8b67d3c8dde0043b591602f020"
     }
    ],
    "fmt": "Newick",
    "folder": "otol-carnivora",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 0.75,
+    "matched_exact_or_fuzzy": 150,
+    "median_occurrences": 160.5,
+    "sample_with_zero_occurrences": 4,
+    "sampled": 200,
+    "species_exact": 115,
+    "species_exact_rate": 0.575
    },
    "how": "POST https://api.opentreeoflife.org/v3/tree_of_life/subtree with JSON {\"node_id\":\"ott44565\",\"format\":\"newick\",\"label_format\":\"name_and_id\"}; the `newick` field of the response saved verbatim. Retrieved 2026-10-08.",
    "id": "otol-carnivora",
@@ -1371,7 +1446,7 @@
    "root_children": 2,
    "tips": 728,
    "title": "Open Tree of Life synthetic subtree: Carnivora, ~728 tips, no branch lengths",
-   "total_bytes": 28010,
+   "total_bytes": 51027,
    "trees_in_main_file": 1,
    "url": "https://api.opentreeoflife.org/v3/tree_of_life/subtree (node ott44565)"
   },
@@ -1478,13 +1553,24 @@
      "bytes": 230444,
      "path": "otol-aves/aves.nwk.gz",
      "sha256": "b598dece71456a39812bdf36a0a3f0a56ed440be918cf268b120888c78ebcb32"
+    },
+    {
+     "bytes": 25002,
+     "path": "otol-aves/gbif_match_sample.tsv",
+     "sha256": "152476ffc887793326683d14b89a08765a42aee41ee38258d15e214622ce7ce4"
     }
    ],
    "fmt": "Newick",
    "folder": "otol-aves",
    "format_detected": "newick",
    "gbif_match": {
-    "status": "not computed"
+    "match_rate": 0.765,
+    "matched_exact_or_fuzzy": 153,
+    "median_occurrences": 488,
+    "sample_with_zero_occurrences": 5,
+    "sampled": 200,
+    "species_exact": 115,
+    "species_exact_rate": 0.575
    },
    "how": "POST https://api.opentreeoflife.org/v3/tree_of_life/subtree with JSON {\"node_id\":\"ott81461\",\"format\":\"newick\",\"label_format\":\"name_and_id\"}; the `newick` field of the response saved verbatim. Retrieved 2026-10-08.",
    "id": "otol-aves",
@@ -1499,9 +1585,108 @@
    "root_children": 2,
    "tips": 18988,
    "title": "Open Tree of Life synthetic subtree: Aves, ~19k tips, no branch lengths",
-   "total_bytes": 230444,
+   "total_bytes": 255446,
    "trees_in_main_file": 1,
    "url": "https://api.opentreeoflife.org/v3/tree_of_life/subtree (node ott81461)"
+  }
+ ],
+ "edge_cases": [
+  {
+   "bytes": 1673,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/README.md",
+   "sha256": "2283cca9d73bde99acfe18b889850ce0223f2ccea4dafa92a7e30efd46178128"
+  },
+  {
+   "bytes": 1235,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/auspice-mini.json",
+   "sha256": "db2a8e52124142e946f92f7133517a57d45c3e22a7c72c8d5f15af27acd719d9",
+   "tips": [
+    3
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 48733,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/caterpillar-20000.nwk.gz",
+   "sha256": "0ed4d713b2900f52dcdf28a21a4405a4ca0eb28dcc2764a5158e48f2afecaa44",
+   "tips": [
+    20000
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 81,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/internal-labels-support.nwk",
+   "sha256": "2e5ecb721f09909a44639912c4d275df7e92942d8440d1aca5fde0de2e8a21c0",
+   "tips": [
+    6
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 847,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/multi-tree-translate.nex",
+   "sha256": "c54de69c1518c95216dc77c1df06ee6f77d0b94ac3d6fc3cffe8152fa506c0ab",
+   "tips": [
+    7,
+    7,
+    7
+   ],
+   "trees": 3
+  },
+  {
+   "bytes": 85,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/polytomy-missing-lengths.nwk",
+   "sha256": "e358141a11e1295ef76c4c7a383efb5e2c635b43db3030c3bd946233e2b676c3",
+   "tips": [
+    10
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 149,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/quoted-labels.nwk",
+   "sha256": "51d8c5b026fa9540a6b3cf10886e187ff04fe62c3a1c9632ef9aee398e16c547",
+   "tips": [
+    5
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 214,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/tree.nhx",
+   "sha256": "6d06aa92b0858e47bf1d54304962ef75c5be38b355303268ed0b6f6a47184394",
+   "tips": [
+    3
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 34,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/unrooted-trifurcating-root.nwk",
+   "sha256": "b8e59f50425119ff977b29d2ce7519c96cd324a3f5071926c659f78e3cf36010",
+   "tips": [
+    4
+   ],
+   "trees": 1
   }
  ],
  "generated_by": "scripts/build_catalogue.py",

@@ -1,0 +1,201 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+Toxotes_lorentzi	Toxotes lorentzi	EXACT	ACCEPTED	SPECIES	2382440	Toxotes lorentzi Weber, 1910	29
+Toxotes_oligolepis	Toxotes oligolepis	EXACT	ACCEPTED	SPECIES	2382434	Toxotes oligolepis Bleeker, 1876	57
+Lates_microlepis	Lates microlepis	EXACT	ACCEPTED	SPECIES	2393168	Lates microlepis Boulenger, 1898	240
+Lates_stappersii	Lates stappersii	EXACT	ACCEPTED	SPECIES	2393177	Lates stappersii (Boulenger, 1914)	191
+Polydactylus_plebeius	Polydactylus plebeius	EXACT	ACCEPTED	SPECIES	2393274	Polydactylus plebeius (Broussonet, 1782)	2498
+Polydactylus_nigripinnis	Polydactylus nigripinnis	EXACT	ACCEPTED	SPECIES	2393303	Polydactylus nigripinnis Munro, 1964	133
+Polydactylus_sexfilis	Polydactylus sexfilis	EXACT	ACCEPTED	SPECIES	2393295	Polydactylus sexfilis (Valenciennes, 1831)	384
+Polydactylus_luparensis	Polydactylus luparensis	EXACT	ACCEPTED	SPECIES	5962001	Polydactylus luparensis Lim, Motomura & Gambang, 2010	1
+Filimanus_hexanema	Filimanus hexanema	EXACT	ACCEPTED	SPECIES	2393366	Filimanus hexanema (Cuvier, 1829)	13
+Filimanus_sealei	Filimanus sealei	EXACT	ACCEPTED	SPECIES	2393351	Filimanus sealei (Jordan & Richardson, 1910)	30
+Polydactylus_persicus	Polydactylus persicus	EXACT	ACCEPTED	SPECIES	2393317	Polydactylus persicus Motomura & Iwatsuki, 2001	12
+Filimanus_xanthonema	Filimanus xanthonema	EXACT	ACCEPTED	SPECIES	2393300	Filimanus xanthonema (Valenciennes, 1831)	38
+Polynemus_kapuasensis	Polynemus kapuasensis	EXACT	ACCEPTED	SPECIES	2393401	Polynemus kapuasensis Motomura & van Oijen, 2003	4
+Tetrapturus_angustirostris	Tetrapturus angustirostris	EXACT	ACCEPTED	SPECIES	2397945	Tetrapturus angustirostris Tanaka, 1915	781
+Kajikia_audax	Kajikia audax	EXACT	ACCEPTED	SPECIES	2397938	Kajikia audax (Philippi, 1887)	10104
+Makaira_nigricans	Makaira nigricans	EXACT	ACCEPTED	SPECIES	8098719	Makaira nigricans Lacepède, 1802	1842
+Phtheirichthys_lineatus	Phtheirichthys lineatus	EXACT	ACCEPTED	SPECIES	2375258	Phtheirichthys lineatus (Menzies, 1791)	546
+Remora_brachyptera	Remora brachyptera	EXACT	ACCEPTED	SPECIES	2375292	Remora brachyptera (Lowe, 1839)	604
+Scomberoides_tol	Scomberoides tol	EXACT	ACCEPTED	SPECIES	2390855	Scomberoides tol (Cuvier, 1832)	3573
+Oligoplites_saliens	Oligoplites saliens	EXACT	ACCEPTED	SPECIES	2390627	Oligoplites saliens (Bloch, 1793)	603
+Trachinotus_teraia	Trachinotus teraia	EXACT	ACCEPTED	SPECIES	5210657	Trachinotus teraia Cuvier, 1832	353
+Trachinotus_blochii	Trachinotus blochii	EXACT	ACCEPTED	SPECIES	5210675	Trachinotus blochii (Lacepède, 1801)	1530
+Trachinotus_goreensis	Trachinotus goreensis	EXACT	ACCEPTED	SPECIES	5210676	Trachinotus goreensis Cuvier, 1832	592
+Trachinotus_mookalee	Trachinotus mookalee	EXACT	ACCEPTED	SPECIES	5210680	Trachinotus mookalee Cuvier, 1832	86
+Elagatis_bipinnulata	Elagatis bipinnulata	EXACT	ACCEPTED	SPECIES	5210446	Elagatis bipinnulata (Quoy & Gaimard, 1825)	34963
+Seriola_quinqueradiata	Seriola quinqueradiata	EXACT	ACCEPTED	SPECIES	5961724	Seriola quinqueradiata Temminck & Schlegel, 1845	1185
+Seriola_carpenteri	Seriola carpenteri	EXACT	ACCEPTED	SPECIES	5961707	Seriola carpenteri Mather, 1971	49
+Pseudocaranx_wrighti	Pseudocaranx wrighti	EXACT	ACCEPTED	SPECIES	2391172	Pseudocaranx wrighti (Whitley, 1931)	355
+Selar_crumenophthalmus	Selar crumenophthalmus	EXACT	ACCEPTED	SPECIES	2391007	Selar crumenophthalmus (Bloch, 1793)	9555
+Decapterus_tabl	Decapterus tabl	EXACT	ACCEPTED	SPECIES	2391055	Decapterus tabl Berry, 1968	492
+Decapterus_akaadsi	Decapterus akaadsi	EXACT	ACCEPTED	SPECIES	2391046	Decapterus akaadsi Abe, 1958	172
+Carangoides_coeruleopinnatus	Carangoides coeruleopinnatus	EXACT	ACCEPTED	SPECIES	5210547	Carangoides coeruleopinnatus (Rüppell, 1830)	6699
+Trachurus_trecae	Trachurus trecae	EXACT	ACCEPTED	SPECIES	5210483	Trachurus trecae Cadenat, 1950	180
+Trachurus_murphyi	Trachurus murphyi	EXACT	ACCEPTED	SPECIES	5210470	Trachurus murphyi Nichols, 1920	834023
+Carangoides_orthogrammus	Carangoides orthogrammus	EXACT	ACCEPTED	SPECIES	5210572	Carangoides orthogrammus (Jordan & Gilbert, 1882)	1873
+Uraspis_uraspis	Uraspis uraspis	EXACT	ACCEPTED	SPECIES	2391358	Uraspis uraspis (Günther, 1860)	603
+Carangoides_armatus	Carangoides armatus	EXACT	ACCEPTED	SPECIES	9787698	Carangoides armatus (Rüppell, 1830)	409
+Carangoides_malabaricus	Carangoides malabaricus	EXACT	ACCEPTED	SPECIES	5210526	Carangoides malabaricus (Bloch & Schneider, 1801)	4289
+Alectis_ciliaris	Alectis ciliaris	EXACT	ACCEPTED	SPECIES	2390537	Alectis ciliaris (Bloch, 1787)	21126
+Selene_setapinnis	Selene setapinnis	EXACT	ACCEPTED	SPECIES	2390733	Selene setapinnis (Mitchill, 1815)	27959
+Selene_brevoortii	Selene brevoortii	EXACT	ACCEPTED	SPECIES	2390715	Selene brevoortii (Gill, 1863)	415
+Atule_mate	Atule mate	EXACT	ACCEPTED	SPECIES	2390522	Atule mate (Cuvier, 1833)	3712
+Hemicaranx_bicolor	Hemicaranx bicolor	EXACT	ACCEPTED	SPECIES	2391406	Hemicaranx bicolor (Günther, 1860)	139
+Selene_spixii	Selene spixii	EXACT	ACCEPTED	SPECIES	9816235	Selene spixii (Castelnau, 1855)	16
+Caranx_sexfasciatus	Caranx sexfasciatus	EXACT	ACCEPTED	SPECIES	2390776	Caranx sexfasciatus Quoy & Gaimard, 1825	6715
+Caranx_vinctus	Caranx vinctus	EXACT	ACCEPTED	SPECIES	2390803	Caranx vinctus Jordan & Gilbert, 1882	261
+Caranx_heberi	Caranx heberi	EXACT	ACCEPTED	SPECIES	2390842	Caranx heberi (Bennett, 1830)	349
+Caranx_caballus	Caranx caballus	EXACT	ACCEPTED	SPECIES	2390774	Caranx caballus Günther, 1868	1685
+Centropomus_unionensis	Centropomus unionensis	EXACT	ACCEPTED	SPECIES	2369650	Centropomus unionensis Bocourt, 1868	156
+Centropomus_viridis	Centropomus viridis	EXACT	ACCEPTED	SPECIES	2369648	Centropomus viridis Lockington, 1877	263
+Sphyraena_flavicauda	Sphyraena flavicauda	EXACT	ACCEPTED	SPECIES	2394248	Sphyraena flavicauda Rüppell, 1838	1756
+Sphyraena_acutipinnis	Sphyraena acutipinnis	EXACT	ACCEPTED	SPECIES	2394243	Sphyraena acutipinnis Day, 1876	929
+Sphyraena_novaehollandiae	Sphyraena novaehollandiae	EXACT	ACCEPTED	SPECIES	2394253	Sphyraena novaehollandiae Günther, 1860	1134
+Sphyraena_picudilla	Sphyraena picudilla	EXACT	ACCEPTED	SPECIES	2394238	Sphyraena picudilla Poey, 1860	16948
+Sphyraena_tome	Sphyraena tome	EXACT	ACCEPTED	SPECIES	2394236	Sphyraena tome Fowler, 1903	55
+Sphyraena_intermedia	Sphyraena intermedia	EXACT	ACCEPTED	SPECIES	5962053	Sphyraena intermedia Pastore, 2009	0
+Brachypleura_novaezeelandiae	Brachypleura novaezeelandiae	EXACT	ACCEPTED	SPECIES	5213915	Brachypleura novaezeelandiae Günther, 1862	912
+Citharoides_axillaris	Citharoides axillaris	EXACT	SYNONYM	SPECIES	2409026	Citharoides axillaris (Fowler, 1934)	0
+Pseudorhombus_javanicus	Pseudorhombus javanicus	EXACT	ACCEPTED	SPECIES	2408849	Pseudorhombus javanicus (Bleeker, 1853)	136
+Leptachirus_klunzingeri	Leptachirus klunzingeri	EXACT	ACCEPTED	SPECIES	5962317	Leptachirus klunzingeri (Weber, 1907)	24
+Leptachirus_darwinensis	Leptachirus darwinensis	EXACT	ACCEPTED	SPECIES	5962322	Leptachirus darwinensis Randall, 2007	21
+Lepidorhombus_whiffiagonis	Lepidorhombus whiffiagonis	EXACT	ACCEPTED	SPECIES	2409391	Lepidorhombus whiffiagonis (Walbaum, 1792)	183460
+Scophthalmus_rhombus	Scophthalmus rhombus	EXACT	ACCEPTED	SPECIES	2409403	Scophthalmus rhombus (Linnaeus, 1758)	25905
+Cephalopsetta_ventrocellatus	Cephalopsetta ventrocellatus	EXACT	ACCEPTED	SPECIES	2408756	Cephalopsetta ventrocellatus Dutt & Rao, 1965	18
+Atheresthes_stomias	Atheresthes stomias	EXACT	ACCEPTED	SPECIES	2409091	Atheresthes stomias (Jordan & Gilbert, 1880)	185703
+Poecilopsetta_hawaiiensis	Poecilopsetta hawaiiensis	EXACT	ACCEPTED	SPECIES	2409123	Poecilopsetta hawaiiensis Gilbert, 1905	127
+Ammotretis_lituratus	Ammotretis lituratus	EXACT	ACCEPTED	SPECIES	2409162	Ammotretis lituratus (Richardson, 1844)	82
+Pleuronichthys_japonicus	Pleuronichthys japonicus	EXACT	ACCEPTED	SPECIES	5962293	Pleuronichthys japonicus Suzuki, Kawashima & Nakabo, 2009	100
+Pleuronichthys_decurrens	Pleuronichthys decurrens	EXACT	ACCEPTED	SPECIES	2409246	Pleuronichthys decurrens Jordan & Gilbert, 1881	7113
+Verasper_variegatus	Verasper variegatus	EXACT	ACCEPTED	SPECIES	2409297	Verasper variegatus (Temminck & Schlegel, 1846)	139
+Hippoglossus_stenolepis	Hippoglossus stenolepis	EXACT	ACCEPTED	SPECIES	2409216	Hippoglossus stenolepis Schmidt, 1904	37463
+Reinhardtius_hippoglossoides	Reinhardtius hippoglossoides	EXACT	ACCEPTED	SPECIES	2409383	Reinhardtius hippoglossoides (Walbaum, 1792)	73424
+Glyptocephalus_cynoglossus	Glyptocephalus cynoglossus	EXACT	ACCEPTED	SPECIES	5213996	Glyptocephalus cynoglossus (Linnaeus, 1758)	207030
+Microstomus_pacificus	Microstomus pacificus	EXACT	ACCEPTED	SPECIES	5214028	Microstomus pacificus (Lockington, 1879)	134871
+Pseudorhombus_dupliciocellatus	Pseudorhombus dupliciocellatus	EXACT	ACCEPTED	SPECIES	2408837	Pseudorhombus dupliciocellatus Regan, 1905	1937
+Dexistes_rikuzenius	Dexistes rikuzenius	EXACT	ACCEPTED	SPECIES	2409279	Dexistes rikuzenius Jordan & Starks, 1904	255
+Pseudorhombus_polyspilos	Pseudorhombus polyspilos	EXACT	SYNONYM	SPECIES	2408860	Pseudorhombus polyspilos (Bleeker, 1853)	0
+Pseudopleuronectes_yokohamae	Pseudopleuronectes yokohamae	EXACT	ACCEPTED	SPECIES	2409074	Pseudopleuronectes yokohamae (Günther, 1877)	1733
+Isopsetta_isolepis	Isopsetta isolepis	EXACT	ACCEPTED	SPECIES	2409202	Isopsetta isolepis (Lockington, 1880)	12486
+Acanthopsetta_nadeshnyi	Acanthopsetta nadeshnyi	EXACT	ACCEPTED	SPECIES	2409054	Acanthopsetta nadeshnyi Schmidt, 1904	164
+Pleuronectes_putnami	Pleuronectes putnami	EXACT	ACCEPTED	SPECIES	5213985	Pleuronectes putnami (Gill, 1864)	3637
+Platichthys_stellatus	Platichthys stellatus	EXACT	ACCEPTED	SPECIES	2409327	Platichthys stellatus (Pallas, 1787)	13656
+Xystreurys_liolepis	Xystreurys liolepis	EXACT	ACCEPTED	SPECIES	2408912	Xystreurys liolepis Jordan & Gilbert, 1880	903
+Etropus_ectenes	Etropus ectenes	EXACT	ACCEPTED	SPECIES	2408954	Etropus ectenes Jordan, 1889	81
+Paralichthys_albigutta	Paralichthys albigutta	EXACT	ACCEPTED	SPECIES	2408884	Paralichthys albigutta Jordan & Gilbert, 1882	32482
+Poecilopsetta_vaynei	Poecilopsetta vaynei	EXACT	ACCEPTED	SPECIES	2409132	Poecilopsetta vaynei Quéro, Hensley & Maugé, 1988	16
+Etropus_microstomus	Etropus microstomus	EXACT	ACCEPTED	SPECIES	2408956	Etropus microstomus (Gill, 1864)	2029
+Citharichthys_xanthostigma	Citharichthys xanthostigma	EXACT	ACCEPTED	SPECIES	2408742	Citharichthys xanthostigma Gilbert, 1890	2332
+Syacium_latifrons	Syacium latifrons	EXACT	ACCEPTED	SPECIES	2408785	Syacium latifrons (Jordan & Gilbert, 1882)	225
+Pseudorhombus_russellii	Pseudorhombus russellii	EXACT	ACCEPTED	SPECIES	2408857	Pseudorhombus russellii (Gray, 1834)	49
+Paralichthys_isosceles	Paralichthys isosceles	EXACT	ACCEPTED	SPECIES	2408902	Paralichthys isosceles Jordan, 1891	556
+Ancylopsetta_kumperae	Ancylopsetta kumperae	EXACT	ACCEPTED	SPECIES	2408934	Ancylopsetta kumperae Tyler, 1959	52
+Ancylopsetta_dendritica	Ancylopsetta dendritica	EXACT	ACCEPTED	SPECIES	2408939	Ancylopsetta dendritica Gilbert, 1890	98
+Pseudorhombus_neglectus	Pseudorhombus neglectus	EXACT	ACCEPTED	SPECIES	2408838	Pseudorhombus neglectus Bleeker, 1865	59
+Paralichthys_brasiliensis	Paralichthys brasiliensis	EXACT	ACCEPTED	SPECIES	2408896	Paralichthys brasiliensis (Ranzani, 1842)	150
+Pseudorhombus_malayanus	Pseudorhombus malayanus	EXACT	ACCEPTED	SPECIES	2408811	Pseudorhombus malayanus Bleeker, 1865	139
+Brachirus_elongatus	Brachirus elongatus	EXACT	ACCEPTED	SPECIES	5962299	Brachirus elongatus (Pellegrin & Chevey, 1940)	26
+Brachirus_pan	Brachirus pan	EXACT	ACCEPTED	SPECIES	5962298	Brachirus pan (Hamilton, 1822)	19
+Brachirus_muelleri	Brachirus muelleri	EXACT	SYNONYM	SPECIES	5962311	Brachirus muelleri (Steindachner, 1879)	2
+Microchirus_theophila	Microchirus theophila	EXACT	ACCEPTED	SPECIES	2410136	Microchirus theophila (Risso, 1810)	206
+Mancopsetta_maculata	Mancopsetta maculata	EXACT	ACCEPTED	SPECIES	5712308	Mancopsetta maculata (Günther, 1880)	342
+Pseudorhombus_annulatus	Pseudorhombus annulatus	EXACT	ACCEPTED	SPECIES	2408840	Pseudorhombus annulatus Norman, 1927	18
+Symphurus_billykrietei	Symphurus billykrietei	EXACT	ACCEPTED	SPECIES	2409516	Symphurus billykrietei Munroe, 1998	71
+Poecilopsetta_plinthus	Poecilopsetta plinthus	EXACT	ACCEPTED	SPECIES	2409126	Poecilopsetta plinthus (Jordan & Starks, 1904)	367
+Symphurus_orientalis	Symphurus orientalis	EXACT	ACCEPTED	SPECIES	2409522	Symphurus orientalis (Bleeker, 1879)	299
+Symphurus_megasomus	Symphurus megasomus	EXACT	ACCEPTED	SPECIES	2409541	Symphurus megasomus Lee, Chen & Shao, 2009	27
+Symphurus_strictus	Symphurus strictus	EXACT	ACCEPTED	SPECIES	2409484	Symphurus strictus Gilbert, 1905	153
+Symphurus_luzonensis	Symphurus luzonensis	EXACT	ACCEPTED	SPECIES	2409449	Symphurus luzonensis Chabanaud, 1955	1
+Symphurus_ommaspilus	Symphurus ommaspilus	EXACT	ACCEPTED	SPECIES	2409546	Symphurus ommaspilus Böhlke, 1961	32
+Symphurus_undecimplerus	Symphurus undecimplerus	EXACT	ACCEPTED	SPECIES	2409495	Symphurus undecimplerus Munroe & Nizinski, 1990	19
+Symphurus_parvus	Symphurus parvus	EXACT	ACCEPTED	SPECIES	2409441	Symphurus parvus Ginsburg, 1951	202
+Symphurus_urospilus	Symphurus urospilus	EXACT	ACCEPTED	SPECIES	2409456	Symphurus urospilus Ginsburg, 1951	102
+Symphurus_tessellatus	Symphurus tessellatus	EXACT	ACCEPTED	SPECIES	2409459	Symphurus tessellatus (Quoy & Gaimard, 1824)	543
+Symphurus_williamsi	Symphurus williamsi	EXACT	ACCEPTED	SPECIES	2409457	Symphurus williamsi Jordan & Culver, 1895	159
+Symphurus_nigrescens	Symphurus nigrescens	EXACT	ACCEPTED	SPECIES	2409453	Symphurus nigrescens Rafinesque, 1810	1224
+Symphurus_multimaculatus	Symphurus multimaculatus	EXACT	ACCEPTED	SPECIES	2409553	Symphurus multimaculatus Lee, Munroe & Chen, 2009	4
+Symphurus_prolatinaris	Symphurus prolatinaris	EXACT	ACCEPTED	SPECIES	2409514	Symphurus prolatinaris Munroe, Nizinski & Mahadeva, 1991	57
+Cyclopsetta_chittendeni	Cyclopsetta chittendeni	EXACT	ACCEPTED	SPECIES	2408923	Cyclopsetta chittendeni Bean, 1895	766
+Syacium_papillosum	Syacium papillosum	EXACT	ACCEPTED	SPECIES	2408759	Syacium papillosum (Linnaeus, 1758)	2488
+Citharichthys_fragilis	Citharichthys fragilis	EXACT	ACCEPTED	SPECIES	2408740	Citharichthys fragilis Gilbert, 1890	1784
+Arnoglossus_grohmanni	Arnoglossus grohmanni	EXACT	ACCEPTED	SPECIES	2408570	Arnoglossus grohmanni (Bonaparte, 1837)	119
+Monolene_atrimana	Monolene atrimana	EXACT	ACCEPTED	SPECIES	2408611	Monolene atrimana Goode & Bean, 1886	39
+Monolene_asaedae	Monolene asaedae	EXACT	ACCEPTED	SPECIES	8227797	Monolene asaedae Clark, 1936	156
+Parabothus_filipes	Parabothus filipes	EXACT	ACCEPTED	SPECIES	2408384	Parabothus filipes Amaoka, Mihara & Rivaton, 1997	86
+Parabothus_malhensis	Parabothus malhensis	EXACT	ACCEPTED	SPECIES	2408400	Parabothus malhensis (Regan, 1908)	2
+Japonolaeops_dentatus	Japonolaeops dentatus	EXACT	ACCEPTED	SPECIES	2408314	Japonolaeops dentatus Amaoka, 1969	102
+Tosarhombus_longimanus	Tosarhombus longimanus	EXACT	ACCEPTED	SPECIES	2408344	Tosarhombus longimanus Amaoka, Mihara & Rivaton, 1997	54
+Arnoglossus_waitei	Arnoglossus waitei	EXACT	ACCEPTED	SPECIES	2408541	Arnoglossus waitei Norman, 1926	770
+Arnoglossus_thori	Arnoglossus thori	EXACT	ACCEPTED	SPECIES	2408543	Arnoglossus thori Kyle, 1913	1740
+Arnoglossus_capensis	Arnoglossus capensis	EXACT	ACCEPTED	SPECIES	2408512	Arnoglossus capensis Boulenger, 1898	357
+Arnoglossus_elongatus	Arnoglossus elongatus	EXACT	ACCEPTED	SPECIES	2408551	Arnoglossus elongatus Weber, 1913	84
+Engyprosopon_arenicola	Engyprosopon arenicola	EXACT	ACCEPTED	SPECIES	2408422	Engyprosopon arenicola Jordan & Evermann, 1903	30
+Engyprosopon_hawaiiensis	Engyprosopon hawaiiensis	EXACT	ACCEPTED	SPECIES	2408409	Engyprosopon hawaiiensis Jordan & Evermann, 1903	19
+Engyprosopon_maldivensis	Engyprosopon maldivensis	EXACT	ACCEPTED	SPECIES	2408427	Engyprosopon maldivensis (Regan, 1908)	771
+Engyprosopon_obliquioculatum	Engyprosopon obliquioculatum	EXACT	ACCEPTED	SPECIES	2408441	Engyprosopon obliquioculatum (Fowler, 1934)	4
+Engyprosopon_mogkii	Engyprosopon mogkii	EXACT	ACCEPTED	SPECIES	2408406	Engyprosopon mogkii (Bleeker, 1854)	46
+Engyprosopon_longipterum	Engyprosopon longipterum	EXACT	ACCEPTED	SPECIES	2408471	Engyprosopon longipterum Amaoka, Mihara & Rivaton, 1993	39
+Arnoglossus_micrommatus	Arnoglossus micrommatus	EXACT	ACCEPTED	SPECIES	2408553	Arnoglossus micrommatus Amaoka, Arai & Gomon, 1997	26
+Laeops_gracilis	Laeops gracilis	EXACT	ACCEPTED	SPECIES	2408485	Laeops gracilis Fowler, 1934	21
+Chascanopsetta_prognatha	Chascanopsetta prognatha	EXACT	ACCEPTED	SPECIES	2408373	Chascanopsetta prognatha Norman, 1939	66
+Bothus_swio	Bothus swio	EXACT	ACCEPTED	SPECIES	5213871	Bothus swio Hensley, 1997	8
+Bothus_pantherinus	Bothus pantherinus	EXACT	ACCEPTED	SPECIES	5213813	Bothus pantherinus (Rüppell, 1830)	2847
+Arnoglossus_nigrifrons	Arnoglossus nigrifrons	EXACT	ACCEPTED	SPECIES	2408525	Arnoglossus nigrifrons Amaoka & Mihara, 2000	46
+Grammatobothus_pennatus	Grammatobothus pennatus	EXACT	ACCEPTED	SPECIES	2408334	Grammatobothus pennatus (Ogilby, 1913)	399
+Laeops_macrophthalmus	Laeops macrophthalmus	EXACT	ACCEPTED	SPECIES	2408499	Laeops macrophthalmus (Alcock, 1889)	22
+Arnoglossus_oxyrhynchus	Arnoglossus oxyrhynchus	EXACT	ACCEPTED	SPECIES	2408566	Arnoglossus oxyrhynchus Amaoka, 1969	18
+Arnoglossus_boops	Arnoglossus boops	EXACT	ACCEPTED	SPECIES	2408572	Arnoglossus boops (Hector, 1875)	4
+Trichopsetta_caribbaea	Trichopsetta caribbaea	EXACT	ACCEPTED	SPECIES	2408380	Trichopsetta caribbaea Anderson & Gutherz, 1967	67
+Lophonectes_mongonuiensis	Lophonectes mongonuiensis	EXACT	ACCEPTED	SPECIES	2408689	Lophonectes mongonuiensis (Regan, 1914)	8
+Laeops_guentheri	Laeops guentheri	EXACT	ACCEPTED	SPECIES	2408486	Laeops guentheri Alcock, 1890	21
+Psettina_tosana	Psettina tosana	EXACT	ACCEPTED	SPECIES	2408697	Psettina tosana Amaoka, 1963	392
+Psettina_iijimae	Psettina iijimae	EXACT	ACCEPTED	SPECIES	2408698	Psettina iijimae (Jordan & Starks, 1904)	111
+Arnoglossus_debilis	Arnoglossus debilis	EXACT	ACCEPTED	SPECIES	2408539	Arnoglossus debilis (Gilbert, 1905)	63
+Samaris_macrolepis	Samaris macrolepis	EXACT	ACCEPTED	SPECIES	2408999	Samaris macrolepis Norman, 1927	28
+Paradicula_setifer	Paradicula setifer	EXACT	ACCEPTED	SPECIES	2410144	Paradicula setifer (Paradice, 1927)	47
+Apionichthys_finis	Apionichthys finis	EXACT	ACCEPTED	SPECIES	2408291	Apionichthys finis (Eigenmann, 1912)	60
+Apionichthys_seripierriae	Apionichthys seripierriae	EXACT	ACCEPTED	SPECIES	2408294	Apionichthys seripierriae Ramos, 2003	6
+Hypoclinemus_mentalis	Hypoclinemus mentalis	EXACT	ACCEPTED	SPECIES	2408297	Hypoclinemus mentalis (Günther, 1862)	641
+Trinectes_fluviatilis	Trinectes fluviatilis	EXACT	ACCEPTED	SPECIES	2408258	Trinectes fluviatilis (Meek & Hildebrand, 1928)	86
+Catathyridium_lorentzii	Catathyridium lorentzii	EXACT	ACCEPTED	SPECIES	2408234	Catathyridium lorentzii (Weyenbergh, 1877)	10
+Achirus_klunzingeri	Achirus klunzingeri	EXACT	ACCEPTED	SPECIES	2408222	Achirus klunzingeri (Steindachner, 1880)	81
+Achirus_achirus	Achirus achirus	EXACT	ACCEPTED	SPECIES	2408215	Achirus achirus (Linnaeus, 1758)	604
+Citharichthys_gnathus	Citharichthys gnathus	EXACT	ACCEPTED	SPECIES	2408724	Citharichthys gnathus Hoshino & Amaoka, 1999	3
+Citharichthys_cornutus	Citharichthys cornutus	EXACT	ACCEPTED	SPECIES	2408713	Citharichthys cornutus (Günther, 1880)	635
+Hippoglossina_montemaris	Hippoglossina montemaris	EXACT	ACCEPTED	SPECIES	2408799	Hippoglossina montemaris de Buen, 1961	1
+Heteromycteris_matsubarai	Heteromycteris matsubarai	EXACT	ACCEPTED	SPECIES	2410227	Heteromycteris matsubarai Ochiai, 1963	22
+Pardachirus_marmoratus	Pardachirus marmoratus	EXACT	ACCEPTED	SPECIES	2410167	Pardachirus marmoratus (Lacepède, 1802)	397
+Pardachirus_morrowi	Pardachirus morrowi	EXACT	ACCEPTED	SPECIES	2410267	Pardachirus morrowi (Chabanaud, 1954)	33
+Nematops_microstoma	Nematops microstoma	EXACT	ACCEPTED	SPECIES	2409047	Nematops microstoma Günther, 1880	19
+Soleichthys_dori	Soleichthys dori	EXACT	ACCEPTED	SPECIES	2409947	Soleichthys dori Randall & Munroe, 2008	35
+Citharichthys_mariajorisae	Citharichthys mariajorisae	EXACT	ACCEPTED	SPECIES	2408733	Citharichthys mariajorisae van der Heiden & Mussot-Pérez, 1995	34
+Zebrias_crossolepis	Zebrias crossolepis	EXACT	ACCEPTED	SPECIES	2409906	Zebrias crossolepis Zheng & Chang, 1965	68
+Pseudaesopia_japonica	Pseudaesopia japonica	EXACT	ACCEPTED	SPECIES	2409883	Pseudaesopia japonica (Bleeker, 1860)	1246
+Zebrias_quagga	Zebrias quagga	EXACT	ACCEPTED	SPECIES	2409880	Zebrias quagga (Kaup, 1858)	652
+Achiroides_melanorhynchus	Achiroides melanorhynchus	EXACT	ACCEPTED	SPECIES	2409990	Achiroides melanorhynchus (Bleeker, 1850)	54
+Buglossidium_luteum	Buglossidium luteum	EXACT	ACCEPTED	SPECIES	2409909	Buglossidium luteum (Risso, 1810)	86477
+Rendahlia_jaubertensis	Rendahlia jaubertensis	EXACT	ACCEPTED	SPECIES	2410254	Rendahlia jaubertensis (Rendahl, 1921)	65
+Poecilopsetta_albomaculata	Poecilopsetta albomaculata	EXACT	ACCEPTED	SPECIES	2409133	Poecilopsetta albomaculata Norman, 1939	3
+Pegusa_impar	Pegusa impar	EXACT	ACCEPTED	SPECIES	2409964	Pegusa impar (Bennett, 1831)	137
+Synaptura_lusitanica_nigromaculata	Synaptura lusitanica nigromaculata	EXACT	SYNONYM	SUBSPECIES	6165867	Synaptura lusitanica nigromaculata Pellegrin, 1905	0
+Synaptura_salinarum	Synaptura salinarum	EXACT	ACCEPTED	SPECIES	2410011	Synaptura salinarum (Ogilby, 1910)	47
+Microchirus_boscanion	Microchirus boscanion	EXACT	ACCEPTED	SPECIES	2410130	Microchirus boscanion (Chabanaud, 1926)	733
+Samariscus_huysmani	Samariscus huysmani	EXACT	ACCEPTED	SPECIES	2408976	Samariscus huysmani Weber, 1913	26
+Samariscus_sunieri	Samariscus sunieri	EXACT	ACCEPTED	SPECIES	2408977	Samariscus sunieri Weber & de Beaufort, 1929	31
+Synaptura_cadenati	Synaptura cadenati	EXACT	ACCEPTED	SPECIES	2410026	Synaptura cadenati Chabanaud, 1948	44
+Aseraggodes_longipinnis	Aseraggodes longipinnis	EXACT	ACCEPTED	SPECIES	2410189	Aseraggodes longipinnis Randall & Desoutter-Meniger, 2007	3
+Aseraggodes_microlepidotus	Aseraggodes microlepidotus	EXACT	ACCEPTED	SPECIES	2410183	Aseraggodes microlepidotus Weber, 1913	3
+Aseraggodes_corymbus	Aseraggodes corymbus	EXACT	ACCEPTED	SPECIES	2410194	Aseraggodes corymbus Randall & Bartsch, 2007	4
+Aseraggodes_lateralis	Aseraggodes lateralis	EXACT	ACCEPTED	SPECIES	2410151	Aseraggodes lateralis Randall, 2005	7
+Aseraggodes_cyclurus	Aseraggodes cyclurus	EXACT	ACCEPTED	SPECIES	2410168	Aseraggodes cyclurus Randall, 2005	7
+Aseraggodes_cyaneus	Aseraggodes cyaneus	EXACT	ACCEPTED	SPECIES	2410184	Aseraggodes cyaneus (Alcock, 1890)	17
+Aseraggodes_brevirostris	Aseraggodes brevirostris	EXACT	ACCEPTED	SPECIES	2410150	Aseraggodes brevirostris Randall & Gon, 2006	2
+Poecilopsetta_colorata	Poecilopsetta colorata	EXACT	ACCEPTED	SPECIES	2409114	Poecilopsetta colorata Günther, 1880	57
+Samariscus_luzonensis	Samariscus luzonensis	EXACT	ACCEPTED	SPECIES	2408965	Samariscus luzonensis Fowler, 1934	7
+Paraplagusia_bilineata	Paraplagusia bilineata	EXACT	ACCEPTED	SPECIES	2409798	Paraplagusia bilineata (Bloch, 1787)	1610
+Aseraggodes_guttulatus	Aseraggodes guttulatus	EXACT	ACCEPTED	SPECIES	2410218	Aseraggodes guttulatus Kaup, 1858	4
+Paraplagusia_blochii	Paraplagusia blochii	EXACT	ACCEPTED	SPECIES	2409791	Paraplagusia blochii (Bleeker, 1851)	172
+Paraplagusia_longirostris	Paraplagusia longirostris	EXACT	ACCEPTED	SPECIES	2409795	Paraplagusia longirostris Chapleau, Renaud & Kailola, 1991	308
+Azygopus_pinnifasciatus	Azygopus pinnifasciatus	EXACT	ACCEPTED	SPECIES	2409320	Azygopus pinnifasciatus Norman, 1926	878
+Cynoglossus_senegalensis	Cynoglossus senegalensis	EXACT	ACCEPTED	SPECIES	2409643	Cynoglossus senegalensis (Kaup, 1858)	1670

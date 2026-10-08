@@ -8,6 +8,7 @@
 - `tree.nhx` (39878 bytes, sha256 `fb86a935f4203113...`)
 - `alignment.fa.gz` (31497 bytes, sha256 `1671928e3b262db7...`)
 - `members.tsv` (28237 bytes, sha256 `452535332ad75f83...`)
+- `gbif_match_sample.tsv` (10943 bytes, sha256 `93bfd88ecff6ad56...`)
 
 ## What extra data it carries
 
@@ -29,9 +30,13 @@ as ens-ncrna-102
 
 as ens-ncrna-102; 181 zero-length branches of 796
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 101 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 98 of 101 = 0.97
+- EXACT at rank SPECIES: 87 of 101 = 0.861
+- median occurrence count of matched names: 3538.5; matched names with zero occurrences: 0
 
 ## Provenance
 

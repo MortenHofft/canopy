@@ -5,6 +5,7 @@
 ## Contents
 
 - `Butterflies_Europe_phylogeny_dated.nwk.txt` (21797 bytes, sha256 `98bf3f88cefef580...`)
+- `gbif_match_sample.tsv` (21383 bytes, sha256 `4e96f4a312207f7c...`)
 
 ## What extra data it carries
 
@@ -26,9 +27,13 @@ tip label = Genus_species (European species); matches GBIF
 
 File has a .txt extension; plain Newick; strictly bifurcating, ultrametric.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 196 of 200 = 0.98
+- EXACT at rank SPECIES: 193 of 200 = 0.965
+- median occurrence count of matched names: 7667.5; matched names with zero occurrences: 0
 
 ## Provenance
 

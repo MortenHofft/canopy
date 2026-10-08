@@ -5,6 +5,7 @@
 ## Contents
 
 - `carnivora.nwk` (28010 bytes, sha256 `6a3788cf1c4e410c...`)
+- `gbif_match_sample.tsv` (23017 bytes, sha256 `ddfc1526179a23c5...`)
 
 ## What extra data it carries
 
@@ -26,9 +27,13 @@ tip label `Genus_species_ott<id>`: strip `_ott<id>` for GBIF name matching; the 
 
 Polytomies (78), 233 labelled internal nodes, no lengths: layout must handle length-less trees (cladogram). Underscores for spaces.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 150 of 200 = 0.75
+- EXACT at rank SPECIES: 115 of 200 = 0.575
+- median occurrence count of matched names: 160.5; matched names with zero occurrences: 4
 
 ## Provenance
 

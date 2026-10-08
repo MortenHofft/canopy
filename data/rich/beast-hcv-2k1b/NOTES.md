@@ -25,11 +25,11 @@ tip labels encode lineage_place_accession_year (e.g. `2k1b_Austria_wg_S3_KY78012
 
 ## Quirks
 
-Contains one NEGATIVE branch length (-0.80; typical of MCC trees with common-ancestor heights on heterochronous data), `[&R]` rooted flag, a trailing `begin figtree` block, TAXA block without TRANSLATE (labels written in full in the tree).
+Contains one NEGATIVE branch length (-0.80; likely an artefact of summarising node heights on heterochronous data, cause unverified), `[&R]` rooted flag, a trailing `begin figtree` block, TAXA block without TRANSLATE (labels written in full in the tree).
 
 ## GBIF match
 
-Not computed for this dataset (tips are not plain species names or the dataset is a sibling of one that was computed).
+Not computed for this dataset (tips are not plain species names; for Ensembl gene trees see the species list in members.tsv and the match rate of ens-ncrna-399, whose sample is its 101 species).
 
 ## Provenance
 

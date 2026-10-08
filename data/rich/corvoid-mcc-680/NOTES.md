@@ -5,6 +5,7 @@
 ## Contents
 
 - `CC_MCC.tre.gz` (219203 bytes, sha256 `c73aa7a8b00d80b8...`)
+- `gbif_match_sample.tsv` (22615 bytes, sha256 `283824b41a537163...`)
 
 ## What extra data it carries
 
@@ -27,9 +28,13 @@ tip label = Genus_species (a few are genus-only, e.g. `Acanthisitta`); matches G
 
 Per-branch rate annotations (relaxed clock) are a good colour-by-attribute test. Single-word tip labels exist.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 200 of 200 = 1.0
+- EXACT at rank SPECIES: 195 of 200 = 0.975
+- median occurrence count of matched names: 4002.0; matched names with zero occurrences: 1
 
 ## Provenance
 

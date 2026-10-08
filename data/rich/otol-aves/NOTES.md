@@ -5,6 +5,7 @@
 ## Contents
 
 - `aves.nwk.gz` (230444 bytes, sha256 `b598dece71456a39...`)
+- `gbif_match_sample.tsv` (25002 bytes, sha256 `152476ffc8877933...`)
 
 ## What extra data it carries
 
@@ -26,9 +27,13 @@ as otol-carnivora
 
 1773 polytomies, 4137 labelled internal nodes. Tips are mostly species.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 153 of 200 = 0.765
+- EXACT at rank SPECIES: 115 of 200 = 0.575
+- median occurrence count of matched names: 488; matched names with zero occurrences: 5
 
 ## Provenance
 

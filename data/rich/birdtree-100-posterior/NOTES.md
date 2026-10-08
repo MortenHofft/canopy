@@ -5,6 +5,7 @@
 ## Contents
 
 - `output2.nex.gz` (601687 bytes, sha256 `27773da491bd8ecc...`)
+- `gbif_match_sample.tsv` (22055 bytes, sha256 `89b7b40f25938b7e...`)
 
 ## What extra data it carries
 
@@ -26,9 +27,13 @@ tip label = Genus_species; the same record (CC-BY part, doi 10.5061/dryad.j0zpc8
 
 Multiple trees in one TREES block without TRANSLATE; branch lengths differ across trees; ultrametric.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 200 of 200 = 1.0
+- EXACT at rank SPECIES: 200 of 200 = 1.0
+- median occurrence count of matched names: 1129250.5; matched names with zero occurrences: 0
 
 ## Provenance
 

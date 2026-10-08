@@ -1,0 +1,201 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+Martes_pennanti_ott4697	Martes pennanti	EXACT	SYNONYM	SPECIES	5218855	Martes pennanti (Erxleben, 1777)	1233
+Martes_americana_nesophila_ott235242	Martes americana nesophila	EXACT	ACCEPTED	SUBSPECIES	5218876	Martes americana nesophila (Osgood, 1901)	147
+Martes_melampus_melampus_ott719225	Martes melampus melampus	EXACT	ACCEPTED	SUBSPECIES	7193965	Martes melampus melampus (Wagner, 1840)	998
+Martes_zibellina_linkouensis_ott5925606	Martes zibellina linkouensis	EXACT	ACCEPTED	SUBSPECIES	5218829	Martes zibellina linkouensis Ma & Wu, 1981	0
+Martes_gwatkinsii_ott3612688	Martes gwatkinsii	EXACT	ACCEPTED	SPECIES	5218863	Martes gwatkinsii Horsfield, 1851	53
+Martes_nobilis_ott6145484	Martes nobilis	FUZZY	SYNONYM	SPECIES	7812710	Martes notialis	29
+Meles_anakuma_ott135341	Meles anakuma	EXACT	ACCEPTED	SPECIES	2433884	Meles anakuma Temminck, 1844	957
+Meles_meles_arcalus_ott420831	Meles meles arcalus	EXACT	SYNONYM	SUBSPECIES	6163940	Meles meles arcalus Miller, 1907	62
+Arctonyx_collaris_ott1086986	Arctonyx collaris	EXACT	ACCEPTED	SPECIES	2433743	Arctonyx collaris F.G.Cuvier, 1825	1658
+Aonyx_cinereus_ott956747	Aonyx cinereus	EXACT	SYNONYM	SPECIES	2433894	Aonyx cinereus (Illiger, 1815)	343
+Lutra_lutra_ott348036	Lutra lutra	EXACT	ACCEPTED	SPECIES	2433753	Lutra lutra (Linnaeus, 1758)	321468
+Lutra_brasiliensis_ott6145463	Lutra brasiliensis	EXACT	SYNONYM	SPECIES	7392312	Lutra brasiliensis (Gmelin, 1788)	3
+Lutra_lovii_ott7656017	Lutra lovii	HIGHERRANK	ACCEPTED	GENUS	8226627	Lutra Brisson, 1762	
+Lutra_poensis_ott7656020	Lutra poensis	HIGHERRANK	ACCEPTED	GENUS	8226627	Lutra Brisson, 1762	
+Enhydra_lutris_nereis_ott755862	Enhydra lutris nereis	EXACT	ACCEPTED	SUBSPECIES	6163936	Enhydra lutris nereis (Merriam, 1904)	11153
+Lontra_felina_ott656972	Lontra felina	EXACT	ACCEPTED	SPECIES	2433737	Lontra felina (Molina, 1782)	636
+Pteronura_brasiliensis_ott397142	Pteronura brasiliensis	EXACT	ACCEPTED	SPECIES	2433681	Pteronura brasiliensis Zimmermann, 1780	2442
+Mustela_altaica_ott69264	Mustela altaica	EXACT	ACCEPTED	SPECIES	5218963	Mustela altaica Pallas, 1811	308
+Mustela_putorius_furo_ott923119	Mustela putorius furo	EXACT	ACCEPTED	SUBSPECIES	5218913	Mustela putorius furo Linnaeus, 1758	1980
+Mustela_itatsi_ott975082	Mustela itatsi	EXACT	ACCEPTED	SPECIES	5218962	Mustela itatsi Temminck, 1844	2281
+Mustela_nudipes_ott378004	Mustela nudipes	EXACT	ACCEPTED	SPECIES	5219015	Mustela nudipes Desmarest, 1822	124
+Mustela_felipei_ott275123	Mustela felipei	EXACT	ACCEPTED	SPECIES	5219069	Mustela felipei Izor & de la Torre, 1978	33
+Neovison_vison_ott310482	Neovison vison	EXACT	SYNONYM	SPECIES	2433652	Neovison vison (Schreber, 1777)	32782
+Mustela_formosanus_ott3612697	Mustela formosanus	EXACT	SYNONYM	SPECIES	5733768	Mustela formosanus (Lin & Harada, 1997)	5
+Mustela_affinis_ott7656030	Mustela affinis	HIGHERRANK	ACCEPTED	PHYLUM	44	Chordata	
+Mustela_galinthias_ott7656033	Mustela galinthias	HIGHERRANK	ACCEPTED	PHYLUM	44	Chordata	
+Mustela_moschiferus_ott7656036	Mustela moschiferus	HIGHERRANK	ACCEPTED	PHYLUM	44	Chordata	
+Mustela_zanthogenys_ott7656040	Mustela zanthogenys	HIGHERRANK	ACCEPTED	PHYLUM	44	Chordata	
+Poecilogale_doggetti_ott7656010	Poecilogale doggetti	HIGHERRANK	ACCEPTED	GENUS	2433886	Poecilogale Thomas, 1883	
+Ictonyx_senegalensis_ott7656009	Ictonyx senegalensis	HIGHERRANK	ACCEPTED	GENUS	2433839	Ictonyx Kaup, 1835	
+Galictis_cuja_ott1061040	Galictis cuja	EXACT	ACCEPTED	SPECIES	5218901	Galictis cuja (Molina, 1782)	1838
+Melogale_everetti_ott3612676	Melogale everetti	EXACT	ACCEPTED	SPECIES	2433635	Melogale everetti (Thomas, 1895)	48
+Lyncodon_patagonicus_ott901933	Lyncodon patagonicus	EXACT	ACCEPTED	SPECIES	2433691	Lyncodon patagonicus (de Blainville, 1842)	70
+Mellivora_cottoni_ott7656026	Mellivora cottoni	HIGHERRANK	ACCEPTED	GENUS	2433694	Mellivora Storr, 1780	
+Taxidea_taxus_jeffersonii_ott7067601	Taxidea taxus jeffersonii	EXACT	ACCEPTED	SUBSPECIES	6163987	Taxidea taxus jeffersonii (Harlan, 1825)	1105
+Mustelidae sp. EG-2017 ott7067600	Mustelidae sp. EG-2017 ott7067600	HIGHERRANK	ACCEPTED	FAMILY	5307	Mustelidae	
+Procyon_lotor_lotor_ott767278	Procyon lotor lotor	EXACT	ACCEPTED	SUBSPECIES	7193893	Procyon lotor lotor (Linnaeus, 1758)	2237
+Procyon_pygmaeus_ott3612887	Procyon pygmaeus	EXACT	ACCEPTED	SPECIES	5218818	Procyon pygmaeus Merriam, 1901	267
+Procyon_obscurus_ott6145586	Procyon obscurus	EXACT	SYNONYM	SPECIES	8062665	Procyon obscurus Wiegmann, 1837	0
+Bassariscus_sumichrasti_ott794088	Bassariscus sumichrasti	EXACT	ACCEPTED	SPECIES	2433551	Bassariscus sumichrasti (Saussure, 1860)	502
+Nasua_candace_ott7656074	Nasua candace	EXACT	SYNONYM	SPECIES	9055702	Nasua candace Thomas, 1912	1
+Nasua_manium_ott7656077	Nasua manium	EXACT	SYNONYM	SPECIES	9186409	Nasua manium Thomas, 1912	2
+Nasuella_olivacea_ott1030921	Nasuella olivacea	EXACT	SYNONYM	SPECIES	2433588	Nasuella olivacea (Gray, 1865)	1234
+Bassaricyon_alleni_ott794090	Bassaricyon alleni	EXACT	ACCEPTED	SPECIES	2433586	Bassaricyon alleni Thomas, 1880	147
+Bassaricyon_beddardi_ott1023225	Bassaricyon beddardi	EXACT	SYNONYM	SPECIES	2433583	Bassaricyon beddardi Pocock, 1921	4
+Procyonidae sp. EG-2017 ott7067607	Procyonidae sp. EG-2017 ott7067607	HIGHERRANK	ACCEPTED	FAMILY	5311	Procyonidae	
+Mephitis_mephitis_ott231602	Mephitis mephitis	EXACT	ACCEPTED	SPECIES	5219380	Mephitis mephitis (Schreber, 1776)	45351
+Mephitis_nasuta_ott7656001	Mephitis nasuta	HIGHERRANK	ACCEPTED	GENUS	5219379	Mephitis É.Geoffroy Saint-Hilaire & F.G.Cuvier, 1795	
+Spilogale_angustifrons_ott3613132	Spilogale angustifrons	EXACT	ACCEPTED	SPECIES	2434825	Spilogale angustifrons Howell, 1902	474
+Spilogale_putorius_putorius_ott7067599	Spilogale putorius putorius	EXACT	ACCEPTED	SUBSPECIES	7059408	Spilogale putorius putorius (Linnaeus, 1758)	197
+Conepatus_chinga_ott231612	Conepatus chinga	EXACT	ACCEPTED	SPECIES	2434870	Conepatus chinga (Molina, 1782)	3957
+Conepatus_semistriatus_ott1023230	Conepatus semistriatus	EXACT	ACCEPTED	SPECIES	2434883	Conepatus semistriatus (Boddaert, 1785)	2345
+Conepatus_arequipae_ott7655984	Conepatus arequipae	EXACT	SYNONYM	SPECIES	8980494	Conepatus arequipae Thomas, 1898	1
+Conepatus_chorensis_ott7655987	Conepatus chorensis	EXACT	SYNONYM	SPECIES	8959520	Conepatus chorensis Thomas, 1902	1
+Conepatus_mapurito_ott7655990	Conepatus mapurito	HIGHERRANK	ACCEPTED	GENUS	2434869	Conepatus Gray, 1837	
+Conepatus_proteo_ott7655993	Conepatus proteo	HIGHERRANK	ACCEPTED	GENUS	2434869	Conepatus Gray, 1837	
+Conepatus_tropicalis_ott7655996	Conepatus tropicalis	HIGHERRANK	ACCEPTED	GENUS	2434869	Conepatus Gray, 1837	
+Mydaus_meliceps_ott6145437	Mydaus meliceps	EXACT	SYNONYM	SPECIES	7929244	Mydaus meliceps F.G.Cuvier, 1821	2
+Ursus_maritimus_ott10732	Ursus maritimus	EXACT	ACCEPTED	SPECIES	2433451	Ursus maritimus Phipps, 1774	11296
+Ursus_arctos_isabellinus_ott958762	Ursus arctos isabellinus	EXACT	ACCEPTED	SUBSPECIES	6163847	Ursus arctos isabellinus Horsfield, 1826	71
+Ursus_arctos_pruinosus_ott7067609	Ursus arctos pruinosus	EXACT	ACCEPTED	SUBSPECIES	6163852	Ursus arctos pruinosus Blyth, 1854	27
+Ursus_thibetanus_thibetanus_ott576254	Ursus thibetanus thibetanus	EXACT	ACCEPTED	SUBSPECIES	7193951	Ursus thibetanus thibetanus G	68
+Ursus_thibetanus_ussuricus_ott602968	Ursus thibetanus ussuricus	EXACT	ACCEPTED	SUBSPECIES	6163861	Ursus thibetanus ussuricus (Heude, 1901)	56
+Ursus_americanus_cinnamomum_ott412580	Ursus americanus cinnamomum	EXACT	ACCEPTED	SUBSPECIES	6163832	Ursus americanus cinnamomum Audubon & Bachman, 1854	318
+Ursus_americanus_kermodei_ott703627	Ursus americanus kermodei	EXACT	ACCEPTED	SUBSPECIES	6163828	Ursus americanus kermodei Hornaday, 1905	60
+Ursus_ingressus_ott1063922	Ursus ingressus	EXACT	ACCEPTED	SPECIES	11861108	Ursus ingressus	21
+Ursus_nasutus_ott7656107	Ursus nasutus	EXACT	SYNONYM	SPECIES	9031155	Ursus nasutus Sclater, 1868	1
+Tremarctos_ornatus_ott679667	Tremarctos ornatus	EXACT	ACCEPTED	SPECIES	2433401	Tremarctos ornatus (F.G.Cuvier, 1825)	12687
+Hyaenarctos_palaeindicus_ott7656095	Hyaenarctos palaeindicus	HIGHERRANK	SYNONYM	GENUS	4833642	Hyaenarctos Owen, 1845	
+Pusa_hispida_saimensis_ott179604	Pusa hispida saimensis	EXACT	ACCEPTED	SUBSPECIES	5219371	Pusa hispida saimensis (Nordquist, 1899)	41
+Pusa_hispida_hispida_ott861388	Pusa hispida hispida	EXACT	ACCEPTED	SUBSPECIES	7193943	Pusa hispida hispida (Schreber, 1775)	203
+Phoca_vitulina_richardii_ott357731	Phoca vitulina richardii	EXACT	ACCEPTED	SUBSPECIES	6163798	Phoca vitulina richardii (Gray, 1864)	21643
+Phoca_largha_ott89833	Phoca largha	EXACT	ACCEPTED	SPECIES	2434791	Phoca largha Pallas, 1811	32042
+Phoca_groenlandica_ott664062	Phoca groenlandica	EXACT	SYNONYM	SPECIES	2434802	Phoca groenlandica Erxleben, 1777	772
+Phoca_wymani_ott7656070	Phoca wymani	HIGHERRANK	ACCEPTED	GENUS	2433485	Phoca Linnaeus, 1758	
+Leptonychotes_weddellii_ott175259	Leptonychotes weddellii	EXACT	ACCEPTED	SPECIES	2434784	Leptonychotes weddellii (Lesson, 1826)	407453
+Ommatophoca_rossii_ott539106	Ommatophoca rossii	EXACT	ACCEPTED	SPECIES	2434788	Ommatophoca rossii Gray, 1844	1303
+Neomonachus_schauinslandi_ott180367	Neomonachus schauinslandi	EXACT	ACCEPTED	SPECIES	8646426	Neomonachus schauinslandi (Matschie, 1905)	3027
+Zalophus_californianus_ott95364	Zalophus californianus	EXACT	ACCEPTED	SPECIES	2433458	Zalophus californianus (Lesson, 1828)	46492
+Eumetopias_jubatus_ott949686	Eumetopias jubatus	EXACT	ACCEPTED	SPECIES	2433462	Eumetopias jubatus (Schreber, 1776)	11632
+Arctocephalus_galapagoensis_ott590445	Arctocephalus galapagoensis	EXACT	ACCEPTED	SPECIES	2433473	Arctocephalus galapagoensis Heller, 1904	966
+Arctocephalus_gazella_ott336157	Arctocephalus gazella	EXACT	ACCEPTED	SPECIES	2433472	Arctocephalus gazella (Peters, 1875)	239812
+Phocarctos_hookeri_ott949672	Phocarctos hookeri	EXACT	ACCEPTED	SPECIES	2433467	Phocarctos hookeri (Gray, 1844)	36573
+Otaria_byronia_ott273182	Otaria byronia	EXACT	ACCEPTED	SPECIES	5218774	Otaria byronia (de Blainville, 1820)	21493
+Neophoca_cinerea_ott273179	Neophoca cinerea	EXACT	ACCEPTED	SPECIES	2433484	Neophoca cinerea (Péron, 1816)	118007
+Odobenus_rosmarus_divergens_ott749624	Odobenus rosmarus divergens	EXACT	ACCEPTED	SUBSPECIES	5218820	Odobenus rosmarus divergens (Illiger, 1815)	1144
+Canis_lupus_chanco_ott47500	Canis lupus chanco	EXACT	ACCEPTED	SUBSPECIES	6164182	Canis lupus chanco Gray, 1863	205
+Canis_lupus_hattai_ott83897	Canis lupus hattai	EXACT	ACCEPTED	SUBSPECIES	6164186	Canis lupus hattai Kishida, 1931	0
+Canis_lupus_mogollonensis_ott263524	Canis lupus mogollonensis	EXACT	ACCEPTED	SUBSPECIES	6164201	Canis lupus mogollonensis Goldman, 1937	129
+Canis_lupus_labradorius_ott531973	Canis lupus labradorius	EXACT	ACCEPTED	SUBSPECIES	6164214	Canis lupus labradorius Goldman, 1937	17
+Canis_lupus_lycaon_ott948004	Canis lupus lycaon	EXACT	ACCEPTED	SUBSPECIES	6164202	Canis lupus lycaon Schreber, 1775	522
+Canis_lupus_arctos_ott5340002	Canis lupus arctos	EXACT	ACCEPTED	SUBSPECIES	6164203	Canis lupus arctos Pocock, 1935	99
+Canis_dirus_ott3612500	Canis dirus	EXACT	ACCEPTED	SPECIES	5936116	Canis dirus Leidy, 1858	8601
+Speothos_venaticus_ott684074	Speothos venaticus	EXACT	ACCEPTED	SPECIES	2434444	Speothos venaticus (Lund, 1842)	921
+Cuon_primaevus_ott6145398	Cuon primaevus	EXACT	ACCEPTED	SPECIES	8426675	Cuon primaevus Hodgson, 1838	0
+Canis_latrans_ott247331	Canis latrans	EXACT	ACCEPTED	SPECIES	5219153	Canis latrans Say, 1823	119959
+Canis_lepophagus_ott3612503	Canis lepophagus	EXACT	ACCEPTED	SPECIES	5936118	Canis lepophagus Johnston, 1938	87
+Canis_davisi_ott3612579	Canis davisi	EXACT	ACCEPTED	SPECIES	8999143	Canis davisi (Merriam, 1911)	103
+Dusicyon_darwini_ott7655959	Dusicyon darwini	HIGHERRANK	ACCEPTED	GENUS	2434451	Dusicyon C.E.H.Smith, 1839	
+Lycalopex_sechurae_ott313143	Lycalopex sechurae	EXACT	ACCEPTED	SPECIES	2434326	Lycalopex sechurae (Thomas, 1900)	7255
+Lycalopex_gymnocercus_ott839340	Lycalopex gymnocercus	EXACT	ACCEPTED	SPECIES	2434333	Lycalopex gymnocercus (G.Fischer, 1814)	13304
+Lycalopex_sp._Fuegian_dog_ott4117979	Lycalopex sp. Fuegian dog	HIGHERRANK	ACCEPTED	GENUS	2434325	Lycalopex Burmeister, 1854	
+Chrysocyon_brachyurus_ott837601	Chrysocyon brachyurus	EXACT	ACCEPTED	SPECIES	2434450	Chrysocyon brachyurus (Illiger, 1815)	2687
+Canis_indica_ott346728	Canis indica	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_simensis_ott752755	Canis simensis	EXACT	ACCEPTED	SPECIES	5219143	Canis simensis Rüppell, 1840	208
+Canis_environmental_sample_ott4941918	Canis environmental sample	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_ameghinoi_ott7655930	Canis ameghinoi	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_chanco_ott7655934	Canis chanco	FUZZY	SYNONYM	SPECIES	8603181	Canis chama A.Smith, 1833	2
+Canis_dukhunensis_ott7655937	Canis dukhunensis	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_kokree_ott7655941	Canis kokree	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_naria_ott7655946	Canis naria	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_peruanus_ott7655950	Canis peruanus	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Canis_tarijensis_ott7655953	Canis tarijensis	HIGHERRANK	ACCEPTED	GENUS	5219142	Canis Linnaeus, 1758	
+Nyctereutes_procyonoides_viverrinus_ott341774	Nyctereutes procyonoides viverrinus	EXACT	ACCEPTED	SUBSPECIES	6164330	Nyctereutes procyonoides viverrinus Temminck, 1838	4389
+Nyctereutes_koreensis_ott7655964	Nyctereutes koreensis	HIGHERRANK	ACCEPTED	GENUS	2434551	Nyctereutes Temminck, 1838	
+Vulpes_macrotis_zinseri_ott610095	Vulpes macrotis zinseri	HIGHERRANK	ACCEPTED	SPECIES	5219311	Vulpes macrotis Merriam, 1888	
+Vulpes_vulpes_montana_ott5223228	Vulpes vulpes montana	EXACT	ACCEPTED	SUBSPECIES	6164301	Vulpes vulpes montana (Pearson, 1836)	126
+Vulpes_bengalensis_ott3612511	Vulpes bengalensis	EXACT	ACCEPTED	SPECIES	5219308	Vulpes bengalensis (Shaw, 1800)	448
+Vulpes_chama_ott821968	Vulpes chama	EXACT	ACCEPTED	SPECIES	5219236	Vulpes chama (A.Smith, 1833)	607
+Urocyon_cinereoargenteus_ott685113	Urocyon cinereoargenteus	EXACT	ACCEPTED	SPECIES	2434566	Urocyon cinereoargenteus (Schreber, 1775)	41318
+Urocyon_littoralis_santacruzae_ott5839542	Urocyon littoralis santacruzae	EXACT	ACCEPTED	SUBSPECIES	6164354	Urocyon littoralis santacruzae Merriam, 1903	2329
+Urocyon_littoralis_dickeyi_ott5839545	Urocyon littoralis dickeyi	EXACT	ACCEPTED	SUBSPECIES	6164356	Urocyon littoralis dickeyi Grinnell & Linsdale, 1930	1085
+Vulpes_environmental_sample_ott4941920	Vulpes environmental sample	HIGHERRANK	ACCEPTED	GENUS	5219234	Vulpes Frisch, 1775	
+Vulpes_deletrix_ott7655974	Vulpes deletrix	HIGHERRANK	ACCEPTED	GENUS	5219234	Vulpes Frisch, 1775	
+Vulpes_lineiventer_ott7655977	Vulpes lineiventer	HIGHERRANK	ACCEPTED	GENUS	5219234	Vulpes Frisch, 1775	
+Vulpes_waddelli_ott7655981	Vulpes waddelli	HIGHERRANK	ACCEPTED	GENUS	5219234	Vulpes Frisch, 1775	
+Nothocyon_vulpinus_ott3612589	Nothocyon vulpinus	EXACT	ACCEPTED	SPECIES	8940201	Nothocyon vulpinus (Matthew, 1907)	9
+Galecynus_latidens_ott3612625	Galecynus latidens	EXACT	ACCEPTED	SPECIES	9549681	Galecynus latidens (Cope, 1881)	15
+Borophagus_diversidens_ott3612600	Borophagus diversidens	EXACT	ACCEPTED	SPECIES	4970175	Borophagus diversidens (Cope, 1892)	89
+Borophagus_parvus_ott3612543	Borophagus parvus	EXACT	ACCEPTED	SPECIES	4970168	Borophagus parvus Wang et al., 1999	14
+Canis_saevus_ott3612586	Canis saevus	EXACT	ACCEPTED	SPECIES	8801357	Canis saevus (Leidy, 1858)	636
+Protepicyon_raki_ott4118000	Protepicyon raki	EXACT	ACCEPTED	SPECIES	4970183	Protepicyon raki Wang et al., 1999	6
+Aelurodon_compressus_ott3612606	Aelurodon compressus	EXACT	ACCEPTED	SPECIES	9459352	Aelurodon compressus (Cope, 1890)	23
+Tephrocyon_hippophagus_ott3612525	Tephrocyon hippophagus	EXACT	ACCEPTED	SPECIES	9390276	Tephrocyon hippophagus (Matthew & Cook, 1909)	63
+Aelurodon_taxoides_ott4941925	Aelurodon taxoides	EXACT	ACCEPTED	SPECIES	5936109	Aelurodon taxoides Hatcher, 1894	95
+Strobodon_stirtoni_ott4941930	Strobodon stirtoni	EXACT	ACCEPTED	SPECIES	9424658	Strobodon stirtoni (Wang et al., 1999)	12
+Tephrocyon_confertus_ott4118010	Tephrocyon confertus	EXACT	ACCEPTED	SPECIES	9335286	Tephrocyon confertus (Matthew, 1918)	38
+Aelurocyon_spissidens_ott3612558	Aelurocyon spissidens	EXACT	ACCEPTED	SPECIES	9281016	Aelurocyon spissidens (White, 1947)	23
+Cynarctus_saxatilis_ott3612535	Cynarctus saxatilis	EXACT	ACCEPTED	SPECIES	4970201	Cynarctus saxatilis Matthew, 1902	10
+Tomarctus_marylandica_ott3612559	Tomarctus marylandica	EXACT	ACCEPTED	SPECIES	9125099	Tomarctus marylandica (Berry, 1938)	5
+Cormocyon_copei_ott3612584	Cormocyon copei	EXACT	ACCEPTED	SPECIES	4970185	Cormocyon copei Wang & Tedford, 1992	19
+Phlaocyon_yatkolai_ott3612554	Phlaocyon yatkolai	EXACT	ACCEPTED	SPECIES	4970141	Phlaocyon yatkolai Wang et al., 1999	1
+Cynarctoides_luskensis_ott3612521	Cynarctoides luskensis	EXACT	ACCEPTED	SPECIES	4970150	Cynarctoides luskensis Wang et al., 1999	4
+Pachycynodon_harlowi_ott3612613	Pachycynodon harlowi	EXACT	ACCEPTED	SPECIES	9465956	Pachycynodon harlowi (Loomis, 1932)	1
+Cynodesmus_cooki_ott4118013	Cynodesmus cooki	EXACT	ACCEPTED	SPECIES	9480980	Cynodesmus cooki (Macdonald, 1963)	6
+Archaeocyon_falkenbachi_ott4117988	Archaeocyon falkenbachi	EXACT	ACCEPTED	SPECIES	4970156	Archaeocyon falkenbachi Wang et al., 1999	1
+Canis_gregarius_ott3612596	Canis gregarius	EXACT	ACCEPTED	SPECIES	9283419	Canis gregarius (Cope, 1873)	681
+Temnocyon_josephi_ott3612626	Temnocyon josephi	EXACT	ACCEPTED	SPECIES	9564815	Temnocyon josephi (Cope, 1881)	29
+Enhydrocyon_crassidens_ott3612550	Enhydrocyon crassidens	EXACT	ACCEPTED	SPECIES	4970222	Enhydrocyon crassidens Matthew, 1907	11
+Mesocyon_geringensis_ott3612624	Mesocyon geringensis	EXACT	ACCEPTED	SPECIES	9423050	Mesocyon geringensis (Barbour & Schultz, 1935)	7
+Temnocyon_coryphaeus_ott3612538	Temnocyon coryphaeus	EXACT	ACCEPTED	SPECIES	9525127	Temnocyon coryphaeus (Cope, 1879)	46
+Brachyrhynchocyon_sesnoni_ott3612562	Brachyrhynchocyon sesnoni	EXACT	ACCEPTED	SPECIES	9296153	Brachyrhynchocyon sesnoni (Macdonald, 1967)	4
+Mesocyon_iamonensis_ott3612608	Mesocyon iamonensis	EXACT	ACCEPTED	SPECIES	9225802	Mesocyon iamonensis (Sellards, 1916)	201
+Ectopocynus_intermedius_ott3612617	Ectopocynus intermedius	EXACT	ACCEPTED	SPECIES	4970130	Ectopocynus intermedius Wang, 1994	1
+Hesperocyon_wilsoni_ott3612587	Hesperocyon wilsoni	EXACT	ACCEPTED	SPECIES	9576176	Hesperocyon wilsoni (Gustafson, 1986)	1
+Pseudalopex_culpaeola_ott7655969	Pseudalopex culpaeola	FUZZY	SYNONYM	SPECIES	2434343	Pseudalopex culpaeus (Molina, 1782)	478
+Musteloidea sp. EG-2017 ott7067603	Musteloidea sp. EG-2017 ott7067603	NONE					
+Helogale_atkinsoni_ott7656154	Helogale atkinsoni	HIGHERRANK	ACCEPTED	GENUS	2434158	Helogale Gray, 1862	
+Helogale_ivori_ott7656157	Helogale ivori	HIGHERRANK	ACCEPTED	GENUS	2434158	Helogale Gray, 1862	
+Helogale_percivali_ott7656160	Helogale percivali	HIGHERRANK	ACCEPTED	GENUS	2434158	Helogale Gray, 1862	
+Helogale_victorina_ott7656163	Helogale victorina	HIGHERRANK	ACCEPTED	GENUS	2434158	Helogale Gray, 1862	
+Crossarchus_obscurus_ott1088410	Crossarchus obscurus	EXACT	ACCEPTED	SPECIES	5219137	Crossarchus obscurus F.G.Cuvier, 1825	576
+Mungos_mungo_ott333729	Mungos mungo	EXACT	ACCEPTED	SPECIES	5219080	Mungos mungo (Gmelin, 1788)	4820
+Mungos_auropunctatus_ott7656175	Mungos auropunctatus	NONE					
+Mungos_melanurus_ott7656178	Mungos melanurus	NONE					
+Herpestes_urva_ott121160	Herpestes urva	EXACT	ACCEPTED	SPECIES	2434244	Herpestes urva (Hodgson, 1836)	2418
+Herpestes_smithii_ott650603	Herpestes smithii	EXACT	ACCEPTED	SPECIES	2434267	Herpestes smithii Gray, 1837	1002
+Urva_javanica_ott815154	Urva javanica	EXACT	SYNONYM	SPECIES	10566737	Urva javanica (É.Geoffroy Saint-Hilaire, 1818)	288
+Cynictis_penicillata_ott363578	Cynictis penicillata	EXACT	ACCEPTED	SPECIES	2434174	Cynictis penicillata G	3787
+Cynictis_pencillata_ott7656153	Cynictis pencillata	FUZZY	ACCEPTED	SPECIES	2434174	Cynictis penicillata G	3787
+Bdeogale_jacksoni_ott3613281	Bdeogale jacksoni	EXACT	ACCEPTED	SPECIES	2434124	Bdeogale jacksoni (Thomas, 1894)	35
+Rhynchogale_melleri_ott901607	Rhynchogale melleri	EXACT	ACCEPTED	SPECIES	2434240	Rhynchogale melleri (Gray, 1865)	158
+Galerella_pulverulenta_ott658638	Galerella pulverulenta	EXACT	ACCEPTED	SPECIES	5219126	Galerella pulverulenta (Wagner, 1839)	2092
+Galerella_ochracea_ott3613284	Galerella ochracea	EXACT	ACCEPTED	SPECIES	5219131	Galerella ochracea (J.E.Gray, 1848)	8
+Herpestes_naso_ott858555	Herpestes naso	EXACT	ACCEPTED	SPECIES	2434299	Herpestes naso de Winton, 1901	209
+Herpestes_apiculatus_ott7656164	Herpestes apiculatus	NONE					
+Herpestes_flavidens_ott7656167	Herpestes flavidens	NONE					
+Herpestes_nigripes_ott7656170	Herpestes nigripes	NONE					
+Herpestes_widdringtoni_ott7656173	Herpestes widdringtoni	NONE					
+Galidia_elegans_occidentalis_ott263793	Galidia elegans occidentalis	EXACT	ACCEPTED	SUBSPECIES	6163815	Galidia elegans occidentalis Albignac, 1971	3
+Salanoia sp. SMF-2010 ott924479	Salanoia sp. SMF-2010 ott924479	HIGHERRANK	ACCEPTED	GENUS	2433526	Salanoia Gray, 1865	
+Galidictis_grandidieri_ott3613138	Galidictis grandidieri	EXACT	ACCEPTED	SPECIES	5218782	Galidictis grandidieri Wozencraft, 1986	47
+Eupleres_goudotii_ott527114	Eupleres goudotii	EXACT	ACCEPTED	SPECIES	2433512	Eupleres goudotii Doyère, 1835	87
+Hyaena_chaeretis_ott7656182	Hyaena chaeretis	HIGHERRANK	ACCEPTED	GENUS	7694357	Hyaena Brisson, 1762	
+Hyaena_sinensis_ott7656186	Hyaena sinensis	EXACT	SYNONYM	SPECIES	9066191	Hyaena sinensis Owen, 1870	9
+Crocuta_spelaea_ott7656181	Crocuta spelaea	EXACT	ACCEPTED	SPECIES	7950952	Crocuta spelaea Goldfuss, 1823	778
+Genetta_poensis_ott45853	Genetta poensis	EXACT	ACCEPTED	SPECIES	5219354	Genetta poensis Waterhouse, 1838	8
+Genetta_maculata_ott159579	Genetta maculata	EXACT	ACCEPTED	SPECIES	5219355	Genetta maculata (Gray, 1830)	3317
+Genetta_cristata_ott45849	Genetta cristata	EXACT	ACCEPTED	SPECIES	5219349	Genetta cristata Hayman In Sanborn, 1940	15
+Genetta_johnstoni_ott159585	Genetta johnstoni	EXACT	ACCEPTED	SPECIES	5219352	Genetta johnstoni Pocock, 1908	40
+Genetta_thierryi_ott159586	Genetta thierryi	EXACT	ACCEPTED	SPECIES	5219353	Genetta thierryi Matschie, 1902	163
+Genetta_amer_ott7656228	Genetta amer	HIGHERRANK	SYNONYM	GENUS	10960770	Genetta Oken, 1816	
+Genetta_grantii_ott7656231	Genetta grantii	HIGHERRANK	SYNONYM	GENUS	10960770	Genetta Oken, 1816	
+Genetta terrae-sanctae ott7656234	Genetta terrae-sanctae ott7656234	HIGHERRANK	SYNONYM	GENUS	10960770	Genetta Oken, 1816	
+Viverricula_indica_ott194346	Viverricula indica	EXACT	ACCEPTED	SPECIES	2434600	Viverricula indica (É.Geoffroy Saint-Hilaire, 1803)	3322
+Viverra_zibetha_ott445401	Viverra zibetha	EXACT	ACCEPTED	SPECIES	5219334	Viverra zibetha Linnaeus, 1758	1122
+Viverra_bakeri_ott7656236	Viverra bakeri	HIGHERRANK	ACCEPTED	GENUS	2434641	Viverra Linnaeus, 1758	
+Viverra_orbignyi_ott7656239	Viverra orbignyi	EXACT	ACCEPTED	SPECIES	9146975	Viverra orbignyi (Gaudry & Lartet, 1856)	52
+Cynogale_bennetti_ott7067618	Cynogale bennetti	FUZZY	ACCEPTED	SPECIES	2434758	Cynogale bennettii Gray, 1837	95
+Chrotogale_owstoni_ott768508	Chrotogale owstoni	EXACT	ACCEPTED	SPECIES	2434674	Chrotogale owstoni Thomas, 1912	37

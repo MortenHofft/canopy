@@ -5,6 +5,7 @@
 ## Contents
 
 - `Rabosky1057.tre` (50286 bytes, sha256 `c7b7ab2fd13c0b3d...`)
+- `gbif_match_sample.tsv` (23375 bytes, sha256 `094bdc00d277fc21...`)
 
 ## What extra data it carries
 
@@ -26,9 +27,13 @@ tip label = Genus_species; no metadata table
 
 No internal labels, strictly bifurcating. Good GBIF-matching test.
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 200 of 200 = 1.0
+- EXACT at rank SPECIES: 199 of 200 = 0.995
+- median occurrence count of matched names: 138.0; matched names with zero occurrences: 4
 
 ## Provenance
 

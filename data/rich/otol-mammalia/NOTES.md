@@ -28,7 +28,7 @@ Root has 3 children. 951 polytomies.
 
 ## GBIF match
 
-Not computed for this dataset (tips are not plain species names or the dataset is a sibling of one that was computed).
+Not computed for this dataset (tips are not plain species names; for Ensembl gene trees see the species list in members.tsv and the match rate of ens-ncrna-399, whose sample is its 101 species).
 
 ## Provenance
 

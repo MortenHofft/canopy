@@ -1,0 +1,201 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+Acanthisitta	Acanthisitta	EXACT	ACCEPTED	GENUS	5229953	Acanthisitta Lafresnaye, 1842	25330
+Orthonyx	Orthonyx	EXACT	ACCEPTED	GENUS	2490706	Orthonyx Temminck, 1820	44137
+Pachycephala_olivacea	Pachycephala olivacea	EXACT	ACCEPTED	SPECIES	5959175	Pachycephala olivacea Vigors & Horsfield, 1827	30108
+Pachycephala_caledonica	Pachycephala caledonica	EXACT	ACCEPTED	SPECIES	5959189	Pachycephala caledonica (Gmelin, 1789)	1566
+Pachycephala_modesta	Pachycephala modesta	EXACT	ACCEPTED	SPECIES	5959185	Pachycephala modesta (De Vis, 1894)	1229
+Colluricincla_tenebrosa	Colluricincla tenebrosa	EXACT	ACCEPTED	SPECIES	2482355	Colluricincla tenebrosa (Rothschild, 1911)	56
+Pachycephala_hypoxantha	Pachycephala hypoxantha	EXACT	ACCEPTED	SPECIES	5959182	Pachycephala hypoxantha (Sharpe, 1887)	6625
+Pachycephala_griseonota	Pachycephala griseonota	EXACT	ACCEPTED	SPECIES	9425005	Pachycephala griseonota G.R.Gray, 1862	1604
+Pachycephala_arctitorquis	Pachycephala arctitorquis	EXACT	ACCEPTED	SPECIES	5959176	Pachycephala arctitorquis P.L.Sclater, 1883	662
+Pachycephala_phaionota	Pachycephala phaionota	EXACT	ACCEPTED	SPECIES	6093608	Pachycephala phaionota (Bonaparte, 1850)	410
+Pachycephala_mentalis	Pachycephala mentalis	EXACT	ACCEPTED	SPECIES	6100858	Pachycephala mentalis Wallace, 1863	1070
+Pachycephala_melanura	Pachycephala melanura	EXACT	ACCEPTED	SPECIES	5959174	Pachycephala melanura Gould, 1843	6132
+Pachycephala_vitiensis	Pachycephala vitiensis	EXACT	ACCEPTED	SPECIES	9376049	Pachycephala vitiensis G.R.Gray, 1860	454
+Pachycephala_flavifrons	Pachycephala flavifrons	EXACT	ACCEPTED	SPECIES	5959178	Pachycephala flavifrons (Peale, 1848)	790
+Colluricincla_sanghirensis	Colluricincla sanghirensis	EXACT	SYNONYM	SPECIES	5789266	Colluricincla sanghirensis (Oustalet, 1881)	0
+Colluricincla_boweri	Colluricincla boweri	EXACT	ACCEPTED	SPECIES	2482353	Colluricincla boweri E.P.Ramsay, 1885	10938
+Pitohui_incertus	Pitohui incertus	EXACT	SYNONYM	SPECIES	2482531	Pitohui incertus Oort, 1909	11
+Sphecotheres_hypoleucus	Sphecotheres hypoleucus	EXACT	ACCEPTED	SPECIES	2488976	Sphecotheres hypoleucus Finsch, 1898	172
+Oriolus_xanthonotus	Oriolus xanthonotus	EXACT	ACCEPTED	SPECIES	2488971	Oriolus xanthonotus Horsfield, 1821	7144
+Oriolus_isabellae	Oriolus isabellae	EXACT	ACCEPTED	SPECIES	2488974	Oriolus isabellae Ogilvie-Grant, 1894	40
+Oriolus_mellianus	Oriolus mellianus	EXACT	ACCEPTED	SPECIES	2488948	Oriolus mellianus Stresemann, 1922	207
+Oriolus_crassirostris	Oriolus crassirostris	EXACT	ACCEPTED	SPECIES	2488972	Oriolus crassirostris Hartlaub, 1857	618
+Oriolus_oriolus	Oriolus oriolus	EXACT	ACCEPTED	SPECIES	2488949	Oriolus oriolus (Linnaeus, 1758)	664080
+Oriolus_auratus	Oriolus auratus	EXACT	ACCEPTED	SPECIES	2488960	Oriolus auratus Vieillot, 1817	20556
+Oriolus_percivali	Oriolus percivali	EXACT	ACCEPTED	SPECIES	2488958	Oriolus percivali Ogilvie-Grant, 1903	6912
+Oriolus_melanotis	Oriolus melanotis	EXACT	ACCEPTED	SPECIES	2488956	Oriolus melanotis (Bonaparte, 1850)	1886
+Oriolus_decipiens	Oriolus decipiens	EXACT	ACCEPTED	SPECIES	6101017	Oriolus decipiens (P.L.Sclater, 1883)	382
+Oriolus_phaeochromus	Oriolus phaeochromus	EXACT	ACCEPTED	SPECIES	2488950	Oriolus phaeochromus G.R.Gray, 1861	792
+Pitohui_kirhocephalus	Pitohui kirhocephalus	EXACT	ACCEPTED	SPECIES	2482529	Pitohui kirhocephalus (Lesson & Garnot, 1827)	2695
+Oreoica_gutturalis	Oreoica gutturalis	EXACT	ACCEPTED	SPECIES	5229497	Oreoica gutturalis (Vigors & Horsfield, 1827)	110817
+Psophodes_olivaceus	Psophodes olivaceus	EXACT	ACCEPTED	SPECIES	2495057	Psophodes olivaceus (Latham, 1802)	453171
+Cinclosoma_ajax	Cinclosoma ajax	EXACT	ACCEPTED	SPECIES	2495062	Cinclosoma ajax (Temminck, 1836)	619
+Cinclosoma_cinnamomeum	Cinclosoma cinnamomeum	EXACT	ACCEPTED	SPECIES	2495065	Cinclosoma cinnamomeum Gould, 1846	8207
+Ptilorrhoa_caerulescens	Ptilorrhoa caerulescens	EXACT	ACCEPTED	SPECIES	2495053	Ptilorrhoa caerulescens (Temminck, 1836)	1346
+Eulacestoma_nigropectus	Eulacestoma nigropectus	EXACT	ACCEPTED	SPECIES	2482534	Eulacestoma nigropectus De Vis, 1894	1011
+Erpornis_zantholeuca	Erpornis zantholeuca	EXACT	ACCEPTED	SPECIES	7341397	Erpornis zantholeuca Blyth, 1844	96408
+Hylophilus_olivaceus	Hylophilus olivaceus	EXACT	ACCEPTED	SPECIES	5230502	Hylophilus olivaceus Tschudi, 1844	7540
+Hylophilus_flavipes	Hylophilus flavipes	EXACT	ACCEPTED	SPECIES	5230506	Hylophilus flavipes Lafresnaye, 1845	68551
+Cyclarhis_nigrirostris	Cyclarhis nigrirostris	EXACT	ACCEPTED	SPECIES	2487405	Cyclarhis nigrirostris Lafresnaye, 1842	36421
+Vireolanius_pulchellus	Vireolanius pulchellus	EXACT	ACCEPTED	SPECIES	2487485	Vireolanius pulchellus P.L.Sclater & Salvin, 1859	42597
+Vireolanius_melitophrys	Vireolanius melitophrys	EXACT	ACCEPTED	SPECIES	2487483	Vireolanius melitophrys Bonaparte, 1850	9921
+Vireo_olivaceus	Vireo olivaceus	EXACT	ACCEPTED	SPECIES	2487430	Vireo olivaceus (Linnaeus, 1766)	5936939
+Vireo_philadelphicus	Vireo philadelphicus	EXACT	ACCEPTED	SPECIES	2487408	Vireo philadelphicus (Cassin, 1851)	369060
+Hylophilus_decurtatus	Hylophilus decurtatus	EXACT	ACCEPTED	SPECIES	5230500	Hylophilus decurtatus (Bonaparte, 1838)	269297
+Hylophilus_hypoxanthus	Hylophilus hypoxanthus	EXACT	ACCEPTED	SPECIES	5230496	Hylophilus hypoxanthus Pelzeln, 1868	12152
+Vireo_bellii	Vireo bellii	EXACT	ACCEPTED	SPECIES	2487441	Vireo bellii Audubon, 1844	455805
+Vireo_modestus	Vireo modestus	EXACT	ACCEPTED	SPECIES	2487412	Vireo modestus P.L.Sclater, 1861	9133
+Vireo_griseus	Vireo griseus	EXACT	ACCEPTED	SPECIES	2487413	Vireo griseus (Boddaert, 1783)	2489484
+Vireo_osburni	Vireo osburni	EXACT	ACCEPTED	SPECIES	2487462	Vireo osburni (P.L.Sclater, 1861)	2408
+Vireo_plumbeus	Vireo plumbeus	EXACT	ACCEPTED	SPECIES	9353154	Vireo plumbeus Coues, 1866	259325
+Vireo_vicinior	Vireo vicinior	EXACT	ACCEPTED	SPECIES	2487411	Vireo vicinior Coues, 1866	27808
+Pteruthius_melanotis	Pteruthius melanotis	EXACT	ACCEPTED	SPECIES	2492994	Pteruthius melanotis Hodgson, 1847	9998
+Pteruthius_flaviscapis	Pteruthius flaviscapis	EXACT	ACCEPTED	SPECIES	2492996	Pteruthius flaviscapis (Temminck, 1836)	776
+Dicrurus_atripennis	Dicrurus atripennis	EXACT	ACCEPTED	SPECIES	2493973	Dicrurus atripennis Swainson, 1837	3578
+Dicrurus_forficatus	Dicrurus forficatus	EXACT	ACCEPTED	SPECIES	2493966	Dicrurus forficatus (Linnaeus, 1766)	17425
+Dicrurus_fuscipennis	Dicrurus fuscipennis	EXACT	ACCEPTED	SPECIES	2493982	Dicrurus fuscipennis (Milne-Edwards & Oustalet, 1887)	58
+Dicrurus_remifer	Dicrurus remifer	EXACT	ACCEPTED	SPECIES	2493977	Dicrurus remifer (Temminck, 1823)	31413
+Dicrurus_bracteatus	Dicrurus bracteatus	EXACT	ACCEPTED	SPECIES	2493965	Dicrurus bracteatus Gould, 1843	269550
+Dicrurus_hottentottus	Dicrurus hottentottus	EXACT	ACCEPTED	SPECIES	2493967	Dicrurus hottentottus (Linnaeus, 1766)	116279
+Lamprolia_victoriae	Lamprolia victoriae	EXACT	ACCEPTED	SPECIES	2486653	Lamprolia victoriae Finsch, 1874	386
+Rhipidura_leucothorax	Rhipidura leucothorax	EXACT	ACCEPTED	SPECIES	5231749	Rhipidura leucothorax Salvadori, 1874	2167
+Rhipidura_javanica	Rhipidura javanica	EXACT	ACCEPTED	SPECIES	5231747	Rhipidura javanica (Sparrman, 1788)	134943
+Rhipidura_fuscorufa	Rhipidura fuscorufa	EXACT	ACCEPTED	SPECIES	5231718	Rhipidura fuscorufa P.L.Sclater, 1883	589
+Rhipidura_nigrocinnamomea	Rhipidura nigrocinnamomea	EXACT	ACCEPTED	SPECIES	5231753	Rhipidura nigrocinnamomea Hartert, 1903	2174
+Rhipidura_verreauxi	Rhipidura verreauxi	EXACT	ACCEPTED	SPECIES	5788952	Rhipidura verreauxi E.Marie, 1870	1926
+Rhipidura_fuliginosa	Rhipidura fuliginosa	EXACT	ACCEPTED	SPECIES	5231730	Rhipidura fuliginosa (Sparrman, 1787)	318528
+Rhipidura_tenebrosa	Rhipidura tenebrosa	EXACT	ACCEPTED	SPECIES	5231733	Rhipidura tenebrosa E.P.Ramsay, 1882	77
+Rhipidura_teysmanni	Rhipidura teysmanni	EXACT	ACCEPTED	SPECIES	5231721	Rhipidura teysmanni Büttikofer, 1892	1607
+Rhipidura_superflua	Rhipidura superflua	EXACT	ACCEPTED	SPECIES	5231746	Rhipidura superflua Hartert, 1899	221
+Rhipidura_rufidorsa	Rhipidura rufidorsa	EXACT	ACCEPTED	SPECIES	5231745	Rhipidura rufidorsa A.B.Meyer, 1874	899
+Platysmurus_leucopterus	Platysmurus leucopterus	EXACT	ACCEPTED	SPECIES	2482536	Platysmurus leucopterus (Temminck, 1824)	3721
+Dendrocitta_formosae	Dendrocitta formosae	EXACT	ACCEPTED	SPECIES	2482454	Dendrocitta formosae Swinhoe, 1863	395253
+Perisoreus_internigrans	Perisoreus internigrans	EXACT	ACCEPTED	SPECIES	2482448	Perisoreus internigrans (Thayer & Bangs, 1912)	369
+Cyanopica_cyanus	Cyanopica cyanus	EXACT	ACCEPTED	SPECIES	7341881	Cyanopica cyanus (Pallas, 1776)	125387
+Cyanolyca_armillata	Cyanolyca armillata	EXACT	ACCEPTED	SPECIES	2482544	Cyanolyca armillata (G.R.Gray, 1845)	11395
+Cyanolyca_mirabilis	Cyanolyca mirabilis	EXACT	ACCEPTED	SPECIES	2482547	Cyanolyca mirabilis Nelson, 1903	1166
+Cyanolyca_pumilo	Cyanolyca pumilo	EXACT	ACCEPTED	SPECIES	2482542	Cyanolyca pumilo (Strickland, 1849)	4809
+Cyanocorax_beecheii	Cyanocorax beecheii	EXACT	ACCEPTED	SPECIES	2482570	Cyanocorax beecheii (Vigors, 1829)	5035
+Cyanocorax_chrysops	Cyanocorax chrysops	EXACT	ACCEPTED	SPECIES	2482575	Cyanocorax chrysops (Vieillot, 1818)	86352
+Cyanocorax_heilprini	Cyanocorax heilprini	EXACT	ACCEPTED	SPECIES	2482573	Cyanocorax heilprini Gentry, 1885	1442
+Cyanocorax_yncas	Cyanocorax yncas	EXACT	ACCEPTED	SPECIES	2482565	Cyanocorax yncas (Boddaert, 1783)	465622
+Cyanocorax_violaceus	Cyanocorax violaceus	EXACT	ACCEPTED	SPECIES	2482564	Cyanocorax violaceus Du Bus de Gisignies, 1847	114801
+Calocitta_colliei	Calocitta colliei	EXACT	ACCEPTED	SPECIES	2482459	Calocitta colliei (Vigors, 1829)	30461
+Aphelocoma_unicolor	Aphelocoma unicolor	EXACT	ACCEPTED	SPECIES	2482415	Aphelocoma unicolor (Du Bus de Gisignies, 1847)	9253
+Aphelocoma_coerulescens	Aphelocoma coerulescens	EXACT	ACCEPTED	SPECIES	2482400	Aphelocoma coerulescens (Bosc, 1795)	81091
+Cyanocitta_cristata	Cyanocitta cristata	EXACT	ACCEPTED	SPECIES	2482593	Cyanocitta cristata (Linnaeus, 1758)	24096825
+Ptilostomus_afer	Ptilostomus afer	EXACT	ACCEPTED	SPECIES	2482461	Ptilostomus afer (Linnaeus, 1766)	26553
+Pica_hudsonia	Pica hudsonia	EXACT	ACCEPTED	SPECIES	5229487	Pica hudsonia (Sabine, 1823)	2686150
+Garrulus_lidthi	Garrulus lidthi	EXACT	ACCEPTED	SPECIES	5229494	Garrulus lidthi Bonaparte, 1850	1577
+Nucifraga_caryocatactes	Nucifraga caryocatactes	EXACT	ACCEPTED	SPECIES	2482613	Nucifraga caryocatactes (Linnaeus, 1758)	365588
+Coloeus_dauuricus	Coloeus dauuricus	EXACT	ACCEPTED	SPECIES	6100955	Coloeus dauuricus (Pallas, 1776)	11901
+Corvus_rhipidurus	Corvus rhipidurus	EXACT	ACCEPTED	SPECIES	2482497	Corvus rhipidurus Hartert, 1918	19557
+Corvus_edithae	Corvus edithae	EXACT	ACCEPTED	SPECIES	5788768	Corvus edithae Lort Phillips, 1895	1837
+Corvus_crassirostris	Corvus crassirostris	EXACT	ACCEPTED	SPECIES	2482503	Corvus crassirostris Rüppell, 1836	3145
+Corvus_typicus	Corvus typicus	EXACT	ACCEPTED	SPECIES	2482488	Corvus typicus (Bonaparte, 1853)	561
+Corvus_woodfordi	Corvus woodfordi	EXACT	ACCEPTED	SPECIES	2482484	Corvus woodfordi (Ogilvie-Grant, 1887)	305
+Corvus_violaceus	Corvus violaceus	EXACT	ACCEPTED	SPECIES	6100958	Corvus violaceus Bonaparte, 1850	493
+Corvus_coronoides	Corvus coronoides	EXACT	ACCEPTED	SPECIES	2482524	Corvus coronoides Vigors & Horsfield, 1827	1125825
+Corvus_insularis	Corvus insularis	EXACT	ACCEPTED	SPECIES	6100957	Corvus insularis Heinroth, 1903	1531
+Corvus_macrorhynchos	Corvus macrorhynchos	EXACT	ACCEPTED	SPECIES	2482487	Corvus macrorhynchos Wagler, 1827	1546933
+Corvus_kubaryi	Corvus kubaryi	EXACT	ACCEPTED	SPECIES	2482506	Corvus kubaryi Reichenow, 1885	848
+Corvus_corone	Corvus corone	EXACT	ACCEPTED	SPECIES	9409796	Corvus corone Linnaeus, 1758	5777305
+Corvus_brachyrhynchos	Corvus brachyrhynchos	EXACT	ACCEPTED	SPECIES	2482507	Corvus brachyrhynchos C.L.Brehm, 1822	29082834
+Corvus_palmarum	Corvus palmarum	EXACT	ACCEPTED	SPECIES	2482477	Corvus palmarum Württemberg, 1835	2698
+Corvus_sinaloae	Corvus sinaloae	EXACT	ACCEPTED	SPECIES	2482520	Corvus sinaloae L.I.Davis, 1958	24230
+Corvus_jamaicensis	Corvus jamaicensis	EXACT	ACCEPTED	SPECIES	2482472	Corvus jamaicensis Gmelin, 1788	4823
+Urocissa_erythrorhyncha	Urocissa erythrorhyncha	FUZZY	ACCEPTED	SPECIES	6100962	Urocissa erythroryncha (Boddaert, 1783)	62876
+Pyrrhocorax_pyrrhocorax	Pyrrhocorax pyrrhocorax	EXACT	ACCEPTED	SPECIES	2482552	Pyrrhocorax pyrrhocorax (Linnaeus, 1758)	276233
+Lanius_cabanisi	Lanius cabanisi	EXACT	ACCEPTED	SPECIES	2492869	Lanius cabanisi Hartert, 1906	18764
+Lanius_meridionalis	Lanius meridionalis	EXACT	ACCEPTED	SPECIES	7341500	Lanius meridionalis Temminck, 1820	215937
+Lanius_excubitor	Lanius excubitor	EXACT	ACCEPTED	SPECIES	9444556	Lanius excubitor Linnaeus, 1758	799327
+Lanius_dorsalis	Lanius dorsalis	EXACT	ACCEPTED	SPECIES	2492864	Lanius dorsalis Cabanis, 1878	10170
+Lanius_collurio	Lanius collurio	EXACT	ACCEPTED	SPECIES	7745240	Lanius collurio Linnaeus, 1758	1305079
+Lanius_tephronotus	Lanius tephronotus	EXACT	ACCEPTED	SPECIES	2492849	Lanius tephronotus (Vigors, 1831)	54089
+Lanius_schach	Lanius schach	EXACT	ACCEPTED	SPECIES	9273219	Lanius schach Linnaeus, 1758	513352
+Lanius_collaris	Lanius collaris	EXACT	ACCEPTED	SPECIES	2492863	Lanius collaris Linnaeus, 1766	457535
+Lanius_mackinnoni	Lanius mackinnoni	EXACT	ACCEPTED	SPECIES	2492844	Lanius mackinnoni Sharpe, 1891	8065
+Lanius_nubicus	Lanius nubicus	EXACT	ACCEPTED	SPECIES	2492855	Lanius nubicus Lichtenstein, 1823	65550
+Corcorax_melanorhamphos	Corcorax melanorhamphos	FUZZY	ACCEPTED	SPECIES	5845081	Corcorax melanoramphos (Vieillot, 1817)	296740
+Manucodia_chalybatus	Manucodia chalybatus	EXACT	ACCEPTED	SPECIES	5788948	Manucodia chalybatus (J.R.Forster, 1781)	1511
+Manucodia_ater	Manucodia ater	EXACT	ACCEPTED	SPECIES	7341546	Manucodia ater (Lesson, 1830)	4587
+Parotia_carolae	Parotia carolae	EXACT	ACCEPTED	SPECIES	2494893	Parotia carolae A.B.Meyer, 1894	1167
+Parotia_wahnesi	Parotia wahnesi	EXACT	ACCEPTED	SPECIES	2494891	Parotia wahnesi Rothschild, 1906	414
+Epimachus_fastuosus	Epimachus fastuosus	EXACT	SYNONYM	SPECIES	2494881	Epimachus fastuosus (Hermann, 1783)	75
+Astrapia_mayeri	Astrapia mayeri	EXACT	ACCEPTED	SPECIES	2494870	Astrapia mayeri Stonor, 1939	2243
+Paradigalla_brevicauda	Paradigalla brevicauda	EXACT	ACCEPTED	SPECIES	2494885	Paradigalla brevicauda Rothschild & Hartert, 1911	556
+Paradisaea_guilielmi	Paradisaea guilielmi	EXACT	ACCEPTED	SPECIES	2494864	Paradisaea guilielmi Cabanis, 1888	231
+Paradisaea_raggiana	Paradisaea raggiana	EXACT	ACCEPTED	SPECIES	2494861	Paradisaea raggiana P.L.Sclater, 1873	3532
+Diphyllodes_magnificus	Diphyllodes magnificus	EXACT	ACCEPTED	SPECIES	5844984	Diphyllodes magnificus (J.R.Forster, 1781)	4055
+Ptiloris_paradiseus	Ptiloris paradiseus	EXACT	ACCEPTED	SPECIES	2494898	Ptiloris paradiseus Swainson, 1825	19107
+Ptiloris_intercedens	Ptiloris intercedens	EXACT	ACCEPTED	SPECIES	2494899	Ptiloris intercedens Sharpe, 1882	1438
+Drepanornis_bruijnii	Drepanornis bruijnii	EXACT	ACCEPTED	SPECIES	5788946	Drepanornis bruijnii Oustalet, 1879	603
+Hypothymis_azurea	Hypothymis azurea	EXACT	ACCEPTED	SPECIES	2486625	Hypothymis azurea (Boddaert, 1783)	346510
+Hypothymis_helenae	Hypothymis helenae	EXACT	ACCEPTED	SPECIES	2486626	Hypothymis helenae (Steere, 1890)	862
+Terpsiphone_mutata	Terpsiphone mutata	EXACT	ACCEPTED	SPECIES	2486686	Terpsiphone mutata (Linnaeus, 1766)	14408
+Terpsiphone_batesi	Terpsiphone batesi	EXACT	ACCEPTED	SPECIES	7340403	Terpsiphone batesi Chapin, 1921	440
+Terpsiphone_rufocinerea	Terpsiphone rufocinerea	EXACT	ACCEPTED	SPECIES	2486683	Terpsiphone rufocinerea Cabanis, 1875	763
+Terpsiphone_cyanescens	Terpsiphone cyanescens	EXACT	ACCEPTED	SPECIES	2486682	Terpsiphone cyanescens (Sharpe, 1877)	1931
+Trochocercus_cyanomelas	Trochocercus cyanomelas	EXACT	ACCEPTED	SPECIES	2486673	Trochocercus cyanomelas (Vieillot, 1818)	19891
+Myiagra_cervinicauda	Myiagra cervinicauda	EXACT	ACCEPTED	SPECIES	2486649	Myiagra cervinicauda Tristram, 1879	141
+Myiagra_vanikorensis	Myiagra vanikorensis	EXACT	ACCEPTED	SPECIES	2486634	Myiagra vanikorensis (Quoy & Gaimard, 1830)	5124
+Myiagra_ferrocyanea	Myiagra ferrocyanea	EXACT	ACCEPTED	SPECIES	2486644	Myiagra ferrocyanea E.P.Ramsay, 1879	1029
+Myiagra_oceanica	Myiagra oceanica	EXACT	ACCEPTED	SPECIES	2486640	Myiagra oceanica Pucheran, 1853	359
+Myiagra_inquieta	Myiagra inquieta	EXACT	ACCEPTED	SPECIES	2486651	Myiagra inquieta (Latham, 1802)	175494
+Myiagra_atra	Myiagra atra	EXACT	ACCEPTED	SPECIES	2486648	Myiagra atra A.B.Meyer, 1874	531
+Arses_kaupi	Arses kaupi	EXACT	ACCEPTED	SPECIES	2486665	Arses kaupi Gould, 1851	9582
+Arses_insularis	Arses insularis	EXACT	ACCEPTED	SPECIES	2486666	Arses insularis (A.B.Meyer, 1874)	1149
+Carterornis_chrysomela	Carterornis chrysomela	EXACT	ACCEPTED	SPECIES	7340272	Carterornis chrysomela (Lesson & Garnot, 1827)	3527
+Pomarea_nigra	Pomarea nigra	EXACT	ACCEPTED	SPECIES	5230449	Pomarea nigra (Sparrman, 1786)	205
+Monarcha_cinerascens	Monarcha cinerascens	EXACT	ACCEPTED	SPECIES	5230444	Monarcha cinerascens (Temminck, 1827)	2489
+Monarcha_castaneiventris	Monarcha castaneiventris	EXACT	ACCEPTED	SPECIES	5230442	Monarcha castaneiventris J.Verreaux, 1858	1087
+Chasiempis_sandwichensis	Chasiempis sandwichensis	EXACT	ACCEPTED	SPECIES	2486699	Chasiempis sandwichensis (Gmelin, 1789)	21079
+Mayrornis_schistaceus	Mayrornis schistaceus	EXACT	ACCEPTED	SPECIES	2486695	Mayrornis schistaceus Mayr, 1933	40
+Clytorhynchus_nigrogularis	Clytorhynchus nigrogularis	EXACT	ACCEPTED	SPECIES	2486629	Clytorhynchus nigrogularis (E.L.Layard, 1875)	414
+Pomarea_whitneyi	Pomarea whitneyi	EXACT	ACCEPTED	SPECIES	5230451	Pomarea whitneyi Murphy & Mathews, 1928	114
+Symposiachrus_axillaris	Symposiachrus axillaris	EXACT	ACCEPTED	SPECIES	7342272	Symposiachrus axillaris (Salvadori, 1876)	1749
+Symposiachrus_manadensis	Symposiachrus manadensis	EXACT	ACCEPTED	SPECIES	6095016	Symposiachrus manadensis (Quoy & Gaimard, 1830)	1179
+Symposiachrus_bimaculatus	Symposiachrus bimaculatus	EXACT	ACCEPTED	SPECIES	6101049	Symposiachrus bimaculatus (G.R.Gray, 1861)	1433
+Symposiachrus_vidua	Symposiachrus vidua	EXACT	ACCEPTED	SPECIES	6101051	Symposiachrus vidua (Tristram, 1879)	211
+Symposiachrus_leucurus	Symposiachrus leucurus	EXACT	ACCEPTED	SPECIES	6101042	Symposiachrus leucurus (G.R.Gray, 1858)	267
+Symposiachrus_trivirgatus	Symposiachrus trivirgatus	EXACT	ACCEPTED	SPECIES	7342258	Symposiachrus trivirgatus (Temminck, 1826)	78895
+Grallina_bruijni	Grallina bruijni	FUZZY	ACCEPTED	SPECIES	6101052	Grallina bruijnii Salvadori, 1876	603
+Campephaga_petiti	Campephaga petiti	EXACT	ACCEPTED	SPECIES	2486744	Campephaga petiti Oustalet, 1884	3949
+Lalage_sharpei	Lalage sharpei	EXACT	ACCEPTED	SPECIES	5230460	Lalage sharpei Rothschild, 1900	308
+Lalage_sueurii	Lalage sueurii	EXACT	ACCEPTED	SPECIES	5230465	Lalage sueurii (Vieillot, 1818)	12067
+Coracina_melanoptera	Coracina melanoptera	EXACT	ACCEPTED	SPECIES	2486772	Coracina melanoptera (Rüppell, 1839)	52012
+Coracina_melaschistos	Coracina melaschistos	EXACT	ACCEPTED	SPECIES	2486789	Coracina melaschistos (Hodgson, 1836)	41563
+Lalage_leucopygialis	Lalage leucopygialis	EXACT	ACCEPTED	SPECIES	5230463	Lalage leucopygialis Walden, 1872	980
+Lalage_atrovirens	Lalage atrovirens	EXACT	ACCEPTED	SPECIES	5230461	Lalage atrovirens (G.R.Gray, 1862)	2376
+Coracina_abbotti	Coracina abbotti	EXACT	ACCEPTED	SPECIES	2486750	Coracina abbotti (Riley, 1918)	693
+Coracina_ostenta	Coracina ostenta	EXACT	ACCEPTED	SPECIES	2486793	Coracina ostenta Ripley, 1952	489
+Coracina_dohertyi	Coracina dohertyi	EXACT	ACCEPTED	SPECIES	2486760	Coracina dohertyi (Hartert, 1896)	580
+Coracina_salomonis	Coracina salomonis	EXACT	ACCEPTED	SPECIES	5845013	Coracina salomonis (Tristram, 1879)	156
+Coracina_morio	Coracina morio	EXACT	ACCEPTED	SPECIES	2486775	Coracina morio (S.Muller, 1843)	1159
+Coracina_holopolia	Coracina holopolia	EXACT	ACCEPTED	SPECIES	2486778	Coracina holopolia (Sharpe, 1888)	225
+Coracina_pectoralis	Coracina pectoralis	EXACT	ACCEPTED	SPECIES	2486795	Coracina pectoralis (Jardine & Selby, 1828)	5280
+Coracina_caeruleogrisea	Coracina caeruleogrisea	EXACT	ACCEPTED	SPECIES	2486786	Coracina caeruleogrisea (G.R.Gray, 1858)	1368
+Coracina_maxima	Coracina maxima	EXACT	ACCEPTED	SPECIES	2486755	Coracina maxima (Rüppell, 1839)	15279
+Coracina_caledonica	Coracina caledonica	EXACT	ACCEPTED	SPECIES	2486756	Coracina caledonica (Gmelin, 1788)	2083
+Coracina_striata	Coracina striata	EXACT	ACCEPTED	SPECIES	2486751	Coracina striata (Boddaert, 1783)	6029
+Coracina_novaehollandiae	Coracina novaehollandiae	EXACT	ACCEPTED	SPECIES	2486761	Coracina novaehollandiae (Gmelin, 1789)	1025387
+Coracina_ingens	Coracina ingens	EXACT	ACCEPTED	SPECIES	5845020	Coracina ingens (Rothschild & Hartert, 1914)	70
+Pericrocotus_cinnamomeus	Pericrocotus cinnamomeus	EXACT	ACCEPTED	SPECIES	2486822	Pericrocotus cinnamomeus (Linnaeus, 1766)	176691
+Pericrocotus_cantonensis	Pericrocotus cantonensis	EXACT	ACCEPTED	SPECIES	2486817	Pericrocotus cantonensis Swinhoe & P.L.Sclater, 1861	13092
+Pericrocotus_flammeus	Pericrocotus flammeus	EXACT	ACCEPTED	SPECIES	2486819	Pericrocotus flammeus (J.R.Forster, 1781)	97693
+Pericrocotus_brevirostris	Pericrocotus brevirostris	EXACT	ACCEPTED	SPECIES	2486812	Pericrocotus brevirostris (Vigors, 1831)	12917
+Pericrocotus_albifrons	Pericrocotus albifrons	EXACT	ACCEPTED	SPECIES	6101030	Pericrocotus albifrons Jerdon, 1862	398
+Prionops_plumatus	Prionops plumatus	EXACT	ACCEPTED	SPECIES	2484841	Prionops plumatus (Shaw, 1809)	68250
+Bias_musicus	Bias musicus	EXACT	ACCEPTED	SPECIES	2492284	Bias musicus (Vieillot, 1818)	9101
+Tephrodornis_pondicerianus	Tephrodornis pondicerianus	EXACT	ACCEPTED	SPECIES	2484857	Tephrodornis pondicerianus (Gmelin, 1789)	100650
+Calicalicus_madagascariensis	Calicalicus madagascariensis	EXACT	ACCEPTED	SPECIES	2495102	Calicalicus madagascariensis (Linnaeus, 1766)	6026
+Euryceros_prevostii	Euryceros prevostii	EXACT	ACCEPTED	SPECIES	5231781	Euryceros prevostii Lesson, 1831	760
+Xenopirostris_xenopirostris	Xenopirostris xenopirostris	EXACT	ACCEPTED	SPECIES	2495118	Xenopirostris xenopirostris (Lafresnaye, 1850)	1624
+Artamella_viridis	Artamella viridis	EXACT	ACCEPTED	SPECIES	2495126	Artamella viridis (Statius Muller, 1776)	3632
+Cyanolanius_madagascarinus	Cyanolanius madagascarinus	EXACT	ACCEPTED	SPECIES	2495111	Cyanolanius madagascarinus (Linnaeus, 1766)	5070
+Hypositta_corallirostris	Hypositta corallirostris	EXACT	ACCEPTED	SPECIES	2495121	Hypositta corallirostris (A.Newton, 1863)	1991
+Newtonia_fanovanae	Newtonia fanovanae	EXACT	ACCEPTED	SPECIES	5231363	Newtonia fanovanae Gyldenstolpe, 1933	61
+Philentoma_pyrhoptera	Philentoma pyrhoptera	EXACT	ACCEPTED	SPECIES	7340865	Philentoma pyrhoptera (Temminck, 1836)	7428
+Platysteira_cyanea	Platysteira cyanea	EXACT	ACCEPTED	SPECIES	2492313	Platysteira cyanea (Statius Muller, 1776)	29836
+Dyaphorophyia_chalybea	Dyaphorophyia chalybea	EXACT	SYNONYM	SPECIES	5789251	Dyaphorophyia chalybea Reichenow, 1897	48

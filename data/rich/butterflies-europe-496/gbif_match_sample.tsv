@@ -1,0 +1,201 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+Archon_apollinus	Archon apollinus	EXACT	ACCEPTED	SPECIES	1936969	Archon apollinus (Herbst, 1798)	4065
+Zerynthia_polyxena	Zerynthia polyxena	EXACT	ACCEPTED	SPECIES	5141262	Zerynthia polyxena (Denis & Schiffermüller) , 1775	30083
+Zerynthia_caucasica	Zerynthia caucasica	EXACT	ACCEPTED	SPECIES	5141309	Zerynthia caucasica (Lederer, 1864)	138
+Zerynthia_cretica	Zerynthia cretica	EXACT	ACCEPTED	SPECIES	5141288	Zerynthia cretica (Rebel, 1904)	386
+Parnassius_phoebus	Parnassius phoebus	EXACT	ACCEPTED	SPECIES	1938955	Parnassius phoebus (Fabricius, 1793)	11538
+Iphiclides_feisthamelii	Iphiclides feisthamelii	EXACT	ACCEPTED	SPECIES	4690079	Iphiclides feisthamelii (Duponchel, 1832)	33454
+Papilio_hospiton	Papilio hospiton	EXACT	ACCEPTED	SPECIES	1938050	Papilio hospiton Géné, 1839	1061
+Papilio_alexanor	Papilio alexanor	EXACT	ACCEPTED	SPECIES	1938131	Papilio alexanor Esper, 1800	3687
+Erynnis_tages	Erynnis tages	EXACT	ACCEPTED	SPECIES	8270406	Erynnis tages (Linnaeus, 1758)	303863
+Pyrgus_sidae	Pyrgus sidae	EXACT	ACCEPTED	SPECIES	1949877	Pyrgus sidae (Esper, 1784)	2870
+Pyrgus_andromedae	Pyrgus andromedae	EXACT	ACCEPTED	SPECIES	1949852	Pyrgus andromedae (Wallengren, 1853)	5358
+Pyrgus_malvoides	Pyrgus malvoides	EXACT	ACCEPTED	SPECIES	1949938	Pyrgus malvoides (Elwes & Edwards, 1897)	29659
+Pyrgus_armoricanus	Pyrgus armoricanus	EXACT	ACCEPTED	SPECIES	1949784	Pyrgus armoricanus (Oberthür, 1910)	21266
+Pyrgus_onopordi	Pyrgus onopordi	EXACT	ACCEPTED	SPECIES	1949954	Pyrgus onopordi (Rambur, 1839)	4100
+Pyrgus_carlinae	Pyrgus carlinae	EXACT	ACCEPTED	SPECIES	1949715	Pyrgus carlinae (Rambur, 1839)	8242
+Pyrgus_warrenensis	Pyrgus warrenensis	EXACT	SYNONYM	SPECIES	1949875	Pyrgus warrenensis (Verity, 1928)	852
+Pyrgus_alveus	Pyrgus alveus	EXACT	ACCEPTED	SPECIES	1949794	Pyrgus alveus (Hübner, 1802)	21829
+Carcharodus_alceae	Carcharodus alceae	EXACT	ACCEPTED	SPECIES	8277078	Carcharodus alceae (Esper, 1780)	87891
+Spialia_sertorius	Spialia sertorius	EXACT	ACCEPTED	SPECIES	1945569	Spialia sertorius (Hoffmannsegg, 1804)	53401
+Spialia_orbifer	Spialia orbifer	EXACT	SYNONYM	SPECIES	1945597	Spialia orbifer (Hübner, 1823)	4586
+Muschampia_tessellum	Muschampia tessellum	EXACT	SYNONYM	SPECIES	4535400	Muschampia tessellum (Hübner, 1803)	898
+Muschampia_cribrellum	Muschampia cribrellum	EXACT	SYNONYM	SPECIES	4535398	Muschampia cribrellum (Eversmann, 1841)	70
+Carcharodus_orientalis	Carcharodus orientalis	EXACT	SYNONYM	SPECIES	1943410	Carcharodus orientalis Reverdin, 1913	752
+Carcharodus_baeticus	Carcharodus baeticus	EXACT	ACCEPTED	SPECIES	4535386	Carcharodus baeticus (Rambur, 1839)	1318
+Heteropterus_morpheus	Heteropterus morpheus	EXACT	ACCEPTED	SPECIES	5141677	Heteropterus morpheus (Pallas, 1771)	33097
+Carterocephalus_palaemon	Carterocephalus palaemon	EXACT	ACCEPTED	SPECIES	1947335	Carterocephalus palaemon (Pallas, 1771)	74845
+Thymelicus_acteon	Thymelicus acteon	EXACT	ACCEPTED	SPECIES	8073674	Thymelicus acteon (von Rottemburg, 1775)	40748
+Thymelicus_sylvestris	Thymelicus sylvestris	EXACT	ACCEPTED	SPECIES	8273661	Thymelicus sylvestris (Poda, 1761)	701292
+Ochlodes_sylvanus	Ochlodes sylvanus	EXACT	SYNONYM	SPECIES	1946844	Ochlodes sylvanus (Esper, 1777)	444540
+Gegenes_pumilio	Gegenes pumilio	EXACT	ACCEPTED	SPECIES	5142352	Gegenes pumilio (Hoffmannsegg, 1804)	1376
+Borbo_borbonica	Borbo borbonica	EXACT	ACCEPTED	SPECIES	1946661	Borbo borbonica (Boisduval, 1833)	1196
+Leptidea_duponcheli	Leptidea duponcheli	EXACT	ACCEPTED	SPECIES	5137902	Leptidea duponcheli (Staudinger, 1871)	2778
+Leptidea_juvernica	Leptidea juvernica	EXACT	ACCEPTED	SPECIES	5804895	Leptidea juvernica Williams, 1946	29208
+Leptidea_reali	Leptidea reali	EXACT	ACCEPTED	SPECIES	5137915	Leptidea reali Reissinger, 1990	2728
+Colias_hyale	Colias hyale	EXACT	ACCEPTED	SPECIES	5137706	Colias hyale (Linnaeus, 1758)	56674
+Colias_aurorina	Colias aurorina	EXACT	ACCEPTED	SPECIES	5137682	Colias aurorina Herrich-Schäffer, 1850	852
+Colias_crocea	Colias crocea	FUZZY	ACCEPTED	SPECIES	5137612	Colias croceus (Geoffroy, 1785)	419153
+Colias_palaeno	Colias palaeno	EXACT	ACCEPTED	SPECIES	5137582	Colias palaeno (Linnaeus, 1761)	61087
+Colias_hecla	Colias hecla	EXACT	ACCEPTED	SPECIES	5137595	Colias hecla Lefèbvre, 1836	7598
+Colias_caucasica	Colias caucasica	EXACT	ACCEPTED	SPECIES	5137668	Colias caucasica Staudinger, 1871	342
+Gonepteryx_farinosa	Gonepteryx farinosa	EXACT	ACCEPTED	SPECIES	1920707	Gonepteryx farinosa (Zeller, 1847)	883
+Gonepteryx_cleopatra	Gonepteryx cleopatra	EXACT	ACCEPTED	SPECIES	1920709	Gonepteryx cleopatra (Linnaeus, 1767)	83544
+Gonepteryx_rhamni	Gonepteryx rhamni	EXACT	ACCEPTED	SPECIES	1920712	Gonepteryx rhamni (Linnaeus, 1758)	2333464
+Euchloe_tagis	Euchloe tagis	EXACT	ACCEPTED	SPECIES	1919317	Euchloe tagis (Hübner, 1804)	2261
+Euchloe_bazae	Euchloe bazae	EXACT	ACCEPTED	SPECIES	4535288	Euchloe bazae Fabiano, 1993	204
+Anthocharis_gruneri	Anthocharis gruneri	EXACT	ACCEPTED	SPECIES	1919706	Anthocharis gruneri Herrich-Schäffer, 1851	608
+Anthocharis_damone	Anthocharis damone	EXACT	ACCEPTED	SPECIES	1919716	Anthocharis damone Boisduval, 1836	975
+Euchloe_simplonia	Euchloe simplonia	EXACT	ACCEPTED	SPECIES	1919330	Euchloe simplonia (Boisduval, 1828)	771
+Euchloe_insularis	Euchloe insularis	EXACT	ACCEPTED	SPECIES	1919325	Euchloe insularis (Staudinger, 1861)	231
+Euchloe_grancanariensis	Euchloe grancanariensis	EXACT	ACCEPTED	SPECIES	4535277	Euchloe grancanariensis Acosta, 2008	95
+Euchloe_belemia	Euchloe belemia	EXACT	ACCEPTED	SPECIES	1919333	Euchloe belemia (Esper, 1800)	7737
+Zegris_pyrothoe	Zegris pyrothoe	EXACT	ACCEPTED	SPECIES	1919963	Zegris pyrothoe (Eversmann, 1832)	60
+Pieris_wollastoni	Pieris wollastoni	EXACT	ACCEPTED	SPECIES	4535297	Pieris wollastoni (Butler, 1886)	7
+Pieris_brassicae	Pieris brassicae	EXACT	ACCEPTED	SPECIES	1920506	Pieris brassicae (Linnaeus, 1758)	2608205
+Pieris_rapae	Pieris rapae	EXACT	ACCEPTED	SPECIES	1920496	Pieris rapae (Linnaeus, 1758)	3690546
+Pieris_napi	Pieris napi	EXACT	ACCEPTED	SPECIES	1920494	Pieris napi (Linnaeus, 1758)	2969127
+Pieris_bryoniae	Pieris bryoniae	EXACT	ACCEPTED	SPECIES	4535307	Pieris bryoniae (Hübner, 1806)	19959
+Pontia_daplidice	Pontia daplidice	EXACT	ACCEPTED	SPECIES	1920258	Pontia daplidice (Linnaeus, 1758)	65666
+Pontia_chloridice	Pontia chloridice	EXACT	ACCEPTED	SPECIES	1920247	Pontia chloridice (Hübner, 1813)	673
+Aporia_crataegi	Aporia crataegi	EXACT	ACCEPTED	SPECIES	1920218	Aporia crataegi (Linnaeus, 1758)	212514
+Azanus_ubaldus	Azanus ubaldus	EXACT	ACCEPTED	SPECIES	1926550	Azanus ubaldus (Cramer, 1782)	2106
+Zizeeria_karsandra	Zizeeria karsandra	EXACT	ACCEPTED	SPECIES	1933647	Zizeeria karsandra (Moore, 1865)	8716
+Tarucus_theophrastus	Tarucus theophrastus	EXACT	ACCEPTED	SPECIES	1930904	Tarucus theophrastus (Fabricius, 1793)	1219
+Cacyreus_marshalli	Cacyreus marshalli	EXACT	ACCEPTED	SPECIES	1932752	Cacyreus marshalli Butler, 1897	49241
+Pseudophilotes_bavius	Pseudophilotes bavius	EXACT	ACCEPTED	SPECIES	4535092	Pseudophilotes bavius (Ivirsmann, 1832)	642
+Pseudophilotes_abencerragus	Pseudophilotes abencerragus	EXACT	ACCEPTED	SPECIES	1922572	Pseudophilotes abencerragus (Pierret, 1837)	1196
+Pseudophilotes_baton	Pseudophilotes baton	EXACT	ACCEPTED	SPECIES	1922584	Pseudophilotes baton (Bergstrasser, 1779)	35499
+Turanana_taygetica	Turanana taygetica	EXACT	SYNONYM	SPECIES	4535160	Turanana taygetica (Rebel, 1902)	48
+Glaucopsyche_paphos	Glaucopsyche paphos	EXACT	ACCEPTED	SPECIES	1924077	Glaucopsyche paphos Chapman, 1920	623
+Iolana_debilitata	Iolana debilitata	EXACT	ACCEPTED	SPECIES	1923037	Iolana debilitata	534
+Praephilotes_anthracias	Praephilotes anthracias	EXACT	ACCEPTED	SPECIES	1928630	Praephilotes anthracias (Christoph, 1877)	43
+Phengaris_nausithous	Phengaris nausithous	EXACT	SYNONYM	SPECIES	4535165	Phengaris nausithous (Bergsträsser, 1779)	32639
+Phengaris_arion	Phengaris arion	EXACT	SYNONYM	SPECIES	4535168	Phengaris arion (Linnaeus, 1758)	36026
+Leptotes_pirithous	Leptotes pirithous	EXACT	ACCEPTED	SPECIES	1932976	Leptotes pirithous (Linnaeus, 1767)	47775
+Cupido_osiris	Cupido osiris	EXACT	SYNONYM	SPECIES	8030835	Cupido osiris (Meigen, 1829)	9377
+Cupido_lorquinii	Cupido lorquinii	EXACT	ACCEPTED	SPECIES	1926166	Cupido lorquinii (Herrich-Schäffer, 1850)	1218
+Cupido_alcetas	Cupido alcetas	EXACT	SYNONYM	SPECIES	7985111	Cupido alcetas (Hoffmannsegg, 1804)	24395
+Tongeia_fischeri	Tongeia fischeri	EXACT	ACCEPTED	SPECIES	1931561	Tongeia fischeri (Eversmann, 1843)	3224
+Freyeria_trochylus	Freyeria trochylus	EXACT	ACCEPTED	SPECIES	5139040	Freyeria trochylus (Freyer, 1845)	5473
+Lysandra_corydonius	Lysandra corydonius	EXACT	ACCEPTED	SPECIES	10112422	Lysandra corydonius	115
+Lysandra_albicans	Lysandra albicans	EXACT	ACCEPTED	SPECIES	11470119	Lysandra albicans (Gerhard, 1851)	2674
+Lysandra_coridon	Lysandra coridon	EXACT	ACCEPTED	SPECIES	1925221	Lysandra coridon (Poda, 1761)	305782
+Polyommatus_damon	Polyommatus damon	EXACT	SYNONYM	SPECIES	7484070	Polyommatus damon (Denis & Schiffermüller, 1775)	18836
+Polyommatus_orphicus	Polyommatus orphicus	EXACT	ACCEPTED	SPECIES	5772741	Polyommatus orphicus Kolev, 2005	63
+Polyommatus_aroaniensis	Polyommatus aroaniensis	EXACT	SYNONYM	SPECIES	5772746	Polyommatus aroaniensis (Brown, 1976)	97
+Polyommatus_dolus	Polyommatus dolus	EXACT	SYNONYM	SPECIES	5772730	Polyommatus dolus (Hübner, 1823)	1345
+Polyommatus_fulgens	Polyommatus fulgens	EXACT	SYNONYM	SPECIES	5772736	Polyommatus fulgens (de Sagarra, 1925)	1264
+Polyommatus_iphigenia	Polyommatus iphigenia	EXACT	SYNONYM	SPECIES	9148357	Polyommatus iphigenia (Herrich-Schäffer, 1847)	262
+Polyommatus_admetus	Polyommatus admetus	EXACT	SYNONYM	SPECIES	7542963	Polyommatus admetus (Esper, 1783)	1148
+Polyommatus_nephohiptamenos	Polyommatus nephohiptamenos	EXACT	SYNONYM	SPECIES	5772726	Polyommatus nephohiptamenos (Brown & Coutsis, 1978)	52
+Polyommatus_eros	Polyommatus eros	EXACT	ACCEPTED	SPECIES	5140244	Polyommatus eros (Ochsenheimer, 1808)	13185
+Polyommatus_golgus	Polyommatus golgus	EXACT	SYNONYM	SPECIES	5772700	Polyommatus golgus (Hübner, 1813)	565
+Polyommatus_nivescens	Polyommatus nivescens	EXACT	ACCEPTED	SPECIES	5772702	Polyommatus nivescens (Keferstein, 1851)	1959
+Polyommatus_daphnis	Polyommatus daphnis	EXACT	ACCEPTED	SPECIES	5140436	Polyommatus daphnis (Denis & Schiffermüller) , 1776	11658
+Neolysandra_coelestina	Neolysandra coelestina	EXACT	DOUBTFUL	SPECIES	10556522	Neolysandra coelestina	371
+Aricia_agestis	Aricia agestis	EXACT	ACCEPTED	SPECIES	1933095	Aricia agestis (Denis & Schiffermüller) , 1775	522512
+Aricia_artaxerxes	Aricia artaxerxes	EXACT	ACCEPTED	SPECIES	1933138	Aricia artaxerxes (Fabricius, 1793)	74437
+Aricia_anteros	Aricia anteros	EXACT	HETEROTYPIC_SYNONYM	SPECIES	9195563	Aricia anteros (Freyer, 1838)	1123
+Aricia_cramera	Aricia cramera	EXACT	ACCEPTED	SPECIES	1933204	Aricia cramera (Eschscholtz, 1821)	21460
+Eumedonia_eumedon	Eumedonia eumedon	EXACT	ACCEPTED	SPECIES	1933793	Eumedonia eumedon (Esper, 1780)	32993
+Kretania_hesperica	Kretania hesperica	EXACT	SYNONYM	SPECIES	10637927	Kretania hesperica (Rambur, 1839)	401
+Kretania_sephirus	Kretania sephirus	EXACT	SYNONYM	SPECIES	9764604	Kretania sephirus (Frivaldsky, 1835)	555
+Kretania_psylorita	Kretania psylorita	EXACT	ACCEPTED	SPECIES	1922299	Kretania psylorita (Freyer, 1845)	55
+Agriades_zullichi	Agriades zullichi	EXACT	ACCEPTED	SPECIES	1926102	Agriades zullichi Hemming, 1933	143
+Agriades_glandon	Agriades glandon	EXACT	ACCEPTED	SPECIES	1926054	Agriades glandon (von Prunner, 1798)	17443
+Agriades_dardanus	Agriades dardanus	EXACT	ACCEPTED	SPECIES	9202521	Agriades dardanus	141
+Cyaniris_semiargus	Cyaniris semiargus	EXACT	ACCEPTED	SPECIES	5139156	Cyaniris semiargus (von Rottemburg, 1775)	190167
+Plebejus_bellieri	Plebejus bellieri	EXACT	SYNONYM	SPECIES	5772762	Plebejus bellieri (Oberthür, 1910)	509
+Plebejus_idas	Plebejus idas	EXACT	SYNONYM	SPECIES	5714690	Plebejus idas (Linnaeus, 1761)	62878
+Favonius_quercus	Favonius quercus	EXACT	SYNONYM	SPECIES	4535180	Favonius quercus (Linnaeus, 1758)	70302
+Tomares_nogelii	Tomares nogelii	EXACT	ACCEPTED	SPECIES	4535185	Tomares nogelii (Herrich-Schäffer, 1851)	317
+Satyrium_esculi	Satyrium esculi	EXACT	SYNONYM	SPECIES	7552387	Satyrium esculi (Hübner, 1804)	20457
+Satyrium_acaciae	Satyrium acaciae	EXACT	SYNONYM	SPECIES	7508312	Satyrium acaciae (Fabricius, 1787)	13362
+Satyrium_ledereri	Satyrium ledereri	EXACT	ACCEPTED	SPECIES	8830632	Satyrium ledereri (Boisduval, 1848)	166
+Satyrium_pruni	Satyrium pruni	EXACT	SYNONYM	SPECIES	5882980	Satyrium pruni (Linnaeus, 1758)	18809
+Callophrys_chalybeitincta	Callophrys chalybeitincta	EXACT	SYNONYM	SPECIES	1932430	Callophrys chalybeitincta Sovinsky, 1905	84
+Callophrys_suaveola	Callophrys suaveola	EXACT	SYNONYM	SPECIES	1932398	Callophrys suaveola (Staudinger, 1881)	22
+Laeosopis_roboris	Laeosopis roboris	EXACT	ACCEPTED	SPECIES	1922197	Laeosopis roboris (Esper, 1790)	5796
+Lycaena_thersamon	Lycaena thersamon	EXACT	SYNONYM	SPECIES	9036079	Lycaena thersamon (Esper, 1784)	10084
+Lycaena_hippothoe	Lycaena hippothoe	HIGHERRANK	ACCEPTED	FAMILY	5473	Lycaenidae	
+Lycaena_dispar	Lycaena dispar	EXACT	ACCEPTED	SPECIES	1929270	Lycaena dispar (Haworth, 1803)	54026
+Lycaena_phlaeas	Lycaena phlaeas	EXACT	ACCEPTED	SPECIES	1929697	Lycaena phlaeas (Linnaeus, 1761)	1291950
+Lycaena_virgaureae	Lycaena virgaureae	EXACT	ACCEPTED	SPECIES	1929659	Lycaena virgaureae (Linnaeus, 1758)	152548
+Lycaena_bleusei	Lycaena bleusei	EXACT	ACCEPTED	SPECIES	5792092	Lycaena bleusei Oberthür, 1884	3642
+Cigaritis_acamas	Cigaritis acamas	EXACT	ACCEPTED	SPECIES	1926722	Cigaritis acamas (Klug, 1834)	1290
+Neptis_rivularis	Neptis rivularis	EXACT	ACCEPTED	SPECIES	5131096	Neptis rivularis (Scopoli, 1763)	10954
+Limenitis_reducta	Limenitis reducta	EXACT	ACCEPTED	SPECIES	8001799	Limenitis reducta Staudinger, 1901	77477
+Limenitis_populi	Limenitis populi	EXACT	ACCEPTED	SPECIES	5132183	Limenitis populi (Linnaeus, 1758)	37430
+Fabriciana_niobe	Fabriciana niobe	EXACT	ACCEPTED	SPECIES	8078362	Fabriciana niobe (Linnaeus, 1761)	67685
+Speyeria_aglaja	Speyeria aglaja	EXACT	ACCEPTED	SPECIES	6221746	Speyeria aglaja (Linnaeus, 1758)	355522
+Argynnis_paphia	Argynnis paphia	EXACT	ACCEPTED	SPECIES	1909398	Argynnis paphia (Linnaeus, 1758)	724916
+Brenthis_hecate	Brenthis hecate	EXACT	ACCEPTED	SPECIES	8189761	Brenthis hecate (Denis & Schiffermüller) , 1775	8142
+Brenthis_daphne	Brenthis daphne	EXACT	ACCEPTED	SPECIES	8140883	Brenthis daphne (Denis & Schiffermüller) , 1775	57854
+Issoria_lathonia	Issoria lathonia	EXACT	ACCEPTED	SPECIES	1905383	Issoria lathonia (Linnaeus, 1758)	277021
+Boloria_pales	Boloria pales	EXACT	ACCEPTED	SPECIES	7799370	Boloria pales (Denis & Schiffermüller) , 1775	21927
+Boloria_aquilonaris	Boloria aquilonaris	EXACT	ACCEPTED	SPECIES	1912372	Boloria aquilonaris (Stichel, 1908)	31741
+Boloria_graeca	Boloria graeca	EXACT	ACCEPTED	SPECIES	1912395	Boloria graeca Staudinger, 1870	1181
+Boloria_angarensis	Boloria angarensis	EXACT	SYNONYM	SPECIES	9198045	Boloria angarensis (Erschoff, 1870)	171
+Boloria_selenis	Boloria selenis	EXACT	SYNONYM	SPECIES	8737366	Boloria selenis (Eversmann, 1837)	209
+Boloria_freija	Boloria freija	EXACT	ACCEPTED	SPECIES	4299599	Boloria freija (Thunberg, 1791)	15999
+Boloria_dia	Boloria dia	EXACT	ACCEPTED	SPECIES	5772890	Boloria dia (Linnaeus, 1767)	88171
+Boloria_tritonia	Boloria tritonia	EXACT	ACCEPTED	SPECIES	9041405	Boloria tritonia (Bober, 1812)	150
+Boloria_thore	Boloria thore	EXACT	ACCEPTED	SPECIES	7428726	Boloria thore (Hübner, 1803)	6905
+Boloria_improba	Boloria improba	EXACT	SYNONYM	SPECIES	4299581	Boloria improba (Butler, 1877)	2414
+Apatura_ilia	Apatura ilia	EXACT	ACCEPTED	SPECIES	8138711	Apatura ilia (Denis & Schiffermüller) , 1775	65826
+Araschnia_levana	Araschnia levana	EXACT	ACCEPTED	SPECIES	1902533	Araschnia levana (Linnaeus, 1758)	484573
+Aglais_urticae	Aglais urticae	EXACT	ACCEPTED	SPECIES	1894840	Aglais urticae (Linnaeus, 1758)	2542638
+Polygonia_egea	Polygonia egea	EXACT	ACCEPTED	SPECIES	1898521	Polygonia egea (Cramer, 1779)	3875
+Nymphalis_polychloros	Nymphalis polychloros	EXACT	ACCEPTED	SPECIES	7762841	Nymphalis polychloros (Linnaeus, 1758)	97955
+Nymphalis_antiopa	Nymphalis antiopa	EXACT	ACCEPTED	SPECIES	5130682	Nymphalis antiopa (Linnaeus, 1758)	248266
+Vanessa_virginiensis	Vanessa virginiensis	EXACT	ACCEPTED	SPECIES	4299370	Vanessa virginiensis (Drury, 1773)	75469
+Vanessa_atalanta	Vanessa atalanta	EXACT	ACCEPTED	SPECIES	1898286	Vanessa atalanta (Linnaeus, 1758)	3154116
+Melitaea_aetherie	Melitaea aetherie	EXACT	ACCEPTED	SPECIES	1899737	Melitaea aetherie Hübner	543
+Melitaea_ornata	Melitaea ornata	HIGHERRANK	ACCEPTED	GENUS	9042695	Melitaea Fabricius, 1807	
+Melitaea_celadussa	Melitaea celadussa	EXACT	SYNONYM	SPECIES	7514750	Melitaea celadussa Fruhstorfer, 1910	25070
+Melitaea_athalia	Melitaea athalia	EXACT	ACCEPTED	SPECIES	1899433	Melitaea athalia Wachtelweizen-Scheckenfalter	33506
+Melitaea_varia	Melitaea varia	EXACT	ACCEPTED	SPECIES	7867379	Melitaea varia Herrich-Schaeffer, 1851	5018
+Melitaea_asteria	Melitaea asteria	EXACT	SYNONYM	SPECIES	5792088	Melitaea asteria Freyer, 1828	1153
+Melitaea_diamina	Melitaea diamina	EXACT	ACCEPTED	SPECIES	7768674	Melitaea diamina (Lang, 1789)	73288
+Melitaea_trivia	Melitaea trivia	EXACT	ACCEPTED	SPECIES	1899349	Melitaea trivia (Denis & Schiffermüller) , 1775	11840
+Euphydryas_desfontainii	Euphydryas desfontainii	EXACT	ACCEPTED	SPECIES	4535819	Euphydryas desfontainii (Godart, 1819)	2657
+Euphydryas_cynthia	Euphydryas cynthia	EXACT	SYNONYM	SPECIES	4535804	Euphydryas cynthia (Dennis & Schiffermüller) , 1775	6797
+Euphydryas_maturna	Euphydryas maturna	EXACT	ACCEPTED	SPECIES	4535817	Euphydryas maturna (Linnaeus, 1758)	37078
+Hypolimnas_misippus	Hypolimnas misippus	EXACT	ACCEPTED	SPECIES	1910628	Hypolimnas misippus Linnaeus, 1764	14562
+Danaus_chrysippus	Danaus chrysippus	EXACT	ACCEPTED	SPECIES	7642610	Danaus chrysippus (Linnaeus, 1758)	58946
+Charaxes_jasius	Charaxes jasius	EXACT	ACCEPTED	SPECIES	1896957	Charaxes jasius (Linnaeus, 1767)	30271
+Kirinia_climene	Kirinia climene	EXACT	ACCEPTED	SPECIES	4535618	Kirinia climene (Esper, 1783)	769
+Pararge_xiphioides	Pararge xiphioides	EXACT	SYNONYM	SPECIES	1894571	Pararge xiphioides Staudinger, 1871	4795
+Lopinga_achine	Lopinga achine	EXACT	DOUBTFUL	SPECIES	4535614	Lopinga achine (Scopoli, 1763)	32674
+Lasiommata_megera	Lasiommata megera	EXACT	DOUBTFUL	SPECIES	4535632	Lasiommata megera (Linnaeus, 1767)	661927
+Lasiommata_petropolitana	Lasiommata petropolitana	EXACT	SYNONYM	SPECIES	4535634	Lasiommata petropolitana (Fabricius, 1787)	31039
+Coenonympha_oedippus	Coenonympha oedippus	EXACT	ACCEPTED	SPECIES	1911093	Coenonympha oedippus Fabricius, 1787	21636
+Coenonympha_glycerion	Coenonympha glycerion	EXACT	SYNONYM	SPECIES	1911125	Coenonympha glycerion Borkhausen, 1788	59301
+Coenonympha_pamphilus	Coenonympha pamphilus	EXACT	ACCEPTED	SPECIES	1911461	Coenonympha pamphilus (Linnaeus, 1758)	1838006
+Coenonympha_rhodopensis	Coenonympha rhodopensis	EXACT	SYNONYM	SPECIES	1911107	Coenonympha rhodopensis Elwes, 1900	774
+Coenonympha_dorus	Coenonympha dorus	EXACT	ACCEPTED	SPECIES	8396242	Coenonympha dorus Esper, 1782	18645
+Coenonympha_gardetta	Coenonympha gardetta	HIGHERRANK	ACCEPTED	GENUS	1911078	Coenonympha Hübner, 1819	
+Coenonympha_arcania	Coenonympha arcania	EXACT	ACCEPTED	SPECIES	7728366	Coenonympha arcania Linnaeus, 1761	171906
+Coenonympha_leander	Coenonympha leander	EXACT	ACCEPTED	SPECIES	1911298	Coenonympha leander Esper, 1784	1719
+Ypthima_asterope	Ypthima asterope	EXACT	ACCEPTED	SPECIES	4535754	Ypthima asterope Klug, 1832	3174
+Pyronia_bathseba	Pyronia bathseba	EXACT	ACCEPTED	SPECIES	8404037	Pyronia bathseba (Fabricius, 1793)	37204
+Pyronia_cecilia	Pyronia cecilia	EXACT	ACCEPTED	SPECIES	7988274	Pyronia cecilia Vallantin, 1894	31187
+Maniola_cypricola	Maniola cypricola	EXACT	SYNONYM	SPECIES	5772938	Maniola cypricola (Graves, 1928)	488
+Maniola_jurtina	Maniola jurtina	EXACT	ACCEPTED	SPECIES	5135513	Maniola jurtina (Linnaeus, 1758)	4437240
+Maniola_chia	Maniola chia	EXACT	ACCEPTED	SPECIES	5792082	Maniola chia Thomson, 1987	79
+Hyponephele_lupina	Hyponephele lupina	FUZZY	ACCEPTED	SPECIES	1906552	Hyponephele lupinus Costa, 1836	2425
+Hyponephele_huebneri	Hyponephele huebneri	EXACT	ACCEPTED	SPECIES	1906463	Hyponephele huebneri Koçak, 1980	27
+Erebia_albergana	Erebia albergana	FUZZY	ACCEPTED	SPECIES	5134543	Erebia alberganus von Prunner, 1798	22982
+Erebia_medusa	Erebia medusa	EXACT	ACCEPTED	SPECIES	8314088	Erebia medusa (Denis & Schiffermüller) , 1775	35606
+Erebia_dabanensis	Erebia dabanensis	EXACT	ACCEPTED	SPECIES	5134732	Erebia dabanensis Erschoff, 1871	290
+Erebia_palarica	Erebia palarica	EXACT	ACCEPTED	SPECIES	5134583	Erebia palarica Chapman, 1905	1696
+Erebia_orientalis	Erebia orientalis	EXACT	ACCEPTED	SPECIES	5134601	Erebia orientalis Elwes, 1900	196
+Erebia_christi	Erebia christi	EXACT	ACCEPTED	SPECIES	5134777	Erebia christi Rätzer, 1890	668
+Erebia_gorgone	Erebia gorgone	EXACT	ACCEPTED	SPECIES	5134607	Erebia gorgone Boisduval, 1833	1146
+Erebia_mnestra	Erebia mnestra	EXACT	ACCEPTED	SPECIES	8214814	Erebia mnestra Hübner, 1802	5594
+Erebia_eriphyle	Erebia eriphyle	EXACT	ACCEPTED	SPECIES	5134569	Erebia eriphyle (Freyer, 1836)	2909
+Erebia_ligea	Erebia ligea	EXACT	ACCEPTED	SPECIES	5134682	Erebia ligea (Linnaeus, 1758)	120669
+Erebia_sudetica	Erebia sudetica	HIGHERRANK	ACCEPTED	GENUS	1913456	Erebia Dalman, 1816	
+Erebia_scipio	Erebia scipio	EXACT	ACCEPTED	SPECIES	5135199	Erebia scipio Boisduval, 1832	628
+Erebia_pronoe	Erebia pronoe	EXACT	ACCEPTED	SPECIES	7798382	Erebia pronoe Esper, 1780	13122

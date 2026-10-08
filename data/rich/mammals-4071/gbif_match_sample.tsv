@@ -1,0 +1,201 @@
+input	query	matchType	status	rank	usageKey	scientificName	occurrences
+tachyglossus_aculeatus	tachyglossus aculeatus	EXACT	ACCEPTED	SPECIES	2433378	Tachyglossus aculeatus (Shaw, 1792)	122479
+myoictis_melas	myoictis melas	EXACT	ACCEPTED	SPECIES	2435443	Myoictis melas (Müller, 1840)	87
+dasyuridae_sp_jmz_2005	dasyuridae sp jmz 2005	NONE					
+sminthopsis_gilberti	sminthopsis gilberti	EXACT	ACCEPTED	SPECIES	2435407	Sminthopsis gilberti Kitchener, Stoddart & Henry, 1984	343
+sminthopsis_froggatti	sminthopsis froggatti	HIGHERRANK	ACCEPTED	GENUS	2435386	Sminthopsis Thomas, 1887	
+petrogale_xanthopus	petrogale xanthopus	EXACT	ACCEPTED	SPECIES	2440122	Petrogale xanthopus Gray, 1854	11099
+macropus_antilopinus	macropus antilopinus	EXACT	ACCEPTED	SPECIES	5219988	Macropus antilopinus (Gould, 1841)	4604
+bettongia_lesueur	bettongia lesueur	EXACT	ACCEPTED	SPECIES	2440023	Bettongia lesueur (Quoy & Gaimard, 1824)	39154
+petaurus_norfolcensis	petaurus norfolcensis	EXACT	ACCEPTED	SPECIES	2440049	Petaurus norfolcensis (Kerr, 1792)	11968
+trichosurus_vulpecula	trichosurus vulpecula	EXACT	ACCEPTED	SPECIES	2440254	Trichosurus vulpecula (Kerr, 1792)	830906
+monodelphis_emiliae	monodelphis emiliae	EXACT	ACCEPTED	SPECIES	2439972	Monodelphis emiliae (Thomas, 1912)	70
+marmosa_lepida	marmosa lepida	EXACT	ACCEPTED	SPECIES	2439871	Marmosa lepida (Thomas, 1888)	86
+cryptonanus_unduaviensis	cryptonanus unduaviensis	EXACT	ACCEPTED	SPECIES	5786541	Cryptonanus unduaviensis (Tate, 1931)	46
+philander_mcilhennyi	philander mcilhennyi	EXACT	ACCEPTED	SPECIES	5219947	Philander mcilhennyi Gardner & Patton, 1972	91
+priodontes_maximus	priodontes maximus	EXACT	ACCEPTED	SPECIES	5220096	Priodontes maximus (Kerr, 1792)	1457
+tamandua_tetradactyla	tamandua tetradactyla	EXACT	ACCEPTED	SPECIES	2436340	Tamandua tetradactyla (Linnaeus, 1758)	10648
+chrysochloris_stuhlmanni	chrysochloris stuhlmanni	EXACT	ACCEPTED	SPECIES	2432178	Chrysochloris stuhlmanni Matschie, 1894	207
+elephantulus_myurus	elephantulus myurus	EXACT	ACCEPTED	SPECIES	2440855	Elephantulus myurus Thomas & Schwann, 1906	988
+aonyx_cinerea	aonyx cinerea	FUZZY	SYNONYM	SPECIES	2433894	Aonyx cinereus (Illiger, 1815)	343
+mustela_lutreola	mustela lutreola	EXACT	ACCEPTED	SPECIES	5219007	Mustela lutreola (Linnaeus, 1761)	2768
+martes_americana_caurina	martes americana caurina	EXACT	SYNONYM	SUBSPECIES	5218875	Martes americana caurina (Merriam, 1890)	749
+procyon_lotor	procyon lotor	EXACT	ACCEPTED	SPECIES	5218786	Procyon lotor (Linnaeus, 1758)	207872
+hydrurga_leptonyx	hydrurga leptonyx	EXACT	ACCEPTED	SPECIES	2434790	Hydrurga leptonyx (de Blainville, 1820)	9812
+odobenus_rosmarus_divergens	odobenus rosmarus divergens	EXACT	ACCEPTED	SUBSPECIES	5218820	Odobenus rosmarus divergens (Illiger, 1815)	1144
+canis_rufus	canis rufus	EXACT	SYNONYM	SPECIES	5219186	Canis rufus Audubon & Bachman, 1851	930
+vulpes_velox	vulpes velox	EXACT	ACCEPTED	SPECIES	5219290	Vulpes velox (Say, 1823)	2848
+herpestes_javanicus	herpestes javanicus	EXACT	ACCEPTED	SPECIES	2434271	Herpestes javanicus (É.Geoffroy Saint-Hilaire, 1818)	15187
+eupleres_goudotii	eupleres goudotii	EXACT	ACCEPTED	SPECIES	2433512	Eupleres goudotii Doyère, 1835	87
+viverra_megaspila	viverra megaspila	EXACT	ACCEPTED	SPECIES	5219333	Viverra megaspila Blyth, 1862	1800
+prionailurus_bengalensis	prionailurus bengalensis	EXACT	ACCEPTED	SPECIES	2434903	Prionailurus bengalensis (Kerr, 1792)	5615
+leopardus_wiedii	leopardus wiedii	EXACT	ACCEPTED	SPECIES	2434950	Leopardus wiedii (Schinz, 1821)	3364
+equus_asinus_africanus	equus asinus africanus	EXACT	SYNONYM	SUBSPECIES	4267373	Equus asinus africanus Heuglin & Fitzinger, 1866	43
+capra_nubiana	capra nubiana	EXACT	ACCEPTED	SPECIES	2441049	Capra nubiana F.Cuvier, 1825	17811
+capricornis_milneedwardsii	capricornis milneedwardsii	EXACT	ACCEPTED	SPECIES	7261423	Capricornis milneedwardsii David, 1869	78
+alcelaphus_lichtensteini	alcelaphus lichtensteini	FUZZY	ACCEPTED	SPECIES	5706335	Alcelaphus lichtensteinii (Peters, 1849)	301
+antilope_cervicapra	antilope cervicapra	EXACT	ACCEPTED	SPECIES	2441065	Antilope cervicapra (Linnaeus, 1758)	3858
+redunca_redunca	redunca redunca	EXACT	ACCEPTED	SPECIES	2441038	Redunca redunca (Pallas, 1767)	3260
+cephalophus_zebra	cephalophus zebra	EXACT	ACCEPTED	SPECIES	2441164	Cephalophus zebra Gray, 1838	295
+bubalus_quarlesi	bubalus quarlesi	EXACT	ACCEPTED	SPECIES	7846959	Bubalus quarlesi (Ouwens, 1910)	38
+cervus_unicolor_cambojensis	cervus unicolor cambojensis	HIGHERRANK	SYNONYM	SPECIES	2440949	Cervus unicolor Kerr, 1792	
+muntiacus_reevesi_micrurus	muntiacus reevesi micrurus	EXACT	ACCEPTED	SUBSPECIES	4262424	Muntiacus reevesi micrurus (Sclater, 1875)	91405
+alces_alces	alces alces	EXACT	ACCEPTED	SPECIES	2440940	Alces alces (Linnaeus, 1758)	149519
+lagenorhynchus_cruciger	lagenorhynchus cruciger	EXACT	ACCEPTED	SPECIES	5220066	Lagenorhynchus cruciger (Quoy & Gaimard, 1824)	639
+stenella_coeruleoalba	stenella coeruleoalba	EXACT	ACCEPTED	SPECIES	5220055	Stenella coeruleoalba (Meyen, 1833)	41566
+delphinapterus_leucas	delphinapterus leucas	EXACT	ACCEPTED	SPECIES	5220003	Delphinapterus leucas (Pallas, 1776)	12966
+kogia_sima	kogia sima	EXACT	ACCEPTED	SPECIES	2440691	Kogia sima (Owen, 1866)	2102
+sus_scrofa_taiwanensis	sus scrofa taiwanensis	HIGHERRANK	ACCEPTED	SPECIES	7705930	Sus scrofa Linnaeus, 1758	
+vicugna_vicugna_mensalis	vicugna vicugna mensalis	HIGHERRANK	ACCEPTED	SPECIES	5220192	Vicugna vicugna (Molina, 1782)	
+nanonycteris_veldkampii	nanonycteris veldkampii	EXACT	ACCEPTED	SPECIES	4265712	Nanonycteris veldkampii (Jentink, 1888)	995
+alionycteris_paucidentata	alionycteris paucidentata	EXACT	ACCEPTED	SPECIES	2432970	Alionycteris paucidentata Kock, 1969	63
+dobsonia_viridis	dobsonia viridis	EXACT	ACCEPTED	SPECIES	2432827	Dobsonia viridis (Heude, 1896)	100
+pteropus_pelewensis_pelewensis	pteropus pelewensis pelewensis	EXACT	ACCEPTED	SUBSPECIES	10804076	Pteropus pelewensis pelewensis K.Andersen, 1908	24
+pteropus_scapulatus	pteropus scapulatus	EXACT	ACCEPTED	SPECIES	5218649	Pteropus scapulatus Peters, 1862	7254
+acerodon_jubatus	acerodon jubatus	EXACT	ACCEPTED	SPECIES	5218703	Acerodon jubatus (Eschscholtz, 1831)	421
+hipposideros_halophyllus	hipposideros halophyllus	EXACT	ACCEPTED	SPECIES	5218597	Hipposideros halophyllus Hill & Yenbutra, 1984	8
+hipposideros_pendleburyi	hipposideros pendleburyi	EXACT	ACCEPTED	SPECIES	7523862	Hipposideros pendleburyi Chasen, 1936	28
+hipposideros_vittatus	hipposideros vittatus	EXACT	SYNONYM	SPECIES	5706879	Hipposideros vittatus (Peters, 1852)	197
+rhinolophus_cornutus	rhinolophus cornutus	EXACT	ACCEPTED	SPECIES	2432627	Rhinolophus cornutus Temminck, 1834	1737
+rhinolophus_fumigatus	rhinolophus fumigatus	EXACT	ACCEPTED	SPECIES	2432645	Rhinolophus fumigatus Rüppell, 1842	1287
+megaderma_lyra	megaderma lyra	EXACT	SYNONYM	SPECIES	2433351	Megaderma lyra É.Geoffroy Saint-Hilaire, 1810	268
+neoromicia_brunneus	neoromicia brunneus	EXACT	SYNONYM	SPECIES	4265921	Neoromicia brunneus (Thomas, 1880)	21
+tylonycteris_pachypus	tylonycteris pachypus	EXACT	ACCEPTED	SPECIES	2432343	Tylonycteris pachypus (Temminck, 1840)	1418
+pipistrellus_tenuis	pipistrellus tenuis	EXACT	ACCEPTED	SPECIES	5218486	Pipistrellus tenuis (Temminck, 1840)	1082
+eptesicus_magellanicus	eptesicus magellanicus	HIGHERRANK	ACCEPTED	GENUS	2432345	Eptesicus Rafinesque, 1820	
+plecotus_sacrimontis	plecotus sacrimontis	EXACT	ACCEPTED	SPECIES	5787721	Plecotus sacrimontis G.M.Allen, 1908	59
+rhogeessa_genowaysi	rhogeessa genowaysi	EXACT	ACCEPTED	SPECIES	2432272	Rhogeessa genowaysi Baker, 1984	14
+scotophilus_nigrita	scotophilus nigrita	EXACT	ACCEPTED	SPECIES	5218532	Scotophilus nigrita (Schreber, 1774)	438
+myotis_fimbriatus	myotis fimbriatus	EXACT	ACCEPTED	SPECIES	4266430	Myotis fimbriatus (Peters, 1871)	141
+myotis_blythii_omari	myotis blythii omari	EXACT	SYNONYM	SUBSPECIES	4266392	Myotis blythii omari Thomas, 1906	186
+myotis_ikonnikovi	myotis ikonnikovi	EXACT	ACCEPTED	SPECIES	2432431	Myotis ikonnikovi Ognev, 1912	298
+myotis_vivesi	myotis vivesi	EXACT	ACCEPTED	SPECIES	2432394	Myotis vivesi Menegaux, 1901	1351
+myotis_septentrionalis	myotis septentrionalis	EXACT	ACCEPTED	SPECIES	2432436	Myotis septentrionalis (Trouessart, 1897)	5209
+murina_huttoni	murina huttoni	FUZZY	ACCEPTED	SPECIES	8307118	Murina huttonii (Peters, 1872)	140
+miniopterus_minor	miniopterus minor	EXACT	ACCEPTED	SPECIES	2432510	Miniopterus minor Peters, 1867	913
+miniopterus_magnater	miniopterus magnater	EXACT	ACCEPTED	SPECIES	2432503	Miniopterus magnater Sanborn, 1931	601
+molossus_rufus	molossus rufus	EXACT	ACCEPTED	SPECIES	5707248	Molossus rufus E.Geoffroy, 1805	7230
+sauromys_petrophilus	sauromys petrophilus	EXACT	ACCEPTED	SPECIES	7261924	Sauromys petrophilus (Roberts, 1917)	311
+natalus_tumidirostris	natalus tumidirostris	EXACT	ACCEPTED	SPECIES	2432753	Natalus tumidirostris Miller, 1900	1274
+artibeus_gnomus	artibeus gnomus	EXACT	ACCEPTED	SPECIES	4265331	Artibeus gnomus Handley, 1987	977
+platyrrhinus_infuscus	platyrrhinus infuscus	EXACT	ACCEPTED	SPECIES	5218769	Platyrrhinus infuscus (Peters, 1880)	844
+chiroderma_trinitatum	chiroderma trinitatum	EXACT	ACCEPTED	SPECIES	2433163	Chiroderma trinitatum Goodwin, 1958	809
+sturnira_aratathomasi	sturnira aratathomasi	EXACT	ACCEPTED	SPECIES	2433330	Sturnira aratathomasi Peterson & Tamsitt, 1968	87
+lonchophylla_dekeyseri	lonchophylla dekeyseri	EXACT	ACCEPTED	SPECIES	2433230	Lonchophylla dekeyseri Taddei, Vizotto & Sazima, 1983	105
+leptonycteris_nivalis	leptonycteris nivalis	EXACT	ACCEPTED	SPECIES	2433317	Leptonycteris nivalis (Saussure, 1860)	2386
+lophostoma_occidentalis	lophostoma occidentalis	EXACT	SYNONYM	SPECIES	8069316	Lophostoma occidentalis (Davis & Carter, 1978)	17
+diphylla_ecaudata	diphylla ecaudata	EXACT	ACCEPTED	SPECIES	2433173	Diphylla ecaudata Spix, 1823	1686
+pteronotus_parnellii	pteronotus parnellii	EXACT	ACCEPTED	SPECIES	5218620	Pteronotus parnellii (Gray, 1843)	6386
+peropteryx_trinitatis	peropteryx trinitatis	EXACT	ACCEPTED	SPECIES	7261658	Peropteryx trinitatis Miller, 1899	300
+coleura_seychellensis	coleura seychellensis	EXACT	ACCEPTED	SPECIES	2433087	Coleura seychellensis Peters, 1868	28
+crocidura_panayensis	crocidura panayensis	EXACT	ACCEPTED	SPECIES	9963928	Crocidura panayensis Hutterer, 2007	7
+crocidura_tanakae	crocidura tanakae	EXACT	ACCEPTED	SPECIES	2435550	Crocidura tanakae Kuroda, 1938	418
+crocidura_shantungensis	crocidura shantungensis	EXACT	ACCEPTED	SPECIES	2435741	Crocidura shantungensis Miller, 1901	406
+crocidura_leucodon	crocidura leucodon	EXACT	ACCEPTED	SPECIES	2435723	Crocidura leucodon (Hermann, 1780)	6459
+crocidura_poensis	crocidura poensis	EXACT	ACCEPTED	SPECIES	2435577	Crocidura poensis (Fraser, 1843)	1351
+suncus_madagascariensis	suncus madagascariensis	EXACT	ACCEPTED	SPECIES	2435514	Suncus madagascariensis (Coquerel, 1848)	205
+solisorex_pearsoni	solisorex pearsoni	EXACT	ACCEPTED	SPECIES	2435527	Solisorex pearsoni Thomas, 1924	19
+sorex_gaspensis	sorex gaspensis	EXACT	ACCEPTED	SPECIES	2435999	Sorex gaspensis Anthony & Goodwin, 1924	128
+sorex_coronatus	sorex coronatus	EXACT	ACCEPTED	SPECIES	2436090	Sorex coronatus Millet, 1828	18950
+sorex_excelsus	sorex excelsus	EXACT	ACCEPTED	SPECIES	2435950	Sorex excelsus G.M.Allen, 1923	12
+chimarrogale_himalayica	chimarrogale himalayica	EXACT	ACCEPTED	SPECIES	2435778	Chimarrogale himalayica (Gray, 1842)	126
+anourosorex_squamipes	anourosorex squamipes	EXACT	ACCEPTED	SPECIES	2435780	Anourosorex squamipes Milne-Edwards, 1872	1137
+hylomys_megalotis	hylomys megalotis	EXACT	ACCEPTED	SPECIES	2437168	Hylomys megalotis Jenkins & M.F.Robinson, 2002	12
+talpa_levantis	talpa levantis	EXACT	ACCEPTED	SPECIES	2436131	Talpa levantis Thomas, 1906	184
+uropsilus_andersoni	uropsilus andersoni	EXACT	ACCEPTED	SPECIES	2436254	Uropsilus andersoni (Thomas, 1911)	31
+tupaia_salatana	tupaia salatana	EXACT	ACCEPTED	SPECIES	10689821	Tupaia salatana Lyon, 1913	21
+lepus_yarkandensis	lepus yarkandensis	EXACT	ACCEPTED	SPECIES	2436787	Lepus yarkandensis Günther, 1875	102
+sylvilagus_transitionalis	sylvilagus transitionalis	EXACT	ACCEPTED	SPECIES	2436905	Sylvilagus transitionalis (Bangs, 1895)	878
+ochotona_dauurica_bedfordi	ochotona dauurica bedfordi	EXACT	SYNONYM	SUBSPECIES	6164763	Ochotona dauurica bedfordi Thomas, 1908	7
+ochotona_princeps	ochotona princeps	EXACT	ACCEPTED	SPECIES	2436982	Ochotona princeps (Richardson, 1828)	20511
+cynomys_mexicanus	cynomys mexicanus	EXACT	ACCEPTED	SPECIES	2437234	Cynomys mexicanus Merriam, 1892	2692
+marmota_olympus	marmota olympus	EXACT	ACCEPTED	SPECIES	2437374	Marmota olympus (Merriam, 1898)	812
+ammospermophilus_interpres	ammospermophilus interpres	EXACT	ACCEPTED	SPECIES	2437571	Ammospermophilus interpres (Merriam, 1890)	827
+tamias_ruficaudus	tamias ruficaudus	EXACT	ACCEPTED	SPECIES	2437426	Tamias ruficaudus (A.H.Howell, 1920)	1989
+xerus_princeps	xerus princeps	EXACT	ACCEPTED	SPECIES	2437457	Xerus princeps (Thomas, 1929)	76
+pteromys_momonga	pteromys momonga	EXACT	ACCEPTED	SPECIES	2437259	Pteromys momonga Temminck, 1844	110
+sciurus_oculatus	sciurus oculatus	EXACT	ACCEPTED	SPECIES	5219664	Sciurus oculatus Peters, 1863	625
+sundasciurus_moellendorffi	sundasciurus moellendorffi	EXACT	ACCEPTED	SPECIES	2437479	Sundasciurus moellendorffi (Matschie, 1898)	23
+callosciurus_notatus	callosciurus notatus	EXACT	ACCEPTED	SPECIES	2437396	Callosciurus notatus (Boddaert, 1785)	9756
+funambulus_pennantii	funambulus pennantii	EXACT	ACCEPTED	SPECIES	2437243	Funambulus pennantii Wroughton, 1905	5644
+eliomys_melanurus	eliomys melanurus	EXACT	ACCEPTED	SPECIES	2439684	Eliomys melanurus (Wagner, 1840)	191
+dactylomys_dactylinus	dactylomys dactylinus	EXACT	ACCEPTED	SPECIES	2439800	Dactylomys dactylinus (Desmarest, 1817)	312
+proechimys_simonsi	proechimys simonsi	EXACT	ACCEPTED	SPECIES	2439769	Proechimys simonsi Thomas, 1900	1258
+euryzygomatomys_spinosus	euryzygomatomys spinosus	EXACT	ACCEPTED	SPECIES	2439737	Euryzygomatomys spinosus (Fischer de Waldheim, 1814)	170
+ctenomys_flamarioni	ctenomys flamarioni	EXACT	ACCEPTED	SPECIES	4263378	Ctenomys flamarioni Travi, 1981	66
+ctenomys_tucumanus	ctenomys tucumanus	EXACT	ACCEPTED	SPECIES	2439623	Ctenomys tucumanus Thomas, 1900	101
+tympanoctomys_barrerae	tympanoctomys barrerae	EXACT	ACCEPTED	SPECIES	2439645	Tympanoctomys barrerae (Lawrence, 1941)	125
+erethizon_dorsatum	erethizon dorsatum	FUZZY	ACCEPTED	SPECIES	6066824	Erethizon dorsatus (Linnaeus, 1758)	29581
+myoprocta_pratti	myoprocta pratti	EXACT	ACCEPTED	SPECIES	4264701	Myoprocta pratti Pocock, 1913	425
+heterocephalus_glaber	heterocephalus glaber	EXACT	ACCEPTED	SPECIES	5219654	Heterocephalus glaber Rüppell, 1842	798
+peromyscus_hylocetes	peromyscus hylocetes	EXACT	ACCEPTED	SPECIES	4265105	Peromyscus hylocetes Merriam, 1898	368
+peromyscus_gymnotis	peromyscus gymnotis	EXACT	ACCEPTED	SPECIES	2438036	Peromyscus gymnotis Thomas, 1894	736
+peromyscus_gossypinus	peromyscus gossypinus	EXACT	ACCEPTED	SPECIES	2437988	Peromyscus gossypinus (Le Conte, 1853)	18511
+onychomys_torridus	onychomys torridus	EXACT	ACCEPTED	SPECIES	2438516	Onychomys torridus (Coues, 1874)	7791
+baiomys_taylori	baiomys taylori	EXACT	ACCEPTED	SPECIES	2438866	Baiomys taylori (Thomas, 1887)	8250
+neotoma_macrotis	neotoma macrotis	EXACT	ACCEPTED	SPECIES	4265036	Neotoma macrotis Thomas, 1893	3482
+microtus_pyrenaicus	microtus pyrenaicus	EXACT	SYNONYM	SPECIES	5786932	Microtus pyrenaicus (de Selys-Longchamp, 1847)	668
+microtus_oaxacensis	microtus oaxacensis	EXACT	ACCEPTED	SPECIES	2438614	Microtus oaxacensis Goodwin, 1966	221
+microtus_maximowiczii	microtus maximowiczii	EXACT	ACCEPTED	SPECIES	2438634	Microtus maximowiczii (Schrenk, 1859)	2128
+volemys_musseri	volemys musseri	EXACT	ACCEPTED	SPECIES	2438236	Volemys musseri (Lawrence, 1982)	15
+alticola_montosa	alticola montosa	EXACT	ACCEPTED	SPECIES	2438721	Alticola montosa (True, 1894)	251
+eothenomys_eleusis	eothenomys eleusis	EXACT	ACCEPTED	SPECIES	10031398	Eothenomys eleusis	101
+cricetulus_longicaudatus	cricetulus longicaudatus	EXACT	ACCEPTED	SPECIES	2438769	Cricetulus longicaudatus (Milne-Edwards, 1867)	1064
+eliurus_antsingy	eliurus antsingy	EXACT	ACCEPTED	SPECIES	4263424	Eliurus antsingy Carleton, Goodman & Rakotondravony, 2001	41
+steatomys_krebsii	steatomys krebsii	EXACT	ACCEPTED	SPECIES	2438742	Steatomys krebsii Peters, 1852	137
+acomys_russatus	acomys russatus	EXACT	ACCEPTED	SPECIES	2438257	Acomys russatus (Wagner, 1840)	547
+praomys_daltoni	praomys daltoni	EXACT	ACCEPTED	SPECIES	4264878	Praomys daltoni (Thomas, 1892)	2412
+myomyscus_brockmani	myomyscus brockmani	EXACT	ACCEPTED	SPECIES	4264892	Myomyscus brockmani (Thomas, 1908)	432
+mastomys_pernanus	mastomys pernanus	EXACT	ACCEPTED	SPECIES	2438908	Mastomys pernanus (Kershaw, 1921)	43
+mus_musculus_bactrianus	mus musculus bactrianus	EXACT	ACCEPTED	SUBSPECIES	4264888	Mus musculus bactrianus Blyth, 1846	119
+apodemus_gurkha	apodemus gurkha	EXACT	ACCEPTED	SPECIES	5219738	Apodemus gurkha Thomas, 1924	497
+lemniscomys_barbarus	lemniscomys barbarus	EXACT	ACCEPTED	SPECIES	2438207	Lemniscomys barbarus (Linnaeus, 1767)	657
+grammomys_gazellae	grammomys gazellae	HIGHERRANK	ACCEPTED	GENUS	2439194	Grammomys Thomas, 1915	
+otomys_saundersiae_karoensis	otomys saundersiae karoensis	EXACT	SYNONYM	SUBSPECIES	10917989	Otomys saundersiae karoensis Roberts, 1931	2
+mastacomys_fuscus	mastacomys fuscus	EXACT	ACCEPTED	SPECIES	4264849	Mastacomys fuscus Thomas, 1882	3960
+macruromys_major	macruromys major	EXACT	ACCEPTED	SPECIES	2439193	Macruromys major Rümmler, 1935	15
+rhynchomys_tapulao	rhynchomys tapulao	EXACT	ACCEPTED	SPECIES	5786738	Rhynchomys tapulao Balete, Rickart, Rosell-Ambal, Jansa & Heaney, 2007	7
+rattus_morotaiensis	rattus morotaiensis	EXACT	ACCEPTED	SPECIES	2439225	Rattus morotaiensis Kellogg, 1945	17
+rattus_exulans	rattus exulans	EXACT	ACCEPTED	SPECIES	2439244	Rattus exulans (Peale, 1848)	15029
+niviventer_bukit	niviventer bukit	EXACT	SYNONYM	SPECIES	12047549	Niviventer bukit (Bonhote, 1903)	79
+dacnomys_millardi	dacnomys millardi	EXACT	ACCEPTED	SPECIES	2438329	Dacnomys millardi Thomas, 1916	50
+maxomys_bartelsii	maxomys bartelsii	EXACT	ACCEPTED	SPECIES	2438844	Maxomys bartelsii (Jentink, 1910)	505
+gerbillus_nigeriae	gerbillus nigeriae	EXACT	ACCEPTED	SPECIES	2437839	Gerbillus nigeriae Thomas & Hinton, 1920	674
+meriones_meridianus	meriones meridianus	EXACT	ACCEPTED	SPECIES	5219713	Meriones meridianus (Pallas, 1773)	975
+gerbilliscus_robustus	gerbilliscus robustus	EXACT	ACCEPTED	SPECIES	4264947	Gerbilliscus robustus (Cretzschmar, 1826)	1783
+phyllotis_alisosiensis	phyllotis alisosiensis	EXACT	ACCEPTED	SPECIES	10790289	Phyllotis alisosiensis Ferro, Martínez & Barquez, 2010	0
+graomys_domorum	graomys domorum	EXACT	ACCEPTED	SPECIES	2438230	Graomys domorum (Thomas, 1902)	246
+abrothrix_lanosus	abrothrix lanosus	EXACT	ACCEPTED	SPECIES	4265095	Abrothrix lanosus (Thomas, 1897)	100
+akodon_cursor	akodon cursor	EXACT	ACCEPTED	SPECIES	2437913	Akodon cursor (Winge, 1887)	3494
+akodon_boliviensis	akodon boliviensis	EXACT	ACCEPTED	SPECIES	2437897	Akodon boliviensis Meyen, 1833	1087
+deltamys_kempi	deltamys kempi	EXACT	ACCEPTED	SPECIES	4265101	Deltamys kempi Thomas, 1917	112
+brucepattersonius	brucepattersonius	NONE					
+thomasomys_gracilis	thomasomys gracilis	EXACT	ACCEPTED	SPECIES	2439180	Thomasomys gracilis Thomas, 1917	122
+melanomys_chrysomelas	melanomys chrysomelas	EXACT	ACCEPTED	SPECIES	10868104	Melanomys chrysomelas (Goldman, 1918)	7
+sooretamys_angouya	sooretamys angouya	EXACT	ACCEPTED	SPECIES	5786884	Sooretamys angouya (Fischer, 1814)	671
+neacomys_musseri	neacomys musseri	EXACT	ACCEPTED	SPECIES	4265059	Neacomys musseri Patton, da Silva & Malcolm, 2000	25
+euryoryzomys_macconnelli	euryoryzomys macconnelli	EXACT	ACCEPTED	SPECIES	5786858	Euryoryzomys macconnelli (Thomas, 1910)	847
+scolomys_juruaense	scolomys juruaense	HIGHERRANK	ACCEPTED	GENUS	2439220	Scolomys Anthony, 1924	
+nannospalax_golani	nannospalax golani	EXACT	ACCEPTED	SPECIES	10056585	Nannospalax golani	5
+typhlomys_chapensis	typhlomys chapensis	EXACT	SYNONYM	SPECIES	2437711	Typhlomys chapensis Osgood, 1932	19
+jaculus_deserti	jaculus deserti	HIGHERRANK	ACCEPTED	GENUS	5219893	Jaculus Erxleben, 1777	
+sicista_tianshanica	sicista tianshanica	EXACT	ACCEPTED	SPECIES	2439443	Sicista tianshanica (Salensky, 1903)	59
+orthogeomys_lanius	orthogeomys lanius	EXACT	ACCEPTED	SPECIES	2439410	Orthogeomys lanius (Elliot, 1905)	18
+thomomys_atrovarius	thomomys atrovarius	EXACT	ACCEPTED	SPECIES	4267400	Thomomys atrovarius J.A.Allen, 1898	283
+chaetodipus_hispidus	chaetodipus hispidus	EXACT	ACCEPTED	SPECIES	2439583	Chaetodipus hispidus (Baird, 1858)	7532
+heteromys_nelsoni	heteromys nelsoni	EXACT	ACCEPTED	SPECIES	2439573	Heteromys nelsoni Merriam, 1902	149
+dipodomys_venustus	dipodomys venustus	EXACT	ACCEPTED	SPECIES	2439514	Dipodomys venustus (Merriam, 1904)	687
+cercopithecus_erythrogaster_pococki	cercopithecus erythrogaster pococki	EXACT	ACCEPTED	SUBSPECIES	5707357	Cercopithecus erythrogaster pococki Grubb, Lernould & Oates, 2000	3
+cercopithecus_hamlyni	cercopithecus hamlyni	EXACT	ACCEPTED	SPECIES	5219584	Cercopithecus hamlyni Pocock, 1907	132
+macaca_tonkeana	macaca tonkeana	EXACT	ACCEPTED	SPECIES	2436614	Macaca tonkeana (Meyer, 1899)	152
+cercocebus_atys_lunulatus	cercocebus atys lunulatus	EXACT	SYNONYM	SUBSPECIES	4267132	Cercocebus atys lunulatus (Temminck, 1853)	16
+rhinopithecus_bieti_1_rl_2012	rhinopithecus bieti 1 rl 2012	HIGHERRANK	ACCEPTED	SPECIES	4267007	Rhinopithecus bieti A.Milne-Edwards, 1897	
+piliocolobus_tholloni	piliocolobus tholloni	EXACT	ACCEPTED	SPECIES	4267001	Piliocolobus tholloni A.Milne-Edwards, 1886	36
+nomascus_concolor_jingdongensis	nomascus concolor jingdongensis	EXACT	SYNONYM	SUBSPECIES	4267268	Nomascus concolor jingdongensis (Ma & Y.Wang, 1986)	0
+saguinus_bicolor	saguinus bicolor	EXACT	ACCEPTED	SPECIES	2436470	Saguinus bicolor (Spix, 1823)	324
+callithrix_kuhlii	callithrix kuhlii	EXACT	ACCEPTED	SPECIES	5219538	Callithrix kuhlii Coimbra-Filho, 1985	283
+saimiri_boliviensis_peruviensis	saimiri boliviensis peruviensis	EXACT	ACCEPTED	SUBSPECIES	4266901	Saimiri boliviensis peruviensis Hershkovitz, 1984	77
+alouatta_palliata_mexicana	alouatta palliata mexicana	EXACT	ACCEPTED	SUBSPECIES	5786092	Alouatta palliata mexicana Merriam, 1902	170
+pithecia_monachus	pithecia monachus	EXACT	ACCEPTED	SPECIES	2436375	Pithecia monachus (É.Geoffroy Saint-Hilaire, 1812)	730
+microcebus_berthae	microcebus berthae	EXACT	ACCEPTED	SPECIES	4266980	Microcebus berthae Rasoloarison, Goodman & Ganzhorn, 2000	41
+mirza_zaza	mirza zaza	EXACT	ACCEPTED	SPECIES	5786007	Mirza zaza Kappeler & Roos, 2005	12

@@ -6,6 +6,7 @@
 
 - `mammals.tree` (137855 bytes, sha256 `75fe877c54ed0dcc...`)
 - `total_dataset.csv` (83191 bytes, sha256 `699cee0e9d96a704...`)
+- `gbif_match_sample.tsv` (22329 bytes, sha256 `11441c862c82e1eb...`)
 
 ## What extra data it carries
 
@@ -27,9 +28,13 @@ tree tip (lower-case, e.g. `isoodon_obesulus_affinis`, includes subspecies) <-> 
 
 CSV is NOT UTF-8 (Latin-1/Windows-1252 bytes such as 0xEF); tip names are lower case and include trinomials; tree is near-ultrametric to rounding (root-to-tip spread 0.006 on 202).
 
-## GBIF match
+## GBIF match (sample)
 
-Not computed (run was not finished).
+Evenly spaced sample of 200 tip names against `https://api.gbif.org/v1/species/match` (underscores to spaces, `_ott<id>` removed), occurrence counts from `/v1/occurrence/search?taxonKey=..&limit=0`, run on 2026-10-08. Sample table: `gbif_match_sample.tsv`.
+
+- matched (EXACT or FUZZY): 189 of 200 = 0.945
+- EXACT at rank SPECIES: 171 of 200 = 0.855
+- median occurrence count of matched names: 368; matched names with zero occurrences: 2
 
 ## Provenance
 

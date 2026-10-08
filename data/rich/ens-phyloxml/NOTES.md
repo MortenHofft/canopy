@@ -10,7 +10,7 @@
 
 ## What extra data it carries
 
-phyloXML clade elements: `taxonomy` (NCBI id, scientific_name, common_name), `sequence` (accession, symbol name, genomic location), `confidence` (bootstrap, duplication_confidence_score), `events` (speciation/duplication counts), `property` (Compara:genome_db_name, gene_tree_stable_id). Branch lengths as `branch_length` attribute on <clade>. No alignment inside (alignments are separate in the ens-* folders)
+phyloXML clade elements: `taxonomy` (NCBI id, scientific_name, common_name), `sequence` (accession, symbol name, genomic location), `confidence` (bootstrap, duplication_confidence_score), `events` (speciation/duplication counts), `property` (Compara:genome_db_name, gene_tree_stable_id). Branch lengths as `branch_length` attribute on <clade>. No alignment inside (alignments are separate in the ens-* folders). Tip counts of the three files: 101, 200 and 396 (checked with treecheck.py); the catalogue statistics are for the 101-tip file
 
 ## Tree facts (computed by `scripts/treecheck.py`)
 
@@ -30,7 +30,7 @@ phyloXML 1.10 schema declared; the root clade is a taxonomic ancestor (e.g. Chor
 
 ## GBIF match
 
-Not computed for this dataset (tips are not plain species names or the dataset is a sibling of one that was computed).
+Not computed for this dataset (tips are not plain species names; for Ensembl gene trees see the species list in members.tsv and the match rate of ens-ncrna-399, whose sample is its 101 species).
 
 ## Provenance
 
