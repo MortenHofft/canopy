@@ -79,6 +79,10 @@ Engineer-weeks are from the custom-renderer and data-layer agent unless noted; t
 - PhyloScape's software licence, Microreact's repo and licence.
 - Legal sign-off on any copyleft option.
 
+## Hands-on observations
+
+- **tbrowse (user, 2026-10-08, playground demo at warelab.github.io/tbrowse):** feels slow with large trees. Tip count, and whether the slowness is on load, pan/zoom or collapse, not recorded yet. This agrees with the source reading (SVG tree, no scale numbers published) and means tbrowse is a candidate for its **API and zone model**, not for large-tree rendering. Re-test with recorded tip counts.
+
 ## Proposed next steps
 
 1. Ask for sample trees from likely publishers and record their tip counts and formats.
