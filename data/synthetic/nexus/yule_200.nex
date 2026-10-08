@@ -1,0 +1,414 @@
+#NEXUS
+[Synthetic yule tree, 200 tips; TRANSLATE uses numeric ids]
+
+BEGIN TAXA;
+	DIMENSIONS NTAX=200;
+	TAXLABELS
+		Babadia_paraalba
+		Babadia_parapumila
+		Babadia_paralata
+		Babadia_paralutea
+		Chamuchiia_macrolutea
+		Chamuchiia_paralata
+		Sathupiella_pseudoglabra
+		Sathupiella_pseudotenuis
+		Mekugiis_crassa
+		Gezophiium_proargentea
+		Gezophiium_megavera
+		Bigosiina_robusta
+		Bigosiina_sylvestris
+		Bigosiina_orientalis
+		Bigosiina_borealis
+		Chitokiodon_meganigra
+		Sodobous_macroviridis
+		Sodobous_paraalba
+		Sodobous_paraargentea
+		Sodobous_eurosea
+		Morivoa_paracommunis
+		Gubimoia_megaelegans
+		Gubimoia_megalata
+		Gubimoia_megacaerulea
+		Bunidoella_macroborealis
+		Bunidoella_macroaurea
+		Bunidoella_parasylvestris
+		Bunidoella_paraantiqua
+		Bunidoella_eucommunis
+		Bunidoella_eubrevis
+		Chuphechois_paratenuis
+		Chuphechois_eurara
+		Chuphechois_proorientalis
+		Chuphechois_megamajor
+		Chuphechois_megarosea
+		Chuphechois_longa
+		Chuphechois_submontana
+		Chuphechois_pseudonigra
+		Chuphechois_pseudoantiqua
+		Chuphechois_neoborealis
+		Chuphechois_microgracilis
+		Chuphechois_microargentea
+		Talepoium_protenuis
+		Talepoium_megaelegans
+		Talepoium_megahirsuta
+		Talepoium_megapallida
+		Nachegoina_microoccidentalis
+		Nachegoina_macroaquatica
+		Hehaphoodon_eucrassa
+		Hehaphoodon_proantiqua
+		Hehaphoodon_megaglabra
+		Hehaphoodon_montana
+		Hehaphoodon_subviridis
+		Hehaphoodon_subrosea
+		Cevasuus_microelegans
+		Cevasuus_macrorubra
+		Thifakua_micromaritima
+		Thifakua_microfusca
+		Thifakua_macroelegans
+		Thifakua_macromagna
+		Thifakua_paraviridis
+		Tisabuia_megaalba
+		Tisabuia_megapallida
+		Tisabuia_lata
+		Nobuvuella_microaustralis
+		Nobuvuella_microglabra
+		Nobuvuella_microbrevis
+		Nobuvuella_microrara
+		Nobuvuella_microantiqua
+		Nobuvuella_microlutea
+		Nobuvuella_microaurea
+		Nobuvuella_microcrassa
+		Honumuis_paralata
+		Honumuis_paracaerulea
+		Honumuis_eugracilis
+		Cophuduium_paraviridis
+		Thulochuina_subpallida
+		Tuchopuodon_subnova
+		Tuchopuodon_pseudohirsuta
+		Tuchopuodon_neopumila
+		Tuchopuodon_microrubra
+		Pahohaus_neooccidentalis
+		Pahohaus_neomagna
+		Pahohaus_neocaerulea
+		Pahohaus_microminor
+		Pahohaus_microsylvestris
+		Pahohaus_microlata
+		Pahohaus_micropallida
+		Pahohaus_macroalba
+		Pahohaus_macroelegans
+		Pahohaus_macroaustralis
+		Kavitraa_microviridis
+		Kavitraa_microantiqua
+		Defitaia_pseudocaerulea
+		Defitaia_pseudotenuis
+		Defitaia_neonigra
+		Defitaia_neominor
+		Defitaia_neocommunis
+		Defitaia_neorobusta
+		Defitaia_neosylvestris
+		Phesilaella_submontana
+		Phesilaella_pseudoviridis
+		Phesilaella_pseudorosea
+		Phesilaella_neoparva
+		Phesilaella_microorientalis
+		Vicicais_elegans
+		Vicicais_subvulgaris
+		Pipezaium_pseudogracilis
+		Pipezaium_pseudoparva
+		Pipezaium_neorubra
+		Pipezaium_neoborealis
+		Pipezaium_neoaurea
+		Pipezaium_microsylvestris
+		Pipezaium_microantiqua
+		Pipezaium_macrocommunis
+		Kitrenaina_euelegans
+		Domefaodon_subpumila
+		Domefaodon_pseudogracilis
+		Domefaodon_neomajor
+		Domefaodon_microrubra
+		Domefaodon_microcrassa
+		Domefaodon_macroaurea
+		Phothatheus_neoalba
+		Phothatheus_neooccidentalis
+		Phothatheus_neorosea
+		Phothatheus_micropumila
+		Phothatheus_microvera
+		Phothatheus_macromajor
+		Phothatheus_macrolata
+		Phothatheus_macrocrassa
+		Vukarea_pseudomontana
+		Vukarea_pseudocrassa
+		Puzaheia_pseudoaustralis
+		Lafutreella_megacaerulea
+		Lafutreella_vulgaris
+		Lafutreella_occidentalis
+		Lafutreella_vera
+		Lafutreella_crassa
+		Lafutreella_subrobusta
+		Lafutreella_subglabra
+		Lafutreella_subfusca
+		Fasuteis_megarobusta
+		Fasuteis_communis
+		Fasuteis_subminor
+		Fasuteis_pseudonigra
+		Treculeium_eurobusta
+		Zepuceina_pseudoelegans
+		Zepuceina_pseudomontana
+		Zepuceina_pseudomaritima
+		Zepuceina_pseudoaustralis
+		Zepuceina_pseudoglabra
+		Zepuceina_pseudobrevis
+		Zepuceina_pseudorara
+		Retrozeodon_microglabra
+		Retrozeodon_microvera
+		Retrozeodon_microcaerulea
+		Retrozeodon_macrorubra
+		Retrozeodon_macroelegans
+		Retrozeodon_macroorientalis
+		Retrozeodon_macrolonga
+		Retrozeodon_macroantiqua
+		Retrozeodon_macroargentea
+		Limonius_microparva
+		Limonius_macrovulgaris
+		Limonius_macrorara
+		Fithofia_microparva
+		Fithofia_macrobrevis
+		Fithofia_paralonga
+		Trokithiia_microcaerulea
+		Zoziriella_subvera
+		Zoziriella_subcrassa
+		Zoziriella_pseudorobusta
+		Zoziriella_pseudoglabra
+		Rugihiis_paravera
+		Rugihiis_paraargentea
+		Lutetriium_eurara
+		Lutetriium_promagna
+		Lutetriium_megaparva
+		Lutetriium_brevis
+		Lutetriium_sublonga
+		Lutetriium_pseudolata
+		Gadetiina_proglabra
+		Bareliodon_euaurea
+		Bareliodon_proviridis
+		Chebecous_megamagna
+		Chebecous_megacrassa
+		Chebecous_montana
+		Chebecous_parva
+		Chebecous_tenuis
+		Senazoa_macrorosea
+		Mephanoia_micromaritima
+		Gilafoella_neoborealis
+		Bizuthois_pseudoaquatica
+		Bizuthois_neoviridis
+		Bizuthois_neofusca
+		Choguroium_eurubra
+		Sotuhoina_tenuis
+		Mudotroodon_neovera
+		Gurotuus_neomajor
+		Gurotuus_neotenuis
+	;
+END;
+
+BEGIN TREES;
+	TRANSLATE
+		1 Babadia_paraalba,
+		2 Babadia_parapumila,
+		3 Babadia_paralata,
+		4 Babadia_paralutea,
+		5 Chamuchiia_macrolutea,
+		6 Chamuchiia_paralata,
+		7 Sathupiella_pseudoglabra,
+		8 Sathupiella_pseudotenuis,
+		9 Mekugiis_crassa,
+		10 Gezophiium_proargentea,
+		11 Gezophiium_megavera,
+		12 Bigosiina_robusta,
+		13 Bigosiina_sylvestris,
+		14 Bigosiina_orientalis,
+		15 Bigosiina_borealis,
+		16 Chitokiodon_meganigra,
+		17 Sodobous_macroviridis,
+		18 Sodobous_paraalba,
+		19 Sodobous_paraargentea,
+		20 Sodobous_eurosea,
+		21 Morivoa_paracommunis,
+		22 Gubimoia_megaelegans,
+		23 Gubimoia_megalata,
+		24 Gubimoia_megacaerulea,
+		25 Bunidoella_macroborealis,
+		26 Bunidoella_macroaurea,
+		27 Bunidoella_parasylvestris,
+		28 Bunidoella_paraantiqua,
+		29 Bunidoella_eucommunis,
+		30 Bunidoella_eubrevis,
+		31 Chuphechois_paratenuis,
+		32 Chuphechois_eurara,
+		33 Chuphechois_proorientalis,
+		34 Chuphechois_megamajor,
+		35 Chuphechois_megarosea,
+		36 Chuphechois_longa,
+		37 Chuphechois_submontana,
+		38 Chuphechois_pseudonigra,
+		39 Chuphechois_pseudoantiqua,
+		40 Chuphechois_neoborealis,
+		41 Chuphechois_microgracilis,
+		42 Chuphechois_microargentea,
+		43 Talepoium_protenuis,
+		44 Talepoium_megaelegans,
+		45 Talepoium_megahirsuta,
+		46 Talepoium_megapallida,
+		47 Nachegoina_microoccidentalis,
+		48 Nachegoina_macroaquatica,
+		49 Hehaphoodon_eucrassa,
+		50 Hehaphoodon_proantiqua,
+		51 Hehaphoodon_megaglabra,
+		52 Hehaphoodon_montana,
+		53 Hehaphoodon_subviridis,
+		54 Hehaphoodon_subrosea,
+		55 Cevasuus_microelegans,
+		56 Cevasuus_macrorubra,
+		57 Thifakua_micromaritima,
+		58 Thifakua_microfusca,
+		59 Thifakua_macroelegans,
+		60 Thifakua_macromagna,
+		61 Thifakua_paraviridis,
+		62 Tisabuia_megaalba,
+		63 Tisabuia_megapallida,
+		64 Tisabuia_lata,
+		65 Nobuvuella_microaustralis,
+		66 Nobuvuella_microglabra,
+		67 Nobuvuella_microbrevis,
+		68 Nobuvuella_microrara,
+		69 Nobuvuella_microantiqua,
+		70 Nobuvuella_microlutea,
+		71 Nobuvuella_microaurea,
+		72 Nobuvuella_microcrassa,
+		73 Honumuis_paralata,
+		74 Honumuis_paracaerulea,
+		75 Honumuis_eugracilis,
+		76 Cophuduium_paraviridis,
+		77 Thulochuina_subpallida,
+		78 Tuchopuodon_subnova,
+		79 Tuchopuodon_pseudohirsuta,
+		80 Tuchopuodon_neopumila,
+		81 Tuchopuodon_microrubra,
+		82 Pahohaus_neooccidentalis,
+		83 Pahohaus_neomagna,
+		84 Pahohaus_neocaerulea,
+		85 Pahohaus_microminor,
+		86 Pahohaus_microsylvestris,
+		87 Pahohaus_microlata,
+		88 Pahohaus_micropallida,
+		89 Pahohaus_macroalba,
+		90 Pahohaus_macroelegans,
+		91 Pahohaus_macroaustralis,
+		92 Kavitraa_microviridis,
+		93 Kavitraa_microantiqua,
+		94 Defitaia_pseudocaerulea,
+		95 Defitaia_pseudotenuis,
+		96 Defitaia_neonigra,
+		97 Defitaia_neominor,
+		98 Defitaia_neocommunis,
+		99 Defitaia_neorobusta,
+		100 Defitaia_neosylvestris,
+		101 Phesilaella_submontana,
+		102 Phesilaella_pseudoviridis,
+		103 Phesilaella_pseudorosea,
+		104 Phesilaella_neoparva,
+		105 Phesilaella_microorientalis,
+		106 Vicicais_elegans,
+		107 Vicicais_subvulgaris,
+		108 Pipezaium_pseudogracilis,
+		109 Pipezaium_pseudoparva,
+		110 Pipezaium_neorubra,
+		111 Pipezaium_neoborealis,
+		112 Pipezaium_neoaurea,
+		113 Pipezaium_microsylvestris,
+		114 Pipezaium_microantiqua,
+		115 Pipezaium_macrocommunis,
+		116 Kitrenaina_euelegans,
+		117 Domefaodon_subpumila,
+		118 Domefaodon_pseudogracilis,
+		119 Domefaodon_neomajor,
+		120 Domefaodon_microrubra,
+		121 Domefaodon_microcrassa,
+		122 Domefaodon_macroaurea,
+		123 Phothatheus_neoalba,
+		124 Phothatheus_neooccidentalis,
+		125 Phothatheus_neorosea,
+		126 Phothatheus_micropumila,
+		127 Phothatheus_microvera,
+		128 Phothatheus_macromajor,
+		129 Phothatheus_macrolata,
+		130 Phothatheus_macrocrassa,
+		131 Vukarea_pseudomontana,
+		132 Vukarea_pseudocrassa,
+		133 Puzaheia_pseudoaustralis,
+		134 Lafutreella_megacaerulea,
+		135 Lafutreella_vulgaris,
+		136 Lafutreella_occidentalis,
+		137 Lafutreella_vera,
+		138 Lafutreella_crassa,
+		139 Lafutreella_subrobusta,
+		140 Lafutreella_subglabra,
+		141 Lafutreella_subfusca,
+		142 Fasuteis_megarobusta,
+		143 Fasuteis_communis,
+		144 Fasuteis_subminor,
+		145 Fasuteis_pseudonigra,
+		146 Treculeium_eurobusta,
+		147 Zepuceina_pseudoelegans,
+		148 Zepuceina_pseudomontana,
+		149 Zepuceina_pseudomaritima,
+		150 Zepuceina_pseudoaustralis,
+		151 Zepuceina_pseudoglabra,
+		152 Zepuceina_pseudobrevis,
+		153 Zepuceina_pseudorara,
+		154 Retrozeodon_microglabra,
+		155 Retrozeodon_microvera,
+		156 Retrozeodon_microcaerulea,
+		157 Retrozeodon_macrorubra,
+		158 Retrozeodon_macroelegans,
+		159 Retrozeodon_macroorientalis,
+		160 Retrozeodon_macrolonga,
+		161 Retrozeodon_macroantiqua,
+		162 Retrozeodon_macroargentea,
+		163 Limonius_microparva,
+		164 Limonius_macrovulgaris,
+		165 Limonius_macrorara,
+		166 Fithofia_microparva,
+		167 Fithofia_macrobrevis,
+		168 Fithofia_paralonga,
+		169 Trokithiia_microcaerulea,
+		170 Zoziriella_subvera,
+		171 Zoziriella_subcrassa,
+		172 Zoziriella_pseudorobusta,
+		173 Zoziriella_pseudoglabra,
+		174 Rugihiis_paravera,
+		175 Rugihiis_paraargentea,
+		176 Lutetriium_eurara,
+		177 Lutetriium_promagna,
+		178 Lutetriium_megaparva,
+		179 Lutetriium_brevis,
+		180 Lutetriium_sublonga,
+		181 Lutetriium_pseudolata,
+		182 Gadetiina_proglabra,
+		183 Bareliodon_euaurea,
+		184 Bareliodon_proviridis,
+		185 Chebecous_megamagna,
+		186 Chebecous_megacrassa,
+		187 Chebecous_montana,
+		188 Chebecous_parva,
+		189 Chebecous_tenuis,
+		190 Senazoa_macrorosea,
+		191 Mephanoia_micromaritima,
+		192 Gilafoella_neoborealis,
+		193 Bizuthois_pseudoaquatica,
+		194 Bizuthois_neoviridis,
+		195 Bizuthois_neofusca,
+		196 Choguroium_eurubra,
+		197 Sotuhoina_tenuis,
+		198 Mudotroodon_neovera,
+		199 Gurotuus_neomajor,
+		200 Gurotuus_neotenuis
+	;
+	TREE yule_200 = [&R] (((1:16.958775,(2:5.074590,3:5.074590):11.884186):59.411105,(((4:21.821806,((5:15.663367,6:15.663367):4.323472,(7:8.800638,8:8.800638):11.186202):1.834966):48.489834,(((((9:5.043171,10:5.043171):25.742943,(((11:8.603567,((12:0.702847,13:0.702847):3.222701,(14:0.359485,15:0.359485):3.566063):4.678019):7.093719,(((16:4.181403,17:4.181403):8.439819,((18:2.960176,19:2.960176):4.036230,20:6.996406):5.624816):2.700455,21:15.321677):0.375609):13.180123,(22:22.191149,(23:6.855222,24:6.855222):15.335927):6.686260):1.908705):0.137052,((((25:11.592075,(26:9.751199,27:9.751199):1.840876):2.510886,((28:1.492150,29:1.492150):4.257064,30:5.749214):8.353747):11.648819,(31:7.918279,(32:5.134833,((33:3.323062,34:3.323062):0.024147,35:3.347208):1.787625):2.783446):17.833501):0.304124,(((((36:2.308527,37:2.308527):7.162490,38:9.471017):2.673754,39:12.144771):3.908298,40:16.053070):4.451820,(41:5.847553,42:5.847553):14.657337):5.551013):4.867263):4.369517,((43:5.838853,44:5.838853):29.409225,((45:4.182359,(46:0.547683,47:0.547683):3.634676):12.811507,(((48:1.621539,(49:0.853836,50:0.853836):0.767703):2.814819,51:4.436358):9.785993,(52:3.634219,53:3.634219):10.588132):2.771515):18.254212):0.044604):23.169661,((((54:7.399144,55:7.399144):16.919721,((56:1.895230,(57:1.048031,58:1.048031):0.847198):8.820987,(59:5.739520,60:5.739520):4.976696):13.602648):4.791471,61:29.110336):13.033178,(62:32.431412,((63:6.690908,64:6.690908):24.582090,(65:8.461023,(66:0.421821,67:0.421821):8.039202):22.811975):1.158415):9.712101):16.318831):11.849296):1.657645,((((((68:5.858080,69:5.858080):2.248093,(70:5.692798,(71:3.329656,72:3.329656):2.363142):2.413375):14.736527,(73:5.312018,74:5.312018):17.530682):2.539603,((75:6.551214,76:6.551214):7.356977,77:13.908191):11.474111):22.762244,(78:8.586241,79:8.586241):39.558304):18.778791,((80:35.423677,(((((81:6.714517,82:6.714517):3.706241,(83:8.112283,84:8.112283):2.308476):14.162858,((85:1.746842,86:1.746842):7.904662,87:9.651504):14.932113):0.361737,((88:8.492433,89:8.492433):12.237190,90:20.729623):4.215731):10.143961,((91:20.389132,92:20.389132):14.658257,((93:16.946696,94:16.946696):9.728987,(((95:0.197500,96:0.197500):4.488215,(97:2.099939,98:2.099939):2.585776):6.318135,99:11.003850):15.671833):8.371705):0.041926):0.334362):4.859256,100:40.282933):26.640403):5.045948):4.400596):23.630120,(101:98.361484,(((102:67.437860,((((103:2.180095,104:2.180095):10.878753,(105:3.994250,(106:3.939121,107:3.939121):0.055128):9.064598):5.241095,(108:9.119547,109:9.119547):9.180396):20.799643,(110:17.889230,(((111:5.921223,112:5.921223):5.603422,113:11.524645):0.910593,114:12.435238):5.453992):21.210356):28.338273):2.996886,((115:1.612310,116:1.612310):31.822292,117:33.434603):37.000142):17.499903,((((118:15.235573,(119:8.777499,120:8.777499):6.458074):13.172806,(121:13.248411,122:13.248411):15.159968):1.779473,((123:4.195849,124:4.195849):6.187640,(125:6.723011,(126:1.385330,127:1.385330):5.337681):3.660479):19.804363):20.084286,(((128:11.313606,129:11.313606):17.706842,((130:2.093585,131:2.093585):4.763797,132:6.857382):22.163066):18.716616,((((133:29.587863,(((134:2.603345,135:2.603345):6.118935,136:8.722280):11.192394,((137:10.880964,(138:7.278597,(139:6.178066,140:6.178066):1.100532):3.602366):5.660217,((141:5.747886,142:5.747886):9.051198,(143:5.263781,144:5.263781):9.535303):1.742096):3.373493):9.673189):1.245399,((((145:0.292879,146:0.292879):2.034649,147:2.327528):3.490122,148:5.817650):15.831416,(149:18.835655,(150:10.874495,151:10.874495):7.961160):2.813411):9.184196):12.652257,(((152:1.629411,153:1.629411):3.686302,154:5.315713):18.137066,((((155:6.821110,(156:3.139385,157:3.139385):3.681726):7.692963,158:14.514073):4.586995,(159:15.238434,(160:8.127062,161:8.127062):7.111373):3.862633):2.973246,162:22.074313):1.378465):20.032740):2.746675,(((163:7.479717,164:7.479717):7.685284,(((165:3.541327,166:3.541327):8.228125,(167:7.214606,(((168:2.663565,169:2.663565):1.221675,(170:0.858851,171:0.858851):3.026389):0.865483,172:4.750723):2.463883):4.554846):1.514181,(173:11.634589,174:11.634589):1.649044):1.881368):22.264456,(((((175:2.633631,176:2.633631):0.934713,177:3.568345):13.021998,((((178:3.588013,179:3.588013):0.371077,(180:3.564817,181:3.564817):0.394273):11.597651,(182:0.162547,183:0.162547):15.394194):0.893063,184:16.449804):0.140539):13.247601,(((185:10.913781,186:10.913781):10.360042,187:21.273823):4.088075,((188:5.459151,189:5.459151):6.082343,(190:6.243687,(191:0.892205,192:0.892205):5.351482):5.297808):13.820403):4.476046):5.330076,((193:23.585663,(194:0.912551,195:0.912551):22.673112):0.026206,((196:5.412193,197:5.412193):3.019110,((198:1.261504,199:1.261504):6.772228,200:8.033732):0.397571):15.180566):11.556150):2.261437):8.802736):1.504870):2.535075):37.662510):10.426836):1.638516);
+END;

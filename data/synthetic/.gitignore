@@ -1,0 +1,8 @@
+# Generated on demand (see Makefile / manifest.json); only the small files are committed.
+timings.json
+newick/*_100000*.nwk
+newick/*_1000000*.nwk
+# 10,000 tips: only the gzipped main files are committed; raw files and variants are regenerated.
+newick/*_10000.nwk
+newick/*_10000_*.nwk
+__pycache__/

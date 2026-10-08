@@ -21,7 +21,7 @@ import sys
 TOKEN = re.compile(r"[(),;]|[^(),;\s]+")
 NAME = re.compile(r"^(yule|birthdeath|balanced|caterpillar|bushy|mixed)_(\d+)(_nobl|_ids|_support|_nodenames)?\.nwk$")
 BINOMIAL = re.compile(r"^[A-Z][a-z]+_[a-z]+$")
-COMMIT_RAW_MAX, COMMIT_GZ_MAX = 1000, 10000
+COMMIT_RAW_MAX, COMMIT_GZ_MAX = 1000, 10000   # 10k: only the main (no-suffix) files, gzipped
 
 
 def scan_newick(text):
@@ -241,7 +241,8 @@ def main():
         e = {"shape": shape, "variant": suf or "main"}
         e.update(st)
         e.update(file_entry(f, data, gz))
-        e["storage"] = "raw" if n <= COMMIT_RAW_MAX else "gz" if n <= COMMIT_GZ_MAX else "generate-on-demand"
+        e["storage"] = ("raw" if n <= COMMIT_RAW_MAX else
+                        "gz" if n <= COMMIT_GZ_MAX and not suf else "generate-on-demand")
         res["newick/" + f] = e
     for sub, ext in (("nexus", ".nex"), ("meta", ".tsv"), ("align", ".fasta")):
         d = os.path.join(a.root, sub)
