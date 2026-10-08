@@ -30,6 +30,27 @@ GBIF datasets are mostly tables (checklists, occurrences). Some publishers also 
 | 12 | **React integration:** a React component, or a thin wrapper, whose events reach callbacks and hooks and whose state (selection, highlighted tips, viewport) can be controlled from React props/state; clean mount/unmount | gbif.org is a React app; the tree must not live in a separate world |
 | 13 | **Custom node/tip rendering:** per-tip content aligned beside the tree (text, badges, thumbnails, heat maps, sequence alignments as in ETE's alignment view), driven by our metadata, ideally with React-rendered content | Occurrence counts, match status, images; some datasets will ship alignments |
 
+## Reference: the kind of customisation we want
+
+Two screenshots of ETE-rendered trees, supplied as examples of what "custom nodes" can look like. ETE itself is ruled out (GPL), so these are a target for behaviour, not a dependency.
+
+![ETE tree with aligned sequence alignment column](images/ete-alignment-example.webp)
+
+![ETE tree with decorated nodes and aligned columns](images/ete-custom-nodes-example.png)
+
+What they show, and what we would need from a library:
+
+| Seen in the screenshots | Requirement |
+|-------------------------|-------------|
+| Decorations on **internal nodes**: coloured squares, and circles sized by support value | Per-node markers on internal nodes, not just tips; size/colour driven by data |
+| Several **tip labels** per row (gene name, then species) | Multiple text fields per tip, styled separately |
+| Aligned **columns** to the right: presence/absence bars, coloured sequence alignment, domain architecture with shapes (e.g. "P53") | Arbitrary aligned per-tip graphics, in several columns, lined up across all rows |
+| One row **highlighted** (grey band plus a green sphere on the tip) | Row highlight and a focus marker, set from outside (this is the occurrence-page case) |
+| Support values as small labels on branches | Branch labels |
+| A hover tooltip on the alignment column | Tooltips on custom graphics |
+
+Content like the alignment and domain columns is probably not needed at launch. Occurrence counts, match status and a highlighted tip are. But the library choice should not rule the richer cases out.
+
 ## Non-goals (for now)
 
 - Tree inference, alignment, or editing.
