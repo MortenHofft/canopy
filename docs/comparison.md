@@ -18,6 +18,27 @@ Judged against the criteria in [goal.md](goal.md). Facts come from the project p
 | **jsPhyloSVG** | Browser | SVG | Newick, phyloXML | Small | *Unknown* | Yes | 2010, *likely dormant* |
 | **IcyTree, iTOL, Microreact** | Hosted apps | n/a | n/a | n/a | n/a | Not libraries | Useful UX references; *not assessed* |
 
+## Interaction, React and custom rendering (criteria 11 to 13)
+
+The reference for criterion 13 is ETE's view: the tree on the left, with tip labels and arbitrary data columns (here a coloured multiple sequence alignment) aligned to the tips on the right. ETE is out for licence reasons, so we need a library that can do the same kind of thing.
+
+What the sources say so far. Most of this is **unverified** and needs checking in code during the spike.
+
+| Tool | Click/hover callbacks | React | Custom per-tip rendering |
+|------|-----------------------|-------|--------------------------|
+| **phylotree.js** | Selection callback documented; styling via CSS or JS callbacks. *Node click handlers likely.* | No React component found; it is plain DOM/D3, so a `useRef`/`useEffect` wrapper is the usual route | SVG you control, with tip-aligned layout; you draw custom elements via callbacks. No built-in alignment/heat-map. |
+| **Archaeopteryx.js** | Documented: `onViewChange`, and a `selected_nodes_changed_event` fired on `document` when manual selection is on. Node-click callback *not found*. | Imperative `launchArchaeopteryx(...)` returning a viewer with `destroy()`: wrappable in `useEffect`, but it is a full-app UI | **Closest built-in match to ETE:** metadata colouring, heat maps, sequence alignments and logos, domain architectures, genome regions. Rectangular layout for alignments. Config-driven, not custom React content. |
+| **Taxonium** | *Component props and callbacks exist; details unverified* | React component (documented) | Metadata columns/colouring; arbitrary per-tip graphics unverified. GPL-3.0. |
+| **Heat-tree** | *Unknown* | Wrappers for R/Python; JS is framework-agnostic; React usage unverified | *Unknown* |
+| **Own renderer** (d3-hierarchy for layout + React/SVG or canvas) | Full control, native React events | Native | Full control, including React-rendered tips and aligned columns, but we implement zoom/pan, LOD and layouts ourselves |
+
+What this means:
+
+- Criteria 11 to 13 favour libraries that are either React-native or expose a clean imperative API, and that let us draw per-tip content. None of the candidates clearly satisfies all three yet.
+- **Archaeopteryx.js** is the strongest on the ETE-style alignment/heat-map view, but its API is configuration and events on `document`, not component props and per-node callbacks.
+- **phylotree.js** gives the most control but gives us the least out of the box.
+- A **thin custom renderer** (layout from d3-hierarchy, drawing in React with canvas or windowed SVG for large trees, using the level-of-detail ideas in [ete-ideas.md](ete-ideas.md)) is a real option, since it would meet 11 to 13 by construction. The price is building zoom, culling and layouts ourselves. The spike should include a prototype of this to compare against wrapping a library.
+
 ## Deployment: pros and cons
 
 ### Server-driven (ETE 4)
@@ -51,6 +72,8 @@ Preprocess trees at ingestion (could use ETE/Python or any parser): normalise to
 ## Next steps
 
 - Build small spikes with phylotree.js, Taxonium and Heat-tree against: a 50-tip tree, a 5k-tip tree, a 100k-tip tree, a Nexus file with a translate block.
+- Add Archaeopteryx.js to the spike, and a minimal custom React renderer built on d3-hierarchy.
+- For each: click a tip and call a React callback; highlight and focus a tip from React state; render an aligned per-tip column (a short alignment or a count badge) from our own data.
 - Measure load time, interaction frame rate, bundle size.
 - Check maintenance (latest releases/commits) and licences of the shortlist.
 - Inspect the ETE 4 `smartview/static` frontend to settle whether it could be reused standalone.

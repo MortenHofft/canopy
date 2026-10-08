@@ -20,12 +20,15 @@ GBIF datasets are mostly tables (checklists, occurrences). Some publishers also 
 | 2 | Embeddable component (npm, framework-agnostic or React) | Must live inside the gbif.org app |
 | 3 | Scale: 100k+ tips responsive | Some published trees are large |
 | 4 | Formats: Newick, Nexus, phyloXML (NeXML nice-to-have) | Publishers use all of these |
-| 5 | Programmatic API: highlight, focus, events, metadata | Occurrence linking |
+| 5 | Programmatic API: highlight, focus, metadata | Occurrence linking |
 | 6 | Layouts: rectangular, circular, (unrooted) | Standard expectations |
-| 7 | Licence compatible with gbif.org | GPL/AGPL need deliberate sign-off |
+| 7 | Licence compatible with gbif.org (ETE/GPL already ruled out) | GPL/AGPL need deliberate sign-off |
 | 8 | Maintenance health | We will depend on it for years |
 | 9 | Accessibility / theming / mobile | Fits GBIF design system |
 | 10 | Export (SVG/PNG/Newick) | Nice-to-have |
+| 11 | **Interaction callbacks:** click/hover/select on nodes and tips run our own function, with the node and its metadata as argument | Click a tip to open an occurrence or taxon; sync with the rest of the page |
+| 12 | **React integration:** a React component, or a thin wrapper, whose events reach callbacks and hooks and whose state (selection, highlighted tips, viewport) can be controlled from React props/state; clean mount/unmount | gbif.org is a React app; the tree must not live in a separate world |
+| 13 | **Custom node/tip rendering:** per-tip content aligned beside the tree (text, badges, thumbnails, heat maps, sequence alignments as in ETE's alignment view), driven by our metadata, ideally with React-rendered content | Occurrence counts, match status, images; some datasets will ship alignments |
 
 ## Non-goals (for now)
 
