@@ -63,7 +63,7 @@ Published numbers are scarce and mostly claims, not benchmarks. Treat everything
 | **phylotree.js** | "Thousands of tips" | README. SVG. |
 | **jsPhyloSVG** (SVG, for reference) | Slows beyond about 2,000 nodes | Its own paper; shows the SVG ceiling. |
 | **Archaeopteryx.js** | No numbers published | Says it targets large gene trees and offers automatic sub-tree collapsing. SVG, so expect an SVG-class limit; test it. |
-| **Reactree** | Not stated | Very young project. |
+| **Reactree** | Not stated | Very young project. Phylogeny.fr's one-click pipeline caps input at 200 sequences (proteins or nucleic acids), per its [page](https://www.phylogeny.fr/analysis/one-click). That limit is on server-side alignment and tree building, not necessarily the viewer, but it means the only known production use is probably trees of at most 200 tips. Treat Reactree as unproven beyond that. |
 | **ETE 4** | Huge, server-side | Rules out nothing technically, but reported slow in practice, and out on licence. |
 | **PhyloJS** | Parsing to about a million tips (*possible typo in source*) | Parser only, useful as a data-layer building block. |
 
