@@ -29,6 +29,7 @@ GBIF datasets are mostly tables (checklists, occurrences). Some publishers also 
 | 11 | **Interaction callbacks:** click/hover/select on nodes and tips run our own function, with the node and its metadata as argument | Click a tip to open an occurrence or taxon; sync with the rest of the page |
 | 12 | **React integration:** a React component, or a thin wrapper, whose events reach callbacks and hooks and whose state (selection, highlighted tips, viewport) can be controlled from React props/state; clean mount/unmount | gbif.org is a React app; the tree must not live in a separate world |
 | 13 | **Custom node/tip rendering:** per-tip content aligned beside the tree (text, badges, thumbnails, heat maps, sequence alignments as in ETE's alignment view), driven by our metadata, ideally with React-rendered content | Occurrence counts, match status, images; some datasets will ship alignments |
+| 14 | **Semantic zoom and responsiveness:** interaction stays smooth on large trees, and what is drawn changes with zoom: when zoomed out, per-tip decorations and columns collapse into summaries (clade labels, density, counts) instead of being drawn at unreadable size | A fully zoomed-out tree with every column drawn is slow and unreadable (see the third screenshot) |
 
 ## Reference: the kind of customisation we want
 
@@ -37,6 +38,10 @@ Two screenshots of ETE-rendered trees, supplied as examples of what "custom node
 ![ETE tree with aligned sequence alignment column](images/ete-alignment-example.webp)
 
 ![ETE tree with decorated nodes and aligned columns](images/ete-custom-nodes-example.png)
+
+![ETE zoomed out with all columns drawn](images/ete-zoomed-out-example.webp)
+
+The third screenshot shows the failure mode to avoid: zoomed out to fit the whole tree, every column is still drawn per row, nothing is readable, and (per reports from people who have used ETE on large trees) rendering is slow even with ETE's level-of-detail approach. Repeated taxonomy bands (eukaryota, opisthokonta, metazoa, ...) on every row would be better as one label spanning each clade. Rendering cost should be bounded by what is legible on screen, not by tree size: aggregate decorations at low zoom and show detail only when there is room.
 
 What they show, and what we would need from a library:
 
