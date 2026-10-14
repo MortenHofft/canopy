@@ -4,6 +4,8 @@
 
 GBIF datasets are mostly tables (checklists, occurrences). Some publishers also have a phylogeny of the organisms in the dataset, but gbif.org has no way to show it. We want publishers to attach a tree as a supplementary file and users to explore it on the dataset page, and to see where an occurrence sits in that tree.
 
+How these are organised for comparison (gates, dimensions A to J, evidence levels) is in [evaluation-framework.md](evaluation-framework.md); the plan for testing candidates is in [spike-plan.md](spike-plan.md).
+
 ## User stories
 
 1. As a **publisher**, I attach a tree (Newick/Nexus/...) to my dataset and it shows up without extra work.

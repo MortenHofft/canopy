@@ -28,6 +28,8 @@ Start with [docs/recommendation.md](docs/recommendation.md): the consolidated fi
 
 - [docs/goal.md](docs/goal.md): the goal, user stories, the 18 evaluation criteria and the ETE screenshots that show the kind of customisation we want.
 - [docs/recommendation.md](docs/recommendation.md): what the research found and what to do next.
+- [docs/evaluation-framework.md](docs/evaluation-framework.md): gates, dimensions A to J, evidence levels and the result template for comparing viewers.
+- [docs/spike-plan.md](docs/spike-plan.md): the brief for the next session: harness, adapters, scenarios S1 to S15, test data, measures and order of work.
 - [docs/comparison.md](docs/comparison.md): first, shallow comparison of viewers (partly superseded; see the note at its top).
 - [docs/ete-toolkit.md](docs/ete-toolkit.md) and [docs/ete-ideas.md](docs/ete-ideas.md): what ETE offers, why it is ruled out (GPL, Python server), and the ideas worth reimplementing.
 - [docs/research/](docs/research/): source-level reports per candidate (Taxonium, Phylocanvas.gl, phylotree.js, Reactree, Heat-tree, Archaeopteryx.js, react-bio-viz, OneZoom, discovery of others) plus the custom-renderer and data-layer studies.
@@ -38,4 +40,4 @@ Start with [docs/recommendation.md](docs/recommendation.md): the consolidated fi
 
 ## Status
 
-Research phase. No viewer code yet. Next steps are in the recommendation: get real tree sizes from publishers, spike tbrowse and react-bio-viz on the test trees, and draft the tree model and component API.
+Research phase done; testing phase next. No viewer code yet. Start with [docs/spike-plan.md](docs/spike-plan.md): build the harness, a small custom baseline and adapters for the shortlisted libraries, run the scenarios on the test trees, and record results in `docs/results/`.

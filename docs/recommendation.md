@@ -98,6 +98,9 @@ Branch length is central, not a detail. Implications for the design, from the re
 
 ## Proposed next steps
 
+The detailed plan for steps 2 and 3 is in [spike-plan.md](spike-plan.md); how results are scored is in [evaluation-framework.md](evaluation-framework.md).
+
+
 1. Ask for sample trees from likely publishers and record their tip counts and formats.
 2. Spike tbrowse and react-bio-viz against the same test trees and the three interaction checks; record bundle size and frame rate in a real browser.
 3. Draft the tree model, `capabilities` tiers and component API (`tree`, `layout`, `columns`, `highlight`, `onNodeClick`, `onNodeHover`, `viewState`) so spikes and any later custom renderer share one contract.
