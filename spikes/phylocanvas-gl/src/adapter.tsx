@@ -228,7 +228,7 @@ function PhylocanvasView(props: ViewProps) {
     const blocksOn = f.columnMode === 'blocks' && p.columns.length > 0 && type !== 'rd';
     const nodeSizeF = String(f.nodeSize ?? 'auto');
     // nodeSize is a fixed pixel size (it does not follow the row height), so pick it from the tree size; enlarge after focusTip
-    const auto = tm.tipCount <= 60 ? 10 : tm.tipCount <= 250 ? 5 : tm.tipCount <= 2500 ? 3 : 2;
+    const auto = tm.tipCount <= 60 ? 10 : tm.tipCount <= 120 ? 6 : tm.tipCount <= 400 ? 3 : 2;
     const nodeSize = nodeSizeF === 'auto' ? (boostRef.current ? Math.max(auto, 8) : auto) : Number(nodeSizeF);
 
     // clade colours -> per tip styles (the library only styles tips) + styleNodeEdges for the branches
