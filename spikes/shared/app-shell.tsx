@@ -941,6 +941,7 @@ function Shell({ shared, c0, c1, embed }: { shared: Shared; c0: InstanceControll
           <main className="main">
             <Viewer ctl={c0} adapter={shared.adapter} shared={shared} />
             <HoverTip shared={shared} c0={c0} />
+            {u.phase === 'idle' && <div className="empty-state">Choose a tree in the Tree panel to load it.</div>}
             {u.phase === 'loading' && <div className="overlay-loading" aria-hidden="true">Loading {u.loadingTips.toLocaleString()} tips...</div>}
             {u.phase === 'error' && <div className="overlay-loading error">{u.error}</div>}
           </main>
@@ -997,6 +998,7 @@ html,body{margin:0;height:100%}
 .main{flex:1;min-height:0;overflow:auto;background:var(--bg1)}
 .viewer-wrap{width:100%;height:100%}
 .tree-container{position:relative;overflow:hidden;background:var(--bg1)}
+.empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:var(--space-6);text-align:center;color:var(--text-subtle);font-size:var(--text-md);pointer-events:none}
 .side{width:22.5rem;flex:none;overflow:auto}
 .second{margin-bottom:var(--space-4);overflow:hidden}
 .second .viewer-wrap{height:auto}
@@ -1133,4 +1135,7 @@ export function mountShell(adapter: CandidateAdapter, rootEl: HTMLElement = docu
   void c0.getCapabilities().then((caps) => ui.set({ caps }));
   void checkAvailability(ui);
   if (qTree && catalogue.some((t) => t.id === qTree)) setTimeout(() => void uiMount(shared, c0, qTree), 0);
+  // A person opening a demo without ?tree= should see a tree, not an empty card: load the default. Automated runs
+  // (navigator.webdriver) and the compare page's frames (embed) mount through window.__spike themselves.
+  else if (!embed && !navigator.webdriver) setTimeout(() => void uiMount(shared, c0, ui.state.treeId), 0);
 }
