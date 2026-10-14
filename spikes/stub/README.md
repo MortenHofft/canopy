@@ -20,3 +20,23 @@ Files: `spike.json` (deployment and styling metadata), `src/main.tsx` (3 lines: 
 8. **Assign `props.handleRef.current`** (and null on unmount) with `locate`, `bounds`, `locateCell` returning **client-space CSS px** (see `getBoundingClientRect`), `null` when not drawn or not visible. `locate` must return the point where a real click hits the tip or node marker. These are read-only.
 9. **Report all 21 capability keys** in `capabilities` (`CAPABILITY_KEYS` in `shared/types.ts`), `yes`/`partial`/`no` with a `how` that names the mechanism or the reason (missing keys count as `no`). For tip links render `a[href][data-tip-id]` (or an overlay that is one), keyboard focusable. Unmount must remove everything (listeners, workers, GL contexts).
 10. **Build and run**: `npm run build && npm run typecheck`, look at it with `npm run dev` (open the URL, use the toolbar, see "Viewing a candidate manually" in [../README.md](../README.md)), then `node spikes/runner/run.mjs --candidate <name> --trees smoke`. Results land in `spikes/results/<name>/`; write `docs/results/<name>.md` from them.
+
+## What lights up each demo control
+
+The non-embed page is a demo with identical controls for every candidate. A control is **disabled with the adapter's `how` as its reason** when the capability is `no`, and shows a **partial** badge when it is `partial`. Nothing is hidden. What an adapter author implements:
+
+| Control | Capability keys read | You implement |
+|---|---|---|
+| Tree picker, mount status | none | `onReady({ parseMs, tips, notes })`; `tips` is checked against the catalogue; errors thrown in `View` are shown in a card; no `onReady` within 30 s shows a timeout card |
+| Layout tabs (rectangular / radial) | `radialLayout` | react to `props.layout` (radial needs a real radial layout) |
+| Phylogram / cladogram tabs | `branchLengthToggle` | react to `props.branchLengths` (the tab is also disabled for trees without lengths) |
+| Colour clade on click, Clear colours | `internalNodeClick`, `cladeColouring` | `emit({type:'nodeClick'\|'branchClick', nodeId, tipIds, ...})` from the library's click callback; draw `props.colouredClades`. The shell toggles a clade on click and picks the next categorical colour; the tip set goes to the map panel |
+| Highlight tips matching | `highlightTip` | draw `props.highlightedTips` (up to 200 tips) |
+| Show custom columns | `customColumns` (alignment columns need `alignmentColumn`, else they are skipped) | draw `props.columns` aligned to the tips; `handleRef.locateCell` |
+| Tip labels as links | `tipAsLink` | render `a[href][data-tip-id]` from `props.tipLinks` (the demo links to the GBIF species search) |
+| Dark theme | `darkTheme` | react to `props.theme.dark` (use `gbifDarkTheme()` for values) |
+| Hover tooltip | `hover` | `emit({type:'tipHover'\|'nodeHover', ...})`; the shell draws the tooltip |
+| Library options card | per feature `level`/`how` | add `features: AdapterFeature[]` to the adapter (toggle or select, with default); read `props.features[id]` |
+| Library facts card | all keys (capability list) | `candidate`, `capabilities`, and pass `spike` (import `../spike.json` in `main.tsx`: `mountShell({ ...adapter, spike })`) |
+
+URL state: `?tree=<id>&layout=rectangular|radial&bl=0|1&cols=0|1&dark=0|1` (and `embed=1`); a `tree` parameter mounts automatically.

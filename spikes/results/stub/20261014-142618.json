@@ -1,5 +1,5 @@
 {
- "runId": "20261014-134802",
+ "runId": "20261014-142618",
  "candidate": {
   "name": "stub",
   "version": "0.1.0",
@@ -65,11 +65,11 @@
   },
   "darkTheme": {
    "level": "yes",
-   "how": "CSS custom properties on the root element"
+   "how": "gbifDarkTheme() values (derived from tokens; GBIF has no dark set) as CSS custom properties on the root element"
   },
   "cssTokens": {
    "level": "yes",
-   "how": "background, foreground, branch, highlight, fontFamily map to --sp-* custom properties"
+   "how": "defaults come from gbifTheme() (GBIF tokens); background, foreground, branch, highlight, fontFamily override the --sp-* custom properties"
   },
   "multipleInstances": {
    "level": "yes",
@@ -92,7 +92,7 @@
    "how": "none; every node is drawn at all zoom levels (no level of detail)"
   }
  },
- "date": "2026-10-14T13:48:18.684Z",
+ "date": "2026-10-14T14:26:30.948Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -100,6 +100,7 @@
   "--enable-unsafe-swiftshader",
   "--ignore-gpu-blocklist",
   "--no-sandbox",
+  "--disable-gpu-rasterization",
   "--js-flags=--expose-gc"
  ],
  "machine": {
@@ -117,7 +118,8 @@
  },
  "selection": {
   "scenarios": [
-   "S2"
+   "S13",
+   "S15"
   ],
   "scaleTrees": [
    "edge-quoted-labels",
@@ -126,148 +128,169 @@
   ]
  },
  "bundle": {
-  "jsBytes": 200701,
-  "jsGzipBytes": 65046,
-  "cssBytes": 0,
-  "cssGzipBytes": 0,
-  "totalBytes": 201046,
-  "totalGzipBytes": 65295,
+  "jsBytes": 221745,
+  "jsGzipBytes": 71294,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 239931,
+  "totalGzipBytes": 75908,
   "files": [
    {
-    "path": "assets/index-DctWU9eR.js",
-    "bytes": 200701,
-    "gzipBytes": 65046
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-E5C9pFa_.js",
+    "bytes": 221745,
+    "gzipBytes": 71294
    },
    {
     "path": "index.html",
-    "bytes": 345,
-    "gzipBytes": 249
+    "bytes": 420,
+    "gzipBytes": 286
    }
   ]
  },
  "scenarios": {
-  "S2": {
+  "S13": {
    "status": "pass",
-   "reason": "syn-yule-1000: all checks passed",
+   "reason": "all checks passed",
    "checks": [
     {
-     "name": "tipClick event for Domefaodon_paraborealis",
+     "name": "second instance mounts with its own tip count",
      "ok": true,
-     "detail": "got tipClick n252"
+     "detail": "1000 and 200"
     },
     {
-     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "name": "both instances draw something",
      "ok": true,
-     "detail": "[\"Domefaodon_paraborealis\"]"
+     "detail": "ink 26.65% / 15.55%"
     },
     {
-     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "name": "click in instance 0 reaches only instance 0",
      "ok": true,
-     "detail": "tipClick n252 tips=1 source=library"
+     "detail": "events 2/0"
     },
     {
-     "name": "React map-panel count 1",
+     "name": "click in instance 1 reaches instance 1",
      "ok": true,
-     "detail": "count=1"
+     "detail": "events 2"
     },
     {
-     "name": "metadata row shown for Domefaodon_paraborealis",
+     "name": "React state of instance 1 updated",
      "ok": true,
-     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+     "detail": "tipClick n243 tips=1 source=library"
     },
     {
-     "name": "tipClick event for Cherikoina_megagracilis",
+     "name": "instance 1 survives unmounting instance 0",
      "ok": true,
-     "detail": "got tipClick n921"
+     "detail": ""
     },
     {
-     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "name": "unmount leaves nothing in the container",
      "ok": true,
-     "detail": "[\"Cherikoina_megagracilis\"]"
+     "detail": "domNodes=0 canvases=0"
     },
     {
-     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "name": "five mount/unmount cycles complete",
      "ok": true,
-     "detail": "tipClick n921 tips=1 source=library"
+     "detail": ""
     },
     {
-     "name": "React map-panel count 1",
+     "name": "document DOM node count returns to baseline",
      "ok": true,
-     "detail": "count=1"
+     "detail": "293 -> 293"
     },
     {
-     "name": "metadata row shown for Cherikoina_megagracilis",
+     "name": "no canvases / GL contexts left behind",
      "ok": true,
-     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+     "detail": "0 -> 0"
     },
     {
-     "name": "tipClick event for Melavuodon_prolutea",
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
      "ok": true,
-     "detail": "got tipClick n1583"
+     "detail": "0.6 MB"
     },
     {
-     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "name": "no page errors",
      "ok": true,
-     "detail": "[\"Melavuodon_prolutea\"]"
-    },
-    {
-     "name": "React last-event shows tip Melavuodon_prolutea",
-     "ok": true,
-     "detail": "tipClick n1583 tips=1 source=library"
-    },
-    {
-     "name": "React map-panel count 1",
-     "ok": true,
-     "detail": "count=1"
-    },
-    {
-     "name": "metadata row shown for Melavuodon_prolutea",
-     "ok": true,
-     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
-    },
-    {
-     "name": "tipClick event for Morivoa_pseudolonga",
-     "ok": true,
-     "detail": "got tipClick n64"
-    },
-    {
-     "name": "tipIds=[tip] for Morivoa_pseudolonga",
-     "ok": true,
-     "detail": "[\"Morivoa_pseudolonga\"]"
-    },
-    {
-     "name": "React last-event shows tip Morivoa_pseudolonga",
-     "ok": true,
-     "detail": "tipClick n64 tips=1 source=library"
-    },
-    {
-     "name": "React map-panel count 1",
-     "ok": true,
-     "detail": "count=1"
-    },
-    {
-     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
-     "ok": true,
-     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+     "detail": ""
     }
    ],
    "measures": {
-    "focusNeeded": false,
-    "tipsTried": 4,
-    "tipsOk": 4,
-    "metadataChecked": true
+    "baseline": {
+     "dom": 293,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 293,
+     "canv": 0
+    },
+    "heapMB": [
+     4.214765548706055,
+     4.679498672485352,
+     4.718965530395508,
+     4.732503890991211,
+     4.775774002075195
+    ],
+    "heapGrowthMB": 0.5610084533691406,
+    "pageErrors": []
    },
-   "notes": [
-    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
-   ],
-   "title": "Click a tip",
+   "title": "Two instances, mount/unmount x5",
    "evidence": "M",
-   "durationSec": 2.915
+   "durationSec": 5.131
+  },
+  "S15": {
+   "status": "pass",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 33 ms, to paint 96 ms (median of 5)",
+   "checks": [
+    {
+     "name": "clade is red after the click",
+     "ok": true,
+     "detail": "74.26% of the clade box"
+    },
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "cladeTips": 969,
+    "redFractionAfterClick": 0.7425708161964896,
+    "clickToCommitMs": [
+     38.5,
+     30.90000000037253,
+     32.799999999813735,
+     31.899999999441206,
+     36.39999999944121
+    ],
+    "clickToPaintMs": [
+     110.20000000018626,
+     96.30000000074506,
+     92.90000000037253,
+     87,
+     98.29999999981374
+    ],
+    "medianCommitMs": 32.799999999813735,
+    "medianPaintMs": 96.30000000074506
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 6.039
   }
  },
  "scale": {},
- "screenshots": [],
- "wallSec": 15.757,
+ "screenshots": [
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261014-142618-S15-linked-view.png",
+   "bytes": 64258
+  }
+ ],
+ "wallSec": 12.455,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"

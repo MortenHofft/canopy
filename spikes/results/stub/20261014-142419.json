@@ -1,5 +1,5 @@
 {
- "runId": "20261014-134822",
+ "runId": "20261014-142419",
  "candidate": {
   "name": "stub",
   "version": "0.1.0",
@@ -65,11 +65,11 @@
   },
   "darkTheme": {
    "level": "yes",
-   "how": "CSS custom properties on the root element"
+   "how": "gbifDarkTheme() values (derived from tokens; GBIF has no dark set) as CSS custom properties on the root element"
   },
   "cssTokens": {
    "level": "yes",
-   "how": "background, foreground, branch, highlight, fontFamily map to --sp-* custom properties"
+   "how": "defaults come from gbifTheme() (GBIF tokens); background, foreground, branch, highlight, fontFamily override the --sp-* custom properties"
   },
   "multipleInstances": {
    "level": "yes",
@@ -92,7 +92,7 @@
    "how": "none; every node is drawn at all zoom levels (no level of detail)"
   }
  },
- "date": "2026-10-14T13:51:13.795Z",
+ "date": "2026-10-14T14:26:01.190Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -100,6 +100,7 @@
   "--enable-unsafe-swiftshader",
   "--ignore-gpu-blocklist",
   "--no-sandbox",
+  "--disable-gpu-rasterization",
   "--js-flags=--expose-gc"
  ],
  "machine": {
@@ -140,22 +141,27 @@
   ]
  },
  "bundle": {
-  "jsBytes": 200701,
-  "jsGzipBytes": 65046,
-  "cssBytes": 0,
-  "cssGzipBytes": 0,
-  "totalBytes": 201046,
-  "totalGzipBytes": 65295,
+  "jsBytes": 221745,
+  "jsGzipBytes": 71294,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 239931,
+  "totalGzipBytes": 75906,
   "files": [
    {
-    "path": "assets/index-DctWU9eR.js",
-    "bytes": 200701,
-    "gzipBytes": 65046
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DpBahMBr.js",
+    "bytes": 221745,
+    "gzipBytes": 71294
    },
    {
     "path": "index.html",
-    "bytes": 345,
-    "gzipBytes": 249
+    "bytes": 420,
+    "gzipBytes": 284
    }
   ]
  },
@@ -165,153 +171,153 @@
     "edge-quoted-labels": {
      "treeId": "edge-quoted-labels",
      "tips": 5,
-     "status": "timeout",
-     "reason": "unusable: p5 fps 12.0 < 20",
+     "status": "pass",
+     "reason": "load 24 ms, p5 20.0 fps, click 2 ms",
      "phase": "done",
-     "fetchMs": 8.200000000186265,
+     "fetchMs": 18.100000000558794,
      "convertMs": 0,
      "wireBytes": 149,
      "parseMs": 0,
-     "firstRenderMs": 50.200000000186265,
-     "sharedParseMs": 0.8999999999068677,
+     "firstRenderMs": 24.299999999813735,
+     "sharedParseMs": 1.099999999627471,
      "reportedTips": 5,
-     "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.1 ms; usedLengths=true",
-     "loadMs": 50.200000000186265,
-     "ink": 0.010728007863110345,
-     "heapAfterMountMB": 2.72955322265625,
+     "notes": "tree parsed by the shell (sharedParseMs=1.1); stub layout 0.1 ms; usedLengths=true",
+     "loadMs": 24.299999999813735,
+     "ink": 0.012639393460748716,
+     "heapAfterMountMB": 3.013500213623047,
      "stats": {
-      "domNodes": 28,
-      "svgElements": 19,
+      "domNodes": 33,
+      "svgElements": 24,
       "canvases": 1,
       "custom": {
        "tips": 5,
        "nodes": 8,
-       "layoutMs": 0.10000000009313226,
-       "kx": 0.93,
-       "ky": 158.6
+       "layoutMs": 0.09999999962747097,
+       "kx": 0.824,
+       "ky": 122.6
       }
      },
-     "clickLatencyMs": 3.3499999998603016,
-     "clickToPaintMs": 77,
+     "clickLatencyMs": 1.9500000001862645,
+     "clickToPaintMs": 40.10000000055879,
      "clickSamples": {
       "events": 2,
       "tries": 2,
       "rightNode": 2
      },
-     "fpsMedian": 30.030030030030687,
-     "fpsP5": 11.990407673860702,
+     "fpsMedian": 59.52380952380888,
+     "fpsP5": 20,
      "fpsP95": 60.24096385542202,
-     "fpsMean": 23.554069564349078,
-     "droppedFrames": 366,
-     "maxFrameGapMs": 166.5999999999999,
-     "frames": 236,
-     "heapAfterInteractionMB": 3.1079797744750977,
-     "heapMB": 3.1079797744750977,
+     "fpsMean": 39.198174059740005,
+     "droppedFrames": 210,
+     "maxFrameGapMs": 50.09999999999991,
+     "frames": 395,
+     "heapAfterInteractionMB": 3.6674575805664062,
+     "heapMB": 3.6674575805664062,
      "pageErrors": [],
-     "wallSec": 12.425
+     "wallSec": 11.737
     },
     "syn-yule-200": {
      "treeId": "syn-yule-200",
      "tips": 200,
-     "status": "timeout",
-     "reason": "unusable: p5 fps 4.3 < 20",
+     "status": "pass",
+     "reason": "load 61 ms, p5 20.0 fps, click 3 ms",
      "phase": "done",
-     "fetchMs": 6.399999999906868,
+     "fetchMs": 17.700000000186265,
      "convertMs": 0,
      "wireBytes": 8432,
      "parseMs": 0,
-     "firstRenderMs": 56.3000000002794,
-     "sharedParseMs": 1.8999999999068677,
+     "firstRenderMs": 60.700000000186265,
+     "sharedParseMs": 3.099999999627471,
      "reportedTips": 200,
-     "notes": "tree parsed by the shell (sharedParseMs=1.9); stub layout 0.2 ms; usedLengths=true",
-     "loadMs": 56.3000000002794,
-     "ink": 0.08175177590135374,
-     "heapAfterMountMB": 2.7988367080688477,
+     "notes": "tree parsed by the shell (sharedParseMs=3.1); stub layout 0.4 ms; usedLengths=true",
+     "loadMs": 60.700000000186265,
+     "ink": 0.10016585057652816,
+     "heapAfterMountMB": 3.333489418029785,
      "stats": {
-      "domNodes": 805,
-      "svgElements": 801,
+      "domNodes": 810,
+      "svgElements": 806,
       "canvases": 1,
       "custom": {
        "tips": 200,
        "nodes": 399,
-       "layoutMs": 0.20000000018626451,
-       "kx": 0.93,
-       "ky": 3.965
+       "layoutMs": 0.40000000037252903,
+       "kx": 0.824,
+       "ky": 3.065
       }
      },
-     "clickLatencyMs": 2.2000000001862645,
-     "clickToPaintMs": 33.59999999962747,
+     "clickLatencyMs": 2.699999999254942,
+     "clickToPaintMs": 43.5,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
-     "fpsMedian": 30.030030030029046,
-     "fpsP5": 4.284490145672672,
-     "fpsP95": 60.24096385542202,
-     "fpsMean": 10.40510543840139,
-     "droppedFrames": 500,
-     "maxFrameGapMs": 266.6999999999998,
-     "frames": 105,
-     "heapAfterInteractionMB": 3.324962615966797,
-     "heapMB": 3.324962615966797,
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 43.87525198624209,
+     "droppedFrames": 163,
+     "maxFrameGapMs": 50.100000000000364,
+     "frames": 444,
+     "heapAfterInteractionMB": 4.131182670593262,
+     "heapMB": 4.131182670593262,
      "pageErrors": [],
-     "wallSec": 13.079
+     "wallSec": 12.314
     },
     "syn-yule-1000": {
      "treeId": "syn-yule-1000",
      "tips": 1000,
-     "status": "timeout",
-     "reason": "unusable: p5 fps 2.2 < 20",
+     "status": "pass",
+     "reason": "load 104 ms, p5 20.0 fps, click 4 ms",
      "phase": "done",
-     "fetchMs": 9,
+     "fetchMs": 18,
      "convertMs": 0,
      "wireBytes": 41755,
      "parseMs": 0,
-     "firstRenderMs": 116.1999999997206,
-     "sharedParseMs": 10.700000000186265,
+     "firstRenderMs": 103.70000000018626,
+     "sharedParseMs": 6.5,
      "reportedTips": 1000,
-     "notes": "tree parsed by the shell (sharedParseMs=10.7); stub layout 9.3 ms; usedLengths=true",
-     "loadMs": 116.1999999997206,
-     "ink": 0.24104454273332443,
-     "heapAfterMountMB": 3.883347511291504,
+     "notes": "tree parsed by the shell (sharedParseMs=6.5); stub layout 2.0 ms; usedLengths=true",
+     "loadMs": 103.70000000018626,
+     "ink": 0.2645679987363766,
+     "heapAfterMountMB": 4.768617630004883,
      "stats": {
-      "domNodes": 4005,
-      "svgElements": 4001,
+      "domNodes": 4010,
+      "svgElements": 4006,
       "canvases": 1,
       "custom": {
        "tips": 1000,
        "nodes": 1999,
-       "layoutMs": 9.299999999813735,
-       "kx": 0.93,
-       "ky": 0.793
+       "layoutMs": 2,
+       "kx": 0.824,
+       "ky": 0.613
       }
      },
-     "clickLatencyMs": 3.5,
-     "clickToPaintMs": 29.300000000279397,
+     "clickLatencyMs": 3.7999999998137355,
+     "clickToPaintMs": 37.89999999944121,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
-     "fpsMedian": 59.88023952095548,
-     "fpsP5": 2.2222222222222223,
-     "fpsP95": 60.24096385542202,
-     "fpsMean": 7.452574525745257,
-     "droppedFrames": 543,
-     "maxFrameGapMs": 483.2999999999993,
-     "frames": 77,
-     "heapAfterInteractionMB": 4.073455810546875,
-     "heapMB": 4.073455810546875,
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 46.8768426431848,
+     "droppedFrames": 134,
+     "maxFrameGapMs": 66.70000000000073,
+     "frames": 477,
+     "heapAfterInteractionMB": 5.2206220626831055,
+     "heapMB": 5.2206220626831055,
      "pageErrors": [],
-     "wallSec": 14.433
+     "wallSec": 12.605
     }
    },
-   "status": "timeout",
-   "reason": "edge-quoted-labels: timeout (unusable: p5 fps 12.0 < 20); syn-yule-200: timeout (unusable: p5 fps 4.3 < 20); syn-yule-1000: timeout (unusable: p5 fps 2.2 < 20)",
+   "status": "pass",
+   "reason": "3 trees loaded, rendered and interactive",
    "title": "Load and fit to screen (scale ladder)",
    "evidence": "M",
-   "durationSec": 39.938
+   "durationSec": 36.656
   },
   "S2": {
    "status": "pass",
@@ -429,7 +435,7 @@
    ],
    "title": "Click a tip",
    "evidence": "M",
-   "durationSec": 2.376
+   "durationSec": 1.655
   },
   "S3": {
    "status": "pass",
@@ -539,7 +545,7 @@
    },
    "title": "Click an internal node",
    "evidence": "M",
-   "durationSec": 2.514
+   "durationSec": 2.31
   },
   "S4": {
    "status": "pass",
@@ -548,7 +554,7 @@
     {
      "name": "clade A turns red (pixel fraction rises)",
      "ok": true,
-     "detail": "fraction 0.00% -> 25.32%"
+     "detail": "fraction 0.00% -> 38.33%"
     },
     {
      "name": "other clade unchanged (control)",
@@ -568,7 +574,7 @@
     {
      "name": "two clades, two colours (A red kept, B blue appears)",
      "ok": true,
-     "detail": "A red 25.32%, B blue 30.04%"
+     "detail": "A red 38.33%, B blue 45.43%"
     },
     {
      "name": "clear restores the original colours",
@@ -590,15 +596,15 @@
     "cladeTips": 193,
     "redFrac": {
      "before": 0,
-     "after": 0.2532467532467532,
+     "after": 0.38333354980322887,
      "controlBefore": 0,
      "controlAfter": 0
     },
-    "domNodesDelta": 0
+    "domNodesDelta": 2
    },
    "title": "Colour clades from React state",
    "evidence": "M",
-   "durationSec": 12.201
+   "durationSec": 2.615
   },
   "S5": {
    "status": "pass",
@@ -617,7 +623,7 @@
     {
      "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
      "ok": true,
-     "detail": "dx 37%, dy 0%"
+     "detail": "dx 36%, dy 0%"
     },
     {
      "name": "sibling tips (parent clade) are visible",
@@ -637,20 +643,20 @@
     {
      "name": "highlight is visible (pixels around the tip change)",
      "ok": true,
-     "detail": "2363 pixels differ"
+     "detail": "2348 pixels differ"
     }
    ],
    "measures": {
     "initiallyVisible": true,
     "offCentre": {
-     "dx": 0.3703703445370375,
+     "dx": 0.3562628082956883,
      "dy": 0
     },
-    "highlightPixels": 2363
+    "highlightPixels": 2348
    },
    "title": "Highlight and focus a tip",
    "evidence": "M",
-   "durationSec": 8.592
+   "durationSec": 3.427
   },
   "S6": {
    "status": "pass",
@@ -664,7 +670,7 @@
     {
      "name": "href is the requested URL",
      "ok": true,
-     "detail": "http://127.0.0.1:46821/__tip__/Phumideina_macromontana"
+     "detail": "http://127.0.0.1:33879/__tip__/Phumideina_macromontana"
     },
     {
      "name": "keyboard focusable (tabindex not -1)",
@@ -679,7 +685,7 @@
     {
      "name": "has non-zero size",
      "ok": true,
-     "detail": "{\"x\":950,\"y\":473.5,\"width\":170.296875,\"height\":24}"
+     "detail": "{\"x\":861,\"y\":450.125,\"width\":172.8125,\"height\":24}"
     },
     {
      "name": "real click opens a new tab",
@@ -694,24 +700,24 @@
    ],
    "measures": {
     "anchor": {
-     "href": "http://127.0.0.1:46821/__tip__/Phumideina_macromontana",
+     "href": "http://127.0.0.1:33879/__tip__/Phumideina_macromontana",
      "tabindex": "0",
      "target": "_blank",
      "rel": "noopener noreferrer",
      "rect": {
-      "x": 950,
-      "y": 473.5,
-      "width": 170.296875,
+      "x": 861,
+      "y": 450.125,
+      "width": 172.8125,
       "height": 24
      },
-     "count": 36
+     "count": 30
     },
     "popups": 1,
     "note": "adapter reports partial: real <a href data-tip-id target=_blank> but only for rows that are rendered (rows >= 9 px); other tips have no DOM node"
    },
    "title": "Tip label as a link",
    "evidence": "M",
-   "durationSec": 3.24
+   "durationSec": 2.731
   },
   "S7": {
    "status": "pass",
@@ -725,17 +731,17 @@
     {
      "name": "fit view: cell centre within 2px of tip row",
      "ok": true,
-     "detail": "300/300 aligned, max dy 0.2px"
+     "detail": "300/300 aligned, max dy 0.3px"
     },
     {
      "name": "after zoom and pan: at least 8 tips with a drawn cell",
      "ok": true,
-     "detail": "83 of 83 visible tips have a cell"
+     "detail": "84 of 84 visible tips have a cell"
     },
     {
      "name": "after zoom and pan: cell centre within 2px of tip row",
      "ok": true,
-     "detail": "83/83 aligned, max dy 0.0px"
+     "detail": "84/84 aligned, max dy 0.0px"
     },
     {
      "name": "bar width increases with value (Spearman >= 0.7)",
@@ -745,7 +751,7 @@
     {
      "name": "cell is actually painted (pixels change when the column is removed)",
      "ok": true,
-     "detail": "98% of the cell rect changes"
+     "detail": "100% of the cell rect changes"
     },
     {
      "name": "tip without a data row gets no cell (explicitly unmatched)",
@@ -758,16 +764,16 @@
      "visibleTips": 300,
      "cells": 300,
      "aligned": 300,
-     "maxDy": 0.18280000000004293
+     "maxDy": 0.25480000000015934
     },
     "after zoom and pan": {
-     "visibleTips": 83,
-     "cells": 83,
-     "aligned": 83,
-     "maxDy": 2.2737367544323206e-13
+     "visibleTips": 84,
+     "cells": 84,
+     "aligned": 84,
+     "maxDy": 1.7053025658242404e-13
     },
     "barRankCorrelation": 1,
-    "cellDrawnFraction": 0.9761904761904762,
+    "cellDrawnFraction": 1,
     "unmatchedNote": "tips without a value draw no cell (locateCell should return null); checked in unit of S7 notes only",
     "unmatched": {
      "tipsWithoutRow": 18,
@@ -776,11 +782,11 @@
    },
    "title": "Custom column (bar) aligned to tips",
    "evidence": "M",
-   "durationSec": 7.342
+   "durationSec": 3.176
   },
   "S8": {
-   "status": "partial",
-   "reason": "rich-ens-protein-197: alignment cell shows several residue colours (1 colour groups)",
+   "status": "pass",
+   "reason": "rich-ens-protein-197: all checks passed",
    "checks": [
     {
      "name": "fit view: at least 8 tips with a drawn cell",
@@ -805,12 +811,12 @@
     {
      "name": "cell is actually painted (pixels change when the column is removed)",
      "ok": true,
-     "detail": "74% of the cell rect changes"
+     "detail": "93% of the cell rect changes"
     },
     {
      "name": "alignment cell shows several residue colours",
-     "ok": false,
-     "detail": "1 colour groups"
+     "ok": true,
+     "detail": "12 colour groups"
     }
    ],
    "measures": {
@@ -824,14 +830,14 @@
      "visibleTips": 49,
      "cells": 49,
      "aligned": 49,
-     "maxDy": 1.1368683772161603e-13
+     "maxDy": 1.7053025658242404e-13
     },
-    "cellDrawnFraction": 0.74,
+    "cellDrawnFraction": 0.9315878378378378,
     "alignmentTipsWithSequence": 197
    },
    "title": "Alignment column",
    "evidence": "M",
-   "durationSec": 23.951
+   "durationSec": 22.513
   },
   "S9": {
    "status": "pass",
@@ -840,7 +846,7 @@
     {
      "name": "dark theme darkens the view",
      "ok": true,
-     "detail": "mean luminance 221 -> 59"
+     "detail": "mean luminance 218 -> 58"
     },
     {
      "name": "dark theme still draws the tree",
@@ -850,30 +856,30 @@
     {
      "name": "background token applied (dominant colour)",
      "ok": true,
-     "detail": "76% of pixels"
+     "detail": "73% of pixels"
     },
     {
      "name": "branch token applied (pixels in branch colour)",
      "ok": true,
-     "detail": "88093 pixels"
+     "detail": "87958 pixels"
     }
    ],
    "measures": {
-    "lightLuminance": 220.8252602914298,
-    "darkLuminance": 58.81049875346248,
-    "tokenBackgroundFraction": 0.758393646964214,
-    "tokenBranchPixels": 88093
+    "lightLuminance": 218.24645051600535,
+    "darkLuminance": 58.48394329927298,
+    "tokenBackgroundFraction": 0.7326330753435476,
+    "tokenBranchPixels": 87958
    },
    "notes": [
     "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
    ],
    "title": "Theming (dark, tokens)",
    "evidence": "M",
-   "durationSec": 6.151
+   "durationSec": 2.169
   },
   "S10": {
-   "status": "partial",
-   "reason": "syn-yule-1000: all checks passed; p5 2.9 fps, median 59.9 fps, DOM nodes 4005, canvases 1 (p5 < 20 fps while zooming out); overviewOrMinimap self-report: no",
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed; p5 59.5 fps, median 59.9 fps, DOM nodes 4010, canvases 1; overviewOrMinimap self-report: no",
    "checks": [
     {
      "name": "whole tree in view (first and last tip both locatable) after zoom-out by wheel",
@@ -888,35 +894,35 @@
     {
      "name": "no freeze: longest frame gap < 2 s",
      "ok": true,
-     "detail": "400 ms"
+     "detail": "33 ms"
     }
    ],
    "measures": {
     "treeId": "syn-yule-1000",
-    "loadMs": 83.29999999981374,
+    "loadMs": 106.70000000018626,
     "notches": 15,
-    "zoomOutSec": 3.524,
+    "zoomOutSec": 0.752,
     "fpsMedian": 59.88023952095874,
-    "fpsP5": 2.857142857142857,
-    "maxFrameGapMs": 399.89999999999964,
-    "droppedFrames": 170,
-    "inkAfterZoomOut": 0.17461801367108964,
+    "fpsP5": 59.52380952381049,
+    "maxFrameGapMs": 33.29999999999973,
+    "droppedFrames": 1,
+    "inkAfterZoomOut": 0.18476543989891014,
     "stats": {
-     "domNodes": 4005,
-     "svgElements": 4001,
+     "domNodes": 4010,
+     "svgElements": 4006,
      "canvases": 1,
      "custom": {
       "tips": 1000,
       "nodes": 1999,
-      "layoutMs": 4.7000000001862645,
-      "kx": 0.93,
-      "ky": 0.46211936413257354
+      "layoutMs": 5,
+      "kx": 0.824,
+      "ky": 0.3572246787052556
      }
     }
    },
    "title": "Zoom out to the whole tree",
    "evidence": "M",
-   "durationSec": 10.491
+   "durationSec": 3.606
   },
   "S11": {
    "status": "pass",
@@ -930,7 +936,7 @@
     {
      "name": "toggle to cladogram changes the layout (tips move)",
      "ok": true,
-     "detail": "mean tip shift 326.0 px"
+     "detail": "mean tip shift 288.8 px"
     },
     {
      "name": "cladogram no longer proportional to length",
@@ -959,24 +965,24 @@
     }
    ],
    "measures": {
-    "phylogramPearson": 1.0000000000000002,
+    "phylogramPearson": 1.0000000000000004,
     "cladogramPearson": null,
-    "meanTipShiftPx": 325.96693519638603,
-    "ultrametricTipSpread": 3.1579677144893343e-16,
+    "meanTipShiftPx": 288.8137146256152,
+    "ultrametricTipSpread": 4.668863972140289e-16,
     "scaleBarSelfReport": "no: no scale bar or time axis"
    },
    "title": "Phylogram / cladogram",
    "evidence": "M",
-   "durationSec": 3.392
+   "durationSec": 2.559
   },
   "S12": {
-   "status": "fail",
-   "reason": "syn-yule-1000 radial: radial S2: tipClick event for Melavuodon_prolutea (got tipClick n1581); radial S2: tipIds=[tip] for Melavuodon_prolutea ([\"Melavuodon_prolata\"]); radial S2: React last-event shows tip Melavuodon_prolutea (tipClick n1581 tips=1 source=library); radial S2: metadata row shown for Melavuodon_prolutea (Melavuodon_prolata: occurrence_count=6 country_code=DE trait_value=6.4631); radial S3: node n835 (467 tips) locatable (locate returned null); radial S3: node n388 (224 tips) locatable (locate returned null); radial S3: node n1768 (116 tips) locatable (locate returned null); radial S3: node n260 (56 tips) locatable (locate returned null); radial S3: at least 3 nodes tested (tested 0); radial S4: bounds(clade A) available (bounds returned null (not visible?))",
+   "status": "pass",
+   "reason": "syn-yule-1000 radial: all checks passed",
    "checks": [
     {
      "name": "setLayout(radial) changes the layout",
      "ok": true,
-     "detail": "tip moved from 940,363 to 370,780"
+     "detail": "tip moved from 851,370 to 371,692"
     },
     {
      "name": "radial S2: tipClick event for Domefaodon_paraborealis",
@@ -1030,18 +1036,18 @@
     },
     {
      "name": "radial S2: tipClick event for Melavuodon_prolutea",
-     "ok": false,
-     "detail": "got tipClick n1581"
+     "ok": true,
+     "detail": "got tipClick n1583"
     },
     {
      "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
-     "ok": false,
-     "detail": "[\"Melavuodon_prolata\"]"
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
     },
     {
      "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
-     "ok": false,
-     "detail": "tipClick n1581 tips=1 source=library"
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=library"
     },
     {
      "name": "radial S2: React map-panel count 1",
@@ -1050,8 +1056,8 @@
     },
     {
      "name": "radial S2: metadata row shown for Melavuodon_prolutea",
-     "ok": false,
-     "detail": "Melavuodon_prolata: occurrence_count=6 country_code=DE trait_value=6.4631"
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
     },
     {
      "name": "radial S2: tipClick event for Morivoa_pseudolonga",
@@ -1079,128 +1085,122 @@
      "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
     },
     {
-     "name": "radial S3: node n835 (467 tips) locatable",
-     "ok": false,
-     "detail": "locate returned null"
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
     },
     {
-     "name": "radial S3: node n388 (224 tips) locatable",
-     "ok": false,
-     "detail": "locate returned null"
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
     },
     {
-     "name": "radial S3: node n1768 (116 tips) locatable",
-     "ok": false,
-     "detail": "locate returned null"
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=library map=467"
     },
     {
-     "name": "radial S3: node n260 (56 tips) locatable",
-     "ok": false,
-     "detail": "locate returned null"
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=library map=224"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=library map=116"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=library map=56"
     },
     {
      "name": "radial S3: at least 3 nodes tested",
-     "ok": false,
-     "detail": "tested 0"
+     "ok": true,
+     "detail": "tested 4"
     },
     {
-     "name": "radial S4: bounds(clade A) available",
-     "ok": false,
-     "detail": "bounds returned null (not visible?)"
+     "name": "radial S4: clade A turns red (pixel fraction rises)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 28.63%"
+    },
+    {
+     "name": "radial S4: other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 28.63%, B blue 29.90%"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": ""
     }
    ],
    "measures": {},
    "title": "Radial layout",
    "evidence": "M",
-   "durationSec": 10.434
+   "durationSec": 6.705
   },
   "S13": {
-   "status": "pass",
-   "reason": "all checks passed",
-   "checks": [
-    {
-     "name": "second instance mounts with its own tip count",
-     "ok": true,
-     "detail": "1000 and 200"
-    },
-    {
-     "name": "both instances draw something",
-     "ok": true,
-     "detail": "ink 26.99% / 15.48%"
-    },
-    {
-     "name": "click in instance 0 reaches only instance 0",
-     "ok": true,
-     "detail": "events 2/0"
-    },
-    {
-     "name": "click in instance 1 reaches instance 1",
-     "ok": true,
-     "detail": "events 2"
-    },
-    {
-     "name": "React state of instance 1 updated",
-     "ok": true,
-     "detail": "tipClick n243 tips=1 source=library"
-    },
-    {
-     "name": "instance 1 survives unmounting instance 0",
-     "ok": true,
-     "detail": ""
-    },
-    {
-     "name": "unmount leaves nothing in the container",
-     "ok": true,
-     "detail": "domNodes=0 canvases=0"
-    },
-    {
-     "name": "five mount/unmount cycles complete",
-     "ok": true,
-     "detail": ""
-    },
-    {
-     "name": "document DOM node count returns to baseline",
-     "ok": true,
-     "detail": "93 -> 93"
-    },
-    {
-     "name": "no canvases / GL contexts left behind",
-     "ok": true,
-     "detail": "0 -> 0"
-    },
-    {
-     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
-     "ok": true,
-     "detail": "0.1 MB"
-    },
-    {
-     "name": "no page errors",
-     "ok": true,
-     "detail": ""
-    }
-   ],
-   "measures": {
-    "baseline": {
-     "dom": 93,
-     "canv": 0
-    },
-    "afterCycles": {
-     "dom": 93,
-     "canv": 0
-    },
-    "heapMB": [
-     3.8400802612304688,
-     4.248828887939453,
-     3.9075918197631836,
-     3.9106855392456055,
-     3.9282331466674805
-    ],
-    "heapGrowthMB": 0.08815288543701172,
-    "pageErrors": []
-   },
+   "status": "fail",
+   "reason": "runner/candidate error: Cannot read properties of null (reading 'png')",
    "title": "Two instances, mount/unmount x5",
    "evidence": "M",
-   "durationSec": 8.694
+   "durationSec": 1.29
   },
   "S14": {
    "status": "pass",
@@ -1228,24 +1228,6 @@
      {
       "tag": "span",
       "role": "treeitem",
-      "name": "Giphemua_macroaquatica",
-      "tip": "Giphemua_macroaquatica"
-     },
-     {
-      "tag": "span",
-      "role": "treeitem",
-      "name": "Boleduia_paraborealis",
-      "tip": "Boleduia_paraborealis"
-     },
-     {
-      "tag": "span",
-      "role": "treeitem",
-      "name": "Boleduia_paratenuis",
-      "tip": "Boleduia_paratenuis"
-     },
-     {
-      "tag": "span",
-      "role": "treeitem",
       "name": "Boleduia_euoccidentalis",
       "tip": "Boleduia_euoccidentalis"
      },
@@ -1260,6 +1242,24 @@
       "role": "treeitem",
       "name": "Boleduia_promaritima",
       "tip": "Boleduia_promaritima"
+     },
+     {
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudominor",
+      "tip": "Chochachuella_pseudominor"
+     },
+     {
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudoglabra",
+      "tip": "Chochachuella_pseudoglabra"
+     },
+     {
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudotenuis",
+      "tip": "Chochachuella_pseudotenuis"
      }
     ],
     "neededFocusTip": true,
@@ -1275,16 +1275,16 @@
    },
    "title": "Keyboard and screen reader",
    "evidence": "M",
-   "durationSec": 2.738
+   "durationSec": 2.838
   },
   "S15": {
-   "status": "pass",
-   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 37 ms, to paint 55 ms (median of 5)",
+   "status": "partial",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 36 ms, to paint 103 ms (median of 5) > 100 ms target",
    "checks": [
     {
      "name": "clade is red after the click",
      "ok": true,
-     "detail": "53.55% of the clade box"
+     "detail": "74.26% of the clade box"
     },
     {
      "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
@@ -1295,213 +1295,218 @@
    "measures": {
     "tree": "syn-yule-10000",
     "cladeTips": 969,
-    "redFractionAfterClick": 0.5354921552104651,
+    "redFractionAfterClick": 0.7425708161964896,
     "clickToCommitMs": [
-     76.29999999981374,
-     52.3000000002794,
-     35.299999999813735,
-     36.5,
-     37.40000000037253
+     36.200000000186265,
+     43.59999999962747,
+     27.299999999813735,
+     40.09999999962747,
+     31.40000000037253
     ],
     "clickToPaintMs": [
-     -4473.100000000093,
-     77.5,
-     53.39999999990687,
-     58.89999999990687,
-     54.60000000009313
+     88.30000000074506,
+     129,
+     95.5,
+     102.90000000037253,
+     103.5
     ],
-    "medianCommitMs": 37.40000000037253,
-    "medianPaintMs": 54.60000000009313
+    "medianCommitMs": 36.200000000186265,
+    "medianPaintMs": 102.90000000037253
    },
    "title": "Linked view (click clade, colour, map panel)",
    "evidence": "M",
-   "durationSec": 28.175
+   "durationSec": 5.979
   }
  },
  "scale": {
   "edge-quoted-labels": {
    "treeId": "edge-quoted-labels",
    "tips": 5,
-   "status": "timeout",
-   "reason": "unusable: p5 fps 12.0 < 20",
+   "status": "pass",
+   "reason": "load 24 ms, p5 20.0 fps, click 2 ms",
    "phase": "done",
-   "fetchMs": 8.200000000186265,
+   "fetchMs": 18.100000000558794,
    "convertMs": 0,
    "wireBytes": 149,
    "parseMs": 0,
-   "firstRenderMs": 50.200000000186265,
-   "sharedParseMs": 0.8999999999068677,
+   "firstRenderMs": 24.299999999813735,
+   "sharedParseMs": 1.099999999627471,
    "reportedTips": 5,
-   "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.1 ms; usedLengths=true",
-   "loadMs": 50.200000000186265,
-   "ink": 0.010728007863110345,
-   "heapAfterMountMB": 2.72955322265625,
+   "notes": "tree parsed by the shell (sharedParseMs=1.1); stub layout 0.1 ms; usedLengths=true",
+   "loadMs": 24.299999999813735,
+   "ink": 0.012639393460748716,
+   "heapAfterMountMB": 3.013500213623047,
    "stats": {
-    "domNodes": 28,
-    "svgElements": 19,
+    "domNodes": 33,
+    "svgElements": 24,
     "canvases": 1,
     "custom": {
      "tips": 5,
      "nodes": 8,
-     "layoutMs": 0.10000000009313226,
-     "kx": 0.93,
-     "ky": 158.6
+     "layoutMs": 0.09999999962747097,
+     "kx": 0.824,
+     "ky": 122.6
     }
    },
-   "clickLatencyMs": 3.3499999998603016,
-   "clickToPaintMs": 77,
+   "clickLatencyMs": 1.9500000001862645,
+   "clickToPaintMs": 40.10000000055879,
    "clickSamples": {
     "events": 2,
     "tries": 2,
     "rightNode": 2
    },
-   "fpsMedian": 30.030030030030687,
-   "fpsP5": 11.990407673860702,
+   "fpsMedian": 59.52380952380888,
+   "fpsP5": 20,
    "fpsP95": 60.24096385542202,
-   "fpsMean": 23.554069564349078,
-   "droppedFrames": 366,
-   "maxFrameGapMs": 166.5999999999999,
-   "frames": 236,
-   "heapAfterInteractionMB": 3.1079797744750977,
-   "heapMB": 3.1079797744750977,
+   "fpsMean": 39.198174059740005,
+   "droppedFrames": 210,
+   "maxFrameGapMs": 50.09999999999991,
+   "frames": 395,
+   "heapAfterInteractionMB": 3.6674575805664062,
+   "heapMB": 3.6674575805664062,
    "pageErrors": [],
-   "wallSec": 12.425
+   "wallSec": 11.737
   },
   "syn-yule-200": {
    "treeId": "syn-yule-200",
    "tips": 200,
-   "status": "timeout",
-   "reason": "unusable: p5 fps 4.3 < 20",
+   "status": "pass",
+   "reason": "load 61 ms, p5 20.0 fps, click 3 ms",
    "phase": "done",
-   "fetchMs": 6.399999999906868,
+   "fetchMs": 17.700000000186265,
    "convertMs": 0,
    "wireBytes": 8432,
    "parseMs": 0,
-   "firstRenderMs": 56.3000000002794,
-   "sharedParseMs": 1.8999999999068677,
+   "firstRenderMs": 60.700000000186265,
+   "sharedParseMs": 3.099999999627471,
    "reportedTips": 200,
-   "notes": "tree parsed by the shell (sharedParseMs=1.9); stub layout 0.2 ms; usedLengths=true",
-   "loadMs": 56.3000000002794,
-   "ink": 0.08175177590135374,
-   "heapAfterMountMB": 2.7988367080688477,
+   "notes": "tree parsed by the shell (sharedParseMs=3.1); stub layout 0.4 ms; usedLengths=true",
+   "loadMs": 60.700000000186265,
+   "ink": 0.10016585057652816,
+   "heapAfterMountMB": 3.333489418029785,
    "stats": {
-    "domNodes": 805,
-    "svgElements": 801,
+    "domNodes": 810,
+    "svgElements": 806,
     "canvases": 1,
     "custom": {
      "tips": 200,
      "nodes": 399,
-     "layoutMs": 0.20000000018626451,
-     "kx": 0.93,
-     "ky": 3.965
+     "layoutMs": 0.40000000037252903,
+     "kx": 0.824,
+     "ky": 3.065
     }
    },
-   "clickLatencyMs": 2.2000000001862645,
-   "clickToPaintMs": 33.59999999962747,
+   "clickLatencyMs": 2.699999999254942,
+   "clickToPaintMs": 43.5,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
-   "fpsMedian": 30.030030030029046,
-   "fpsP5": 4.284490145672672,
-   "fpsP95": 60.24096385542202,
-   "fpsMean": 10.40510543840139,
-   "droppedFrames": 500,
-   "maxFrameGapMs": 266.6999999999998,
-   "frames": 105,
-   "heapAfterInteractionMB": 3.324962615966797,
-   "heapMB": 3.324962615966797,
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 43.87525198624209,
+   "droppedFrames": 163,
+   "maxFrameGapMs": 50.100000000000364,
+   "frames": 444,
+   "heapAfterInteractionMB": 4.131182670593262,
+   "heapMB": 4.131182670593262,
    "pageErrors": [],
-   "wallSec": 13.079
+   "wallSec": 12.314
   },
   "syn-yule-1000": {
    "treeId": "syn-yule-1000",
    "tips": 1000,
-   "status": "timeout",
-   "reason": "unusable: p5 fps 2.2 < 20",
+   "status": "pass",
+   "reason": "load 104 ms, p5 20.0 fps, click 4 ms",
    "phase": "done",
-   "fetchMs": 9,
+   "fetchMs": 18,
    "convertMs": 0,
    "wireBytes": 41755,
    "parseMs": 0,
-   "firstRenderMs": 116.1999999997206,
-   "sharedParseMs": 10.700000000186265,
+   "firstRenderMs": 103.70000000018626,
+   "sharedParseMs": 6.5,
    "reportedTips": 1000,
-   "notes": "tree parsed by the shell (sharedParseMs=10.7); stub layout 9.3 ms; usedLengths=true",
-   "loadMs": 116.1999999997206,
-   "ink": 0.24104454273332443,
-   "heapAfterMountMB": 3.883347511291504,
+   "notes": "tree parsed by the shell (sharedParseMs=6.5); stub layout 2.0 ms; usedLengths=true",
+   "loadMs": 103.70000000018626,
+   "ink": 0.2645679987363766,
+   "heapAfterMountMB": 4.768617630004883,
    "stats": {
-    "domNodes": 4005,
-    "svgElements": 4001,
+    "domNodes": 4010,
+    "svgElements": 4006,
     "canvases": 1,
     "custom": {
      "tips": 1000,
      "nodes": 1999,
-     "layoutMs": 9.299999999813735,
-     "kx": 0.93,
-     "ky": 0.793
+     "layoutMs": 2,
+     "kx": 0.824,
+     "ky": 0.613
     }
    },
-   "clickLatencyMs": 3.5,
-   "clickToPaintMs": 29.300000000279397,
+   "clickLatencyMs": 3.7999999998137355,
+   "clickToPaintMs": 37.89999999944121,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
-   "fpsMedian": 59.88023952095548,
-   "fpsP5": 2.2222222222222223,
-   "fpsP95": 60.24096385542202,
-   "fpsMean": 7.452574525745257,
-   "droppedFrames": 543,
-   "maxFrameGapMs": 483.2999999999993,
-   "frames": 77,
-   "heapAfterInteractionMB": 4.073455810546875,
-   "heapMB": 4.073455810546875,
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 46.8768426431848,
+   "droppedFrames": 134,
+   "maxFrameGapMs": 66.70000000000073,
+   "frames": 477,
+   "heapAfterInteractionMB": 5.2206220626831055,
+   "heapMB": 5.2206220626831055,
    "pageErrors": [],
-   "wallSec": 14.433
+   "wallSec": 12.605
   }
  },
  "screenshots": [
   {
    "label": "S1-edge-quoted-labels",
-   "file": "screens/20261014-134822-S1-edge-quoted-labels.png",
-   "bytes": 15827
+   "file": "screens/20261014-142419-S1-edge-quoted-labels.png",
+   "bytes": 15969
   },
   {
    "label": "S4-two-clades",
-   "file": "screens/20261014-134822-S4-two-clades.png",
-   "bytes": 78965
+   "file": "screens/20261014-142419-S4-two-clades.png",
+   "bytes": 63527
   },
   {
    "label": "S5-focus-highlight",
-   "file": "screens/20261014-134822-S5-focus-highlight.png",
-   "bytes": 107968
+   "file": "screens/20261014-142419-S5-focus-highlight.png",
+   "bytes": 95868
+  },
+  {
+   "label": "S8-alignment",
+   "file": "screens/20261014-142419-S8-alignment.png",
+   "bytes": 100699
   },
   {
    "label": "S9-dark",
-   "file": "screens/20261014-134822-S9-dark.png",
-   "bytes": 80718
+   "file": "screens/20261014-142419-S9-dark.png",
+   "bytes": 67808
   },
   {
    "label": "S10-zoomed-out-syn-yule-1000",
-   "file": "screens/20261014-134822-S10-zoomed-out-syn-yule-1000.png",
-   "bytes": 57165
+   "file": "screens/20261014-142419-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 53774
   },
   {
    "label": "S12-radial",
-   "file": "screens/20261014-134822-S12-radial.png",
-   "bytes": 53157
+   "file": "screens/20261014-142419-S12-radial.png",
+   "bytes": 122489
   },
   {
    "label": "S15-linked-view",
-   "file": "screens/20261014-134822-S15-linked-view.png",
-   "bytes": 109213
+   "file": "screens/20261014-142419-S15-linked-view.png",
+   "bytes": 64258
   }
  ],
- "wallSec": 171.594,
+ "wallSec": 101.596,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"

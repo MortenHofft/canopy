@@ -41,7 +41,7 @@ Options: `--scenarios S1,S2|all`; `--trees smoke|ladder|worst|real|cols|align|da
 
 What it does: `npm run build` (unless `--no-build`), `npm run preview -- --port N --strictPort`, headless Chromium with `--enable-precise-memory-info --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist --no-sandbox` plus `--js-flags=--expose-gc --disable-gpu-rasterization`, one fresh page per scenario (a hung or crashing candidate is killed, recorded as `timeout`/`fail`, and the run continues), real mouse, wheel and keyboard input at coordinates from `locate()`. Results: `results/<candidate>/<run-id>.json` (status `pass|partial|fail|unsupported|timeout`, reason, per-check detail, measures, evidence `M`, bundle sizes, capabilities, Chromium version, machine, no-GPU caveat) and at most 12 PNGs under 150 KB in `results/<candidate>/screens/`. Exit code 1 if any scenario failed.
 
-Thresholds (docs/spike-plan.md): load > 10 s, p5 FPS < 20, click latency > 300 ms mark a tree or scenario `timeout` ("unusable"); S15 wants end-to-end under 100 ms for a 1,000-tip clade (`partial` up to 300 ms).
+Thresholds (docs/spike-plan.md): load > 10 s, p5 FPS < 20, click latency > 300 ms mark a tree or scenario `timeout` ("unusable"); S15 wants end-to-end under about 100 ms for a 1,000-tip clade (the runner passes up to 120 ms, `partial` up to 300 ms).
 
 **Limits to remember.** There is no GPU: canvas and WebGL FPS are pessimistic, so use the sandbox for functional checks (S2 to S9, S12 to S15) and relative comparison; take final scale numbers in a real browser (mark them M with the machine). Pan/zoom FPS is measured with Playwright-driven wheel and drag, whose round trips limit how fast input arrives.
 

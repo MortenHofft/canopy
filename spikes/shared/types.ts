@@ -169,6 +169,36 @@ export interface ViewProps {
   onReady(r: { parseMs: number; tips: number; notes?: string }): void;
   /** Assign the introspection handle here (and null on unmount). */
   handleRef: MutableRefObject<ViewHandle | null>;
+  /** Current values of the adapter's own `features` (the "Library options" card); keys are feature ids. */
+  features: FeatureValues;
+}
+
+/** An extra control a candidate adds to the demo's "Library options" card (for example 'show support values'). */
+export interface AdapterFeature {
+  id: string;
+  label: string;
+  kind: 'toggle' | 'select';
+  default: boolean | string;
+  options?: { value: string; label: string }[]; // for kind 'select'
+  description?: string;
+  /** Optional: `no` disables the control and shows `how` as its reason; `partial` adds a badge. */
+  level?: Capability;
+  how?: string;
+}
+export type FeatureValues = Record<string, boolean | string>;
+
+/** The parts of a candidate's spike.json the demo shows (see CONTRACT.md, Deployment metadata). */
+export interface SpikeInfo {
+  title?: string;
+  library?: string;
+  version?: string;
+  license?: string;
+  description?: string;
+  repo?: string;
+  demo?: string;
+  docs?: string;
+  rendering?: string;
+  styling?: { applied?: string[]; not_possible?: string[]; notes?: string };
 }
 
 /**
@@ -182,6 +212,10 @@ export interface CandidateAdapter {
   View: ComponentType<ViewProps>;
   /** Optional: resolves when the library (workers, wasm, fonts) is ready. */
   ready?: Promise<void>;
+  /** Optional: candidate-specific toggles and selects for the demo's "Library options" card. */
+  features?: AdapterFeature[];
+  /** Optional: import the candidate's spike.json and pass it here (library facts card). */
+  spike?: SpikeInfo;
 }
 
 // ---------------------------------------------------------------- catalogue

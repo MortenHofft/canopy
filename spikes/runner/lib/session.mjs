@@ -133,6 +133,7 @@ export class Session {
   async containerRect(i = 0) {
     return this.page.evaluate((i) => {
       const el = document.querySelector(`[data-testid=${i === 0 ? 'tree-container' : 'tree-container-' + i}]`);
+      el.scrollIntoView({ block: 'nearest' });
       const r = el.getBoundingClientRect();
       return { x: r.x, y: r.y, width: r.width, height: r.height };
     }, i);

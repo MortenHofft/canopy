@@ -33,6 +33,8 @@ const CSS = `
 .sp-svg .b{stroke:transparent;stroke-width:7px;pointer-events:stroke}
 .sp-svg .d{stroke:transparent;stroke-width:9px;pointer-events:stroke}
 .sp-svg .d.hl{stroke:var(--sp-hl);stroke-width:13px}
+.sp-noint .sp-svg .vi{display:none}
+.sp-thick .sp-svg .vb{stroke-width:2.4px}
 .sp-cols{position:absolute;left:0;top:0;pointer-events:none}
 .sp-over{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .sp-over .band{position:absolute;left:0;right:0;background:var(--sp-hl);opacity:.18}
@@ -558,7 +560,7 @@ function StubView(props: ViewProps) {
   return (
     <div
       ref={rootRef}
-      className={'sp-root' + (dragging ? ' sp-dragging' : '')}
+      className={'sp-root' + (dragging ? ' sp-dragging' : '') + (props.features.internalMarkers === false ? ' sp-noint' : '') + (props.features.branchWidth === 'thick' ? ' sp-thick' : '')}
       style={themeVars(theme)}
       role="tree"
       aria-label={`Phylogenetic tree, ${tree.tipCount} tips (stub renderer)`}
@@ -610,4 +612,10 @@ export const adapter: CandidateAdapter = {
   candidate: { name: 'stub', version: '0.1.0', license: 'Apache-2.0', notes: 'Naive SVG reference renderer written for the harness; not a real candidate.' },
   capabilities,
   View: StubView,
+  // demo "Library options" card: candidate-specific controls (the stub's own, to show how features work)
+  features: [
+    { id: 'internalMarkers', label: 'Show internal node markers', kind: 'toggle', default: true, description: 'Dots on internal nodes (the click targets for clades).' },
+    { id: 'branchWidth', label: 'Branch width', kind: 'select', default: 'thin', options: [{ value: 'thin', label: 'Thin' }, { value: 'thick', label: 'Thick' }] },
+    { id: 'ladderize', label: 'Ladderize (not implemented in the stub)', kind: 'toggle', default: false, level: 'no', how: 'The stub draws the tree in file order; an example of a feature a library may lack.' },
+  ],
 };

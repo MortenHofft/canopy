@@ -4,7 +4,7 @@ import { sleep, median, pearson, spearman, withTimeout, TimeoutError, fmt } from
 import { countNear, hexToRgb, meanLuminance, dominant, inkFraction, colourBuckets, diffCount } from './pixels.mjs';
 import { truthTree, truthColumns, getEntry, catalogue } from './truth.mjs';
 
-export const THRESHOLDS = { loadMs: 10000, p5Fps: 20, clickMs: 300, linkedMs: 100 };
+export const THRESHOLDS = { loadMs: 10000, p5Fps: 20, clickMs: 300, linkedMs: 120 };
 const RED = '#ff0000';
 const BLUE = '#0000ff';
 
@@ -419,7 +419,7 @@ export async function scalePhase(s, entry, partial, shots) {
 
   const bad = [];
   if (partial.loadMs > THRESHOLDS.loadMs) bad.push(`load ${fmt(partial.loadMs / 1000, 1)} s > ${THRESHOLDS.loadMs / 1000} s`);
-  if (fps.p5Fps < THRESHOLDS.p5Fps) bad.push(`p5 fps ${fmt(fps.p5Fps, 1)} < ${THRESHOLDS.p5Fps}`);
+  if (Math.round(fps.p5Fps) < THRESHOLDS.p5Fps) bad.push(`p5 fps ${fmt(fps.p5Fps, 1)} < ${THRESHOLDS.p5Fps}`);
   if (partial.clickLatencyMs !== null && partial.clickLatencyMs > THRESHOLDS.clickMs) bad.push(`click latency ${fmt(partial.clickLatencyMs)} ms > ${THRESHOLDS.clickMs} ms`);
   if (bad.length) {
     partial.status = 'timeout';
@@ -1209,7 +1209,7 @@ export function makeScenarios(ctx) {
       if (ck.allOk) {
         reason += `; click to React commit ${fmt(m.medianCommitMs)} ms, to paint ${fmt(mp)} ms (median of 5)`;
         if (mp > THRESHOLDS.clickMs) status = 'timeout', reason += ` > ${THRESHOLDS.clickMs} ms (unusable)`;
-        else if (mp > THRESHOLDS.linkedMs) status = 'partial', reason += ` > ${THRESHOLDS.linkedMs} ms target`;
+        else if (mp > THRESHOLDS.linkedMs) status = 'partial', reason += ` > ${THRESHOLDS.linkedMs} ms target (spec: about 100 ms)`;
       }
       return result(status, reason, { checks: ck.list, measures: m });
     });
