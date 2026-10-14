@@ -45,7 +45,7 @@ function dirBytes(p) {
   }
   return n;
 }
-function installAndBuild(dir) {
+function installAndBuild(dir, base) {
   if (!skipInstall || !fs.existsSync(path.join(dir, 'node_modules'))) {
     const ok = fs.existsSync(path.join(dir, 'package-lock.json'))
       ? run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], dir)
@@ -53,7 +53,9 @@ function installAndBuild(dir) {
     if (!ok) return false;
   }
   fs.rmSync(path.join(dir, 'dist'), { recursive: true, force: true });
-  return run('npm', ['run', 'build'], dir) && fs.existsSync(path.join(dir, 'dist', 'index.html'));
+  // Absolute base: with a relative base the page only works when the URL ends in a slash, and vercel.json
+  // (trailingSlash: false) redirects /name/ to /name, which would load ./assets from the site root and show a blank page.
+  return run('npm', ['run', 'build', '--', `--base=${base}`], dir) && fs.existsSync(path.join(dir, 'dist', 'index.html'));
 }
 
 fs.rmSync(outDir, { recursive: true, force: true });
@@ -69,7 +71,7 @@ for (const name of fs.readdirSync(spikes).sort()) {
   if (!pkg?.scripts?.build) continue;
   if (only && !only.includes(name)) continue;
   console.log(`\n=== candidate: ${name}`);
-  if (!installAndBuild(dir)) { console.warn(`!! ${name}: build failed, skipped`); failed.push(name); continue; }
+  if (!installAndBuild(dir, `/${name}/`)) { console.warn(`!! ${name}: build failed, skipped`); failed.push(name); continue; }
   copyDir(path.join(dir, 'dist'), path.join(outDir, name));
   const meta = readJson(path.join(dir, 'spike.json'), {});
   candidates.push({
@@ -90,7 +92,7 @@ fs.writeFileSync(path.join(outDir, 'candidates.json'), JSON.stringify(candidates
 console.log('\n=== hub');
 const siteDir = path.join(spikes, 'site');
 if (fs.existsSync(path.join(siteDir, 'package.json'))) {
-  if (installAndBuild(siteDir)) fs.cpSync(path.join(siteDir, 'dist'), outDir, { recursive: true });
+  if (installAndBuild(siteDir, '/')) fs.cpSync(path.join(siteDir, 'dist'), outDir, { recursive: true });
   else { console.error('hub build failed'); failed.push('site'); }
 }
 

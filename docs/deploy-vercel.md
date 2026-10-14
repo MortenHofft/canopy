@@ -38,6 +38,10 @@ npx --yes serve site-dist            # or any static server; serve supports the 
 
 `vercel dev` is not needed.
 
+## Why every app is built with an absolute base path
+
+`vercel.json` sets `trailingSlash: false`, so `/custom/` is redirected to `/custom`. A page built with a relative base (`./assets/...`) then loads its scripts from `/assets/...` at the site root, which does not exist, and shows a blank white page. `scripts/build-site.mjs` therefore builds each demo with `--base=/<name>/` and the hub with `--base=/`. If you add a candidate, no change is needed; just do not hard-code a relative base in its Vite config command.
+
 ## Things to check after the first deploy
 
 - `/` shows the matrix and the cards; `/compare` loads; `/<candidate>/` (for example `/stub/`) opens a viewer.
