@@ -173,3 +173,4 @@ Each candidate folder must contain `spike.json`, read by `scripts/build-site.mjs
 ```
 
 The production build must work when hosted under a sub-path (`/<candidate>/`); `vite.base.mjs` already uses a relative base. Data is fetched from `/data/...`; on Vercel `scripts/build-site.mjs` copies the committed test trees there. Only `npm run build` is needed for deployment (`vercel.json` runs `node scripts/build-site.mjs`).
+14. **FPS definitions.** `medianFps` = 1000 / median rAF interval. `p5Fps` is time-weighted (95% of the sampled time was spent in frames at least this fast), because a page that freezes produces few frames and a per-frame percentile would hide the freeze; the per-frame value is kept as `p5FpsByFrame`, and `maxFrameGapMs` is reported too. Embed mode, candidate folder names and `spike.json` are documented in `README.md` and the two sections above.

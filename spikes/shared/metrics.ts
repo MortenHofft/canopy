@@ -7,7 +7,8 @@ export interface FrameStats {
   durationMs: number;
   meanFps: number;
   medianFps: number; // 1000 / median frame interval
-  p5Fps: number; // fps of the slowest 5% of frames (1000 / 95th percentile interval); the "unusable" criterion
+  p5Fps: number; // TIME-weighted: 95% of the time was spent in frames at least this fast (a frozen page makes few frames, so frame counts hide freezes); the "unusable" criterion
+  p5FpsByFrame: number; // fps of the slowest 5% of frames by frame count (1000 / 95th percentile interval)
   p95Fps: number; // fps of the fastest 5% of frames
   droppedFrames: number; // intervals over 25 ms, counted as round(interval/16.67) - 1 each
   maxIntervalMs: number; // longest gap between two frames (a freeze shows up here)
@@ -27,12 +28,21 @@ export function summariseIntervals(intervals: number[], durationMs: number): Fra
   let dropped = 0;
   for (const d of intervals) if (d > 25) dropped += Math.max(1, Math.round(d / 16.667) - 1);
   const sum = intervals.reduce((a, b) => a + b, 0);
+  // time-weighted 95th percentile of the interval: walk from the slowest frame until 5% of the time is covered
+  let acc = 0;
+  let slow = s.length ? s[s.length - 1] : 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    acc += s[i];
+    slow = s[i];
+    if (acc >= 0.05 * sum) break;
+  }
   return {
     frames: intervals.length,
     durationMs,
     meanFps: intervals.length ? 1000 / (sum / intervals.length) : 0,
     medianFps: med ? 1000 / med : 0,
-    p5Fps: hi ? 1000 / hi : 0,
+    p5Fps: slow ? 1000 / slow : 0,
+    p5FpsByFrame: hi ? 1000 / hi : 0,
     p95Fps: lo ? 1000 / lo : 0,
     droppedFrames: dropped,
     maxIntervalMs: s.length ? s[s.length - 1] : 0,
