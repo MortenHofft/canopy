@@ -1,0 +1,275 @@
+{
+ "runId": "20261014-152813",
+ "candidate": {
+  "name": "react-bio-viz",
+  "version": "0.3.0",
+  "license": "MIT",
+  "notes": "PhyloTree/SimplePhyloTree (SVG, one element set per node, no culling). Adapter workarounds: DOM hover, own column canvas, leafSpacing+viewport focus, synthetic lengths for radial cladogram."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "onNodeClick fires for leaf markers (TreeNodeInfo.isLeaf); markers are drawn for every leaf and receive clicks as soon as onNodeClick is set"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "onNodeClick on the internal-node marker (drawn when onNodeClick or interactive is set); payload carries leafNames and descendantIds"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "onBranchClick adds a wide transparent hit path per branch; reports the node below the branch with its leafNames"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "the library has no hover callback. Workaround: delegated DOM mouseover on the wrapper (circle[data-node-id], path[data-branch-id], label group); tip sets are derived from the shared TreeModel (source adapter-derived)"
+  },
+  "descendantTipsInPayload": {
+   "level": "yes",
+   "how": "TreeNodeInfo.leafNames (all leaves below the node) in the library payload on click; not on hover (adapter-derived there)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "nodeStyles/branchStyles (colour per node id) for every descendant id, built in React state. Works, but each change re-renders the whole tree body (all nodes), so it is not an incremental update and cost grows with tree size; branch width cannot change per clade"
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "nodeStyles colour+bold on the tip marker and a halo/bold in the leafTextComponent slot; optional library search (searchQuery regex) dims all other tips"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "no focus API. Workaround: leafSpacing (px per row, library prop) when rows are thinner than 14 px, then a computed controlled viewport read back from the rendered marker position; relayouts the whole tree; radial zooms 8x around the marker"
+  },
+  "tipAsLink": {
+   "level": "yes",
+   "how": "leafTextComponent renders an SVG <a href target=_blank data-tip-id tabindex=0> around the label text for every tip (all tips are in the DOM, there is no culling)"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "the library has no per-tip columns. Workaround: own canvas right of the tree, rows read back from the rendered markers and aligned through svg.getScreenCTM() on every viewport change; rectangular layouts only"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "same own canvas as customColumns (residue runs coloured per amino acid); not a library feature (react-bio-viz has a separate MultipleSequenceAlignment component whose row order can be linked, not used here)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout=\"radial\": circular phylogram with labels on spokes (names truncated to 24 chars); columns are not drawn in radial"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "rectangular: layout rectangular (phylogram) versus cladogram (library). Radial is always a phylogram: the cladogram variant feeds synthetic lengths (clade height differences, adapter-derived) so tips align; negative lengths are clamped to 0 in a copy"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "showScaleBar (default on) draws an I-beam of a round length at the bottom of the tree; no time axis for dated trees; hidden in cladogram layout"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "no theme prop: the stylesheet reads a .dark class and shadcn CSS variables (--background, --foreground, --primary, ...); the adapter sets them on its wrapper from gbifDarkTheme(). Branches/markers are currentColor so they follow; support/scale text keep sans-serif unless overridden with !important CSS"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "CSS custom properties (--background, --foreground, --rbv-accent, shadcn tokens) are honoured; label font only via the leafTextComponent slot; support-value, scale-bar and collapsed-clade fonts are inline sans-serif and need !important CSS to change; branch opacity is a presentation attribute (CSS opacity:1 overrides)"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no module-level state seen; per-instance Zustand store, two instances tested through window.__spike2"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; window pointer listeners are removed by the library effect cleanup; injected <style id> stays in document.head by design"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "viewport/onViewportChange and selection/onSelectionChange are controlled props (also *Store variants); colours, layout and all other inputs are plain props"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "the viewport is clamped to the extent, so zooming out stops at the fit view; PhyloTree toolbar has a reset button; fit on mount and layout change by the adapter (viewport state reset)"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "no minimap; no level of detail or culling: every node and label stays in the SVG at every zoom (collapse is manual or collapseBySupport)"
+  }
+ },
+ "date": "2026-10-14T15:28:33.152Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-caterpillar-1000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 413870,
+  "jsGzipBytes": 134478,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 432043,
+  "totalGzipBytes": 139081,
+  "files": [
+   {
+    "path": "assets/index---cyOLpf.js",
+    "bytes": 413870,
+    "gzipBytes": 134478
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "index.html",
+    "bytes": 407,
+    "gzipBytes": 275
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 3.2 < 20",
+     "phase": "done",
+     "fetchMs": 16.200000000186265,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 8.100000000558794,
+     "firstRenderMs": 1746,
+     "sharedParseMs": 16,
+     "reportedTips": 1000,
+     "notes": "react-bio-viz 0.3.0 parseNewick 8.1 ms (library parser, recursive); ids mapped by preorder (preorder, 0 mismatches); first commit 691 ms; derived-lengths=false; tips = leaf names from onLeafOrderChange",
+     "loadMs": 1754.1000000005588,
+     "ink": 0.31133154320012635,
+     "heapAfterMountMB": 17.18482780456543,
+     "stats": {
+      "domNodes": 13038,
+      "svgElements": 13023,
+      "canvases": 0,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "rows": 1000,
+       "commitMs": 166.40000000037253,
+       "parseMs": 8.100000000558794,
+       "leafSpacing": 0
+      }
+     },
+     "clickLatencyMs": 36.39999999944121,
+     "clickToPaintMs": 213.70000000018626,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 3.1585596967782656,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 26.09214253764678,
+     "droppedFrames": 364,
+     "maxFrameGapMs": 366.6999999999989,
+     "frames": 280,
+     "heapAfterInteractionMB": 17.93004608154297,
+     "heapMB": 17.93004608154297,
+     "pageErrors": [],
+     "wallSec": 15.495
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-caterpillar-1000: timeout (unusable: p5 fps 3.2 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 15.496
+  }
+ },
+ "scale": {
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 3.2 < 20",
+   "phase": "done",
+   "fetchMs": 16.200000000186265,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 8.100000000558794,
+   "firstRenderMs": 1746,
+   "sharedParseMs": 16,
+   "reportedTips": 1000,
+   "notes": "react-bio-viz 0.3.0 parseNewick 8.1 ms (library parser, recursive); ids mapped by preorder (preorder, 0 mismatches); first commit 691 ms; derived-lengths=false; tips = leaf names from onLeafOrderChange",
+   "loadMs": 1754.1000000005588,
+   "ink": 0.31133154320012635,
+   "heapAfterMountMB": 17.18482780456543,
+   "stats": {
+    "domNodes": 13038,
+    "svgElements": 13023,
+    "canvases": 0,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "rows": 1000,
+     "commitMs": 166.40000000037253,
+     "parseMs": 8.100000000558794,
+     "leafSpacing": 0
+    }
+   },
+   "clickLatencyMs": 36.39999999944121,
+   "clickToPaintMs": 213.70000000018626,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 3.1585596967782656,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 26.09214253764678,
+   "droppedFrames": 364,
+   "maxFrameGapMs": 366.6999999999989,
+   "frames": 280,
+   "heapAfterInteractionMB": 17.93004608154297,
+   "heapMB": 17.93004608154297,
+   "pageErrors": [],
+   "wallSec": 15.495
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-caterpillar-1000",
+   "file": "screens/20261014-152813-S1-syn-caterpillar-1000.png",
+   "bytes": 44149
+  }
+ ],
+ "wallSec": 19.429,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

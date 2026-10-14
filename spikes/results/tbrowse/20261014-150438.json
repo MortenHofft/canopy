@@ -1,0 +1,277 @@
+{
+ "runId": "20261014-150438",
+ "candidate": {
+  "name": "tbrowse",
+  "version": "2.10.0",
+  "license": "MIT",
+  "notes": "Flat node table + pluggable row-aligned zones; SVG tree zone, DOM label/column zones, canvas MSA zone; native-scroll virtualised rows, no zoom."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "click on a leaf row, branch or label sets ViewState.selectedNodeId (library state); the adapter turns the change into a tipClick event"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "click on an internal branch or collapsed triangle sets ViewState.selectedNodeId; the library also opens its own tooltip with collapse / prune / swap / reroot actions"
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "the branch hit path IS the click target of its child node; branch and node clicks are the same event (reported as nodeClick)"
+  },
+  "hover": {
+   "level": "yes",
+   "how": "ZoneRenderProps.hoveredNodeId inside our own zone body (fires only while that zone is visible); not available through TBrowseProps"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library reports only a node id (selectedNodeId); tip sets are computed from the shared TreeModel and flagged source=adapter-derived (hoveredSubtreeIds exists but only in zone render props)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "no colour prop in the library: inline style patched on the tree SVG branches and leaf dots (path d parsed back to a node through mirrored row geometry) plus React-rendered colour in our tips and column zones; internal-node glyphs and dashed leaders stay grey; re-patched by a MutationObserver"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "library search state (host SearchField) draws a ring on the leaf dot and marks collapsed triangles; our zones add a row band; typing in the library search box replaces it"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "scrolls the library .tbrowse-outer scroll container to centre the row (DOM access, no API); un-collapses and un-prunes ancestors through ViewState first"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "real <a href data-tip-id target=_blank> rendered by our own label zone (ZoneDefinition) for rows in the virtualised range; the built-in labels zone has no links"
+  },
+  "customColumns": {
+   "level": "yes",
+   "how": "one ZoneDefinition per column (Header + Body from ZoneRenderProps.visibleRows/rowRange, data via the hostData prop); rows stay aligned because every zone shares the same row grid"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "built-in msaZone fed from MSA {alphabet,length,sequences} keyed by geneId = tip label; canvas is as tall as ALL rows, so it goes blank beyond the browser canvas limit (about 1,365 rows at 24 px, source-derived); one alignment only"
+  },
+  "radialLayout": {
+   "level": "no",
+   "how": "rectangular phylogram/cladogram only (TreeZoneState.layoutMode)"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "TreeZoneState.layoutMode phylogram | cladogram through controlled viewState; adapter rescales lengths (absolute 0.01 floor in the library); optional // compression of long branches is a separate toggle"
+  },
+  "scaleBar": {
+   "level": "no",
+   "how": "no scale bar or time axis in the tree zone"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "theme=\"dark\" prop plus CSS custom properties (--tbrowse-*) re-pointed at gbifDarkTheme() values"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--tbrowse-* custom properties on .tbrowse-root take GBIF token values (bg, text, branch, accent, borders); fixed in code: selection amber, branch width by clade size, glyph sizes, residue colours; no per-node style callbacks"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "zustand store per <TBrowse>; only global is one injected <style id=tbrowse-theme-style>"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; the document keydown listener for the search hotkey is removed (and disabled here with hotkeys={{search:false}})"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "viewState / onViewStateChange (selection, collapse, prune, swap, zone widths and states, search, row height) controlled from React state"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "no zoom: fixed 24 px rows in a native scroll container. ViewState.rowHeight can be set to fit all rows (the \"fit\" row-height option) but then every row, SVG node and label is drawn (no culling benefit)"
+  },
+  "overviewOrMinimap": {
+   "level": "partial",
+   "how": "no minimap or semantic zoom; collapsedNodeIds turns clades into triangle rows (the adapter \"overview\" option picks them), the MSA zone has its own coverage minimap"
+  }
+ },
+ "date": "2026-10-14T15:05:02.513Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "gtdb-10k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 360752,
+  "jsGzipBytes": 113986,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 378919,
+  "totalGzipBytes": 118584,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-BcJMi_qf.js",
+    "bytes": 360752,
+    "gzipBytes": 113986
+   },
+   {
+    "path": "index.html",
+    "bytes": 401,
+    "gzipBytes": 270
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.0 < 20",
+     "phase": "done",
+     "fetchMs": 22.299999999813735,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 31.100000000558794,
+     "firstRenderMs": 5896.100000000559,
+     "sharedParseMs": 38.799999999813735,
+     "reportedTips": 10122,
+     "notes": "TreeModel -> tbrowse node table in 31.1 ms (20243 nodes, lengths x18.5); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 5927.200000001118,
+     "ink": 0.05174064128889588,
+     "heapAfterMountMB": 51.781803131103516,
+     "stats": {
+      "domNodes": 638,
+      "svgElements": 500,
+      "canvases": 0,
+      "custom": {
+       "tips": 10122,
+       "nodes": 20243,
+       "convertMs": 31.100000000558794,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 18.52610183360446,
+       "collapsed": 0
+      }
+     },
+     "clickLatencyMs": null,
+     "clickToPaintMs": null,
+     "clickSamples": {
+      "events": 0,
+      "tries": 0,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.0001000100010005,
+     "fpsP95": 60.24096385542037,
+     "fpsMean": 4.998798503073999,
+     "droppedFrames": 616,
+     "maxFrameGapMs": 999.8999999999996,
+     "frames": 56,
+     "heapAfterInteractionMB": 44.70692825317383,
+     "heapMB": 44.70692825317383,
+     "pageErrors": [],
+     "wallSec": 21.188
+    }
+   },
+   "status": "timeout",
+   "reason": "gtdb-10k: timeout (unusable: p5 fps 1.0 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 21.188
+  }
+ },
+ "scale": {
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.0 < 20",
+   "phase": "done",
+   "fetchMs": 22.299999999813735,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 31.100000000558794,
+   "firstRenderMs": 5896.100000000559,
+   "sharedParseMs": 38.799999999813735,
+   "reportedTips": 10122,
+   "notes": "TreeModel -> tbrowse node table in 31.1 ms (20243 nodes, lengths x18.5); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 5927.200000001118,
+   "ink": 0.05174064128889588,
+   "heapAfterMountMB": 51.781803131103516,
+   "stats": {
+    "domNodes": 638,
+    "svgElements": 500,
+    "canvases": 0,
+    "custom": {
+     "tips": 10122,
+     "nodes": 20243,
+     "convertMs": 31.100000000558794,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 18.52610183360446,
+     "collapsed": 0
+    }
+   },
+   "clickLatencyMs": null,
+   "clickToPaintMs": null,
+   "clickSamples": {
+    "events": 0,
+    "tries": 0,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.0001000100010005,
+   "fpsP95": 60.24096385542037,
+   "fpsMean": 4.998798503073999,
+   "droppedFrames": 616,
+   "maxFrameGapMs": 999.8999999999996,
+   "frames": 56,
+   "heapAfterInteractionMB": 44.70692825317383,
+   "heapMB": 44.70692825317383,
+   "pageErrors": [],
+   "wallSec": 21.188
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-gtdb-10k",
+   "file": "screens/20261014-150438-S1-gtdb-10k.png",
+   "bytes": 70783
+  }
+ ],
+ "wallSec": 23.822,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

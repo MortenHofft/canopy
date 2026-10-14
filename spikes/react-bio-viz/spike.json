@@ -1,23 +1,41 @@
 {
-  "title": "Stub (naive SVG reference)",
-  "library": "none (harness reference renderer)",
-  "version": "0.1.0",
-  "license": "Apache-2.0",
-  "description": "A deliberately naive SVG tree viewer written for the harness: it implements the whole test API and is the lower performance reference and the template for adapters.",
-  "repo": "https://github.com/gbif/gbif-phylo",
-  "demo": "",
-  "docs": "spikes/stub/README.md",
+  "title": "react-bio-viz",
+  "library": "react-bio-viz",
+  "version": "0.3.0",
+  "license": "MIT",
+  "description": "React components for biological data (alignment, tree, matrix, genome browser); its PhyloTree is a controlled SVG tree with node and branch click callbacks, per-node styles, collapse, reroot, midpoint root, ladderize and a scale bar.",
+  "repo": "https://github.com/holmrenser/react-bio-viz",
+  "demo": "https://holmrenser.github.io/react-bio-viz/",
+  "docs": "docs/results/react-bio-viz.md",
   "rendering": "SVG",
   "styling": {
     "applied": [
-      "node, branch, label and background colours from the GBIF tokens through gbifTheme() (bg1, fg1, fg2)",
-      "highlight and selection in --color-primary; bar columns in the periwinkle categorical colour",
-      "tip labels in --font-body, italic (scientific names); column text and headers in --font-body",
-      "dark theme from gbifDarkTheme() (derived from tokens; GBIF defines no dark set)",
-      "runner tokens (background, foreground, branch, highlight, fontFamily) override the defaults via CSS custom properties",
-      "page chrome (header with logo, cards, buttons, tabs-pill, footer band) from gbif-tokens.css classes"
+      "branch colour: the library draws branches in currentColor; --foreground on the wrapper is set to the GBIF --fg2 token (--fg3 in dark), through the CSS custom property the stylesheet reads (CSS variables)",
+      "branch opacity 0.9 (presentation attribute) overridden to 1 with a CSS rule on `.rbv svg path` (CSS override of a library default)",
+      "branch width 1.25 via the branchWidth prop (global, one value for every branch)",
+      "tip labels: Rubik (--font-body) and italic for scientific names, label colour --fg1, through the leafTextComponent slot (SVG <text> we render ourselves; the library's default slot is hardcoded sans-serif)",
+      "tip markers: one colour for all tips from the --fg3 token (leafMarkerColor prop); radius via nodeRadius, auto-scaled to row density (global value)",
+      "highlight: tip marker and label in --color-primary and bold via nodeStyles; halo behind highlighted labels (paint-order stroke in --color-primary-light) from our slot; optional library search dims all other tips (searchQuery regex)",
+      "clade colours from the categorical palette (--purple-100, --periwinkle-100, --fuchsia-100, --peach-100, --lightblue-100) through nodeStyles/branchStyles keyed by node id (colours branch, marker and, for collapsed clades, the triangle)",
+      "hover and selection accent: the library reads the --rbv-accent CSS variable (hover stroke on markers, branch hover, active node); set to --color-primary (measured: hover marker stroke rgb(76,155,69) = the token)",
+      "dark theme: .dark class and shadcn CSS variables (--background, --foreground, --primary, --border, ...) set on the wrapper from gbifDarkTheme(); branches, markers and the toolbar follow, labels use our slot colour",
+      "toolbar (PhyloTree) buttons themed through the shadcn variables (--primary, --secondary, --accent, --border, --ring, --radius) set from GBIF tokens; this is the library's own chrome, restyled by variables only",
+      "scale bar, support labels and collapsed-clade labels: font forced to --font-body with `font-family: ... !important` CSS (they are inline sans-serif in the library)",
+      "column canvas (own, not a library feature): bar colour from --periwinkle-100, text in --fg1/--font-body, header strip in --font-body",
+      "runner tokens (background, foreground, branch, highlight, fontFamily) map onto --background, --gv-label, --foreground, --rbv-accent and the font variable"
     ],
-    "not_possible": [],
-    "notes": "Own renderer, so every style is controllable; this says nothing about real libraries. Branch width and dot sizes are fixed px (no token for them). Hover colour and tooltip are not implemented."
+    "not_possible": [
+      "per-branch or per-clade branch width (branchWidth is one global number; branchStyles only has colour)",
+      "node shapes: markers are circles only; one radius for all nodes (internal markers get radius+0.5); no per-node size, and nodeRadius 0 hides tip markers but leaves internal markers",
+      "internal-node marker fill is hardcoded `var(--background, white)` and the stroke currentColor: no way to colour internal markers except through the clade nodeStyles colour of the branch",
+      "selection halo for several nodes: only one `activeNodeId` (enlarged marker with accent stroke); multi-tip highlight is our own label halo and marker colour",
+      "tooltip chrome: tips carry a native <title> tooltip (browser chrome, unstyleable); the library has no tooltip component for tree nodes, the harness tooltip is the shell's",
+      "label font in the default slot (hardcoded sans-serif) and font of support/scale/collapsed labels (inline style): only reachable through our own leafTextComponent or !important CSS",
+      "radial labels are truncated to 24 characters before they reach the slot, so the slot cannot show the full name in radial layout",
+      "the library registers its own :root variables (--background, --foreground, --primary, --radius, --spacing, --font-sans, Tailwind --color-*, --text-*) in an injected <style id=rbv-styles>; GBIF tokens in unlayered CSS win (measured: --radius-md stays 4px) but the names overlap and the stylesheet cannot be loaded as a file instead of injected",
+      "theme prop or dark-mode prop: none; dark mode means setting variables and a .dark class on an ancestor",
+      "level of detail: no label or marker hiding at low zoom (an adapter CSS rule hides label text below 8 px rows, labelled partial)"
+    ],
+    "notes": "Styling is controlled almost entirely through CSS custom properties (colours, accent, toolbar), one slot (leafTextComponent: label font, colour, links), and global numeric props (branchWidth, nodeRadius, label font size). Everything is SVG so any rule can also be written as CSS targeting classes (.tipnode, .scale-bar, .collapsed-clade) and attributes (data-node-id, data-branch-id). Anything per node beyond colour and bold is impossible without forking. Fonts: the shell loads Rubik from Google Fonts; the sandbox blocks it, so screenshots show the fallback."
   }
 }

@@ -1,0 +1,23 @@
+{
+  "title": "Stub (naive SVG reference)",
+  "library": "none (harness reference renderer)",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "A deliberately naive SVG tree viewer written for the harness: it implements the whole test API and is the lower performance reference and the template for adapters.",
+  "repo": "https://github.com/gbif/gbif-phylo",
+  "demo": "",
+  "docs": "spikes/stub/README.md",
+  "rendering": "SVG",
+  "styling": {
+    "applied": [
+      "node, branch, label and background colours from the GBIF tokens through gbifTheme() (bg1, fg1, fg2)",
+      "highlight and selection in --color-primary; bar columns in the periwinkle categorical colour",
+      "tip labels in --font-body, italic (scientific names); column text and headers in --font-body",
+      "dark theme from gbifDarkTheme() (derived from tokens; GBIF defines no dark set)",
+      "runner tokens (background, foreground, branch, highlight, fontFamily) override the defaults via CSS custom properties",
+      "page chrome (header with logo, cards, buttons, tabs-pill, footer band) from gbif-tokens.css classes"
+    ],
+    "not_possible": [],
+    "notes": "Own renderer, so every style is controllable; this says nothing about real libraries. Branch width and dot sizes are fixed px (no token for them). Hover colour and tooltip are not implemented."
+  }
+}

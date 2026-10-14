@@ -1,0 +1,12 @@
+{
+  "title": "tbrowse",
+  "library": "tbrowse",
+  "version": "2.10.0",
+  "license": "MIT",
+  "description": "React component that draws a tree beside row-aligned data zones (labels, MSA, plug-in columns) from a flat node table, with serialisable controlled view state.",
+  "repo": "https://github.com/warelab/tbrowse",
+  "demo": "https://warelab.github.io/tbrowse/playground",
+  "docs": "docs/results/tbrowse.md",
+  "rendering": "mixed",
+  "styling": { "applied": [], "not_possible": [], "notes": "" }
+}

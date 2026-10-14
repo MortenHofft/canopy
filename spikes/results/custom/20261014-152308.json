@@ -1,0 +1,781 @@
+{
+ "runId": "20261014-152308",
+ "candidate": {
+  "name": "custom",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "notes": "Own typed-array model + Canvas2D renderer with viewport level of detail; no tree or rendering library. Core in src/core (no React), component in src/react."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "pointer hit-test against the frame draw list through a uniform-grid spatial index (tip dot, or the label text box); also Enter on the keyboard cursor"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "internal node markers (clades >= 7 px) and collapsed clade triangles are hit-tested; clicking a collapsed clade reports the clade root"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "distance to the branch segment (4 px slop): the horizontal branch above a node or the vertical connector of the clade; reported as branchClick with the clade below"
+  },
+  "hover": {
+   "level": "yes",
+   "how": "pointer move is hit-tested once per animation frame; tipHover/nodeHover are emitted when the target changes; built-in tooltip near the cursor and a ring on a separate canvas"
+  },
+  "descendantTipsInPayload": {
+   "level": "yes",
+   "how": "every event carries the descendant tips as the leaf-contiguous range of the preorder TreeModel (O(1) range lookup, then a slice); reported as source=adapter-derived because the data model is our own, not a library payload"
+  },
+  "cladeColouring": {
+   "level": "yes",
+   "how": "colour classes per node index from React state (nested clades: later wins); branches, collapsed triangles, markers and tip labels take the class colour; one canvas redraw, no re-layout"
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "translucent row band across tree and columns, ring on the tip, bold primary-coloured label, ticks in the overview strip"
+  },
+  "focusTip": {
+   "level": "yes",
+   "how": "rows set to at least 26 px and the tip centred; the x window moves only if the tip is outside it. Instant when requested through props; animated (220 ms) from the imperative handle"
+  },
+  "tipAsLink": {
+   "level": "yes",
+   "how": "real <a href data-tip-id target=_blank rel=noopener> elements positioned over the canvas text for the rows that have labels (visible rows only, <= 600 DOM nodes), keyboard focusable; rows too small for labels have no anchor (a visually hidden list of the tips in view stands in for them)"
+  },
+  "customColumns": {
+   "level": "yes",
+   "how": "bar (log scale), text and alignment columns drawn on the canvas, pinned to the right edge, windowed to visible rows with header; below 1 px per row bars are binned per pixel row (mean)"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "whole alignment rasterised once into an offscreen bitmap (1 px per residue), only visible rows are blitted; > 8M residues falls back to runs for visible rows"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "angle from tip rank, radius from root distance, same layout arrays as rectangular; LOD, culling (sector bounding boxes), hit-testing, labels, overview all work in radial; columns are not drawn in radial"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "phylogram (cumulative length, negative and missing lengths count as 0) versus cladogram (tips aligned); layout recomputed in O(n) and cached for both"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "distance axis with round ticks for phylograms (rectangular), a time-before-tips axis with gridlines when the tree is ultrametric (dated), a round-length scale bar in radial"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "gbifDarkTheme() values (derived from tokens; GBIF defines no dark set) passed as the renderer theme; canvases redraw"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "theme object resolved from gbifTheme() (canvas cannot read CSS variables); runner tokens background, foreground, branch, highlight, fontFamily override"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no module state except a text-width cache keyed by font; each instance owns its renderer, DOM and canvases"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "destroy(): rAF cancelled, ResizeObserver disconnected, window pointer and font listeners removed, canvases resized to 0, DOM removed"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "clades, highlighted tips, columns, layout, lengths, theme, tip links and an optional viewport are props; viewport changes come back through onViewportChange (once per frame)"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on mount and on layout/length/column changes while the view has not been touched; fit() from the handle, key 0 and double click on empty space; wheel zoom-out stops at 1.6x the tree"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "overview strip (rectangular, aligned with the rows) or a small disc (radial) drawn once from the LOD cut at fit, with a draggable viewport rectangle; click or drag to move"
+  }
+ },
+ "date": "2026-10-14T15:24:14.938Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-caterpillar-1000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "edge-caterpillar-20000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 270097,
+  "jsGzipBytes": 88170,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 288287,
+  "totalGzipBytes": 92786,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-BgMNf97y.js",
+    "bytes": 270097,
+    "gzipBytes": 88170
+   },
+   {
+    "path": "index.html",
+    "bytes": 424,
+    "gzipBytes": 288
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 5.0 < 20",
+     "phase": "done",
+     "fetchMs": 101.59999999962747,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 0,
+     "firstRenderMs": 194.20000000018626,
+     "sharedParseMs": 11.700000000186265,
+     "reportedTips": 1000,
+     "notes": "tree parsed by the shell (sharedParseMs=11.7); layout (3 O(n) passes into typed arrays) 3.9 ms is part of firstRenderMs",
+     "loadMs": 194.20000000018626,
+     "ink": 0.38615226662454594,
+     "heapAfterMountMB": 11.737405776977539,
+     "stats": {
+      "domNodes": 72,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 3.8999999994412065,
+       "frameMs": 98.59999999962747,
+       "cutMs": 10.5,
+       "drawMs": 11.600000000558794,
+       "avgFrameMs": 98.59999999962747,
+       "drawn": 1803,
+       "summaries": 1,
+       "tipsDrawn": 619,
+       "labels": 0,
+       "visited": 1969,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 710,
+       "ky": 0.605
+      }
+     },
+     "clickLatencyMs": 47.90000000037253,
+     "clickToPaintMs": 203.6000000005588,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 5,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 26.321045381228792,
+     "droppedFrames": 342,
+     "maxFrameGapMs": 316.6999999999998,
+     "frames": 267,
+     "heapAfterInteractionMB": 12.516857147216797,
+     "heapMB": 12.516857147216797,
+     "pageErrors": [],
+     "wallSec": 12.259
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 7.5 < 20",
+     "phase": "done",
+     "fetchMs": 47.40000000037253,
+     "convertMs": 0,
+     "wireBytes": 124805,
+     "parseMs": 0,
+     "firstRenderMs": 219.79999999981374,
+     "sharedParseMs": 51.299999999813735,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=51.3); layout (3 O(n) passes into typed arrays) 13.5 ms is part of firstRenderMs",
+     "loadMs": 219.79999999981374,
+     "ink": 0.3728020849786764,
+     "heapAfterMountMB": 13.808340072631836,
+     "stats": {
+      "domNodes": 72,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 13.5,
+       "frameMs": 117.90000000037253,
+       "cutMs": 21.700000000186265,
+       "drawMs": 75.19999999925494,
+       "avgFrameMs": 117.90000000037253,
+       "drawn": 4241,
+       "summaries": 1,
+       "tipsDrawn": 644,
+       "labels": 0,
+       "visited": 19671,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 710,
+       "ky": 0.0605
+      }
+     },
+     "clickLatencyMs": null,
+     "clickToPaintMs": null,
+     "clickSamples": {
+      "events": 0,
+      "tries": 0,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 7.496251874062963,
+     "fpsP95": 60.24096385542202,
+     "fpsMean": 30.019547612400448,
+     "droppedFrames": 301,
+     "maxFrameGapMs": 200,
+     "frames": 301,
+     "heapAfterInteractionMB": 14.616832733154297,
+     "heapMB": 14.616832733154297,
+     "pageErrors": [],
+     "wallSec": 12.035
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 5.0 < 20",
+     "phase": "done",
+     "fetchMs": 23.699999999254942,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 0,
+     "firstRenderMs": 177,
+     "sharedParseMs": 57.90000000037253,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=57.9); layout (3 O(n) passes into typed arrays) 60.8 ms is part of firstRenderMs",
+     "loadMs": 177,
+     "ink": 0.2863718211972832,
+     "heapAfterMountMB": 14.79349136352539,
+     "stats": {
+      "domNodes": 12,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 60.799999999813735,
+       "frameMs": 16.699999999254942,
+       "cutMs": 5.400000000372529,
+       "drawMs": 3.599999999627471,
+       "avgFrameMs": 16.699999999254942,
+       "drawn": 511,
+       "summaries": 256,
+       "tipsDrawn": 0,
+       "labels": 0,
+       "visited": 511,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 710,
+       "ky": 0.0605
+      }
+     },
+     "clickLatencyMs": 2.1000000005587935,
+     "clickToPaintMs": 47.700000000186265,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 4.997501249375303,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 37.45175947225337,
+     "droppedFrames": 238,
+     "maxFrameGapMs": 233.3000000000011,
+     "frames": 394,
+     "heapAfterInteractionMB": 14.718249320983887,
+     "heapMB": 14.718249320983887,
+     "pageErrors": [],
+     "wallSec": 14.089
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 8.6 < 20",
+     "phase": "done",
+     "fetchMs": 22.200000000186265,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 0,
+     "firstRenderMs": 168.40000000037253,
+     "sharedParseMs": 75.6000000005588,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=75.6); layout (3 O(n) passes into typed arrays) 33.6 ms is part of firstRenderMs",
+     "loadMs": 168.40000000037253,
+     "ink": 0.4218022429316064,
+     "heapAfterMountMB": 14.067636489868164,
+     "stats": {
+      "domNodes": 72,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 33.59999999962747,
+       "frameMs": 37.59999999962747,
+       "cutMs": 9,
+       "drawMs": 13.099999999627471,
+       "avgFrameMs": 37.59999999962747,
+       "drawn": 1125,
+       "summaries": 957,
+       "tipsDrawn": 144,
+       "labels": 0,
+       "visited": 1381,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 710,
+       "ky": 0.0605
+      }
+     },
+     "clickLatencyMs": 3.1000000005587935,
+     "clickToPaintMs": 70.19999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 8.568980291345277,
+     "fpsP95": 60.24096385542202,
+     "fpsMean": 32.301852269892,
+     "droppedFrames": 298,
+     "maxFrameGapMs": 133.40000000000055,
+     "frames": 348,
+     "heapAfterInteractionMB": 14.249470710754395,
+     "heapMB": 14.249470710754395,
+     "pageErrors": [],
+     "wallSec": 14.293
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 2.6 < 20",
+     "phase": "done",
+     "fetchMs": 37.59999999962747,
+     "convertMs": 0,
+     "wireBytes": 48733,
+     "parseMs": 0,
+     "firstRenderMs": 200.59999999962747,
+     "sharedParseMs": 63.09999999962747,
+     "reportedTips": 20000,
+     "notes": "tree parsed by the shell (sharedParseMs=63.1); layout (3 O(n) passes into typed arrays) 33.0 ms is part of firstRenderMs",
+     "loadMs": 200.59999999962747,
+     "ink": 0.016580319064918636,
+     "heapAfterMountMB": 15.62103271484375,
+     "stats": {
+      "domNodes": 72,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 33,
+       "frameMs": 74.6000000005588,
+       "cutMs": 31.700000000186265,
+       "drawMs": 8.599999999627471,
+       "avgFrameMs": 74.6000000005588,
+       "drawn": 5524,
+       "summaries": 1,
+       "tipsDrawn": 695,
+       "labels": 0,
+       "visited": 39341,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 830,
+       "ky": 0.03025
+      }
+     },
+     "clickLatencyMs": null,
+     "clickToPaintMs": null,
+     "clickSamples": {
+      "events": 0,
+      "tries": 0,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 2.608922515001303,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 24.793712392936698,
+     "droppedFrames": 360,
+     "maxFrameGapMs": 383.40000000000146,
+     "frames": 253,
+     "heapAfterInteractionMB": 16.036093711853027,
+     "heapMB": 16.036093711853027,
+     "pageErrors": [],
+     "wallSec": 12.183
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-caterpillar-1000: timeout (unusable: p5 fps 5.0 < 20); syn-caterpillar-10000: timeout (unusable: p5 fps 7.5 < 20); syn-balanced-10000: timeout (unusable: p5 fps 5.0 < 20); syn-bushy-10000: timeout (unusable: p5 fps 8.6 < 20); edge-caterpillar-20000: timeout (unusable: p5 fps 2.6 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 64.862
+  }
+ },
+ "scale": {
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 5.0 < 20",
+   "phase": "done",
+   "fetchMs": 101.59999999962747,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 0,
+   "firstRenderMs": 194.20000000018626,
+   "sharedParseMs": 11.700000000186265,
+   "reportedTips": 1000,
+   "notes": "tree parsed by the shell (sharedParseMs=11.7); layout (3 O(n) passes into typed arrays) 3.9 ms is part of firstRenderMs",
+   "loadMs": 194.20000000018626,
+   "ink": 0.38615226662454594,
+   "heapAfterMountMB": 11.737405776977539,
+   "stats": {
+    "domNodes": 72,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 3.8999999994412065,
+     "frameMs": 98.59999999962747,
+     "cutMs": 10.5,
+     "drawMs": 11.600000000558794,
+     "avgFrameMs": 98.59999999962747,
+     "drawn": 1803,
+     "summaries": 1,
+     "tipsDrawn": 619,
+     "labels": 0,
+     "visited": 1969,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 710,
+     "ky": 0.605
+    }
+   },
+   "clickLatencyMs": 47.90000000037253,
+   "clickToPaintMs": 203.6000000005588,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 5,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 26.321045381228792,
+   "droppedFrames": 342,
+   "maxFrameGapMs": 316.6999999999998,
+   "frames": 267,
+   "heapAfterInteractionMB": 12.516857147216797,
+   "heapMB": 12.516857147216797,
+   "pageErrors": [],
+   "wallSec": 12.259
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 7.5 < 20",
+   "phase": "done",
+   "fetchMs": 47.40000000037253,
+   "convertMs": 0,
+   "wireBytes": 124805,
+   "parseMs": 0,
+   "firstRenderMs": 219.79999999981374,
+   "sharedParseMs": 51.299999999813735,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=51.3); layout (3 O(n) passes into typed arrays) 13.5 ms is part of firstRenderMs",
+   "loadMs": 219.79999999981374,
+   "ink": 0.3728020849786764,
+   "heapAfterMountMB": 13.808340072631836,
+   "stats": {
+    "domNodes": 72,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 13.5,
+     "frameMs": 117.90000000037253,
+     "cutMs": 21.700000000186265,
+     "drawMs": 75.19999999925494,
+     "avgFrameMs": 117.90000000037253,
+     "drawn": 4241,
+     "summaries": 1,
+     "tipsDrawn": 644,
+     "labels": 0,
+     "visited": 19671,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 710,
+     "ky": 0.0605
+    }
+   },
+   "clickLatencyMs": null,
+   "clickToPaintMs": null,
+   "clickSamples": {
+    "events": 0,
+    "tries": 0,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 7.496251874062963,
+   "fpsP95": 60.24096385542202,
+   "fpsMean": 30.019547612400448,
+   "droppedFrames": 301,
+   "maxFrameGapMs": 200,
+   "frames": 301,
+   "heapAfterInteractionMB": 14.616832733154297,
+   "heapMB": 14.616832733154297,
+   "pageErrors": [],
+   "wallSec": 12.035
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 5.0 < 20",
+   "phase": "done",
+   "fetchMs": 23.699999999254942,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 0,
+   "firstRenderMs": 177,
+   "sharedParseMs": 57.90000000037253,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=57.9); layout (3 O(n) passes into typed arrays) 60.8 ms is part of firstRenderMs",
+   "loadMs": 177,
+   "ink": 0.2863718211972832,
+   "heapAfterMountMB": 14.79349136352539,
+   "stats": {
+    "domNodes": 12,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 60.799999999813735,
+     "frameMs": 16.699999999254942,
+     "cutMs": 5.400000000372529,
+     "drawMs": 3.599999999627471,
+     "avgFrameMs": 16.699999999254942,
+     "drawn": 511,
+     "summaries": 256,
+     "tipsDrawn": 0,
+     "labels": 0,
+     "visited": 511,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 710,
+     "ky": 0.0605
+    }
+   },
+   "clickLatencyMs": 2.1000000005587935,
+   "clickToPaintMs": 47.700000000186265,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 4.997501249375303,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 37.45175947225337,
+   "droppedFrames": 238,
+   "maxFrameGapMs": 233.3000000000011,
+   "frames": 394,
+   "heapAfterInteractionMB": 14.718249320983887,
+   "heapMB": 14.718249320983887,
+   "pageErrors": [],
+   "wallSec": 14.089
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 8.6 < 20",
+   "phase": "done",
+   "fetchMs": 22.200000000186265,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 0,
+   "firstRenderMs": 168.40000000037253,
+   "sharedParseMs": 75.6000000005588,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=75.6); layout (3 O(n) passes into typed arrays) 33.6 ms is part of firstRenderMs",
+   "loadMs": 168.40000000037253,
+   "ink": 0.4218022429316064,
+   "heapAfterMountMB": 14.067636489868164,
+   "stats": {
+    "domNodes": 72,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 33.59999999962747,
+     "frameMs": 37.59999999962747,
+     "cutMs": 9,
+     "drawMs": 13.099999999627471,
+     "avgFrameMs": 37.59999999962747,
+     "drawn": 1125,
+     "summaries": 957,
+     "tipsDrawn": 144,
+     "labels": 0,
+     "visited": 1381,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 710,
+     "ky": 0.0605
+    }
+   },
+   "clickLatencyMs": 3.1000000005587935,
+   "clickToPaintMs": 70.19999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 8.568980291345277,
+   "fpsP95": 60.24096385542202,
+   "fpsMean": 32.301852269892,
+   "droppedFrames": 298,
+   "maxFrameGapMs": 133.40000000000055,
+   "frames": 348,
+   "heapAfterInteractionMB": 14.249470710754395,
+   "heapMB": 14.249470710754395,
+   "pageErrors": [],
+   "wallSec": 14.293
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 2.6 < 20",
+   "phase": "done",
+   "fetchMs": 37.59999999962747,
+   "convertMs": 0,
+   "wireBytes": 48733,
+   "parseMs": 0,
+   "firstRenderMs": 200.59999999962747,
+   "sharedParseMs": 63.09999999962747,
+   "reportedTips": 20000,
+   "notes": "tree parsed by the shell (sharedParseMs=63.1); layout (3 O(n) passes into typed arrays) 33.0 ms is part of firstRenderMs",
+   "loadMs": 200.59999999962747,
+   "ink": 0.016580319064918636,
+   "heapAfterMountMB": 15.62103271484375,
+   "stats": {
+    "domNodes": 72,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 33,
+     "frameMs": 74.6000000005588,
+     "cutMs": 31.700000000186265,
+     "drawMs": 8.599999999627471,
+     "avgFrameMs": 74.6000000005588,
+     "drawn": 5524,
+     "summaries": 1,
+     "tipsDrawn": 695,
+     "labels": 0,
+     "visited": 39341,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 830,
+     "ky": 0.03025
+    }
+   },
+   "clickLatencyMs": null,
+   "clickToPaintMs": null,
+   "clickSamples": {
+    "events": 0,
+    "tries": 0,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 2.608922515001303,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 24.793712392936698,
+   "droppedFrames": 360,
+   "maxFrameGapMs": 383.40000000000146,
+   "frames": 253,
+   "heapAfterInteractionMB": 16.036093711853027,
+   "heapMB": 16.036093711853027,
+   "pageErrors": [],
+   "wallSec": 12.183
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-caterpillar-1000",
+   "file": "screens/20261014-152308-S1-syn-caterpillar-1000.png",
+   "bytes": 37331
+  }
+ ],
+ "wallSec": 66.46,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}
