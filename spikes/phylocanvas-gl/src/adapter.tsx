@@ -18,10 +18,11 @@ import type { TreeModel } from '../../shared/tree.ts';
 import { gbifTheme, gbifDarkTheme } from '../../shared/gbif-theme.ts';
 import { buildBiojs } from './source.ts';
 import { hitTest } from './hit.ts';
-import { installCustomLayers, columnLeftPx, columnsTotalPx, alignedX, barPx, columnMax, COL_GAP } from './layers.ts';
+import { patchTextLayerCharset, installCustomLayers, columnLeftPx, columnsTotalPx, alignedX, barPx, columnMax, COL_GAP } from './layers.ts';
 import type { GbifProps } from './layers.ts';
 
 const LIB_VERSION = '1.64.1';
+const UNICODE_PATCHED = patchTextLayerCharset();
 const CSS = `
 .pc-wrap{position:relative;width:100%;height:100%;overflow:hidden;user-select:none}
 .pc-host{width:100%;height:100%}
@@ -434,6 +435,9 @@ function PhylocanvasView(props: ViewProps) {
     // using the name/logo for forks). DOM patching, not a library option.
     host.style.backgroundImage = 'none';
     host.style.backgroundColor = resolveTheme(p.theme).bg;
+    // mjolnir.js (deck.gl's event manager) sets tabIndex=0 on the canvas for keyboard pan/zoom but nothing names it
+    lib.deck.canvas.setAttribute('role', 'application');
+    lib.deck.canvas.setAttribute('aria-label', `Phylogenetic tree, ${tm.tipCount} tips, WebGL canvas. Arrow keys pan and zoom. Tip rows follow when zoomed in.`);
     if (featRef.current.hiDpi) lib.deck.setProps({ useDevicePixels: true });
     installCustomLayers(lib);
     lib.setProps({}); // render once more now that the custom layers exist
@@ -459,7 +463,7 @@ function PhylocanvasView(props: ViewProps) {
       `source: ${init.source?.type === 'biojs' ? 'biojs object built from the shared TreeModel (' + convMs.toFixed(1) + ' ms)' : "library's own Newick parser"}; ` +
       `library parse (own performance.measure) ${(parseEntry?.duration ?? 0).toFixed(1)} ms; constructor total (parse + layout + layers) ${ctorMs.toFixed(1)} ms; ` +
       `id mapping ${exactRef.current ? 'exact (library preorder == shared preorder)' : `NOT exact (${bad} mismatches, falling back to tip-set search)`}; ` +
-      `type ${lib.getTreeType()}`;
+      `type ${lib.getTreeType()}; unicode label patch ${UNICODE_PATCHED ? 'on' : 'off'}`;
     // Warm-up pick (adapter): the first deck.gl pick compiles the picking shaders; with software GL that took about 2 s and ran
     // inside the pointerdown handler, which made mjolnir/Hammer drop the click (not a tap within 250 ms). The compile is moved into mount.
     let tries = 0;

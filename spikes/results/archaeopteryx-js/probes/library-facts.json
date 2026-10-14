@@ -1,0 +1,210 @@
+{
+ "date": "2026-10-14",
+ "library": "archaeopteryx 3.24.0",
+ "browser": "Chromium 141.0.7390.37 headless, no GPU",
+ "evidence": "M",
+ "globalHandlers": {
+  "note": "KeyboardEvent / WheelEvent dispatched on document.body while a viewer is mounted (facts.mjs); true = the library called preventDefault",
+  "Ctrl+F": true,
+  "Ctrl+G": true,
+  "Ctrl+0": true,
+  "Ctrl+=": true,
+  "Ctrl+/": true,
+  "Ctrl+Shift+L": true,
+  "Ctrl+A": false,
+  "plain f": false,
+  "wheel plain, target outside the tree": false,
+  "shift+wheel, target outside the tree": true
+ },
+ "resize": {
+  "note": "tree container changed from 834x549 to 500x300 with no window event, then a window resize event dispatched",
+  "svgBefore": [
+   834,
+   549
+  ],
+  "svgAfterContainerResize": [
+   834,
+   549
+  ],
+  "svgAfterWindowResizeEvent": [
+   500,
+   300
+  ]
+ },
+ "hiddenMount": {
+  "note": "launch() into a display:none container, then display:block plus a window resize event",
+  "svgWhenHidden": [
+   0,
+   0
+  ],
+  "svgAfterShowAndResizeEvent": [
+   600,
+   400
+  ]
+ },
+ "styleProperties": {
+  "note": "per-node style: properties on a 4-tip tree, read once at launch",
+  "honoured": {
+   "style:node_color": "diamond drawn in #ff0000 (with style:node_shape diamond)",
+   "style:node_shape": "diamond",
+   "style:font_color": "rgb(0,170,0)",
+   "style:font_size": "20px",
+   "style:font_style": "bold_italic -> italic + bold"
+  },
+  "notHonoured": [
+   "style:node_size",
+   "style:font_name",
+   "style:node_transparency"
+  ]
+ },
+ "singleton_S13": {
+  "note": "instance 0 mounted (syn-yule-200), then instance 1 (syn-yule-1000, 340x240)",
+  "instance0Before": {
+   "svgs": 1,
+   "labels": 40,
+   "panels": 1
+  },
+  "instance0AfterSecondLaunch": {
+   "svgs": 0,
+   "labels": 0,
+   "panels": 0
+  },
+  "instance1After": {
+   "svgs": 1,
+   "labels": 17,
+   "panels": 1
+  },
+  "afterUnmountingInstance1": "instance 0 stays empty (not restored)"
+ },
+ "mountCycles": {
+  "note": "5 x unmount + mount of syn-yule-1000 on instance 0",
+  "domNodes": [
+   806,
+   806,
+   806,
+   806,
+   806
+  ],
+  "jsHeapMB": [
+   16.5,
+   16.3,
+   16.6,
+   16.5,
+   16.8
+  ]
+ },
+ "afterUnmount": {
+  "bodyBefore": [
+   "DIV.aptx-tip"
+  ],
+  "bodyAfter": [],
+  "headStyleLeft": "style#aptx-panel-styles",
+  "localStorage": {
+   "aptx-panel-theme": "written by the adapter at launch and by the library on theme toggle"
+  }
+ },
+ "strictModeSequence": {
+  "note": "launch, destroy, launch in one task on a 5,000-tip tree (deferred draw)",
+  "result": "one viewer, one panel, no error; first handle ready resolved"
+ },
+ "selectionMode": {
+  "note": "enableManualNodeSelection: node menu items observed",
+  "menuItems": [
+   "Internal node",
+   "Display Node Data",
+   "Switch to Subtree",
+   "Collapse/Uncollapse",
+   "Uncollapse Subtree",
+   "Swap Descendants",
+   "Ladderize Subtree",
+   "Reroot",
+   "Select/Deselect Node",
+   "Select/Deselect All Ext Nodes",
+   "Download Ext. Node Data"
+  ],
+  "afterSelectDeselectNode": "nodeClick n20 (34 tips) source adapter-derived via selected_nodes_changed_event"
+ },
+ "parseDepthLimit": {
+  "note": "archaeopteryx.parseTree on a caterpillar (depth = tips): recursive forester.addParents",
+  "node22_ok": [
+   1000,
+   3000,
+   5000,
+   7000,
+   9000
+  ],
+  "node22_fail": [
+   12000,
+   20000
+  ],
+  "chromium_141": {
+   "syn-caterpillar-1000": "ok",
+   "syn-caterpillar-10000": "RangeError: Maximum call stack size exceeded in addParents (run 20261014-153824)",
+   "edge-caterpillar-20000": "RangeError (same run)"
+  }
+ },
+ "bundlerWithoutGlobals": {
+  "note": "production build with src/globals.ts not imported",
+  "buildResult": "succeeds (vite 5.4.11)",
+  "runtime": "ArchaeopteryxJS: ERROR: forester.js must be loaded before this call (thrown by parseTree); d3 and phyloXml would follow"
+ },
+ "focusCost": {
+  "note": "focusScale: first implementation (Ctrl+Shift+E expands until all labels fit), tips -> ms, DOM nodes",
+  "10000": {
+   "focusMs": 5356,
+   "domNodes": 20365
+  },
+  "25000": {
+   "focusMs": 11727,
+   "domNodes": 50365
+  },
+  "50000": {
+   "focusMs": 39216,
+   "domNodes": 100365
+  },
+  "shipped_zoom_steps_10000": {
+   "toSecondFrameMs": 3815,
+   "labels": 10000
+  }
+ },
+ "panVsZoom_5000tips": {
+  "note": "scale.mjs with mode pan or zoom, 8 s, production build, load average about 16 (values printed at the time, not saved as separate files)",
+  "pan": {
+   "rendererCpuSec": 2.05,
+   "medianFps": 30,
+   "p5Fps": 8.6,
+   "longTasks": {
+    "n": 4,
+    "medianMs": 67,
+    "maxMs": 70
+   }
+  },
+  "zoom": {
+   "rendererCpuSec": 3.78,
+   "medianFps": 30,
+   "p5Fps": 1.7,
+   "longTasks": {
+    "n": 28,
+    "medianMs": 162,
+    "maxMs": 327
+   }
+  }
+ },
+ "singleColumnHeatmapAfterZoom": {
+  "note": "only the occ bar column set (S7 setup): heat map frame at screen x 823..851 at fit (container right edge 851); after 8 wheel notches and a 40 px drag it is at 885..913, outside the container, so locateCell returns null (probes/s7check2.mjs)",
+  "fit": {
+   "heatmapFrameX": [
+    823,
+    851
+   ],
+   "cells": "299 of 299 visible tips"
+  },
+  "afterZoomPan": {
+   "heatmapFrameX": [
+    885,
+    913
+   ],
+   "cells": "0 of 255 visible tips"
+  }
+ }
+}

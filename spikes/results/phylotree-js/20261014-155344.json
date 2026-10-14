@@ -1,0 +1,565 @@
+{
+ "runId": "20261014-155344",
+ "candidate": {
+  "name": "phylotree.js",
+  "version": "2.6.0",
+  "license": "MIT (LICENSE file; package.json has no license field)",
+  "notes": "phylotree 2.6.0 + d3 7.9.0 in our own React wrapper (useRef/useLayoutEffect); SVG; no GBIF-specific code in the library."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the tip <text>; tips have no marker, so the label is the click target (the wrapper adds a non-interactive dot for display only). Only reachable at a readable zoom."
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the internal-node <circle> (r<=3 user units, shrinks with the row height at the fit view)"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "display.on('branchClick', edge) on the branch <path>; the library also toggles its own selection and runs a full update() on every branch click"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "display.on('nodeHover') is mouseenter only (no leave event, no tip circle, so only tip labels and internal-node circles); tooltip is drawn by the shell"
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "payload is the d3.hierarchy node: tips carry node.data.name; for internal nodes the tip set is not delivered, the wrapper calls d3's node.leaves() on the payload node (events marked adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "edge-styler (stroke on every branch below the clade root, incl. its own) + node-styler (internal circles, tip dots, labels) driven from React state; applied by calling the stylers on the existing DOM (no layout). display.refresh() cannot be used: it passes the wrong `this` to the edge-styler"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "node-styler adds ring, row band, bold primary label from React state, no re-layout. The library's own selectNodes() runs a full update() and styles via fixed .node-selected CSS, so it is not used"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "node-styler wraps the library's <text> in an SVG <a href data-tip-id target=_blank tabindex=0>; real anchors, but only for tips currently in the DOM (all tips are in the DOM unless collapsed or hidden)"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "same mechanism: per-tip SVG paths grouped by residue colour (one path per colour per tip), so about 20 elements per tip; fine for a few hundred tips"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "option is-radial (display.radial(true) + update()); also is-unrooted (equal-angle) as a separate feature; columns are not drawn in radial layout"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "option scaling (false = cladogram, tips aligned). If any branch has no length the library silently sets ALL lengths to 1 (Phylotree constructor); negative lengths are clamped to 0"
+  },
+  "scaleBar": {
+   "level": "partial",
+   "how": "built-in d3 axis on top for phylograms (option show-scale), styled by CSS. In rectangular layouts the library draws it ~20% too long (nodes are placed at scales[1]*.8 but the axis spans the full range: a depth-100 ultrametric tree ends at the 78 tick), so the wrapper redraws the axis from the numbers the layout used (not for mirrored layout). Radial axis is a single tick. No dated (time) axis, no tick unit"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "colours come from CSS custom properties on the host element (--pt-*) set from gbifDarkTheme(); the library's own CSS is not imported, all rules are ours, nothing is redrawn on theme switch"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "background, foreground, branch, highlight, fontFamily map to --pt-* custom properties used by our CSS rules over the library's fixed class names (.branch, .node, .internal-node, .phylotree-node-text, .tree-scale-bar ...)"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no singleton: one phylotree + one TreeRender + one svg per host; ids are scoped by the host; the only global is a single document listener ('phylotree.event') registered once with a module-level function"
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "no destroy() upstream: the wrapper removes our listeners, interrupts transitions, removes d3.zoom and the capturing click handler from the host and drops the svg; the shared document listener of the library stays (one, deduplicated)"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "colour, highlight, links, columns, layout, lengths, theme, focus are props of our View applied through the stylers/options; the library keeps zoom, collapse, selection and reroot state inside the instance and offers no controlled viewport"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fit-to-size spacing plus responsive viewBox fits on mount and on every layout change (the wrapper resets the zoom); the library has no fit() method, the zoom extent is [0.1,10] unless widened through display.zoomBehavior"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
+  }
+ },
+ "date": "2026-10-14T15:54:46.678Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-caterpillar-1000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "edge-caterpillar-20000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 544645,
+  "jsGzipBytes": 179663,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 562817,
+  "totalGzipBytes": 184263,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-Bwt10j5E.js",
+    "bytes": 544645,
+    "gzipBytes": 179663
+   },
+   {
+    "path": "index.html",
+    "bytes": 406,
+    "gzipBytes": 272
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 8.6 < 20",
+     "phase": "done",
+     "fetchMs": 18.200000001117587,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 51.69999999925494,
+     "firstRenderMs": 389.90000000037253,
+     "sharedParseMs": 11.400000000372529,
+     "reportedTips": 1000,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 257 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=11.4); id mapping complete",
+     "loadMs": 441.59999999962747,
+     "ink": 0.38000789764650134,
+     "heapAfterMountMB": 7.727680206298828,
+     "stats": {
+      "domNodes": 9034,
+      "svgElements": 9032,
+      "canvases": 0,
+      "custom": {
+       "tips": 1000,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 1999,
+       "drawnBranches": 1998,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 257
+      }
+     },
+     "clickLatencyMs": 66.80000000074506,
+     "clickToPaintMs": 204.59999999962747,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.880239520957105,
+     "fpsP5": 8.568980291345277,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 35.834780699122255,
+     "droppedFrames": 242,
+     "maxFrameGapMs": 166.6999999999989,
+     "frames": 359,
+     "heapAfterInteractionMB": 8.050865173339844,
+     "heapMB": 8.050865173339844,
+     "pageErrors": [],
+     "wallSec": 12.804
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/a",
+      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+      "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+      "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+      "console.error: Cannot read properties of null (reading 'parseMs')"
+     ],
+     "wallSec": 1.545
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms",
+     "phase": "done",
+     "fetchMs": 24.09999999962747,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 72.39999999850988,
+     "firstRenderMs": 1999.2000000011176,
+     "sharedParseMs": 25.40000000037253,
+     "reportedTips": 10000,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1356 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=25.4); id mapping complete",
+     "loadMs": 2071.5999999996275,
+     "ink": 0.41401200442268205,
+     "heapAfterMountMB": 34.225332260131836,
+     "stats": {
+      "domNodes": 90031,
+      "svgElements": 90029,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 19999,
+       "drawnBranches": 19998,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 1356
+      }
+     },
+     "clickLatencyMs": 425.30000000074506,
+     "clickToPaintMs": 988.0999999996275,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.9353590090961983,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 13.390705065255588,
+     "droppedFrames": 522,
+     "maxFrameGapMs": 516.7000000000007,
+     "frames": 150,
+     "heapAfterInteractionMB": 35.92972469329834,
+     "heapMB": 35.92972469329834,
+     "pageErrors": [],
+     "wallSec": 22.804
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms",
+     "phase": "done",
+     "fetchMs": 86.5,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 114.79999999888241,
+     "firstRenderMs": 1722,
+     "sharedParseMs": 43.19999999925494,
+     "reportedTips": 10000,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 936 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=43.2); id mapping complete",
+     "loadMs": 1836.7999999988824,
+     "ink": 0.4361190965092403,
+     "heapAfterMountMB": 24.963228225708008,
+     "stats": {
+      "domNodes": 66018,
+      "svgElements": 66016,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 13995,
+       "drawnBranches": 13994,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 936
+      }
+     },
+     "clickLatencyMs": 338.6000000014901,
+     "clickToPaintMs": 767.8000000007451,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.8747656542932147,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 15.112114224033292,
+     "droppedFrames": 457,
+     "maxFrameGapMs": 533.3999999999996,
+     "frames": 154,
+     "heapAfterInteractionMB": 26.608004570007324,
+     "heapMB": 26.608004570007324,
+     "pageErrors": [],
+     "wallSec": 19.847
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/",
+      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+      "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+      "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+      "console.error: Cannot read properties of null (reading 'parseMs')"
+     ],
+     "wallSec": 2.206
+    }
+   },
+   "status": "fail",
+   "reason": "syn-caterpillar-1000: timeout (unusable: p5 fps 8.6 < 20); syn-caterpillar-10000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)); syn-balanced-10000: timeout (unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms); syn-bushy-10000: timeout (unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms); edge-caterpillar-20000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 59.208
+  }
+ },
+ "scale": {
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 8.6 < 20",
+   "phase": "done",
+   "fetchMs": 18.200000001117587,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 51.69999999925494,
+   "firstRenderMs": 389.90000000037253,
+   "sharedParseMs": 11.400000000372529,
+   "reportedTips": 1000,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 257 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=11.4); id mapping complete",
+   "loadMs": 441.59999999962747,
+   "ink": 0.38000789764650134,
+   "heapAfterMountMB": 7.727680206298828,
+   "stats": {
+    "domNodes": 9034,
+    "svgElements": 9032,
+    "canvases": 0,
+    "custom": {
+     "tips": 1000,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 1999,
+     "drawnBranches": 1998,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 257
+    }
+   },
+   "clickLatencyMs": 66.80000000074506,
+   "clickToPaintMs": 204.59999999962747,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.880239520957105,
+   "fpsP5": 8.568980291345277,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 35.834780699122255,
+   "droppedFrames": 242,
+   "maxFrameGapMs": 166.6999999999989,
+   "frames": 359,
+   "heapAfterInteractionMB": 8.050865173339844,
+   "heapMB": 8.050865173339844,
+   "pageErrors": [],
+   "wallSec": 12.804
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/a",
+    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+    "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+    "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
+    "console.error: Cannot read properties of null (reading 'parseMs')"
+   ],
+   "wallSec": 1.545
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms",
+   "phase": "done",
+   "fetchMs": 24.09999999962747,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 72.39999999850988,
+   "firstRenderMs": 1999.2000000011176,
+   "sharedParseMs": 25.40000000037253,
+   "reportedTips": 10000,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1356 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=25.4); id mapping complete",
+   "loadMs": 2071.5999999996275,
+   "ink": 0.41401200442268205,
+   "heapAfterMountMB": 34.225332260131836,
+   "stats": {
+    "domNodes": 90031,
+    "svgElements": 90029,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 19999,
+     "drawnBranches": 19998,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 1356
+    }
+   },
+   "clickLatencyMs": 425.30000000074506,
+   "clickToPaintMs": 988.0999999996275,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.9353590090961983,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 13.390705065255588,
+   "droppedFrames": 522,
+   "maxFrameGapMs": 516.7000000000007,
+   "frames": 150,
+   "heapAfterInteractionMB": 35.92972469329834,
+   "heapMB": 35.92972469329834,
+   "pageErrors": [],
+   "wallSec": 22.804
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms",
+   "phase": "done",
+   "fetchMs": 86.5,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 114.79999999888241,
+   "firstRenderMs": 1722,
+   "sharedParseMs": 43.19999999925494,
+   "reportedTips": 10000,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 936 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=43.2); id mapping complete",
+   "loadMs": 1836.7999999988824,
+   "ink": 0.4361190965092403,
+   "heapAfterMountMB": 24.963228225708008,
+   "stats": {
+    "domNodes": 66018,
+    "svgElements": 66016,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 13995,
+     "drawnBranches": 13994,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 936
+    }
+   },
+   "clickLatencyMs": 338.6000000014901,
+   "clickToPaintMs": 767.8000000007451,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.8747656542932147,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 15.112114224033292,
+   "droppedFrames": 457,
+   "maxFrameGapMs": 533.3999999999996,
+   "frames": 154,
+   "heapAfterInteractionMB": 26.608004570007324,
+   "heapMB": 26.608004570007324,
+   "pageErrors": [],
+   "wallSec": 19.847
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/",
+    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+    "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+    "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
+    "console.error: Cannot read properties of null (reading 'parseMs')"
+   ],
+   "wallSec": 2.206
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-caterpillar-1000",
+   "file": "screens/20261014-155344-S1-syn-caterpillar-1000.png",
+   "bytes": 33909
+  }
+ ],
+ "wallSec": 62.005,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

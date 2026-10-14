@@ -1,0 +1,24 @@
+{
+ "note": "naive stub renderer (spikes/stub, --no-build) run through the same runner S1 at 15:47 on 2026-10-14, load average about 11.6 on 4 CPUs, to calibrate the machine against its own earlier quiet-machine run (stub p5 20.0 fps at 1,000 tips in results/stub/20261014-143455.json)",
+ "runId": "20261014-154712",
+ "trees": {
+  "syn-yule-1000": {
+   "tips": 1000,
+   "status": "timeout",
+   "firstRenderMs": 143,
+   "fpsMedian": 59.880239520957105,
+   "fpsP5": 4,
+   "maxFrameGapMs": 266.59999999999854,
+   "frames": 182
+  },
+  "syn-yule-10000": {
+   "tips": 10000,
+   "status": "timeout",
+   "firstRenderMs": 987.5,
+   "fpsMedian": 59.880239520962,
+   "fpsP5": 0.8823788934968653,
+   "maxFrameGapMs": 1133.300000000003,
+   "frames": 315
+  }
+ }
+}

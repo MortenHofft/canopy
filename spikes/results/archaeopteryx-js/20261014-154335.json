@@ -1,0 +1,286 @@
+{
+ "runId": "20261014-154335",
+ "candidate": {
+  "name": "archaeopteryx-js",
+  "version": "3.24.0",
+  "license": "LGPL-3.0-or-later",
+  "notes": "Full viewer application driven imperatively (launch/destroy); d3 7.9.0 and phyloxml 1.1.7 put on globalThis for the UMD file; panel collapsed by default."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no click callback in the library; adapter listens for DOM clicks and maps them to the node (d3 datum or layout coordinates): adapter-derived"
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same workaround; internal nodes without a label are found by layout coordinates (rectangular only)"
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "no branch elements (branches are batched into a few paths); clicks on a branch hit the nearest node"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "library shows its own tooltip, no callback; adapter-derived hover events from a DOM mousemove hit test"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library has no payload; tip sets are computed by the adapter from the shared TreeModel (source adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "sets the phyloXML node.color on the library's live node objects and forces a redraw with applyViewState({}); the library has no colour-a-clade API"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "search box A via applyViewState({searchA: regex on node name}); the library bolds the hits, adds a halo and dims everything else; no per-tip style API"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "search A + the library's documented Ctrl+Shift+E and Ctrl+G shortcuts dispatched on document; no focus/zoom-to API"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "tip labels are SVG <text>; the adapter overlays <a href data-tip-id> over the visible labels (up to 400), re-positioned on each redraw"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only through built-ins: numeric columns become heat-map columns (>=2), text columns become label text or Color-by; no custom cell renderers"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "mol_seq on tip nodes; built-in alignment track (windowed, with conservation bar or sequence logo)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout: 'circular' (also 'unrooted'); heat map as rings, alignment track rectangular only"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "applyViewState({display: 'phylogram' | 'cladogram'}); a tree drawn to scale needs > 50% positive lengths"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "scale bar always drawn for phylograms; showScaleAxis adds an axis (time axis for dated trees)"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "library has its own light/dark switch (button, localStorage 'aptx-panel-theme'); adapter clicks it; the dark palette is the library's, not GBIF's"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "no token contract; adapter overrides default-coloured SVG fills/strokes with CSS !important selectors and re-points the panel's --p-* custom properties"
+  },
+  "multipleInstances": {
+   "level": "no",
+   "how": "module singleton: a second launch() replaces the first (README: \"One viewer per page\")"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "viewer.destroy() removes DOM, body-level tooltip/menu, resize and key/wheel listeners"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "view state both ways (applyViewState / onViewChange); no selection, viewport or colour setters"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on launch and on window resize; Ctrl+0 and a panel button refit"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "built-in overview miniature (always shown, cannot be switched off by config)"
+  }
+ },
+ "date": "2026-10-14T15:44:38.230Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-yule-100000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1002887,
+  "jsGzipBytes": 331125,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 1021309,
+  "totalGzipBytes": 335793,
+  "files": [
+   {
+    "path": "assets/archaeopteryx-50b0Ku0X.js",
+    "bytes": 449417,
+    "gzipBytes": 146374
+   },
+   {
+    "path": "assets/d3-BlgK36Ox.js",
+    "bytes": 280957,
+    "gzipBytes": 95562
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DTNf0Bsr.js",
+    "bytes": 233686,
+    "gzipBytes": 75450
+   },
+   {
+    "path": "assets/phyloxml-DwTe3DD1.js",
+    "bytes": 38827,
+    "gzipBytes": 13739
+   },
+   {
+    "path": "index.html",
+    "bytes": 656,
+    "gzipBytes": 340
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "unusable: load 14.6 s > 10 s; p5 fps 0.2 < 20",
+     "phase": "done",
+     "fetchMs": 50,
+     "convertMs": 0,
+     "wireBytes": 4139363,
+     "parseMs": 714.2999999988824,
+     "firstRenderMs": 13861.5,
+     "sharedParseMs": 230.90000000037253,
+     "reportedTips": 100000,
+     "notes": "parseTree 714.3 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 14575.799999998882,
+     "ink": 0.40587426946769867,
+     "heapAfterMountMB": 121.88854598999023,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 199999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 231.34999999962747,
+     "clickToPaintMs": 3762.2999999998137,
+     "clickSamples": {
+      "events": 4,
+      "tries": 4,
+      "rightNode": 4
+     },
+     "fpsMedian": 59.88023952094243,
+     "fpsP5": 0.227277892679379,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 4.121894365796586,
+     "droppedFrames": 786,
+     "maxFrameGapMs": 4399.9000000000015,
+     "frames": 58,
+     "heapAfterInteractionMB": 180.6402759552002,
+     "heapMB": 180.6402759552002,
+     "pageErrors": [],
+     "wallSec": 51.961
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-yule-100000: timeout (unusable: load 14.6 s > 10 s; p5 fps 0.2 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 51.963
+  }
+ },
+ "scale": {
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "unusable: load 14.6 s > 10 s; p5 fps 0.2 < 20",
+   "phase": "done",
+   "fetchMs": 50,
+   "convertMs": 0,
+   "wireBytes": 4139363,
+   "parseMs": 714.2999999988824,
+   "firstRenderMs": 13861.5,
+   "sharedParseMs": 230.90000000037253,
+   "reportedTips": 100000,
+   "notes": "parseTree 714.3 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 14575.799999998882,
+   "ink": 0.40587426946769867,
+   "heapAfterMountMB": 121.88854598999023,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 199999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 231.34999999962747,
+   "clickToPaintMs": 3762.2999999998137,
+   "clickSamples": {
+    "events": 4,
+    "tries": 4,
+    "rightNode": 4
+   },
+   "fpsMedian": 59.88023952094243,
+   "fpsP5": 0.227277892679379,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 4.121894365796586,
+   "droppedFrames": 786,
+   "maxFrameGapMs": 4399.9000000000015,
+   "frames": 58,
+   "heapAfterInteractionMB": 180.6402759552002,
+   "heapMB": 180.6402759552002,
+   "pageErrors": [],
+   "wallSec": 51.961
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-100000",
+   "file": "screens/20261014-154335-S1-syn-yule-100000.png",
+   "bytes": 105553
+  }
+ ],
+ "wallSec": 62.905,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

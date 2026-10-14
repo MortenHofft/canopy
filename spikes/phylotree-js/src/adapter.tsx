@@ -50,8 +50,8 @@ const CSS = `
 .pt-root .clade{fill:var(--pt-clade);stroke:var(--pt-branch);stroke-width:1px;vector-effect:non-scaling-stroke;opacity:.55}
 .pt-root .phylotree-node-text{font-family:var(--pt-font);font-style:italic;fill:var(--pt-fg);cursor:pointer;paint-order:stroke;stroke:none}
 .pt-root .internal-node .phylotree-node-text{font-style:normal;fill:var(--pt-fg2);cursor:default}
+.pt-root.pt-ring-layout .phylotree-node-text{font-size:var(--pt-label-fs)!important}
 .pt-root.pt-lod-hide .phylotree-node-text,.pt-root.pt-lod-hide .pt-cell-text{display:none}
-.pt-root text{text-rendering:geometricPrecision}
 .pt-root .pt-link .phylotree-node-text{text-decoration:underline;text-underline-offset:.12em}
 .pt-root a.pt-link:focus-visible{outline:none}
 .pt-root text:focus{outline:none}
@@ -133,6 +133,7 @@ interface Inst {
   hl: Set<HNode>;
   gMap: Map<HNode, SVGGElement> | null;
   eMap: Map<HNode, SVGPathElement> | null;
+  ringGap: number | null; // median distance between neighbouring tips in radial/unrooted layouts (user units)
   labelW1: number; // widest tip label at font-size 1 (user units), only measured when columns are on
   labelWKey: string;
   colsVersion: number;
@@ -307,6 +308,37 @@ function svgEl<K extends keyof SVGElementTagNameMap>(tag: K): SVGElementTagNameM
   return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
 
+/**
+ * Radial and unrooted layouts: the library sizes labels with min(font-size, scales[0]) where scales[0] belongs to the
+ * rectangular row spacing, so on rings labels can be 20x larger than the gap between neighbouring tips (680-tip dated tree:
+ * ring radius 4.7 units, label font 0.9 units). The wrapper derives a label size from the real tip gap and overrides the
+ * inline font-size with a CSS variable (!important beats the inline style).
+ */
+function ringFsOf(I: Inst, d: any): number | null {
+  if (!(d.radial() || d.unrooted())) return null;
+  if (I.ringGap === null) {
+    const n = I.tree.tipCount;
+    const gaps: number[] = [];
+    const step = Math.max(1, Math.floor(n / 40));
+    for (let r = 0; r + 1 < n; r += step) {
+      const a = I.tipNode.get(I.tree.tipLabels[r]);
+      const b = I.tipNode.get(I.tree.tipLabels[r + 1]);
+      if (a && b && typeof a.x === 'number' && typeof b.x === 'number') gaps.push(Math.hypot(a.x - b.x, a.y - b.y));
+    }
+    gaps.sort((p, q) => p - q);
+    I.ringGap = gaps.length ? Math.max(gaps[Math.floor(gaps.length / 2)], 1e-4) : d.shown_font_size;
+  }
+  return Math.min(d.shown_font_size, (I.ringGap as number) * 0.8);
+}
+
+function applyRingCss(I: Inst) {
+  const d = I.display;
+  const fs = ringFsOf(I, d);
+  I.host.classList.toggle('pt-ring-layout', fs !== null);
+  if (fs !== null) I.host.style.setProperty('--pt-label-fs', fs + 'px');
+  else I.host.style.removeProperty('--pt-label-fs');
+}
+
 function makeStylers(I: Inst) {
   // `function` (not arrow): during the constructor's first update() I.display is not assigned yet; the library calls the
   // styler as a method (this.node_styler(...)), so `this` is the TreeRender
@@ -318,7 +350,7 @@ function makeStylers(I: Inst) {
     const col = I.colourOf.get(node);
     const leaf = !node.children;
     if (leaf) {
-      const fs: number = d.shown_font_size;
+      const fs: number = ringFsOf(I, d) ?? d.shown_font_size;
       // --- tip marker (the library draws no marker at tips) and highlight
       const showMarker = P.features.tipMarkers !== false;
       let dot = g.querySelector(':scope > circle.pt-tip') as SVGCircleElement | null;
@@ -409,6 +441,8 @@ function makeStylers(I: Inst) {
         if (col) c.style.fill = col;
         else c.style.removeProperty('fill');
         if (!node.parent && node.children.length === 1) c.style.display = 'none';
+        const rf = ringFsOf(I, d);
+        if (rf !== null) c.setAttribute('r', String(Math.min(Number(c.getAttribute('r')) || rf, Math.max(rf * 0.45, 0.01))));
       }
       const txt = g.querySelector('text') as SVGTextElement | null;
       if (txt) {
@@ -572,7 +606,7 @@ function lod(I: Inst) {
     const vb = (d.svg.node() as SVGSVGElement).viewBox.baseVal;
     const s = vb.width > 0 && vb.height > 0 ? Math.min(P.size.width / vb.width, P.size.height / vb.height) : 1;
     const k: number = d.currentZoomTransform?.k ?? 1;
-    hide = d.shown_font_size * k * s < 3.5;
+    hide = (ringFsOf(I, d) ?? d.shown_font_size) * k * s < 3.5;
   }
   if (I.host.classList.contains('pt-lod-hide') !== hide) I.host.classList.toggle('pt-lod-hide', hide);
 }
@@ -635,6 +669,8 @@ function bindEvents(I: Inst) {
   const onRendered = () => {
     I.gMap = null;
     I.eMap = null;
+    I.ringGap = null;
+    applyRingCss(I);
     fixScaleBar(I);
     patchViewBox(I);
     drawHeaders(I);
@@ -756,6 +792,7 @@ function relayout(I: Inst, P: ViewProps, resetZoom: boolean) {
     if (lad === 'none') I.pt.nodes.sort((a: HNode, b: HNode) => (a.data.original_child_order ?? 0) - (b.data.original_child_order ?? 0));
     else I.pt.nodes.sort((a: HNode, b: HNode) => (lad === 'asc' ? a.value - b.value : b.value - a.value));
   }
+  I.ringGap = null;
   d.update();
   if (resetZoom && d.zoomBehavior) {
     d.currentZoomTransform = null;
@@ -789,6 +826,7 @@ function createInstance(host: HTMLDivElement, latest: React.MutableRefObject<Vie
     hl: new Set(),
     gMap: null,
     eMap: null,
+    ringGap: null,
     labelW1: 0,
     labelWKey: '',
     colsVersion: 0,
@@ -847,6 +885,7 @@ function createInstance(host: HTMLDivElement, latest: React.MutableRefObject<Vie
   host.appendChild(I.display.show());
   tune(I);
   bindEvents(I);
+  applyRingCss(I);
   lod(I);
   fixScaleBar(I); // the first update() ran inside the constructor, before our 'rendered' listener existed
   patchViewBox(I);
@@ -937,13 +976,14 @@ function focusTip(I: Inst, tipId: string) {
   const vb = svg.viewBox.baseVal;
   const base = d.baseTransform;
   const zt = d.currentZoomTransform ?? { x: 0, y: 0, k: 1 };
-  const rowUser = Math.max(d.scales?.[0] ?? 1, 1e-6);
-  let k: number;
+  // zoom so that neighbouring tips are ~18 px apart (rows in rectangular layouts, arc spacing in radial/unrooted ones)
+  let gap = Math.max(d.scales?.[0] ?? 1, 1e-6);
   if (d.radial() || d.unrooted()) {
-    k = Math.min(8000, Math.max(zt.k, 14 / Math.max(1e-6, Math.min(d.shown_font_size, 14) * s) * 1.2));
-  } else {
-    k = Math.min(8000, Math.max(zt.k, 16 / (rowUser * s)));
+    const r = I.tree.tipRank[I.tree.tipIndex(tipId)];
+    const nb = I.tipNode.get(I.tree.tipLabels[Math.min(I.tree.tipCount - 1, r + 1)]) ?? I.tipNode.get(I.tree.tipLabels[Math.max(0, r - 1)]);
+    if (nb && nb !== x && nb.screen_x !== undefined) gap = Math.max(1e-6, Math.hypot(nb.screen_x - x.screen_x, nb.screen_y - x.screen_y));
   }
+  const k = Math.min(8000, Math.max(zt.k, 18 / (gap * s)));
   // want: zt'.x + (base.x + screen_x) * k = viewBox centre (user units); same for y. Slight left bias so sibling context shows.
   // with columns on, leave room to the right of the label for them (uniform zoom pushes them far away)
   const cx = vb.x + vb.width * (I.latest.current.columns.length && !d.radial() && !d.unrooted() ? 0.22 : 0.5);
@@ -1095,6 +1135,27 @@ function anchorOf(I: Inst, x: HNode): Point | null {
   return { x: x.screen_x * m.a + x.screen_y * m.c + m.e, y: x.screen_x * m.b + x.screen_y * m.d + m.f };
 }
 
+/** a point on a glyph near the outer end of a (rotated) label, in client px */
+function labelPoint(I: Inst, text: SVGTextElement, frac: number): Point | null {
+  const n = text.getNumberOfChars();
+  const m = text.getScreenCTM();
+  if (n === 0 || !m) return null;
+  const root = anchorOf(I, I.pt.nodes);
+  const at = (i: number) => {
+    const a = text.getStartPositionOfChar(i);
+    const b = text.getEndPositionOfChar(i);
+    const fs = parseFloat(getComputedStyle(text).fontSize) || 1;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2 - fs * 0.3;
+    return { x: mx * m.a + my * m.c + m.e, y: mx * m.b + my * m.d + m.f };
+  };
+  // frac is measured from the end of the label that lies farther from the tree centre
+  const p0 = at(Math.round((n - 1) * (1 - frac)));
+  const p1 = at(Math.round((n - 1) * frac));
+  if (!root) return p1;
+  return Math.hypot(p0.x - root.x, p0.y - root.y) > Math.hypot(p1.x - root.x, p1.y - root.y) ? p0 : p1;
+}
+
 function makeHandle(I: Inst, latest: React.MutableRefObject<ViewProps>): ViewHandle {
   const nodeOf = (t: { kind: 'tip' | 'node'; id: string }): HNode | null => {
     if (I.destroyed) return null;
@@ -1112,15 +1173,36 @@ function makeHandle(I: Inst, latest: React.MutableRefObject<ViewProps>): ViewHan
       if (!el || (el as SVGElement).style.display === 'none') return null;
       const r = el.getBoundingClientRect();
       const c = I.host.getBoundingClientRect();
-      let p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      const ok = (q: Point) => q.x >= c.left + 1 && q.x <= c.right - 1 && q.y >= c.top + 1 && q.y <= c.bottom - 1;
       if (r.width === 0 && r.height === 0) {
         // label hidden by the wrapper LOD: report the tip's anchor point (not clickable until the label is shown)
         const a = anchorOf(I, x);
-        if (!a) return null;
-        p = a;
+        return a && ok(a) ? a : null;
       }
-      if (p.x < c.left + 1 || p.x > c.right - 1 || p.y < c.top + 1 || p.y > c.bottom - 1) return null;
-      return p;
+      const centre = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      const ringLayout = I.display.radial() || I.display.unrooted();
+      // candidate points; the first one where a real hit test returns this very element wins (crowded rings overlap)
+      const cands: Point[] = [];
+      if (t.kind === 'tip') {
+        if (ringLayout && el instanceof SVGTextElement) {
+          for (const f of [0.85, 0.7, 0.55, 0.4, 0.25, 0.1]) {
+            const q = labelPoint(I, el, f);
+            if (q) cands.push(q);
+          }
+        }
+        cands.push(centre);
+        if (!ringLayout) return ok(centre) ? centre : null;
+      } else {
+        const rc = Math.min(r.width, r.height) / 2;
+        cands.push(centre);
+        if (rc >= 1.2) for (const [dx, dy] of [[0.55, 0], [-0.55, 0], [0, 0.55], [0, -0.55], [0.4, 0.4], [-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4]]) cands.push({ x: centre.x + dx * rc, y: centre.y + dy * rc });
+      }
+      for (const q of cands) {
+        if (!ok(q)) continue;
+        const top = document.elementFromPoint(q.x, q.y);
+        if (top === el || (top && el.contains(top))) return q;
+      }
+      return ok(cands[0]) ? cands[0] : null;
     },
     bounds(t): Rect | null {
       const x = nodeOf(t);

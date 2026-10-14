@@ -1,0 +1,572 @@
+{
+ "runId": "20261014-154005",
+ "candidate": {
+  "name": "phylocanvas-gl",
+  "version": "1.64.1",
+  "license": "MIT",
+  "notes": "@phylocanvas/phylocanvas.gl 1.64.1 + deck.gl 8.9.36 (WebGL), own React wrapper in this folder. Library has no callbacks: events through plugin/decorate."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "No callback API. A plugin wraps selectNode (decorate): leaf shapes and leaf labels are picked by deck.gl and arrive as selectNode(node); we emit tipClick with the label, and keep the selection in React (we do not call the original selectNode)."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "Leaf-only selection in the library. Internal nodes have no marker; clicking the BRANCH of a clade (edge picking) calls selectNode(node) with an internal node object, which our wrapper turns into branchClick. Collapsed clades (pie charts) give nodeClick. Ids are synthetic (__<preorder>), mapped by us to n<k>, validated against the shared TreeModel at mount."
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "Edge layers are pickable (pickingRadius 2 px); the picked edge is the child node of the branch. Sub-pixel rows make the pick ambiguous at the fit view of large trees."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "highlightNode(node) is wrapped (decorate); hovering a branch also highlights the whole clade in the highlight colour (library-native). Needs interactive.highlight. Hover on big clades reports at most 2000 tip ids."
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "The library never reports tip sets. For internal nodes the wrapper computes them from the shared TreeModel (source: adapter-derived)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "Per-tip styles only: every tip under the clade gets fillColour and strokeColour; styleNodeEdges makes the clade branches take the colour when all children agree (the clade root edge and all inside it). Two sibling clades of the same colour also colour their parent edge. Re-styles O(tips)."
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "selectedIds draws a halo ring and forces the label even when labels are thinned; set from React state."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "No zoom-to-node in the library. Wrapper computes step zoom (rows to 26 px) and the normalised centre from node coordinates (getGraphAfterLayout + the library's own target/centre maths) and sets them with one batched setProps (suspend/resume). Rectangular, diagonal, hierarchical and circular/radial handled."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "Not in the library (WebGL text). DOM overlay of real a[href][data-tip-id] elements for the visible rows only (rows >= 9 px, rectangular and diagonal layouts), positioned from projectPoint on every render; other tips have no anchor."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "Library: coloured-block columns (metadata + blocks, rectangular/circular, one colour per cell, no text or size). Ours: bar and text columns as custom deck.gl layers via addLayer, drawn for visible rows only; width reserved through a dummy block."
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "Own addLayer: one BitmapLayer texture (one pixel per residue) stretched over the rows; only valid when no clade is collapsed and the root is not changed."
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "Library layouts: circular (cr, used for the shell's radial tab), radial/unrooted equal-angle (rd), diagonal, hierarchical; selectable in Library options."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "The library always draws branch lengths. Cladogram is emulated by feeding synthetic lengths (parentHeight - height, tips aligned) as the source, which re-parses and re-lays out the whole tree. Negative lengths become 0 in our conversion (the library would take the absolute value)."
+  },
+  "scaleBar": {
+   "level": "partial",
+   "how": "Not in the library. Own addLayer: line + label with a nice length computed from getBranchScale() * getScale(); only for phylograms with lengths; no time axis."
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "Colour props (fontColour, fillColour, strokeColour, highlightColour, backgroundColour as CSS strings) from gbifDarkTheme(); canvas background is our host element's CSS background colour, not a library prop."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "No CSS: WebGL. Tokens are read in JS (gbifTheme) and passed as props; the runner tokens background/foreground/branch/highlight/fontFamily map to host background, fontColour+fillColour, strokeColour, highlightColour, fontFamily."
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "Each instance owns a Deck + WebGL context; two live instances (main + side panel) worked. The library says \"single WebGL context\", which holds per instance, not per page. Browser limit of about 16 live contexts applies."
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "destroy() runs deck.finalize() but leaves the canvas, the host inline styles and (until GC) the GL context; wrapper removes children and calls WEBGL_lose_context.loseContext(). Perf entries from the parser accumulate in performance.getEntries()."
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "Input is controlled (setProps with source, type, styles, selectedIds, collapsedIds, rootId, zoom, centre, ...). Output has no callbacks: view (zoom/centre) changes through setView, selection/hover through wrapped methods. We only forward click and hover; view state is not exposed to React."
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "Fit on mount and on type change; fitInCanvas() exists but the shell has no refit control. Wheel = uniform zoom, shift/alt+wheel = stretch rows only (step zoom), ctrl/meta+wheel = stretch branches only (branch zoom)."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "No minimap. Zoomed out the whole tree is drawn (every edge, one shape per tip, thinned labels); no clade summaries. Collapsing clades into pie charts is manual (collapsedIds)."
+  }
+ },
+ "date": "2026-10-14T15:41:48.069Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-yule-200",
+   "syn-yule-1000",
+   "syn-yule-10000",
+   "gtdb-10k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1022487,
+  "jsGzipBytes": 298976,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 1040661,
+  "totalGzipBytes": 303581,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DKklfVVI.js",
+    "bytes": 1022487,
+    "gzipBytes": 298976
+   },
+   {
+    "path": "index.html",
+    "bytes": 408,
+    "gzipBytes": 277
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 2.3 < 20",
+     "phase": "done",
+     "fetchMs": 13.700000001117587,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 71.19999999925494,
+     "firstRenderMs": 917.2000000011176,
+     "sharedParseMs": 1.900000000372529,
+     "reportedTips": 200,
+     "notes": "source: biojs object built from the shared TreeModel (68.3 ms); library parse (own performance.measure) 2.9 ms; constructor total (parse + layout + layers) 582.0 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+     "loadMs": 988.4000000003725,
+     "ink": 0.1405907439583004,
+     "heapAfterMountMB": 9.481386184692383,
+     "stats": {
+      "domNodes": 6,
+      "svgElements": 0,
+      "canvases": 1,
+      "custom": {
+       "tips": 200,
+       "nodes": 399,
+       "scale": 1,
+       "stepPx": 3.07,
+       "deckLayers": 18,
+       "overlayRows": 0
+      }
+     },
+     "clickLatencyMs": 8.099999999627471,
+     "clickToPaintMs": 0,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 14.992503748126182,
+     "fpsP5": 2.307869836141236,
+     "fpsP95": 60.24096385542037,
+     "fpsMean": 8.18167115390046,
+     "droppedFrames": 545,
+     "maxFrameGapMs": 449.90000000000146,
+     "frames": 86,
+     "heapAfterInteractionMB": 11.002318382263184,
+     "heapMB": 11.002318382263184,
+     "pageErrors": [],
+     "wallSec": 19.684
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.6 < 20",
+     "phase": "done",
+     "fetchMs": 10.700000001117587,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 43.399999998509884,
+     "firstRenderMs": 2276.800000000745,
+     "sharedParseMs": 7.099999999627471,
+     "reportedTips": 1000,
+     "notes": "source: biojs object built from the shared TreeModel (29.1 ms); library parse (own performance.measure) 14.3 ms; constructor total (parse + layout + layers) 203.1 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+     "loadMs": 2320.199999999255,
+     "ink": 0.26168693729268677,
+     "heapAfterMountMB": 12.212302207946777,
+     "stats": {
+      "domNodes": 6,
+      "svgElements": 0,
+      "canvases": 1,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "scale": 1,
+       "stepPx": 0.615,
+       "deckLayers": 18,
+       "overlayRows": 0
+      }
+     },
+     "clickLatencyMs": 15.099999999627471,
+     "clickToPaintMs": 0,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 5.002501250625322,
+     "fpsP5": 1.5790304752881703,
+     "fpsP95": 60.24096385542037,
+     "fpsMean": 5.480856781676078,
+     "droppedFrames": 617,
+     "maxFrameGapMs": 633.3000000000011,
+     "frames": 62,
+     "heapAfterInteractionMB": 13.26935863494873,
+     "heapMB": 13.26935863494873,
+     "pageErrors": [],
+     "wallSec": 18.879
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 0.4 < 20",
+     "phase": "done",
+     "fetchMs": 50.09999999962747,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 136.59999999962747,
+     "firstRenderMs": 1184,
+     "sharedParseMs": 38.80000000074506,
+     "reportedTips": 10000,
+     "notes": "source: biojs object built from the shared TreeModel (13.4 ms); library parse (own performance.measure) 123.2 ms; constructor total (parse + layout + layers) 445.8 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 3 ms after 1 frames",
+     "loadMs": 1320.5999999996275,
+     "ink": 0.42485705259832574,
+     "heapAfterMountMB": 37.654717445373535,
+     "stats": {
+      "domNodes": 6,
+      "svgElements": 0,
+      "canvases": 1,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "scale": 1,
+       "stepPx": 0.0615,
+       "deckLayers": 18,
+       "overlayRows": 0
+      }
+     },
+     "clickLatencyMs": 94.29999999888241,
+     "clickToPaintMs": 30,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 0.48000768012288214,
+     "fpsP5": 0.3614675582866438,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 0.6995942353434745,
+     "droppedFrames": 593,
+     "maxFrameGapMs": 2766.5,
+     "frames": 7,
+     "heapAfterInteractionMB": 39.21060371398926,
+     "heapMB": 39.21060371398926,
+     "pageErrors": [],
+     "wallSec": 30.66
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 0.5 < 20",
+     "phase": "done",
+     "fetchMs": 77.90000000037253,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 184.30000000074506,
+     "firstRenderMs": 1360.800000000745,
+     "sharedParseMs": 76.69999999925494,
+     "reportedTips": 10122,
+     "notes": "source: biojs object built from the shared TreeModel (23.6 ms); library parse (own performance.measure) 160.7 ms; constructor total (parse + layout + layers) 505.7 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+     "loadMs": 1545.1000000014901,
+     "ink": 0.21652503553940927,
+     "heapAfterMountMB": 36.62081050872803,
+     "stats": {
+      "domNodes": 6,
+      "svgElements": 0,
+      "canvases": 1,
+      "custom": {
+       "tips": 10122,
+       "nodes": 20243,
+       "scale": 1,
+       "stepPx": 0.06075874333135744,
+       "deckLayers": 18,
+       "overlayRows": 0
+      }
+     },
+     "clickLatencyMs": 67.90000000037253,
+     "clickToPaintMs": 21.09999999962747,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 0.6382842918235779,
+     "fpsP5": 0.4688012751394687,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 0.99153477188494,
+     "droppedFrames": 476,
+     "maxFrameGapMs": 2133.0999999999985,
+     "frames": 8,
+     "heapAfterInteractionMB": 38.23154354095459,
+     "heapMB": 38.23154354095459,
+     "pageErrors": [],
+     "wallSec": 30.494
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-yule-200: timeout (unusable: p5 fps 2.3 < 20); syn-yule-1000: timeout (unusable: p5 fps 1.6 < 20); syn-yule-10000: timeout (unusable: p5 fps 0.4 < 20); gtdb-10k: timeout (unusable: p5 fps 0.5 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 99.719
+  }
+ },
+ "scale": {
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 2.3 < 20",
+   "phase": "done",
+   "fetchMs": 13.700000001117587,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 71.19999999925494,
+   "firstRenderMs": 917.2000000011176,
+   "sharedParseMs": 1.900000000372529,
+   "reportedTips": 200,
+   "notes": "source: biojs object built from the shared TreeModel (68.3 ms); library parse (own performance.measure) 2.9 ms; constructor total (parse + layout + layers) 582.0 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+   "loadMs": 988.4000000003725,
+   "ink": 0.1405907439583004,
+   "heapAfterMountMB": 9.481386184692383,
+   "stats": {
+    "domNodes": 6,
+    "svgElements": 0,
+    "canvases": 1,
+    "custom": {
+     "tips": 200,
+     "nodes": 399,
+     "scale": 1,
+     "stepPx": 3.07,
+     "deckLayers": 18,
+     "overlayRows": 0
+    }
+   },
+   "clickLatencyMs": 8.099999999627471,
+   "clickToPaintMs": 0,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 14.992503748126182,
+   "fpsP5": 2.307869836141236,
+   "fpsP95": 60.24096385542037,
+   "fpsMean": 8.18167115390046,
+   "droppedFrames": 545,
+   "maxFrameGapMs": 449.90000000000146,
+   "frames": 86,
+   "heapAfterInteractionMB": 11.002318382263184,
+   "heapMB": 11.002318382263184,
+   "pageErrors": [],
+   "wallSec": 19.684
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.6 < 20",
+   "phase": "done",
+   "fetchMs": 10.700000001117587,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 43.399999998509884,
+   "firstRenderMs": 2276.800000000745,
+   "sharedParseMs": 7.099999999627471,
+   "reportedTips": 1000,
+   "notes": "source: biojs object built from the shared TreeModel (29.1 ms); library parse (own performance.measure) 14.3 ms; constructor total (parse + layout + layers) 203.1 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+   "loadMs": 2320.199999999255,
+   "ink": 0.26168693729268677,
+   "heapAfterMountMB": 12.212302207946777,
+   "stats": {
+    "domNodes": 6,
+    "svgElements": 0,
+    "canvases": 1,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "scale": 1,
+     "stepPx": 0.615,
+     "deckLayers": 18,
+     "overlayRows": 0
+    }
+   },
+   "clickLatencyMs": 15.099999999627471,
+   "clickToPaintMs": 0,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 5.002501250625322,
+   "fpsP5": 1.5790304752881703,
+   "fpsP95": 60.24096385542037,
+   "fpsMean": 5.480856781676078,
+   "droppedFrames": 617,
+   "maxFrameGapMs": 633.3000000000011,
+   "frames": 62,
+   "heapAfterInteractionMB": 13.26935863494873,
+   "heapMB": 13.26935863494873,
+   "pageErrors": [],
+   "wallSec": 18.879
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 0.4 < 20",
+   "phase": "done",
+   "fetchMs": 50.09999999962747,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 136.59999999962747,
+   "firstRenderMs": 1184,
+   "sharedParseMs": 38.80000000074506,
+   "reportedTips": 10000,
+   "notes": "source: biojs object built from the shared TreeModel (13.4 ms); library parse (own performance.measure) 123.2 ms; constructor total (parse + layout + layers) 445.8 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 3 ms after 1 frames",
+   "loadMs": 1320.5999999996275,
+   "ink": 0.42485705259832574,
+   "heapAfterMountMB": 37.654717445373535,
+   "stats": {
+    "domNodes": 6,
+    "svgElements": 0,
+    "canvases": 1,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "scale": 1,
+     "stepPx": 0.0615,
+     "deckLayers": 18,
+     "overlayRows": 0
+    }
+   },
+   "clickLatencyMs": 94.29999999888241,
+   "clickToPaintMs": 30,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 0.48000768012288214,
+   "fpsP5": 0.3614675582866438,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 0.6995942353434745,
+   "droppedFrames": 593,
+   "maxFrameGapMs": 2766.5,
+   "frames": 7,
+   "heapAfterInteractionMB": 39.21060371398926,
+   "heapMB": 39.21060371398926,
+   "pageErrors": [],
+   "wallSec": 30.66
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 0.5 < 20",
+   "phase": "done",
+   "fetchMs": 77.90000000037253,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 184.30000000074506,
+   "firstRenderMs": 1360.800000000745,
+   "sharedParseMs": 76.69999999925494,
+   "reportedTips": 10122,
+   "notes": "source: biojs object built from the shared TreeModel (23.6 ms); library parse (own performance.measure) 160.7 ms; constructor total (parse + layout + layers) 505.7 ms; id mapping exact (library preorder == shared preorder); type rc; warm-up pick 1 ms after 1 frames",
+   "loadMs": 1545.1000000014901,
+   "ink": 0.21652503553940927,
+   "heapAfterMountMB": 36.62081050872803,
+   "stats": {
+    "domNodes": 6,
+    "svgElements": 0,
+    "canvases": 1,
+    "custom": {
+     "tips": 10122,
+     "nodes": 20243,
+     "scale": 1,
+     "stepPx": 0.06075874333135744,
+     "deckLayers": 18,
+     "overlayRows": 0
+    }
+   },
+   "clickLatencyMs": 67.90000000037253,
+   "clickToPaintMs": 21.09999999962747,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 0.6382842918235779,
+   "fpsP5": 0.4688012751394687,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 0.99153477188494,
+   "droppedFrames": 476,
+   "maxFrameGapMs": 2133.0999999999985,
+   "frames": 8,
+   "heapAfterInteractionMB": 38.23154354095459,
+   "heapMB": 38.23154354095459,
+   "pageErrors": [],
+   "wallSec": 30.494
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-200",
+   "file": "screens/20261014-154005-S1-syn-yule-200.png",
+   "bytes": 71448
+  }
+ ],
+ "wallSec": 102.821,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

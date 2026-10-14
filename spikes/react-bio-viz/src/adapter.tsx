@@ -21,6 +21,7 @@ import type { Tree, TreeNodeInfo, TreeSelection, TreeNodeStyle, TreeBranchStyle,
 import type { CandidateAdapter, CapabilityReport, ColumnSpec, EmitEvent, Rect, ViewHandle, ViewProps, ThemeSpec } from '../../shared/types.ts';
 import type { TreeModel } from '../../shared/tree.ts';
 import { gbifTheme, gbifDarkTheme } from '../../shared/gbif-theme.ts';
+import type { GbifTheme } from '../../shared/gbif-theme.ts';
 
 const LIB_VERSION = '0.3.0';
 const COL_GAP = 6;
@@ -138,8 +139,7 @@ function variantTree(p: Prepared, tree: TreeModel, mode: Mode, minLen: number): 
 
 // ------------------------------------------------------------------------------------------------ theme
 
-function themeVars(t: ThemeSpec): React.CSSProperties {
-  const g = t.dark ? gbifDarkTheme() : gbifTheme();
+function themeVars(t: ThemeSpec, g: GbifTheme): React.CSSProperties {
   const k = t.tokens ?? {};
   const bg = k.background ?? g.bg1;
   const hl = k.highlight ?? g.primary;
@@ -342,6 +342,11 @@ function RbvView(props: ViewProps) {
   const branchClicks = features.branchClicks !== false;
   const hideDense = features.hideDense !== false;
 
+  // token values are read from computed CSS once per theme change (reading them on every render forces a style recalculation per pan frame)
+  const gt = useMemo(() => (theme.dark ? gbifDarkTheme() : gbifTheme()), [theme.dark]);
+  const styleVars = useMemo(() => themeVars(theme, gt), [theme, gt]);
+  const colours = useMemo(() => ({ fg: theme.tokens?.foreground ?? gt.fg1, bar: gt.categorical[1], fam: theme.tokens?.fontFamily ?? gt.fontBody, marker: gt.fg3, primary: gt.primary }), [theme, gt]);
+
   const useLengths = branchLengths && tree.hasLengths;
   const isRadial = layout === 'radial';
   const mode: Mode = isRadial ? (useLengths ? 'radial-lengths' : 'radial-height') : useLengths ? 'rect' : 'clad';
@@ -421,14 +426,14 @@ function RbvView(props: ViewProps) {
         if (tree.childCount[k] === 0) tc.set(tree.tipLabels[tree.tipRank[k]], c.colour);
       }
     }
-    const hl = gbifTheme().primary;
+    const hl = colours.primary;
     for (const t of hlSet) {
       const i = tree.tipIndex(t);
       if (i < 0) continue;
       ns[ids[i]] = { color: hl, bold: true };
     }
     return { nodeStyles: ns, branchStyles: bs, tipColour: tc };
-  }, [colouredClades, hlSet, prep, tree]);
+  }, [colouredClades, hlSet, prep, tree, colours]);
 
   const searchQuery = useMemo(() => {
     if (!dim || hlSet.size === 0) return undefined;
@@ -496,7 +501,7 @@ function RbvView(props: ViewProps) {
       isTip,
       tipIds: info.leafNames,
       source: 'library',
-      libraryPayload: { id: info.id, name: info.name, isLeaf: info.isLeaf, isCollapsed: info.isCollapsed, leafNames: info.leafNames.length, descendantIds: info.descendantIds.length },
+      libraryPayload: { id: info.id, name: info.name, isLeaf: info.isLeaf, isCollapsed: info.isCollapsed, leafNames: info.leafNames.length, descendantIds: info.descendantIds.length, sharedTipCount: L.tree.tipCountOf(idx), rerootedMismatch: info.leafNames.length !== L.tree.tipCountOf(idx) }, // after a reroot the library clade of an id can differ from the original rooted clade
     } as EmitEvent);
   }, []);
   const handleBranch = useCallback((info: TreeNodeInfo) => {
@@ -581,7 +586,16 @@ function RbvView(props: ViewProps) {
   }, layoutKey as unknown as unknown[]);
 
   // ---- columns on an own canvas
-  const ctmOf = () => svgRef.current?.getScreenCTM() ?? null;
+  const ctmOf = () => svgRef.current?.getScreenCTM() ?? null; // DOM read: only for locate/bounds/locateCell, never on the render path
+  // svg user space -> svg-relative px, from React state (viewBox of the controlled viewport, xMidYMid meet): no DOM reads while panning
+  const viewMap = () => {
+    const v = viewport;
+    if (!v) return null;
+    const sx = v.x1 - v.x0, sy = v.y1 - v.y0;
+    if (!(sx > 0 && sy > 0)) return null;
+    const sc = Math.min(svgW / sx, svgH / sy);
+    return { a: sc, d: sc, e: (svgW - sx * sc) / 2 - v.x0 * sc, f: (svgH - sy * sc) / 2 - v.y0 * sc };
+  };
   const colLeft = (k: number) => {
     let x = 4;
     for (let j = 0; j < k; j++) x += columns[j].width + COL_GAP;
@@ -601,17 +615,13 @@ function RbvView(props: ViewProps) {
     const ctx = cv.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    const m = ctmOf();
+    const m = viewMap();
     const rows = rowsRef.current;
     if (!hasCols || !m || !rows.count) return;
-    const svgTop = svgRef.current!.getBoundingClientRect().top;
-    const cs = getComputedStyle(wrapRef.current!);
-    const fg = cs.getPropertyValue('--gv-label').trim() || '#000';
-    const barC = gbifTheme().categorical[1];
-    const fam = cs.getPropertyValue('--gv-font').trim() || 'system-ui, sans-serif';
+    const { fg, bar: barC, fam } = colours;
     const rowPx = rows.gap * m.d;
     // visible row range by binary search on row y
-    const toY = (r: number) => m.d * rows.y[r] + m.f - svgTop;
+    const toY = (r: number) => m.d * rows.y[r] + m.f;
     let lo = 0, hi = rows.count - 1;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
@@ -662,7 +672,7 @@ function RbvView(props: ViewProps) {
   useLayoutEffect(() => {
     drawColumns();
     // adapter LOD through CSS: the library draws every label at every zoom, so hide the label text while rows are thinner than 8 px
-    const m = ctmOf();
+    const m = viewMap();
     const px = !m ? Infinity : isRadial ? tipGap * m.a : (rowsRef.current.gap || 1) * m.d;
     wrapRef.current?.classList.toggle('gv-dense', hideDense && px < 8);
   });
@@ -833,7 +843,7 @@ function RbvView(props: ViewProps) {
     layout: libLayout as 'rectangular' | 'cladogram' | 'radial',
     showSupportValues: showSupport,
     shadeBranchBySupport: shadeSupport,
-    leafMarkerColor: theme.dark ? gbifDarkTheme().fg3 : gbifTheme().fg3,
+    leafMarkerColor: colours.marker,
     fontSize: 10,
     alignTips,
     leafTextComponent: leafText,
@@ -861,7 +871,7 @@ function RbvView(props: ViewProps) {
   };
 
   return (
-    <div ref={wrapRef} className={'gv' + (theme.dark ? ' dark' : '')} style={themeVars(theme)} aria-label={`Phylogenetic tree, ${tree.tipCount} tips (react-bio-viz)`}>
+    <div ref={wrapRef} className={'gv' + (theme.dark ? ' dark' : '')} style={styleVars} aria-label={`Phylogenetic tree, ${tree.tipCount} tips (react-bio-viz)`}>
       <style>{CSS}</style>
       <div ref={leftRef} className="gv-left" style={{ width: svgW, height: size.height }}>
         {toolbar ? <PhyloTree {...common} /> : <SimplePhyloTree {...common} />}

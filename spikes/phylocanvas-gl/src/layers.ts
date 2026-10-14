@@ -13,6 +13,18 @@ import type { ColumnSpec } from '../../shared/types.ts';
 
 export const COL_GAP = 6;
 
+/**
+ * The library creates its own TextLayers (tip labels, internal labels, block headers) without a characterSet, so deck.gl 8.8 uses
+ * its default ASCII 32..128 glyph set: "Ménétries" is drawn as "M n tries" and CJK labels vanish (observed, see docs/results). The
+ * layer class is not reachable through any library prop, so this patches deck.gl's TextLayer default for the whole page
+ * ('auto' = glyphs taken from the data of each layer). Switch off with ?pc.unicodeLabels=0 to reproduce the library as shipped.
+ */
+export function patchTextLayerCharset(): boolean {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('pc.unicodeLabels') === '0') return false;
+  (TextLayer as any).defaultProps.characterSet = { type: 'object', value: 'auto' };
+  return true;
+}
+
 export interface ColumnsCtx {
   columns: ColumnSpec[];
   barColour: number[];

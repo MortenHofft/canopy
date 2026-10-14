@@ -1,0 +1,541 @@
+{
+ "runId": "20261014-153824",
+ "candidate": {
+  "name": "archaeopteryx-js",
+  "version": "3.24.0",
+  "license": "LGPL-3.0-or-later",
+  "notes": "Full viewer application driven imperatively (launch/destroy); d3 7.9.0 and phyloxml 1.1.7 put on globalThis for the UMD file; panel collapsed by default."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no click callback in the library; adapter listens for DOM clicks and maps them to the node (d3 datum or layout coordinates): adapter-derived"
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same workaround; internal nodes without a label are found by layout coordinates (rectangular only)"
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "no branch elements (branches are batched into a few paths); clicks on a branch hit the nearest node"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "library shows its own tooltip, no callback; adapter-derived hover events from a DOM mousemove hit test"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library has no payload; tip sets are computed by the adapter from the shared TreeModel (source adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "sets the phyloXML node.color on the library's live node objects and forces a redraw with applyViewState({}); the library has no colour-a-clade API"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "search box A via applyViewState({searchA: regex on node name}); the library bolds the hits, adds a halo and dims everything else; no per-tip style API"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "search A + the library's documented Ctrl+Shift+E and Ctrl+G shortcuts dispatched on document; no focus/zoom-to API"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "tip labels are SVG <text>; the adapter overlays <a href data-tip-id> over the visible labels (up to 400), re-positioned on each redraw"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only through built-ins: numeric columns become heat-map columns (>=2), text columns become label text or Color-by; no custom cell renderers"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "mol_seq on tip nodes; built-in alignment track (windowed, with conservation bar or sequence logo)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout: 'circular' (also 'unrooted'); heat map as rings, alignment track rectangular only"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "applyViewState({display: 'phylogram' | 'cladogram'}); a tree drawn to scale needs > 50% positive lengths"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "scale bar always drawn for phylograms; showScaleAxis adds an axis (time axis for dated trees)"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "library has its own light/dark switch (button, localStorage 'aptx-panel-theme'); adapter clicks it; the dark palette is the library's, not GBIF's"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "no token contract; adapter overrides default-coloured SVG fills/strokes with CSS !important selectors and re-points the panel's --p-* custom properties"
+  },
+  "multipleInstances": {
+   "level": "no",
+   "how": "module singleton: a second launch() replaces the first (README: \"One viewer per page\")"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "viewer.destroy() removes DOM, body-level tooltip/menu, resize and key/wheel listeners"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "view state both ways (applyViewState / onViewChange); no selection, viewport or colour setters"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on launch and on window resize; Ctrl+0 and a panel button refit"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "built-in overview miniature (always shown, cannot be switched off by config)"
+  }
+ },
+ "date": "2026-10-14T15:39:19.946Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S10"
+  ],
+  "scaleTrees": [
+   "syn-caterpillar-1000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "edge-caterpillar-20000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1002887,
+  "jsGzipBytes": 331125,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 1021309,
+  "totalGzipBytes": 335793,
+  "files": [
+   {
+    "path": "assets/archaeopteryx-50b0Ku0X.js",
+    "bytes": 449417,
+    "gzipBytes": 146374
+   },
+   {
+    "path": "assets/d3-BlgK36Ox.js",
+    "bytes": 280957,
+    "gzipBytes": 95562
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DTNf0Bsr.js",
+    "bytes": 233686,
+    "gzipBytes": 75450
+   },
+   {
+    "path": "assets/phyloxml-DwTe3DD1.js",
+    "bytes": 38827,
+    "gzipBytes": 13739
+   },
+   {
+    "path": "index.html",
+    "bytes": 656,
+    "gzipBytes": 340
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 12.0 < 20",
+     "phase": "done",
+     "fetchMs": 40.29999999888241,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 16.700000001117587,
+     "firstRenderMs": 345.09999999962747,
+     "sharedParseMs": 12.300000000745058,
+     "reportedTips": 1000,
+     "notes": "parseTree 16.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 361.80000000074506,
+     "ink": 0.363858790080556,
+     "heapAfterMountMB": 7.50483512878418,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 9.400000000372529,
+     "clickToPaintMs": 37.59999999962747,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 12.004801920768411,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 36.32512471296625,
+     "droppedFrames": 239,
+     "maxFrameGapMs": 116.60000000000036,
+     "frames": 367,
+     "heapAfterInteractionMB": 8.095534324645996,
+     "heapMB": 8.095534324645996,
+     "pageErrors": [],
+     "wallSec": 12.822
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.add",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 1.48
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 3.5 < 20",
+     "phase": "done",
+     "fetchMs": 25.300000000745058,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 135.5,
+     "firstRenderMs": 1835.9000000003725,
+     "sharedParseMs": 86.39999999850988,
+     "reportedTips": 10000,
+     "notes": "parseTree 135.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1971.4000000003725,
+     "ink": 0.38735112936344973,
+     "heapAfterMountMB": 16.622252464294434,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 19999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 15.300000000745058,
+     "clickToPaintMs": 44.30000000074506,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.523809523812105,
+     "fpsP5": 3.5298270384751236,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 19.362304919911626,
+     "droppedFrames": 418,
+     "maxFrameGapMs": 316.5,
+     "frames": 199,
+     "heapAfterInteractionMB": 17.72922992706299,
+     "heapMB": 17.72922992706299,
+     "pageErrors": [],
+     "wallSec": 15.045
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 4.6 < 20",
+     "phase": "done",
+     "fetchMs": 79.80000000074506,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 43.399999998509884,
+     "firstRenderMs": 1141.4000000003725,
+     "sharedParseMs": 33,
+     "reportedTips": 10000,
+     "notes": "parseTree 43.4 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1184.7999999988824,
+     "ink": 0.40567051018796396,
+     "heapAfterMountMB": 13.863006591796875,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 13995,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 23.5,
+     "clickToPaintMs": 310.80000000074506,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 4.614674665436091,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 26.503646669635877,
+     "droppedFrames": 347,
+     "maxFrameGapMs": 283.39999999999964,
+     "frames": 274,
+     "heapAfterInteractionMB": 19.14565086364746,
+     "heapMB": 19.14565086364746,
+     "pageErrors": [],
+     "wallSec": 15.819
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.add",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 1.228
+    }
+   },
+   "status": "fail",
+   "reason": "syn-caterpillar-1000: timeout (unusable: p5 fps 12.0 < 20); syn-caterpillar-10000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); syn-balanced-10000: timeout (unusable: p5 fps 3.5 < 20); syn-bushy-10000: timeout (unusable: p5 fps 4.6 < 20); edge-caterpillar-20000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 46.395
+  },
+  "S10": {
+   "status": "fail",
+   "reason": "edge-caterpillar-20000: page.evaluate: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)",
+   "measures": {
+    "treeId": "edge-caterpillar-20000"
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 0.957
+  }
+ },
+ "scale": {
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 12.0 < 20",
+   "phase": "done",
+   "fetchMs": 40.29999999888241,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 16.700000001117587,
+   "firstRenderMs": 345.09999999962747,
+   "sharedParseMs": 12.300000000745058,
+   "reportedTips": 1000,
+   "notes": "parseTree 16.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 361.80000000074506,
+   "ink": 0.363858790080556,
+   "heapAfterMountMB": 7.50483512878418,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 9.400000000372529,
+   "clickToPaintMs": 37.59999999962747,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 12.004801920768411,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 36.32512471296625,
+   "droppedFrames": 239,
+   "maxFrameGapMs": 116.60000000000036,
+   "frames": 367,
+   "heapAfterInteractionMB": 8.095534324645996,
+   "heapMB": 8.095534324645996,
+   "pageErrors": [],
+   "wallSec": 12.822
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.add",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 1.48
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 3.5 < 20",
+   "phase": "done",
+   "fetchMs": 25.300000000745058,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 135.5,
+   "firstRenderMs": 1835.9000000003725,
+   "sharedParseMs": 86.39999999850988,
+   "reportedTips": 10000,
+   "notes": "parseTree 135.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1971.4000000003725,
+   "ink": 0.38735112936344973,
+   "heapAfterMountMB": 16.622252464294434,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 19999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 15.300000000745058,
+   "clickToPaintMs": 44.30000000074506,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.523809523812105,
+   "fpsP5": 3.5298270384751236,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 19.362304919911626,
+   "droppedFrames": 418,
+   "maxFrameGapMs": 316.5,
+   "frames": 199,
+   "heapAfterInteractionMB": 17.72922992706299,
+   "heapMB": 17.72922992706299,
+   "pageErrors": [],
+   "wallSec": 15.045
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 4.6 < 20",
+   "phase": "done",
+   "fetchMs": 79.80000000074506,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 43.399999998509884,
+   "firstRenderMs": 1141.4000000003725,
+   "sharedParseMs": 33,
+   "reportedTips": 10000,
+   "notes": "parseTree 43.4 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1184.7999999988824,
+   "ink": 0.40567051018796396,
+   "heapAfterMountMB": 13.863006591796875,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 13995,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 23.5,
+   "clickToPaintMs": 310.80000000074506,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 4.614674665436091,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 26.503646669635877,
+   "droppedFrames": 347,
+   "maxFrameGapMs": 283.39999999999964,
+   "frames": 274,
+   "heapAfterInteractionMB": 19.14565086364746,
+   "heapMB": 19.14565086364746,
+   "pageErrors": [],
+   "wallSec": 15.819
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:5205/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.add",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 1.228
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-caterpillar-1000",
+   "file": "screens/20261014-153824-S1-syn-caterpillar-1000.png",
+   "bytes": 69993
+  }
+ ],
+ "wallSec": 55.502,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

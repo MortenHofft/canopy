@@ -106,6 +106,8 @@ interface Mapping {
   sharedToLib: Array<LNode | undefined>;
   tips: number;
   unmatchedTips: number;
+  rankByName: Map<string, number>;
+  byRange: Map<number, number>;
 }
 
 /**
@@ -149,7 +151,7 @@ function buildMapping(superRoot: LNode, model: TreeModel): Mapping {
     libToShared.set(nodes[i], k);
     if (!sharedToLib[k]) sharedToLib[k] = nodes[i];
   }
-  return { nodes, libToShared, sharedToLib, tips, unmatchedTips: unmatched };
+  return { nodes, libToShared, sharedToLib, tips, unmatchedTips: unmatched, rankByName: rank, byRange };
 }
 
 function hexToRgb(c: string): { red: number; green: number; blue: number } {
@@ -394,8 +396,37 @@ function AptxView(props: ViewProps) {
     }
     return best;
   };
+  /**
+   * Shared node index for a library node, derived from the node's CURRENT descendant tips (so it stays right after
+   * the library's node menu has swapped, ladderized or collapsed things); undefined when the tips under it are no
+   * longer a clade of the shared tree (for example after the menu's Reroot): then no event is reported.
+   */
+  const resolve = (n: LNode): number | undefined => {
+    const m = live.current.map;
+    if (!m) return undefined;
+    const T = tree.tipCount;
+    let lo = Infinity;
+    let hi = -1;
+    let cnt = 0;
+    const stack: LNode[] = [n];
+    while (stack.length) {
+      const x = stack.pop()!;
+      if (x.children?.length) {
+        for (const c of x.children) stack.push(c);
+        continue;
+      }
+      const r = m.rankByName.get(x.name ?? '');
+      if (r === undefined) return undefined;
+      cnt++;
+      if (r < lo) lo = r;
+      if (r > hi) hi = r;
+    }
+    if (cnt === 0 || hi - lo + 1 !== cnt) return undefined;
+    if (cnt === 1) return tree.tipNode[lo];
+    return m.byRange.get(lo * (T + 1) + hi + 1);
+  };
   const eventFor = (n: LNode, type: 'click' | 'hover', via: string): EmitEvent | null => {
-    const k = live.current.map?.libToShared.get(n);
+    const k = resolve(n);
     if (k === undefined) return null;
     const isTip = tree.childCount[k] === 0;
     return {
@@ -693,7 +724,7 @@ function AptxView(props: ViewProps) {
       const n = pick(e);
       const ev = n && eventFor(n, 'click', 'DOM click on the container mapped to a node (d3 datum or layout coordinates)');
       if (ev) {
-        lastHover.current = live.current.map?.libToShared.get(n!) ?? -1; // the click's own node is not "hovered" again
+        lastHover.current = resolve(n!) ?? -1; // the click's own node is not "hovered" again
         latest.current.emit(ev);
       }
     };
@@ -705,7 +736,7 @@ function AptxView(props: ViewProps) {
       if (!e || latest.current.features.reportClicks === false) return;
       const n = performance.now() - lastClickAt.current < 400 ? null : pick(e);
       if (performance.now() - lastClickAt.current < 400) return;
-      const k = n ? live.current.map?.libToShared.get(n) ?? -1 : -1;
+      const k = n ? resolve(n) ?? -1 : -1;
       if (k === lastHover.current) return;
       lastHover.current = k;
       const ev = n && eventFor(n, 'hover', 'DOM mousemove on the container mapped to a node');
@@ -731,14 +762,26 @@ function AptxView(props: ViewProps) {
       const v = live.current.viewer;
       if (!v) return;
       const now = new Set(v.getSelectedNodes());
-      for (const n of now) {
-        if (prevSelection.current.has(n)) continue;
-        const ev = eventFor(n, 'click', "document 'selected_nodes_changed_event' + viewer.getSelectedNodes() (a selection, not a click)");
+      const added = Array.from(now).filter((n) => !prevSelection.current.has(n));
+      prevSelection.current = now;
+      const via = "document 'selected_nodes_changed_event' + viewer.getSelectedNodes() (a selection, not a click)";
+      const ks = added.map((n) => resolve(n)).filter((k): k is number => k !== undefined);
+      if (ks.length > 1) {
+        // the menu's "Select all external nodes" selects every tip of a clade at once: report the clade once when the
+        // new selection is exactly its tips, otherwise one event per node
+        const m = tree.mrcaOf(ks);
+        const tips = new Set(tree.tipsOf(ks));
+        if (tips.size === tree.tipCountOf(m)) {
+          latest.current.emit({ type: tree.childCount[m] === 0 ? 'tipClick' : 'nodeClick', nodeId: tree.nodeId(m), isTip: tree.childCount[m] === 0, tipIds: tree.descendantTips(m), source: 'adapter-derived', libraryPayload: { via, selectedNodes: added.length, note: 'MRCA of the newly selected nodes; their tips are exactly its clade' } });
+          return;
+        }
+      }
+      for (const n of added) {
+        const ev = eventFor(n, 'click', via);
         if (ev) latest.current.emit(ev);
       }
-      prevSelection.current = now;
     };
-    document.addEventListener('selected_nodes_changed_event', handler);
+        document.addEventListener('selected_nodes_changed_event', handler);
     return () => document.removeEventListener('selected_nodes_changed_event', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f.selectionMode]);
@@ -853,7 +896,7 @@ function AptxView(props: ViewProps) {
   });
 
   return (
-    <div className="aptx-host" data-view={viewHash} style={themeVars(props.theme)}>
+    <div className="aptx-host" role="group" aria-label={`Phylogenetic tree, ${tree.tipCount} tips (Archaeopteryx.js)`} data-view={viewHash} style={themeVars(props.theme)}>
       <style>{CSS}</style>
       <div ref={hostRef} className="aptx-lib" />
       <div ref={linksRef} className="aptx-links" />
@@ -930,27 +973,27 @@ function cellRect(host: HTMLElement | null, L: Live, colId: string, tipId: strin
 
 // ---------------------------------------------------------------------------------------------- capabilities
 const capabilities: CapabilityReport = {
-  tipClick: { level: 'partial', how: 'no click callback in the library; adapter listens for DOM clicks and maps them to the node (d3 datum or layout coordinates): adapter-derived' },
-  internalNodeClick: { level: 'partial', how: 'same workaround; internal nodes without a label are found by layout coordinates (rectangular only)' },
-  branchClick: { level: 'no', how: 'no branch elements (branches are batched into a few paths); clicks on a branch hit the nearest node' },
-  hover: { level: 'partial', how: 'library shows its own tooltip, no callback; adapter-derived hover events from a DOM mousemove hit test' },
-  descendantTipsInPayload: { level: 'no', how: 'the library has no payload; tip sets are computed by the adapter from the shared TreeModel (source adapter-derived)' },
-  cladeColouring: { level: 'partial', how: 'sets the phyloXML node.color on the library\'s live node objects and forces a redraw with applyViewState({}); the library has no colour-a-clade API' },
-  highlightTip: { level: 'partial', how: 'search box A via applyViewState({searchA: regex on node name}); the library bolds the hits, adds a halo and dims everything else; no per-tip style API' },
-  focusTip: { level: 'partial', how: 'search A + the library\'s documented Ctrl+Shift+E and Ctrl+G shortcuts dispatched on document; no focus/zoom-to API' },
-  tipAsLink: { level: 'partial', how: 'tip labels are SVG <text>; the adapter overlays <a href data-tip-id> over the visible labels (up to 400), re-positioned on each redraw' },
-  customColumns: { level: 'partial', how: 'only through built-ins: numeric columns become heat-map columns (>=2), text columns become label text or Color-by; no custom cell renderers' },
-  alignmentColumn: { level: 'yes', how: 'mol_seq on tip nodes; built-in alignment track (windowed, with conservation bar or sequence logo)' },
-  radialLayout: { level: 'yes', how: "layout: 'circular' (also 'unrooted'); heat map as rings, alignment track rectangular only" },
-  branchLengthToggle: { level: 'yes', how: "applyViewState({display: 'phylogram' | 'cladogram'}); a tree drawn to scale needs > 50% positive lengths" },
-  scaleBar: { level: 'yes', how: 'scale bar always drawn for phylograms; showScaleAxis adds an axis (time axis for dated trees)' },
-  darkTheme: { level: 'partial', how: "library has its own light/dark switch (button, localStorage 'aptx-panel-theme'); adapter clicks it; the dark palette is the library's, not GBIF's" },
-  cssTokens: { level: 'partial', how: 'no token contract; adapter overrides default-coloured SVG fills/strokes with CSS !important selectors and re-points the panel\'s --p-* custom properties' },
-  multipleInstances: { level: 'no', how: 'module singleton: a second launch() replaces the first (README: "One viewer per page")' },
-  cleanUnmount: { level: 'yes', how: 'viewer.destroy() removes DOM, body-level tooltip/menu, resize and key/wheel listeners' },
-  controlledState: { level: 'partial', how: 'view state both ways (applyViewState / onViewChange); no selection, viewport or colour setters' },
-  zoomToFit: { level: 'yes', how: 'fits on launch and on window resize; Ctrl+0 and a panel button refit' },
-  overviewOrMinimap: { level: 'yes', how: 'built-in overview miniature (always shown, cannot be switched off by config)' },
+  tipClick: { level: 'partial', how: 'the library has no click callback: the adapter listens for DOM clicks on the container and maps them to a node (the d3 datum of a clicked label, else layout coordinates within 5 units); events are source adapter-derived and the library still opens its own node menu' },
+  internalNodeClick: { level: 'partial', how: 'same workaround; internal nodes have no DOM element, so they are found from the library\'s (undocumented) node coordinates; in the circular layout the polar mapping is re-derived from the labelled nodes; after the node menu\'s Reroot a node may no longer be a clade of the shared tree, and then no event is reported' },
+  branchClick: { level: 'no', how: 'no branch elements (branches are batched into one path per style); a click near a branch resolves to the nearest node, never to a branch' },
+  hover: { level: 'partial', how: 'the library shows its own tooltip and has no callback; the adapter derives tipHover/nodeHover from a throttled mousemove hit test (adapter-derived)' },
+  descendantTipsInPayload: { level: 'no', how: 'the library emits no payload at all (the selection event is payload-less); tip sets come from the shared TreeModel through the adapter\'s node mapping (source adapter-derived)' },
+  cladeColouring: { level: 'partial', how: 'writes the phyloXML node.color on every node of the clade in the library\'s live tree object, then forces a redraw with the PageUp/PageDown font-size keys (applyViewState would reset zoom); no colour-a-clade API; an active search dims coloured clades too' },
+  highlightTip: { level: 'partial', how: 'search box A through applyViewState({searchA: regex on Node Name}); hits get bold label, halo and dot, everything else fades; resets zoom and pan; no per-tip style API' },
+  focusTip: { level: 'partial', how: 'search A (highlighted tips + this tip), then the documented Ctrl+G (centres the hit) and Ctrl+Shift+ArrowUp zoom keys dispatched on document; there is no focus/zoom-to API; the tip stays highlighted; rows are made readable up to 12,000 tips (every readable zoom draws a label element per tip)' },
+  tipAsLink: { level: 'partial', how: 'tip labels are SVG <text>; the adapter overlays <a href data-tip-id> on the visible labels (up to 400), repositioned by a MutationObserver after each redraw' },
+  customColumns: { level: 'partial', how: 'only built-ins: numeric columns become heat-map columns (2 or more needed: one bar column is drawn with a labelled mirror copy), text columns become label text and Color-by; no custom cell renderers' },
+  alignmentColumn: { level: 'yes', how: 'mol_seq on the tip nodes; the built-in alignment track (windowed 7 px columns, conservation bar or sequence logo, navigation bar fixed to the viewport)' },
+  radialLayout: { level: 'yes', how: "layout: 'circular' through applyViewState (heat map as rings; alignment track rectangular only; 'unrooted' also exists but is not offered by the shell)" },
+  branchLengthToggle: { level: 'yes', how: "applyViewState({display: 'phylogram' | 'cladogram'}); the library draws to scale only when more than half of the branches carry a positive length" },
+  scaleBar: { level: 'yes', how: 'a scale bar is drawn for phylograms; showScaleAxis adds a time or distance axis (checked on rich-corvoid-680)' },
+  darkTheme: { level: 'partial', how: "the library's own light/dark switch (the adapter clicks its theme button; the choice is stored by the library in localStorage 'aptx-panel-theme'); dark palette is the library's, not GBIF's" },
+  cssTokens: { level: 'partial', how: "no token contract: the adapter overrides default-coloured SVG attributes with CSS !important selectors (matching the library's fixed default colour values) and re-points the panel and menu --p-* custom properties" },
+  multipleInstances: { level: 'no', how: 'module singleton: a second launch() empties the first container and it is not restored (verified: README says "One viewer per page")' },
+  cleanUnmount: { level: 'yes', how: 'viewer.destroy() removes the DOM, the body tooltip, the resize and the document key/wheel listeners (5 mount/unmount cycles: DOM node count and heap flat); it leaves one <style id="aptx-panel-styles"> and localStorage keys behind' },
+  controlledState: { level: 'partial', how: 'view state goes both ways (applyViewState / onViewChange: layout, display, tracks, collapsed clades, searches, colour-by); selection is read-only; no viewport, colour or highlight setters; every applyViewState resets zoom and pan' },
+  zoomToFit: { level: 'yes', how: 'fits on launch and on window resize (not on container resize: the adapter dispatches a window resize event); Ctrl+0 or the panel button refits' },
+  overviewOrMinimap: { level: 'yes', how: 'built-in overview miniature with a viewport rectangle (always shown: no config key switches it off)' },
 };
 
 const features: AdapterFeature[] = [

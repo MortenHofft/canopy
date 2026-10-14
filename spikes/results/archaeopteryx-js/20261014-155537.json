@@ -1,0 +1,1547 @@
+{
+ "runId": "20261014-155537",
+ "candidate": {
+  "name": "archaeopteryx-js",
+  "version": "3.24.0",
+  "license": "LGPL-3.0-or-later",
+  "notes": "Full viewer application driven imperatively (launch/destroy); d3 7.9.0 and phyloxml 1.1.7 put on globalThis for the UMD file; panel collapsed by default."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "the library has no click callback: the adapter listens for DOM clicks on the container and maps them to a node (the d3 datum of a clicked label, else layout coordinates within 5 units); events are source adapter-derived and the library still opens its own node menu"
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same workaround; internal nodes have no DOM element, so they are found from the library's (undocumented) node coordinates; in the circular layout the polar mapping is re-derived from the labelled nodes; after the node menu's Reroot a node may no longer be a clade of the shared tree, and then no event is reported"
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "no branch elements (branches are batched into one path per style); a click near a branch resolves to the nearest node, never to a branch"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "the library shows its own tooltip and has no callback; the adapter derives tipHover/nodeHover from a throttled mousemove hit test (adapter-derived)"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library emits no payload at all (the selection event is payload-less); tip sets come from the shared TreeModel through the adapter's node mapping (source adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "writes the phyloXML node.color on every node of the clade in the library's live tree object, then forces a redraw with the PageUp/PageDown font-size keys (applyViewState would reset zoom); no colour-a-clade API; an active search dims coloured clades too"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "search box A through applyViewState({searchA: regex on Node Name}); hits get bold label, halo and dot, everything else fades; resets zoom and pan; no per-tip style API"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "search A (highlighted tips + this tip), then the documented Ctrl+G (centres the hit) and Ctrl+Shift+ArrowUp zoom keys dispatched on document; there is no focus/zoom-to API; the tip stays highlighted; rows are made readable up to 12,000 tips (every readable zoom draws a label element per tip)"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "tip labels are SVG <text>; the adapter overlays <a href data-tip-id> on the visible labels (up to 400), repositioned by a MutationObserver after each redraw"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only built-ins: numeric columns become heat-map columns (2 or more needed: one bar column is drawn with a labelled mirror copy), text columns become label text and Color-by; no custom cell renderers"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "mol_seq on the tip nodes; the built-in alignment track (windowed 7 px columns, conservation bar or sequence logo, navigation bar fixed to the viewport)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout: 'circular' through applyViewState (heat map as rings; alignment track rectangular only; 'unrooted' also exists but is not offered by the shell)"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "applyViewState({display: 'phylogram' | 'cladogram'}); the library draws to scale only when more than half of the branches carry a positive length"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "a scale bar is drawn for phylograms; showScaleAxis adds a time or distance axis (checked on rich-corvoid-680)"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "the library's own light/dark switch (the adapter clicks its theme button; the choice is stored by the library in localStorage 'aptx-panel-theme'); dark palette is the library's, not GBIF's"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "no token contract: the adapter overrides default-coloured SVG attributes with CSS !important selectors (matching the library's fixed default colour values) and re-points the panel and menu --p-* custom properties"
+  },
+  "multipleInstances": {
+   "level": "no",
+   "how": "module singleton: a second launch() empties the first container and it is not restored (verified: README says \"One viewer per page\")"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "viewer.destroy() removes the DOM, the body tooltip, the resize and the document key/wheel listeners (5 mount/unmount cycles: DOM node count and heap flat); it leaves one <style id=\"aptx-panel-styles\"> and localStorage keys behind"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "view state goes both ways (applyViewState / onViewChange: layout, display, tracks, collapsed clades, searches, colour-by); selection is read-only; no viewport, colour or highlight setters; every applyViewState resets zoom and pan"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on launch and on window resize (not on container resize: the adapter dispatches a window resize event); Ctrl+0 or the panel button refits"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "built-in overview miniature with a viewport rectangle (always shown: no config key switches it off)"
+  }
+ },
+ "date": "2026-10-14T15:58:02.178Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "syn-yule-200",
+   "syn-yule-1000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1005288,
+  "jsGzipBytes": 332037,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 1023710,
+  "totalGzipBytes": 336706,
+  "files": [
+   {
+    "path": "assets/archaeopteryx-50b0Ku0X.js",
+    "bytes": 449417,
+    "gzipBytes": 146374
+   },
+   {
+    "path": "assets/d3-BlgK36Ox.js",
+    "bytes": 280957,
+    "gzipBytes": 95562
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DsA07EYz.js",
+    "bytes": 236087,
+    "gzipBytes": 76362
+   },
+   {
+    "path": "assets/phyloxml-DwTe3DD1.js",
+    "bytes": 38827,
+    "gzipBytes": 13739
+   },
+   {
+    "path": "index.html",
+    "bytes": 656,
+    "gzipBytes": 341
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 6.0 < 20",
+     "phase": "done",
+     "fetchMs": 30.700000001117587,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 2.599999999627471,
+     "firstRenderMs": 173.80000000074506,
+     "sharedParseMs": 1.099999999627471,
+     "reportedTips": 5,
+     "notes": "parseTree 2.6 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 176.40000000037253,
+     "ink": 0.019451903332806775,
+     "heapAfterMountMB": 6.338118553161621,
+     "stats": {
+      "domNodes": 383,
+      "svgElements": 157,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 8,
+       "labelElements": 5,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 5.900000000372529,
+     "clickToPaintMs": 107.34999999962747,
+     "clickSamples": {
+      "events": 2,
+      "tries": 2,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 6.002400960384141,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 31.033983569180595,
+     "droppedFrames": 320,
+     "maxFrameGapMs": 200.10000000000036,
+     "frames": 343,
+     "heapAfterInteractionMB": 6.895376205444336,
+     "heapMB": 6.895376205444336,
+     "pageErrors": [],
+     "wallSec": 13.876
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 7.5 < 20",
+     "phase": "done",
+     "fetchMs": 22.40000000037253,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 14.100000001490116,
+     "firstRenderMs": 278.30000000074506,
+     "sharedParseMs": 3.5,
+     "reportedTips": 200,
+     "notes": "parseTree 14.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 292.4000000022352,
+     "ink": 0.11417785499921018,
+     "heapAfterMountMB": 6.845192909240723,
+     "stats": {
+      "domNodes": 462,
+      "svgElements": 247,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 399,
+       "labelElements": 50,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 5,
+     "clickToPaintMs": 93.60000000149012,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 7.501875468867258,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 33.4839277146957,
+     "droppedFrames": 265,
+     "maxFrameGapMs": 199.90000000000146,
+     "frames": 335,
+     "heapAfterInteractionMB": 7.744041442871094,
+     "heapMB": 7.744041442871094,
+     "pageErrors": [],
+     "wallSec": 14.045
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 6.7 < 20",
+     "phase": "done",
+     "fetchMs": 17.09999999962747,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 19,
+     "firstRenderMs": 369,
+     "sharedParseMs": 6.5,
+     "reportedTips": 1000,
+     "notes": "parseTree 19.0 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 388,
+     "ink": 0.24395987995577317,
+     "heapAfterMountMB": 8.041776657104492,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1
+      }
+     },
+     "clickLatencyMs": 10.199999999254942,
+     "clickToPaintMs": 142.40000000037253,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 6.666666666666667,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 25.993426949504133,
+     "droppedFrames": 342,
+     "maxFrameGapMs": 216.69999999999982,
+     "frames": 261,
+     "heapAfterInteractionMB": 9.5333251953125,
+     "heapMB": 9.5333251953125,
+     "pageErrors": [],
+     "wallSec": 13.513
+    }
+   },
+   "status": "timeout",
+   "reason": "edge-quoted-labels: timeout (unusable: p5 fps 6.0 < 20); syn-yule-200: timeout (unusable: p5 fps 7.5 < 20); syn-yule-1000: timeout (unusable: p5 fps 6.7 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 41.435
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 5.474
+  },
+  "S3": {
+   "status": "partial",
+   "reason": "syn-yule-1000: tip sets correct but computed by the adapter (source=adapter-derived), not delivered by the library",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "adapter-derived"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 3.52
+  },
+  "S4": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "clade A turns red (pixel fraction rises)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 22.56%"
+    },
+    {
+     "name": "other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 22.56%, B blue 27.23%"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0.22558799158646184,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 1
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 4.98
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-10000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Pozenea_pseudoglabra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 0%, dy 0%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "7337 pixels differ"
+    }
+   ],
+   "measures": {
+    "initiallyVisible": true,
+    "offCentre": {
+     "dx": 5.2014482887382895e-9,
+     "dy": 0.000003967283648590863
+    },
+    "highlightPixels": 7337
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 12.741
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:5205/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=null"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":514,\"y\":454.421875,\"width\":152.421875,\"height\":14}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:5205/__tip__/Phumideina_macromontana",
+     "tabindex": null,
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 514,
+      "y": 454.421875,
+      "width": 152.421875,
+      "height": 14
+     },
+     "count": 37
+    },
+    "popups": 1,
+    "note": "adapter reports partial: tip labels are SVG <text>; the adapter overlays <a href data-tip-id> on the visible labels (up to 400), repositioned by a MutationObserver after each redraw"
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 7.66
+  },
+  "S7": {
+   "status": "partial",
+   "reason": "syn-yule-1000, column occ: after zoom and pan: at least 8 tips with a drawn cell (0 of 246 visible tips have a cell); after zoom and pan: cell centre within 2px of tip row (0/0 aligned, max dy 0.0px)",
+   "checks": [
+    {
+     "name": "fit view: at least 8 tips with a drawn cell",
+     "ok": true,
+     "detail": "300 of 300 visible tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "300/300 aligned, max dy 0.5px"
+    },
+    {
+     "name": "after zoom and pan: at least 8 tips with a drawn cell",
+     "ok": false,
+     "detail": "0 of 246 visible tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": false,
+     "detail": "0/0 aligned, max dy 0.0px"
+    },
+    {
+     "name": "tip without a data row gets no cell (explicitly unmatched)",
+     "ok": true,
+     "detail": "null"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 300,
+     "cells": 300,
+     "aligned": 300,
+     "maxDy": 0.49699999999995725
+    },
+    "after zoom and pan": {
+     "visibleTips": 246,
+     "cells": 0,
+     "aligned": 0,
+     "maxDy": 0
+    },
+    "unmatchedNote": "tips without a value draw no cell (locateCell should return null); checked in unit of S7 notes only",
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 6.625
+  },
+  "S8": {
+   "status": "pass",
+   "reason": "rich-ens-protein-197: all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 8 tips with a drawn cell",
+     "ok": true,
+     "detail": "177 of 177 visible tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "167/177 aligned, max dy 115.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 8 tips with a drawn cell",
+     "ok": true,
+     "detail": "197 of 197 visible tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "187/197 aligned, max dy 115.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "21% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "3 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 177,
+     "cells": 177,
+     "aligned": 167,
+     "maxDy": 115.03045685279187
+    },
+    "after zoom and pan": {
+     "visibleTips": 197,
+     "cells": 197,
+     "aligned": 187,
+     "maxDy": 115.03045685279187
+    },
+    "cellDrawnFraction": 0.20625,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 6.991
+  },
+  "S9": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 225 -> 55"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "73% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": true,
+     "detail": "45637 pixels"
+    }
+   ],
+   "measures": {
+    "lightLuminance": 224.85107580913146,
+    "darkLuminance": 55.11024567675634,
+    "tokenBackgroundFraction": 0.7250560732901595,
+    "tokenBranchPixels": 45637
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 3.534
+  },
+  "S10": {
+   "status": "partial",
+   "reason": "syn-yule-1000: all checks passed; p5 10.0 fps, median 59.9 fps, DOM nodes 442, canvases 0 (p5 < 20 fps while zooming out); overviewOrMinimap self-report: yes",
+   "checks": [
+    {
+     "name": "whole tree in view (first and last tip both locatable) after zoom-out by wheel",
+     "ok": true,
+     "detail": "after 15 wheel notches"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": true,
+     "detail": "100 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "syn-yule-1000",
+    "loadMs": 356.2999999988824,
+    "notches": 15,
+    "zoomOutSec": 1.517,
+    "fpsMedian": 59.88023952095874,
+    "fpsP5": 9.99000999001,
+    "maxFrameGapMs": 100.09999999999991,
+    "droppedFrames": 32,
+    "inkAfterZoomOut": 0.18334860211656923,
+    "stats": {
+     "domNodes": 442,
+     "svgElements": 227,
+     "canvases": 0,
+     "custom": {
+      "libraryNodes": 1999,
+      "labelElements": 40,
+      "branchPaths": 1,
+      "launches": 1
+     }
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 6.126
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (yes)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 120 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 254.8 px"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 80 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "phylogramPearson": 1.0000000000000007,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 254.8150127825513,
+    "ultrametricTipSpread": 2.3344319860701444e-16,
+    "scaleBarSelfReport": "yes: a scale bar is drawn for phylograms; showScaleAxis adds a time or distance axis (checked on rich-corvoid-680)"
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 4.933
+  },
+  "S12": {
+   "status": "partial",
+   "reason": "syn-yule-1000 radial: radial S4: clade A turns red (pixel fraction rises) (fraction 0.00% -> 0.17%); radial S4: two clades, two colours (A red kept, B blue appears) (A red 0.17%, B blue 0.02%)",
+   "checks": [
+    {
+     "name": "setLayout(radial) changes the layout",
+     "ok": true,
+     "detail": "tip moved from 741,347 to 639,540"
+    },
+    {
+     "name": "radial S2: tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "radial S2: tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "radial S2: tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "radial S2: tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    },
+    {
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "radial S3: at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    },
+    {
+     "name": "radial S4: clade A turns red (pixel fraction rises)",
+     "ok": false,
+     "detail": "fraction 0.00% -> 0.17%"
+    },
+    {
+     "name": "radial S4: other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
+     "ok": false,
+     "detail": "A red 0.17%, B blue 0.02%"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {},
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 13.817
+  },
+  "S13": {
+   "status": "partial",
+   "reason": "all checks passed; two-instance part skipped (adapter reports multipleInstances=no: module singleton: a second launch() empties the first container and it is not restored (verified: README says \"One viewer per page\"))",
+   "checks": [
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "370 -> 371"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "1.2 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "multipleInstancesSkipped": "module singleton: a second launch() empties the first container and it is not restored (verified: README says \"One viewer per page\")",
+    "baseline": {
+     "dom": 370,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 371,
+     "canv": 0
+    },
+    "heapMB": [
+     7.655817985534668,
+     7.95265007019043,
+     8.632121086120605,
+     8.727160453796387,
+     8.88890552520752
+    ],
+    "heapGrowthMB": 1.2330875396728516,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 5.215
+  },
+  "S14": {
+   "status": "pass",
+   "reason": "all checks passed",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 focusable elements inside the tree",
+     "ok": true,
+     "detail": "5 found"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "4/5 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": true,
+     "detail": "{\"roles\":[\"group\"],\"labelled\":true,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [
+     {
+      "tag": "button",
+      "role": null,
+      "name": "Archaeopteryx.js",
+      "tip": null
+     },
+     {
+      "tag": "button",
+      "role": null,
+      "name": "Tree properties and statistics",
+      "tip": null
+     },
+     {
+      "tag": "button",
+      "role": null,
+      "name": "Control panel cheat sheet",
+      "tip": null
+     },
+     {
+      "tag": "button",
+      "role": null,
+      "name": "",
+      "tip": null
+     },
+     {
+      "tag": "button",
+      "role": null,
+      "name": "+",
+      "tip": null
+     }
+    ],
+    "semantics": {
+     "roles": [
+      "group"
+     ],
+     "labelled": true,
+     "textFallback": false
+    }
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 1.707
+  },
+  "S15": {
+   "status": "partial",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 38 ms, to paint 201 ms (median of 5) > 120 ms target (spec: about 100 ms)",
+   "checks": [
+    {
+     "name": "clade is red after the click",
+     "ok": true,
+     "detail": "55.37% of the clade box"
+    },
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "cladeTips": 969,
+    "redFractionAfterClick": 0.5537208118134865,
+    "clickToCommitMs": [
+     40.09999999962747,
+     36.69999999925494,
+     37.5,
+     35.19999999925494,
+     49.90000000037253
+    ],
+    "clickToPaintMs": [
+     62.59999999962747,
+     336.19999999925494,
+     251.19999999925494,
+     201.40000000037253,
+     58.40000000037253
+    ],
+    "medianCommitMs": 37.5,
+    "medianPaintMs": 201.40000000037253
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 8.558
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 6.0 < 20",
+   "phase": "done",
+   "fetchMs": 30.700000001117587,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 2.599999999627471,
+   "firstRenderMs": 173.80000000074506,
+   "sharedParseMs": 1.099999999627471,
+   "reportedTips": 5,
+   "notes": "parseTree 2.6 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 176.40000000037253,
+   "ink": 0.019451903332806775,
+   "heapAfterMountMB": 6.338118553161621,
+   "stats": {
+    "domNodes": 383,
+    "svgElements": 157,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 8,
+     "labelElements": 5,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 5.900000000372529,
+   "clickToPaintMs": 107.34999999962747,
+   "clickSamples": {
+    "events": 2,
+    "tries": 2,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 6.002400960384141,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 31.033983569180595,
+   "droppedFrames": 320,
+   "maxFrameGapMs": 200.10000000000036,
+   "frames": 343,
+   "heapAfterInteractionMB": 6.895376205444336,
+   "heapMB": 6.895376205444336,
+   "pageErrors": [],
+   "wallSec": 13.876
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 7.5 < 20",
+   "phase": "done",
+   "fetchMs": 22.40000000037253,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 14.100000001490116,
+   "firstRenderMs": 278.30000000074506,
+   "sharedParseMs": 3.5,
+   "reportedTips": 200,
+   "notes": "parseTree 14.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 292.4000000022352,
+   "ink": 0.11417785499921018,
+   "heapAfterMountMB": 6.845192909240723,
+   "stats": {
+    "domNodes": 462,
+    "svgElements": 247,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 399,
+     "labelElements": 50,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 5,
+   "clickToPaintMs": 93.60000000149012,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 7.501875468867258,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 33.4839277146957,
+   "droppedFrames": 265,
+   "maxFrameGapMs": 199.90000000000146,
+   "frames": 335,
+   "heapAfterInteractionMB": 7.744041442871094,
+   "heapMB": 7.744041442871094,
+   "pageErrors": [],
+   "wallSec": 14.045
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 6.7 < 20",
+   "phase": "done",
+   "fetchMs": 17.09999999962747,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 19,
+   "firstRenderMs": 369,
+   "sharedParseMs": 6.5,
+   "reportedTips": 1000,
+   "notes": "parseTree 19.0 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 388,
+   "ink": 0.24395987995577317,
+   "heapAfterMountMB": 8.041776657104492,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1
+    }
+   },
+   "clickLatencyMs": 10.199999999254942,
+   "clickToPaintMs": 142.40000000037253,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 6.666666666666667,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 25.993426949504133,
+   "droppedFrames": 342,
+   "maxFrameGapMs": 216.69999999999982,
+   "frames": 261,
+   "heapAfterInteractionMB": 9.5333251953125,
+   "heapMB": 9.5333251953125,
+   "pageErrors": [],
+   "wallSec": 13.513
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-edge-quoted-labels",
+   "file": "screens/20261014-155537-S1-edge-quoted-labels.png",
+   "bytes": 22505
+  },
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261014-155537-S4-two-clades.png",
+   "bytes": 65644
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261014-155537-S5-focus-highlight.png",
+   "bytes": 84474
+  },
+  {
+   "label": "S8-alignment",
+   "file": "screens/20261014-155537-S8-alignment.png",
+   "bytes": 121615
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261014-155537-S9-dark.png",
+   "bytes": 68379
+  },
+  {
+   "label": "S10-zoomed-out-syn-yule-1000",
+   "file": "screens/20261014-155537-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 62159
+  },
+  {
+   "label": "S12-radial",
+   "file": "screens/20261014-155537-S12-radial.png",
+   "bytes": 99836
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261014-155537-S15-linked-view.png",
+   "bytes": 98953
+  }
+ ],
+ "wallSec": 144.321,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

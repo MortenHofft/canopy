@@ -1,0 +1,275 @@
+{
+ "runId": "20261014-154425",
+ "candidate": {
+  "name": "react-bio-viz",
+  "version": "0.3.0",
+  "license": "MIT",
+  "notes": "PhyloTree/SimplePhyloTree (SVG, one element set per node, no culling). Adapter workarounds: DOM hover, own column canvas, leafSpacing+viewport focus, synthetic lengths for radial cladogram."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "onNodeClick fires for leaf markers (TreeNodeInfo.isLeaf); markers are drawn for every leaf and receive clicks as soon as onNodeClick is set"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "onNodeClick on the internal-node marker (drawn when onNodeClick or interactive is set); payload carries leafNames and descendantIds"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "onBranchClick adds a wide transparent hit path per branch; reports the node below the branch with its leafNames"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "the library has no hover callback. Workaround: delegated DOM mouseover on the wrapper (circle[data-node-id], path[data-branch-id], label group); tip sets are derived from the shared TreeModel (source adapter-derived)"
+  },
+  "descendantTipsInPayload": {
+   "level": "yes",
+   "how": "TreeNodeInfo.leafNames (all leaves below the node) in the library payload on click; not on hover (adapter-derived there)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "nodeStyles/branchStyles (colour per node id) for every descendant id, built in React state. Works, but each change re-renders the whole tree body (all nodes), so it is not an incremental update and cost grows with tree size; branch width cannot change per clade"
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "nodeStyles colour+bold on the tip marker and a halo/bold in the leafTextComponent slot; optional library search (searchQuery regex) dims all other tips"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "no focus API. Workaround: leafSpacing (px per row, library prop) when rows are thinner than 14 px, then a computed controlled viewport read back from the rendered marker position; relayouts the whole tree; radial zooms 8x around the marker"
+  },
+  "tipAsLink": {
+   "level": "yes",
+   "how": "leafTextComponent renders an SVG <a href target=_blank data-tip-id tabindex=0> around the label text for every tip (all tips are in the DOM, there is no culling)"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "the library has no per-tip columns. Workaround: own canvas right of the tree, rows read back from the rendered markers and aligned through svg.getScreenCTM() on every viewport change; rectangular layouts only"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "same own canvas as customColumns (residue runs coloured per amino acid); not a library feature (react-bio-viz has a separate MultipleSequenceAlignment component whose row order can be linked, not used here)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout=\"radial\": circular phylogram with labels on spokes (names truncated to 24 chars); columns are not drawn in radial"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "rectangular: layout rectangular (phylogram) versus cladogram (library). Radial is always a phylogram: the cladogram variant feeds synthetic lengths (clade height differences, adapter-derived) so tips align; negative lengths are clamped to 0 in a copy"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "showScaleBar (default on) draws an I-beam of a round length at the bottom of the tree; no time axis for dated trees; hidden in cladogram layout"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "no theme prop: the stylesheet reads a .dark class and shadcn CSS variables (--background, --foreground, --primary, ...); the adapter sets them on its wrapper from gbifDarkTheme(). Branches/markers are currentColor so they follow; support/scale text keep sans-serif unless overridden with !important CSS"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "CSS custom properties (--background, --foreground, --rbv-accent, shadcn tokens) are honoured; label font only via the leafTextComponent slot; support-value, scale-bar and collapsed-clade fonts are inline sans-serif and need !important CSS to change; branch opacity is a presentation attribute (CSS opacity:1 overrides)"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no module-level state seen; per-instance Zustand store, two instances tested through window.__spike2"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; window pointer listeners are removed by the library effect cleanup; injected <style id> stays in document.head by design"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "viewport/onViewportChange and selection/onSelectionChange are controlled props (also *Store variants); colours, layout and all other inputs are plain props"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "the viewport is clamped to the extent, so zooming out stops at the fit view; PhyloTree toolbar has a reset button; fit on mount and layout change by the adapter (viewport state reset)"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "no minimap; no level of detail or culling: every node and label stays in the SVG at every zoom (collapse is manual or collapseBySupport)"
+  }
+ },
+ "date": "2026-10-14T15:44:59.701Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-yule-10000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 414963,
+  "jsGzipBytes": 134947,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 433136,
+  "totalGzipBytes": 139552,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-C_1Q12I9.js",
+    "bytes": 414963,
+    "gzipBytes": 134947
+   },
+   {
+    "path": "index.html",
+    "bytes": 407,
+    "gzipBytes": 277
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 3.5 < 20",
+     "phase": "done",
+     "fetchMs": 52.90000000037253,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 44.30000000074506,
+     "firstRenderMs": 8042,
+     "sharedParseMs": 44.20000000111759,
+     "reportedTips": 10000,
+     "notes": "react-bio-viz 0.3.0 parseNewick 44.3 ms (library parser, recursive); ids mapped by preorder (preorder, 0 mismatches); first commit 2222 ms; derived-lengths=false; tips = leaf names from onLeafOrderChange",
+     "loadMs": 8086.300000000745,
+     "ink": 0.33414310535460434,
+     "heapAfterMountMB": 125.89172077178955,
+     "stats": {
+      "domNodes": 130038,
+      "svgElements": 130023,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "rows": 10000,
+       "commitMs": 660.2000000011176,
+       "parseMs": 44.30000000074506,
+       "leafSpacing": 0
+      }
+     },
+     "clickLatencyMs": 220.10000000149012,
+     "clickToPaintMs": 1501.2000000011176,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 3.5285815102328684,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 14.107315155084793,
+     "droppedFrames": 511,
+     "maxFrameGapMs": 300,
+     "frames": 157,
+     "heapAfterInteractionMB": 128.99491214752197,
+     "heapMB": 128.99491214752197,
+     "pageErrors": [],
+     "wallSec": 32.425
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-yule-10000: timeout (unusable: p5 fps 3.5 < 20)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 32.428
+  }
+ },
+ "scale": {
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 3.5 < 20",
+   "phase": "done",
+   "fetchMs": 52.90000000037253,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 44.30000000074506,
+   "firstRenderMs": 8042,
+   "sharedParseMs": 44.20000000111759,
+   "reportedTips": 10000,
+   "notes": "react-bio-viz 0.3.0 parseNewick 44.3 ms (library parser, recursive); ids mapped by preorder (preorder, 0 mismatches); first commit 2222 ms; derived-lengths=false; tips = leaf names from onLeafOrderChange",
+   "loadMs": 8086.300000000745,
+   "ink": 0.33414310535460434,
+   "heapAfterMountMB": 125.89172077178955,
+   "stats": {
+    "domNodes": 130038,
+    "svgElements": 130023,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "rows": 10000,
+     "commitMs": 660.2000000011176,
+     "parseMs": 44.30000000074506,
+     "leafSpacing": 0
+    }
+   },
+   "clickLatencyMs": 220.10000000149012,
+   "clickToPaintMs": 1501.2000000011176,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 3.5285815102328684,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 14.107315155084793,
+   "droppedFrames": 511,
+   "maxFrameGapMs": 300,
+   "frames": 157,
+   "heapAfterInteractionMB": 128.99491214752197,
+   "heapMB": 128.99491214752197,
+   "pageErrors": [],
+   "wallSec": 32.425
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-10000",
+   "file": "screens/20261014-154425-S1-syn-yule-10000.png",
+   "bytes": 99371
+  }
+ ],
+ "wallSec": 34.592,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}
