@@ -1045,6 +1045,25 @@ dd{margin:0;font-size:var(--text-xs);font-family:var(--font-mono);word-break:bre
 .embed .body{padding:0;gap:0}
 .embed .tree-card{border:none;border-radius:0;box-shadow:none}
 .embed .embed-chip{display:block;position:fixed;right:var(--space-2);bottom:var(--space-2);z-index:10;padding:var(--space-1) var(--space-2);background:var(--popover-bg);border:1px solid var(--card-border-color);border-radius:var(--radius-pill);box-shadow:var(--shadow-sm);font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--fg2);pointer-events:none}
+
+/* Small screens: single column. The tree card comes first at a fixed share of the screen height, the controls below it.
+   (The desktop layout is a row with a 22.5rem side panel, which squeezed the tree card to zero width on a phone.) */
+@media (max-width: 900px){
+.shell{height:auto;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+.app-header{flex-wrap:wrap;gap:var(--space-2);padding:var(--space-2) var(--space-3)}
+.app-header img{height:1.75rem;min-width:0}
+.app-title{font-size:var(--text-md)}
+.msg{max-width:100%;white-space:normal}
+.body{flex-direction:column;flex:none;min-height:0;overflow:visible;padding:var(--space-3);gap:var(--space-3)}
+.tree-card{flex:none;width:100%;height:72vh;height:72dvh;min-height:26rem}
+.side{width:100%;flex:none;overflow:visible}
+.tree-card-head{gap:var(--space-2);padding:var(--space-2) var(--space-3)}
+.tree-card-head .card-title{width:100%}
+.app-footer-inner{padding:var(--space-4) var(--space-3)}
+.embed .shell{height:100vh;min-height:0;overflow:hidden}
+.embed .body{flex:1;min-height:0;padding:0;overflow:hidden}
+.embed .tree-card{flex:1;height:auto;min-height:0}
+}
 `;
 
 // ------------------------------------------------------------------------------------------ install
