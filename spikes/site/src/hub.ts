@@ -115,12 +115,13 @@ function renderCards(f: Findings, built: Built[]) {
 
 function renderCallouts(f: Findings, built: Built[]) {
   const tested = f.candidates.filter((c) => c.kind === 'spike').length;
-  const none = f.candidates.filter((c) => c.kind !== 'design' && ['tip', 'node', 'clade', 'cols', 'scale', 'overview'].every((d) => c.cells[d]?.c === 'y')).length;
-  const items = [
-    [String(f.candidates.filter((c) => c.kind !== 'design').length), 'libraries compared'],
-    [String(tested), 'libraries being tested in a browser'],
-    [String(built.length), 'demos online now'],
-    [String(none), 'libraries that meet tip and node events, clade colouring, columns, overview and scale together'],
+  const all = ['tip', 'node', 'clade', 'cols', 'scale', 'overview'];
+  const meet = f.candidates.filter((c) => c.kind !== 'reference' && all.every((d) => c.cells[d]?.c === 'y'));
+  const items: [string, string][] = [
+    [String(f.candidates.filter((c) => c.kind !== 'reference' || true).length), 'libraries and builds compared'],
+    [String(tested), 'tested in a browser with the same 15 scenarios'],
+    [String(built.filter((b) => b.name !== 'stub').length), 'demos online now'],
+    [String(meet.length), `meet tip and node events, clade colouring, columns, overview and scale together${meet.length ? ': ' + meet.map((c) => c.title).join(', ') : ''}`],
   ];
   $('#callouts').innerHTML = items.map(([n, l]) => `<div class="callout"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join('');
 }
@@ -136,31 +137,49 @@ async function renderData() {
     <div class="table-scroll"><table class="table-captions"><thead><tr><th>Tree</th><th class="text-end">Tips</th><th>Branch lengths</th><th class="text-end">File</th><th>Licence</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+interface FinalTree { treeId: string; tips: number; status: string; reason: string; firstRenderMs?: number; fpsMedian?: number; droppedRatio?: number; cpuMsPerStep?: number; clickMs?: number; heapMB?: number }
+interface FinalCand { version?: string; license?: string; date?: string; load?: { start: number; end: number; max: number; noisy: boolean }; machine?: string; runIds: string[]; scenarios: Record<string, { status: string; reason: string }>; trees: FinalTree[] }
+interface Final { generated: string; candidates: Record<string, FinalCand> }
+
+const SCENARIOS: [string, string][] = [
+  ['S1', 'Load and scale'], ['S2', 'Click a tip'], ['S3', 'Click a node, get its tips'], ['S4', 'Colour clades from React'],
+  ['S5', 'Highlight and focus a tip'], ['S6', 'Tip labels as links'], ['S7', 'Custom column'], ['S8', 'Alignment column'],
+  ['S9', 'Theme and dark mode'], ['S10', 'Zoom out, overview'], ['S11', 'Branch lengths'], ['S12', 'Radial layout'],
+  ['S13', 'Two instances'], ['S14', 'Keyboard'], ['S15', 'Linked view (clade to map)'],
+];
+const statusClass = (s: string) => (s === 'n/a' || s === 'skipped' ? 'unsupported' : s);
+const ms = (v?: number) => (v == null ? '' : v >= 10000 ? `${(v / 1000).toFixed(0)} s` : v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`);
+
 async function renderMeasured() {
   const body = $('#measured-body');
-  const idx = await getJson<Record<string, string>>('results/index.json');
-  if (!idx || !Object.keys(idx).length) {
-    body.innerHTML = '<p>No automated runs are included in this build yet. The runner (<code>spikes/runner</code>) drives each demo with real mouse and wheel input and records pass, partial, fail or timeout for 15 scenarios and the timing for each tree size.</p>';
+  const fin = await getJson<Final>('results/final.json');
+  if (!fin || !Object.keys(fin.candidates).length) {
+    body.innerHTML = '<p>No automated runs are included in this build. The runner (<code>spikes/runner</code>) drives each demo with real mouse and wheel input and records pass, partial, fail or timeout for 15 scenarios and the timing for each tree size.</p>';
     return;
   }
-  const runs = await Promise.all(Object.entries(idx).map(async ([name, file]) => [name, await getJson<any>(`results/${file}`)] as const));
-  const ok = runs.filter(([, r]) => r);
-  if (!ok.length) { body.innerHTML = '<p>Result files could not be loaded.</p>'; return; }
-  // Tolerant renderer: expects { scenarios: { S1: { status, ... } } } or { results: [{ scenario, status }] }
-  const scen = (r: any): Record<string, string> => {
-    const out: Record<string, string> = {};
-    if (r?.scenarios && !Array.isArray(r.scenarios)) for (const [k, v] of Object.entries<any>(r.scenarios)) out[k] = v?.status ?? String(v);
-    else if (Array.isArray(r?.scenarios)) for (const s of r.scenarios) out[s.id ?? s.scenario] = s.status;
-    else if (Array.isArray(r?.results)) for (const s of r.results) out[s.scenario ?? s.id] = out[s.scenario ?? s.id] === 'fail' ? 'fail' : s.status;
-    return out;
-  };
-  const ids = Array.from(new Set(ok.flatMap(([, r]) => Object.keys(scen(r))))).sort((a, b) => parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, '')));
-  const head = `<tr><th>Library</th>${ids.map((i) => `<th>${esc(i)}</th>`).join('')}</tr>`;
-  const rows = ok.map(([name, r]) => {
-    const s = scen(r);
-    return `<tr><td><a href="#card-${name}">${esc(name)}</a></td>${ids.map((i) => `<td>${s[i] ? `<span class="status ${esc(s[i])}">${esc(s[i])}</span>` : ''}</td>`).join('')}</tr>`;
+  const names = Object.keys(fin.candidates);
+  const head = `<tr><th>Scenario</th>${names.map((n) => `<th><a href="#card-${n}">${esc(n)}</a></th>`).join('')}</tr>`;
+  const rows = SCENARIOS.map(([id, label]) => {
+    const cells = names.map((n) => {
+      const sc = fin.candidates[n].scenarios[id];
+      if (!sc) return '<td></td>';
+      let txt = sc.status;
+      if (id === 'S1') { const t = fin.candidates[n].trees; const p = t.filter((x) => x.status === 'pass').length; txt = `${p}/${t.length} trees`; }
+      return `<td><span class="status ${esc(statusClass(sc.status))}" title="${esc(sc.reason)}">${esc(txt)}</span></td>`;
+    }).join('');
+    return `<tr><th scope="row" title="${esc(label)}">${id} <span class="note">${esc(label)}</span></th>${cells}</tr>`;
   }).join('');
-  body.innerHTML = `<p>Latest automated run per library (headless Chromium, no GPU). Scenario definitions: <a href="${blob('docs/spike-plan.md')}">spike plan</a>.</p><div class="table-scroll"><table class="scorecard"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+  const rungs = ['syn-yule-1000', 'syn-yule-10000', 'syn-yule-100000'];
+  const scaleHead = `<tr><th>Library</th><th>Tips</th><th class="text-end">First render</th><th class="text-end">Median fps</th><th class="text-end">Slow frames</th><th class="text-end">CPU per step</th><th class="text-end">Click</th><th>Status</th></tr>`;
+  const scaleRows = names.map((n) => fin.candidates[n].trees.filter((t) => rungs.includes(t.treeId)).sort((a, b) => a.tips - b.tips).map((t) =>
+    `<tr><td>${esc(n)}</td><td class="text-end">${t.tips.toLocaleString('en')}</td><td class="text-end">${ms(t.firstRenderMs)}</td><td class="text-end">${t.fpsMedian?.toFixed(0) ?? ''}</td><td class="text-end">${t.droppedRatio == null ? '' : Math.round(t.droppedRatio * 100) + '%'}</td><td class="text-end">${ms(t.cpuMsPerStep)}</td><td class="text-end">${ms(t.clickMs)}</td><td><span class="status ${esc(statusClass(t.status))}" title="${esc(t.reason)}">${esc(t.status)}</span></td></tr>`).join('')).join('');
+  const any = fin.candidates[names[0]];
+  body.innerHTML = `
+    <p>Final runs of the 15 scenarios in <a href="${blob('docs/spike-plan.md')}">the spike plan</a>, one library at a time on an otherwise idle machine, in headless Chromium ${esc(any.machine ?? '')} (<b>no GPU</b>, so canvas and WebGL frame rates are pessimistic). Hover a status for the reason. Full write-up: <a href="${blob('docs/results/summary.md')}">results summary</a>. A library is called unusable when it spends more than half its time in frames over 50 ms, takes more than 100 ms of main-thread CPU per interaction step, loads for over 10 s, or takes over 300 ms to respond to a click.</p>
+    <div class="table-scroll"><table class="scorecard"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    <h3 class="subhead">Scale on balanced (Yule) trees</h3>
+    <div class="table-scroll"><table class="scorecard table-captions"><thead>${scaleHead}</thead><tbody>${scaleRows}</tbody></table></div>
+    <p class="note">The custom baseline is a prototype built during this spike (about 3,100 lines); the others are existing libraries used as a gbif.org developer would use them. 100k trees that took over 10 s to load are not interaction-tested. Caterpillar (ladderised) trees of 10k tips overflow the call stack in every library except Phylocanvas.gl.</p>`;
 }
 
 async function main() {

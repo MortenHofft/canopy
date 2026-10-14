@@ -40,4 +40,4 @@ Start with [docs/recommendation.md](docs/recommendation.md): the consolidated fi
 
 ## Status
 
-Research phase done; testing phase next. No viewer code yet. Start with [docs/spike-plan.md](docs/spike-plan.md): build the harness, a small custom baseline and adapters for the shortlisted libraries, run the scenarios on the test trees, and record results in `docs/results/`.
+Research and browser spike done. Six candidate demos (five libraries and our own prototype) run through 15 scenarios in a shared GBIF-styled shell; results in [docs/results/](docs/results/summary.md), a deployable comparison site (see [docs/deploy-vercel.md](docs/deploy-vercel.md)), and an updated [recommendation](docs/recommendation.md). Open question: real tree sizes from publishers.

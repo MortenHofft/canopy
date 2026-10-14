@@ -27,7 +27,7 @@ A research/prototyping repo for adding phylogenetic tree visualisation to gbif.o
 
 ## Next work
 
-The current task is the spike in [docs/spike-plan.md](docs/spike-plan.md): `spikes/harness` (Vite, React, TypeScript) with one adapter per candidate behind a common interface, run against the trees in `data/`. Record results in `docs/results/`. Cloud sandbox: headless Chromium at `/opt/pw-browsers/chromium` (use Playwright `executablePath`), likely no GPU, so use it for functional and relative tests and get final frame rates from a real browser.
+The spike in [docs/spike-plan.md](docs/spike-plan.md) is done (results in docs/results/, demos in spikes/, comparison site built by scripts/build-site.mjs and deployed from vercel.json). Next: see the open questions in docs/recommendation.md. Cloud sandbox: headless Chromium at /opt/pw-browsers/chromium-1194 (use Playwright executablePath), no GPU, so use it for functional and relative tests; final frame rates need a real browser. Do not use pkill -f.
 
 ## Code
 

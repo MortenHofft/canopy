@@ -1,6 +1,33 @@
 # Consolidated findings and recommendation
 
-Status: end of the first research round (2026-10-08). Supersedes the shallow notes in [comparison.md](comparison.md) where they disagree. Detailed evidence is in [research/](research/). Nothing here was run in a browser: **no frame rates, no load times were measured by anyone**. Where this document says "verified", it means read in source or in npm registry JSON; "agent claim" means reported by a research agent and not independently re-checked.
+Status: research round of 2026-10-08, updated 2026-10-14 after the browser spike (see the update section below; the sections after it describe the pre-spike state). Supersedes the shallow notes in [comparison.md](comparison.md) where they disagree. Detailed evidence is in [research/](research/). Nothing here was run in a browser: **no frame rates, no load times were measured by anyone**. Where this document says "verified", it means read in source or in npm registry JSON; "agent claim" means reported by a research agent and not independently re-checked.
+
+## Update after the browser spike (2026-10-14)
+
+Everything below the line "Scorecard" was written before any library was run. All six candidates have now been built as demos inside one shared GBIF-styled shell and run through the same 15 scenarios (S1 to S15), one at a time on an idle machine in headless Chromium **without a GPU**. Full numbers: [results/summary.md](results/summary.md) and the per-candidate files in [results/](results/); the live comparison is the deployed hub (see [deploy-vercel.md](deploy-vercel.md)). The hub matrix now marks measured cells with evidence letter **M**.
+
+### What the spike showed
+
+1. **Every existing library hits a wall far below 100k tips.** Measured on balanced trees: react-bio-viz and phylotree.js are fine at 1k and unusable at 10k (6.4 s and 1.6 s first render, 157 to 191 ms CPU per step, 208 to 429 ms click); tbrowse takes 4.2 s at 10k and 154 s to mount 100k (cost grows with the square of the rows); Archaeopteryx.js is unusable from about 900 tips on the new metric (142 ms CPU per step) and 1.5 to 2.4 s per step at 10k. The causes are architectural (an SVG or DOM element per node, text layout on every zoom, O(rows squared) loops), not tuning.
+2. **Phylocanvas.gl's scale is unresolved here.** Software GL times out on 19 of 20 trees, but its JavaScript cost looks fine (3.2 s constructor and 590 MB heap at 190k tips). It needs a real GPU to be judged.
+3. **Only our own prototype passes everywhere.** The custom Canvas2D baseline (about 3,100 lines, built during the spike) passes S1 on 20 of 20 trees up to 190k tips with 0% slow frames and 8 to 17 ms CPU per step, and passes the overview, columns, links, clade-colouring and keyboard scenarios. Caveat: its author is also the author of the adapter, and it is a prototype; the author's estimate to production is 12 to 18 engineer-weeks. I re-ran its 10k tree myself and got the same result (14 ms CPU per step, no dropped frames), and phylotree.js's 10k result (211 ms CPU, 411 ms click).
+4. **Interaction is a different story from scale.** react-bio-viz is the only library whose node click delivers the tip set itself; tbrowse has the best aligned-columns model; phylotree.js has the most hooks. Phylocanvas.gl and Archaeopteryx.js need adapter-derived events (their authors' workarounds are labelled `partial`). Archaeopteryx.js cannot host two instances (S13 fails).
+5. **Robustness problems in every library:** deep (ladderised) trees overflow the call stack at 5k to 10k tips (tbrowse, react-bio-viz, phylotree.js, Archaeopteryx.js; custom handles them but still walks the whole tree per frame); react-bio-viz throws on the 91k to 190k real trees.
+
+### Revised recommendation
+
+The earlier question was whether an existing library could be adopted or extended to avoid a rewrite. For small trees yes; for large trees no, because the limits are in how the libraries draw and traverse the tree, not in missing features.
+
+- **If most published trees are small (up to about 1k tips):** adopt an existing library behind our component API. react-bio-viz (React-native, delivers tip sets, controlled state) or phylotree.js with our own wrapper (1 to 2 weeks per its author; more hooks, more bugs). Gate large trees (see the capability tiers above) and say so in the UI. Budget for fixing library problems ourselves.
+- **If trees of 10k tips and above matter** (as the real GBIF data may well include): a library cannot get there. Build our own renderer; the `spikes/custom` prototype is a working start with an API that already meets every scenario we defined, and its core is separate from React. Plan for the production gaps its author lists (worker for parsing and the viewport cut, user collapse and search, clade labels, React-rendered cells, unrooted layout, export, URL state, accessibility testing, real-GPU numbers, a browser matrix).
+- **Hybrid:** ship the small-tree path first with a library while building the custom core, behind one component API (`tree`, `layout`, `columns`, `clades`, `highlight`, callbacks), so the switch is invisible. This still depends on the same unknown: real tree sizes.
+
+### Still open
+
+- **Real tree sizes from publishers.** This decides between the options above and is still the highest-value question.
+- **Real-GPU and real-laptop numbers.** Everything measured here is headless without a GPU. Open the deployed demos on a normal laptop and try the 10k and 100k trees; WebGL (Phylocanvas.gl) in particular could look very different.
+- **Whether the library authors' maintainers would accept fixes** for the problems we found (stack overflow, quadratic loops): not asked.
+- Legal sign-off for copyleft options is unchanged (Taxonium GPL-3.0, Archaeopteryx.js LGPL-3.0 packaging); neither is needed for the options above.
 
 ## What I re-checked myself (npm registry JSON)
 

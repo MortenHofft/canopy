@@ -131,22 +131,36 @@ fs.writeFileSync(path.join(dataDst, 'available.json'), JSON.stringify(available,
 console.log(`   ${available.length} trees, ${(dataBytes / 1e6).toFixed(1)} MB`);
 if (dataBytes / 1e6 > maxDataMb) { console.error(`data is ${(dataBytes / 1e6).toFixed(0)} MB, over --max-data-mb ${maxDataMb}`); process.exit(1); }
 
-// 4. latest results (optional)
+// 4. results: the final runs listed in spikes/results/FINAL.json, aggregated for the hub
 const resDir = path.join(spikes, 'results');
-if (fs.existsSync(resDir)) {
+if (fs.existsSync(path.join(resDir, 'FINAL.json'))) {
+  const final = readJson(path.join(resDir, 'FINAL.json'), { candidates: {} });
+  const out = { generated: final.generated ?? '', candidates: {} };
+  for (const [name, info] of Object.entries(final.candidates ?? {})) {
+    const scenarios = {};
+    const trees = new Map();
+    let meta = null;
+    for (const id of info.runIds ?? []) {
+      const run = readJson(path.join(resDir, name, `${id}.json`));
+      if (!run) continue;
+      meta = meta ?? { version: run.candidate?.version, license: run.candidate?.license, date: run.date, chromium: run.chromium, load: run.load, machine: run.machine?.cpus ? `${run.machine.cpus} vCPU` : '' };
+      for (const [sid, sc] of Object.entries(run.scenarios ?? {})) {
+        scenarios[sid] = { status: sc.status ?? '', reason: String(sc.reason ?? '').slice(0, 300) };
+        if (sid === 'S1') for (const [tid, t] of Object.entries(sc.trees ?? {})) {
+          trees.set(tid, {
+            treeId: tid, tips: t.tips, status: t.status, reason: String(t.reason ?? '').slice(0, 300),
+            firstRenderMs: t.firstRenderMs, fpsMedian: t.fpsMedian, droppedRatio: t.droppedRatio,
+            cpuMsPerStep: t.cpuMsPerStep, clickMs: t.clickLatencyMs, heapMB: t.heapAfterInteractionMB,
+          });
+        }
+      }
+    }
+    out.candidates[name] = { ...meta, runIds: info.runIds, scenarios, trees: [...trees.values()] };
+  }
   const dst = path.join(outDir, 'results');
   fs.mkdirSync(dst, { recursive: true });
-  const index = {};
-  for (const c of fs.readdirSync(resDir, { withFileTypes: true })) {
-    if (!c.isDirectory()) continue;
-    const runs = fs.readdirSync(path.join(resDir, c.name)).filter((f) => f.endsWith('.json')).sort();
-    if (!runs.length) continue;
-    const latest = runs[runs.length - 1];
-    fs.mkdirSync(path.join(dst, c.name), { recursive: true });
-    fs.copyFileSync(path.join(resDir, c.name, latest), path.join(dst, c.name, latest));
-    index[c.name] = `${c.name}/${latest}`;
-  }
-  fs.writeFileSync(path.join(dst, 'index.json'), JSON.stringify(index, null, 2));
+  fs.writeFileSync(path.join(dst, 'final.json'), JSON.stringify(out));
+  console.log(`   results: ${Object.keys(out.candidates).length} candidates from FINAL.json`);
 }
 
 console.log(`\nSite built in ${path.relative(root, outDir)}: ${candidates.length} candidates${failed.length ? `, FAILED: ${failed.join(', ')}` : ''}.`);

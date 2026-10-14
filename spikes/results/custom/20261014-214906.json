@@ -1,0 +1,385 @@
+{
+ "runId": "20261014-214906",
+ "candidate": {
+  "name": "custom",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "notes": "Own typed-array model + Canvas2D renderer with viewport level of detail; no tree or rendering library. Core in src/core (no React), component in src/react."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "pointer hit-test against the frame draw list through a uniform-grid spatial index (tip dot, or the label text box); also Enter on the keyboard cursor"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "internal node markers (clades >= 7 px) and collapsed clade triangles are hit-tested; clicking a collapsed clade reports the clade root"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "distance to the branch segment (4 px slop): the horizontal branch above a node or the vertical connector of the clade; reported as branchClick with the clade below"
+  },
+  "hover": {
+   "level": "yes",
+   "how": "pointer move is hit-tested once per animation frame; tipHover/nodeHover are emitted when the target changes; built-in tooltip near the cursor and a ring on a separate canvas"
+  },
+  "descendantTipsInPayload": {
+   "level": "yes",
+   "how": "every event carries the descendant tips as the leaf-contiguous range of the preorder TreeModel (O(1) range lookup, then a slice); reported as source=adapter-derived because the data model is our own, not a library payload"
+  },
+  "cladeColouring": {
+   "level": "yes",
+   "how": "colour classes per node index from React state (nested clades: later wins); branches, collapsed triangles, markers and tip labels take the class colour; one canvas redraw, no re-layout"
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "translucent row band across tree and columns, ring on the tip, bold primary-coloured label, ticks in the overview strip"
+  },
+  "focusTip": {
+   "level": "yes",
+   "how": "rows set to at least 26 px and the tip centred; the x window moves only if the tip is outside it. Instant when requested through props; animated (220 ms) from the imperative handle"
+  },
+  "tipAsLink": {
+   "level": "yes",
+   "how": "real <a href data-tip-id target=_blank rel=noopener> elements positioned over the canvas text for the rows that have labels (visible rows only, <= 600 DOM nodes), keyboard focusable; rows too small for labels have no anchor (a visually hidden list of the tips in view stands in for them)"
+  },
+  "customColumns": {
+   "level": "yes",
+   "how": "bar (log scale), text and alignment columns drawn on the canvas, pinned to the right edge, windowed to visible rows with header; below 1 px per row bars are binned per pixel row (mean)"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "whole alignment rasterised once into an offscreen bitmap (1 px per residue), only visible rows are blitted; > 8M residues falls back to runs for visible rows"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "angle from tip rank, radius from root distance, same layout arrays as rectangular; LOD, culling (sector bounding boxes), hit-testing, labels, overview all work in radial; columns are not drawn in radial"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "phylogram (cumulative length, negative and missing lengths count as 0) versus cladogram (tips aligned); layout recomputed in O(n) and cached for both"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "distance axis with round ticks for phylograms (rectangular), a time-before-tips axis with gridlines when the tree is ultrametric (dated), a round-length scale bar in radial"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "gbifDarkTheme() values (derived from tokens; GBIF defines no dark set) passed as the renderer theme; canvases redraw"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "theme object resolved from gbifTheme() (canvas cannot read CSS variables); runner tokens background, foreground, branch, highlight, fontFamily override"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no module state except a text-width cache keyed by font; each instance owns its renderer, DOM and canvases"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "destroy(): rAF cancelled, ResizeObserver disconnected, window pointer and font listeners removed, canvases resized to 0, DOM removed"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "clades, highlighted tips, columns, layout, lengths, theme, tip links and an optional viewport are props; viewport changes come back through onViewportChange (once per frame)"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on mount and on layout/length/column changes while the view has not been touched; fit() from the handle, key 0 and double click on empty space; wheel zoom-out stops at 1.6x the tree"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "overview strip (rectangular, aligned with the rows) or a small disc (radial) drawn once from the LOD cut at fit, with a draggable viewport rectangle; click or drag to move"
+  }
+ },
+ "date": "2026-10-14T21:49:59.139Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 1.01,
+  "end": 3.21,
+  "max": 3.21,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 1.01,
+  "canvas": {
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.52380952380888,
+   "fpsP5Rounds": [
+    59.5,
+    59.5,
+    30
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 2,
+   "maxFrameGapMs": 33.30000000000018,
+   "frames": 614,
+   "inputSteps": 230,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 4.1,
+   "cpuDragMoveMs": 4.8,
+   "cpuMsPerStep": 4.8,
+   "loadavg": 1.39
+  },
+  "stub200": {
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.940119760478552,
+   "fpsP5Rounds": [
+    20,
+    25.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 26,
+   "maxFrameGapMs": 50,
+   "frames": 382,
+   "inputSteps": 192,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 6.5,
+   "cpuDragMoveMs": 4,
+   "cpuMsPerStep": 6.5,
+   "loadavg": 2.1
+  },
+  "loadEnd": 2.1
+ },
+ "label": null,
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-yule-10000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 270207,
+  "jsGzipBytes": 88211,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 288397,
+  "totalGzipBytes": 92826,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-CCNcFwVj.js",
+    "bytes": 270207,
+    "gzipBytes": 88211
+   },
+   {
+    "path": "index.html",
+    "bytes": 424,
+    "gzipBytes": 287
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "pass",
+     "reason": "load 130 ms, median 59.9 fps, best p5 59.5, dropped 0%, CPU/step 14 ms, click 8 ms",
+     "loadAvgAtStart": 2.1,
+     "phase": "done",
+     "fetchMs": 20.600000001490116,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 0,
+     "firstRenderMs": 130.20000000298023,
+     "sharedParseMs": 24.800000000745058,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=24.8); layout (3 O(n) passes into typed arrays) 11.1 ms is part of firstRenderMs",
+     "loadMs": 130.20000000298023,
+     "ink": 0.33208497867635445,
+     "heapAfterMountMB": 16.19552993774414,
+     "stats": {
+      "domNodes": 22,
+      "svgElements": 0,
+      "canvases": 3,
+      "custom": {
+       "layoutMs": 11.099999997764826,
+       "frameMs": 32.80000000074506,
+       "cutMs": 10.699999999254942,
+       "drawMs": 7.199999999254942,
+       "avgFrameMs": 32.80000000074506,
+       "drawn": 805,
+       "summaries": 474,
+       "tipsDrawn": 12,
+       "labels": 0,
+       "visited": 971,
+       "minPxUsed": 3,
+       "budgetRetries": 0,
+       "budgetHit": 0,
+       "frames": 1,
+       "hitBuildMs": 0,
+       "kx": 710,
+       "ky": 0.0605
+      }
+     },
+     "clickLatencyMs": 7.5,
+     "clickToPaintMs": 36.19999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.880239520962,
+     "fpsP5": 59.523809523812105,
+     "fpsP5Rounds": [
+      59.5,
+      30,
+      59.5
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 17.699999998509156,
+     "frames": 662,
+     "inputSteps": 278,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.6,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 12.1,
+     "cpuDragMoveMs": 14.3,
+     "cpuMsPerStep": 14.3,
+     "loadAvgAtEnd": 3.21,
+     "heapAfterInteractionMB": 16.9057674407959,
+     "heapMB": 16.9057674407959,
+     "unusableFactor": 0.14300000000000002,
+     "pageErrors": [],
+     "wallSec": 20.077,
+     "relMedianFps": 1.0000000000000544,
+     "relP5Fps": 1.0000000000000542,
+     "cpuVsStub200": 2.2
+    }
+   },
+   "status": "pass",
+   "reason": "1 trees loaded, rendered and interactive",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 20.078
+  }
+ },
+ "scale": {
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "pass",
+   "reason": "load 130 ms, median 59.9 fps, best p5 59.5, dropped 0%, CPU/step 14 ms, click 8 ms",
+   "loadAvgAtStart": 2.1,
+   "phase": "done",
+   "fetchMs": 20.600000001490116,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 0,
+   "firstRenderMs": 130.20000000298023,
+   "sharedParseMs": 24.800000000745058,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=24.8); layout (3 O(n) passes into typed arrays) 11.1 ms is part of firstRenderMs",
+   "loadMs": 130.20000000298023,
+   "ink": 0.33208497867635445,
+   "heapAfterMountMB": 16.19552993774414,
+   "stats": {
+    "domNodes": 22,
+    "svgElements": 0,
+    "canvases": 3,
+    "custom": {
+     "layoutMs": 11.099999997764826,
+     "frameMs": 32.80000000074506,
+     "cutMs": 10.699999999254942,
+     "drawMs": 7.199999999254942,
+     "avgFrameMs": 32.80000000074506,
+     "drawn": 805,
+     "summaries": 474,
+     "tipsDrawn": 12,
+     "labels": 0,
+     "visited": 971,
+     "minPxUsed": 3,
+     "budgetRetries": 0,
+     "budgetHit": 0,
+     "frames": 1,
+     "hitBuildMs": 0,
+     "kx": 710,
+     "ky": 0.0605
+    }
+   },
+   "clickLatencyMs": 7.5,
+   "clickToPaintMs": 36.19999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.880239520962,
+   "fpsP5": 59.523809523812105,
+   "fpsP5Rounds": [
+    59.5,
+    30,
+    59.5
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 17.699999998509156,
+   "frames": 662,
+   "inputSteps": 278,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.6,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 12.1,
+   "cpuDragMoveMs": 14.3,
+   "cpuMsPerStep": 14.3,
+   "loadAvgAtEnd": 3.21,
+   "heapAfterInteractionMB": 16.9057674407959,
+   "heapMB": 16.9057674407959,
+   "unusableFactor": 0.14300000000000002,
+   "pageErrors": [],
+   "wallSec": 20.077,
+   "relMedianFps": 1.0000000000000544,
+   "relP5Fps": 1.0000000000000542,
+   "cpuVsStub200": 2.2
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-10000",
+   "file": "screens/20261014-214906-S1-syn-yule-10000.png",
+   "bytes": 84977
+  }
+ ],
+ "wallSec": 52.235,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

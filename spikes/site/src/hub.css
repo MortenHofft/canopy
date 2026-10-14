@@ -88,3 +88,7 @@ section > h2 { margin: 0 0 var(--space-2); }
 .card-header h2.card-title, .card-title { margin: 0; }
 .card-body > .lede { margin-bottom: var(--space-4); }
 .card-header { gap: var(--space-2); }
+
+.subhead { margin: var(--space-6) 0 var(--space-2); font-family: var(--font-body); font-size: var(--text-lg); }
+.scorecard th[scope='row'] { text-align: left; white-space: nowrap; font-weight: var(--fw-medium); color: var(--fg1); }
+.scorecard thead th { text-align: left; }

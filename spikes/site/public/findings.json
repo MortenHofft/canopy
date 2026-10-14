@@ -8,7 +8,7 @@
    "u": "Unknown"
   },
   "e": {
-   "M": "Measured or tried hands-on",
+   "M": "Measured or tried in a browser by the spike runner (S1 to S15) or by hand",
    "S": "Verified in source or registry (read by research agents, not re-checked)",
    "D": "Stated in the project's documentation",
    "C": "Claimed (paper, README, changelog)",
@@ -134,7 +134,7 @@
    "rendering": "SVG tree, canvas alignment",
    "research": "docs/research/discovery.md",
    "summary": "React component for a tree with aligned data zones. Closest to the table-like layout we like.",
-   "verdict": "Best model for the aligned-zones layout and URL-serialisable state. Hands-on (user): slow on large trees, no whole-tree zoom-out.",
+   "verdict": "Best fit for the table-like aligned-zones layout; measured: 1k tips fine, 10k first render 4.2 s and 553 ms CPU per step, 100k takes 154 s to mount, no overview, no radial. Stack overflow on caterpillars of 5k tips.",
    "cells": {
     "g1": {
      "c": "y",
@@ -143,78 +143,78 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
-     "t": "Static React app"
+     "e": "M",
+     "t": "Static"
     },
     "g3": {
      "c": "y",
-     "e": "S",
-     "t": "Native React 18 component with controlled viewState"
+     "e": "M",
+     "t": "Native React; S13 pass"
     },
     "g4": {
      "c": "y",
      "e": "S",
-     "t": "npm 2.10.0 on 2026-09-02, commit 2026-10-02; 2.0 was a rewrite after a 2020 to 2026 gap; contributors not counted"
+     "t": "npm 2.10.0 2026-09-02; contributors not counted"
     },
     "tip": {
      "c": "y",
-     "e": "S",
-     "t": "onSelectNode / onHoverNode in zone render props"
+     "e": "M",
+     "t": "S2 pass via controlled viewState.selectedNodeId"
     },
     "node": {
-     "c": "u",
-     "e": "U",
-     "t": "selectedNodeId and hoveredSubtreeIds exist; internal node click not confirmed"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: node events carry no tip set (adapter-derived)"
     },
     "clade": {
-     "c": "u",
-     "e": "U",
-     "t": "Not looked at in source; tested in the spike"
+     "c": "p",
+     "e": "M",
+     "t": "S4 pass via a DOM patch"
     },
     "link": {
-     "c": "u",
-     "e": "U",
-     "t": "Tested in the spike"
+     "c": "y",
+     "e": "M",
+     "t": "S6 pass"
     },
     "cols": {
      "c": "y",
-     "e": "S",
-     "t": "ZoneDefinition render props with virtualised rows; canvas MSA zone"
+     "e": "M",
+     "t": "S7, S8 pass: ZoneDefinition zones aligned to 0 px; built-in MSA zone takes FASTA"
     },
     "style": {
-     "c": "u",
-     "e": "U",
-     "t": "Tested in the spike"
+     "c": "y",
+     "e": "M",
+     "t": "S9 pass: GBIF tokens map onto --tbrowse-* variables"
     },
     "layout": {
      "c": "p",
-     "e": "S",
-     "t": "Phylogram/cladogram style only, no circular layout"
+     "e": "M",
+     "t": "S12 unsupported: no radial layout"
     },
     "bl": {
-     "c": "u",
-     "e": "U",
-     "t": "Nodes carry a distance; drawing not checked"
+     "c": "p",
+     "e": "M",
+     "t": "S11 pass after the adapter rescales: the library has a 0.01 absolute branch-length floor"
     },
     "overview": {
      "c": "n",
      "e": "M",
-     "t": "User tried the playground: no whole-tree zoom-out"
+     "t": "No whole-tree zoom-out (confirmed by hand and by S10 n/a)"
     },
     "scale": {
-     "c": "p",
+     "c": "n",
      "e": "M",
-     "t": "User found it slow on large trees (tip count not recorded). SVG tree."
+     "t": "1k fine; 10k first render 4.2 s, 553 ms CPU per step; 100k mounts in 154 s; cost grows with rows squared"
     },
     "parse": {
      "c": "n",
      "e": "S",
-     "t": "Flat node table input; no Newick or Nexus parser documented"
+     "t": "Flat node table input; caterpillars of 5k tips overflow the stack"
     },
     "ops": {
      "c": "p",
      "e": "D",
-     "t": "prune and swap in viewState; no reroot noted"
+     "t": "prune, swap, collapse in viewState"
     }
    }
   },
@@ -229,7 +229,7 @@
    "rendering": "SVG",
    "research": "docs/research/react-bio-viz.md",
    "summary": "React components for biological views, including PhyloTree and a canvas alignment viewer.",
-   "verdict": "Cleanest React API: controlled viewport and selection, node click returns the descendant tips. SVG without culling; one maintainer; very new releases.",
+   "verdict": "Cleanest React API, and the only one whose node click delivers the tip set itself. Measured: fine at 1k, unusable at 10k (6.4 s first render), 100k mounts in 65 s. Recursive code overflows on large caterpillars and throws on the 91k to 190k real trees.",
    "cells": {
     "g1": {
      "c": "y",
@@ -238,78 +238,78 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
      "c": "y",
-     "e": "S",
-     "t": "React 18/19; controlled and uncontrolled state props"
+     "e": "M",
+     "t": "Controlled React component; S13 pass"
     },
     "g4": {
      "c": "p",
      "e": "S",
-     "t": "0.1.0 to 0.3.0 released 2026-10-07/08 after a 2024 gap; one maintainer"
+     "t": "Releases 2026-10-07/08 after a 2024 gap; one maintainer"
     },
     "tip": {
      "c": "y",
-     "e": "S",
-     "t": "onNodeClick for tips; no hover callback"
+     "e": "M",
+     "t": "S2 pass; hover only via a DOM workaround"
     },
     "node": {
      "c": "y",
-     "e": "S",
-     "t": "onNodeClick/onBranchClick fire for internal nodes with leafNames and descendantIds"
+     "e": "M",
+     "t": "S3 pass: the library delivers the tip set (source: library), the only candidate that does"
     },
     "clade": {
-     "c": "p",
-     "e": "S",
-     "t": "nodeStyles and branchStyles keyed by node id; build the clade map from descendantIds"
+     "c": "y",
+     "e": "M",
+     "t": "S4 pass via nodeStyles and branchStyles"
     },
     "link": {
      "c": "y",
-     "e": "S",
-     "t": "leafTextComponent render prop can render an anchor (to verify in the spike)"
+     "e": "M",
+     "t": "S6 pass: SVG anchors"
     },
     "cols": {
      "c": "p",
-     "e": "S",
-     "t": "Alignment viewer shares row order; no column abstraction for the tree"
+     "e": "M",
+     "t": "S7, S8 pass, but drawn on our own canvas outside the library; columns cannot live in leafTextComponent"
     },
     "style": {
      "c": "p",
-     "e": "S",
-     "t": "Per-node and per-branch styles; bundled stylesheet; no dark mode noted"
+     "e": "M",
+     "t": "S9 pass; support shading defaults on and wrecks named labels"
     },
     "layout": {
-     "c": "y",
-     "e": "S",
-     "t": "Rectangular, cladogram, radial; no unrooted"
+     "c": "p",
+     "e": "M",
+     "t": "S12 pass, but radial needed a virtual canvas; no unrooted"
     },
     "bl": {
      "c": "y",
-     "e": "S",
-     "t": "Phylogram and cladogram layouts"
+     "e": "M",
+     "t": "S11 pass"
     },
     "overview": {
      "c": "n",
-     "e": "S",
-     "t": "No culling or level of detail; manual collapse only"
+     "e": "M",
+     "t": "S10 n/a: plain wheel pans, nothing zooms to overview"
     },
     "scale": {
-     "c": "p",
-     "e": "S",
-     "t": "SVG, about 8 elements per tip, unmeasured; expect low thousands"
+     "c": "n",
+     "e": "M",
+     "t": "1k fine; 10k first render 6.4 s, click to paint 1.3 s; 100k mounts in 65 s; throws RangeError on the 91k to 190k real trees"
     },
     "parse": {
      "c": "p",
      "e": "S",
-     "t": "Newick only; recursive parser (deep trees risk overflow)"
+     "t": "Newick only; recursive, caterpillars of 3k+ tips overflow the stack"
     },
     "ops": {
      "c": "y",
-     "e": "S",
-     "t": "Reroot, midpoint root, collapse, reorder"
+     "e": "M",
+     "t": "Reroot, midpoint, collapse, ladderize work in the demo; node ids change meaning after reroot"
     }
    }
   },
@@ -324,87 +324,87 @@
    "rendering": "SVG (d3)",
    "research": "docs/research/phylotree-js.md",
    "summary": "d3-based phylogenetics library with rendering, selection and tree operations.",
-   "verdict": "Most hookable (click, hover, node and edge stylers) but SVG and old-style dependencies; needs our own React wrapper; smooth only to a few thousand tips (estimate).",
+   "verdict": "Most hookable (stylers, events) but needs our own React wrapper. Measured: good to about 700 tips, unusable at 10k (3 fps, 430 ms click), 100k first render 14 s. Several library bugs (scale bar, reroot, missing lengths).",
    "cells": {
     "g1": {
      "c": "p",
      "e": "S",
-     "t": "MIT per LICENSE file; no license field in package.json"
+     "t": "MIT per LICENSE; no license field in package.json"
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
      "c": "p",
-     "e": "S",
-     "t": "No component, no destroy(); wrapper with useRef/useEffect needed"
+     "e": "M",
+     "t": "Own wrapper needed (1 to 2 weeks to 1k tips); S13 pass"
     },
     "g4": {
      "c": "y",
      "e": "C",
-     "t": "Maintained; contributor count inferred from emails only"
+     "t": "Maintained; contributor count inferred"
     },
     "tip": {
      "c": "y",
-     "e": "S",
-     "t": "nodeClick, nodeHover"
+     "e": "M",
+     "t": "S2 pass"
     },
     "node": {
-     "c": "y",
-     "e": "S",
-     "t": "nodeClick, branchClick, selectionChange pass the node object"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: tip sets from node.leaves() (adapter-derived)"
     },
     "clade": {
      "c": "y",
-     "e": "S",
-     "t": "node-styler and edge-styler run for every node and edge; clade selection built in"
+     "e": "M",
+     "t": "S4 pass via the stylers"
     },
     "link": {
-     "c": "p",
-     "e": "S",
-     "t": "Append an anchor in node-styler; own hit area"
+     "c": "y",
+     "e": "M",
+     "t": "S6 pass via node-styler anchors"
     },
     "cols": {
      "c": "p",
-     "e": "S",
-     "t": "Append SVG in node-styler, align-tips; no column abstraction"
+     "e": "M",
+     "t": "S7, S8 pass with our own SVG in node-styler; uniform zoom pushes columns out of view"
     },
     "style": {
      "c": "y",
-     "e": "S",
-     "t": "Style callbacks; no CSS variables or dark mode"
+     "e": "M",
+     "t": "S9 pass via style callbacks"
     },
     "layout": {
      "c": "y",
-     "e": "D",
-     "t": "Linear and radial"
+     "e": "M",
+     "t": "Rectangular, radial (S12 pass), unrooted and mirrored"
     },
     "bl": {
-     "c": "y",
-     "e": "D",
-     "t": "Scaled and unscaled branches"
+     "c": "p",
+     "e": "M",
+     "t": "S11 pass; library scale bar about 20% off; a missing length flattens all lengths to 1"
     },
     "overview": {
      "c": "n",
-     "e": "S",
-     "t": "No culling; every update redraws everything"
+     "e": "M",
+     "t": "S10 timeout at 10k, partial at 1k; no overview"
     },
     "scale": {
-     "c": "p",
-     "e": "C",
-     "t": "Estimated smooth to 2-3k tips, laggy at 5-10k (agent estimate, unmeasured)"
+     "c": "n",
+     "e": "M",
+     "t": "Pass to about 700 tips; 10k: 3 fps, 190 to 211 ms CPU per step, 410 to 430 ms click; 100k first render 14 s"
     },
     "parse": {
      "c": "p",
      "e": "S",
-     "t": "Newick, first phyloXML tree; Nexus first tree only, no TRANSLATE"
+     "t": "Nexus TRANSLATE not applied; first tree only; [..] comments stay in tip names"
     },
     "ops": {
-     "c": "y",
-     "e": "D",
-     "t": "Reroot, ladderize, collapse, subtree, MRCA"
+     "c": "p",
+     "e": "M",
+     "t": "Reroot, ladderize, collapse; reroot drops all listeners"
     }
    }
   },
@@ -419,7 +419,7 @@
    "rendering": "WebGL (deck.gl)",
    "research": "docs/research/phylocanvas-gl.md",
    "summary": "WebGL tree renderer from the Centre for Genomic Pathogen Surveillance; powers Microreact.",
-   "verdict": "Scales best of the libraries we can embed, but no callbacks (method patching), tips-only selection, one canvas per page, deck.gl 8 pinned.",
+   "verdict": "WebGL renderer with no callbacks: events, node clicks, links and columns are our own code (about 1,560 lines). Scale could not be judged without a GPU: software GL times out on 19 of 20 trees, while JS cost looks fine.",
    "cells": {
     "g1": {
      "c": "y",
@@ -428,78 +428,78 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
      "c": "p",
-     "e": "S",
-     "t": "No React component; own wrapper of about 100 lines"
+     "e": "M",
+     "t": "Own wrapper, about 1,560 lines and eight workarounds; S13 pass"
     },
     "g4": {
      "c": "p",
      "e": "S",
-     "t": "Published 2026-07-13; upstream README says feature complete, no support"
+     "t": "Published 2026-07; upstream README says feature complete, no support; deck.gl 8.9.x crashes it (pin 8.8.27)"
     },
     "tip": {
      "c": "p",
-     "e": "S",
-     "t": "Events only by decorating selectNode/highlightNode (monkey-patching)"
+     "e": "M",
+     "t": "S2 pass by wrapping selectNode (monkey-patching)"
     },
     "node": {
-     "c": "n",
-     "e": "S",
-     "t": "Selection is tips only; internal ids synthetic and unstable"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: our own hit-test, adapter-derived tip sets"
     },
     "clade": {
      "c": "p",
-     "e": "S",
-     "t": "Per-tip styles only; collapse and re-root supported"
+     "e": "M",
+     "t": "S4 pass: styles every tip under the clade"
     },
     "link": {
-     "c": "n",
-     "e": "U",
-     "t": "WebGL; would need an overlay"
+     "c": "p",
+     "e": "M",
+     "t": "S6 pass via a DOM overlay"
     },
     "cols": {
      "c": "p",
-     "e": "S",
-     "t": "Coloured-block columns and custom deck.gl layers"
+     "e": "M",
+     "t": "S7, S8 pass with our own deck.gl layers"
     },
     "style": {
      "c": "p",
-     "e": "S",
-     "t": "Per-tip shape, colour, label; no CSS (WebGL)"
+     "e": "M",
+     "t": "S9 pass through props; WebGL, no CSS"
     },
     "layout": {
      "c": "y",
-     "e": "S",
-     "t": "Rectangular, circular, radial, diagonal, hierarchical"
+     "e": "M",
+     "t": "Five layouts; S12 pass"
     },
     "bl": {
-     "c": "u",
-     "e": "U",
-     "t": "Not checked"
+     "c": "y",
+     "e": "M",
+     "t": "S11 pass: cladogram toggle and scale bar"
     },
     "overview": {
-     "c": "u",
-     "e": "U",
-     "t": "Not checked"
+     "c": "p",
+     "e": "M",
+     "t": "S10 partial at 1k and 10k, timeout at 100k (software GL)"
     },
     "scale": {
-     "c": "y",
-     "e": "C",
-     "t": "Paper claims 100K+ nodes; unmeasured"
+     "c": "u",
+     "e": "M",
+     "t": "Not resolved without a GPU: 19 of 20 trees time out on frame share under software GL; JS cost fine (3.2 s constructor, 590 MB heap at 190k); the 100K+ claim is neither confirmed nor refuted"
     },
     "parse": {
      "c": "p",
      "e": "S",
-     "t": "Newick only, naive tokenizer; no quoted delimiters"
+     "t": "Newick only; trimQuotes alters real labels; non-ASCII glyphs dropped"
     },
     "ops": {
      "c": "p",
-     "e": "S",
-     "t": "Collapse and root-at-node"
+     "e": "M",
+     "t": "Collapse and re-root work"
     }
    }
   },
@@ -514,7 +514,7 @@
    "rendering": "SVG (d3)",
    "research": "docs/research/archaeopteryx-js.md",
    "summary": "Full phylogenetic tree viewer (port of the Java tool) with heat map, alignment and domain tracks.",
-   "verdict": "Richest built-in tracks and formats, but a whole app: no node click callback, singleton, one maintainer, large API churn.",
+   "verdict": "Richest built-in tracks and formats, but a whole app: no click callback, one viewer per page (S13 fails), unusable from about 900 tips on the new metric, stack overflow on a 10k caterpillar.",
    "cells": {
     "g1": {
      "c": "p",
@@ -523,153 +523,153 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
      "c": "p",
-     "e": "S",
-     "t": "Imperative launch/destroy; one viewer per page"
+     "e": "M",
+     "t": "Imperative launch from an effect; one viewer per page: S13 fails (the second instance blanks the first)"
     },
     "g4": {
      "c": "p",
      "e": "S",
-     "t": "One maintainer; 22 releases in 33 days after a quiet period; 118 config keys removed in 3.0"
+     "t": "One maintainer; 22 releases in 33 days; 118 config keys removed in 3.0"
     },
     "tip": {
-     "c": "n",
-     "e": "S",
-     "t": "No click or hover callback"
+     "c": "p",
+     "e": "M",
+     "t": "S2 pass, but through DOM hit tests: no click callback (adapter-derived)"
     },
     "node": {
-     "c": "n",
-     "e": "S",
-     "t": "Only a payload-less selected_nodes_changed_event on document"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: derived from DOM hits plus our tree model"
     },
     "clade": {
      "c": "p",
-     "e": "D",
-     "t": "Colour by property; highlight through view state search"
+     "e": "M",
+     "t": "S4 pass: node.color plus redraw"
     },
     "link": {
-     "c": "u",
-     "e": "U",
-     "t": "Tested in the spike"
+     "c": "p",
+     "e": "M",
+     "t": "S6 pass via an overlay"
     },
     "cols": {
      "c": "p",
-     "e": "S",
-     "t": "Built-in heat map, alignment, logo, domain tracks; not custom React content"
+     "e": "M",
+     "t": "S7 partial, S8 pass: built-in heat map and alignment tracks; heat-map-only, needs a mirror column for bars"
     },
     "style": {
      "c": "p",
-     "e": "S",
-     "t": "Many config keys, some not honoured"
+     "e": "M",
+     "t": "S9 pass; some config keys not honoured"
     },
     "layout": {
      "c": "y",
-     "e": "S",
-     "t": "Rectangular, circular, unrooted"
+     "e": "M",
+     "t": "Rectangular, circular, unrooted; S12 pass"
     },
     "bl": {
      "c": "y",
-     "e": "S",
-     "t": "Phylogram, aligned and cladogram display modes"
+     "e": "M",
+     "t": "S11 pass"
     },
     "overview": {
      "c": "p",
-     "e": "S",
-     "t": "Label thinning and windowed tracks; auto-collapse removed"
+     "e": "M",
+     "t": "S10 partial: label thinning only"
     },
     "scale": {
-     "c": "p",
-     "e": "C",
-     "t": "Changelog claims 50k nodes at 60 fps (self-reported)"
+     "c": "n",
+     "e": "M",
+     "t": "Unusable from 888 tips on the new metric (142 ms CPU per step); 10k 1.5 to 2.4 s per step; larger trees skipped; the 50k at 60 fps claim is not reproduced"
     },
     "parse": {
      "c": "y",
      "e": "S",
-     "t": "Newick, NHX, Nexus, phyloXML, Auspice JSON, BEAST annotations"
+     "t": "Newick, NHX, Nexus, phyloXML, Auspice JSON, BEAST annotations; 10k-deep caterpillar overflows the stack"
     },
     "ops": {
-     "c": "y",
-     "e": "D",
-     "t": "MAD and midpoint rooting, collapse, ladderize"
+     "c": "p",
+     "e": "M",
+     "t": "Reroot via its menu breaks id mapping"
     }
    }
   },
   {
    "id": "custom",
    "title": "Custom baseline (ours)",
-   "kind": "design",
+   "kind": "spike",
    "repo": "",
    "demo": "",
    "license": "Apache-2.0",
-   "version": "planned",
+   "version": "prototype (3.1k lines)",
    "rendering": "Canvas2D + React",
    "research": "docs/research/custom-renderer.md",
-   "summary": "A small typed-array tree model with a Canvas2D renderer and a React layer, designed to meet every criterion.",
-   "verdict": "Design target, not yet measured. Agent estimate: about 9 engineer-weeks for an MVP at 100k tips. The spike builds a minimal version to set the performance ceiling.",
+   "summary": "Our own typed-array tree model with a Canvas2D renderer and a React layer, built during this spike as a baseline.",
+   "verdict": "Built as a prototype. 20 of 20 test trees pass up to 190k tips with no slow frames (8 to 17 ms CPU per step); clade, columns, overview, links and keyboard pass. Author's estimate to production: 12 to 18 engineer-weeks. Ladderised trees still cost a full tree walk per frame.",
    "cells": {
     "tip": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S2 pass"
     },
     "node": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S3 partial only by rule: tip sets are derived from the preorder range (adapter-derived), correct against ground truth, O(1)"
     },
     "clade": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S4 pass, multiple clades"
     },
     "link": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S6 pass: real a[href] overlay for visible rows"
     },
     "cols": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S7, S8 pass: bar, text and alignment columns on canvas, aligned to the pixel"
     },
     "style": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S9 pass: all colours and fonts from the GBIF tokens, dark theme"
     },
     "layout": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "Rectangular and radial (S12 pass); no unrooted"
     },
     "bl": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S11 pass; scale bar and time axis self-reported"
     },
     "overview": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "S10 pass: overview strip, clade summaries when zoomed out"
     },
     "scale": {
      "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "e": "M",
+     "t": "20 of 20 trees to 190k: 0% slow frames; 1M tips 1.4 to 3 ms per frame in the author's JS timing (no GPU)"
     },
     "parse": {
-     "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "c": "p",
+     "e": "S",
+     "t": "Uses our iterative Newick parser; no phyloXML or Nexus annotations in the viewer"
     },
     "ops": {
-     "c": "y",
-     "e": "U",
-     "t": "Design target, not built or measured"
+     "c": "n",
+     "e": "S",
+     "t": "No reroot, search or user collapse yet"
     },
     "g1": {
      "c": "y",
@@ -678,13 +678,13 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
-     "t": "Static"
+     "e": "M",
+     "t": "Static, runs in the browser"
     },
     "g3": {
      "c": "y",
-     "e": "S",
-     "t": "Native"
+     "e": "M",
+     "t": "Controlled React component, clean unmount, two instances (S13 pass)"
     },
     "g4": {
      "c": "p",
