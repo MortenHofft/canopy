@@ -94,3 +94,20 @@ export function shrinkPng(buf, maxBytes = 140 * 1024) {
   }
   return out;
 }
+
+/**
+ * Pixels that moved towards `rgb`: closer to it than the same pixel in `before` by more than `margin` (RGB distance).
+ * Relative to the pre-existing pixels, so thin anti-aliased branches (a 0.4 px line gives pale pink, never pure red) count.
+ */
+export function tintCount(after, before, rgb, margin = 40) {
+  if (after.width !== before.width || after.height !== before.height) return { count: 0, total: after.width * after.height, frac: NaN };
+  const a = after.data, b = before.data;
+  let c = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    const da = Math.hypot(a[i] - rgb[0], a[i + 1] - rgb[1], a[i + 2] - rgb[2]);
+    const db = Math.hypot(b[i] - rgb[0], b[i + 1] - rgb[1], b[i + 2] - rgb[2]);
+    if (da + margin < db) c++;
+  }
+  const total = a.length / 4;
+  return { count: c, total, frac: c / total };
+}

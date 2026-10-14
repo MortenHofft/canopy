@@ -12,6 +12,7 @@ export interface FrameStats {
   p95Fps: number; // fps of the fastest 5% of frames
   droppedFrames: number; // intervals over 25 ms, counted as round(interval/16.67) - 1 each
   maxIntervalMs: number; // longest gap between two frames (a freeze shows up here)
+  slowTimeFrac: number; // fraction of the sampled TIME spent in frames longer than 50 ms ("dropped-frame ratio"; a freeze counts in full)
 }
 
 export function percentile(sorted: number[], p: number): number {
@@ -46,6 +47,8 @@ export function summariseIntervals(intervals: number[], durationMs: number): Fra
     p95Fps: lo ? 1000 / lo : 0,
     droppedFrames: dropped,
     maxIntervalMs: s.length ? s[s.length - 1] : 0,
+    // time with no frame at all (a frozen page) counts as slow
+    slowTimeFrac: Math.max(sum, durationMs) > 0 ? (intervals.filter((d) => d > 50).reduce((a, b) => a + b, 0) + Math.max(0, durationMs - sum)) / Math.max(sum, durationMs) : 0,
   };
 }
 

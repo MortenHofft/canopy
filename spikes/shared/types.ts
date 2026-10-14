@@ -49,6 +49,7 @@ export interface SpikeEvent {
   t: number; // performance.now()
 }
 
+/** Optional `candidate.columnKinds`: the column kinds the library can draw (default all). S7 tests with the best supported kind and records it. */
 export interface ColumnSpec {
   id: string;
   kind: 'bar' | 'text' | 'alignment';
@@ -58,7 +59,7 @@ export interface ColumnSpec {
 }
 
 export interface SpikeApi {
-  candidate: { name: string; version: string; license: string; notes?: string };
+  candidate: { name: string; version: string; license: string; notes?: string; columnKinds?: ('bar' | 'text' | 'alignment')[] };
   ready: Promise<void>;
 
   mount(o: MountOptions): Promise<MountResult>;

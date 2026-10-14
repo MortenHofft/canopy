@@ -19,6 +19,8 @@ const LABEL_W = 130; // px reserved for tip labels between the tree and the firs
 const TOP = 28; // px above the first row (column headers)
 const BOTTOM = 8;
 const COL_GAP = 6;
+/** Fault injection for the runner's selftest (runner/selftest.mjs): ?fault=colour|align|link|keyboard|tips|wheel. Never set in normal use. */
+const FAULT = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('fault') : null;
 
 const CSS = `
 .sp-root{position:relative;width:100%;height:100%;overflow:hidden;user-select:none;touch-action:none;background:var(--sp-bg);color:var(--sp-fg);font-family:var(--sp-font)}
@@ -198,7 +200,7 @@ function StubView(props: ViewProps) {
       for (let r = r0; r <= r1; r++) {
         const val = c.values[tree.tipLabels[r]];
         if (val === undefined) continue; // unmatched tip: nothing drawn, locateCell returns null
-        const y = v.ty + r * v.ky;
+        const y = v.ty + r * v.ky + (FAULT === 'align' ? 7 : 0);
         if (c.kind === 'bar') {
           ctx.fillStyle = barC;
           ctx.fillRect(x0 + 2, y + v.ky * 0.1, barWidth(Number(val), max, c.width), Math.max(1, v.ky * 0.8));
@@ -289,7 +291,7 @@ function StubView(props: ViewProps) {
       const val = c.values[tipId];
       if (val === undefined) return null;
       const v = viewRef.current;
-      const y = v.ty + rank * v.ky;
+      const y = v.ty + rank * v.ky + (FAULT === 'align' ? 7 : 0);
       if (y + v.ky < 0 || y > latest.current.size.height || y < 0 || y + v.ky > latest.current.size.height + 0.5) {
         // partially visible rows still count if their centre is visible
         if (!(y + v.ky / 2 >= 0 && y + v.ky / 2 <= latest.current.size.height)) return null;
@@ -342,6 +344,7 @@ function StubView(props: ViewProps) {
     const el = rootRef.current!;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (FAULT === 'wheel') return;
       const r = el.getBoundingClientRect();
       const mx = e.clientX - r.left;
       const my = e.clientY - r.top;
@@ -412,7 +415,7 @@ function StubView(props: ViewProps) {
   const fire = (i: number, kind: 'dot' | 'branch' | 'label', how: 'click' | 'hover') => {
     const isTip = tree.childCount[i] === 0;
     const type = how === 'click' ? (isTip ? 'tipClick' : kind === 'branch' ? 'branchClick' : 'nodeClick') : isTip ? 'tipHover' : 'nodeHover';
-    emit({ type, nodeId: tree.nodeId(i), isTip, tipIds: tree.descendantTips(i), source: 'library', libraryPayload: { n: i, via: kind } });
+    emit({ type, nodeId: tree.nodeId(i), isTip, tipIds: FAULT === 'tips' && !isTip ? tree.descendantTips(i).slice(1) : tree.descendantTips(i), source: 'library', libraryPayload: { n: i, via: kind } });
   };
   const onClick = (e: React.MouseEvent) => {
     if (dragged.current) {
@@ -445,7 +448,7 @@ function StubView(props: ViewProps) {
         const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         p.setAttribute('class', cls);
         p.setAttribute('d', d);
-        p.style.stroke = c.colour;
+        p.style.stroke = FAULT === 'colour' ? 'transparent' : c.colour;
         cl.appendChild(p);
       };
       mk('cb', svg.branchD.slice(Math.max(a, 1) - 1, b - 1).join(''));
@@ -507,7 +510,7 @@ function StubView(props: ViewProps) {
     const text = tree.tipLabels[rank];
     const hl = hlSet.has(text);
     const style: React.CSSProperties = { left, top, height: h, lineHeight: h + 'px', fontSize: Math.min(13, Math.max(8, h * 0.75)), color: colourOf(tree.tipNode[rank]) };
-    const common = { 'data-tip-label': text, 'data-tip-id': text, className: 'lab' + (hl ? ' hl' : '') + (layout === 'radial' ? ' rad' : ''), style, tabIndex: 0 };
+    const common = { 'data-tip-label': text, ...(FAULT === 'link' ? {} : { 'data-tip-id': text }), className: 'lab' + (hl ? ' hl' : '') + (layout === 'radial' ? ' rad' : ''), style, ...(FAULT === 'keyboard' ? {} : { tabIndex: 0 }) };
     const onKey = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') fire(tree.tipNode[rank], 'label', 'click');
     };

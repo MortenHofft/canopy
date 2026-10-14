@@ -1,6 +1,6 @@
 # Results
 
-One file per spiked candidate and version (`<candidate>.md`, using the template in [../evaluation-framework.md](../evaluation-framework.md)), plus `matrix.md`. Raw run output (JSON from the harness) goes in `spikes/results/` and is linked from here. Nothing recorded yet.
+One file per spiked candidate and version (`<candidate>.md`, using the template in [../evaluation-framework.md](../evaluation-framework.md)), plus `matrix.md`. Raw run output (JSON from the harness) goes in `spikes/results/` and is linked from here. [summary.md](summary.md) compares the six candidates from the final harness re-run (runner v0.2, idle machine; run ids in `spikes/results/FINAL.json`).
 
 ## matrix.md (to create)
 

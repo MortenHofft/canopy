@@ -1,0 +1,4032 @@
+{
+ "runId": "20261014-183329",
+ "candidate": {
+  "name": "stub",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "notes": "Naive SVG reference renderer written for the harness; not a real candidate."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "delegated click on the tip dot or label"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "click on a node dot"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "click on a branch path; reported as branchClick with the clade below it"
+  },
+  "hover": {
+   "level": "yes",
+   "how": "mouseover on dots/branches/labels gives tipHover / nodeHover"
+  },
+  "descendantTipsInPayload": {
+   "level": "yes",
+   "how": "every event carries the descendant tips (from the shared TreeModel inside the renderer; source is reported as library because the stub renderer is the library)"
+  },
+  "cladeColouring": {
+   "level": "yes",
+   "how": "imperative stroke on the existing paths of the subtree range; no redraw, no layout change"
+  },
+  "highlightTip": {
+   "level": "yes",
+   "how": "class on the tip dot plus a row band and a ring"
+  },
+  "focusTip": {
+   "level": "yes",
+   "how": "sets row height to at least 24 px and centres the tip row; instant, no animation"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "real <a href data-tip-id target=_blank> but only for rows that are rendered (rows >= 9 px); other tips have no DOM node"
+  },
+  "customColumns": {
+   "level": "yes",
+   "how": "bar, text and alignment columns drawn on one canvas for visible rows"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "coloured residue runs on the columns canvas"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "polar coordinates, arcs; columns are not drawn in radial layout"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "phylogram (cumulative length) versus cladogram (tips aligned); negative lengths clamped to 0"
+  },
+  "scaleBar": {
+   "level": "no",
+   "how": "no scale bar or time axis"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "gbifDarkTheme() values (derived from tokens; GBIF has no dark set) as CSS custom properties on the root element"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "defaults come from gbifTheme() (GBIF tokens); background, foreground, branch, highlight, fontFamily override the --sp-* custom properties"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no module state; two instances were tested via window.__spike2"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount removes the DOM; rAF cancelled; no global listeners except window pointer listeners removed on pointerup"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "colour, highlight, focus, layout, lengths, columns, theme, links are props of the View"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fits on mount and layout change; no API to refit; wheel zoom-out is limited to 0.3x of the fit"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none; every node is drawn at all zoom levels (no level of detail)"
+  }
+ },
+ "date": "2026-10-14T18:55:07.623Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 0.98,
+  "end": 2.24,
+  "max": 3.11,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 0.98,
+  "canvas": {
+   "fpsMedian": 64.93506493506646,
+   "fpsP5": 59.52380952380888,
+   "fpsP5Rounds": [
+    30,
+    59.5,
+    59.5
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 1,
+   "maxFrameGapMs": 33.399999999999636,
+   "frames": 939,
+   "inputSteps": 228,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 4.2,
+   "cpuDragMoveMs": 4.9,
+   "cpuMsPerStep": 4.9,
+   "loadavg": 1.97
+  },
+  "stub200": {
+   "fpsMedian": 59.880239520957105,
+   "fpsP5": 20.040080160320787,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 49,
+   "maxFrameGapMs": 50,
+   "frames": 300,
+   "inputSteps": 151,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 8.3,
+   "cpuDragMoveMs": 7.8,
+   "cpuMsPerStep": 8.3,
+   "loadavg": 2.04
+  },
+  "loadEnd": 2.04
+ },
+ "label": "final-2026-10-14",
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "rich-fish-carangaria-135",
+   "rich-ens-protein-197",
+   "syn-yule-200",
+   "rich-birdtree-0000",
+   "rich-corvoid-680",
+   "otl-1k",
+   "syn-yule-1000",
+   "syn-caterpillar-1000",
+   "syn-yule-10000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "otl-10k",
+   "gtdb-10k",
+   "edge-caterpillar-20000",
+   "otl-91k",
+   "syn-yule-100000",
+   "gtdb-100k",
+   "gtdb-190k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 222066,
+  "jsGzipBytes": 71400,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 240252,
+  "totalGzipBytes": 76014,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-Dg0ZKdxW.js",
+    "bytes": 222066,
+    "gzipBytes": 71400
+   },
+   {
+    "path": "index.html",
+    "bytes": 420,
+    "gzipBytes": 286
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "pass",
+     "reason": "load 43 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 4 ms, click 2 ms",
+     "loadAvgAtStart": 2.2,
+     "phase": "done",
+     "fetchMs": 8.799999997019768,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 0,
+     "firstRenderMs": 42.69999999925494,
+     "sharedParseMs": 0.8999999985098839,
+     "reportedTips": 5,
+     "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.0 ms; usedLengths=true",
+     "loadMs": 42.69999999925494,
+     "ink": 0.012639393460748716,
+     "heapAfterMountMB": 3.030282974243164,
+     "stats": {
+      "domNodes": 33,
+      "svgElements": 24,
+      "canvases": 1,
+      "custom": {
+       "tips": 5,
+       "nodes": 8,
+       "layoutMs": 0,
+       "kx": 0.824,
+       "ky": 122.6
+      }
+     },
+     "clickLatencyMs": 1.800000000745058,
+     "clickToPaintMs": 34.600000001490116,
+     "clickSamples": {
+      "events": 2,
+      "tries": 2,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.880239520957105,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      29.9,
+      29.9,
+      29.9
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 47,
+     "maxFrameGapMs": 34.59999999851061,
+     "frames": 476,
+     "inputSteps": 250,
+     "fpsP95": 60.240963855423665,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 3.9,
+     "cpuDragMoveMs": 3.8,
+     "cpuMsPerStep": 3.9,
+     "loadAvgAtEnd": 2.39,
+     "heapAfterInteractionMB": 3.659273147583008,
+     "heapMB": 3.659273147583008,
+     "unusableFactor": 0.039,
+     "pageErrors": [],
+     "wallSec": 17.806,
+     "relMedianFps": 0.9221556886227177,
+     "relP5Fps": 0.5029940119760589,
+     "cpuVsStub200": 0.4698795180722891
+    },
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "pass",
+     "reason": "load 42 ms, median 59.5 fps, best p5 20.0, dropped 0%, CPU/step 6 ms, click 2 ms",
+     "loadAvgAtStart": 2.39,
+     "phase": "done",
+     "fetchMs": 16.100000001490116,
+     "convertMs": 11.899999998509884,
+     "wireBytes": 111429,
+     "parseMs": 0,
+     "firstRenderMs": 42.399999998509884,
+     "sharedParseMs": 0.8999999985098839,
+     "reportedTips": 135,
+     "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.3 ms; usedLengths=true",
+     "loadMs": 42.399999998509884,
+     "ink": 0.10721213078502612,
+     "heapAfterMountMB": 3.3256959915161133,
+     "stats": {
+      "domNodes": 550,
+      "svgElements": 546,
+      "canvases": 1,
+      "custom": {
+       "tips": 135,
+       "nodes": 269,
+       "layoutMs": 0.30000000074505806,
+       "kx": 0.824,
+       "ky": 4.54074074074074
+      }
+     },
+     "clickLatencyMs": 1.699999999254942,
+     "clickToPaintMs": 37,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.523809523812105,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 50,
+     "maxFrameGapMs": 50,
+     "frames": 449,
+     "inputSteps": 229,
+     "fpsP95": 60.240963855423665,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 6,
+     "cpuDragMoveMs": 5.9,
+     "cpuMsPerStep": 6,
+     "loadAvgAtEnd": 2.06,
+     "heapAfterInteractionMB": 4.061948776245117,
+     "heapMB": 4.061948776245117,
+     "unusableFactor": 0.06,
+     "pageErrors": [],
+     "wallSec": 19.052,
+     "relMedianFps": 0.9166666666666848,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 0.7228915662650601
+    },
+    "rich-ens-protein-197": {
+     "treeId": "rich-ens-protein-197",
+     "tips": 197,
+     "status": "pass",
+     "reason": "load 50 ms, median 59.5 fps, best p5 20.0, dropped 1%, CPU/step 10 ms, click 2 ms",
+     "loadAvgAtStart": 2.06,
+     "phase": "done",
+     "fetchMs": 8.5,
+     "convertMs": 0,
+     "wireBytes": 7349,
+     "parseMs": 0,
+     "firstRenderMs": 49.600000001490116,
+     "sharedParseMs": 3.300000000745058,
+     "reportedTips": 197,
+     "notes": "tree parsed by the shell (sharedParseMs=3.3); stub layout 0.3 ms; usedLengths=true",
+     "loadMs": 49.600000001490116,
+     "ink": 0.025135049755173,
+     "heapAfterMountMB": 4.095929145812988,
+     "stats": {
+      "domNodes": 798,
+      "svgElements": 794,
+      "canvases": 1,
+      "custom": {
+       "tips": 197,
+       "nodes": 393,
+       "layoutMs": 0.30000000074505806,
+       "kx": 0.824,
+       "ky": 3.1116751269035534
+      }
+     },
+     "clickLatencyMs": 1.699999999254942,
+     "clickToPaintMs": 35.100000001490116,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.523809523812105,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      5.5,
+      20
+     ],
+     "droppedRatio": 0.014098775854793853,
+     "droppedFrames": 55,
+     "maxFrameGapMs": 50.099999999999454,
+     "frames": 423,
+     "inputSteps": 212,
+     "fpsP95": 60.240963855423665,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 10,
+     "cpuDragMoveMs": 7,
+     "cpuMsPerStep": 10,
+     "loadAvgAtEnd": 2.33,
+     "heapAfterInteractionMB": 4.238674163818359,
+     "heapMB": 4.238674163818359,
+     "unusableFactor": 0.1,
+     "pageErrors": [],
+     "wallSec": 18.996,
+     "relMedianFps": 0.9166666666666848,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 1.2048192771084336
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "pass",
+     "reason": "load 36 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 9 ms, click 3 ms",
+     "loadAvgAtStart": 2.33,
+     "phase": "done",
+     "fetchMs": 8.699999999254942,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 0,
+     "firstRenderMs": 36.30000000074506,
+     "sharedParseMs": 2,
+     "reportedTips": 200,
+     "notes": "tree parsed by the shell (sharedParseMs=2.0); stub layout 0.3 ms; usedLengths=true",
+     "loadMs": 36.30000000074506,
+     "ink": 0.10016585057652816,
+     "heapAfterMountMB": 3.352476119995117,
+     "stats": {
+      "domNodes": 810,
+      "svgElements": 806,
+      "canvases": 1,
+      "custom": {
+       "tips": 200,
+       "nodes": 399,
+       "layoutMs": 0.30000000074505806,
+       "kx": 0.824,
+       "ky": 3.065
+      }
+     },
+     "clickLatencyMs": 2.5,
+     "clickToPaintMs": 38.5,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 72,
+     "maxFrameGapMs": 50,
+     "frames": 423,
+     "inputSteps": 217,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 7.3,
+     "cpuDragMoveMs": 8.7,
+     "cpuMsPerStep": 8.7,
+     "loadAvgAtEnd": 2.59,
+     "heapAfterInteractionMB": 4.198153495788574,
+     "heapMB": 4.198153495788574,
+     "unusableFactor": 0.087,
+     "pageErrors": [],
+     "wallSec": 19.13,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 1.0481927710843373
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "pass",
+     "reason": "load 55 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 13 ms, click 3 ms",
+     "loadAvgAtStart": 2.59,
+     "phase": "done",
+     "fetchMs": 40.400000002235174,
+     "convertMs": 9.600000001490116,
+     "wireBytes": 601687,
+     "parseMs": 0,
+     "firstRenderMs": 55.20000000298023,
+     "sharedParseMs": 2.300000000745058,
+     "reportedTips": 380,
+     "notes": "tree parsed by the shell (sharedParseMs=2.3); stub layout 5.3 ms; usedLengths=true",
+     "loadMs": 55.20000000298023,
+     "ink": 0.16709208655820562,
+     "heapAfterMountMB": 8.073308944702148,
+     "stats": {
+      "domNodes": 1530,
+      "svgElements": 1526,
+      "canvases": 1,
+      "custom": {
+       "tips": 380,
+       "nodes": 759,
+       "layoutMs": 5.300000000745058,
+       "kx": 0.824,
+       "ky": 1.6131578947368421
+      }
+     },
+     "clickLatencyMs": 2.5,
+     "clickToPaintMs": 24.399999998509884,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 45,
+     "maxFrameGapMs": 50,
+     "frames": 504,
+     "inputSteps": 259,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 13.3,
+     "cpuDragMoveMs": 4.4,
+     "cpuMsPerStep": 13.3,
+     "loadAvgAtEnd": 2.33,
+     "heapAfterInteractionMB": 4.188850402832031,
+     "heapMB": 4.188850402832031,
+     "unusableFactor": 0.133,
+     "pageErrors": [],
+     "wallSec": 19.394,
+     "relMedianFps": 0.9221556886227429,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 1.6024096385542168
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "pass",
+     "reason": "load 81 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 14 ms, click 4 ms",
+     "loadAvgAtStart": 2.33,
+     "phase": "done",
+     "fetchMs": 26.599999997764826,
+     "convertMs": 41.19999999925494,
+     "wireBytes": 219203,
+     "parseMs": 0,
+     "firstRenderMs": 81.39999999850988,
+     "sharedParseMs": 2.7999999970197678,
+     "reportedTips": 680,
+     "notes": "tree parsed by the shell (sharedParseMs=2.8); stub layout 1.5 ms; usedLengths=true",
+     "loadMs": 81.39999999850988,
+     "ink": 0.17447006791975994,
+     "heapAfterMountMB": 6.189296722412109,
+     "stats": {
+      "domNodes": 2730,
+      "svgElements": 2726,
+      "canvases": 1,
+      "custom": {
+       "tips": 680,
+       "nodes": 1359,
+       "layoutMs": 1.5,
+       "kx": 0.824,
+       "ky": 0.9014705882352941
+      }
+     },
+     "clickLatencyMs": 3.600000001490116,
+     "clickToPaintMs": 33.899999998509884,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      15
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 45,
+     "maxFrameGapMs": 50,
+     "frames": 492,
+     "inputSteps": 243,
+     "fpsP95": 60.240963855423665,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 13.9,
+     "cpuDragMoveMs": 7.9,
+     "cpuMsPerStep": 13.9,
+     "loadAvgAtEnd": 2.56,
+     "heapAfterInteractionMB": 4.620926856994629,
+     "heapMB": 4.620926856994629,
+     "unusableFactor": 0.139,
+     "pageErrors": [],
+     "wallSec": 19.44,
+     "relMedianFps": 0.9221556886227429,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 1.6746987951807228
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "pass",
+     "reason": "load 82 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 18 ms, click 4 ms",
+     "loadAvgAtStart": 2.56,
+     "phase": "done",
+     "fetchMs": 26,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 0,
+     "firstRenderMs": 81.80000000074506,
+     "sharedParseMs": 5.899999998509884,
+     "reportedTips": 888,
+     "notes": "tree parsed by the shell (sharedParseMs=5.9); stub layout 0.9 ms; usedLengths=false",
+     "loadMs": 81.80000000074506,
+     "ink": 0.27626757226346543,
+     "heapAfterMountMB": 3.8705692291259766,
+     "stats": {
+      "domNodes": 2942,
+      "svgElements": 2938,
+      "canvases": 1,
+      "custom": {
+       "tips": 888,
+       "nodes": 1465,
+       "layoutMs": 0.9000000022351742,
+       "kx": 0.824,
+       "ky": 0.6903153153153153
+      }
+     },
+     "clickLatencyMs": 4.099999997764826,
+     "clickToPaintMs": 18.399999998509884,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0.013196017489340425,
+     "droppedFrames": 46,
+     "maxFrameGapMs": 50.100000000000364,
+     "frames": 489,
+     "inputSteps": 217,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 18.3,
+     "cpuDragMoveMs": 14.5,
+     "cpuMsPerStep": 18.3,
+     "loadAvgAtEnd": 2.69,
+     "heapAfterInteractionMB": 4.638764381408691,
+     "heapMB": 4.638764381408691,
+     "unusableFactor": 0.183,
+     "pageErrors": [],
+     "wallSec": 19.319,
+     "relMedianFps": 0.9221556886227429,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 2.2048192771084336
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "pass",
+     "reason": "load 80 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 22 ms, click 4 ms",
+     "loadAvgAtStart": 2.69,
+     "phase": "done",
+     "fetchMs": 11.800000000745058,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 0,
+     "firstRenderMs": 79.89999999850988,
+     "sharedParseMs": 5.599999997764826,
+     "reportedTips": 1000,
+     "notes": "tree parsed by the shell (sharedParseMs=5.6); stub layout 2.2 ms; usedLengths=true",
+     "loadMs": 79.89999999850988,
+     "ink": 0.2645679987363766,
+     "heapAfterMountMB": 4.7902069091796875,
+     "stats": {
+      "domNodes": 4010,
+      "svgElements": 4006,
+      "canvases": 1,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "layoutMs": 2.199999999254942,
+       "kx": 0.824,
+       "ky": 0.613
+      }
+     },
+     "clickLatencyMs": 4.399999998509884,
+     "clickToPaintMs": 23,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20.04008016032042,
+     "fpsP5Rounds": [
+      15,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 36,
+     "maxFrameGapMs": 50,
+     "frames": 510,
+     "inputSteps": 212,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 22.3,
+     "cpuDragMoveMs": 9.1,
+     "cpuMsPerStep": 22.3,
+     "loadAvgAtEnd": 2.41,
+     "heapAfterInteractionMB": 5.246095657348633,
+     "heapMB": 5.246095657348633,
+     "unusableFactor": 0.223,
+     "pageErrors": [],
+     "wallSec": 19.447,
+     "relMedianFps": 0.9221556886227429,
+     "relP5Fps": 0.3366733466933867,
+     "cpuVsStub200": 2.686746987951807
+    },
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "pass",
+     "reason": "load 97 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 16 ms, click 7 ms",
+     "loadAvgAtStart": 2.41,
+     "phase": "done",
+     "fetchMs": 10.5,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 0,
+     "firstRenderMs": 97.29999999701977,
+     "sharedParseMs": 9.100000001490116,
+     "reportedTips": 1000,
+     "notes": "tree parsed by the shell (sharedParseMs=9.1); stub layout 7.2 ms; usedLengths=true",
+     "loadMs": 97.29999999701977,
+     "ink": 0.41984046754067283,
+     "heapAfterMountMB": 4.086270332336426,
+     "stats": {
+      "domNodes": 4010,
+      "svgElements": 4006,
+      "canvases": 1,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "layoutMs": 7.200000002980232,
+       "kx": 0.824,
+       "ky": 0.613
+      }
+     },
+     "clickLatencyMs": 7.099999997764826,
+     "clickToPaintMs": 20.799999997019768,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0.013587022847351684,
+     "droppedFrames": 58,
+     "maxFrameGapMs": 50.099999999999454,
+     "frames": 473,
+     "inputSteps": 208,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 16.1,
+     "cpuDragMoveMs": 7.2,
+     "cpuMsPerStep": 16.1,
+     "loadAvgAtEnd": 2.51,
+     "heapAfterInteractionMB": 4.797512054443359,
+     "heapMB": 4.797512054443359,
+     "unusableFactor": 0.161,
+     "pageErrors": [],
+     "wallSec": 17.956,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.33600000000000363,
+     "cpuVsStub200": 1.9397590361445782
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 65% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.11,
+     "phase": "done",
+     "fetchMs": 23.900000002235174,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 0,
+     "firstRenderMs": 579.1999999992549,
+     "sharedParseMs": 44.30000000074506,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=44.3); stub layout 10.3 ms; usedLengths=true",
+     "loadMs": 579.1999999992549,
+     "ink": 0.4388374664350023,
+     "heapAfterMountMB": 15.684601783752441,
+     "stats": {
+      "domNodes": 40010,
+      "svgElements": 40006,
+      "canvases": 1,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "layoutMs": 10.300000000745058,
+       "kx": 0.824,
+       "ky": 0.0613
+      }
+     },
+     "clickLatencyMs": 25.100000001490116,
+     "clickToPaintMs": 91.19999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 3.3333333333333335,
+     "fpsP5Rounds": [
+      2.1,
+      3.3,
+      3
+     ],
+     "droppedRatio": 0.6524277041776957,
+     "droppedFrames": 206,
+     "maxFrameGapMs": 300,
+     "frames": 358,
+     "inputSteps": 48,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 134.7,
+     "cpuDragMoveMs": 53.9,
+     "cpuMsPerStep": 134.7,
+     "loadAvgAtEnd": 3.07,
+     "heapAfterInteractionMB": 15.902956008911133,
+     "heapMB": 15.902956008911133,
+     "unusableFactor": 1.347,
+     "pageErrors": [],
+     "wallSec": 34.746,
+     "relMedianFps": 0.9221556886227429,
+     "relP5Fps": 0.05600000000000061,
+     "cpuVsStub200": 16.2289156626506
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.07,
+     "phase": "done",
+     "fetchMs": 19.199999999254942,
+     "convertMs": 0,
+     "wireBytes": 124805,
+     "parseMs": 0,
+     "firstRenderMs": 635.5999999977648,
+     "sharedParseMs": 38.099999997764826,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=38.1); stub layout 5.9 ms; usedLengths=true",
+     "loadMs": 635.5999999977648,
+     "ink": 0.40541462644132054,
+     "heapAfterMountMB": 13.386933326721191,
+     "stats": {
+      "domNodes": 40010,
+      "svgElements": 40006,
+      "canvases": 1,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "layoutMs": 5.899999998509884,
+       "kx": 0.824,
+       "ky": 0.0613
+      }
+     },
+     "clickLatencyMs": 36.099999997764826,
+     "clickToPaintMs": 107.09999999776483,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 0
+     },
+     "fpsMedian": 30.030030030027405,
+     "fpsP5": 3.0003000300029905,
+     "fpsP5Rounds": [
+      2.5,
+      2.9,
+      3
+     ],
+     "droppedRatio": 0.630561621956387,
+     "droppedFrames": 185,
+     "maxFrameGapMs": 333.3000000000011,
+     "frames": 245,
+     "inputSteps": 48,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 134.5,
+     "cpuDragMoveMs": 47.7,
+     "cpuMsPerStep": 134.5,
+     "loadAvgAtEnd": 3.01,
+     "heapAfterInteractionMB": 13.942809104919434,
+     "heapMB": 13.942809104919434,
+     "unusableFactor": 1.345,
+     "pageErrors": [],
+     "wallSec": 28.793,
+     "relMedianFps": 0.46246246246241113,
+     "relP5Fps": 0.050405040504050785,
+     "cpuVsStub200": 16.20481927710843
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 129 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.01,
+     "phase": "done",
+     "fetchMs": 25.5,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 0,
+     "firstRenderMs": 569,
+     "sharedParseMs": 42.899999998509884,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=42.9); stub layout 10.1 ms; usedLengths=true",
+     "loadMs": 569,
+     "ink": 0.4466482388248302,
+     "heapAfterMountMB": 13.208301544189453,
+     "stats": {
+      "domNodes": 40010,
+      "svgElements": 40006,
+      "canvases": 1,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "layoutMs": 10.099999997764826,
+       "kx": 0.824,
+       "ky": 0.0613
+      }
+     },
+     "clickLatencyMs": 26.199999999254942,
+     "clickToPaintMs": 97,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 3.5310734463276745,
+     "fpsP5Rounds": [
+      2.5,
+      3.5,
+      3.2
+     ],
+     "droppedRatio": 0.6737935122935339,
+     "droppedFrames": 179,
+     "maxFrameGapMs": 283.2000000000007,
+     "frames": 288,
+     "inputSteps": 48,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 128.9,
+     "cpuDragMoveMs": 54.5,
+     "cpuMsPerStep": 128.9,
+     "loadAvgAtEnd": 2.47,
+     "heapAfterInteractionMB": 13.75472640991211,
+     "heapMB": 13.75472640991211,
+     "unusableFactor": 1.3475870245870678,
+     "pageErrors": [],
+     "wallSec": 30.581,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.05932203389830557,
+     "cpuVsStub200": 15.53012048192771
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 107 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 2.47,
+     "phase": "done",
+     "fetchMs": 18,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 0,
+     "firstRenderMs": 486.80000000074506,
+     "sharedParseMs": 23,
+     "reportedTips": 10000,
+     "notes": "tree parsed by the shell (sharedParseMs=23.0); stub layout 4.7 ms; usedLengths=true",
+     "loadMs": 486.80000000074506,
+     "ink": 0.47184646975201394,
+     "heapAfterMountMB": 9.92739200592041,
+     "stats": {
+      "domNodes": 28002,
+      "svgElements": 27998,
+      "canvases": 1,
+      "custom": {
+       "tips": 10000,
+       "nodes": 13995,
+       "layoutMs": 4.699999999254942,
+       "kx": 0.824,
+       "ky": 0.0613
+      }
+     },
+     "clickLatencyMs": 18.599999997764826,
+     "clickToPaintMs": 65.39999999850988,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 4.616805170821784,
+     "fpsP5Rounds": [
+      3,
+      4.6,
+      3.2
+     ],
+     "droppedRatio": 0.6256932120673575,
+     "droppedFrames": 122,
+     "maxFrameGapMs": 216.60000000000036,
+     "frames": 248,
+     "inputSteps": 50,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 107.3,
+     "cpuDragMoveMs": 37.2,
+     "cpuMsPerStep": 107.3,
+     "loadAvgAtEnd": 2.71,
+     "heapAfterInteractionMB": 10.876173973083496,
+     "heapMB": 10.876173973083496,
+     "unusableFactor": 1.251386424134715,
+     "pageErrors": [],
+     "wallSec": 25.597,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.07756232686980681,
+     "cpuVsStub200": 12.927710843373493
+    },
+    "otl-10k": {
+     "treeId": "otl-10k",
+     "tips": 10018,
+     "status": "timeout",
+     "reason": "unusable: 65% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 2.71,
+     "phase": "done",
+     "fetchMs": 26.699999999254942,
+     "convertMs": 0,
+     "wireBytes": 128748,
+     "parseMs": 0,
+     "firstRenderMs": 417.20000000298023,
+     "sharedParseMs": 26.800000000745058,
+     "reportedTips": 10018,
+     "notes": "tree parsed by the shell (sharedParseMs=26.8); stub layout 7.1 ms; usedLengths=false",
+     "loadMs": 417.20000000298023,
+     "ink": 0.304435318275154,
+     "heapAfterMountMB": 10.692081451416016,
+     "stats": {
+      "domNodes": 29760,
+      "svgElements": 29756,
+      "canvases": 1,
+      "custom": {
+       "tips": 10018,
+       "nodes": 14874,
+       "layoutMs": 7.100000001490116,
+       "kx": 0.824,
+       "ky": 0.06118985825514075
+      }
+     },
+     "clickLatencyMs": 19.800000000745058,
+     "clickToPaintMs": 68.69999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 3.749531308586442,
+     "fpsP5Rounds": [
+      3.2,
+      3.1,
+      3.7
+     ],
+     "droppedRatio": 0.6478013511913887,
+     "droppedFrames": 151,
+     "maxFrameGapMs": 266.6999999999989,
+     "frames": 275,
+     "inputSteps": 48,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 7,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 94.3,
+     "cpuDragMoveMs": 28.1,
+     "cpuMsPerStep": 94.3,
+     "loadAvgAtEnd": 2.71,
+     "heapAfterInteractionMB": 11.623699188232422,
+     "heapMB": 11.623699188232422,
+     "unusableFactor": 1.2956027023827774,
+     "pageErrors": [],
+     "wallSec": 26.985,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.06299212598425291,
+     "cpuVsStub200": 11.36144578313253
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: 58% of the time in frames > 50 ms (best of 3 rounds); 149 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 2.71,
+     "phase": "done",
+     "fetchMs": 16.699999999254942,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 0,
+     "firstRenderMs": 591.4000000022352,
+     "sharedParseMs": 36.5,
+     "reportedTips": 10122,
+     "notes": "tree parsed by the shell (sharedParseMs=36.5); stub layout 14.3 ms; usedLengths=true",
+     "loadMs": 591.4000000022352,
+     "ink": 0.22941399462960033,
+     "heapAfterMountMB": 14.280219078063965,
+     "stats": {
+      "domNodes": 40498,
+      "svgElements": 40494,
+      "canvases": 1,
+      "custom": {
+       "tips": 10122,
+       "nodes": 20243,
+       "layoutMs": 14.300000000745058,
+       "kx": 0.824,
+       "ky": 0.06056115392214977
+      }
+     },
+     "clickLatencyMs": 24.099999997764826,
+     "clickToPaintMs": 95,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 4,
+     "fpsP5Rounds": [
+      1.7,
+      3.5,
+      4
+     ],
+     "droppedRatio": 0.5752723566013288,
+     "droppedFrames": 165,
+     "maxFrameGapMs": 250,
+     "frames": 342,
+     "inputSteps": 48,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 149.4,
+     "cpuDragMoveMs": 54.6,
+     "cpuMsPerStep": 149.4,
+     "loadAvgAtEnd": 2.57,
+     "heapAfterInteractionMB": 14.440470695495605,
+     "heapMB": 14.440470695495605,
+     "unusableFactor": 1.494,
+     "pageErrors": [],
+     "wallSec": 34.407,
+     "relMedianFps": 0.9221556886226926,
+     "relP5Fps": 0.06720000000000073,
+     "cpuVsStub200": 18
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "timeout",
+     "reason": "unusable: 360 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 2.57,
+     "phase": "done",
+     "fetchMs": 15.699999999254942,
+     "convertMs": 0,
+     "wireBytes": 48733,
+     "parseMs": 0,
+     "firstRenderMs": 1316,
+     "sharedParseMs": 67.5,
+     "reportedTips": 20000,
+     "notes": "tree parsed by the shell (sharedParseMs=67.5); stub layout 12.7 ms; usedLengths=true",
+     "loadMs": 1316,
+     "ink": 0.009661980729742559,
+     "heapAfterMountMB": 23.812573432922363,
+     "stats": {
+      "domNodes": 80010,
+      "svgElements": 80006,
+      "canvases": 1,
+      "custom": {
+       "tips": 20000,
+       "nodes": 39999,
+       "layoutMs": 12.699999999254942,
+       "kx": 0.824,
+       "ky": 0.03065
+      }
+     },
+     "clickLatencyMs": 60.80000000074506,
+     "clickToPaintMs": 109.69999999925494,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.880239520962,
+     "fpsP5": 3.9984006397440965,
+     "fpsP5Rounds": [
+      3.5,
+      3.5,
+      4
+     ],
+     "droppedRatio": 0.35763708329712157,
+     "droppedFrames": 89,
+     "maxFrameGapMs": 250.10000000000036,
+     "frames": 504,
+     "inputSteps": 15,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 360.1,
+     "cpuDragMoveMs": 149.7,
+     "cpuMsPerStep": 360.1,
+     "loadAvgAtEnd": 2.36,
+     "heapAfterInteractionMB": 24.113402366638184,
+     "heapMB": 24.113402366638184,
+     "unusableFactor": 3.6010000000000004,
+     "pageErrors": [],
+     "wallSec": 48.97,
+     "relMedianFps": 0.9221556886227931,
+     "relP5Fps": 0.06717313074770155,
+     "cpuVsStub200": 43.3855421686747
+    },
+    "otl-91k": {
+     "treeId": "otl-91k",
+     "tips": 90938,
+     "status": "timeout",
+     "reason": "unusable: 1056 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 2.97,
+     "phase": "done",
+     "fetchMs": 66.39999999850988,
+     "convertMs": 0,
+     "wireBytes": 1203875,
+     "parseMs": 0,
+     "firstRenderMs": 3698.5,
+     "sharedParseMs": 120.09999999776483,
+     "reportedTips": 90938,
+     "notes": "tree parsed by the shell (sharedParseMs=120.1); stub layout 19.7 ms; usedLengths=false",
+     "loadMs": 3698.5,
+     "ink": 0.34594692781551095,
+     "heapAfterMountMB": 81.21350955963135,
+     "stats": {
+      "domNodes": 277304,
+      "svgElements": 277300,
+      "canvases": 1,
+      "custom": {
+       "tips": 90938,
+       "nodes": 138646,
+       "layoutMs": 19.699999999254942,
+       "kx": 0.824,
+       "ky": 0.006740856407662363
+      }
+     },
+     "clickLatencyMs": 209.29999999701977,
+     "clickToPaintMs": 2522.900000002235,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.880239520968516,
+     "fpsP5": 1.2000480019200725,
+     "fpsP5Rounds": [
+      1.2,
+      1.2,
+      1.2
+     ],
+     "droppedRatio": 0.33942993195418447,
+     "droppedFrames": 137,
+     "maxFrameGapMs": 833.3000000000029,
+     "frames": 868,
+     "inputSteps": 6,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 9,
+     "cpuWheelStepMs": 1056.4,
+     "cpuDragMoveMs": 551.1,
+     "cpuMsPerStep": 1056.4,
+     "loadAvgAtEnd": 2.5,
+     "heapAfterInteractionMB": 78.1342830657959,
+     "heapMB": 78.1342830657959,
+     "unusableFactor": 10.564,
+     "pageErrors": [],
+     "wallSec": 106.904,
+     "relMedianFps": 0.9221556886228934,
+     "relP5Fps": 0.020160806432257438,
+     "cpuVsStub200": 127.27710843373494
+    },
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "unusable: 1388 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 2.5,
+     "phase": "done",
+     "fetchMs": 46.30000000074506,
+     "convertMs": 0,
+     "wireBytes": 4139363,
+     "parseMs": 0,
+     "firstRenderMs": 5637,
+     "sharedParseMs": 134.5,
+     "reportedTips": 100000,
+     "notes": "tree parsed by the shell (sharedParseMs=134.5); stub layout 21.2 ms; usedLengths=true",
+     "loadMs": 5637,
+     "ink": 0.4709729900489654,
+     "heapAfterMountMB": 111.48515701293945,
+     "stats": {
+      "domNodes": 400010,
+      "svgElements": 400006,
+      "canvases": 1,
+      "custom": {
+       "tips": 100000,
+       "nodes": 199999,
+       "layoutMs": 21.200000002980232,
+       "kx": 0.824,
+       "ky": 0.00613
+      }
+     },
+     "clickLatencyMs": 275.8999999985099,
+     "clickToPaintMs": 4071.10000000149,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.880239520968516,
+     "fpsP5": 0.8450942280064259,
+     "fpsP5Rounds": [
+      0.3,
+      0.8,
+      0.8
+     ],
+     "droppedRatio": 0.23166070125444463,
+     "droppedFrames": 79,
+     "maxFrameGapMs": 1183.2999999999956,
+     "frames": 533,
+     "inputSteps": 3,
+     "fpsP95": 111.11111113868789,
+     "idleCpuPctOfOneCore": 1.4,
+     "wheelSteps": 7,
+     "cpuWheelStepMs": 1388,
+     "cpuDragMoveMs": 726.6,
+     "cpuMsPerStep": 1388,
+     "loadAvgAtEnd": 2.08,
+     "heapAfterInteractionMB": 108.44573783874512,
+     "heapMB": 108.44573783874512,
+     "unusableFactor": 13.88,
+     "pageErrors": [],
+     "wallSec": 137.995,
+     "relMedianFps": 0.9221556886228934,
+     "relP5Fps": 0.014197583030508108,
+     "cpuVsStub200": 167.2289156626506
+    },
+    "gtdb-100k": {
+     "treeId": "gtdb-100k",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "unusable: 62% of the time in frames > 50 ms (best of 3 rounds); 1055 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.99,
+     "phase": "done",
+     "fetchMs": 55.5,
+     "convertMs": 0,
+     "wireBytes": 1294403,
+     "parseMs": 0,
+     "firstRenderMs": 5781.800000000745,
+     "sharedParseMs": 195.69999999925494,
+     "reportedTips": 100000,
+     "notes": "tree parsed by the shell (sharedParseMs=195.7); stub layout 20.7 ms; usedLengths=true",
+     "loadMs": 5781.800000000745,
+     "ink": 0.27182119728320964,
+     "heapAfterMountMB": 117.07696437835693,
+     "stats": {
+      "domNodes": 400010,
+      "svgElements": 400006,
+      "canvases": 1,
+      "custom": {
+       "tips": 100000,
+       "nodes": 199999,
+       "layoutMs": 20.699999999254942,
+       "kx": 0.824,
+       "ky": 0.00613
+      }
+     },
+     "clickLatencyMs": 290.5,
+     "clickToPaintMs": 3136.300000000745,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 4.286326618088312,
+     "fpsP5": 0.2678667095253404,
+     "fpsP5Rounds": [
+      0.3,
+      0.2,
+      0.2
+     ],
+     "droppedRatio": 0.6174819407597864,
+     "droppedFrames": 331,
+     "maxFrameGapMs": 3733.199999999997,
+     "frames": 246,
+     "inputSteps": 4,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 16.5,
+     "wheelSteps": 6,
+     "cpuWheelStepMs": 1054.8,
+     "cpuDragMoveMs": 164.8,
+     "cpuMsPerStep": 1054.8,
+     "loadAvgAtEnd": 1.92,
+     "heapAfterInteractionMB": 113.16633796691895,
+     "heapMB": 113.16633796691895,
+     "unusableFactor": 10.548,
+     "pageErrors": [],
+     "wallSec": 162.729,
+     "relMedianFps": 0.06600942991855845,
+     "relP5Fps": 0.004500160720025768,
+     "cpuVsStub200": 127.08433734939757
+    },
+    "gtdb-190k": {
+     "treeId": "gtdb-190k",
+     "tips": 189801,
+     "status": "timeout",
+     "reason": "unusable: load 11.1 s > 10 s; 62% of the time in frames > 50 ms (best of 3 rounds); 3040 ms main-thread CPU per interaction step > 100; click latency 847 ms > 300 ms",
+     "loadAvgAtStart": 1.92,
+     "phase": "done",
+     "fetchMs": 94.10000000149012,
+     "convertMs": 0,
+     "wireBytes": 2408861,
+     "parseMs": 0,
+     "firstRenderMs": 11114.199999999255,
+     "sharedParseMs": 300.69999999925494,
+     "reportedTips": 189801,
+     "notes": "tree parsed by the shell (sharedParseMs=300.7); stub layout 32.0 ms; usedLengths=true",
+     "loadMs": 11114.199999999255,
+     "ink": 0.2777065234560101,
+     "heapAfterMountMB": 221.55698585510254,
+     "stats": {
+      "domNodes": 759214,
+      "svgElements": 759210,
+      "canvases": 1,
+      "custom": {
+       "tips": 189801,
+       "nodes": 379601,
+       "layoutMs": 32,
+       "kx": 0.824,
+       "ky": 0.003229698473664522
+      }
+     },
+     "clickLatencyMs": 846.6000000014901,
+     "clickToPaintMs": 6230.39999999851,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 4
+     },
+     "fpsMedian": 2.307869836141265,
+     "fpsP5": 0.13636797534466996,
+     "fpsP5Rounds": [
+      0.1,
+      0.1,
+      0.1
+     ],
+     "droppedRatio": 0.6200810641713298,
+     "droppedFrames": 662,
+     "maxFrameGapMs": 7333.100000000006,
+     "frames": 435,
+     "inputSteps": 4,
+     "fpsP95": 60.24096385545337,
+     "idleCpuPctOfOneCore": 3.2,
+     "wheelSteps": 4,
+     "cpuWheelStepMs": 3039.9,
+     "cpuDragMoveMs": 1267.3,
+     "cpuMsPerStep": 3039.9,
+     "loadAvgAtEnd": 2.33,
+     "heapAfterInteractionMB": 213.230450630188,
+     "heapMB": 213.230450630188,
+     "unusableFactor": 30.399,
+     "pageErrors": [],
+     "wallSec": 298.841,
+     "relMedianFps": 0.03554119547657464,
+     "relP5Fps": 0.00229098198579048,
+     "cpuVsStub200": 366.2530120481928
+    }
+   },
+   "status": "partial",
+   "reason": "syn-yule-10000: timeout (unusable: 65% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100); syn-caterpillar-10000: timeout (unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100); syn-balanced-10000: timeout (unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 129 ms main-thread CPU per interaction step > 100); syn-bushy-10000: timeout (unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 107 ms main-thread CPU per interaction step > 100); otl-10k: timeout (unusable: 65% of the time in frames > 50 ms (best of 3 rounds)); gtdb-10k: timeout (unusable: 58% of the time in frames > 50 ms (best of 3 rounds); 149 ms main-thread CPU per interaction step > 100); edge-caterpillar-20000: timeout (unusable: 360 ms main-thread CPU per interaction step > 100); otl-91k: timeout (unusable: 1056 ms main-thread CPU per interaction step > 100); syn-yule-100000: timeout (unusable: 1388 ms main-thread CPU per interaction step > 100); gtdb-100k: timeout (unusable: 62% of the time in frames > 50 ms (best of 3 rounds); 1055 ms main-thread CPU per interaction step > 100); gtdb-190k: timeout (unusable: load 11.1 s > 10 s; 62% of the time in frames > 50 ms (best of 3 rounds); 3040 ms main-thread CPU per interaction step > 100; click latency 847 ms > 300 ms)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 1107.098
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=library"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=library"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=library"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=library"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 1.588
+  },
+  "S3": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=library map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=library map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=library map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=library map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "library"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "library"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "library"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "library"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "library"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 2.229
+  },
+  "S4": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 48.38%"
+    },
+    {
+     "name": "other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 48.38%, B blue 51.93%"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0.4838491810943852,
+     "pixelsBefore": 0,
+     "pixelsAfter": 37253,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 2
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 2.99
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-10000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Pozenea_pseudoglabra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 36%, dy 0%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "2348 pixels differ"
+    }
+   ],
+   "measures": {
+    "initiallyVisible": true,
+    "offCentre": {
+     "dx": 0.3562628082956883,
+     "dy": 0
+    },
+    "highlightPixels": 2348
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 3.117
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:45127/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=0"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":861,\"y\":450.125,\"width\":172.8125,\"height\":24}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:45127/__tip__/Phumideina_macromontana",
+     "tabindex": "0",
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 861,
+      "y": 450.125,
+      "width": 172.8125,
+      "height": 24
+     },
+     "count": 30
+    },
+    "popups": 1,
+    "note": "adapter reports partial: real <a href data-tip-id target=_blank> but only for rows that are rendered (rows >= 9 px); other tips have no DOM node"
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 2.757
+  },
+  "S7": {
+   "status": "pass",
+   "reason": "syn-yule-1000, column occ (kind bar): all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "400 of 400 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "400/400 aligned, max dy 0.3px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "19 of 19 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "19/19 aligned, max dy 0.0px"
+    },
+    {
+     "name": "bar width increases with value (Spearman >= 0.7)",
+     "ok": true,
+     "detail": "rho=1.00 over 19 cells"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "87% of the cell rect changes"
+    },
+    {
+     "name": "tip without a data row gets no cell (explicitly unmatched)",
+     "ok": true,
+     "detail": "null"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 400,
+     "cells": 400,
+     "aligned": 400,
+     "maxDy": 0.25480000000015934
+    },
+    "zoom": {
+     "startPitch": 0.613000000043285,
+     "endPitch": 15.652171431128282,
+     "notches": 18
+    },
+    "after zoom and pan": {
+     "visibleTips": 19,
+     "cells": 19,
+     "aligned": 19,
+     "maxDy": 5.115907697472721e-13
+    },
+    "barRankCorrelation": 1,
+    "cellDrawnFraction": 0.8666666666666667,
+    "columnKind": "bar",
+    "declaredColumnKinds": null,
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 5.074
+  },
+  "S8": {
+   "status": "pass",
+   "reason": "rich-ens-protein-197: all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "197 of 197 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "197/197 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "41 of 41 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "41/41 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "88% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "12 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 197,
+     "cells": 197,
+     "aligned": 197,
+     "maxDy": 1.1368683772161603e-13
+    },
+    "zoom": {
+     "startPitch": 3.1116751465250645,
+     "endPitch": 15.723575455931933,
+     "notches": 9
+    },
+    "after zoom and pan": {
+     "visibleTips": 41,
+     "cells": 41,
+     "aligned": 41,
+     "maxDy": 1.7053025658242404e-13
+    },
+    "cellDrawnFraction": 0.884068278805121,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 22.82
+  },
+  "S9": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 218 -> 58"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "73% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": true,
+     "detail": "87958 pixels"
+    }
+   ],
+   "measures": {
+    "lightLuminance": 218.24645051600535,
+    "darkLuminance": 58.48394329927298,
+    "tokenBackgroundFraction": 0.7326330753435476,
+    "tokenBranchPixels": 87958
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 2.064
+  },
+  "S10": {
+   "status": "timeout",
+   "reason": "syn-yule-100000: no freeze: longest frame gap < 2 s (2183 ms); while zooming out median 59.9 fps, 71% of the time in frames > 50 ms, DOM nodes 400010, canvases 1 (more than half of the time in slow frames); overviewOrMinimap self-report: no",
+   "checks": [
+    {
+     "name": "whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)",
+     "ok": true,
+     "detail": "after 3 wheel notches via bounds"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": false,
+     "detail": "2183 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "syn-yule-100000",
+    "loadMs": 5767.199999999255,
+    "scaleBefore": {
+     "kind": "pitch",
+     "v": 0.006129999999984648
+    },
+    "scaleAfter": {
+     "kind": "pitch",
+     "v": 0.053154073846144456
+    },
+    "zoomInChangedView": true,
+    "notches": 3,
+    "zoomOutSec": 11.374,
+    "wholeTreeBy": "bounds",
+    "fpsMedian": 59.880239520968516,
+    "fpsP5": 0.4580432392817888,
+    "droppedRatio": 0.7135083339195424,
+    "maxFrameGapMs": 2183.199999999997,
+    "droppedFrames": 476,
+    "inkAfterZoomOut": 0.3649091770652345,
+    "stats": {
+     "domNodes": 400010,
+     "svgElements": 400006,
+     "canvases": 1,
+     "custom": {
+      "tips": 100000,
+      "nodes": 199999,
+      "layoutMs": 26.600000001490116,
+      "kx": 0.824,
+      "ky": 0.030975443640536497
+     }
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 97.052
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (no)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 197 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 230.8 px over 197 tips"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 400 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "visibleTips": 197,
+    "phylogramPearson": 1.0000000000000002,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 230.8162788307483,
+    "ultrametricTipSpread": 5.836079965175361e-16,
+    "ultrametricTips": 400,
+    "scaleBarSelfReport": "no: no scale bar or time axis"
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 2.079
+  },
+  "S12": {
+   "status": "pass",
+   "reason": "syn-yule-1000 radial: all checks passed",
+   "checks": [
+    {
+     "name": "setLayout(radial) changes the layout",
+     "ok": true,
+     "detail": "tip moved from 851,370 to 371,692"
+    },
+    {
+     "name": "radial S2: tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=library"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "radial S2: tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=library"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "radial S2: tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=library"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "radial S2: tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=library"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    },
+    {
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=library map=467"
+    },
+    {
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=library map=224"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=library map=116"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=library map=56"
+    },
+    {
+     "name": "radial S3: at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    },
+    {
+     "name": "radial S4: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 38.53%"
+    },
+    {
+     "name": "radial S4: other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 38.53%, B blue 39.03%"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {},
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 6.8
+  },
+  "S13": {
+   "status": "pass",
+   "reason": "all checks passed; adapter self-report: multipleInstances=yes",
+   "checks": [
+    {
+     "name": "second instance mounts with its own tip count",
+     "ok": true,
+     "detail": "1000 and 200"
+    },
+    {
+     "name": "both instances draw something",
+     "ok": true,
+     "detail": "ink 26.65% / 15.55%"
+    },
+    {
+     "name": "click in instance 0 reaches only instance 0",
+     "ok": true,
+     "detail": "events 2/0"
+    },
+    {
+     "name": "click in instance 1 reaches instance 1",
+     "ok": true,
+     "detail": "events 2"
+    },
+    {
+     "name": "React state of instance 1 updated",
+     "ok": true,
+     "detail": "tipClick n243 tips=1 source=library"
+    },
+    {
+     "name": "instance 1 survives unmounting instance 0",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unmount leaves nothing in the container",
+     "ok": true,
+     "detail": "domNodes=0 canvases=0"
+    },
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "293 -> 293"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "0.6 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "adapterReportsMultipleInstances": "yes: no module state; two instances were tested via window.__spike2",
+    "baseline": {
+     "dom": 293,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 293,
+     "canv": 0
+    },
+    "heapMB": [
+     4.212291717529297,
+     4.681133270263672,
+     4.719657897949219,
+     4.7328338623046875,
+     4.787189483642578
+    ],
+    "heapGrowthMB": 0.5748977661132812,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 4.856
+  },
+  "S14": {
+   "status": "pass",
+   "reason": "all checks passed; tips were not focusable at the fit view, only after focusTip",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 DISTINCT focusable elements inside the tree",
+     "ok": true,
+     "detail": "8 distinct elements (span[treeitem])"
+    },
+    {
+     "name": "at least one tip-level target (named like a tip) is reachable by Tab",
+     "ok": true,
+     "detail": "Boleduia_euoccidentalis, Boleduia_euaurea"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "8/8 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": true,
+     "detail": "{\"roles\":[\"tree\",\"treeitem\"],\"labelled\":true,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [],
+    "tabAfterFocusTip": [
+     {
+      "uid": 1,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Boleduia_euoccidentalis",
+      "tipAttr": "Boleduia_euoccidentalis"
+     },
+     {
+      "uid": 2,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Boleduia_euaurea",
+      "tipAttr": "Boleduia_euaurea"
+     },
+     {
+      "uid": 3,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Boleduia_promaritima",
+      "tipAttr": "Boleduia_promaritima"
+     },
+     {
+      "uid": 4,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudominor",
+      "tipAttr": "Chochachuella_pseudominor"
+     },
+     {
+      "uid": 5,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudoglabra",
+      "tipAttr": "Chochachuella_pseudoglabra"
+     },
+     {
+      "uid": 6,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_pseudotenuis",
+      "tipAttr": "Chochachuella_pseudotenuis"
+     },
+     {
+      "uid": 7,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_neomaritima",
+      "tipAttr": "Chochachuella_neomaritima"
+     },
+     {
+      "uid": 8,
+      "tag": "span",
+      "role": "treeitem",
+      "name": "Chochachuella_neofusca",
+      "tipAttr": "Chochachuella_neofusca"
+     }
+    ],
+    "neededFocusTip": true,
+    "distinctFocusable": 8,
+    "tipLevelTargets": 8,
+    "semantics": {
+     "roles": [
+      "tree",
+      "treeitem"
+     ],
+     "labelled": true,
+     "textFallback": false
+    },
+    "enterActivates": true
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 3.067
+  },
+  "S15": {
+   "status": "pass",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 29 ms, to paint 79 ms (median of 5)",
+   "checks": [
+    {
+     "name": "clade is red after the click (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "81.61% of the clade box"
+    },
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "cladeTips": 969,
+    "redFractionAfterClick": 0.8160806348838556,
+    "clickToCommitMs": [
+     43.30000000074506,
+     30.299999997019768,
+     28.5,
+     29,
+     24.5
+    ],
+    "clickToPaintMs": [
+     103.19999999925494,
+     81.79999999701977,
+     78.89999999850988,
+     78.5,
+     72.60000000149012
+    ],
+    "medianCommitMs": 29,
+    "medianPaintMs": 78.89999999850988
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 5.766
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "pass",
+   "reason": "load 43 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 4 ms, click 2 ms",
+   "loadAvgAtStart": 2.2,
+   "phase": "done",
+   "fetchMs": 8.799999997019768,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 0,
+   "firstRenderMs": 42.69999999925494,
+   "sharedParseMs": 0.8999999985098839,
+   "reportedTips": 5,
+   "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.0 ms; usedLengths=true",
+   "loadMs": 42.69999999925494,
+   "ink": 0.012639393460748716,
+   "heapAfterMountMB": 3.030282974243164,
+   "stats": {
+    "domNodes": 33,
+    "svgElements": 24,
+    "canvases": 1,
+    "custom": {
+     "tips": 5,
+     "nodes": 8,
+     "layoutMs": 0,
+     "kx": 0.824,
+     "ky": 122.6
+    }
+   },
+   "clickLatencyMs": 1.800000000745058,
+   "clickToPaintMs": 34.600000001490116,
+   "clickSamples": {
+    "events": 2,
+    "tries": 2,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.880239520957105,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    29.9,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 47,
+   "maxFrameGapMs": 34.59999999851061,
+   "frames": 476,
+   "inputSteps": 250,
+   "fpsP95": 60.240963855423665,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 3.9,
+   "cpuDragMoveMs": 3.8,
+   "cpuMsPerStep": 3.9,
+   "loadAvgAtEnd": 2.39,
+   "heapAfterInteractionMB": 3.659273147583008,
+   "heapMB": 3.659273147583008,
+   "unusableFactor": 0.039,
+   "pageErrors": [],
+   "wallSec": 17.806,
+   "relMedianFps": 0.9221556886227177,
+   "relP5Fps": 0.5029940119760589,
+   "cpuVsStub200": 0.4698795180722891
+  },
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "pass",
+   "reason": "load 42 ms, median 59.5 fps, best p5 20.0, dropped 0%, CPU/step 6 ms, click 2 ms",
+   "loadAvgAtStart": 2.39,
+   "phase": "done",
+   "fetchMs": 16.100000001490116,
+   "convertMs": 11.899999998509884,
+   "wireBytes": 111429,
+   "parseMs": 0,
+   "firstRenderMs": 42.399999998509884,
+   "sharedParseMs": 0.8999999985098839,
+   "reportedTips": 135,
+   "notes": "tree parsed by the shell (sharedParseMs=0.9); stub layout 0.3 ms; usedLengths=true",
+   "loadMs": 42.399999998509884,
+   "ink": 0.10721213078502612,
+   "heapAfterMountMB": 3.3256959915161133,
+   "stats": {
+    "domNodes": 550,
+    "svgElements": 546,
+    "canvases": 1,
+    "custom": {
+     "tips": 135,
+     "nodes": 269,
+     "layoutMs": 0.30000000074505806,
+     "kx": 0.824,
+     "ky": 4.54074074074074
+    }
+   },
+   "clickLatencyMs": 1.699999999254942,
+   "clickToPaintMs": 37,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.523809523812105,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 50,
+   "maxFrameGapMs": 50,
+   "frames": 449,
+   "inputSteps": 229,
+   "fpsP95": 60.240963855423665,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 6,
+   "cpuDragMoveMs": 5.9,
+   "cpuMsPerStep": 6,
+   "loadAvgAtEnd": 2.06,
+   "heapAfterInteractionMB": 4.061948776245117,
+   "heapMB": 4.061948776245117,
+   "unusableFactor": 0.06,
+   "pageErrors": [],
+   "wallSec": 19.052,
+   "relMedianFps": 0.9166666666666848,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 0.7228915662650601
+  },
+  "rich-ens-protein-197": {
+   "treeId": "rich-ens-protein-197",
+   "tips": 197,
+   "status": "pass",
+   "reason": "load 50 ms, median 59.5 fps, best p5 20.0, dropped 1%, CPU/step 10 ms, click 2 ms",
+   "loadAvgAtStart": 2.06,
+   "phase": "done",
+   "fetchMs": 8.5,
+   "convertMs": 0,
+   "wireBytes": 7349,
+   "parseMs": 0,
+   "firstRenderMs": 49.600000001490116,
+   "sharedParseMs": 3.300000000745058,
+   "reportedTips": 197,
+   "notes": "tree parsed by the shell (sharedParseMs=3.3); stub layout 0.3 ms; usedLengths=true",
+   "loadMs": 49.600000001490116,
+   "ink": 0.025135049755173,
+   "heapAfterMountMB": 4.095929145812988,
+   "stats": {
+    "domNodes": 798,
+    "svgElements": 794,
+    "canvases": 1,
+    "custom": {
+     "tips": 197,
+     "nodes": 393,
+     "layoutMs": 0.30000000074505806,
+     "kx": 0.824,
+     "ky": 3.1116751269035534
+    }
+   },
+   "clickLatencyMs": 1.699999999254942,
+   "clickToPaintMs": 35.100000001490116,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.523809523812105,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    5.5,
+    20
+   ],
+   "droppedRatio": 0.014098775854793853,
+   "droppedFrames": 55,
+   "maxFrameGapMs": 50.099999999999454,
+   "frames": 423,
+   "inputSteps": 212,
+   "fpsP95": 60.240963855423665,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 10,
+   "cpuDragMoveMs": 7,
+   "cpuMsPerStep": 10,
+   "loadAvgAtEnd": 2.33,
+   "heapAfterInteractionMB": 4.238674163818359,
+   "heapMB": 4.238674163818359,
+   "unusableFactor": 0.1,
+   "pageErrors": [],
+   "wallSec": 18.996,
+   "relMedianFps": 0.9166666666666848,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 1.2048192771084336
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "pass",
+   "reason": "load 36 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 9 ms, click 3 ms",
+   "loadAvgAtStart": 2.33,
+   "phase": "done",
+   "fetchMs": 8.699999999254942,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 0,
+   "firstRenderMs": 36.30000000074506,
+   "sharedParseMs": 2,
+   "reportedTips": 200,
+   "notes": "tree parsed by the shell (sharedParseMs=2.0); stub layout 0.3 ms; usedLengths=true",
+   "loadMs": 36.30000000074506,
+   "ink": 0.10016585057652816,
+   "heapAfterMountMB": 3.352476119995117,
+   "stats": {
+    "domNodes": 810,
+    "svgElements": 806,
+    "canvases": 1,
+    "custom": {
+     "tips": 200,
+     "nodes": 399,
+     "layoutMs": 0.30000000074505806,
+     "kx": 0.824,
+     "ky": 3.065
+    }
+   },
+   "clickLatencyMs": 2.5,
+   "clickToPaintMs": 38.5,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 72,
+   "maxFrameGapMs": 50,
+   "frames": 423,
+   "inputSteps": 217,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 7.3,
+   "cpuDragMoveMs": 8.7,
+   "cpuMsPerStep": 8.7,
+   "loadAvgAtEnd": 2.59,
+   "heapAfterInteractionMB": 4.198153495788574,
+   "heapMB": 4.198153495788574,
+   "unusableFactor": 0.087,
+   "pageErrors": [],
+   "wallSec": 19.13,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 1.0481927710843373
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "pass",
+   "reason": "load 55 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 13 ms, click 3 ms",
+   "loadAvgAtStart": 2.59,
+   "phase": "done",
+   "fetchMs": 40.400000002235174,
+   "convertMs": 9.600000001490116,
+   "wireBytes": 601687,
+   "parseMs": 0,
+   "firstRenderMs": 55.20000000298023,
+   "sharedParseMs": 2.300000000745058,
+   "reportedTips": 380,
+   "notes": "tree parsed by the shell (sharedParseMs=2.3); stub layout 5.3 ms; usedLengths=true",
+   "loadMs": 55.20000000298023,
+   "ink": 0.16709208655820562,
+   "heapAfterMountMB": 8.073308944702148,
+   "stats": {
+    "domNodes": 1530,
+    "svgElements": 1526,
+    "canvases": 1,
+    "custom": {
+     "tips": 380,
+     "nodes": 759,
+     "layoutMs": 5.300000000745058,
+     "kx": 0.824,
+     "ky": 1.6131578947368421
+    }
+   },
+   "clickLatencyMs": 2.5,
+   "clickToPaintMs": 24.399999998509884,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 45,
+   "maxFrameGapMs": 50,
+   "frames": 504,
+   "inputSteps": 259,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 13.3,
+   "cpuDragMoveMs": 4.4,
+   "cpuMsPerStep": 13.3,
+   "loadAvgAtEnd": 2.33,
+   "heapAfterInteractionMB": 4.188850402832031,
+   "heapMB": 4.188850402832031,
+   "unusableFactor": 0.133,
+   "pageErrors": [],
+   "wallSec": 19.394,
+   "relMedianFps": 0.9221556886227429,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 1.6024096385542168
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "pass",
+   "reason": "load 81 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 14 ms, click 4 ms",
+   "loadAvgAtStart": 2.33,
+   "phase": "done",
+   "fetchMs": 26.599999997764826,
+   "convertMs": 41.19999999925494,
+   "wireBytes": 219203,
+   "parseMs": 0,
+   "firstRenderMs": 81.39999999850988,
+   "sharedParseMs": 2.7999999970197678,
+   "reportedTips": 680,
+   "notes": "tree parsed by the shell (sharedParseMs=2.8); stub layout 1.5 ms; usedLengths=true",
+   "loadMs": 81.39999999850988,
+   "ink": 0.17447006791975994,
+   "heapAfterMountMB": 6.189296722412109,
+   "stats": {
+    "domNodes": 2730,
+    "svgElements": 2726,
+    "canvases": 1,
+    "custom": {
+     "tips": 680,
+     "nodes": 1359,
+     "layoutMs": 1.5,
+     "kx": 0.824,
+     "ky": 0.9014705882352941
+    }
+   },
+   "clickLatencyMs": 3.600000001490116,
+   "clickToPaintMs": 33.899999998509884,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    15
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 45,
+   "maxFrameGapMs": 50,
+   "frames": 492,
+   "inputSteps": 243,
+   "fpsP95": 60.240963855423665,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 13.9,
+   "cpuDragMoveMs": 7.9,
+   "cpuMsPerStep": 13.9,
+   "loadAvgAtEnd": 2.56,
+   "heapAfterInteractionMB": 4.620926856994629,
+   "heapMB": 4.620926856994629,
+   "unusableFactor": 0.139,
+   "pageErrors": [],
+   "wallSec": 19.44,
+   "relMedianFps": 0.9221556886227429,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 1.6746987951807228
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "pass",
+   "reason": "load 82 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 18 ms, click 4 ms",
+   "loadAvgAtStart": 2.56,
+   "phase": "done",
+   "fetchMs": 26,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 0,
+   "firstRenderMs": 81.80000000074506,
+   "sharedParseMs": 5.899999998509884,
+   "reportedTips": 888,
+   "notes": "tree parsed by the shell (sharedParseMs=5.9); stub layout 0.9 ms; usedLengths=false",
+   "loadMs": 81.80000000074506,
+   "ink": 0.27626757226346543,
+   "heapAfterMountMB": 3.8705692291259766,
+   "stats": {
+    "domNodes": 2942,
+    "svgElements": 2938,
+    "canvases": 1,
+    "custom": {
+     "tips": 888,
+     "nodes": 1465,
+     "layoutMs": 0.9000000022351742,
+     "kx": 0.824,
+     "ky": 0.6903153153153153
+    }
+   },
+   "clickLatencyMs": 4.099999997764826,
+   "clickToPaintMs": 18.399999998509884,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0.013196017489340425,
+   "droppedFrames": 46,
+   "maxFrameGapMs": 50.100000000000364,
+   "frames": 489,
+   "inputSteps": 217,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 18.3,
+   "cpuDragMoveMs": 14.5,
+   "cpuMsPerStep": 18.3,
+   "loadAvgAtEnd": 2.69,
+   "heapAfterInteractionMB": 4.638764381408691,
+   "heapMB": 4.638764381408691,
+   "unusableFactor": 0.183,
+   "pageErrors": [],
+   "wallSec": 19.319,
+   "relMedianFps": 0.9221556886227429,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 2.2048192771084336
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "pass",
+   "reason": "load 80 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 22 ms, click 4 ms",
+   "loadAvgAtStart": 2.69,
+   "phase": "done",
+   "fetchMs": 11.800000000745058,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 0,
+   "firstRenderMs": 79.89999999850988,
+   "sharedParseMs": 5.599999997764826,
+   "reportedTips": 1000,
+   "notes": "tree parsed by the shell (sharedParseMs=5.6); stub layout 2.2 ms; usedLengths=true",
+   "loadMs": 79.89999999850988,
+   "ink": 0.2645679987363766,
+   "heapAfterMountMB": 4.7902069091796875,
+   "stats": {
+    "domNodes": 4010,
+    "svgElements": 4006,
+    "canvases": 1,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "layoutMs": 2.199999999254942,
+     "kx": 0.824,
+     "ky": 0.613
+    }
+   },
+   "clickLatencyMs": 4.399999998509884,
+   "clickToPaintMs": 23,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20.04008016032042,
+   "fpsP5Rounds": [
+    15,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 36,
+   "maxFrameGapMs": 50,
+   "frames": 510,
+   "inputSteps": 212,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 22.3,
+   "cpuDragMoveMs": 9.1,
+   "cpuMsPerStep": 22.3,
+   "loadAvgAtEnd": 2.41,
+   "heapAfterInteractionMB": 5.246095657348633,
+   "heapMB": 5.246095657348633,
+   "unusableFactor": 0.223,
+   "pageErrors": [],
+   "wallSec": 19.447,
+   "relMedianFps": 0.9221556886227429,
+   "relP5Fps": 0.3366733466933867,
+   "cpuVsStub200": 2.686746987951807
+  },
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "pass",
+   "reason": "load 97 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 16 ms, click 7 ms",
+   "loadAvgAtStart": 2.41,
+   "phase": "done",
+   "fetchMs": 10.5,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 0,
+   "firstRenderMs": 97.29999999701977,
+   "sharedParseMs": 9.100000001490116,
+   "reportedTips": 1000,
+   "notes": "tree parsed by the shell (sharedParseMs=9.1); stub layout 7.2 ms; usedLengths=true",
+   "loadMs": 97.29999999701977,
+   "ink": 0.41984046754067283,
+   "heapAfterMountMB": 4.086270332336426,
+   "stats": {
+    "domNodes": 4010,
+    "svgElements": 4006,
+    "canvases": 1,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "layoutMs": 7.200000002980232,
+     "kx": 0.824,
+     "ky": 0.613
+    }
+   },
+   "clickLatencyMs": 7.099999997764826,
+   "clickToPaintMs": 20.799999997019768,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0.013587022847351684,
+   "droppedFrames": 58,
+   "maxFrameGapMs": 50.099999999999454,
+   "frames": 473,
+   "inputSteps": 208,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 16.1,
+   "cpuDragMoveMs": 7.2,
+   "cpuMsPerStep": 16.1,
+   "loadAvgAtEnd": 2.51,
+   "heapAfterInteractionMB": 4.797512054443359,
+   "heapMB": 4.797512054443359,
+   "unusableFactor": 0.161,
+   "pageErrors": [],
+   "wallSec": 17.956,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.33600000000000363,
+   "cpuVsStub200": 1.9397590361445782
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 65% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.11,
+   "phase": "done",
+   "fetchMs": 23.900000002235174,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 0,
+   "firstRenderMs": 579.1999999992549,
+   "sharedParseMs": 44.30000000074506,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=44.3); stub layout 10.3 ms; usedLengths=true",
+   "loadMs": 579.1999999992549,
+   "ink": 0.4388374664350023,
+   "heapAfterMountMB": 15.684601783752441,
+   "stats": {
+    "domNodes": 40010,
+    "svgElements": 40006,
+    "canvases": 1,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "layoutMs": 10.300000000745058,
+     "kx": 0.824,
+     "ky": 0.0613
+    }
+   },
+   "clickLatencyMs": 25.100000001490116,
+   "clickToPaintMs": 91.19999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 3.3333333333333335,
+   "fpsP5Rounds": [
+    2.1,
+    3.3,
+    3
+   ],
+   "droppedRatio": 0.6524277041776957,
+   "droppedFrames": 206,
+   "maxFrameGapMs": 300,
+   "frames": 358,
+   "inputSteps": 48,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 134.7,
+   "cpuDragMoveMs": 53.9,
+   "cpuMsPerStep": 134.7,
+   "loadAvgAtEnd": 3.07,
+   "heapAfterInteractionMB": 15.902956008911133,
+   "heapMB": 15.902956008911133,
+   "unusableFactor": 1.347,
+   "pageErrors": [],
+   "wallSec": 34.746,
+   "relMedianFps": 0.9221556886227429,
+   "relP5Fps": 0.05600000000000061,
+   "cpuVsStub200": 16.2289156626506
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 135 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.07,
+   "phase": "done",
+   "fetchMs": 19.199999999254942,
+   "convertMs": 0,
+   "wireBytes": 124805,
+   "parseMs": 0,
+   "firstRenderMs": 635.5999999977648,
+   "sharedParseMs": 38.099999997764826,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=38.1); stub layout 5.9 ms; usedLengths=true",
+   "loadMs": 635.5999999977648,
+   "ink": 0.40541462644132054,
+   "heapAfterMountMB": 13.386933326721191,
+   "stats": {
+    "domNodes": 40010,
+    "svgElements": 40006,
+    "canvases": 1,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "layoutMs": 5.899999998509884,
+     "kx": 0.824,
+     "ky": 0.0613
+    }
+   },
+   "clickLatencyMs": 36.099999997764826,
+   "clickToPaintMs": 107.09999999776483,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 0
+   },
+   "fpsMedian": 30.030030030027405,
+   "fpsP5": 3.0003000300029905,
+   "fpsP5Rounds": [
+    2.5,
+    2.9,
+    3
+   ],
+   "droppedRatio": 0.630561621956387,
+   "droppedFrames": 185,
+   "maxFrameGapMs": 333.3000000000011,
+   "frames": 245,
+   "inputSteps": 48,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 134.5,
+   "cpuDragMoveMs": 47.7,
+   "cpuMsPerStep": 134.5,
+   "loadAvgAtEnd": 3.01,
+   "heapAfterInteractionMB": 13.942809104919434,
+   "heapMB": 13.942809104919434,
+   "unusableFactor": 1.345,
+   "pageErrors": [],
+   "wallSec": 28.793,
+   "relMedianFps": 0.46246246246241113,
+   "relP5Fps": 0.050405040504050785,
+   "cpuVsStub200": 16.20481927710843
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 129 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.01,
+   "phase": "done",
+   "fetchMs": 25.5,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 0,
+   "firstRenderMs": 569,
+   "sharedParseMs": 42.899999998509884,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=42.9); stub layout 10.1 ms; usedLengths=true",
+   "loadMs": 569,
+   "ink": 0.4466482388248302,
+   "heapAfterMountMB": 13.208301544189453,
+   "stats": {
+    "domNodes": 40010,
+    "svgElements": 40006,
+    "canvases": 1,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "layoutMs": 10.099999997764826,
+     "kx": 0.824,
+     "ky": 0.0613
+    }
+   },
+   "clickLatencyMs": 26.199999999254942,
+   "clickToPaintMs": 97,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 3.5310734463276745,
+   "fpsP5Rounds": [
+    2.5,
+    3.5,
+    3.2
+   ],
+   "droppedRatio": 0.6737935122935339,
+   "droppedFrames": 179,
+   "maxFrameGapMs": 283.2000000000007,
+   "frames": 288,
+   "inputSteps": 48,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 128.9,
+   "cpuDragMoveMs": 54.5,
+   "cpuMsPerStep": 128.9,
+   "loadAvgAtEnd": 2.47,
+   "heapAfterInteractionMB": 13.75472640991211,
+   "heapMB": 13.75472640991211,
+   "unusableFactor": 1.3475870245870678,
+   "pageErrors": [],
+   "wallSec": 30.581,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.05932203389830557,
+   "cpuVsStub200": 15.53012048192771
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 63% of the time in frames > 50 ms (best of 3 rounds); 107 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 2.47,
+   "phase": "done",
+   "fetchMs": 18,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 0,
+   "firstRenderMs": 486.80000000074506,
+   "sharedParseMs": 23,
+   "reportedTips": 10000,
+   "notes": "tree parsed by the shell (sharedParseMs=23.0); stub layout 4.7 ms; usedLengths=true",
+   "loadMs": 486.80000000074506,
+   "ink": 0.47184646975201394,
+   "heapAfterMountMB": 9.92739200592041,
+   "stats": {
+    "domNodes": 28002,
+    "svgElements": 27998,
+    "canvases": 1,
+    "custom": {
+     "tips": 10000,
+     "nodes": 13995,
+     "layoutMs": 4.699999999254942,
+     "kx": 0.824,
+     "ky": 0.0613
+    }
+   },
+   "clickLatencyMs": 18.599999997764826,
+   "clickToPaintMs": 65.39999999850988,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 4.616805170821784,
+   "fpsP5Rounds": [
+    3,
+    4.6,
+    3.2
+   ],
+   "droppedRatio": 0.6256932120673575,
+   "droppedFrames": 122,
+   "maxFrameGapMs": 216.60000000000036,
+   "frames": 248,
+   "inputSteps": 50,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 107.3,
+   "cpuDragMoveMs": 37.2,
+   "cpuMsPerStep": 107.3,
+   "loadAvgAtEnd": 2.71,
+   "heapAfterInteractionMB": 10.876173973083496,
+   "heapMB": 10.876173973083496,
+   "unusableFactor": 1.251386424134715,
+   "pageErrors": [],
+   "wallSec": 25.597,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.07756232686980681,
+   "cpuVsStub200": 12.927710843373493
+  },
+  "otl-10k": {
+   "treeId": "otl-10k",
+   "tips": 10018,
+   "status": "timeout",
+   "reason": "unusable: 65% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 2.71,
+   "phase": "done",
+   "fetchMs": 26.699999999254942,
+   "convertMs": 0,
+   "wireBytes": 128748,
+   "parseMs": 0,
+   "firstRenderMs": 417.20000000298023,
+   "sharedParseMs": 26.800000000745058,
+   "reportedTips": 10018,
+   "notes": "tree parsed by the shell (sharedParseMs=26.8); stub layout 7.1 ms; usedLengths=false",
+   "loadMs": 417.20000000298023,
+   "ink": 0.304435318275154,
+   "heapAfterMountMB": 10.692081451416016,
+   "stats": {
+    "domNodes": 29760,
+    "svgElements": 29756,
+    "canvases": 1,
+    "custom": {
+     "tips": 10018,
+     "nodes": 14874,
+     "layoutMs": 7.100000001490116,
+     "kx": 0.824,
+     "ky": 0.06118985825514075
+    }
+   },
+   "clickLatencyMs": 19.800000000745058,
+   "clickToPaintMs": 68.69999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 3.749531308586442,
+   "fpsP5Rounds": [
+    3.2,
+    3.1,
+    3.7
+   ],
+   "droppedRatio": 0.6478013511913887,
+   "droppedFrames": 151,
+   "maxFrameGapMs": 266.6999999999989,
+   "frames": 275,
+   "inputSteps": 48,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 7,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 94.3,
+   "cpuDragMoveMs": 28.1,
+   "cpuMsPerStep": 94.3,
+   "loadAvgAtEnd": 2.71,
+   "heapAfterInteractionMB": 11.623699188232422,
+   "heapMB": 11.623699188232422,
+   "unusableFactor": 1.2956027023827774,
+   "pageErrors": [],
+   "wallSec": 26.985,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.06299212598425291,
+   "cpuVsStub200": 11.36144578313253
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: 58% of the time in frames > 50 ms (best of 3 rounds); 149 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 2.71,
+   "phase": "done",
+   "fetchMs": 16.699999999254942,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 0,
+   "firstRenderMs": 591.4000000022352,
+   "sharedParseMs": 36.5,
+   "reportedTips": 10122,
+   "notes": "tree parsed by the shell (sharedParseMs=36.5); stub layout 14.3 ms; usedLengths=true",
+   "loadMs": 591.4000000022352,
+   "ink": 0.22941399462960033,
+   "heapAfterMountMB": 14.280219078063965,
+   "stats": {
+    "domNodes": 40498,
+    "svgElements": 40494,
+    "canvases": 1,
+    "custom": {
+     "tips": 10122,
+     "nodes": 20243,
+     "layoutMs": 14.300000000745058,
+     "kx": 0.824,
+     "ky": 0.06056115392214977
+    }
+   },
+   "clickLatencyMs": 24.099999997764826,
+   "clickToPaintMs": 95,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 4,
+   "fpsP5Rounds": [
+    1.7,
+    3.5,
+    4
+   ],
+   "droppedRatio": 0.5752723566013288,
+   "droppedFrames": 165,
+   "maxFrameGapMs": 250,
+   "frames": 342,
+   "inputSteps": 48,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 149.4,
+   "cpuDragMoveMs": 54.6,
+   "cpuMsPerStep": 149.4,
+   "loadAvgAtEnd": 2.57,
+   "heapAfterInteractionMB": 14.440470695495605,
+   "heapMB": 14.440470695495605,
+   "unusableFactor": 1.494,
+   "pageErrors": [],
+   "wallSec": 34.407,
+   "relMedianFps": 0.9221556886226926,
+   "relP5Fps": 0.06720000000000073,
+   "cpuVsStub200": 18
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "timeout",
+   "reason": "unusable: 360 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 2.57,
+   "phase": "done",
+   "fetchMs": 15.699999999254942,
+   "convertMs": 0,
+   "wireBytes": 48733,
+   "parseMs": 0,
+   "firstRenderMs": 1316,
+   "sharedParseMs": 67.5,
+   "reportedTips": 20000,
+   "notes": "tree parsed by the shell (sharedParseMs=67.5); stub layout 12.7 ms; usedLengths=true",
+   "loadMs": 1316,
+   "ink": 0.009661980729742559,
+   "heapAfterMountMB": 23.812573432922363,
+   "stats": {
+    "domNodes": 80010,
+    "svgElements": 80006,
+    "canvases": 1,
+    "custom": {
+     "tips": 20000,
+     "nodes": 39999,
+     "layoutMs": 12.699999999254942,
+     "kx": 0.824,
+     "ky": 0.03065
+    }
+   },
+   "clickLatencyMs": 60.80000000074506,
+   "clickToPaintMs": 109.69999999925494,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.880239520962,
+   "fpsP5": 3.9984006397440965,
+   "fpsP5Rounds": [
+    3.5,
+    3.5,
+    4
+   ],
+   "droppedRatio": 0.35763708329712157,
+   "droppedFrames": 89,
+   "maxFrameGapMs": 250.10000000000036,
+   "frames": 504,
+   "inputSteps": 15,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 360.1,
+   "cpuDragMoveMs": 149.7,
+   "cpuMsPerStep": 360.1,
+   "loadAvgAtEnd": 2.36,
+   "heapAfterInteractionMB": 24.113402366638184,
+   "heapMB": 24.113402366638184,
+   "unusableFactor": 3.6010000000000004,
+   "pageErrors": [],
+   "wallSec": 48.97,
+   "relMedianFps": 0.9221556886227931,
+   "relP5Fps": 0.06717313074770155,
+   "cpuVsStub200": 43.3855421686747
+  },
+  "otl-91k": {
+   "treeId": "otl-91k",
+   "tips": 90938,
+   "status": "timeout",
+   "reason": "unusable: 1056 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 2.97,
+   "phase": "done",
+   "fetchMs": 66.39999999850988,
+   "convertMs": 0,
+   "wireBytes": 1203875,
+   "parseMs": 0,
+   "firstRenderMs": 3698.5,
+   "sharedParseMs": 120.09999999776483,
+   "reportedTips": 90938,
+   "notes": "tree parsed by the shell (sharedParseMs=120.1); stub layout 19.7 ms; usedLengths=false",
+   "loadMs": 3698.5,
+   "ink": 0.34594692781551095,
+   "heapAfterMountMB": 81.21350955963135,
+   "stats": {
+    "domNodes": 277304,
+    "svgElements": 277300,
+    "canvases": 1,
+    "custom": {
+     "tips": 90938,
+     "nodes": 138646,
+     "layoutMs": 19.699999999254942,
+     "kx": 0.824,
+     "ky": 0.006740856407662363
+    }
+   },
+   "clickLatencyMs": 209.29999999701977,
+   "clickToPaintMs": 2522.900000002235,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.880239520968516,
+   "fpsP5": 1.2000480019200725,
+   "fpsP5Rounds": [
+    1.2,
+    1.2,
+    1.2
+   ],
+   "droppedRatio": 0.33942993195418447,
+   "droppedFrames": 137,
+   "maxFrameGapMs": 833.3000000000029,
+   "frames": 868,
+   "inputSteps": 6,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 9,
+   "cpuWheelStepMs": 1056.4,
+   "cpuDragMoveMs": 551.1,
+   "cpuMsPerStep": 1056.4,
+   "loadAvgAtEnd": 2.5,
+   "heapAfterInteractionMB": 78.1342830657959,
+   "heapMB": 78.1342830657959,
+   "unusableFactor": 10.564,
+   "pageErrors": [],
+   "wallSec": 106.904,
+   "relMedianFps": 0.9221556886228934,
+   "relP5Fps": 0.020160806432257438,
+   "cpuVsStub200": 127.27710843373494
+  },
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "unusable: 1388 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 2.5,
+   "phase": "done",
+   "fetchMs": 46.30000000074506,
+   "convertMs": 0,
+   "wireBytes": 4139363,
+   "parseMs": 0,
+   "firstRenderMs": 5637,
+   "sharedParseMs": 134.5,
+   "reportedTips": 100000,
+   "notes": "tree parsed by the shell (sharedParseMs=134.5); stub layout 21.2 ms; usedLengths=true",
+   "loadMs": 5637,
+   "ink": 0.4709729900489654,
+   "heapAfterMountMB": 111.48515701293945,
+   "stats": {
+    "domNodes": 400010,
+    "svgElements": 400006,
+    "canvases": 1,
+    "custom": {
+     "tips": 100000,
+     "nodes": 199999,
+     "layoutMs": 21.200000002980232,
+     "kx": 0.824,
+     "ky": 0.00613
+    }
+   },
+   "clickLatencyMs": 275.8999999985099,
+   "clickToPaintMs": 4071.10000000149,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.880239520968516,
+   "fpsP5": 0.8450942280064259,
+   "fpsP5Rounds": [
+    0.3,
+    0.8,
+    0.8
+   ],
+   "droppedRatio": 0.23166070125444463,
+   "droppedFrames": 79,
+   "maxFrameGapMs": 1183.2999999999956,
+   "frames": 533,
+   "inputSteps": 3,
+   "fpsP95": 111.11111113868789,
+   "idleCpuPctOfOneCore": 1.4,
+   "wheelSteps": 7,
+   "cpuWheelStepMs": 1388,
+   "cpuDragMoveMs": 726.6,
+   "cpuMsPerStep": 1388,
+   "loadAvgAtEnd": 2.08,
+   "heapAfterInteractionMB": 108.44573783874512,
+   "heapMB": 108.44573783874512,
+   "unusableFactor": 13.88,
+   "pageErrors": [],
+   "wallSec": 137.995,
+   "relMedianFps": 0.9221556886228934,
+   "relP5Fps": 0.014197583030508108,
+   "cpuVsStub200": 167.2289156626506
+  },
+  "gtdb-100k": {
+   "treeId": "gtdb-100k",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "unusable: 62% of the time in frames > 50 ms (best of 3 rounds); 1055 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.99,
+   "phase": "done",
+   "fetchMs": 55.5,
+   "convertMs": 0,
+   "wireBytes": 1294403,
+   "parseMs": 0,
+   "firstRenderMs": 5781.800000000745,
+   "sharedParseMs": 195.69999999925494,
+   "reportedTips": 100000,
+   "notes": "tree parsed by the shell (sharedParseMs=195.7); stub layout 20.7 ms; usedLengths=true",
+   "loadMs": 5781.800000000745,
+   "ink": 0.27182119728320964,
+   "heapAfterMountMB": 117.07696437835693,
+   "stats": {
+    "domNodes": 400010,
+    "svgElements": 400006,
+    "canvases": 1,
+    "custom": {
+     "tips": 100000,
+     "nodes": 199999,
+     "layoutMs": 20.699999999254942,
+     "kx": 0.824,
+     "ky": 0.00613
+    }
+   },
+   "clickLatencyMs": 290.5,
+   "clickToPaintMs": 3136.300000000745,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 4.286326618088312,
+   "fpsP5": 0.2678667095253404,
+   "fpsP5Rounds": [
+    0.3,
+    0.2,
+    0.2
+   ],
+   "droppedRatio": 0.6174819407597864,
+   "droppedFrames": 331,
+   "maxFrameGapMs": 3733.199999999997,
+   "frames": 246,
+   "inputSteps": 4,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 16.5,
+   "wheelSteps": 6,
+   "cpuWheelStepMs": 1054.8,
+   "cpuDragMoveMs": 164.8,
+   "cpuMsPerStep": 1054.8,
+   "loadAvgAtEnd": 1.92,
+   "heapAfterInteractionMB": 113.16633796691895,
+   "heapMB": 113.16633796691895,
+   "unusableFactor": 10.548,
+   "pageErrors": [],
+   "wallSec": 162.729,
+   "relMedianFps": 0.06600942991855845,
+   "relP5Fps": 0.004500160720025768,
+   "cpuVsStub200": 127.08433734939757
+  },
+  "gtdb-190k": {
+   "treeId": "gtdb-190k",
+   "tips": 189801,
+   "status": "timeout",
+   "reason": "unusable: load 11.1 s > 10 s; 62% of the time in frames > 50 ms (best of 3 rounds); 3040 ms main-thread CPU per interaction step > 100; click latency 847 ms > 300 ms",
+   "loadAvgAtStart": 1.92,
+   "phase": "done",
+   "fetchMs": 94.10000000149012,
+   "convertMs": 0,
+   "wireBytes": 2408861,
+   "parseMs": 0,
+   "firstRenderMs": 11114.199999999255,
+   "sharedParseMs": 300.69999999925494,
+   "reportedTips": 189801,
+   "notes": "tree parsed by the shell (sharedParseMs=300.7); stub layout 32.0 ms; usedLengths=true",
+   "loadMs": 11114.199999999255,
+   "ink": 0.2777065234560101,
+   "heapAfterMountMB": 221.55698585510254,
+   "stats": {
+    "domNodes": 759214,
+    "svgElements": 759210,
+    "canvases": 1,
+    "custom": {
+     "tips": 189801,
+     "nodes": 379601,
+     "layoutMs": 32,
+     "kx": 0.824,
+     "ky": 0.003229698473664522
+    }
+   },
+   "clickLatencyMs": 846.6000000014901,
+   "clickToPaintMs": 6230.39999999851,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 4
+   },
+   "fpsMedian": 2.307869836141265,
+   "fpsP5": 0.13636797534466996,
+   "fpsP5Rounds": [
+    0.1,
+    0.1,
+    0.1
+   ],
+   "droppedRatio": 0.6200810641713298,
+   "droppedFrames": 662,
+   "maxFrameGapMs": 7333.100000000006,
+   "frames": 435,
+   "inputSteps": 4,
+   "fpsP95": 60.24096385545337,
+   "idleCpuPctOfOneCore": 3.2,
+   "wheelSteps": 4,
+   "cpuWheelStepMs": 3039.9,
+   "cpuDragMoveMs": 1267.3,
+   "cpuMsPerStep": 3039.9,
+   "loadAvgAtEnd": 2.33,
+   "heapAfterInteractionMB": 213.230450630188,
+   "heapMB": 213.230450630188,
+   "unusableFactor": 30.399,
+   "pageErrors": [],
+   "wallSec": 298.841,
+   "relMedianFps": 0.03554119547657464,
+   "relP5Fps": 0.00229098198579048,
+   "cpuVsStub200": 366.2530120481928
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261014-183329-S4-two-clades.png",
+   "bytes": 63516
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261014-183329-S5-focus-highlight.png",
+   "bytes": 95868
+  },
+  {
+   "label": "S8-alignment",
+   "file": "screens/20261014-183329-S8-alignment.png",
+   "bytes": 97610
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261014-183329-S9-dark.png",
+   "bytes": 67808
+  },
+  {
+   "label": "S12-radial",
+   "file": "screens/20261014-183329-S12-radial.png",
+   "bytes": 122489
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261014-183329-S15-linked-view.png",
+   "bytes": 64258
+  },
+  {
+   "label": "S1-edge-quoted-labels",
+   "file": "screens/20261014-183329-S1-edge-quoted-labels.png",
+   "bytes": 15969
+  },
+  {
+   "label": "S10-zoomed-out-syn-yule-100000",
+   "file": "screens/20261014-183329-S10-zoomed-out-syn-yule-100000.png",
+   "bytes": 61994
+  }
+ ],
+ "wallSec": 1298.127,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

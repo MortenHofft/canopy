@@ -91,7 +91,7 @@ export class Session {
   }
 
   async open() {
-    await this.page.goto(this.url, { waitUntil: 'load' });
+    await this.page.goto(this.url + (process.env.SPIKE_QUERY ? '?' + process.env.SPIKE_QUERY : ''), { waitUntil: 'load' }); // SPIKE_QUERY: used by selftest.mjs for fault injection
     await this.page.waitForFunction(() => !!window.__spike && !!window.__spikeData, null, { timeout: 20000 });
     await this.page.evaluate(() => window.__spike.ready);
   }

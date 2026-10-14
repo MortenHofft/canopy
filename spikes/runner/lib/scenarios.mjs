@@ -1,10 +1,13 @@
 // Scenarios S1 to S15 (docs/spike-plan.md). Candidate-agnostic: only window.__spike, real mouse/keyboard input,
 // screenshots and the React panels of the shell are used. Ground truth comes from shared/newick.ts on the files.
 import { sleep, median, pearson, spearman, withTimeout, TimeoutError, fmt } from './util.mjs';
-import { countNear, hexToRgb, meanLuminance, dominant, inkFraction, colourBuckets, diffCount } from './pixels.mjs';
+import { countNear, hexToRgb, meanLuminance, dominant, inkFraction, colourBuckets, diffCount, tintCount } from './pixels.mjs';
 import { truthTree, truthColumns, getEntry, catalogue } from './truth.mjs';
+import { interactionRounds, summariseRounds, cpuProbe, loadavg } from './measure.mjs';
 
-export const THRESHOLDS = { loadMs: 10000, p5Fps: 20, clickMs: 300, linkedMs: 120 };
+// Thresholds (CONTRACT.md Clarifications 15): unusable = load > 10 s, or dropped-frame ratio > 0.5 (best of 3 rounds),
+// or main-thread CPU per interaction step > 100 ms, or click latency > 300 ms. p5 FPS is reported (best of 3) but not judged.
+export const THRESHOLDS = { loadMs: 10000, p5Fps: 20, clickMs: 300, linkedMs: 120, droppedRatio: 0.5, cpuStepMs: 100, sluggishDroppedRatio: 0.2, sluggishCpuStepMs: 50 };
 const RED = '#ff0000';
 const BLUE = '#0000ff';
 
@@ -18,6 +21,13 @@ class Checks {
     this.list.push({ name, ok: !!ok, detail: String(detail) });
     return !!ok;
   }
+  na(name, detail = '') {
+    this.list.push({ name, ok: true, na: true, detail: String(detail) });
+    return true;
+  }
+  get naList() {
+    return this.list.filter((c) => c.na);
+  }
   get failed() {
     return this.list.filter((c) => !c.ok);
   }
@@ -26,7 +36,8 @@ class Checks {
   }
   reason(prefix = '') {
     const f = this.failed;
-    return f.length ? prefix + f.map((c) => `${c.name}${c.detail ? ` (${c.detail})` : ''}`).join('; ') : prefix + 'all checks passed';
+    const na = this.naList.length ? ` [n/a: ${this.naList.map((c) => `${c.name}${c.detail ? ` (${c.detail})` : ''}`).join('; ')}]` : '';
+    return (f.length ? prefix + f.map((c) => `${c.name}${c.detail ? ` (${c.detail})` : ''}`).join('; ') : prefix + 'all checks passed') + na;
   }
 }
 
@@ -39,6 +50,93 @@ const worst = (rs) => {
 };
 const rectsIntersect = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 const centre = (r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+
+/** At most n items spread evenly over an array. */
+function thin(a, n) {
+  if (a.length <= n) return a;
+  const out = [];
+  for (let k = 0; k < n; k++) out.push(a[Math.floor((k * a.length) / n)]);
+  return out;
+}
+
+/** n tip labels spread evenly over the tree. */
+function spreadTips(t, n) {
+  const step = Math.max(1, Math.floor(t.tipCount / n));
+  const ids = [];
+  for (let r = 0; r < t.tipCount && ids.length < n; r += step) ids.push(t.tipLabels[r]);
+  return ids;
+}
+
+/** locate() for many tips in one round trip; only the ones that are on screen. */
+async function scanVisible(s, ids, i = 0) {
+  return s.page.evaluate(
+    async ({ ids, inst }) => {
+      const api = inst === 0 ? window.__spike : window.__spike2;
+      const out = [];
+      for (const id of ids) {
+        const p = await api.locate({ kind: 'tip', id });
+        if (p) out.push({ id, p });
+      }
+      return out;
+    },
+    { ids, inst: i },
+  );
+}
+
+/**
+ * Tips that are on screen right now (up to `want`, spread). Scroll-only and uniform-zoom viewers show few tips at the
+ * fit view, so when fewer than `min` are visible the view is moved with focusTip to a few spread tips and the
+ * visible sets are merged (positions are read in the view in which they were found; callers must not mix views).
+ */
+async function visibleTips(s, t, caps, { want = 12, min = 5 } = {}) {
+  let vis = await scanVisible(s, spreadTips(t, 400));
+  if (vis.length >= min || caps.focusTip?.level === 'no') return thin(vis, want);
+  await bringTipIntoView(s, t.tipLabels[Math.floor(t.tipCount / 2)], caps);
+  await s.settle(150);
+  const near = t.tipLabels.slice(Math.max(0, Math.floor(t.tipCount / 2) - 150), Math.floor(t.tipCount / 2) + 150);
+  vis = await scanVisible(s, near);
+  return thin(vis, want);
+}
+
+/** Node locate that moves the view with focusTip (middle, first, last tip of the clade) if the node is off screen. */
+async function locateNode(s, t, i, caps, waitMs = 600) {
+  const target = { kind: 'node', id: t.nodeId(i) };
+  let p = await s.settleLocate(target, 0, waitMs);
+  if (p) return p;
+  const lo = t.leafStart[i], hi = t.leafEnd[i];
+  for (const r of [(lo + hi) >> 1, lo, hi - 1]) {
+    await bringTipIntoView(s, t.tipLabels[r], caps);
+    p = await s.settleLocate(target, 0, waitMs);
+    if (p) return p;
+  }
+  return null;
+}
+
+/** Vertical distance between two neighbouring visible tips (row pitch, px) around a pivot tip; null if not measurable. */
+async function rowPitch(s, t, rank) {
+  const a = await s.call('locate', { kind: 'tip', id: t.tipLabels[rank] });
+  const b = await s.call('locate', { kind: 'tip', id: t.tipLabels[Math.min(t.tipCount - 1, rank + 1)] });
+  return a && b ? { pitch: Math.hypot(a.x - b.x, a.y - b.y), at: a } : null;
+}
+
+/** Zoom with real wheel input around a visible tip until the row pitch reaches `target` px or stops changing. */
+async function zoomToPitch(s, t, rank, target = 14, maxNotches = 40) {
+  let last = await rowPitch(s, t, rank);
+  const start = last?.pitch ?? null;
+  let stuck = 0, notches = 0;
+  while (last && last.pitch < target && notches < maxNotches && stuck < 3) {
+    await s.page.mouse.move(last.at.x, last.at.y);
+    await s.page.mouse.wheel(0, -120);
+    notches++;
+    await sleep(60);
+    const nx = await rowPitch(s, t, rank);
+    if (!nx) break;
+    stuck = nx.pitch <= last.pitch * 1.02 ? stuck + 1 : 0;
+    last = nx;
+  }
+  await s.settle(200);
+  return { startPitch: start, endPitch: last?.pitch ?? null, notches };
+}
 
 /** n deterministic, spread-out tip labels. */
 function pickTips(t, n, offset = 0.37) {
@@ -170,12 +268,7 @@ async function checkNodeClick(s, entry, t, caps) {
   for (const i of clades) {
     const nodeId = t.nodeId(i);
     const truth = t.descendantTips(i);
-    let p = await s.settleLocate({ kind: 'node', id: nodeId }, 0, 600);
-    if (!p) {
-      // clade centre not in view: zoom to a tip below it, then look again
-      await bringTipIntoView(s, truth[0], caps);
-      p = await s.settleLocate({ kind: 'node', id: nodeId }, 0, 600);
-    }
+    const p = await locateNode(s, t, i, caps); // moves the view with focusTip if the node is off screen
     if (!p) {
       ck.add(`node ${nodeId} (${truth.length} tips) locatable`, false, 'locate returned null');
       continue;
@@ -218,7 +311,7 @@ async function checkNodeClick(s, entry, t, caps) {
   return { ck, measures: m, sources };
 }
 
-/** S4: colour clades from React state, check pixels, layout stability, clear. */
+/** S4: colour clades from React state, check pixels, layout stability, clear. Works with partly visible trees. */
 async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
   const ck = new Checks();
   const m = {};
@@ -226,37 +319,56 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
   if (a === undefined) return { ck: Object.assign(ck, { list: [{ name: 'found a clade to colour', ok: false, detail: 'tree too small' }] }), measures: m };
   const A = t.nodeId(a);
   const B = b !== undefined ? t.nodeId(b) : null;
-  const probe = pickTips(t, 3);
-  const pos = async () => Promise.all(probe.map((id) => s.call('locate', { kind: 'tip', id })));
-  const bA = await s.call('bounds', { kind: 'node', id: A });
-  const bB = B ? await s.call('bounds', { kind: 'node', id: B }) : null;
+  let bA = await s.call('bounds', { kind: 'node', id: A });
   if (!bA) {
-    ck.add('bounds(clade A) available', false, 'bounds returned null (not visible?)');
+    await bringTipIntoView(s, t.tipLabels[(t.leafStart[a] + t.leafEnd[a]) >> 1], caps); // scroll-only viewers: bring the clade into view
+    await s.settle(150);
+    bA = await s.call('bounds', { kind: 'node', id: A });
+  }
+  if (!bA) {
+    ck.add('bounds(clade A) available', false, 'bounds returned null even after focusTip');
     return { ck, measures: m };
   }
-  const useB = bB && !rectsIntersect(bA, bB);
+  const bB = B ? await s.call('bounds', { kind: 'node', id: B }) : null;
+  const useB = !!bB && !rectsIntersect(bA, bB);
+  if (B && !useB) m.controlNote = bB ? 'control clade overlaps clade A (no control)' : 'control clade not on screen (no control)';
   m.cladeTips = t.tipCountOf(a);
+  // probes: tips that are on screen now; checked only if they are on screen both before and after (null probes are ignored)
+  const probes = thin(await scanVisible(s, spreadTips(t, 400)), 6);
+  const pos = async () => Promise.all(probes.map((p) => s.call('locate', { kind: 'tip', id: p.id })));
   const L0 = await pos();
   const dom0 = (await s.call('getStats')).domNodes;
-  const f = async (r, hex) => (await colourFrac(s, r, hex)).frac;
+  // colour metric: pixels that moved towards the target colour relative to the same pixels before (relative to the drawn branch width)
+  const baseA = await s.shot(bA);
+  const baseB = useB ? await s.shot(bB) : null;
+  const f = async (r, hex) => {
+    const sh = await s.shot(r);
+    const base = r === bA ? baseA : baseB;
+    return sh && base ? tintCount(sh.png, base.png, hexToRgb(hex)) : { frac: NaN, count: 0 };
+  };
   const aRed0 = await f(bA, RED);
-  const bRed0 = useB ? await f(bB, RED) : 0;
-  const bBlue0 = useB ? await f(bB, BLUE) : 0;
+  const bRed0 = useB ? await f(bB, RED) : { frac: 0 };
+  const bBlue0 = useB ? await f(bB, BLUE) : { frac: 0 };
   const aBlue0 = await f(bA, BLUE);
 
   await s.call('setColouredClades', [{ nodeId: A, colour: RED }]);
   await s.settle(200);
   const aRed1 = await f(bA, RED);
-  const bRed1 = useB ? await f(bB, RED) : 0;
-  const dRed = aRed1 - aRed0;
-  m.redFrac = { before: aRed0, after: aRed1, controlBefore: bRed0, controlAfter: bRed1 };
-  ck.add('clade A turns red (pixel fraction rises)', dRed >= 0.002, `fraction ${fmt(aRed0 * 100, 2)}% -> ${fmt(aRed1 * 100, 2)}%`);
-  if (useB) ck.add('other clade unchanged (control)', bRed1 - bRed0 <= Math.max(0.001, 0.25 * dRed), `${fmt(bRed0 * 100, 2)}% -> ${fmt(bRed1 * 100, 2)}%`);
+  const bRed1 = useB ? await f(bB, RED) : { frac: 0 };
+  const dRed = aRed1.frac - aRed0.frac;
+  m.redFrac = { before: aRed0.frac, after: aRed1.frac, pixelsBefore: aRed0.count, pixelsAfter: aRed1.count, controlBefore: bRed0.frac, controlAfter: bRed1.frac };
+  // threshold: 0.1% of the clade box and at least 20 pixels that moved towards red
+  ck.add('clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)', dRed >= 0.001 && aRed1.count - aRed0.count >= 20, `fraction ${fmt(aRed0.frac * 100, 2)}% -> ${fmt(aRed1.frac * 100, 2)}%`);
+  if (useB) ck.add('other clade unchanged (control)', bRed1.frac - bRed0.frac <= Math.max(0.001, 0.25 * dRed), `${fmt(bRed0.frac * 100, 2)}% -> ${fmt(bRed1.frac * 100, 2)}%`);
   let st = await s.reactState();
   ck.add('React clades panel lists A', st.clades?.length === 1 && st.clades[0].nodeId === A && st.clades[0].colour.toLowerCase() === RED, JSON.stringify(st.clades));
-  const L1 = await pos();
-  const moved = L0.some((p, k) => !p || !L1[k] || Math.hypot(p.x - L1[k].x, p.y - L1[k].y) > 1);
-  ck.add('no layout change when colouring', !moved);
+  const compare = (L1, label) => {
+    const both = probes.map((p, k) => [L0[k], L1[k]]).filter(([x]) => x);
+    if (both.length < 2) return ck.na(label, `only ${both.length} probe tips on screen`);
+    const moved = both.some(([x, y]) => !y || Math.hypot(x.x - y.x, x.y - y.y) > 1);
+    return ck.add(label, !moved, `${both.length} probe tips compared`);
+  };
+  compare(await pos(), 'no layout change when colouring');
   m.domNodesDelta = (await s.call('getStats')).domNodes - dom0;
 
   if (useB) {
@@ -264,39 +376,42 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
     await s.settle(200);
     const aRed2 = await f(bA, RED);
     const bBlue2 = await f(bB, BLUE);
-    ck.add('two clades, two colours (A red kept, B blue appears)', aRed2 - aRed0 >= 0.5 * dRed && bBlue2 - bBlue0 >= 0.002, `A red ${fmt(aRed2 * 100, 2)}%, B blue ${fmt(bBlue2 * 100, 2)}%`);
+    ck.add('two clades, two colours (A red kept, B blue appears)', aRed2.frac - aRed0.frac >= 0.5 * dRed && bBlue2.frac - bBlue0.frac >= 0.001, `A red ${fmt(aRed2.frac * 100, 2)}%, B blue ${fmt(bBlue2.frac * 100, 2)}%`);
     if (screenLabel && saveShot) {
-      const c = await s.containerRect();
-      const sh = await s.shot(c);
+      const sh = await s.shot(await s.containerRect());
       if (sh) saveShot(screenLabel, sh.buf);
     }
+  } else if (screenLabel && saveShot) {
+    const sh = await s.shot(await s.containerRect());
+    if (sh) saveShot(screenLabel, sh.buf);
   }
   await s.call('setColouredClades', []);
   await s.settle(200);
   const aRed3 = await f(bA, RED);
-  const bBlue3 = useB ? await f(bB, BLUE) : 0;
-  ck.add('clear restores the original colours', aRed3 <= aRed0 + 0.0008 && bBlue3 <= bBlue0 + 0.0008 && (await f(bA, BLUE)) <= aBlue0 + 0.0008, `A red ${fmt(aRed3 * 100, 2)}% (was ${fmt(aRed0 * 100, 2)}%)`);
+  const bBlue3 = useB ? await f(bB, BLUE) : { frac: 0 };
+  const aBlue3 = await f(bA, BLUE);
+  ck.add('clear restores the original colours', aRed3.frac <= aRed0.frac + 0.0008 && bBlue3.frac <= bBlue0.frac + 0.0008 && aBlue3.frac <= aBlue0.frac + 0.0008, `A red ${fmt(aRed3.frac * 100, 2)}% (was ${fmt(aRed0.frac * 100, 2)}%)`);
   st = await s.reactState();
   ck.add('React clades panel empty after clear', st.clades?.length === 0, JSON.stringify(st.clades));
-  const L2 = await pos();
-  ck.add('no layout change after clear', !L0.some((p, k) => !p || !L2[k] || Math.hypot(p.x - L2[k].x, p.y - L2[k].y) > 1));
+  compare(await pos(), 'no layout change after clear');
   return { ck, measures: m };
 }
 
-/** S7/S8: aligned column cells versus tip positions, before and after real zoom and pan. */
-async function checkColumn(s, t, cols, col, caps, { minCells = 8, tol = 2 } = {}) {
+/** S7/S8: aligned column cells versus tip positions on the tips that are on screen, at the fit view and after a real zoom. */
+async function checkColumn(s, t, cols, col, caps, { minCells = 5, tol = 2, targetPitch = 14 } = {}) {
   const ck = new Checks();
   const m = {};
   await s.page.evaluate((c) => window.__spike.setColumns(c), cols);
-  await s.settle(250);
-  const ids = Object.keys(col.values);
-  const step = Math.max(1, Math.floor(ids.length / 300));
-  const sample = ids.filter((_, k) => k % step === 0).slice(0, 300);
-  const scan = () =>
-    s.page.evaluate(
-      async ({ sample, colId }) => {
+  await s.settle(300);
+  const withValue = new Set(Object.keys(col.values));
+  const scan = async () => {
+    const ids = [];
+    const step = Math.max(1, Math.floor(t.tipCount / 400));
+    for (let r = 0; r < t.tipCount && ids.length < 400; r += step) if (withValue.has(t.tipLabels[r])) ids.push(t.tipLabels[r]);
+    return s.page.evaluate(
+      async ({ ids, colId }) => {
         const out = [];
-        for (const id of sample) {
+        for (const id of ids) {
           const p = await window.__spike.locate({ kind: 'tip', id });
           if (!p) continue;
           const c = await window.__spike.locateCell(colId, id);
@@ -304,51 +419,70 @@ async function checkColumn(s, t, cols, col, caps, { minCells = 8, tol = 2 } = {}
         }
         return out;
       },
-      { sample, colId: col.id },
+      { ids, colId: col.id },
     );
+  };
   const evalAlign = (rows, label) => {
     const withCell = rows.filter((r) => r.c);
     const dys = withCell.map((r) => Math.abs(r.c.y + r.c.height / 2 - r.p.y));
     const good = dys.filter((d) => d <= tol).length;
-    ck.add(`${label}: at least ${minCells} tips with a drawn cell`, withCell.length >= minCells, `${withCell.length} of ${rows.length} visible tips have a cell`);
-    ck.add(`${label}: cell centre within ${tol}px of tip row`, withCell.length > 0 && good / withCell.length >= 0.9, `${good}/${withCell.length} aligned, max dy ${fmt(Math.max(0, ...dys), 1)}px`);
     m[label] = { visibleTips: rows.length, cells: withCell.length, aligned: good, maxDy: Math.max(0, ...dys) };
-    return withCell;
+    if (rows.length === 0) return { na: true, withCell };
+    ck.add(`${label}: at least ${minCells} tips with a drawn cell`, withCell.length >= minCells, `${withCell.length} of ${rows.length} on-screen tips have a cell`);
+    ck.add(`${label}: cell centre within ${tol}px of tip row`, withCell.length > 0 && good / withCell.length >= 0.9, `${good}/${withCell.length} aligned, max dy ${fmt(Math.max(0, ...dys), 1)}px`);
+    return { na: false, withCell };
   };
-  const before = evalAlign(await scan(), 'fit view');
+  let rows = await scan();
+  if (rows.length < minCells && caps.focusTip?.level !== 'no') {
+    // scroll-only viewers show too few tips at the fit view: look at the middle of the tree
+    await bringTipIntoView(s, t.tipLabels[Math.floor(t.tipCount / 2)], caps);
+    await s.settle(200);
+    rows = await scan();
+    m.focusedForFitView = true;
+  }
+  const first = evalAlign(rows, 'fit view');
+  if (first.na) ck.add('fit view: some tip on screen', false, 'no tip with a value is on screen even after focusTip');
+  // real zoom until rows are readable, then a small pan
   const rect = await s.containerRect();
-  await zoomPan(s, rect);
+  const pivot = rows.length ? rows[Math.floor(rows.length / 2)].id : null;
+  if (pivot) {
+    const rank = t.tipRank[t.tipIndex(pivot)];
+    m.zoom = await zoomToPitch(s, t, rank, targetPitch);
+    const c = centre(rect);
+    await s.page.mouse.move(c.x, c.y);
+    await s.page.mouse.down();
+    await s.page.mouse.move(c.x - 30, c.y + 50, { steps: 6 });
+    await s.page.mouse.up();
+    await s.settle(250);
+  }
   const rowsAfter = await scan();
   const after = evalAlign(rowsAfter, 'after zoom and pan');
-  // bar widths follow values
+  if (after.na) ck.na('after zoom and pan', 'no tip on screen after zooming and panning (the viewer moved the content away)');
+  const sample = (after.na ? first : after).withCell;
   if (col.kind === 'bar') {
-    const pts = after.filter((r) => r.c).map((r) => [Number(col.values[r.id]), r.c.width]);
-    if (pts.length >= 8) {
+    const pts = sample.filter((r) => r.c).map((r) => [Number(col.values[r.id]), r.c.width]);
+    if (pts.length >= 5) {
       const rho = spearman(pts.map((p) => p[0]), pts.map((p) => p[1]));
       m.barRankCorrelation = rho;
-      ck.add('bar width increases with value (Spearman >= 0.7)', rho >= 0.7, `rho=${fmt(rho, 2)}`);
-    }
+      ck.add('bar width increases with value (Spearman >= 0.7)', rho >= 0.7, `rho=${fmt(rho, 2)} over ${pts.length} cells`);
+    } else ck.na('bar width follows value', `only ${pts.length} cells on screen`);
   }
   // drawn: pixels in the cell differ between columns on and off
-  const pick = after.filter((r) => r.c && r.c.height >= 3 && r.c.width >= 3).sort((p, q) => q.c.width - p.c.width)[0] ?? after.filter((r) => r.c && r.c.height >= 1)[0];
+  const pick = sample.filter((r) => r.c && r.c.height >= 3 && r.c.width >= 3).sort((p, q) => q.c.width - p.c.width)[0] ?? sample.filter((r) => r.c && r.c.height >= 1)[0];
   if (pick) {
     const r = { x: pick.c.x, y: pick.c.y - 1, width: Math.min(pick.c.width, 320), height: Math.max(pick.c.height, 3) + 2 };
     const on = await s.shot(r);
     await s.page.evaluate(() => window.__spike.setColumns([]));
-    await s.settle(200);
+    await s.settle(250);
     const off = await s.shot(r);
     await s.page.evaluate((c) => window.__spike.setColumns(c), cols);
-    await s.settle(250);
+    await s.settle(300);
     if (on && off) {
       const frac = diffCount(on.png, off.png, 20) / (on.png.width * on.png.height);
       m.cellDrawnFraction = frac;
       ck.add('cell is actually painted (pixels change when the column is removed)', frac >= 0.2, `${fmt(frac * 100, 0)}% of the cell rect changes`);
       if (col.kind === 'alignment') ck.add('alignment cell shows several residue colours', colourBuckets(on.png, 0.02) >= 3, `${colourBuckets(on.png, 0.02)} colour groups`);
     }
-  }
-  if (col.kind === 'bar') {
-    const missing = Object.keys(col.values).length < t.tipCount;
-    if (missing) m.unmatchedNote = 'tips without a value draw no cell (locateCell should return null); checked in unit of S7 notes only';
   }
   return { ck, measures: m };
 }
@@ -358,6 +492,7 @@ async function checkColumn(s, t, cols, col, caps, { minCells = 8, tol = 2 } = {}
 export async function scalePhase(s, entry, partial, shots) {
   const t = truthTree(entry);
   const caps = await s.call('getCapabilities');
+  partial.loadAvgAtStart = loadavg();
   partial.phase = 'mount';
   const r = await s.mount(entry, {});
   Object.assign(partial, { fetchMs: r.fetchMs, convertMs: r.convertMs, wireBytes: r.wireBytes, parseMs: r.parseMs, firstRenderMs: r.firstRenderMs, sharedParseMs: r.sharedParseMs, reportedTips: r.tips, notes: r.notes });
@@ -378,22 +513,22 @@ export async function scalePhase(s, entry, partial, shots) {
     partial.reason = `screenshot after mount is blank (ink ${fmt((partial.ink ?? 0) * 100, 3)}%)`;
     return;
   }
-  const stats = await s.call('getStats');
-  partial.stats = stats;
+  partial.stats = await s.call('getStats');
   if (partial.loadMs > 60000) {
     partial.status = 'timeout';
     partial.reason = `load ${fmt(partial.loadMs / 1000, 1)} s > ${THRESHOLDS.loadMs / 1000} s; interaction measures skipped`;
+    partial.unusableFactor = partial.loadMs / THRESHOLDS.loadMs;
     return;
   }
 
   // click latency at the fit view (internal nodes near the root are large targets even for 100k tips)
   partial.phase = 'click latency';
-  const lat = [];
-  const paint = [];
+  const lat = [], paint = [];
   const clades = pickClades(t, [0.3, 0.15, 0.08, 0.04, 0.02], { minTips: 2 });
   let hits = 0, tries = 0;
   for (const i of clades) {
-    const p = await s.call('locate', { kind: 'node', id: t.nodeId(i) });
+    if (tries >= 5) break;
+    const p = await locateNode(s, t, i, caps, 400);
     if (!p) continue;
     tries++;
     const ev = await s.clickAndWait(p, 0, 4000);
@@ -409,60 +544,43 @@ export async function scalePhase(s, entry, partial, shots) {
   partial.clickToPaintMs = paint.length ? median(paint) : null;
   partial.clickSamples = { events: lat.length, tries, rightNode: hits };
 
-  // 10 s of scripted wheel zoom and drag pan with the frame sampler
+  // 3 rounds of scripted wheel zoom and drag pan with the frame sampler (best of 3), then CPU per step
   partial.phase = 'pan/zoom';
-  const fps = await scriptedPanZoom(s, rect, 10000);
-  Object.assign(partial, { fpsMedian: fps.medianFps, fpsP5: fps.p5Fps, fpsP95: fps.p95Fps, fpsMean: fps.meanFps, droppedFrames: fps.droppedFrames, maxFrameGapMs: fps.maxIntervalMs, frames: fps.frames });
+  await s.page.evaluate(() => window.scrollTo(0, 0));
+  const rect2 = await s.containerRect();
+  const rounds = await interactionRounds(s, rect2, { rounds: 3, ms: 3500 });
+  Object.assign(partial, summariseRounds(rounds));
+  partial.fpsP95 = Math.max(...rounds.map((x) => x.p95Fps));
+  partial.phase = 'cpu per step';
+  Object.assign(partial, await cpuProbe(s, rect2, { capMs: 25000 }));
+  partial.loadAvgAtEnd = loadavg();
   partial.heapAfterInteractionMB = await heapMB(s);
   partial.heapMB = partial.heapAfterInteractionMB ?? partial.heapAfterMountMB;
   partial.phase = 'done';
 
   const bad = [];
+  const slow = [];
   if (partial.loadMs > THRESHOLDS.loadMs) bad.push(`load ${fmt(partial.loadMs / 1000, 1)} s > ${THRESHOLDS.loadMs / 1000} s`);
-  if (Math.round(fps.p5Fps) < THRESHOLDS.p5Fps) bad.push(`p5 fps ${fmt(fps.p5Fps, 1)} < ${THRESHOLDS.p5Fps}`);
+  if (partial.droppedRatio > THRESHOLDS.droppedRatio) bad.push(`${fmt(partial.droppedRatio * 100)}% of the time in frames > 50 ms (best of 3 rounds)`);
+  else if (partial.droppedRatio > THRESHOLDS.sluggishDroppedRatio) slow.push(`${fmt(partial.droppedRatio * 100)}% of the time in frames > 50 ms`);
+  if (partial.cpuMsPerStep > THRESHOLDS.cpuStepMs) bad.push(`${fmt(partial.cpuMsPerStep)} ms main-thread CPU per interaction step > ${THRESHOLDS.cpuStepMs}`);
+  else if (partial.cpuMsPerStep > THRESHOLDS.sluggishCpuStepMs) slow.push(`${fmt(partial.cpuMsPerStep)} ms CPU per step`);
   if (partial.clickLatencyMs !== null && partial.clickLatencyMs > THRESHOLDS.clickMs) bad.push(`click latency ${fmt(partial.clickLatencyMs)} ms > ${THRESHOLDS.clickMs} ms`);
+  partial.unusableFactor = Math.max(partial.loadMs / THRESHOLDS.loadMs, partial.cpuMsPerStep / THRESHOLDS.cpuStepMs, (partial.clickLatencyMs ?? 0) / THRESHOLDS.clickMs, partial.droppedRatio / THRESHOLDS.droppedRatio);
+  const base = `load ${fmt(partial.loadMs)} ms, median ${fmt(partial.fpsMedian, 1)} fps, best p5 ${fmt(partial.fpsP5, 1)}, dropped ${fmt(partial.droppedRatio * 100)}%, CPU/step ${fmt(partial.cpuMsPerStep)} ms, click ${partial.clickLatencyMs === null ? 'n/a' : fmt(partial.clickLatencyMs) + ' ms'}`;
   if (bad.length) {
     partial.status = 'timeout';
     partial.reason = 'unusable: ' + bad.join('; ');
   } else if (lat.length === 0 && caps.internalNodeClick?.level !== 'no') {
     partial.status = 'partial';
-    partial.reason = 'rendered and smooth, but no click event could be triggered on internal nodes at the fit view';
+    partial.reason = `${base}; no click event could be triggered on internal nodes at the fit view`;
+  } else if (slow.length) {
+    partial.status = 'partial';
+    partial.reason = `sluggish: ${slow.join('; ')} (${base})`;
   } else {
     partial.status = 'pass';
-    partial.reason = `load ${fmt(partial.loadMs)} ms, p5 ${fmt(fps.p5Fps, 1)} fps, click ${partial.clickLatencyMs === null ? 'n/a' : fmt(partial.clickLatencyMs) + ' ms'}`;
+    partial.reason = base;
   }
-}
-
-/** Real wheel and drag for `ms`, with the page's rAF sampler running. */
-async function scriptedPanZoom(s, rect, ms) {
-  const cx = rect.x + rect.width * 0.4;
-  const cy = rect.y + rect.height * 0.5;
-  await s.metrics(() => window.__spikeMetrics.startSampler());
-  const t0 = Date.now();
-  const hardStop = t0 + ms + 60000;
-  let k = 0;
-  try {
-    while (Date.now() - t0 < ms && Date.now() < hardStop) {
-      const phase = k++ % 4;
-      const x = cx + (k % 3) * 40, y = cy + (k % 5) * 20;
-      await s.page.mouse.move(x, y);
-      if (phase === 0 || phase === 2) {
-        const dir = phase === 0 ? -120 : 120;
-        for (let i = 0; i < 6 && Date.now() - t0 < ms; i++) {
-          await s.page.mouse.wheel(0, dir);
-          await sleep(16);
-        }
-      } else {
-        const sign = phase === 1 ? -1 : 1;
-        await s.page.mouse.down();
-        await s.page.mouse.move(x + sign * 160, y + sign * 70, { steps: 10 });
-        await s.page.mouse.up();
-      }
-    }
-  } finally {
-    // fallthrough: stop even if the page is slow
-  }
-  return s.metrics(() => window.__spikeMetrics.stopSampler());
 }
 
 // ------------------------------------------------------------------------------------------ scenarios
@@ -501,9 +619,21 @@ export function makeScenarios(ctx) {
     const trees = opts.scaleTrees;
     const out = { trees: {} };
     let first = true;
+    let bigFactor = 0; // worst unusableFactor among the 5k to 20k-tip trees: decides whether bigger trees are tried at all
     for (const entry of trees) {
       const partial = { treeId: entry.id, tips: entry.tips, status: 'fail', reason: 'not run' };
       const t0 = Date.now();
+      if (opts.deadline && Date.now() > opts.deadline) {
+        Object.assign(partial, { status: 'skipped', reason: 'skipped: run time cap reached before this tree' });
+        out.trees[entry.id] = partial;
+        continue;
+      }
+      if (opts.skipLarge && entry.tips > 20000 && bigFactor > 10) {
+        Object.assign(partial, { status: 'skipped', reason: `skipped: unusable at 10k (factor ${fmt(bigFactor)}x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)` });
+        out.trees[entry.id] = partial;
+        log(`  S1 ${entry.id} (${entry.tips}): ${partial.reason}`);
+        continue;
+      }
       try {
         await session(
           `S1 ${entry.id}`,
@@ -519,7 +649,7 @@ export function makeScenarios(ctx) {
               partial.pageErrors = (await s.pageErrors()).slice(0, 5);
             }
           },
-          240000,
+          entry.tips >= 50000 ? 600000 : 240000,
         );
       } catch (e) {
         if (e instanceof TimeoutError) {
@@ -531,18 +661,23 @@ export function makeScenarios(ctx) {
         }
       }
       partial.wallSec = (Date.now() - t0) / 1000;
+      if (partial.unusableFactor === undefined && (partial.status === 'timeout' || partial.status === 'fail') && !partial.loadMs) partial.unusableFactor = 1e6; // never finished mounting
+      if (entry.tips >= 5000 && entry.tips <= 20000 && partial.unusableFactor !== undefined && !/caterpillar/.test(entry.id)) bigFactor = Math.max(bigFactor, partial.unusableFactor);
       log(`  S1 ${entry.id} (${entry.tips}): ${partial.status}: ${partial.reason}`);
       out.trees[entry.id] = partial;
     }
-    const rs = Object.values(out.trees);
-    if (!rs.length) return result('fail', 'no trees selected');
-    if (rs.every((r) => r.status === 'pass')) out.status = 'pass', out.reason = `${rs.length} trees loaded, rendered and interactive`;
+    const all = Object.values(out.trees);
+    const rs = all.filter((r) => r.status !== 'skipped');
+    const sk = all.length - rs.length;
+    const skNote = sk ? ` (${sk} larger tree(s) skipped: ${all.find((r) => r.status === 'skipped').reason})` : '';
+    if (!rs.length) return result('fail', 'no trees run' + skNote);
+    if (rs.every((r) => r.status === 'pass')) (out.status = 'pass'), (out.reason = `${rs.length} trees loaded, rendered and interactive${skNote}`);
     else if (rs.some((r) => r.status === 'pass')) {
       out.status = 'partial';
-      out.reason = rs.filter((r) => r.status !== 'pass').map((r) => `${r.treeId}: ${r.status} (${r.reason})`).join('; ');
+      out.reason = rs.filter((r) => r.status !== 'pass').map((r) => `${r.treeId}: ${r.status} (${r.reason})`).join('; ') + skNote;
     } else {
       out.status = worst(rs);
-      out.reason = rs.map((r) => `${r.treeId}: ${r.status} (${r.reason})`).join('; ');
+      out.reason = rs.map((r) => `${r.treeId}: ${r.status} (${r.reason})`).join('; ') + skNote;
     }
     return out;
   };
@@ -725,10 +860,15 @@ export function makeScenarios(ctx) {
       const u = unsupported(caps, 'customColumns');
       if (u) return u;
       const lc = truthColumns(entry, t);
-      const bar = lc.columns.find((c) => c.kind === 'bar');
-      if (!bar) return result('fail', `${entry.id} has no bar column in the catalogue`);
+      // a library that cannot draw a bar column (heat-map only, ...) declares candidate.columnKinds; test with the best kind it supports
+      const declared = await s.page.evaluate(() => window.__spike.candidate.columnKinds ?? null);
+      const kinds = declared ?? ['bar', 'text', 'alignment'];
+      const bar = ['bar', 'text', 'alignment'].filter((k) => kinds.includes(k)).map((k) => lc.columns.find((c) => c.kind === k)).find(Boolean);
+      if (!bar) return result('fail', `${entry.id} has no column of a supported kind (${kinds.join(', ')}) in the catalogue`);
       await mountOrThrow(s, entry);
       const { ck, measures } = await checkColumn(s, t, [bar], bar, caps);
+      measures.columnKind = bar.kind;
+      measures.declaredColumnKinds = declared;
       if (lc.tsvStats) measures.unmatched = { tipsWithoutRow: lc.tsvStats.tipsWithoutRow.length, rowsWithoutTip: lc.tsvStats.rowsWithoutTip.length };
       // an unmatched tip must not get a cell
       const un = lc.tsvStats?.tipsWithoutRow?.[0];
@@ -738,8 +878,8 @@ export function makeScenarios(ctx) {
         ck.add('tip without a data row gets no cell (explicitly unmatched)', c === null || c.width <= 2, c ? JSON.stringify(c) : 'null');
       }
       const fitOk = ck.list.filter((c) => c.name.startsWith('fit view')).every((c) => c.ok);
-      const status = ck.allOk ? 'pass' : fitOk ? 'partial' : 'fail';
-      return result(status, ck.reason(`${entry.id}, column ${bar.id}: `), { checks: ck.list, measures });
+      const status = ck.allOk ? (bar.kind === 'bar' ? 'pass' : 'partial') : fitOk ? 'partial' : 'fail';
+      return result(status, ck.reason(`${entry.id}, column ${bar.id} (kind ${bar.kind}${bar.kind === 'bar' ? '' : ': the library cannot draw bars, tested with its supported kind'}): `), { checks: ck.list, measures });
     });
 
   // -------------------------------------------------------------------- S8
@@ -754,7 +894,7 @@ export function makeScenarios(ctx) {
       const aln = lc.columns.find((c) => c.kind === 'alignment');
       if (!aln) return result('fail', `${entry.id} has no alignment column in the catalogue`);
       await mountOrThrow(s, entry);
-      const { ck, measures } = await checkColumn(s, t, [aln], aln, caps, { minCells: 8 });
+      const { ck, measures } = await checkColumn(s, t, [aln], aln, caps);
       measures.alignmentTipsWithSequence = Object.keys(aln.values).length;
       const fitOk = ck.list.filter((c) => c.name.startsWith('fit view')).every((c) => c.ok);
       const status = ck.allOk ? 'pass' : fitOk ? 'partial' : 'fail';
@@ -809,9 +949,15 @@ export function makeScenarios(ctx) {
 
   // -------------------------------------------------------------------- S10
   S.S10 = () => {
-    const list = opts.scaleTrees.slice().sort((a, b) => b.tips - a.tips);
-    const entry = list.find((e) => e.id === 'syn-yule-100000') ?? list[0];
+    // tree: the largest one that mounted (S1 result), preferring the 100k Yule tree; software GL gets 600 s
+    const mounted = (e) => {
+      const r = opts.s1Results?.[e.id];
+      return !r || (r.status !== 'skipped' && r.loadMs && r.loadMs < 120000);
+    };
+    const list = opts.scaleTrees.slice().sort((a, b) => b.tips - a.tips).filter(mounted);
+    const entry = list.find((e) => e.id === 'syn-yule-100000') ?? list[0] ?? getEntry('syn-yule-1000');
     const partial = { treeId: entry.id };
+    const big = entry.tips >= 50000;
     return session(
       'S10',
       async (s) => {
@@ -823,40 +969,61 @@ export function makeScenarios(ctx) {
         await s.settle(300);
         const rect = await s.containerRect();
         const c = centre(rect);
-        // zoom in a lot, then pan, then zoom all the way out with real wheel input
+        const first = t.tipLabels[0], last = t.tipLabels[t.tipCount - 1];
+        const wholeVisible = async () => {
+          const [a, b] = await Promise.all([s.call('locate', { kind: 'tip', id: first }), s.call('locate', { kind: 'tip', id: last })]);
+          if (a && b) return 'tips';
+          // tips hidden inside collapsed clades: use the reported geometry of the root clade (strictly inside the container)
+          const bb = await s.call('bounds', { kind: 'node', id: 'n0' });
+          if (bb && bb.x >= rect.x - 1 && bb.y >= rect.y - 1 && bb.x + bb.width <= rect.x + rect.width + 1 && bb.y + bb.height <= rect.y + rect.height + 1 && (bb.height < rect.height - 4 || bb.width < rect.width - 4) && bb.height >= 0.3 * rect.height) return 'bounds';
+          return null;
+        };
+        // 1. the view must really change SCALE when zooming in by wheel (a pan is not a zoom; otherwise nothing can be said)
+        const mid = Math.floor(t.tipCount / 2);
+        const metric = async () => {
+          const rp = await rowPitch(s, t, mid);
+          if (rp) return { kind: 'pitch', v: rp.pitch };
+          const [a, b] = await Promise.all([s.call('locate', { kind: 'tip', id: first }), s.call('locate', { kind: 'tip', id: last })]);
+          return a && b ? { kind: 'span', v: Math.hypot(a.x - b.x, a.y - b.y) } : null;
+        };
+        const before = { m: await metric(), wv: await wholeVisible() };
         await s.page.mouse.move(c.x, c.y);
         for (let k = 0; k < 12; k++) {
           await s.page.mouse.wheel(0, -120);
           await sleep(30);
         }
+        await s.settle(250);
+        const zoomed = { m: await metric(), wv: await wholeVisible() };
+        partial.scaleBefore = before.m;
+        partial.scaleAfter = zoomed.m;
+        const changed = before.m && zoomed.m && before.m.kind === zoomed.m.kind ? Math.abs(zoomed.m.v / before.m.v - 1) > 0.1 : before.wv !== zoomed.wv;
+        partial.zoomInChangedView = changed;
         await s.page.mouse.down();
         await s.page.mouse.move(c.x - 200, c.y - 120, { steps: 8 });
         await s.page.mouse.up();
-        await s.settle(200);
-        const first = t.tipLabels[0], last = t.tipLabels[t.tipCount - 1];
-        const whole = async () => {
-          const [a, b] = await Promise.all([s.call('locate', { kind: 'tip', id: first }), s.call('locate', { kind: 'tip', id: last })]);
-          return !!a && !!b;
-        };
+        await s.settle(250);
+        if (!changed) {
+          return result('n/a', `${entry.id}: wheel zoom-in did not change the view (whole tree stays at the same size and position, so a zoom-out cannot be tested; the viewer may pan or scroll instead of zooming with a plain wheel)`, { measures: partial, checks: ck.list });
+        }
+        // 2. zoom out with real wheel input until the whole tree is back in view
         await s.metrics(() => window.__spikeMetrics.startSampler());
-        let notches = 0;
-        let ok = false;
+        let notches = 0, how = null;
         const t0 = Date.now();
-        while (notches < 80 && Date.now() - t0 < 90000) {
+        const limitMs = big ? 300000 : 90000;
+        while (notches < 90 && Date.now() - t0 < limitMs) {
           for (let k = 0; k < 3; k++) {
             await s.page.mouse.wheel(0, 120);
             await sleep(16);
             notches++;
           }
-          if (await whole()) {
-            ok = true;
-            break;
-          }
+          how = await wholeVisible();
+          if (how) break;
         }
         const fps = await s.metrics(() => window.__spikeMetrics.stopSampler());
         partial.notches = notches;
         partial.zoomOutSec = (Date.now() - t0) / 1000;
-        Object.assign(partial, { fpsMedian: fps.medianFps, fpsP5: fps.p5Fps, maxFrameGapMs: fps.maxIntervalMs, droppedFrames: fps.droppedFrames });
+        partial.wholeTreeBy = how;
+        Object.assign(partial, { fpsMedian: fps.medianFps, fpsP5: fps.p5Fps, droppedRatio: fps.slowTimeFrac, maxFrameGapMs: fps.maxIntervalMs, droppedFrames: fps.droppedFrames });
         await s.settle(400);
         const sh = await s.shot(rect);
         if (sh) {
@@ -864,15 +1031,15 @@ export function makeScenarios(ctx) {
           saveShot(`S10-zoomed-out-${entry.id}`, sh.buf);
         }
         partial.stats = await s.call('getStats');
-        ck.add('whole tree in view (first and last tip both locatable) after zoom-out by wheel', ok, `after ${notches} wheel notches`);
+        ck.add('whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)', !!how, `after ${notches} wheel notches${how ? ' via ' + how : ''}`);
         ck.add('tree still drawn when zoomed out', (partial.inkAfterZoomOut ?? 0) > 0.0005);
-        ck.add(`no freeze: longest frame gap < 2 s`, fps.maxIntervalMs < 2000, `${fmt(fps.maxIntervalMs)} ms`);
-        const smooth = fps.p5Fps >= THRESHOLDS.p5Fps;
-        const status = !ok || !ck.list[1].ok ? 'fail' : !ck.list[2].ok ? 'timeout' : smooth ? 'pass' : 'partial';
-        const reason = ck.reason(`${entry.id}: `) + `; p5 ${fmt(fps.p5Fps, 1)} fps, median ${fmt(fps.medianFps, 1)} fps, DOM nodes ${partial.stats.domNodes}, canvases ${partial.stats.canvases}` + (ok && !smooth ? ` (p5 < ${THRESHOLDS.p5Fps} fps while zooming out)` : '') + `; overviewOrMinimap self-report: ${caps.overviewOrMinimap?.level}`;
+        ck.add('no freeze: longest frame gap < 2 s', fps.maxIntervalMs < 2000, `${fmt(fps.maxIntervalMs)} ms`);
+        const smooth = fps.slowTimeFrac <= THRESHOLDS.droppedRatio;
+        const status = !how || !ck.list[1].ok ? 'fail' : !ck.list[2].ok ? 'timeout' : smooth ? 'pass' : 'partial';
+        const reason = ck.reason(`${entry.id}: `) + `; while zooming out median ${fmt(fps.medianFps, 1)} fps, ${fmt(fps.slowTimeFrac * 100)}% of the time in frames > 50 ms, DOM nodes ${partial.stats.domNodes}, canvases ${partial.stats.canvases}` + (how && !smooth ? ' (more than half of the time in slow frames)' : '') + `; overviewOrMinimap self-report: ${caps.overviewOrMinimap?.level}`;
         return result(status, reason, { checks: ck.list, measures: partial });
       },
-      300000,
+      big ? 900000 : 300000,
     ).catch((e) => result(e instanceof TimeoutError ? 'timeout' : 'fail', `${entry.id}: ${e.message}`, { measures: partial }));
   };
 
@@ -884,57 +1051,64 @@ export function makeScenarios(ctx) {
       if (u) return u;
       const ck = new Checks();
       const m = {};
-      const tipXs = async (t, ids) => {
-        const out = [];
-        for (const id of ids) {
-          const p = await s.call('locate', { kind: 'tip', id });
-          out.push(p ? p.x : null);
+      /**
+       * x positions of tips that are on screen; when fewer than 5 are visible (scroll-only viewers) the view is moved
+       * with focusTip to three spread places and the samples are merged (the horizontal position does not change).
+       */
+      const sampleX = async (t, ids = null) => {
+        const want = ids ?? spreadTips(t, 400);
+        let vis = await scanVisible(s, want);
+        if (vis.length >= 5 || caps.focusTip?.level === 'no') return vis;
+        const seen = new Map(vis.map((v) => [v.id, v.p]));
+        for (const f of [0.15, 0.5, 0.85]) {
+          const mid = Math.floor(t.tipCount * f);
+          await bringTipIntoView(s, t.tipLabels[mid], caps);
+          await s.settle(120);
+          const near = t.tipLabels.slice(Math.max(0, mid - 200), mid + 200);
+          for (const v of await scanVisible(s, near)) seen.set(v.id, v.p);
         }
-        return out;
-      };
-      const sampleIds = (t, n) => {
-        const step = Math.max(1, Math.floor(t.tipCount / n));
-        const ids = [];
-        for (let r = 0; r < t.tipCount && ids.length < n; r += step) ids.push(t.tipLabels[r]);
-        return ids;
+        return [...seen].map(([id, p]) => ({ id, p }));
       };
       // non-ultrametric: x must follow cumulative length
       const e1 = getEntry('rich-ens-protein-197');
       const t1 = truthTree(e1);
       await mountOrThrow(s, e1, { branchLengths: true });
-      const ids = sampleIds(t1, 120);
-      const cum = ids.map((id) => t1.cumLength[t1.tipIndex(id)]);
-      const x1 = await tipXs(t1, ids);
-      const pairs1 = ids.map((_, k) => [x1[k], cum[k], k]).filter((p) => p[0] !== null);
-      const r1 = pearson(pairs1.map((p) => p[0]), pairs1.map((p) => p[1]));
+      const v1 = await sampleX(t1);
+      m.visibleTips = v1.length;
+      const x1 = new Map(v1.map((v) => [v.id, v.p.x]));
+      const r1 = pearson(v1.map((v) => v.p.x), v1.map((v) => t1.cumLength[t1.tipIndex(v.id)]));
       m.phylogramPearson = r1;
-      ck.add('phylogram: tip x follows root-to-tip length (Pearson >= 0.97)', pairs1.length >= 20 && r1 >= 0.97, `r=${fmt(r1, 3)} over ${pairs1.length} visible tips`);
+      if (v1.length < 5) ck.add('phylogram: at least 5 tips measurable', false, `only ${v1.length} tips on screen`);
+      else ck.add('phylogram: tip x follows root-to-tip length (Pearson >= 0.97)', r1 >= 0.97, `r=${fmt(r1, 3)} over ${v1.length} visible tips`);
       await s.call('setBranchLengths', false);
-      await s.settle(250);
-      const x2 = await tipXs(t1, ids);
-      const pairs2 = ids.map((_, k) => [x2[k], cum[k], x1[k]]).filter((p) => p[0] !== null && p[2] !== null);
-      const r2 = pearson(pairs2.map((p) => p[0]), pairs2.map((p) => p[1]));
-      const moved = pairs2.reduce((a, p) => a + Math.abs(p[0] - p[2]), 0) / Math.max(1, pairs2.length);
+      await s.settle(300);
+      const v2 = (await sampleX(t1, v1.map((v) => v.id))).filter((v) => x1.has(v.id));
+      const r2 = pearson(v2.map((v) => v.p.x), v2.map((v) => t1.cumLength[t1.tipIndex(v.id)]));
+      const moved = v2.reduce((a, v) => a + Math.abs(v.p.x - x1.get(v.id)), 0) / Math.max(1, v2.length);
       m.cladogramPearson = r2;
       m.meanTipShiftPx = moved;
-      ck.add('toggle to cladogram changes the layout (tips move)', moved >= 3, `mean tip shift ${fmt(moved, 1)} px`);
-      ck.add('cladogram no longer proportional to length', Number.isFinite(r2) ? r2 < r1 - 0.05 : true, `r ${fmt(r1, 3)} -> ${fmt(r2, 3)}`);
+      if (v2.length < 5) ck.add('cladogram: at least 5 tips measurable', false, `only ${v2.length}`);
+      else {
+        ck.add('toggle to cladogram changes the layout (tips move)', moved >= 3, `mean tip shift ${fmt(moved, 1)} px over ${v2.length} tips`);
+        ck.add('cladogram no longer proportional to length', Number.isFinite(r2) ? r2 < r1 - 0.05 : true, `r ${fmt(r1, 3)} -> ${fmt(r2, 3)}`);
+      }
       await s.call('setBranchLengths', true);
-      await s.settle(250);
-      const x3 = await tipXs(t1, ids);
-      const pairs3 = ids.map((_, k) => [x3[k], cum[k]]).filter((p) => p[0] !== null);
-      const r3 = pearson(pairs3.map((p) => p[0]), pairs3.map((p) => p[1]));
+      await s.settle(300);
+      const v3 = (await sampleX(t1, v1.map((v) => v.id))).filter((v) => x1.has(v.id));
+      const r3 = pearson(v3.map((v) => v.p.x), v3.map((v) => t1.cumLength[t1.tipIndex(v.id)]));
       ck.add('toggling back restores the phylogram', r3 >= 0.97, `r=${fmt(r3, 3)}`);
       // ultrametric dated tree: tips aligned in a phylogram
       const e2 = getEntry('rich-corvoid-680');
       const t2 = truthTree(e2);
       await mountOrThrow(s, e2, { branchLengths: true });
       const rect = await s.containerRect();
-      const ids2 = sampleIds(t2, 80);
-      const xs = (await tipXs(t2, ids2)).filter((x) => x !== null);
+      const v4 = await sampleX(t2);
+      const xs = v4.map((v) => v.p.x);
       const spread = xs.length ? (Math.max(...xs) - Math.min(...xs)) / rect.width : NaN;
       m.ultrametricTipSpread = spread;
-      ck.add('dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)', xs.length >= 20 && spread < 0.02, `spread ${fmt(spread * 100, 2)}% over ${xs.length} tips`);
+      m.ultrametricTips = xs.length;
+      if (xs.length < 5) ck.na('dated phylogram tips aligned', `only ${xs.length} tips on screen`);
+      else ck.add('dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)', spread < 0.02, `spread ${fmt(spread * 100, 2)}% over ${xs.length} tips`);
       // missing and negative lengths must not break rendering
       const e3 = getEntry('edge-polytomy-missing');
       const t3 = truthTree(e3);
@@ -998,10 +1172,9 @@ export function makeScenarios(ctx) {
       const caps = await capsOf(s);
       const ck = new Checks();
       const m = {};
-      if (caps.multipleInstances?.level === 'no') {
-        // still do the mount/unmount loop below
-        m.multipleInstancesSkipped = caps.multipleInstances.how;
-      } else {
+      // the two-instance clash test runs even when the adapter says multipleInstances=no, so the clash is observed, not assumed
+      m.adapterReportsMultipleInstances = `${caps.multipleInstances?.level}: ${caps.multipleInstances?.how}`;
+      try {
         const r0 = await mountOrThrow(s, entry, { size: { width: 760, height: 560 } });
         const r1 = await s.mount(small, { size: { width: 340, height: 240 }, instance: 1 });
         ck.add('second instance mounts with its own tip count', r1.tips === small.tips && r0.tips === entry.tips, `${r0.tips} and ${r1.tips}`);
@@ -1034,6 +1207,8 @@ export function makeScenarios(ctx) {
         ck.add('instance 1 survives unmounting instance 0', !!sh1 && inkFraction(sh1.png) > 0.0005);
         const stats0 = await s.call('getStats');
         ck.add('unmount leaves nothing in the container', stats0.domNodes === 0 && stats0.canvases === 0, `domNodes=${stats0.domNodes} canvases=${stats0.canvases}`);
+      } catch (e) {
+        ck.add('two-instance test ran without exceptions', false, String(e.message).split('\n')[0]);
       }
       // five mount/unmount cycles
       const docNodes = () => s.page.evaluate(() => document.querySelectorAll('*').length);
@@ -1070,9 +1245,9 @@ export function makeScenarios(ctx) {
       const errs = await s.pageErrors();
       ck.add('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
       m.pageErrors = errs.slice(0, 5);
-      const crit = ck.list.filter((c) => /second instance|cross|reaches|five mount/.test(c.name) && !c.ok);
-      const status = ck.allOk ? (caps.multipleInstances?.level === 'no' ? 'partial' : 'pass') : crit.length ? 'fail' : 'partial';
-      return result(status, ck.reason('') + (m.multipleInstancesSkipped ? `; two-instance part skipped (adapter reports multipleInstances=no: ${m.multipleInstancesSkipped})` : ''), { checks: ck.list, measures: m });
+      const crit = ck.list.filter((c) => /second instance|cross|reaches|five mount|two-instance|survives|both instances/.test(c.name) && !c.ok);
+      const status = ck.allOk ? 'pass' : crit.length ? 'fail' : 'partial';
+      return result(status, ck.reason('') + `; adapter self-report: multipleInstances=${caps.multipleInstances?.level}`, { checks: ck.list, measures: m });
     });
 
   // -------------------------------------------------------------------- S14
@@ -1084,61 +1259,75 @@ export function makeScenarios(ctx) {
       await mountOrThrow(s, entry);
       const ck = new Checks();
       const m = {};
+      const tipSet = new Set(t.tipLabels);
+      // distinct focusable elements inside the tree container, identified by element identity (not by number of Tab presses)
       const describe = () =>
         s.page.evaluate(() => {
           const a = document.activeElement;
           const c = document.querySelector('[data-testid=tree-container]');
-          if (!a || !c || !c.contains(a)) return null;
-          return { tag: a.tagName.toLowerCase(), role: a.getAttribute('role'), name: (a.getAttribute('aria-label') || a.textContent || '').trim().slice(0, 60), tip: a.getAttribute('data-tip-id') || a.getAttribute('data-tip-label') };
+          if (!a || !c || !c.contains(a) || a === c) return null;
+          if (a.__spikeTab === undefined) a.__spikeTab = (window.__spikeTabSeq = (window.__spikeTabSeq || 0) + 1);
+          const name = (a.getAttribute('aria-label') || a.getAttribute('data-tip-id') || a.getAttribute('data-tip-label') || a.textContent || a.getAttribute('title') || '').trim().slice(0, 80);
+          return { uid: a.__spikeTab, tag: a.tagName.toLowerCase(), role: a.getAttribute('role'), name, tipAttr: a.getAttribute('data-tip-id') || a.getAttribute('data-tip-label') };
         });
       const tabThrough = async (label) => {
         await s.page.evaluate(() => {
           document.body.focus();
           if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
         });
-        const seen = [];
-        for (let k = 0; k < 140; k++) {
+        const distinct = new Map();
+        let outside = 0;
+        for (let k = 0; k < 220; k++) {
           await s.page.keyboard.press('Tab');
           const d = await describe();
-          if (d) seen.push(d);
-          else if (seen.length >= 3) break;
-          if (seen.length >= 6) break;
+          if (d) {
+            distinct.set(d.uid, d);
+            outside = 0;
+          } else if (distinct.size > 0 && ++outside > 3) break; // left the container
+          if (distinct.size >= 8) break;
         }
-        m[label] = seen;
-        return seen;
+        m[label] = [...distinct.values()];
+        return [...distinct.values()];
       };
+      const isTipTarget = (d) => (d.tipAttr && tipSet.has(d.tipAttr)) || tipSet.has(d.name);
       let seen = await tabThrough('tabAtFit');
-      const tip = t.tipLabels[Math.floor(t.tipCount / 2)];
-      if (seen.length < 3 && caps.focusTip?.level !== 'no') {
-        await s.call('focusTip', tip);
-        await s.settleLocate({ kind: 'tip', id: tip });
-        await s.settle(200);
+      let usedFocus = false;
+      if (!(seen.length >= 3 && seen.some(isTipTarget)) && caps.focusTip?.level !== 'no') {
+        await s.call('focusTip', t.tipLabels[Math.floor(t.tipCount / 2)]);
+        await s.settleLocate({ kind: 'tip', id: t.tipLabels[Math.floor(t.tipCount / 2)] });
+        await s.settle(250);
         seen = await tabThrough('tabAfterFocusTip');
+        usedFocus = true;
         m.neededFocusTip = true;
       }
       const named = seen.filter((d) => d.name);
-      ck.add('Tab reaches at least 3 focusable elements inside the tree', seen.length >= 3, `${seen.length} found`);
-      ck.add('focusable elements have accessible names', named.length >= Math.min(3, seen.length) && seen.length > 0, `${named.length}/${seen.length} named`);
+      const tipTargets = seen.filter(isTipTarget);
+      m.distinctFocusable = seen.length;
+      m.tipLevelTargets = tipTargets.length;
+      ck.add('Tab reaches at least 3 DISTINCT focusable elements inside the tree', seen.length >= 3, `${seen.length} distinct elements (${[...new Set(seen.map((d) => d.tag + (d.role ? '[' + d.role + ']' : '')))].join(', ') || 'none'})`);
+      ck.add('at least one tip-level target (named like a tip) is reachable by Tab', tipTargets.length >= 1, tipTargets.length ? tipTargets.slice(0, 2).map((d) => d.name).join(', ') : 'only container-level targets (for example one canvas)');
+      ck.add('focusable elements have accessible names', seen.length > 0 && named.length >= Math.min(3, seen.length), `${named.length}/${seen.length} named`);
       const sem = await s.page.evaluate(() => {
         const c = document.querySelector('[data-testid=tree-container]');
         const roles = Array.from(c.querySelectorAll('[role]')).map((e) => e.getAttribute('role'));
-        const labelled = !!c.querySelector('[aria-label],[aria-labelledby]');
-        const text = Array.from(c.querySelectorAll('table,ul,ol')).length > 0;
-        return { roles: [...new Set(roles)], labelled, textFallback: text };
+        return { roles: [...new Set(roles)], labelled: !!c.querySelector('[aria-label],[aria-labelledby]'), textFallback: c.querySelectorAll('table,ul,ol').length > 0 };
       });
       m.semantics = sem;
       ck.add('tree container exposes a role/label or a text fallback', sem.roles.length > 0 || sem.labelled || sem.textFallback, JSON.stringify(sem));
-      // Enter on a focused tip should activate it
-      const focusedTip = seen.find((d) => d.tip);
-      if (focusedTip) {
+      const focusedTip = seen.find(isTipTarget) && (await describe());
+      if (tipTargets.length) {
+        // Enter on the last focused tip-level element should activate it
+        await s.page.evaluate((uid) => {
+          for (const el of document.querySelectorAll('[data-testid=tree-container] *')) if (el.__spikeTab === uid) el.focus();
+        }, tipTargets[0].uid);
         await s.call('clearEvents');
         await s.page.keyboard.press('Enter');
-        await sleep(200);
-        const ev = await s.events();
-        m.enterActivates = ev.some((e) => e.type === 'tipClick');
+        await sleep(250);
+        m.enterActivates = (await s.events()).some((e) => e.type === 'tipClick');
       }
-      const status = ck.allOk ? 'pass' : ck.list.some((c) => c.ok) ? 'partial' : 'fail';
-      return result(status, ck.reason('') + (m.neededFocusTip ? '; tips were not focusable at the fit view, only after focusTip' : '') + (m.enterActivates === false ? '; Enter on a focused tip does not fire a click event' : ''), { checks: ck.list, measures: m });
+      void focusedTip;
+      const status = ck.allOk ? 'pass' : ck.list.some((c) => c.ok) && seen.length > 0 ? 'partial' : 'fail';
+      return result(status, ck.reason('') + (usedFocus ? '; tips were not focusable at the fit view, only after focusTip' : '') + (m.enterActivates === false ? '; Enter on a focused tip does not fire a click event' : ''), { checks: ck.list, measures: m });
     });
 
   // -------------------------------------------------------------------- S15
@@ -1161,10 +1350,15 @@ export function makeScenarios(ctx) {
       const colour = await s.page.evaluate(() => window.__spikeShell.linkedColour);
       const lat = [], paint = [];
       let okCount = 0;
+      let baseShot = null, baseRect = null;
       for (let k = 0; k < 5; k++) {
-        const p = await s.settleLocate({ kind: 'node', id: nodeId }, 0, 800);
+        const p = await locateNode(s, t, i, caps, 800);
+        if (k === 0) {
+          baseRect = await s.call('bounds', { kind: 'node', id: nodeId });
+          baseShot = baseRect ? await s.shot(baseRect) : null;
+        } // focusTip on a tip inside the clade first (scroll-only viewers)
         if (!p) {
-          ck.add(`click ${k + 1}: node locatable`, false);
+          ck.add(`click ${k + 1}: node locatable`, false, 'locate null even after focusTip on tips of the clade');
           break;
         }
         await s.call('clearEvents');
@@ -1186,10 +1380,11 @@ export function makeScenarios(ctx) {
         paint.push(im.lastEventPaint - im.pointerDown);
         if (k === 0) {
           const b = await s.call('bounds', { kind: 'node', id: nodeId });
-          if (b) {
-            const f = await colourFrac(s, b, colour, 80);
+          if (b && baseShot) {
+            const sh2 = await s.shot(baseRect);
+            const f = sh2 ? tintCount(sh2.png, baseShot.png, hexToRgb(colour), 40) : { frac: NaN, count: 0 };
             m.redFractionAfterClick = f.frac;
-            ck.add('clade is red after the click', f.frac >= 0.002, `${fmt(f.frac * 100, 2)}% of the clade box`);
+            ck.add('clade is red after the click (>= 0.1% of the clade box and >= 20 px move towards red)', f.frac >= 0.001 && f.count >= 20, `${fmt(f.frac * 100, 2)}% of the clade box`);
             const sh = await s.shot(await s.containerRect());
             if (sh) saveShot('S15-linked-view', sh.buf);
           } else ck.add('clade bounds available', false);
