@@ -421,7 +421,7 @@ function AptxView(props: ViewProps) {
     delete v.heatmap;
     v.layout = LAYOUT_TO_LIB[p.layout];
     v.display = p.branchLengths ? 'phylogram' : 'cladogram';
-    v.colorBy = fx.colourBy === 'column' && live.current.colInfo.texts.length ? live.current.colInfo.texts[0] : 'none';
+    v.colorBy = fx.colourBy === 'column' && live.current.colInfo.texts.length ? 'prop:' + live.current.colInfo.texts[0] : 'none';
     v.show = Array.from(show);
     const ci = live.current.colInfo;
     v.msa = fx.alignmentTrack !== false && ci.hasAlignment;
@@ -574,7 +574,7 @@ function AptxView(props: ViewProps) {
       msaLogo: f.alignmentLogo === true,
       heatmap: f.heatmapTrack !== false && live.current.colInfo.bars.length >= 2,
       scaleAxis: f.scaleAxis === true,
-      colorBy: f.colourBy === 'column' && live.current.colInfo.texts.length ? live.current.colInfo.texts[0] : 'none',
+      colorBy: f.colourBy === 'column' && live.current.colInfo.texts.length ? 'prop:' + live.current.colInfo.texts[0] : 'none',
       branch: f.branchWidth === '2' || f.branchWidth === '3' ? Number(f.branchWidth) : tree.tipCount > 50 ? 1 : 2,
     });
   }, [f.shortNames, f.autoHide, f.alignmentTrack, f.alignmentLogo, f.heatmapTrack, f.scaleAxis, f.colourBy, f.branchWidth, launches]);

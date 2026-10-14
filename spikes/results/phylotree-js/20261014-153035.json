@@ -1,0 +1,830 @@
+{
+ "runId": "20261014-153035",
+ "candidate": {
+  "name": "phylotree.js",
+  "version": "2.6.0",
+  "license": "MIT (LICENSE file; package.json has no license field)",
+  "notes": "phylotree 2.6.0 + d3 7.9.0 in our own React wrapper (useRef/useLayoutEffect); SVG; no GBIF-specific code in the library."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the tip <text>; tips have no marker, so the label is the click target (the wrapper adds a non-interactive dot for display only). Only reachable at a readable zoom."
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the internal-node <circle> (r<=3 user units, shrinks with the row height at the fit view)"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "display.on('branchClick', edge) on the branch <path>; the library also toggles its own selection and runs a full update() on every branch click"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "display.on('nodeHover') is mouseenter only (no leave event, no tip circle, so only tip labels and internal-node circles); tooltip is drawn by the shell"
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "payload is the d3.hierarchy node: tips carry node.data.name; for internal nodes the tip set is not delivered, the wrapper calls d3's node.leaves() on the payload node (events marked adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "edge-styler (stroke on every branch below the clade root, incl. its own) + node-styler (internal circles, tip dots, labels) driven from React state; applied by calling the stylers on the existing DOM (no layout). display.refresh() cannot be used: it passes the wrong `this` to the edge-styler"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "node-styler adds ring, row band, bold primary label from React state, no re-layout. The library's own selectNodes() runs a full update() and styles via fixed .node-selected CSS, so it is not used"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "node-styler wraps the library's <text> in an SVG <a href data-tip-id target=_blank tabindex=0>; real anchors, but only for tips currently in the DOM (all tips are in the DOM unless collapsed or hidden)"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "same mechanism: per-tip SVG paths grouped by residue colour (one path per colour per tip), so about 20 elements per tip; fine for a few hundred tips"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "option is-radial (display.radial(true) + update()); also is-unrooted (equal-angle) as a separate feature; columns are not drawn in radial layout"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "option scaling (false = cladogram, tips aligned). If any branch has no length the library silently sets ALL lengths to 1 (Phylotree constructor); negative lengths are clamped to 0"
+  },
+  "scaleBar": {
+   "level": "partial",
+   "how": "built-in d3 axis on top for phylograms (option show-scale), styled by CSS. In rectangular layouts the library draws it ~20% too long (nodes are placed at scales[1]*.8 but the axis spans the full range: a depth-100 ultrametric tree ends at the 78 tick), so the wrapper redraws the axis from the numbers the layout used (not for mirrored layout). Radial axis is a single tick. No dated (time) axis, no tick unit"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "colours come from CSS custom properties on the host element (--pt-*) set from gbifDarkTheme(); the library's own CSS is not imported, all rules are ours, nothing is redrawn on theme switch"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "background, foreground, branch, highlight, fontFamily map to --pt-* custom properties used by our CSS rules over the library's fixed class names (.branch, .node, .internal-node, .phylotree-node-text, .tree-scale-bar ...)"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no singleton: one phylotree + one TreeRender + one svg per host; ids are scoped by the host; the only global is a single document listener ('phylotree.event') registered once with a module-level function"
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "no destroy() upstream: the wrapper removes our listeners, interrupts transitions, removes d3.zoom and the capturing click handler from the host and drops the svg; the shared document listener of the library stays (one, deduplicated)"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "colour, highlight, links, columns, layout, lengths, theme, focus are props of our View applied through the stylers/options; the library keeps zoom, collapse, selection and reroot state inside the instance and offers no controlled viewport"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fit-to-size spacing plus responsive viewBox fits on mount and on every layout change (the wrapper resets the zoom); the library has no fit() method, the zoom extent is [0.1,10] unless widened through display.zoomBehavior"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
+  }
+ },
+ "date": "2026-10-14T15:32:31.292Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "syn-yule-200",
+   "otl-1k",
+   "syn-yule-1000",
+   "syn-yule-10000",
+   "otl-10k",
+   "gtdb-10k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 543344,
+  "jsGzipBytes": 179179,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 561516,
+  "totalGzipBytes": 183780,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-CUfHvm4k.js",
+    "bytes": 543344,
+    "gzipBytes": 179179
+   },
+   {
+    "path": "index.html",
+    "bytes": 406,
+    "gzipBytes": 273
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.6 < 20",
+     "phase": "done",
+     "fetchMs": 91.5,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 8.199999999254942,
+     "firstRenderMs": 208.40000000037253,
+     "sharedParseMs": 5.8999999994412065,
+     "reportedTips": 200,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 122 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=5.9); id mapping complete",
+     "loadMs": 216.59999999962747,
+     "ink": 0.11093350181645867,
+     "heapAfterMountMB": 5.634698867797852,
+     "stats": {
+      "domNodes": 1834,
+      "svgElements": 1832,
+      "canvases": 0,
+      "custom": {
+       "tips": 200,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 399,
+       "drawnBranches": 398,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 122
+      }
+     },
+     "clickLatencyMs": 18.299999999813735,
+     "clickToPaintMs": 183,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.579030475288175,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 19.15233951342228,
+     "droppedFrames": 408,
+     "maxFrameGapMs": 633.2999999999993,
+     "frames": 191,
+     "heapAfterInteractionMB": 6.026890754699707,
+     "heapMB": 6.026890754699707,
+     "pageErrors": [],
+     "wallSec": 14.145
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 3.2 < 20",
+     "phase": "done",
+     "fetchMs": 86.20000000018626,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 43.5,
+     "firstRenderMs": 844.2000000001863,
+     "sharedParseMs": 9.400000000372529,
+     "reportedTips": 888,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 615 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=9.4); id mapping complete",
+     "loadMs": 887.7000000001863,
+     "ink": 0.26548728478913286,
+     "heapAfterMountMB": 7.282273292541504,
+     "stats": {
+      "domNodes": 6751,
+      "svgElements": 6749,
+      "canvases": 0,
+      "custom": {
+       "tips": 888,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 1465,
+       "drawnBranches": 1464,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 615
+      }
+     },
+     "clickLatencyMs": 39.299999999813735,
+     "clickToPaintMs": 98.20000000018626,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 3.1575623618566393,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 20.771424879991688,
+     "droppedFrames": 395,
+     "maxFrameGapMs": 483.3000000000002,
+     "frames": 209,
+     "heapAfterInteractionMB": 7.258543014526367,
+     "heapMB": 7.258543014526367,
+     "pageErrors": [],
+     "wallSec": 13.489
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 4.0 < 20",
+     "phase": "done",
+     "fetchMs": 14.799999999813735,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 19.59999999962747,
+     "firstRenderMs": 478.3999999994412,
+     "sharedParseMs": 10.600000000558794,
+     "reportedTips": 1000,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 193 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=10.6); id mapping complete",
+     "loadMs": 497.9999999990687,
+     "ink": 0.2481724845995893,
+     "heapAfterMountMB": 8.54778003692627,
+     "stats": {
+      "domNodes": 9034,
+      "svgElements": 9032,
+      "canvases": 0,
+      "custom": {
+       "tips": 1000,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 1999,
+       "drawnBranches": 1998,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 193
+      }
+     },
+     "clickLatencyMs": 49.299999999813735,
+     "clickToPaintMs": 136.3999999994412,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 4,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 22.974678551706553,
+     "droppedFrames": 376,
+     "maxFrameGapMs": 266.7000000000007,
+     "frames": 233,
+     "heapAfterInteractionMB": 8.901671409606934,
+     "heapMB": 8.901671409606934,
+     "pageErrors": [],
+     "wallSec": 15.221
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.5 < 20; click latency 525 ms > 300 ms",
+     "phase": "done",
+     "fetchMs": 39.39999999944121,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 333.20000000018626,
+     "firstRenderMs": 7017.799999999814,
+     "sharedParseMs": 79.09999999962747,
+     "reportedTips": 10000,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 3675 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=79.1); id mapping complete",
+     "loadMs": 7351,
+     "ink": 0.40795608908545256,
+     "heapAfterMountMB": 35.820579528808594,
+     "stats": {
+      "domNodes": 90034,
+      "svgElements": 90032,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 19999,
+       "drawnBranches": 19998,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 3675
+      }
+     },
+     "clickLatencyMs": 524.6000000005588,
+     "clickToPaintMs": 1141.2999999998137,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.4999250037498109,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 11.216832985224562,
+     "droppedFrames": 631,
+     "maxFrameGapMs": 666.7000000000007,
+     "frames": 145,
+     "heapAfterInteractionMB": 37.700679779052734,
+     "heapMB": 37.700679779052734,
+     "pageErrors": [],
+     "wallSec": 31.856
+    },
+    "otl-10k": {
+     "treeId": "otl-10k",
+     "tips": 10018,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.6 < 20",
+     "phase": "done",
+     "fetchMs": 21.200000000186265,
+     "convertMs": 0,
+     "wireBytes": 128748,
+     "parseMs": 92.70000000018626,
+     "firstRenderMs": 1642.4000000003725,
+     "sharedParseMs": 29.40000000037253,
+     "reportedTips": 10018,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 721 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=29.4); id mapping complete",
+     "loadMs": 1735.1000000005588,
+     "ink": 0.21734007265834776,
+     "heapAfterMountMB": 27.16446018218994,
+     "stats": {
+      "domNodes": 69517,
+      "svgElements": 69515,
+      "canvases": 0,
+      "custom": {
+       "tips": 10018,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 14874,
+       "drawnBranches": 14873,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 721
+      }
+     },
+     "clickLatencyMs": null,
+     "clickToPaintMs": null,
+     "clickSamples": {
+      "events": 0,
+      "tries": 0,
+      "rightNode": 0
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.579279848389134,
+     "fpsP95": 60.24096385542202,
+     "fpsMean": 11.58704166546904,
+     "droppedFrames": 506,
+     "maxFrameGapMs": 633.2000000000003,
+     "frames": 121,
+     "heapAfterInteractionMB": 27.426405906677246,
+     "heapMB": 27.426405906677246,
+     "pageErrors": [],
+     "wallSec": 14.338
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: p5 fps 1.6 < 20; click latency 556 ms > 300 ms",
+     "phase": "done",
+     "fetchMs": 52.19999999925494,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 104.3999999994412,
+     "firstRenderMs": 2409,
+     "sharedParseMs": 53.40000000037253,
+     "reportedTips": 10122,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1127 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=53.4); id mapping complete",
+     "loadMs": 2513.399999999441,
+     "ink": 0.19393302795766865,
+     "heapAfterMountMB": 35.18306922912598,
+     "stats": {
+      "domNodes": 91135,
+      "svgElements": 91133,
+      "canvases": 0,
+      "custom": {
+       "tips": 10122,
+       "updates": 0,
+       "lastUpdateMs": 0,
+       "lastRestyleMs": 0,
+       "drawnNodes": 20243,
+       "drawnBranches": 20242,
+       "unmappedLibraryNodes": 0,
+       "unmappedEvents": 0,
+       "zoomK": 1,
+       "rerooted": 0,
+       "firstLayoutMs": 1127
+      }
+     },
+     "clickLatencyMs": 556.3999999994412,
+     "clickToPaintMs": 1201,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 1.5787811809283243,
+     "fpsP95": 60.24096385542697,
+     "fpsMean": 10.770614018655825,
+     "droppedFrames": 526,
+     "maxFrameGapMs": 633.3999999999996,
+     "frames": 115,
+     "heapAfterInteractionMB": 36.77961444854736,
+     "heapMB": 36.77961444854736,
+     "pageErrors": [],
+     "wallSec": 23.6
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-yule-200: timeout (unusable: p5 fps 1.6 < 20); otl-1k: timeout (unusable: p5 fps 3.2 < 20); syn-yule-1000: timeout (unusable: p5 fps 4.0 < 20); syn-yule-10000: timeout (unusable: p5 fps 1.5 < 20; click latency 525 ms > 300 ms); otl-10k: timeout (unusable: p5 fps 1.6 < 20); gtdb-10k: timeout (unusable: p5 fps 1.6 < 20; click latency 556 ms > 300 ms)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 112.651
+  }
+ },
+ "scale": {
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.6 < 20",
+   "phase": "done",
+   "fetchMs": 91.5,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 8.199999999254942,
+   "firstRenderMs": 208.40000000037253,
+   "sharedParseMs": 5.8999999994412065,
+   "reportedTips": 200,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 122 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=5.9); id mapping complete",
+   "loadMs": 216.59999999962747,
+   "ink": 0.11093350181645867,
+   "heapAfterMountMB": 5.634698867797852,
+   "stats": {
+    "domNodes": 1834,
+    "svgElements": 1832,
+    "canvases": 0,
+    "custom": {
+     "tips": 200,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 399,
+     "drawnBranches": 398,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 122
+    }
+   },
+   "clickLatencyMs": 18.299999999813735,
+   "clickToPaintMs": 183,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.579030475288175,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 19.15233951342228,
+   "droppedFrames": 408,
+   "maxFrameGapMs": 633.2999999999993,
+   "frames": 191,
+   "heapAfterInteractionMB": 6.026890754699707,
+   "heapMB": 6.026890754699707,
+   "pageErrors": [],
+   "wallSec": 14.145
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 3.2 < 20",
+   "phase": "done",
+   "fetchMs": 86.20000000018626,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 43.5,
+   "firstRenderMs": 844.2000000001863,
+   "sharedParseMs": 9.400000000372529,
+   "reportedTips": 888,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 615 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=9.4); id mapping complete",
+   "loadMs": 887.7000000001863,
+   "ink": 0.26548728478913286,
+   "heapAfterMountMB": 7.282273292541504,
+   "stats": {
+    "domNodes": 6751,
+    "svgElements": 6749,
+    "canvases": 0,
+    "custom": {
+     "tips": 888,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 1465,
+     "drawnBranches": 1464,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 615
+    }
+   },
+   "clickLatencyMs": 39.299999999813735,
+   "clickToPaintMs": 98.20000000018626,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 3.1575623618566393,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 20.771424879991688,
+   "droppedFrames": 395,
+   "maxFrameGapMs": 483.3000000000002,
+   "frames": 209,
+   "heapAfterInteractionMB": 7.258543014526367,
+   "heapMB": 7.258543014526367,
+   "pageErrors": [],
+   "wallSec": 13.489
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 4.0 < 20",
+   "phase": "done",
+   "fetchMs": 14.799999999813735,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 19.59999999962747,
+   "firstRenderMs": 478.3999999994412,
+   "sharedParseMs": 10.600000000558794,
+   "reportedTips": 1000,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 193 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=10.6); id mapping complete",
+   "loadMs": 497.9999999990687,
+   "ink": 0.2481724845995893,
+   "heapAfterMountMB": 8.54778003692627,
+   "stats": {
+    "domNodes": 9034,
+    "svgElements": 9032,
+    "canvases": 0,
+    "custom": {
+     "tips": 1000,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 1999,
+     "drawnBranches": 1998,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 193
+    }
+   },
+   "clickLatencyMs": 49.299999999813735,
+   "clickToPaintMs": 136.3999999994412,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 4,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 22.974678551706553,
+   "droppedFrames": 376,
+   "maxFrameGapMs": 266.7000000000007,
+   "frames": 233,
+   "heapAfterInteractionMB": 8.901671409606934,
+   "heapMB": 8.901671409606934,
+   "pageErrors": [],
+   "wallSec": 15.221
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.5 < 20; click latency 525 ms > 300 ms",
+   "phase": "done",
+   "fetchMs": 39.39999999944121,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 333.20000000018626,
+   "firstRenderMs": 7017.799999999814,
+   "sharedParseMs": 79.09999999962747,
+   "reportedTips": 10000,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 3675 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=79.1); id mapping complete",
+   "loadMs": 7351,
+   "ink": 0.40795608908545256,
+   "heapAfterMountMB": 35.820579528808594,
+   "stats": {
+    "domNodes": 90034,
+    "svgElements": 90032,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 19999,
+     "drawnBranches": 19998,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 3675
+    }
+   },
+   "clickLatencyMs": 524.6000000005588,
+   "clickToPaintMs": 1141.2999999998137,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.4999250037498109,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 11.216832985224562,
+   "droppedFrames": 631,
+   "maxFrameGapMs": 666.7000000000007,
+   "frames": 145,
+   "heapAfterInteractionMB": 37.700679779052734,
+   "heapMB": 37.700679779052734,
+   "pageErrors": [],
+   "wallSec": 31.856
+  },
+  "otl-10k": {
+   "treeId": "otl-10k",
+   "tips": 10018,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.6 < 20",
+   "phase": "done",
+   "fetchMs": 21.200000000186265,
+   "convertMs": 0,
+   "wireBytes": 128748,
+   "parseMs": 92.70000000018626,
+   "firstRenderMs": 1642.4000000003725,
+   "sharedParseMs": 29.40000000037253,
+   "reportedTips": 10018,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 721 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=29.4); id mapping complete",
+   "loadMs": 1735.1000000005588,
+   "ink": 0.21734007265834776,
+   "heapAfterMountMB": 27.16446018218994,
+   "stats": {
+    "domNodes": 69517,
+    "svgElements": 69515,
+    "canvases": 0,
+    "custom": {
+     "tips": 10018,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 14874,
+     "drawnBranches": 14873,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 721
+    }
+   },
+   "clickLatencyMs": null,
+   "clickToPaintMs": null,
+   "clickSamples": {
+    "events": 0,
+    "tries": 0,
+    "rightNode": 0
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.579279848389134,
+   "fpsP95": 60.24096385542202,
+   "fpsMean": 11.58704166546904,
+   "droppedFrames": 506,
+   "maxFrameGapMs": 633.2000000000003,
+   "frames": 121,
+   "heapAfterInteractionMB": 27.426405906677246,
+   "heapMB": 27.426405906677246,
+   "pageErrors": [],
+   "wallSec": 14.338
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: p5 fps 1.6 < 20; click latency 556 ms > 300 ms",
+   "phase": "done",
+   "fetchMs": 52.19999999925494,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 104.3999999994412,
+   "firstRenderMs": 2409,
+   "sharedParseMs": 53.40000000037253,
+   "reportedTips": 10122,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1127 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=53.4); id mapping complete",
+   "loadMs": 2513.399999999441,
+   "ink": 0.19393302795766865,
+   "heapAfterMountMB": 35.18306922912598,
+   "stats": {
+    "domNodes": 91135,
+    "svgElements": 91133,
+    "canvases": 0,
+    "custom": {
+     "tips": 10122,
+     "updates": 0,
+     "lastUpdateMs": 0,
+     "lastRestyleMs": 0,
+     "drawnNodes": 20243,
+     "drawnBranches": 20242,
+     "unmappedLibraryNodes": 0,
+     "unmappedEvents": 0,
+     "zoomK": 1,
+     "rerooted": 0,
+     "firstLayoutMs": 1127
+    }
+   },
+   "clickLatencyMs": 556.3999999994412,
+   "clickToPaintMs": 1201,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 1.5787811809283243,
+   "fpsP95": 60.24096385542697,
+   "fpsMean": 10.770614018655825,
+   "droppedFrames": 526,
+   "maxFrameGapMs": 633.3999999999996,
+   "frames": 115,
+   "heapAfterInteractionMB": 36.77961444854736,
+   "heapMB": 36.77961444854736,
+   "pageErrors": [],
+   "wallSec": 23.6
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-200",
+   "file": "screens/20261014-153035-S1-syn-yule-200.png",
+   "bytes": 103087
+  }
+ ],
+ "wallSec": 115.575,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

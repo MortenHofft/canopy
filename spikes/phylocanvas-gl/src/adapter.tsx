@@ -545,6 +545,31 @@ function PhylocanvasView(props: ViewProps) {
         }
       }
     };
+    // ---- wheel: the library zooms BOTH axes with a plain wheel (deck OrthographicController); a table-like layout wants rows only.
+    // Capture-phase listener that handles the plain wheel with the library's own setStepZoom (shift/alt keep the library path,
+    // ctrl/meta = branch zoom is the library's). Zooming out to the fit snaps back to fitInCanvas().
+    const onWheel = (e: WheelEvent) => {
+      const l = libRef.current;
+      if (!l || String(featRef.current.wheel ?? 'rows') !== 'rows') return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !l.getStepZoomingAxis()) return;
+      const r = host.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = -e.deltaY * (e.deltaMode === 1 ? 33 : 1);
+      const sc = 2 / (1 + Math.exp(-Math.abs(delta * 0.01)));
+      const dz = Math.log2(delta < 0 ? 1 / sc : sc);
+      const cur = l.getStepZoom();
+      if (cur + dz <= 0.001) {
+        if (cur !== 0 || l.getZoom() !== 0 || l.getBranchZoom() !== 0) l.fitInCanvas();
+        return;
+      }
+      const ratio = l.getStepScale() / Math.pow(2, cur);
+      const ext = l.getTreeType() === 'hr' ? l.getCanvasSize().width : l.getCanvasSize().height;
+      const max = Math.log2(Math.max(1, ext / 2 / ratio));
+      l.setStepZoom(Math.min(max, cur + dz), [e.clientX - r.left, e.clientY - r.top]);
+    };
+    wrap.addEventListener('wheel', onWheel, { capture: true, passive: false });
     wrap.addEventListener('pointerdown', onDown);
     wrap.addEventListener('pointerup', onUp);
     wrap.addEventListener('pointermove', onMove);
@@ -552,6 +577,7 @@ function PhylocanvasView(props: ViewProps) {
     scheduleOverlay();
     const host2 = host;
     return () => {
+      wrap.removeEventListener('wheel', onWheel, { capture: true } as any);
       wrap.removeEventListener('pointerdown', onDown);
       wrap.removeEventListener('pointerup', onUp);
       wrap.removeEventListener('pointermove', onMove);
@@ -850,6 +876,7 @@ const capabilities: CapabilityReport = {
 };
 
 const features: AdapterFeature[] = [
+  { id: 'wheel', label: 'Mouse wheel zooms', kind: 'select', default: 'rows', options: [{ value: 'rows', label: 'Rows only (table-like; shift/ctrl: library keys)' }, { value: 'library', label: 'Both axes (library default)' }], level: 'partial', how: 'The library controller zooms both axes on a plain wheel (shift/alt = rows, ctrl/meta = branches). We intercept the plain wheel in rectangular, diagonal and hierarchical layouts and call the library\'s setStepZoom; zooming out to the fit calls fitInCanvas().' },
   { id: 'picking', label: 'Picking and events', kind: 'select', default: (import.meta as any).env?.VITE_PC_PICKING ?? 'own', options: [{ value: 'own', label: 'Own CPU hit-test on the laid-out graph' }, { value: 'library', label: 'Library GPU picking (deck.gl)' }], level: 'partial', how: 'library: deck.gl renders a pick pass on every pointerdown and after every pointer move (synchronous readback, internal nodes only via the edge under a 2 px radius). own: hitTest() scans the visible subtree on the CPU (tips, labels, branches, collapsed clades) and calls the same wrapped selectNode / highlightNode; deck _pickable is switched off.' },
   { id: 'treeType', label: 'Layout (library tree type)', kind: 'select', default: 'auto', options: [{ value: 'auto', label: 'Follow rectangular/radial tabs' }, { value: 'rc', label: 'Rectangular (rc)' }, { value: 'cr', label: 'Circular (cr)' }, { value: 'rd', label: 'Radial / unrooted (rd)' }, { value: 'dg', label: 'Diagonal (dg)' }, { value: 'hr', label: 'Hierarchical (hr)' }], level: 'yes', how: 'Library `type` prop; resets zoom and centre on change.' },
   { id: 'labels', label: 'Tip labels', kind: 'toggle', default: true, description: 'showLabels + showLeafLabels. Labels are thinned by the library when rows are smaller than the font.' },

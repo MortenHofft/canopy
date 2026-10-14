@@ -149,7 +149,7 @@ export function installCustomLayers(tree: any): void {
             id,
             image: img,
             bounds: [wx0, last.y + stepWorld / 2, wx1, first.y - stepWorld / 2],
-            textureParameters: { minFilter: 'nearest', magFilter: 'nearest', mipmaps: false },
+            textureParameters: { 10241: 9728, 10240: 9728, 10242: 33071, 10243: 33071 }, // GL.TEXTURE_MIN/MAG_FILTER = NEAREST, WRAP_S/T = CLAMP_TO_EDGE (numeric: luma constants are not a direct dependency)
           } as any);
         }
         const leaves = visibleLeaves(t, graph);
