@@ -1,0 +1,11 @@
+{
+  "name": "spike-runner",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "playwright-core": "1.56.1",
+    "pngjs": "7.0.0"
+  }
+}

@@ -1,0 +1,1077 @@
+{
+ "asOf": "2026-10-14",
+ "legend": {
+  "c": {
+   "y": "Yes",
+   "p": "Partial",
+   "n": "No",
+   "u": "Unknown"
+  },
+  "e": {
+   "M": "Measured or tried hands-on",
+   "S": "Verified in source or registry (read by research agents, not re-checked)",
+   "D": "Stated in the project's documentation",
+   "C": "Claimed (paper, README, changelog)",
+   "N": "Looked for, not found",
+   "U": "Not looked at"
+  },
+  "eShort": {
+   "M": "measured or tried",
+   "S": "source or registry",
+   "D": "project docs",
+   "C": "claimed",
+   "N": "not found",
+   "U": "not looked at"
+  }
+ },
+ "dimensions": [
+  {
+   "id": "g1",
+   "label": "Licence",
+   "group": "Gates",
+   "help": "Compatible with an Apache-2.0 project shipping a browser bundle, or flagged for legal review"
+  },
+  {
+   "id": "g2",
+   "label": "Browser-only",
+   "group": "Gates",
+   "help": "Runs in the browser from static files, no per-user server"
+  },
+  {
+   "id": "g3",
+   "label": "React",
+   "group": "Gates",
+   "help": "React 18/19 component, or an API a thin wrapper can drive with clean mount/unmount"
+  },
+  {
+   "id": "g4",
+   "label": "Maintained",
+   "group": "Gates",
+   "help": "Recent release or commit, not archived, maintainer answers"
+  },
+  {
+   "id": "tip",
+   "label": "Tip events",
+   "group": "Interaction",
+   "help": "Click/hover on tips with a React callback"
+  },
+  {
+   "id": "node",
+   "label": "Node events",
+   "group": "Interaction",
+   "help": "Click/hover on internal nodes and branches, with the descendant tips"
+  },
+  {
+   "id": "link",
+   "label": "Tip links",
+   "group": "Interaction",
+   "help": "Tip label as a real, focusable link"
+  },
+  {
+   "id": "clade",
+   "label": "Clade colour",
+   "group": "Customisation",
+   "help": "Colour a clade from code and clear it again"
+  },
+  {
+   "id": "cols",
+   "label": "Custom columns",
+   "group": "Customisation",
+   "help": "Aligned per-tip content (counts, alignments, traits), ideally React-rendered"
+  },
+  {
+   "id": "style",
+   "label": "Styling hooks",
+   "group": "Customisation",
+   "help": "Tokens, per-node style callbacks, dark mode"
+  },
+  {
+   "id": "layout",
+   "label": "Layouts",
+   "group": "Visual",
+   "help": "Rectangular and radial (unrooted a bonus)"
+  },
+  {
+   "id": "bl",
+   "label": "Branch lengths",
+   "group": "Visual",
+   "help": "Phylogram/cladogram, scale bar, time axis"
+  },
+  {
+   "id": "overview",
+   "label": "Overview",
+   "group": "Visual",
+   "help": "Whole-tree view, minimap, summaries when zoomed out"
+  },
+  {
+   "id": "scale",
+   "label": "Scale",
+   "group": "Scale",
+   "help": "How many tips it handles, measured not claimed"
+  },
+  {
+   "id": "parse",
+   "label": "Formats",
+   "group": "Data and logic",
+   "help": "Newick, Nexus (TRANSLATE), phyloXML, annotations"
+  },
+  {
+   "id": "ops",
+   "label": "Tree ops",
+   "group": "Data and logic",
+   "help": "Reroot, collapse, prune, subtree in the library"
+  }
+ ],
+ "candidates": [
+  {
+   "id": "tbrowse",
+   "title": "tbrowse",
+   "kind": "spike",
+   "repo": "https://github.com/warelab/tbrowse",
+   "demo": "https://warelab.github.io/tbrowse/playground",
+   "license": "MIT",
+   "version": "2.10.0",
+   "rendering": "SVG tree, canvas alignment",
+   "research": "docs/research/discovery.md",
+   "summary": "React component for a tree with aligned data zones. Closest to the table-like layout we like.",
+   "verdict": "Best model for the aligned-zones layout and URL-serialisable state. Hands-on (user): slow on large trees, no whole-tree zoom-out.",
+   "cells": {
+    "g1": {
+     "c": "y",
+     "e": "S",
+     "t": "MIT"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static React app"
+    },
+    "g3": {
+     "c": "y",
+     "e": "S",
+     "t": "Native React 18 component with controlled viewState"
+    },
+    "g4": {
+     "c": "y",
+     "e": "S",
+     "t": "npm 2.10.0 on 2026-09-02, commit 2026-10-02; 2.0 was a rewrite after a 2020 to 2026 gap; contributors not counted"
+    },
+    "tip": {
+     "c": "y",
+     "e": "S",
+     "t": "onSelectNode / onHoverNode in zone render props"
+    },
+    "node": {
+     "c": "u",
+     "e": "U",
+     "t": "selectedNodeId and hoveredSubtreeIds exist; internal node click not confirmed"
+    },
+    "clade": {
+     "c": "u",
+     "e": "U",
+     "t": "Not looked at in source; tested in the spike"
+    },
+    "link": {
+     "c": "u",
+     "e": "U",
+     "t": "Tested in the spike"
+    },
+    "cols": {
+     "c": "y",
+     "e": "S",
+     "t": "ZoneDefinition render props with virtualised rows; canvas MSA zone"
+    },
+    "style": {
+     "c": "u",
+     "e": "U",
+     "t": "Tested in the spike"
+    },
+    "layout": {
+     "c": "p",
+     "e": "S",
+     "t": "Phylogram/cladogram style only, no circular layout"
+    },
+    "bl": {
+     "c": "u",
+     "e": "U",
+     "t": "Nodes carry a distance; drawing not checked"
+    },
+    "overview": {
+     "c": "n",
+     "e": "M",
+     "t": "User tried the playground: no whole-tree zoom-out"
+    },
+    "scale": {
+     "c": "p",
+     "e": "M",
+     "t": "User found it slow on large trees (tip count not recorded). SVG tree."
+    },
+    "parse": {
+     "c": "n",
+     "e": "S",
+     "t": "Flat node table input; no Newick or Nexus parser documented"
+    },
+    "ops": {
+     "c": "p",
+     "e": "D",
+     "t": "prune and swap in viewState; no reroot noted"
+    }
+   }
+  },
+  {
+   "id": "react-bio-viz",
+   "title": "react-bio-viz",
+   "kind": "spike",
+   "repo": "https://github.com/holmrenser/react-bio-viz",
+   "demo": "https://holmrenser.github.io/react-bio-viz/",
+   "license": "MIT",
+   "version": "0.3.0",
+   "rendering": "SVG",
+   "research": "docs/research/react-bio-viz.md",
+   "summary": "React components for biological views, including PhyloTree and a canvas alignment viewer.",
+   "verdict": "Cleanest React API: controlled viewport and selection, node click returns the descendant tips. SVG without culling; one maintainer; very new releases.",
+   "cells": {
+    "g1": {
+     "c": "y",
+     "e": "S",
+     "t": "MIT"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "y",
+     "e": "S",
+     "t": "React 18/19; controlled and uncontrolled state props"
+    },
+    "g4": {
+     "c": "p",
+     "e": "S",
+     "t": "0.1.0 to 0.3.0 released 2026-10-07/08 after a 2024 gap; one maintainer"
+    },
+    "tip": {
+     "c": "y",
+     "e": "S",
+     "t": "onNodeClick for tips; no hover callback"
+    },
+    "node": {
+     "c": "y",
+     "e": "S",
+     "t": "onNodeClick/onBranchClick fire for internal nodes with leafNames and descendantIds"
+    },
+    "clade": {
+     "c": "p",
+     "e": "S",
+     "t": "nodeStyles and branchStyles keyed by node id; build the clade map from descendantIds"
+    },
+    "link": {
+     "c": "y",
+     "e": "S",
+     "t": "leafTextComponent render prop can render an anchor (to verify in the spike)"
+    },
+    "cols": {
+     "c": "p",
+     "e": "S",
+     "t": "Alignment viewer shares row order; no column abstraction for the tree"
+    },
+    "style": {
+     "c": "p",
+     "e": "S",
+     "t": "Per-node and per-branch styles; bundled stylesheet; no dark mode noted"
+    },
+    "layout": {
+     "c": "y",
+     "e": "S",
+     "t": "Rectangular, cladogram, radial; no unrooted"
+    },
+    "bl": {
+     "c": "y",
+     "e": "S",
+     "t": "Phylogram and cladogram layouts"
+    },
+    "overview": {
+     "c": "n",
+     "e": "S",
+     "t": "No culling or level of detail; manual collapse only"
+    },
+    "scale": {
+     "c": "p",
+     "e": "S",
+     "t": "SVG, about 8 elements per tip, unmeasured; expect low thousands"
+    },
+    "parse": {
+     "c": "p",
+     "e": "S",
+     "t": "Newick only; recursive parser (deep trees risk overflow)"
+    },
+    "ops": {
+     "c": "y",
+     "e": "S",
+     "t": "Reroot, midpoint root, collapse, reorder"
+    }
+   }
+  },
+  {
+   "id": "phylotree-js",
+   "title": "phylotree.js",
+   "kind": "spike",
+   "repo": "https://github.com/veg/phylotree.js",
+   "demo": "",
+   "license": "MIT",
+   "version": "2.6.0",
+   "rendering": "SVG (d3)",
+   "research": "docs/research/phylotree-js.md",
+   "summary": "d3-based phylogenetics library with rendering, selection and tree operations.",
+   "verdict": "Most hookable (click, hover, node and edge stylers) but SVG and old-style dependencies; needs our own React wrapper; smooth only to a few thousand tips (estimate).",
+   "cells": {
+    "g1": {
+     "c": "p",
+     "e": "S",
+     "t": "MIT per LICENSE file; no license field in package.json"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "p",
+     "e": "S",
+     "t": "No component, no destroy(); wrapper with useRef/useEffect needed"
+    },
+    "g4": {
+     "c": "y",
+     "e": "C",
+     "t": "Maintained; contributor count inferred from emails only"
+    },
+    "tip": {
+     "c": "y",
+     "e": "S",
+     "t": "nodeClick, nodeHover"
+    },
+    "node": {
+     "c": "y",
+     "e": "S",
+     "t": "nodeClick, branchClick, selectionChange pass the node object"
+    },
+    "clade": {
+     "c": "y",
+     "e": "S",
+     "t": "node-styler and edge-styler run for every node and edge; clade selection built in"
+    },
+    "link": {
+     "c": "p",
+     "e": "S",
+     "t": "Append an anchor in node-styler; own hit area"
+    },
+    "cols": {
+     "c": "p",
+     "e": "S",
+     "t": "Append SVG in node-styler, align-tips; no column abstraction"
+    },
+    "style": {
+     "c": "y",
+     "e": "S",
+     "t": "Style callbacks; no CSS variables or dark mode"
+    },
+    "layout": {
+     "c": "y",
+     "e": "D",
+     "t": "Linear and radial"
+    },
+    "bl": {
+     "c": "y",
+     "e": "D",
+     "t": "Scaled and unscaled branches"
+    },
+    "overview": {
+     "c": "n",
+     "e": "S",
+     "t": "No culling; every update redraws everything"
+    },
+    "scale": {
+     "c": "p",
+     "e": "C",
+     "t": "Estimated smooth to 2-3k tips, laggy at 5-10k (agent estimate, unmeasured)"
+    },
+    "parse": {
+     "c": "p",
+     "e": "S",
+     "t": "Newick, first phyloXML tree; Nexus first tree only, no TRANSLATE"
+    },
+    "ops": {
+     "c": "y",
+     "e": "D",
+     "t": "Reroot, ladderize, collapse, subtree, MRCA"
+    }
+   }
+  },
+  {
+   "id": "phylocanvas-gl",
+   "title": "Phylocanvas.gl",
+   "kind": "spike",
+   "repo": "https://gitlab.com/cgps/phylocanvas/phylocanvas.gl",
+   "demo": "",
+   "license": "MIT",
+   "version": "1.64.1",
+   "rendering": "WebGL (deck.gl)",
+   "research": "docs/research/phylocanvas-gl.md",
+   "summary": "WebGL tree renderer from the Centre for Genomic Pathogen Surveillance; powers Microreact.",
+   "verdict": "Scales best of the libraries we can embed, but no callbacks (method patching), tips-only selection, one canvas per page, deck.gl 8 pinned.",
+   "cells": {
+    "g1": {
+     "c": "y",
+     "e": "S",
+     "t": "MIT (npm)"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "p",
+     "e": "S",
+     "t": "No React component; own wrapper of about 100 lines"
+    },
+    "g4": {
+     "c": "p",
+     "e": "S",
+     "t": "Published 2026-07-13; upstream README says feature complete, no support"
+    },
+    "tip": {
+     "c": "p",
+     "e": "S",
+     "t": "Events only by decorating selectNode/highlightNode (monkey-patching)"
+    },
+    "node": {
+     "c": "n",
+     "e": "S",
+     "t": "Selection is tips only; internal ids synthetic and unstable"
+    },
+    "clade": {
+     "c": "p",
+     "e": "S",
+     "t": "Per-tip styles only; collapse and re-root supported"
+    },
+    "link": {
+     "c": "n",
+     "e": "U",
+     "t": "WebGL; would need an overlay"
+    },
+    "cols": {
+     "c": "p",
+     "e": "S",
+     "t": "Coloured-block columns and custom deck.gl layers"
+    },
+    "style": {
+     "c": "p",
+     "e": "S",
+     "t": "Per-tip shape, colour, label; no CSS (WebGL)"
+    },
+    "layout": {
+     "c": "y",
+     "e": "S",
+     "t": "Rectangular, circular, radial, diagonal, hierarchical"
+    },
+    "bl": {
+     "c": "u",
+     "e": "U",
+     "t": "Not checked"
+    },
+    "overview": {
+     "c": "u",
+     "e": "U",
+     "t": "Not checked"
+    },
+    "scale": {
+     "c": "y",
+     "e": "C",
+     "t": "Paper claims 100K+ nodes; unmeasured"
+    },
+    "parse": {
+     "c": "p",
+     "e": "S",
+     "t": "Newick only, naive tokenizer; no quoted delimiters"
+    },
+    "ops": {
+     "c": "p",
+     "e": "S",
+     "t": "Collapse and root-at-node"
+    }
+   }
+  },
+  {
+   "id": "archaeopteryx-js",
+   "title": "Archaeopteryx.js",
+   "kind": "spike",
+   "repo": "https://github.com/cmzmasek/archaeopteryx-js",
+   "demo": "https://cmzmasek.github.io/archaeopteryx-js/",
+   "license": "LGPL-3.0",
+   "version": "3.24.0",
+   "rendering": "SVG (d3)",
+   "research": "docs/research/archaeopteryx-js.md",
+   "summary": "Full phylogenetic tree viewer (port of the Java tool) with heat map, alignment and domain tracks.",
+   "verdict": "Richest built-in tracks and formats, but a whole app: no node click callback, singleton, one maintainer, large API churn.",
+   "cells": {
+    "g1": {
+     "c": "p",
+     "e": "S",
+     "t": "LGPL-3.0 plus LGPL-2.1+ phyloxml dependency; separate replaceable file needed"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "p",
+     "e": "S",
+     "t": "Imperative launch/destroy; one viewer per page"
+    },
+    "g4": {
+     "c": "p",
+     "e": "S",
+     "t": "One maintainer; 22 releases in 33 days after a quiet period; 118 config keys removed in 3.0"
+    },
+    "tip": {
+     "c": "n",
+     "e": "S",
+     "t": "No click or hover callback"
+    },
+    "node": {
+     "c": "n",
+     "e": "S",
+     "t": "Only a payload-less selected_nodes_changed_event on document"
+    },
+    "clade": {
+     "c": "p",
+     "e": "D",
+     "t": "Colour by property; highlight through view state search"
+    },
+    "link": {
+     "c": "u",
+     "e": "U",
+     "t": "Tested in the spike"
+    },
+    "cols": {
+     "c": "p",
+     "e": "S",
+     "t": "Built-in heat map, alignment, logo, domain tracks; not custom React content"
+    },
+    "style": {
+     "c": "p",
+     "e": "S",
+     "t": "Many config keys, some not honoured"
+    },
+    "layout": {
+     "c": "y",
+     "e": "S",
+     "t": "Rectangular, circular, unrooted"
+    },
+    "bl": {
+     "c": "y",
+     "e": "S",
+     "t": "Phylogram, aligned and cladogram display modes"
+    },
+    "overview": {
+     "c": "p",
+     "e": "S",
+     "t": "Label thinning and windowed tracks; auto-collapse removed"
+    },
+    "scale": {
+     "c": "p",
+     "e": "C",
+     "t": "Changelog claims 50k nodes at 60 fps (self-reported)"
+    },
+    "parse": {
+     "c": "y",
+     "e": "S",
+     "t": "Newick, NHX, Nexus, phyloXML, Auspice JSON, BEAST annotations"
+    },
+    "ops": {
+     "c": "y",
+     "e": "D",
+     "t": "MAD and midpoint rooting, collapse, ladderize"
+    }
+   }
+  },
+  {
+   "id": "custom",
+   "title": "Custom baseline (ours)",
+   "kind": "design",
+   "repo": "",
+   "demo": "",
+   "license": "Apache-2.0",
+   "version": "planned",
+   "rendering": "Canvas2D + React",
+   "research": "docs/research/custom-renderer.md",
+   "summary": "A small typed-array tree model with a Canvas2D renderer and a React layer, designed to meet every criterion.",
+   "verdict": "Design target, not yet measured. Agent estimate: about 9 engineer-weeks for an MVP at 100k tips. The spike builds a minimal version to set the performance ceiling.",
+   "cells": {
+    "tip": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "node": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "clade": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "link": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "cols": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "style": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "layout": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "bl": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "overview": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "scale": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "parse": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "ops": {
+     "c": "y",
+     "e": "U",
+     "t": "Design target, not built or measured"
+    },
+    "g1": {
+     "c": "y",
+     "e": "S",
+     "t": "Ours, Apache-2.0"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "y",
+     "e": "S",
+     "t": "Native"
+    },
+    "g4": {
+     "c": "p",
+     "e": "U",
+     "t": "We would maintain it"
+    }
+   }
+  },
+  {
+   "id": "taxonium",
+   "title": "Taxonium",
+   "kind": "reference",
+   "repo": "https://github.com/theosanderson/taxonium",
+   "demo": "https://taxonium.org",
+   "license": "GPL-3.0",
+   "version": "",
+   "rendering": "WebGL (deck.gl)",
+   "research": "docs/research/taxonium.md",
+   "summary": "WebGL viewer for trees with millions of nodes, shipped as a whole app inside a React component.",
+   "verdict": "Strong renderer, wrong packaging: GPL-3.0, React 19 only, singleton, only onNodeSelect. Not spiked.",
+   "cells": {
+    "g1": {
+     "c": "n",
+     "e": "S",
+     "t": "GPL-3.0; no license field in the component package"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static mode available"
+    },
+    "g3": {
+     "c": "p",
+     "e": "S",
+     "t": "React 19 only; module-level singleton"
+    },
+    "g4": {
+     "c": "y",
+     "e": "S",
+     "t": "Last commit 2026-10-07; npm 2026-02-04; about 85% of commits by one person"
+    },
+    "tip": {
+     "c": "p",
+     "e": "S",
+     "t": "onNodeSelect(nodeId) only"
+    },
+    "node": {
+     "c": "u",
+     "e": "U",
+     "t": "Not confirmed for internal nodes"
+    },
+    "clade": {
+     "c": "p",
+     "e": "S",
+     "t": "Colour by metadata field or search state"
+    },
+    "link": {
+     "c": "n",
+     "e": "U",
+     "t": "WebGL"
+    },
+    "cols": {
+     "c": "n",
+     "e": "S",
+     "t": "Fixed layers; no custom columns"
+    },
+    "style": {
+     "c": "p",
+     "e": "S",
+     "t": "Colour config, no per-node callback"
+    },
+    "layout": {
+     "c": "n",
+     "e": "S",
+     "t": "Rectangular only"
+    },
+    "bl": {
+     "c": "p",
+     "e": "S",
+     "t": "x axis can switch between distance and time"
+    },
+    "overview": {
+     "c": "p",
+     "e": "D",
+     "t": "Level of detail by design"
+    },
+    "scale": {
+     "c": "y",
+     "e": "C",
+     "t": "Millions of nodes claimed; browser unreliable above about 6M tips"
+    },
+    "parse": {
+     "c": "p",
+     "e": "S",
+     "t": "Newick, Nexus via regex; no phyloXML"
+    },
+    "ops": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    }
+   }
+  },
+  {
+   "id": "reactree",
+   "title": "Reactree",
+   "kind": "reference",
+   "repo": "https://github.com/vaaloo/reactreejs",
+   "demo": "https://reactree.vaaloo.fr/",
+   "license": "MIT",
+   "version": "",
+   "rendering": "SVG (d3)",
+   "research": "docs/research/reactree.md",
+   "summary": "React component for Newick trees with an optional alignment panel.",
+   "verdict": "Three props, no callbacks or custom content; rebuilds the whole SVG on any change; captures Ctrl/Cmd+F. Rejected.",
+   "cells": {
+    "g1": {
+     "c": "y",
+     "e": "S",
+     "t": "MIT"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "p",
+     "e": "S",
+     "t": "Component, but no callbacks or refs"
+    },
+    "g4": {
+     "c": "p",
+     "e": "S",
+     "t": "11 commits, 1 star, no releases"
+    },
+    "tip": {
+     "c": "n",
+     "e": "S",
+     "t": "No callbacks"
+    },
+    "node": {
+     "c": "n",
+     "e": "S",
+     "t": "Click collapses a clade internally; no event"
+    },
+    "clade": {
+     "c": "n",
+     "e": "S",
+     "t": "UI feature only; no API"
+    },
+    "link": {
+     "c": "n",
+     "e": "S",
+     "t": "No"
+    },
+    "cols": {
+     "c": "n",
+     "e": "S",
+     "t": "FASTA panel only"
+    },
+    "style": {
+     "c": "p",
+     "e": "S",
+     "t": "CSS tokens and data-theme dark mode"
+    },
+    "layout": {
+     "c": "y",
+     "e": "S",
+     "t": "Rectangular and circular"
+    },
+    "bl": {
+     "c": "y",
+     "e": "S",
+     "t": "Phylogram and cladogram"
+    },
+    "overview": {
+     "c": "n",
+     "e": "S",
+     "t": "No"
+    },
+    "scale": {
+     "c": "n",
+     "e": "S",
+     "t": "26 px per leaf, whole SVG rebuilt on change"
+    },
+    "parse": {
+     "c": "p",
+     "e": "S",
+     "t": "Naive Newick"
+    },
+    "ops": {
+     "c": "p",
+     "e": "D",
+     "t": "Reroot and collapse in the UI"
+    }
+   }
+  },
+  {
+   "id": "heat-tree",
+   "title": "Heat-tree",
+   "kind": "reference",
+   "repo": "https://grunwaldlab.github.io/heattree/",
+   "demo": "https://grunwaldlab.github.io/heattree/",
+   "license": "MIT (R package); none in JS repo",
+   "version": "",
+   "rendering": "unconfirmed",
+   "research": "docs/research/heat-tree.md",
+   "summary": "2026 embeddable tree widget with JS, R and Python packages.",
+   "verdict": "No click, hover or select callbacks and no highlight API; good Nexus parsing (TRANSLATE, multi-tree). Rejected as a component.",
+   "cells": {
+    "g1": {
+     "c": "p",
+     "e": "S",
+     "t": "MIT on the R package; no LICENSE file in the JS repo"
+    },
+    "g2": {
+     "c": "y",
+     "e": "S",
+     "t": "Static"
+    },
+    "g3": {
+     "c": "u",
+     "e": "U",
+     "t": "Not confirmed"
+    },
+    "g4": {
+     "c": "u",
+     "e": "U",
+     "t": "Very new (2026)"
+    },
+    "tip": {
+     "c": "n",
+     "e": "S",
+     "t": "No callbacks"
+    },
+    "node": {
+     "c": "n",
+     "e": "S",
+     "t": "No callbacks"
+    },
+    "clade": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "link": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "cols": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "style": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "layout": {
+     "c": "y",
+     "e": "D",
+     "t": "Radial and rectangular"
+    },
+    "bl": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "overview": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "scale": {
+     "c": "u",
+     "e": "U",
+     "t": "No numbers"
+    },
+    "parse": {
+     "c": "y",
+     "e": "S",
+     "t": "Nexus with TRANSLATE and multiple trees"
+    },
+    "ops": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    }
+   }
+  },
+  {
+   "id": "onezoom",
+   "title": "OneZoom",
+   "kind": "reference",
+   "repo": "https://github.com/OneZoom/OneZoom",
+   "demo": "https://www.onezoom.org",
+   "license": "Non-profit source-available (not OSI)",
+   "version": "",
+   "rendering": "Canvas2D",
+   "research": "docs/research/onezoom.md",
+   "summary": "Tree of life explorer with about 2.2 million species; the strongest scale evidence in this list.",
+   "verdict": "Architecture to learn from (compact topology, lazy nodes, adaptive level of detail), not a component: no npm package, global singleton, own data format, restrictive licence.",
+   "cells": {
+    "g1": {
+     "c": "n",
+     "e": "S",
+     "t": "Non-OSI source-available licence"
+    },
+    "g2": {
+     "c": "p",
+     "e": "S",
+     "t": "Needs its own web API"
+    },
+    "g3": {
+     "c": "n",
+     "e": "S",
+     "t": "No React story; global singleton"
+    },
+    "g4": {
+     "c": "y",
+     "e": "S",
+     "t": "Commit 2026-10-07"
+    },
+    "tip": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "node": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "clade": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    },
+    "link": {
+     "c": "u",
+     "e": "U",
+     "t": ""
+    },
+    "cols": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    },
+    "style": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    },
+    "layout": {
+     "c": "p",
+     "e": "S",
+     "t": "Fractal layouts"
+    },
+    "bl": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    },
+    "overview": {
+     "c": "y",
+     "e": "S",
+     "t": "Zoomable overview by design"
+    },
+    "scale": {
+     "c": "y",
+     "e": "S",
+     "t": "2.2M species live; 2.2M nodes in a 4.5 MB data file"
+    },
+    "parse": {
+     "c": "n",
+     "e": "S",
+     "t": "Own bracket-string format"
+    },
+    "ops": {
+     "c": "n",
+     "e": "U",
+     "t": ""
+    }
+   }
+  }
+ ]
+}

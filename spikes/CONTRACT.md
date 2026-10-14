@@ -124,3 +124,52 @@ Defined in [../docs/spike-plan.md](../docs/spike-plan.md). The runner is candida
 
 - `spikes/results/<candidate>/<run-id>.json`: machine-readable (candidate, version, Chromium version, date, per scenario and per tree: status `pass|partial|fail|unsupported|timeout`, measures, notes, evidence level `M`).
 - `docs/results/<candidate>.md`: written per the template in the evaluation framework, citing the run ids; unsupported and partial entries must say how the workaround works or why it is impossible.
+
+## Clarifications
+
+Added while building the harness (`shared/`, `runner/`, `stub/`). They fill gaps in the text above; where one changes a number or a name it says so. Everything here is implemented by the harness, so a candidate that follows `stub/README.md` gets it for free.
+
+1. **How an adapter plugs in.** The contract describes `window.__spike` but not who installs it. The shell does (`mountShell(adapter)` in `shared/app-shell.tsx`). A candidate supplies a `CandidateAdapter`: `{ candidate, capabilities, View, ready? }` (types in `shared/types.ts`). `View` is a React component that receives the whole state as props (`layout`, `branchLengths`, `colouredClades`, `highlightedTips`, `focusRequest`, `columns`, `theme`, `tipLinks`, `size`, the shared `tree`) and reports through callbacks (`emit`, `onReady`, `handleRef`). The shell turns every `window.__spike` method into a React state change (`flushSync`, then two animation frames), so "through React state" holds by construction. Library events that reach React state only through the shell are what the runner checks.
+2. **`window.__spike2`.** S13 needs two instances but the contract API is singular. `window.__spike` drives instance 0 (main area); `window.__spike2` is the same `SpikeApi` bound to instance 1 (a 340x240 box in the side panel). Its panel test ids carry the suffix `-1`.
+3. **Clock for `firstRenderMs`.** It starts when the shell hands the input to the adapter, after the shell has built the shared `TreeModel` (reported separately as the additive field `MountResult.sharedParseMs`), and ends two animation frames after the `View` calls `onReady`. `parseMs` is what the candidate itself spent converting input; adapters that only use the shared `TreeModel` report 0 and say so in `notes`.
+4. **Input text.** `mount()` always receives clean Newick text. NEXUS entries are converted by `shared/data.ts` (TRANSLATE applied, BEAST comments dropped). Tip ids keep underscores exactly as in the file.
+5. **Theme tokens.** `setTheme({ dark, tokens })`: the runner only passes the keys `background`, `foreground`, `branch`, `highlight` (CSS colours) and `fontFamily`. Adapters map them onto whatever the library exposes. The runner checks that the background token dominates a screenshot of the container and that branch pixels take the branch token colour.
+6. **Making a tip clickable.** Rows are sub-pixel when a 1k+ tree is fitted to the screen, so a real user zooms first. For tip clicks (S2, S13, S14) the runner calls `focusTip` and then `locate`, as the occurrence page would; if `focusTip` is `no` it clicks at the fit view. Internal-node clicks are first tried at the fit view and only then after zooming to a tip below the node. `locate` for a tip must return the tip marker, for a node the node marker (the place a click opens a nodeClick); `branchClick` is only probed informally (midpoint of the horizontal branch piece).
+7. **Statuses.** `unsupported` only when the adapter reports `no` for the capability the scenario needs (the reason quotes the adapter's `how`). `partial`: works but with a workaround or some checks failing (for S3, tip sets computed by the adapter, `source: 'adapter-derived'`, are `partial`, not `pass`). `timeout`: a threshold was exceeded (load > 10 s, p5 FPS < 20, click latency > 300 ms, or the page hung and was killed) and is recorded with the measures. Missing capability keys count as `no` with a `MISSING` note.
+8. **Latency definitions.** Click latency = `SpikeEvent.t` minus the `event.timeStamp` of the pointerdown (browser input time, so a busy main thread counts). The linked-view number (S15) is pointerdown to two animation frames after the React commit that carries the coloured clade and the map-panel count.
+9. **Linked view.** The shell has a switch (`window.__spikeShell.setLinkedView(true)`, also a checkbox in the toolbar) that, on a node or branch click, sets the coloured clade to `#e00000` through the same React state and updates the map panel. It is off by default so S4 is not polluted. S15 turns it on.
+10. **Fit view.** There is no API to refit. When a scenario needs a fresh fit view (S12 sub-checks) the runner mounts again.
+11. **Chromium flags.** Besides the flags in the brief the runner adds `--js-flags=--expose-gc` (the page calls `gc()` before heap readings) and `--disable-gpu-rasterization` (2D and SVG raster on the CPU; with GPU rasterisation through SwiftShader a 1,000-tip SVG tree ran at 2 fps, CPU raster at 60 fps; WebGL still uses SwiftShader). Both are recorded in every result.
+12. **Catalogue.** `shared/trees.json` replaces fish "dated" with the committed dated trees in `data/rich/` (Carangaria fish, corvoid birds, first BirdTree sample) because `real-ladder/fetch.sh fish` output is not committed. `syn-yule-100000` is git-ignored: generate it with `python3 -I data/synthetic/generate.py --out <dir> --sizes 100000 --shapes yule` and copy `newick/yule_100000.nwk` to `data/synthetic/newick/` (`node runner/check-catalogue.mjs` reports missing files).
+13. **Fixed trees per scenario.** S1 and S10 use `--trees` (default `smoke`); S2, S3, S4, S6, S9, S12, S13, S14: `syn-yule-1000`; S5: `syn-yule-10000` (focus must scroll); S7: `syn-yule-1000` (bar column from the TSV); S8: `rich-ens-protein-197`; S11: `rich-ens-protein-197` (non-ultrametric), `rich-corvoid-680` (dated), `edge-polytomy-missing`; S15: `syn-yule-10000` (about 1,000-tip clade). Override with `--functional-tree <id>` for the `syn-yule-1000` ones.
+
+## Styling: every candidate must look like a GBIF app (added 2026-10-14)
+
+Styling is itself a test (criterion 16, scenario S9). Every candidate app must be styled **as much as the library allows** with the GBIF design tokens, so the result shows how far styling actually goes.
+
+- `shared/gbif-tokens.css` is the single source of truth (verbatim from the `gbif-design-tokens` skill; fonts Rubik, Bitter, IBM Plex Mono from Google Fonts). Import it from the shell. Never hardcode a hex colour, font or spacing that exists as a token.
+- `shared/gbif-theme.ts` (`gbifTheme()`) returns resolved token values for libraries that cannot use CSS (canvas, WebGL, config objects). Use it to colour nodes, branches, labels, backgrounds and selections.
+- The app shell looks like gbif.org: GBIF logo (`https://www.gbif.org/img/public/logo-web-gbif-nav-white-bg.svg` on light, the white variant on `--bg-dark`), `--bg-surface` page, the tree and panels in `.card`s, controls as `.btn` and `.tabs-pill`/`.btn-group`, Rubik body text, tip labels in `--font-body` (scientific names italic), selected and highlighted states in `--color-primary`, clade colours from the categorical palette (`--purple-100`, `--periwinkle-100`, `--fuchsia-100`, `--peach-100`, `--lightblue-100`), the dark footer band with a standing caveat ("A prototype. Under development. Frame rates here are measured without a GPU.") and the GBIF citation-guidelines link.
+- For each candidate, write down in `spike.json` under `styling` which token-driven styles were applied and which **could not** be (for example: font family of labels, node shapes, branch widths, hover colours, selection halo, tooltip chrome, dark mode), and how (CSS, props, callbacks, DOM patching, or impossible). That list is the evidence for the styling dimension.
+- Do not fake the look with screenshots, overlays or CSS that hides the library's own UI unless that is an official option of the library; hiding via supported options is fine and should be recorded as "customisation: hide features".
+
+## Deployment metadata (added 2026-10-14)
+
+Each candidate folder must contain `spike.json`, read by `scripts/build-site.mjs` for the hub page and the compare page:
+
+```json
+{
+  "title": "react-bio-viz",
+  "library": "react-bio-viz",
+  "version": "0.3.0",
+  "license": "MIT",
+  "description": "one sentence on what the library is",
+  "repo": "https://github.com/holmrenser/react-bio-viz",
+  "demo": "https://… (the project's own demo, if any)",
+  "docs": "docs/research/react-bio-viz.md",
+  "rendering": "SVG | Canvas | WebGL | mixed",
+  "styling": { "applied": ["..."], "not_possible": ["..."], "notes": "..." }
+}
+```
+
+The production build must work when hosted under a sub-path (`/<candidate>/`); `vite.base.mjs` already uses a relative base. Data is fetched from `/data/...`; on Vercel `scripts/build-site.mjs` copies the committed test trees there. Only `npm run build` is needed for deployment (`vercel.json` runs `node scripts/build-site.mjs`).

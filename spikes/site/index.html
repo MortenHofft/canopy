@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phylogeny viewer spikes | GBIF</title>
+    <meta name="description" content="Comparison of phylogenetic tree viewer libraries for gbif.org, with live demos styled as GBIF apps." />
+    <link rel="icon" href="https://www.gbif.org/favicon.ico" />
+  </head>
+  <body>
+    <div id="root">
+      <header class="app-header">
+        <div class="app-header-inner">
+          <a class="brand" href="./" aria-label="GBIF phylogeny viewer spikes">
+            <img src="https://www.gbif.org/img/public/logo-web-gbif-nav-white-bg.svg" alt="GBIF" height="32" />
+            <span class="brand-title">Phylogeny viewer spikes</span>
+          </a>
+          <nav class="tabs-pill" aria-label="Sections">
+            <a class="tab-pill" href="#findings">Comparison</a>
+            <a class="tab-pill" href="#implementations">Implementations</a>
+            <a class="tab-pill" href="#measured">Measured</a>
+            <a class="tab-pill" href="compare">Side by side</a>
+            <a class="tab-pill" href="#data">Test data</a>
+          </nav>
+        </div>
+      </header>
+
+      <main id="app" class="page">
+        <section class="intro">
+          <p class="title-eyebrow">
+            <span class="title-eyebrow-type"><a href="#findings">Research</a></span>
+            <span class="title-eyebrow-sep"></span>
+            <span class="title-eyebrow-date" id="as-of"></span>
+          </p>
+          <h1>Which tree viewer for gbif.org?</h1>
+          <p>
+            Datasets can include a phylogeny, and gbif.org should let people explore it and link its tips to occurrences.
+            We compared existing libraries against 20 criteria and are testing the shortlist in a real browser. Every
+            demo below is styled with the GBIF design tokens, which is itself a test of how far each library can be styled.
+          </p>
+          <div class="callouts" id="callouts"></div>
+        </section>
+
+        <section id="findings" class="card">
+          <div class="card-header">
+            <span class="text-label">Comparison scheme</span>
+            <h2 class="card-title">What we found, library by library</h2>
+          </div>
+          <div class="card-body">
+            <p class="lede">
+              Each cell is a capability (<b>Yes</b>, <b>Partial</b>, <b>No</b>, <b>?</b> unknown) with a letter for how we
+              know. Select a cell to read the evidence. Nothing here counts as measured unless it carries an <b>M</b>.
+            </p>
+            <div class="toolbar-band matrix-tools">
+              <label class="field-option"><span class="toggle"><input type="checkbox" id="t-ref" checked /><span class="toggle-track"></span><span class="toggle-thumb"></span></span>Show libraries we did not spike</label>
+              <label class="field-option"><span class="toggle"><input type="checkbox" id="t-ev" checked /><span class="toggle-track"></span><span class="toggle-thumb"></span></span>Show evidence letters</label>
+              <span class="legend" id="legend"></span>
+            </div>
+            <div class="matrix-wrap" tabindex="0" role="region" aria-label="Comparison matrix, scrolls horizontally"><table id="matrix" class="matrix"></table></div>
+            <div id="detail" class="detail" aria-live="polite">Select a cell to see the note and its evidence level.</div>
+          </div>
+        </section>
+
+        <section id="implementations">
+          <h2>Implementations</h2>
+          <p class="lede">
+            Each card links to our demo of the library (inside a GBIF-styled shell, with a small test panel), the project's
+            own demo, its source, and our research notes. <a href="compare">Compare two or more side by side</a> on the same tree.
+          </p>
+          <div id="cards" class="cards"></div>
+        </section>
+
+        <section id="measured" class="card">
+          <div class="card-header">
+            <span class="text-label">Automated runs</span>
+            <h2 class="card-title">Measured results</h2>
+          </div>
+          <div class="card-body" id="measured-body">Loading…</div>
+        </section>
+
+        <section id="data" class="card">
+          <div class="card-header">
+            <span class="text-label">Test trees</span>
+            <h2 class="card-title">Trees available in these demos</h2>
+          </div>
+          <div class="card-body" id="data-body">Loading…</div>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <div class="app-footer-inner page-width">
+          <p class="app-footer-lead">A research prototype. Under development.</p>
+          <p>Evidence letters come from research agents reading source code and registries; only entries marked M were tried hands-on. Frame rates measured in automated runs use headless Chromium without a GPU and are pessimistic for canvas and WebGL.</p>
+          <p>Test trees keep the licences of their sources (see the <a id="data-readme" href="#">data README</a>). If you use GBIF-mediated data shown in an app, please cite it as described in the <a href="https://www.gbif.org/citation-guidelines">GBIF citation guidelines</a>.</p>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="/src/hub.ts"></script>
+  </body>
+</html>

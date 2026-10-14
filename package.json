@@ -1,0 +1,12 @@
+{
+  "name": "gbif-phylo",
+  "private": true,
+  "description": "Research and test harness for phylogenetic tree viewers for gbif.org. The root package only exists to define the Vercel build.",
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "build:site": "node scripts/build-site.mjs"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
