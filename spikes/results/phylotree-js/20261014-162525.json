@@ -1,5 +1,5 @@
 {
- "runId": "20261014-155344",
+ "runId": "20261014-162525",
  "candidate": {
   "name": "phylotree.js",
   "version": "2.6.0",
@@ -37,7 +37,7 @@
   },
   "focusTip": {
    "level": "partial",
-   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too"
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (18 px) needs k = 18/(row height); at 10k tips k is about 300 and the tree is magnified 300x horizontally too (columns and long branches leave the view)"
   },
   "tipAsLink": {
    "level": "partial",
@@ -45,7 +45,7 @@
   },
   "customColumns": {
    "level": "partial",
-   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()"
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update(); they live in the zoomed group, so widths scale with the uniform zoom and the columns leave the view when zooming from the fit view (the runner's S7 'after zoom and pan' check fails for that reason)"
   },
   "alignmentColumn": {
    "level": "partial",
@@ -92,7 +92,7 @@
    "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
   }
  },
- "date": "2026-10-14T15:54:46.678Z",
+ "date": "2026-10-14T16:26:22.072Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -129,12 +129,12 @@
   ]
  },
  "bundle": {
-  "jsBytes": 544645,
-  "jsGzipBytes": 179663,
+  "jsBytes": 546979,
+  "jsGzipBytes": 180500,
   "cssBytes": 17766,
   "cssGzipBytes": 4328,
-  "totalBytes": 562817,
-  "totalGzipBytes": 184263,
+  "totalBytes": 565151,
+  "totalGzipBytes": 185101,
   "files": [
    {
     "path": "assets/index-BXVbu3c0.css",
@@ -142,14 +142,14 @@
     "gzipBytes": 4328
    },
    {
-    "path": "assets/index-Bwt10j5E.js",
-    "bytes": 544645,
-    "gzipBytes": 179663
+    "path": "assets/index-CjTEasLS.js",
+    "bytes": 546979,
+    "gzipBytes": 180500
    },
    {
     "path": "index.html",
     "bytes": 406,
-    "gzipBytes": 272
+    "gzipBytes": 273
    }
   ]
  },
@@ -159,20 +159,20 @@
     "syn-caterpillar-1000": {
      "treeId": "syn-caterpillar-1000",
      "tips": 1000,
-     "status": "timeout",
-     "reason": "unusable: p5 fps 8.6 < 20",
+     "status": "pass",
+     "reason": "load 235 ms, p5 29.9 fps, click 37 ms",
      "phase": "done",
-     "fetchMs": 18.200000001117587,
+     "fetchMs": 10.800000000745058,
      "convertMs": 0,
      "wireBytes": 42114,
-     "parseMs": 51.69999999925494,
-     "firstRenderMs": 389.90000000037253,
-     "sharedParseMs": 11.400000000372529,
+     "parseMs": 17.09999999962747,
+     "firstRenderMs": 217.5,
+     "sharedParseMs": 6.400000000372529,
      "reportedTips": 1000,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 257 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=11.4); id mapping complete",
-     "loadMs": 441.59999999962747,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 111 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=6.4); id mapping complete",
+     "loadMs": 234.59999999962747,
      "ink": 0.38000789764650134,
-     "heapAfterMountMB": 7.727680206298828,
+     "heapAfterMountMB": 7.735185623168945,
      "stats": {
       "domNodes": 9034,
       "svgElements": 9032,
@@ -188,27 +188,27 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 257
+       "firstLayoutMs": 111
       }
      },
-     "clickLatencyMs": 66.80000000074506,
-     "clickToPaintMs": 204.59999999962747,
+     "clickLatencyMs": 37.40000000037253,
+     "clickToPaintMs": 93.5,
      "clickSamples": {
       "events": 1,
       "tries": 1,
       "rightNode": 1
      },
-     "fpsMedian": 59.880239520957105,
-     "fpsP5": 8.568980291345277,
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
      "fpsP95": 60.240963855423665,
-     "fpsMean": 35.834780699122255,
-     "droppedFrames": 242,
-     "maxFrameGapMs": 166.6999999999989,
-     "frames": 359,
-     "heapAfterInteractionMB": 8.050865173339844,
-     "heapMB": 8.050865173339844,
+     "fpsMean": 55.377382920658945,
+     "droppedFrames": 46,
+     "maxFrameGapMs": 50.09999999999991,
+     "frames": 556,
+     "heapAfterInteractionMB": 8.068765640258789,
+     "heapMB": 8.068765640258789,
      "pageErrors": [],
-     "wallSec": 12.804
+     "wallSec": 11.805
     },
     "syn-caterpillar-10000": {
      "treeId": "syn-caterpillar-10000",
@@ -217,31 +217,31 @@
      "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
      "phase": "mount",
      "pageErrors": [
-      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/a",
-      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at eD (http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:15278)\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:17550\n    at Uc (http://127.0.0.1:5203/a",
+      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:18878\n    at Uc (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:42369)\n    at $R (http://127.0.0.1:5203/asset",
       "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
       "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
       "console.error: Cannot read properties of null (reading 'parseMs')"
      ],
-     "wallSec": 1.545
+     "wallSec": 0.861
     },
     "syn-balanced-10000": {
      "treeId": "syn-balanced-10000",
      "tips": 10000,
      "status": "timeout",
-     "reason": "unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms",
+     "reason": "unusable: p5 fps 3.3 < 20; click latency 406 ms > 300 ms",
      "phase": "done",
-     "fetchMs": 24.09999999962747,
+     "fetchMs": 18.300000000745058,
      "convertMs": 0,
      "wireBytes": 61341,
-     "parseMs": 72.39999999850988,
-     "firstRenderMs": 1999.2000000011176,
-     "sharedParseMs": 25.40000000037253,
+     "parseMs": 60.59999999962747,
+     "firstRenderMs": 1625.300000000745,
+     "sharedParseMs": 51.59999999962747,
      "reportedTips": 10000,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1356 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=25.4); id mapping complete",
-     "loadMs": 2071.5999999996275,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 969 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=51.6); id mapping complete",
+     "loadMs": 1685.9000000003725,
      "ink": 0.41401200442268205,
-     "heapAfterMountMB": 34.225332260131836,
+     "heapAfterMountMB": 34.27898693084717,
      "stats": {
       "domNodes": 90031,
       "svgElements": 90029,
@@ -257,45 +257,45 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 1356
+       "firstLayoutMs": 969
       }
      },
-     "clickLatencyMs": 425.30000000074506,
-     "clickToPaintMs": 988.0999999996275,
+     "clickLatencyMs": 405.6000000014901,
+     "clickToPaintMs": 884.7000000011176,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
      "fpsMedian": 59.88023952095548,
-     "fpsP5": 1.9353590090961983,
+     "fpsP5": 3.3333333333333335,
      "fpsP95": 60.24096385542697,
-     "fpsMean": 13.390705065255588,
-     "droppedFrames": 522,
-     "maxFrameGapMs": 516.7000000000007,
-     "frames": 150,
-     "heapAfterInteractionMB": 35.92972469329834,
-     "heapMB": 35.92972469329834,
+     "fpsMean": 17.249329667140273,
+     "droppedFrames": 501,
+     "maxFrameGapMs": 400,
+     "frames": 202,
+     "heapAfterInteractionMB": 35.9422492980957,
+     "heapMB": 35.9422492980957,
      "pageErrors": [],
-     "wallSec": 22.804
+     "wallSec": 21.665
     },
     "syn-bushy-10000": {
      "treeId": "syn-bushy-10000",
      "tips": 10000,
      "status": "timeout",
-     "reason": "unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms",
+     "reason": "unusable: p5 fps 3.7 < 20; click latency 310 ms > 300 ms",
      "phase": "done",
-     "fetchMs": 86.5,
+     "fetchMs": 19.09999999962747,
      "convertMs": 0,
      "wireBytes": 59839,
-     "parseMs": 114.79999999888241,
-     "firstRenderMs": 1722,
-     "sharedParseMs": 43.19999999925494,
+     "parseMs": 63.09999999962747,
+     "firstRenderMs": 1279.9000000003725,
+     "sharedParseMs": 27.40000000037253,
      "reportedTips": 10000,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 936 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=43.2); id mapping complete",
-     "loadMs": 1836.7999999988824,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 746 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=27.4); id mapping complete",
+     "loadMs": 1343,
      "ink": 0.4361190965092403,
-     "heapAfterMountMB": 24.963228225708008,
+     "heapAfterMountMB": 25.474458694458008,
      "stats": {
       "domNodes": 66018,
       "svgElements": 66016,
@@ -311,27 +311,27 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 936
+       "firstLayoutMs": 746
       }
      },
-     "clickLatencyMs": 338.6000000014901,
-     "clickToPaintMs": 767.8000000007451,
+     "clickLatencyMs": 310.3999999985099,
+     "clickToPaintMs": 671.4000000003725,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
      "fpsMedian": 59.88023952095548,
-     "fpsP5": 1.8747656542932147,
+     "fpsP5": 3.7495313085864166,
      "fpsP95": 60.24096385542697,
-     "fpsMean": 15.112114224033292,
-     "droppedFrames": 457,
-     "maxFrameGapMs": 533.3999999999996,
-     "frames": 154,
-     "heapAfterInteractionMB": 26.608004570007324,
-     "heapMB": 26.608004570007324,
+     "fpsMean": 21.061727061621877,
+     "droppedFrames": 433,
+     "maxFrameGapMs": 300,
+     "frames": 234,
+     "heapAfterInteractionMB": 26.69542121887207,
+     "heapMB": 26.69542121887207,
      "pageErrors": [],
-     "wallSec": 19.847
+     "wallSec": 19.069
     },
     "edge-caterpillar-20000": {
      "treeId": "edge-caterpillar-20000",
@@ -340,40 +340,40 @@
      "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
      "phase": "mount",
      "pageErrors": [
-      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/",
-      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+      "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at eD (http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:15278)\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:17550\n    at Uc (http://127.0.0.1:5203/",
+      "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:18878\n    at Uc (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:42369)\n    at $R (http://127.0.0.1:5203/asset",
       "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
       "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
       "console.error: Cannot read properties of null (reading 'parseMs')"
      ],
-     "wallSec": 2.206
+     "wallSec": 1.624
     }
    },
-   "status": "fail",
-   "reason": "syn-caterpillar-1000: timeout (unusable: p5 fps 8.6 < 20); syn-caterpillar-10000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)); syn-balanced-10000: timeout (unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms); syn-bushy-10000: timeout (unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms); edge-caterpillar-20000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive))",
+   "status": "partial",
+   "reason": "syn-caterpillar-10000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)); syn-balanced-10000: timeout (unusable: p5 fps 3.3 < 20; click latency 406 ms > 300 ms); syn-bushy-10000: timeout (unusable: p5 fps 3.7 < 20; click latency 310 ms > 300 ms); edge-caterpillar-20000: fail (mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive))",
    "title": "Load and fit to screen (scale ladder)",
    "evidence": "M",
-   "durationSec": 59.208
+   "durationSec": 55.026
   }
  },
  "scale": {
   "syn-caterpillar-1000": {
    "treeId": "syn-caterpillar-1000",
    "tips": 1000,
-   "status": "timeout",
-   "reason": "unusable: p5 fps 8.6 < 20",
+   "status": "pass",
+   "reason": "load 235 ms, p5 29.9 fps, click 37 ms",
    "phase": "done",
-   "fetchMs": 18.200000001117587,
+   "fetchMs": 10.800000000745058,
    "convertMs": 0,
    "wireBytes": 42114,
-   "parseMs": 51.69999999925494,
-   "firstRenderMs": 389.90000000037253,
-   "sharedParseMs": 11.400000000372529,
+   "parseMs": 17.09999999962747,
+   "firstRenderMs": 217.5,
+   "sharedParseMs": 6.400000000372529,
    "reportedTips": 1000,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 257 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=11.4); id mapping complete",
-   "loadMs": 441.59999999962747,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 111 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=6.4); id mapping complete",
+   "loadMs": 234.59999999962747,
    "ink": 0.38000789764650134,
-   "heapAfterMountMB": 7.727680206298828,
+   "heapAfterMountMB": 7.735185623168945,
    "stats": {
     "domNodes": 9034,
     "svgElements": 9032,
@@ -389,27 +389,27 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 257
+     "firstLayoutMs": 111
     }
    },
-   "clickLatencyMs": 66.80000000074506,
-   "clickToPaintMs": 204.59999999962747,
+   "clickLatencyMs": 37.40000000037253,
+   "clickToPaintMs": 93.5,
    "clickSamples": {
     "events": 1,
     "tries": 1,
     "rightNode": 1
    },
-   "fpsMedian": 59.880239520957105,
-   "fpsP5": 8.568980291345277,
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
    "fpsP95": 60.240963855423665,
-   "fpsMean": 35.834780699122255,
-   "droppedFrames": 242,
-   "maxFrameGapMs": 166.6999999999989,
-   "frames": 359,
-   "heapAfterInteractionMB": 8.050865173339844,
-   "heapMB": 8.050865173339844,
+   "fpsMean": 55.377382920658945,
+   "droppedFrames": 46,
+   "maxFrameGapMs": 50.09999999999991,
+   "frames": 556,
+   "heapAfterInteractionMB": 8.068765640258789,
+   "heapMB": 8.068765640258789,
    "pageErrors": [],
-   "wallSec": 12.804
+   "wallSec": 11.805
   },
   "syn-caterpillar-10000": {
    "treeId": "syn-caterpillar-10000",
@@ -418,31 +418,31 @@
    "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
    "phase": "mount",
    "pageErrors": [
-    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/a",
-    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)\n    at eD (http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:15278)\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:17550\n    at Uc (http://127.0.0.1:5203/a",
+    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:18878\n    at Uc (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:42369)\n    at $R (http://127.0.0.1:5203/asset",
     "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
     "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 10000 tips, depth 9999; the library's layout is recursive)",
     "console.error: Cannot read properties of null (reading 'parseMs')"
    ],
-   "wallSec": 1.545
+   "wallSec": 0.861
   },
   "syn-balanced-10000": {
    "treeId": "syn-balanced-10000",
    "tips": 10000,
    "status": "timeout",
-   "reason": "unusable: p5 fps 1.9 < 20; click latency 425 ms > 300 ms",
+   "reason": "unusable: p5 fps 3.3 < 20; click latency 406 ms > 300 ms",
    "phase": "done",
-   "fetchMs": 24.09999999962747,
+   "fetchMs": 18.300000000745058,
    "convertMs": 0,
    "wireBytes": 61341,
-   "parseMs": 72.39999999850988,
-   "firstRenderMs": 1999.2000000011176,
-   "sharedParseMs": 25.40000000037253,
+   "parseMs": 60.59999999962747,
+   "firstRenderMs": 1625.300000000745,
+   "sharedParseMs": 51.59999999962747,
    "reportedTips": 10000,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 1356 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=25.4); id mapping complete",
-   "loadMs": 2071.5999999996275,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 969 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=51.6); id mapping complete",
+   "loadMs": 1685.9000000003725,
    "ink": 0.41401200442268205,
-   "heapAfterMountMB": 34.225332260131836,
+   "heapAfterMountMB": 34.27898693084717,
    "stats": {
     "domNodes": 90031,
     "svgElements": 90029,
@@ -458,45 +458,45 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 1356
+     "firstLayoutMs": 969
     }
    },
-   "clickLatencyMs": 425.30000000074506,
-   "clickToPaintMs": 988.0999999996275,
+   "clickLatencyMs": 405.6000000014901,
+   "clickToPaintMs": 884.7000000011176,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
    "fpsMedian": 59.88023952095548,
-   "fpsP5": 1.9353590090961983,
+   "fpsP5": 3.3333333333333335,
    "fpsP95": 60.24096385542697,
-   "fpsMean": 13.390705065255588,
-   "droppedFrames": 522,
-   "maxFrameGapMs": 516.7000000000007,
-   "frames": 150,
-   "heapAfterInteractionMB": 35.92972469329834,
-   "heapMB": 35.92972469329834,
+   "fpsMean": 17.249329667140273,
+   "droppedFrames": 501,
+   "maxFrameGapMs": 400,
+   "frames": 202,
+   "heapAfterInteractionMB": 35.9422492980957,
+   "heapMB": 35.9422492980957,
    "pageErrors": [],
-   "wallSec": 22.804
+   "wallSec": 21.665
   },
   "syn-bushy-10000": {
    "treeId": "syn-bushy-10000",
    "tips": 10000,
    "status": "timeout",
-   "reason": "unusable: p5 fps 1.9 < 20; click latency 339 ms > 300 ms",
+   "reason": "unusable: p5 fps 3.7 < 20; click latency 310 ms > 300 ms",
    "phase": "done",
-   "fetchMs": 86.5,
+   "fetchMs": 19.09999999962747,
    "convertMs": 0,
    "wireBytes": 59839,
-   "parseMs": 114.79999999888241,
-   "firstRenderMs": 1722,
-   "sharedParseMs": 43.19999999925494,
+   "parseMs": 63.09999999962747,
+   "firstRenderMs": 1279.9000000003725,
+   "sharedParseMs": 27.40000000037253,
    "reportedTips": 10000,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 936 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=43.2); id mapping complete",
-   "loadMs": 1836.7999999988824,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 746 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=27.4); id mapping complete",
+   "loadMs": 1343,
    "ink": 0.4361190965092403,
-   "heapAfterMountMB": 24.963228225708008,
+   "heapAfterMountMB": 25.474458694458008,
    "stats": {
     "domNodes": 66018,
     "svgElements": 66016,
@@ -512,27 +512,27 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 936
+     "firstLayoutMs": 746
     }
    },
-   "clickLatencyMs": 338.6000000014901,
-   "clickToPaintMs": 767.8000000007451,
+   "clickLatencyMs": 310.3999999985099,
+   "clickToPaintMs": 671.4000000003725,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
    "fpsMedian": 59.88023952095548,
-   "fpsP5": 1.8747656542932147,
+   "fpsP5": 3.7495313085864166,
    "fpsP95": 60.24096385542697,
-   "fpsMean": 15.112114224033292,
-   "droppedFrames": 457,
-   "maxFrameGapMs": 533.3999999999996,
-   "frames": 154,
-   "heapAfterInteractionMB": 26.608004570007324,
-   "heapMB": 26.608004570007324,
+   "fpsMean": 21.061727061621877,
+   "droppedFrames": 433,
+   "maxFrameGapMs": 300,
+   "frames": 234,
+   "heapAfterInteractionMB": 26.69542121887207,
+   "heapMB": 26.69542121887207,
    "pageErrors": [],
-   "wallSec": 19.847
+   "wallSec": 19.069
   },
   "edge-caterpillar-20000": {
    "treeId": "edge-caterpillar-20000",
@@ -541,23 +541,23 @@
    "reason": "mount: page.evaluate: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
    "phase": "mount",
    "pageErrors": [
-    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at QB (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:14417)\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:16500\n    at Fc (http://127.0.0.1:5203/",
-    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-Bwt10j5E.js:201:17828\n    at Fc (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-Bwt10j5E.js:40:42369)\n    at OI (http://127.0.0.1:5203/asset",
+    "console.error: Error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)\n    at eD (http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:15278)\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:17550\n    at Uc (http://127.0.0.1:5203/",
+    "console.error: TypeError: Cannot read properties of null (reading 'parseMs')\n    at http://127.0.0.1:5203/assets/index-CjTEasLS.js:202:18878\n    at Uc (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:24259)\n    at no (http://127.0.0.1:5203/assets/index-CjTEasLS.js:40:42369)\n    at $R (http://127.0.0.1:5203/asset",
     "console.error: phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
     "view error (instance 0): phylotree.render() failed: Maximum call stack size exceeded (tree: 20000 tips, depth 19999; the library's layout is recursive)",
     "console.error: Cannot read properties of null (reading 'parseMs')"
    ],
-   "wallSec": 2.206
+   "wallSec": 1.624
   }
  },
  "screenshots": [
   {
    "label": "S1-syn-caterpillar-1000",
-   "file": "screens/20261014-155344-S1-syn-caterpillar-1000.png",
-   "bytes": 33909
+   "file": "screens/20261014-162525-S1-syn-caterpillar-1000.png",
+   "bytes": 33820
   }
  ],
- "wallSec": 62.005,
+ "wallSec": 56.207,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"

@@ -1,0 +1,220 @@
+{
+ "runId": "20261014-162952",
+ "candidate": {
+  "name": "phylotree.js",
+  "version": "2.6.0",
+  "license": "MIT (LICENSE file; package.json has no license field)",
+  "notes": "phylotree 2.6.0 + d3 7.9.0 in our own React wrapper (useRef/useLayoutEffect); SVG; no GBIF-specific code in the library."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the tip <text>; tips have no marker, so the label is the click target (the wrapper adds a non-interactive dot for display only). Only reachable at a readable zoom."
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "display.on('nodeClick') fires for the internal-node <circle> (r<=3 user units, shrinks with the row height at the fit view)"
+  },
+  "branchClick": {
+   "level": "yes",
+   "how": "display.on('branchClick', edge) on the branch <path>; the library also toggles its own selection and runs a full update() on every branch click"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "display.on('nodeHover') is mouseenter only (no leave event, no tip circle, so only tip labels and internal-node circles); tooltip is drawn by the shell"
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "payload is the d3.hierarchy node: tips carry node.data.name; for internal nodes the tip set is not delivered, the wrapper calls d3's node.leaves() on the payload node (events marked adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "edge-styler (stroke on every branch below the clade root, incl. its own) + node-styler (internal circles, tip dots, labels) driven from React state; applied by calling the stylers on the existing DOM (no layout). display.refresh() cannot be used: it passes the wrong `this` to the edge-styler"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "node-styler adds ring, row band, bold primary label from React state, no re-layout. The library's own selectNodes() runs a full update() and styles via fixed .node-selected CSS, so it is not used"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (18 px) needs k = 18/(row height); at 10k tips k is about 300 and the tree is magnified 300x horizontally too (columns and long branches leave the view)"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "node-styler wraps the library's <text> in an SVG <a href data-tip-id target=_blank tabindex=0>; real anchors, but only for tips currently in the DOM (all tips are in the DOM unless collapsed or hidden)"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update(); they live in the zoomed group, so widths scale with the uniform zoom and the columns leave the view when zooming from the fit view (the runner's S7 'after zoom and pan' check fails for that reason)"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "same mechanism: per-tip SVG paths grouped by residue colour (one path per colour per tip), so about 20 elements per tip; fine for a few hundred tips"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "option is-radial (display.radial(true) + update()); also is-unrooted (equal-angle) as a separate feature; columns are not drawn in radial layout"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "option scaling (false = cladogram, tips aligned). If any branch has no length the library silently sets ALL lengths to 1 (Phylotree constructor); negative lengths are clamped to 0"
+  },
+  "scaleBar": {
+   "level": "partial",
+   "how": "built-in d3 axis on top for phylograms (option show-scale), styled by CSS. In rectangular layouts the library draws it ~20% too long (nodes are placed at scales[1]*.8 but the axis spans the full range: a depth-100 ultrametric tree ends at the 78 tick), so the wrapper redraws the axis from the numbers the layout used (not for mirrored layout). Radial axis is a single tick. No dated (time) axis, no tick unit"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "colours come from CSS custom properties on the host element (--pt-*) set from gbifDarkTheme(); the library's own CSS is not imported, all rules are ours, nothing is redrawn on theme switch"
+  },
+  "cssTokens": {
+   "level": "yes",
+   "how": "background, foreground, branch, highlight, fontFamily map to --pt-* custom properties used by our CSS rules over the library's fixed class names (.branch, .node, .internal-node, .phylotree-node-text, .tree-scale-bar ...)"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "no singleton: one phylotree + one TreeRender + one svg per host; ids are scoped by the host; the only global is a single document listener ('phylotree.event') registered once with a module-level function"
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "no destroy() upstream: the wrapper removes our listeners, interrupts transitions, removes d3.zoom and the capturing click handler from the host and drops the svg; the shared document listener of the library stays (one, deduplicated)"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "colour, highlight, links, columns, layout, lengths, theme, focus are props of our View applied through the stylers/options; the library keeps zoom, collapse, selection and reroot state inside the instance and offers no controlled viewport"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fit-to-size spacing plus responsive viewBox fits on mount and on every layout change (the wrapper resets the zoom); the library has no fit() method, the zoom extent is [0.1,10] unless widened through display.zoomBehavior"
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
+  }
+ },
+ "date": "2026-10-14T16:29:59.749Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v114",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "p5Fps": 20,
+  "clickMs": 300
+ },
+ "selection": {
+  "scenarios": [
+   "S10"
+  ],
+  "scaleTrees": [
+   "syn-yule-1000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 546954,
+  "jsGzipBytes": 180473,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 565126,
+  "totalGzipBytes": 185077,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-KfY9vNXM.js",
+    "bytes": 546954,
+    "gzipBytes": 180473
+   },
+   {
+    "path": "index.html",
+    "bytes": 406,
+    "gzipBytes": 276
+   }
+  ]
+ },
+ "scenarios": {
+  "S10": {
+   "status": "partial",
+   "reason": "syn-yule-1000: all checks passed; p5 12.0 fps, median 59.9 fps, DOM nodes 9034, canvases 0 (p5 < 20 fps while zooming out); overviewOrMinimap self-report: no",
+   "checks": [
+    {
+     "name": "whole tree in view (first and last tip both locatable) after zoom-out by wheel",
+     "ok": true,
+     "detail": "after 15 wheel notches"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": true,
+     "detail": "83 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "syn-yule-1000",
+    "loadMs": 336.69999999925494,
+    "notches": 15,
+    "zoomOutSec": 1.272,
+    "fpsMedian": 59.88023952095874,
+    "fpsP5": 11.990407673860899,
+    "maxFrameGapMs": 83.40000000000009,
+    "droppedFrames": 31,
+    "inkAfterZoomOut": 0.11252092876322861,
+    "stats": {
+     "domNodes": 9034,
+     "svgElements": 9032,
+     "canvases": 0,
+     "custom": {
+      "tips": 1000,
+      "updates": 0,
+      "lastUpdateMs": 0,
+      "lastRestyleMs": 0,
+      "drawnNodes": 1999,
+      "drawnBranches": 1998,
+      "unmappedLibraryNodes": 0,
+      "unmappedEvents": 0,
+      "zoomK": 0.6070974421975227,
+      "rerooted": 0,
+      "firstLayoutMs": 167
+     }
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 5.365
+  }
+ },
+ "scale": {},
+ "screenshots": [
+  {
+   "label": "S10-zoomed-out-syn-yule-1000",
+   "file": "screens/20261014-162952-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 42667
+  }
+ ],
+ "wallSec": 6.969,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

@@ -1,5 +1,5 @@
 {
- "runId": "20261014-154315",
+ "runId": "20261014-162158",
  "candidate": {
   "name": "phylotree.js",
   "version": "2.6.0",
@@ -37,7 +37,7 @@
   },
   "focusTip": {
    "level": "partial",
-   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too"
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (18 px) needs k = 18/(row height); at 10k tips k is about 300 and the tree is magnified 300x horizontally too (columns and long branches leave the view)"
   },
   "tipAsLink": {
    "level": "partial",
@@ -45,7 +45,7 @@
   },
   "customColumns": {
    "level": "partial",
-   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()"
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update(); they live in the zoomed group, so widths scale with the uniform zoom and the columns leave the view when zooming from the fit view (the runner's S7 'after zoom and pan' check fails for that reason)"
   },
   "alignmentColumn": {
    "level": "partial",
@@ -92,7 +92,7 @@
    "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
   }
  },
- "date": "2026-10-14T15:45:16.744Z",
+ "date": "2026-10-14T16:23:46.629Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -141,12 +141,12 @@
   ]
  },
  "bundle": {
-  "jsBytes": 544645,
-  "jsGzipBytes": 179663,
+  "jsBytes": 546979,
+  "jsGzipBytes": 180500,
   "cssBytes": 17766,
   "cssGzipBytes": 4328,
-  "totalBytes": 562817,
-  "totalGzipBytes": 184263,
+  "totalBytes": 565151,
+  "totalGzipBytes": 185101,
   "files": [
    {
     "path": "assets/index-BXVbu3c0.css",
@@ -154,14 +154,14 @@
     "gzipBytes": 4328
    },
    {
-    "path": "assets/index-Bwt10j5E.js",
-    "bytes": 544645,
-    "gzipBytes": 179663
+    "path": "assets/index-CjTEasLS.js",
+    "bytes": 546979,
+    "gzipBytes": 180500
    },
    {
     "path": "index.html",
     "bytes": 406,
-    "gzipBytes": 272
+    "gzipBytes": 273
    }
   ]
  },
@@ -171,20 +171,20 @@
     "edge-quoted-labels": {
      "treeId": "edge-quoted-labels",
      "tips": 5,
-     "status": "timeout",
-     "reason": "unusable: p5 fps 15.0 < 20",
+     "status": "pass",
+     "reason": "load 57 ms, p5 29.9 fps, click 3 ms",
      "phase": "done",
-     "fetchMs": 110.90000000037253,
+     "fetchMs": 12.199999999254942,
      "convertMs": 0,
      "wireBytes": 149,
-     "parseMs": 1,
-     "firstRenderMs": 75.09999999962747,
-     "sharedParseMs": 0.8000000007450581,
+     "parseMs": 1.299999998882413,
+     "firstRenderMs": 56.19999999925494,
+     "sharedParseMs": 1.300000000745058,
      "reportedTips": 5,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 40 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=0.8); id mapping complete; 1 [..] comments stripped by the wrapper (library keeps them in names)",
-     "loadMs": 76.09999999962747,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 13 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=1.3); id mapping complete; 1 [..] comments stripped by the wrapper (library keeps them in names)",
+     "loadMs": 57.499999998137355,
      "ink": 0.013955141367872348,
-     "heapAfterMountMB": 4.800555229187012,
+     "heapAfterMountMB": 4.807324409484863,
      "stats": {
       "domNodes": 75,
       "svgElements": 73,
@@ -200,45 +200,45 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 40
+       "firstLayoutMs": 13
       }
      },
-     "clickLatencyMs": 3.75,
-     "clickToPaintMs": 53.549999999813735,
+     "clickLatencyMs": 2.9500000001862645,
+     "clickToPaintMs": 26.25,
      "clickSamples": {
       "events": 2,
       "tries": 2,
       "rightNode": 2
      },
      "fpsMedian": 59.88023952095874,
-     "fpsP5": 14.992503748125774,
+     "fpsP5": 29.94011976047896,
      "fpsP95": 60.240963855423665,
-     "fpsMean": 43.810189112322995,
-     "droppedFrames": 163,
-     "maxFrameGapMs": 116.69999999999982,
-     "frames": 439,
-     "heapAfterInteractionMB": 5.01780891418457,
-     "heapMB": 5.01780891418457,
+     "fpsMean": 52.36973029589276,
+     "droppedFrames": 79,
+     "maxFrameGapMs": 50.100000000000364,
+     "frames": 540,
+     "heapAfterInteractionMB": 5.030681610107422,
+     "heapMB": 5.030681610107422,
      "pageErrors": [],
-     "wallSec": 12.522
+     "wallSec": 12.063
     },
     "syn-yule-200": {
      "treeId": "syn-yule-200",
      "tips": 200,
      "status": "pass",
-     "reason": "load 107 ms, p5 20.0 fps, click 11 ms",
+     "reason": "load 104 ms, p5 20.0 fps, click 11 ms",
      "phase": "done",
-     "fetchMs": 21.399999998509884,
+     "fetchMs": 10.699999999254942,
      "convertMs": 0,
      "wireBytes": 8432,
-     "parseMs": 3.400000000372529,
-     "firstRenderMs": 103.09999999962747,
-     "sharedParseMs": 2.5,
+     "parseMs": 5.099999999627471,
+     "firstRenderMs": 99.30000000074506,
+     "sharedParseMs": 2.399999998509884,
      "reportedTips": 200,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 49 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=2.5); id mapping complete",
-     "loadMs": 106.5,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 55 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=2.4); id mapping complete",
+     "loadMs": 104.40000000037253,
      "ink": 0.08985310377507505,
-     "heapAfterMountMB": 5.645118713378906,
+     "heapAfterMountMB": 5.664669036865234,
      "stats": {
       "domNodes": 1834,
       "svgElements": 1832,
@@ -254,45 +254,45 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 49
+       "firstLayoutMs": 55
       }
      },
-     "clickLatencyMs": 10.5,
-     "clickToPaintMs": 36.59999999962747,
+     "clickLatencyMs": 11.200000001117587,
+     "clickToPaintMs": 53.899999998509884,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
      "fpsMedian": 59.88023952095874,
-     "fpsP5": 20,
+     "fpsP5": 19.960079840319217,
      "fpsP95": 60.240963855423665,
-     "fpsMean": 49.29241532835109,
-     "droppedFrames": 108,
-     "maxFrameGapMs": 83.30000000000018,
-     "frames": 496,
-     "heapAfterInteractionMB": 6.0515241622924805,
-     "heapMB": 6.0515241622924805,
+     "fpsMean": 44.23897014865724,
+     "droppedFrames": 159,
+     "maxFrameGapMs": 83.40000000000055,
+     "frames": 444,
+     "heapAfterInteractionMB": 6.083399772644043,
+     "heapMB": 6.083399772644043,
      "pageErrors": [],
-     "wallSec": 12.654
+     "wallSec": 12.632
     },
     "syn-yule-1000": {
      "treeId": "syn-yule-1000",
      "tips": 1000,
      "status": "timeout",
-     "reason": "unusable: p5 fps 8.6 < 20",
+     "reason": "unusable: p5 fps 12.0 < 20",
      "phase": "done",
-     "fetchMs": 18.100000001490116,
+     "fetchMs": 15.599999999627471,
      "convertMs": 0,
      "wireBytes": 41755,
-     "parseMs": 24,
-     "firstRenderMs": 262,
-     "sharedParseMs": 9.400000000372529,
+     "parseMs": 25.800000000745058,
+     "firstRenderMs": 322.6000000014901,
+     "sharedParseMs": 7.699999999254942,
      "reportedTips": 1000,
-     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 159 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=9.4); id mapping complete",
-     "loadMs": 286,
+     "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 188 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=7.7); id mapping complete",
+     "loadMs": 348.4000000022352,
      "ink": 0.24449218132996364,
-     "heapAfterMountMB": 8.262470245361328,
+     "heapAfterMountMB": 8.265310287475586,
      "stats": {
       "domNodes": 9034,
       "svgElements": 9032,
@@ -308,34 +308,34 @@
        "unmappedEvents": 0,
        "zoomK": 1,
        "rerooted": 0,
-       "firstLayoutMs": 159
+       "firstLayoutMs": 188
       }
      },
-     "clickLatencyMs": 52.20000000111759,
-     "clickToPaintMs": 140.2000000011176,
+     "clickLatencyMs": 59.399999998509884,
+     "clickToPaintMs": 122.89999999850988,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
      "fpsMedian": 59.88023952095548,
-     "fpsP5": 8.576329331046285,
-     "fpsP95": 60.24096385542037,
-     "fpsMean": 33.12070657507243,
-     "droppedFrames": 285,
-     "maxFrameGapMs": 216.6999999999989,
-     "frames": 351,
-     "heapAfterInteractionMB": 8.919148445129395,
-     "heapMB": 8.919148445129395,
+     "fpsP5": 12.004801920768411,
+     "fpsP95": 60.240963855423665,
+     "fpsMean": 39.36499100370932,
+     "droppedFrames": 208,
+     "maxFrameGapMs": 200,
+     "frames": 396,
+     "heapAfterInteractionMB": 8.925761222839355,
+     "heapMB": 8.925761222839355,
      "pageErrors": [],
-     "wallSec": 14.749
+     "wallSec": 13.634
     }
    },
    "status": "partial",
-   "reason": "edge-quoted-labels: timeout (unusable: p5 fps 15.0 < 20); syn-yule-1000: timeout (unusable: p5 fps 8.6 < 20)",
+   "reason": "syn-yule-1000: timeout (unusable: p5 fps 12.0 < 20)",
    "title": "Load and fit to screen (scale ladder)",
    "evidence": "M",
-   "durationSec": 39.926
+   "durationSec": 38.33
   },
   "S2": {
    "status": "pass",
@@ -453,7 +453,7 @@
    ],
    "title": "Click a tip",
    "evidence": "M",
-   "durationSec": 2.958
+   "durationSec": 2.45
   },
   "S3": {
    "status": "partial",
@@ -563,7 +563,7 @@
    },
    "title": "Click an internal node",
    "evidence": "M",
-   "durationSec": 3.641
+   "durationSec": 3.193
   },
   "S4": {
    "status": "pass",
@@ -622,7 +622,7 @@
    },
    "title": "Colour clades from React state",
    "evidence": "M",
-   "durationSec": 4.213
+   "durationSec": 3.61
   },
   "S5": {
    "status": "pass",
@@ -641,7 +641,7 @@
     {
      "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
      "ok": true,
-     "detail": "dx 9%, dy 0%"
+     "detail": "dx 11%, dy 0%"
     },
     {
      "name": "sibling tips (parent clade) are visible",
@@ -661,20 +661,20 @@
     {
      "name": "highlight is visible (pixels around the tip change)",
      "ok": true,
-     "detail": "7984 pixels differ"
+     "detail": "6466 pixels differ"
     }
    ],
    "measures": {
     "initiallyVisible": true,
     "offCentre": {
-     "dx": 0.09377237120203413,
-     "dy": 0.0003466966155864792
+     "dx": 0.10561624640556821,
+     "dy": 0.0008664123817291024
     },
-    "highlightPixels": 7984
+    "highlightPixels": 6466
    },
    "title": "Highlight and focus a tip",
    "evidence": "M",
-   "durationSec": 7.355
+   "durationSec": 5.657
   },
   "S6": {
    "status": "pass",
@@ -703,7 +703,7 @@
     {
      "name": "has non-zero size",
      "ok": true,
-     "detail": "{\"x\":503.9991760253906,\"y\":451.4053039550781,\"width\":212.86666870117188,\"height\":20}"
+     "detail": "{\"x\":503.99835205078125,\"y\":451.06500244140625,\"width\":239.2811279296875,\"height\":21.000152587890625}"
     },
     {
      "name": "real click opens a new tab",
@@ -723,10 +723,10 @@
      "target": "_blank",
      "rel": "noopener noreferrer",
      "rect": {
-      "x": 503.9991760253906,
-      "y": 451.4053039550781,
-      "width": 212.86666870117188,
-      "height": 20
+      "x": 503.99835205078125,
+      "y": 451.06500244140625,
+      "width": 239.2811279296875,
+      "height": 21.000152587890625
      },
      "count": 1000
     },
@@ -735,7 +735,7 @@
    },
    "title": "Tip label as a link",
    "evidence": "M",
-   "durationSec": 4.008
+   "durationSec": 3.487
   },
   "S7": {
    "status": "partial",
@@ -788,7 +788,7 @@
    },
    "title": "Custom column (bar) aligned to tips",
    "evidence": "M",
-   "durationSec": 3.635
+   "durationSec": 3.139
   },
   "S8": {
    "status": "pass",
@@ -843,7 +843,7 @@
    },
    "title": "Alignment column",
    "evidence": "M",
-   "durationSec": 5.473
+   "durationSec": 4.021
   },
   "S9": {
    "status": "pass",
@@ -871,8 +871,8 @@
     }
    ],
    "measures": {
-    "lightLuminance": 221.04803515406874,
-    "darkLuminance": 56.58469568971498,
+    "lightLuminance": 221.05079885553715,
+    "darkLuminance": 56.5842759370697,
     "tokenBackgroundFraction": 0.7528557889748855,
     "tokenBranchPixels": 82615
    },
@@ -881,11 +881,11 @@
    ],
    "title": "Theming (dark, tokens)",
    "evidence": "M",
-   "durationSec": 3.317
+   "durationSec": 3.001
   },
   "S10": {
-   "status": "partial",
-   "reason": "syn-yule-1000: all checks passed; p5 14.2 fps, median 59.9 fps, DOM nodes 9034, canvases 0 (p5 < 20 fps while zooming out); overviewOrMinimap self-report: no",
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed; p5 20.0 fps, median 59.9 fps, DOM nodes 9034, canvases 0; overviewOrMinimap self-report: no",
    "checks": [
     {
      "name": "whole tree in view (first and last tip both locatable) after zoom-out by wheel",
@@ -900,18 +900,18 @@
     {
      "name": "no freeze: longest frame gap < 2 s",
      "ok": true,
-     "detail": "71 ms"
+     "detail": "50 ms"
     }
    ],
    "measures": {
     "treeId": "syn-yule-1000",
-    "loadMs": 310.90000000037253,
+    "loadMs": 229.5,
     "notches": 15,
-    "zoomOutSec": 1.113,
+    "zoomOutSec": 0.864,
     "fpsMedian": 59.88023952095874,
-    "fpsP5": 14.164305949083237,
-    "maxFrameGapMs": 70.59999999962747,
-    "droppedFrames": 23,
+    "fpsP5": 20,
+    "maxFrameGapMs": 50,
+    "droppedFrames": 8,
     "inkAfterZoomOut": 0.11099668298846943,
     "stats": {
      "domNodes": 9034,
@@ -928,13 +928,13 @@
       "unmappedEvents": 0,
       "zoomK": 0.6070974421975227,
       "rerooted": 0,
-      "firstLayoutMs": 181
+      "firstLayoutMs": 124
      }
     }
    },
    "title": "Zoom out to the whole tree",
    "evidence": "M",
-   "durationSec": 5.325
+   "durationSec": 4.159
   },
   "S11": {
    "status": "pass",
@@ -985,7 +985,7 @@
    },
    "title": "Phylogram / cladogram",
    "evidence": "M",
-   "durationSec": 3.252
+   "durationSec": 3
   },
   "S12": {
    "status": "pass",
@@ -1164,7 +1164,7 @@
     {
      "name": "radial S4: clade A turns red (pixel fraction rises)",
      "ok": true,
-     "detail": "fraction 0.00% -> 30.04%"
+     "detail": "fraction 0.00% -> 30.26%"
     },
     {
      "name": "radial S4: other clade unchanged (control)",
@@ -1184,7 +1184,7 @@
     {
      "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
      "ok": true,
-     "detail": "A red 30.04%, B blue 30.96%"
+     "detail": "A red 30.26%, B blue 31.24%"
     },
     {
      "name": "radial S4: clear restores the original colours",
@@ -1205,7 +1205,7 @@
    "measures": {},
    "title": "Radial layout",
    "evidence": "M",
-   "durationSec": 9.141
+   "durationSec": 9.494
   },
   "S13": {
    "status": "pass",
@@ -1264,7 +1264,7 @@
     {
      "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
      "ok": true,
-     "detail": "-1.3 MB"
+     "detail": "-1.5 MB"
     },
     {
      "name": "no page errors",
@@ -1282,18 +1282,18 @@
      "canv": 0
     },
     "heapMB": [
-     8.964495658874512,
-     10.109379768371582,
-     10.254006385803223,
-     6.253325462341309,
-     7.684215545654297
+     9.221712112426758,
+     8.669288635253906,
+     8.228294372558594,
+     6.289238929748535,
+     7.685636520385742
     ],
-    "heapGrowthMB": -1.2802801132202148,
+    "heapGrowthMB": -1.5360755920410156,
     "pageErrors": []
    },
    "title": "Two instances, mount/unmount x5",
    "evidence": "M",
-   "durationSec": 7.392
+   "durationSec": 6.883
   },
   "S14": {
    "status": "pass",
@@ -1367,16 +1367,16 @@
    },
    "title": "Keyboard and screen reader",
    "evidence": "M",
-   "durationSec": 3.832
+   "durationSec": 3.232
   },
   "S15": {
    "status": "timeout",
-   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 866 ms, to paint 1061 ms (median of 5) > 300 ms (unusable)",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 686 ms, to paint 851 ms (median of 5) > 300 ms (unusable)",
    "checks": [
     {
      "name": "clade is red after the click",
      "ok": true,
-     "detail": "71.90% of the clade box"
+     "detail": "71.89% of the clade box"
     },
     {
      "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
@@ -1387,47 +1387,47 @@
    "measures": {
     "tree": "syn-yule-10000",
     "cladeTips": 969,
-    "redFractionAfterClick": 0.7190217726515759,
+    "redFractionAfterClick": 0.718898414852279,
     "clickToCommitMs": [
-     884,
-     757.5,
-     745.1000000014901,
-     865.5999999996275,
-     1082.0999999996275
+     828.7999999988824,
+     686.2999999988824,
+     668,
+     656.5999999996275,
+     707.9000000003725
     ],
     "clickToPaintMs": [
-     1140.4000000003725,
-     957.8000000007451,
-     911.2000000011176,
-     1061.300000000745,
-     1335.300000000745
+     1013.8999999985099,
+     851.1999999992549,
+     841.9000000003725,
+     807.4000000003725,
+     965.4000000003725
     ],
-    "medianCommitMs": 865.5999999996275,
-    "medianPaintMs": 1061.300000000745
+    "medianCommitMs": 686.2999999988824,
+    "medianPaintMs": 851.1999999992549
    },
    "title": "Linked view (click clade, colour, map panel)",
    "evidence": "M",
-   "durationSec": 14.871
+   "durationSec": 12.758
   }
  },
  "scale": {
   "edge-quoted-labels": {
    "treeId": "edge-quoted-labels",
    "tips": 5,
-   "status": "timeout",
-   "reason": "unusable: p5 fps 15.0 < 20",
+   "status": "pass",
+   "reason": "load 57 ms, p5 29.9 fps, click 3 ms",
    "phase": "done",
-   "fetchMs": 110.90000000037253,
+   "fetchMs": 12.199999999254942,
    "convertMs": 0,
    "wireBytes": 149,
-   "parseMs": 1,
-   "firstRenderMs": 75.09999999962747,
-   "sharedParseMs": 0.8000000007450581,
+   "parseMs": 1.299999998882413,
+   "firstRenderMs": 56.19999999925494,
+   "sharedParseMs": 1.300000000745058,
    "reportedTips": 5,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 40 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=0.8); id mapping complete; 1 [..] comments stripped by the wrapper (library keeps them in names)",
-   "loadMs": 76.09999999962747,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 13 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=1.3); id mapping complete; 1 [..] comments stripped by the wrapper (library keeps them in names)",
+   "loadMs": 57.499999998137355,
    "ink": 0.013955141367872348,
-   "heapAfterMountMB": 4.800555229187012,
+   "heapAfterMountMB": 4.807324409484863,
    "stats": {
     "domNodes": 75,
     "svgElements": 73,
@@ -1443,45 +1443,45 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 40
+     "firstLayoutMs": 13
     }
    },
-   "clickLatencyMs": 3.75,
-   "clickToPaintMs": 53.549999999813735,
+   "clickLatencyMs": 2.9500000001862645,
+   "clickToPaintMs": 26.25,
    "clickSamples": {
     "events": 2,
     "tries": 2,
     "rightNode": 2
    },
    "fpsMedian": 59.88023952095874,
-   "fpsP5": 14.992503748125774,
+   "fpsP5": 29.94011976047896,
    "fpsP95": 60.240963855423665,
-   "fpsMean": 43.810189112322995,
-   "droppedFrames": 163,
-   "maxFrameGapMs": 116.69999999999982,
-   "frames": 439,
-   "heapAfterInteractionMB": 5.01780891418457,
-   "heapMB": 5.01780891418457,
+   "fpsMean": 52.36973029589276,
+   "droppedFrames": 79,
+   "maxFrameGapMs": 50.100000000000364,
+   "frames": 540,
+   "heapAfterInteractionMB": 5.030681610107422,
+   "heapMB": 5.030681610107422,
    "pageErrors": [],
-   "wallSec": 12.522
+   "wallSec": 12.063
   },
   "syn-yule-200": {
    "treeId": "syn-yule-200",
    "tips": 200,
    "status": "pass",
-   "reason": "load 107 ms, p5 20.0 fps, click 11 ms",
+   "reason": "load 104 ms, p5 20.0 fps, click 11 ms",
    "phase": "done",
-   "fetchMs": 21.399999998509884,
+   "fetchMs": 10.699999999254942,
    "convertMs": 0,
    "wireBytes": 8432,
-   "parseMs": 3.400000000372529,
-   "firstRenderMs": 103.09999999962747,
-   "sharedParseMs": 2.5,
+   "parseMs": 5.099999999627471,
+   "firstRenderMs": 99.30000000074506,
+   "sharedParseMs": 2.399999998509884,
    "reportedTips": 200,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 49 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=2.5); id mapping complete",
-   "loadMs": 106.5,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 55 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=2.4); id mapping complete",
+   "loadMs": 104.40000000037253,
    "ink": 0.08985310377507505,
-   "heapAfterMountMB": 5.645118713378906,
+   "heapAfterMountMB": 5.664669036865234,
    "stats": {
     "domNodes": 1834,
     "svgElements": 1832,
@@ -1497,45 +1497,45 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 49
+     "firstLayoutMs": 55
     }
    },
-   "clickLatencyMs": 10.5,
-   "clickToPaintMs": 36.59999999962747,
+   "clickLatencyMs": 11.200000001117587,
+   "clickToPaintMs": 53.899999998509884,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
    "fpsMedian": 59.88023952095874,
-   "fpsP5": 20,
+   "fpsP5": 19.960079840319217,
    "fpsP95": 60.240963855423665,
-   "fpsMean": 49.29241532835109,
-   "droppedFrames": 108,
-   "maxFrameGapMs": 83.30000000000018,
-   "frames": 496,
-   "heapAfterInteractionMB": 6.0515241622924805,
-   "heapMB": 6.0515241622924805,
+   "fpsMean": 44.23897014865724,
+   "droppedFrames": 159,
+   "maxFrameGapMs": 83.40000000000055,
+   "frames": 444,
+   "heapAfterInteractionMB": 6.083399772644043,
+   "heapMB": 6.083399772644043,
    "pageErrors": [],
-   "wallSec": 12.654
+   "wallSec": 12.632
   },
   "syn-yule-1000": {
    "treeId": "syn-yule-1000",
    "tips": 1000,
    "status": "timeout",
-   "reason": "unusable: p5 fps 8.6 < 20",
+   "reason": "unusable: p5 fps 12.0 < 20",
    "phase": "done",
-   "fetchMs": 18.100000001490116,
+   "fetchMs": 15.599999999627471,
    "convertMs": 0,
    "wireBytes": 41755,
-   "parseMs": 24,
-   "firstRenderMs": 262,
-   "sharedParseMs": 9.400000000372529,
+   "parseMs": 25.800000000745058,
+   "firstRenderMs": 322.6000000014901,
+   "sharedParseMs": 7.699999999254942,
    "reportedTips": 1000,
-   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 159 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=9.4); id mapping complete",
-   "loadMs": 286,
+   "notes": "phylotree 2.6.0: parseMs = new phylotree(newick) incl. d3.hierarchy; first draw (render + styler pass) 188 ms is inside firstRenderMs; tree built by the shell separately (sharedParseMs=7.7); id mapping complete",
+   "loadMs": 348.4000000022352,
    "ink": 0.24449218132996364,
-   "heapAfterMountMB": 8.262470245361328,
+   "heapAfterMountMB": 8.265310287475586,
    "stats": {
     "domNodes": 9034,
     "svgElements": 9032,
@@ -1551,72 +1551,72 @@
      "unmappedEvents": 0,
      "zoomK": 1,
      "rerooted": 0,
-     "firstLayoutMs": 159
+     "firstLayoutMs": 188
     }
    },
-   "clickLatencyMs": 52.20000000111759,
-   "clickToPaintMs": 140.2000000011176,
+   "clickLatencyMs": 59.399999998509884,
+   "clickToPaintMs": 122.89999999850988,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
    "fpsMedian": 59.88023952095548,
-   "fpsP5": 8.576329331046285,
-   "fpsP95": 60.24096385542037,
-   "fpsMean": 33.12070657507243,
-   "droppedFrames": 285,
-   "maxFrameGapMs": 216.6999999999989,
-   "frames": 351,
-   "heapAfterInteractionMB": 8.919148445129395,
-   "heapMB": 8.919148445129395,
+   "fpsP5": 12.004801920768411,
+   "fpsP95": 60.240963855423665,
+   "fpsMean": 39.36499100370932,
+   "droppedFrames": 208,
+   "maxFrameGapMs": 200,
+   "frames": 396,
+   "heapAfterInteractionMB": 8.925761222839355,
+   "heapMB": 8.925761222839355,
    "pageErrors": [],
-   "wallSec": 14.749
+   "wallSec": 13.634
   }
  },
  "screenshots": [
   {
    "label": "S1-edge-quoted-labels",
-   "file": "screens/20261014-154315-S1-edge-quoted-labels.png",
+   "file": "screens/20261014-162158-S1-edge-quoted-labels.png",
    "bytes": 20591
   },
   {
    "label": "S4-two-clades",
-   "file": "screens/20261014-154315-S4-two-clades.png",
-   "bytes": 56441
+   "file": "screens/20261014-162158-S4-two-clades.png",
+   "bytes": 56466
   },
   {
    "label": "S5-focus-highlight",
-   "file": "screens/20261014-154315-S5-focus-highlight.png",
-   "bytes": 62929
+   "file": "screens/20261014-162158-S5-focus-highlight.png",
+   "bytes": 75587
   },
   {
    "label": "S8-alignment",
-   "file": "screens/20261014-154315-S8-alignment.png",
-   "bytes": 133565
+   "file": "screens/20261014-162158-S8-alignment.png",
+   "bytes": 133563
   },
   {
    "label": "S9-dark",
-   "file": "screens/20261014-154315-S9-dark.png",
-   "bytes": 50771
+   "file": "screens/20261014-162158-S9-dark.png",
+   "bytes": 50988
   },
   {
    "label": "S10-zoomed-out-syn-yule-1000",
-   "file": "screens/20261014-154315-S10-zoomed-out-syn-yule-1000.png",
-   "bytes": 38287
+   "file": "screens/20261014-162158-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 38350
   },
   {
    "label": "S12-radial",
-   "file": "screens/20261014-154315-S12-radial.png",
-   "bytes": 134224
+   "file": "screens/20261014-162158-S12-radial.png",
+   "bytes": 134267
   },
   {
    "label": "S15-linked-view",
-   "file": "screens/20261014-154315-S15-linked-view.png",
-   "bytes": 123853
+   "file": "screens/20261014-162158-S15-linked-view.png",
+   "bytes": 123500
   }
  ],
- "wallSec": 121.309,
+ "wallSec": 107.999,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"

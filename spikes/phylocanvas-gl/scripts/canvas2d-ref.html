@@ -1,0 +1,95 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Canvas2D reference scene (context for the Phylocanvas.gl numbers)</title>
+<!-- Not a candidate: a minimal rectangular tree drawn with Canvas2D (CPU raster, no GPU) so that the SwiftShader numbers of the WebGL
+     candidate can be put in context. Same scene as Phylocanvas.gl draws at the fit view: one horizontal line per node, one vertical
+     connector per internal node, one 2x2 dot per tip. Iterative parser and layout, no recursion. Used by scripts/scale-probe.mjs. -->
+<style>body{margin:0}canvas{display:block}</style>
+<canvas id="c" width="760" height="560"></canvas>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let T = null;
+const view = { ky: 1, ty: 0, kx: 1, tx: 10 };
+
+function parse(s) {
+  const parent = [-1], len = [0];
+  let cur = 0, i = 0;
+  const n = s.length;
+  const stack = [];
+  let node = 0;
+  const newNode = (p) => { parent.push(p); len.push(0); return parent.length - 1; };
+  while (i < n) {
+    const ch = s[i];
+    if (ch === '(') { stack.push(node); node = newNode(node); i++; }
+    else if (ch === ',') { node = newNode(stack[stack.length - 1]); i++; }
+    else if (ch === ')') { node = stack.pop(); i++; }
+    else if (ch === ';') break;
+    else if (ch === ':') { let j = i + 1; while (j < n && ',();'.indexOf(s[j]) < 0) j++; len[node] = parseFloat(s.slice(i + 1, j)) || 0; i = j; }
+    else if (ch === "'" || ch === '"') { let j = i + 1; while (j < n && s[j] !== ch) j++; i = j + 1; }
+    else if (ch === '[') { while (i < n && s[i] !== ']') i++; i++; }
+    else i++;
+  }
+  return { parent: Int32Array.from(parent), len: Float64Array.from(len) };
+}
+function layout(p) {
+  const N = p.parent.length;
+  const childCount = new Int32Array(N);
+  for (let i = 1; i < N; i++) childCount[p.parent[i]]++;
+  const x = new Float64Array(N), y = new Float64Array(N), y0 = new Float64Array(N).fill(Infinity), y1 = new Float64Array(N).fill(-Infinity);
+  let maxX = 0;
+  for (let i = 1; i < N; i++) { x[i] = x[p.parent[i]] + Math.max(0, p.len[i]); if (x[i] > maxX) maxX = x[i]; }
+  let rank = 0;
+  for (let i = 0; i < N; i++) if (childCount[i] === 0) y[i] = rank++;
+  for (let i = N - 1; i >= 0; i--) { if (childCount[i] > 0) y[i] = (y0[i] + y1[i]) / 2; const q = p.parent[i]; if (q >= 0) { if (y[i] < y0[q]) y0[q] = y[i]; if (y[i] > y1[q]) y1[q] = y[i]; } }
+  return { N, parent: p.parent, childCount, x, y, y0, y1, maxX, tips: rank };
+}
+function fit() {
+  view.kx = (cv.width - 160) / T.maxX; view.tx = 10;
+  view.ky = (cv.height - 20) / T.tips; view.ty = 10;
+}
+function draw(cull) {
+  const { N, parent, childCount, x, y, y0, y1 } = T;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = '#413E3E'; ctx.fillStyle = '#211F1F'; ctx.lineWidth = 1;
+  const H = cv.height;
+  ctx.beginPath();
+  for (let i = 1; i < N; i++) {
+    const py = view.ty + y[i] * view.ky;
+    if (cull) {
+      const cy0 = view.ty + (childCount[i] > 0 ? y0[i] : y[i]) * view.ky, cy1 = view.ty + (childCount[i] > 0 ? y1[i] : y[i]) * view.ky;
+      const ppy = view.ty + y[parent[i]] * view.ky;
+      if (Math.max(py, ppy, cy1) < 0 || Math.min(py, ppy, cy0) > H) continue;
+    }
+    const px = view.tx + x[parent[i]] * view.kx, nx = view.tx + x[i] * view.kx;
+    ctx.moveTo(px, py); ctx.lineTo(nx, py);
+    if (childCount[i] > 0) { ctx.moveTo(nx, view.ty + y0[i] * view.ky); ctx.lineTo(nx, view.ty + y1[i] * view.ky); }
+  }
+  ctx.stroke();
+  for (let i = 0; i < N; i++) if (childCount[i] === 0) {
+    const py = view.ty + y[i] * view.ky;
+    if (cull && (py < -2 || py > H + 2)) continue;
+    ctx.fillRect(view.tx + x[i] * view.kx - 1, py - 1, 2, 2);
+  }
+}
+window.ref = {
+  load(newick) { const t0 = performance.now(); T = layout(parse(newick)); fit(); return { parseLayoutMs: performance.now() - t0, tips: T.tips }; },
+  frame(cull) { const t0 = performance.now(); draw(cull); return performance.now() - t0; },
+  /** wheel zoom on rows around y, like the candidate's rows zoom, and a redraw */
+  zoomRows(f, my) { view.ty = my - (my - view.ty) * f; view.ky *= f; },
+  pan(dx, dy) { view.tx += dx; view.ty += dy; },
+  fit,
+  view,
+};
+// interactive: wheel = rows zoom, drag = pan, redraw once per animation frame (what a small 2D canvas viewer would do)
+let dirty = false, culling = true;
+window.ref.setCull = (c) => { culling = c; };
+function schedule() { if (!dirty) { dirty = true; requestAnimationFrame(() => { dirty = false; if (T) draw(culling); }); } }
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(); window.ref.zoomRows(Math.exp(-e.deltaY * 0.0025), e.clientY - r.top); schedule(); }, { passive: false });
+let drag = null;
+cv.addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY]; });
+addEventListener('pointermove', (e) => { if (drag) { window.ref.pan(e.clientX - drag[0], e.clientY - drag[1]); drag = [e.clientX, e.clientY]; schedule(); } });
+addEventListener('pointerup', () => { drag = null; });
+// frame sampler (same definition as shared/metrics.ts: rAF deltas)
+window.sampler = { t: [], on: false, start() { this.t = []; this.on = true; const f = (ts) => { if (!this.on) return; this.t.push(ts); requestAnimationFrame(f); }; requestAnimationFrame(f); }, stop() { this.on = false; const d = []; for (let i = 1; i < this.t.length; i++) d.push(this.t[i] - this.t[i - 1]); const tot = d.reduce((a, b) => a + b, 0); const sorted = d.slice().sort((a, b) => b - a); let acc = 0, p5 = 0; for (const v of sorted) { acc += v; if (acc >= tot * 0.05) { p5 = v; break; } } const med = d.slice().sort((a, b) => a - b)[Math.floor(d.length / 2)]; return { frames: d.length, medianFps: 1000 / med, p5Fps: p5 ? 1000 / p5 : null, maxGapMs: Math.max(...d) }; } };
+</script>

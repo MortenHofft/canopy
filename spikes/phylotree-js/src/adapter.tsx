@@ -362,7 +362,7 @@ function makeStylers(I: Inst) {
           dot.setAttribute('class', 'pt-tip');
           g.insertBefore(dot, g.firstChild);
         }
-        dot.setAttribute('r', String(Math.max(0.2, Math.min(2, fs * 0.2)) * (hl ? 1.5 : 1)));
+        dot.setAttribute('r', String(Math.max(0.01, Math.min(2, fs * 0.2)) * (hl ? 1.5 : 1)));
         if (col) dot.style.fill = col;
         else dot.style.removeProperty('fill');
         dot.style.display = showMarker || hl ? '' : 'none';
@@ -376,7 +376,7 @@ function makeStylers(I: Inst) {
           ring.setAttribute('class', 'pt-ring');
           g.insertBefore(ring, g.firstChild);
         }
-        ring.setAttribute('r', String(Math.max(1.5, fs * 0.65)));
+        ring.setAttribute('r', String(Math.max(0.02, fs * 0.65)));
         if (!d.radial() && !d.unrooted()) {
           if (!band) {
             band = svgEl('rect');
@@ -1283,9 +1283,9 @@ const capabilities: CapabilityReport = {
   descendantTipsInPayload: { level: 'partial', how: "payload is the d3.hierarchy node: tips carry node.data.name; for internal nodes the tip set is not delivered, the wrapper calls d3's node.leaves() on the payload node (events marked adapter-derived)" },
   cladeColouring: { level: 'partial', how: "edge-styler (stroke on every branch below the clade root, incl. its own) + node-styler (internal circles, tip dots, labels) driven from React state; applied by calling the stylers on the existing DOM (no layout). display.refresh() cannot be used: it passes the wrong `this` to the edge-styler" },
   highlightTip: { level: 'partial', how: "node-styler adds ring, row band, bold primary label from React state, no re-layout. The library's own selectNodes() runs a full update() and styles via fixed .node-selected CSS, so it is not used" },
-  focusTip: { level: 'partial', how: "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too" },
+  focusTip: { level: 'partial', how: "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (18 px) needs k = 18/(row height); at 10k tips k is about 300 and the tree is magnified 300x horizontally too (columns and long branches leave the view)" },
   tipAsLink: { level: 'partial', how: "node-styler wraps the library's <text> in an SVG <a href data-tip-id target=_blank tabindex=0>; real anchors, but only for tips currently in the DOM (all tips are in the DOM unless collapsed or hidden)" },
-  customColumns: { level: 'partial', how: "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()" },
+  customColumns: { level: 'partial', how: "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update(); they live in the zoomed group, so widths scale with the uniform zoom and the columns leave the view when zooming from the fit view (the runner's S7 'after zoom and pan' check fails for that reason)" },
   alignmentColumn: { level: 'partial', how: "same mechanism: per-tip SVG paths grouped by residue colour (one path per colour per tip), so about 20 elements per tip; fine for a few hundred tips" },
   radialLayout: { level: 'yes', how: "option is-radial (display.radial(true) + update()); also is-unrooted (equal-angle) as a separate feature; columns are not drawn in radial layout" },
   branchLengthToggle: { level: 'partial', how: "option scaling (false = cladogram, tips aligned). If any branch has no length the library silently sets ALL lengths to 1 (Phylotree constructor); negative lengths are clamped to 0" },
@@ -1309,7 +1309,7 @@ export const adapter: CandidateAdapter = {
   capabilities,
   View: PhylotreeView,
   features: [
-    { id: 'variant', label: 'Layout variant', kind: 'select', default: 'standard', options: [{ value: 'standard', label: 'Standard (tabs above)' }, { value: 'mirror', label: 'Mirrored (right-to-left)' }, { value: 'unrooted', label: 'Unrooted (equal-angle)' }], description: "Library layouts: option layout 'right-to-left' and is-unrooted. Mirrored applies to rectangular only; unrooted replaces both tabs.", level: 'yes', how: 'library options layout and is-unrooted' },
+    { id: 'variant', label: 'Layout variant', kind: 'select', default: 'standard', options: [{ value: 'standard', label: 'Standard (tabs above)' }, { value: 'mirror', label: 'Mirrored (right-to-left)' }, { value: 'unrooted', label: 'Unrooted (equal-angle)' }], description: "Library layouts: option layout 'right-to-left' and is-unrooted. Mirrored applies to rectangular only; unrooted replaces both tabs. In fit-to-size mode the library's unrooted layout reserves room for full-size labels, so the tree starts small (zoom in).", level: 'yes', how: 'library options layout and is-unrooted' },
     { id: 'alignTips', label: 'Align tip labels (tracer lines)', kind: 'toggle', default: false, description: 'Option align-tips: labels at the right edge with dotted tracers. Forced on while columns are shown.', level: 'yes', how: 'library option align-tips' },
     { id: 'scaleBar', label: 'Scale bar (phylogram)', kind: 'toggle', default: true, description: 'Built-in axis on top, only for phylograms.', level: 'yes', how: 'library option show-scale' },
     { id: 'internalLabels', label: 'Internal node labels', kind: 'toggle', default: false, description: "Option internal-names: shows node names / support values. Caution: internal nodes then take their own row, so the layout changes.", level: 'yes', how: 'library option internal-names (changes row spacing)' },

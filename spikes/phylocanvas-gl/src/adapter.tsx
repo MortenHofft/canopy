@@ -220,7 +220,9 @@ function PhylocanvasView(props: ViewProps) {
     const lib = libRef.current;
     const mode = p.branchLengths && tm.hasLengths ? 'lengths' : 'cladogram';
     const native = !!f.nativeParser;
-    const source = memo('source', [tm, mode, native, p.newick], () => (native ? p.newick : { type: 'biojs', data: buildBiojs(tm, mode) }));
+    const source = memo('source', [tm, mode, native, p.newick], () => (native ? { type: 'newick', data: p.newick, trimQuotes: false } : { type: 'biojs', data: buildBiojs(tm, mode), trimQuotes: false }));
+    // trimQuotes: false is a documented source option (utils/tree-traversal.js). The default strips a leading/trailing ' or " from tip
+    // names, which changed the label `"Coelophysis" kayentakatae ott6520432` of the OpenTree 91k tree and broke the join key.
     const hover = f.hoverHighlight !== false;
     const interactive = memo('interactive', [hover], () => ({ pan: true, zoom: true, highlight: hover }));
     const sz = memo('size', [p.size.width, p.size.height], () => ({ width: p.size.width, height: p.size.height }));
@@ -293,7 +295,7 @@ function PhylocanvasView(props: ViewProps) {
       }
       return m;
     });
-    const gbif: GbifProps = memo('gbif', [p.columns, columnsOn, th.bar, th.fg, th.header, th.font, f.scaleBar, tm], () => ({
+    const gbif: GbifProps = memo('gbif', [p.columns, columnsOn, th.bar, th.fg, th.header, th.font, f.scaleBar, p.branchLengths, tm], () => ({
       columns: p.columns,
       columnsOn,
       barColour: css2rgba(th.bar),
@@ -476,8 +478,11 @@ function PhylocanvasView(props: ViewProps) {
       }
       const w0 = performance.now();
       try {
-        const s = lib.getCanvasSize();
-        lib.deck.pickObject({ x: s.width / 2, y: s.height / 2, radius: 2 });
+        // only needed when deck.gl's GPU picking is in use (picking = library); own hit-testing never reads pixels back
+        if (String(featRef.current.picking ?? 'own') !== 'own') {
+          const s = lib.getCanvasSize();
+          lib.deck.pickObject({ x: s.width / 2, y: s.height / 2, radius: 2 });
+        }
       } catch {
         /* picking is a convenience here */
       }
@@ -554,7 +559,9 @@ function PhylocanvasView(props: ViewProps) {
     // ctrl/meta = branch zoom is the library's). Zooming out to the fit snaps back to fitInCanvas().
     const onWheel = (e: WheelEvent) => {
       const l = libRef.current;
-      if (!l || String(featRef.current.wheel ?? 'rows') !== 'rows') return;
+      const wm = String(featRef.current.wheel ?? 'auto');
+      // 'auto': rows only up to 20k tips; setStepZoom re-lays out every node (O(n) JS per wheel step: 40 ms at 10k, 100 ms at 50k)
+      if (!l || wm === 'library' || (wm === 'auto' && tm.tipCount > 20000)) return;
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || !l.getStepZoomingAxis()) return;
       const r = host.getBoundingClientRect();
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
@@ -574,6 +581,8 @@ function PhylocanvasView(props: ViewProps) {
       l.setStepZoom(Math.min(max, cur + dz), [e.clientX - r.left, e.clientY - r.top]);
     };
     wrap.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    (window as any).__phylocanvasHit = (window as any).__phylocanvasHit ?? [];
+    (window as any).__phylocanvasHit[p.instanceId] = (x: number, y: number) => hitTest(lib, x, y, measureLabel); // test aid (timing of the CPU hit-test)
     wrap.addEventListener('pointerdown', onDown);
     wrap.addEventListener('pointerup', onUp);
     wrap.addEventListener('pointermove', onMove);
@@ -880,8 +889,7 @@ const capabilities: CapabilityReport = {
 };
 
 const features: AdapterFeature[] = [
-  { id: 'wheel', label: 'Mouse wheel zooms', kind: 'select', default: 'rows', options: [{ value: 'rows', label: 'Rows only (table-like; shift/ctrl: library keys)' }, { value: 'library', label: 'Both axes (library default)' }], level: 'partial', how: 'The library controller zooms both axes on a plain wheel (shift/alt = rows, ctrl/meta = branches). We intercept the plain wheel in rectangular, diagonal and hierarchical layouts and call the library\'s setStepZoom; zooming out to the fit calls fitInCanvas().' },
-  { id: 'picking', label: 'Picking and events', kind: 'select', default: (import.meta as any).env?.VITE_PC_PICKING ?? 'own', options: [{ value: 'own', label: 'Own CPU hit-test on the laid-out graph' }, { value: 'library', label: 'Library GPU picking (deck.gl)' }], level: 'partial', how: 'library: deck.gl renders a pick pass on every pointerdown and after every pointer move (synchronous readback, internal nodes only via the edge under a 2 px radius). own: hitTest() scans the visible subtree on the CPU (tips, labels, branches, collapsed clades) and calls the same wrapped selectNode / highlightNode; deck _pickable is switched off.' },
+  { id: 'wheel', label: 'Mouse wheel zooms', kind: 'select', default: 'auto', options: [{ value: 'auto', label: 'Rows only up to 20k tips, else both axes' }, { value: 'rows', label: 'Rows only (table-like)' }, { value: 'library', label: 'Both axes (library default)' }], level: 'partial', how: 'The library controller zooms both axes on a plain wheel (shift/alt = rows, ctrl/meta = branches). We intercept the plain wheel in rectangular, diagonal and hierarchical layouts and call the library\'s setStepZoom, which re-lays out all nodes (O(n) JS per step); zooming out to the fit calls fitInCanvas(). Above 20k tips auto leaves the wheel to the library.' },
   { id: 'treeType', label: 'Layout (library tree type)', kind: 'select', default: 'auto', options: [{ value: 'auto', label: 'Follow rectangular/radial tabs' }, { value: 'rc', label: 'Rectangular (rc)' }, { value: 'cr', label: 'Circular (cr)' }, { value: 'rd', label: 'Radial / unrooted (rd)' }, { value: 'dg', label: 'Diagonal (dg)' }, { value: 'hr', label: 'Hierarchical (hr)' }], level: 'yes', how: 'Library `type` prop; resets zoom and centre on change.' },
   { id: 'labels', label: 'Tip labels', kind: 'toggle', default: true, description: 'showLabels + showLeafLabels. Labels are thinned by the library when rows are smaller than the font.' },
   { id: 'alignLabels', label: 'Align tip labels (leader lines)', kind: 'toggle', default: false, description: 'alignLabels (rectangular, circular, hierarchical). Switched on automatically when columns are shown.' },

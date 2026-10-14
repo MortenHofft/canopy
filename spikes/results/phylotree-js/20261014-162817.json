@@ -1,5 +1,5 @@
 {
- "runId": "20261014-155655",
+ "runId": "20261014-162817",
  "candidate": {
   "name": "phylotree.js",
   "version": "2.6.0",
@@ -37,7 +37,7 @@
   },
   "focusTip": {
    "level": "partial",
-   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (16 px) needs k = 16/(row height); at 10k tips k is about 250 and the tree is magnified 250x horizontally too"
+   "how": "no zoom-to-node API: the wrapper computes d3.zoomIdentity from node.screen_x/y and calls display.zoomBehavior.transform. Zoom is uniform (x and y together), so a readable row (18 px) needs k = 18/(row height); at 10k tips k is about 300 and the tree is magnified 300x horizontally too (columns and long branches leave the view)"
   },
   "tipAsLink": {
    "level": "partial",
@@ -45,7 +45,7 @@
   },
   "customColumns": {
    "level": "partial",
-   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update()"
+   "how": "node-styler appends SVG cells (rect / text / path) to each tip <g> at shiftTip() + measured label width, with align-tips on; header row appended from the 'rendered' event; viewBox widened by the wrapper. Rectangular layouts only (not radial/unrooted); no column abstraction in the library; cells are re-created on every update(); they live in the zoomed group, so widths scale with the uniform zoom and the columns leave the view when zooming from the fit view (the runner's S7 'after zoom and pan' check fails for that reason)"
   },
   "alignmentColumn": {
    "level": "partial",
@@ -92,7 +92,7 @@
    "how": "none: every visible node and branch is a DOM element at all zoom levels; only manual collapse/hide reduces it (issue #63 describes a hand-built guide tree)"
   }
  },
- "date": "2026-10-14T15:57:41.963Z",
+ "date": "2026-10-14T16:28:56.977Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -123,6 +123,7 @@
    "S4",
    "S6",
    "S9",
+   "S11",
    "S12",
    "S13",
    "S14"
@@ -132,12 +133,12 @@
   ]
  },
  "bundle": {
-  "jsBytes": 544645,
-  "jsGzipBytes": 179663,
+  "jsBytes": 546979,
+  "jsGzipBytes": 180500,
   "cssBytes": 17766,
   "cssGzipBytes": 4328,
-  "totalBytes": 562817,
-  "totalGzipBytes": 184263,
+  "totalBytes": 565151,
+  "totalGzipBytes": 185101,
   "files": [
    {
     "path": "assets/index-BXVbu3c0.css",
@@ -145,14 +146,14 @@
     "gzipBytes": 4328
    },
    {
-    "path": "assets/index-Bwt10j5E.js",
-    "bytes": 544645,
-    "gzipBytes": 179663
+    "path": "assets/index-CjTEasLS.js",
+    "bytes": 546979,
+    "gzipBytes": 180500
    },
    {
     "path": "index.html",
     "bytes": 406,
-    "gzipBytes": 272
+    "gzipBytes": 273
    }
   ]
  },
@@ -233,7 +234,7 @@
    ],
    "title": "Click a tip",
    "evidence": "M",
-   "durationSec": 2.832
+   "durationSec": 2.181
   },
   "S3": {
    "status": "partial",
@@ -343,7 +344,7 @@
    },
    "title": "Click an internal node",
    "evidence": "M",
-   "durationSec": 3.157
+   "durationSec": 3.05
   },
   "S4": {
    "status": "pass",
@@ -402,7 +403,7 @@
    },
    "title": "Colour clades from React state",
    "evidence": "M",
-   "durationSec": 5.106
+   "durationSec": 3.417
   },
   "S6": {
    "status": "pass",
@@ -431,7 +432,7 @@
     {
      "name": "has non-zero size",
      "ok": true,
-     "detail": "{\"x\":504.000732421875,\"y\":451.4052734375,\"width\":160.29730224609375,\"height\":20}"
+     "detail": "{\"x\":503.999267578125,\"y\":451.06512451171875,\"width\":180.328369140625,\"height\":20.999755859375}"
     },
     {
      "name": "real click opens a new tab",
@@ -451,10 +452,10 @@
      "target": "_blank",
      "rel": "noopener noreferrer",
      "rect": {
-      "x": 504.000732421875,
-      "y": 451.4052734375,
-      "width": 160.29730224609375,
-      "height": 20
+      "x": 503.999267578125,
+      "y": 451.06512451171875,
+      "width": 180.328369140625,
+      "height": 20.999755859375
      },
      "count": 680
     },
@@ -463,7 +464,7 @@
    },
    "title": "Tip label as a link",
    "evidence": "M",
-   "durationSec": 3.995
+   "durationSec": 3.361
   },
   "S9": {
    "status": "pass",
@@ -491,8 +492,8 @@
     }
    ],
    "measures": {
-    "lightLuminance": 233.01699686874915,
-    "darkLuminance": 47.8654543847076,
+    "lightLuminance": 233.01919089465397,
+    "darkLuminance": 47.865038810864895,
     "tokenBackgroundFraction": 0.8385784236297583,
     "tokenBranchPixels": 52062
    },
@@ -501,31 +502,82 @@
    ],
    "title": "Theming (dark, tokens)",
    "evidence": "M",
-   "durationSec": 3.674
+   "durationSec": 2.608
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (partial)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 120 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 248.2 px"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> 0.000"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 80 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "phylogramPearson": 1.0000000000000009,
+    "cladogramPearson": 2.647393236721917e-15,
+    "meanTipShiftPx": 248.1694986385585,
+    "ultrametricTipSpread": 3.5016479791052167e-16,
+    "scaleBarSelfReport": "partial: built-in d3 axis on top for phylograms (option show-scale), styled by CSS. In rectangular layouts the library draws it ~20% too long (nodes are placed at scales[1]*.8 but the axis spans the full range: a depth-100 ultrametric tree ends at the 78 tick), so the wrapper redraws the axis from the numbers the layout used (not for mirrored layout). Radial axis is a single tick. No dated (time) axis, no tick unit"
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 3.123
   },
   "S12": {
-   "status": "fail",
-   "reason": "rich-corvoid-680 radial: radial S2: tipClick event for Pitohui_dichrous (got tipClick n172); radial S2: tipIds=[tip] for Pitohui_dichrous ([\"Oriolus_bouroensis\"]); radial S2: React last-event shows tip Pitohui_dichrous (tipClick n172 tips=1 source=library); radial S2: tipClick event for Corvus_minutus (got tipClick n623); radial S2: tipIds=[tip] for Corvus_minutus ([\"Corvus_cornix\"]); radial S2: React last-event shows tip Corvus_minutus (tipClick n623 tips=1 source=library); radial S2: tipClick event for Coracina_striata (got tipClick n1085); radial S2: tipIds=[tip] for Coracina_striata ([\"Coracina_leucopygia\"]); radial S2: React last-event shows tip Coracina_striata (tipClick n1085 tips=1 source=library); radial S3: node n321 (328 tips): event on right node (got n440); radial S3: node n321: tip set equals ground truth (got 105, want 328); radial S3: node n321: React map-panel shows 328 (last=nodeClick n440 tips=105 source=adapter-derived map=105); radial S3: node n977 (182 tips): event on right node (got n1150); radial S3: node n977: tip set equals ground truth (got 17, want 182); radial S3: node n977: React map-panel shows 182 (last=nodeClick n1150 tips=17 source=adapter-derived map=17); radial S3: node n17 (81 tips): event on right node (got n111); radial S3: node n17: tip set equals ground truth (got 4, want 81); radial S3: node n17: React map-panel shows 81 (last=nodeClick n111 tips=4 source=adapter-derived map=4); radial S3: node n238 (37 tips): event on right node (got n260); radial S3: node n238: tip set equals ground truth (got 4, want 37); radial S3: node n238: React map-panel shows 37 (last=nodeClick n260 tips=4 source=adapter-derived map=4)",
+   "status": "pass",
+   "reason": "rich-corvoid-680 radial: all checks passed",
    "checks": [
     {
      "name": "setLayout(radial) changes the layout",
      "ok": true,
-     "detail": "tip moved from 772,378 to 467,539"
+     "detail": "tip moved from 772,378 to 483,512"
     },
     {
      "name": "radial S2: tipClick event for Pitohui_dichrous",
-     "ok": false,
-     "detail": "got tipClick n172"
+     "ok": true,
+     "detail": "got tipClick n176"
     },
     {
      "name": "radial S2: tipIds=[tip] for Pitohui_dichrous",
-     "ok": false,
-     "detail": "[\"Oriolus_bouroensis\"]"
+     "ok": true,
+     "detail": "[\"Pitohui_dichrous\"]"
     },
     {
      "name": "radial S2: React last-event shows tip Pitohui_dichrous",
-     "ok": false,
-     "detail": "tipClick n172 tips=1 source=library"
+     "ok": true,
+     "detail": "tipClick n176 tips=1 source=library"
     },
     {
      "name": "radial S2: React map-panel count 1",
@@ -534,18 +586,18 @@
     },
     {
      "name": "radial S2: tipClick event for Corvus_minutus",
-     "ok": false,
-     "detail": "got tipClick n623"
+     "ok": true,
+     "detail": "got tipClick n633"
     },
     {
      "name": "radial S2: tipIds=[tip] for Corvus_minutus",
-     "ok": false,
-     "detail": "[\"Corvus_cornix\"]"
+     "ok": true,
+     "detail": "[\"Corvus_minutus\"]"
     },
     {
      "name": "radial S2: React last-event shows tip Corvus_minutus",
-     "ok": false,
-     "detail": "tipClick n623 tips=1 source=library"
+     "ok": true,
+     "detail": "tipClick n633 tips=1 source=library"
     },
     {
      "name": "radial S2: React map-panel count 1",
@@ -554,18 +606,18 @@
     },
     {
      "name": "radial S2: tipClick event for Coracina_striata",
-     "ok": false,
-     "detail": "got tipClick n1085"
+     "ok": true,
+     "detail": "got tipClick n1086"
     },
     {
      "name": "radial S2: tipIds=[tip] for Coracina_striata",
-     "ok": false,
-     "detail": "[\"Coracina_leucopygia\"]"
+     "ok": true,
+     "detail": "[\"Coracina_striata\"]"
     },
     {
      "name": "radial S2: React last-event shows tip Coracina_striata",
-     "ok": false,
-     "detail": "tipClick n1085 tips=1 source=library"
+     "ok": true,
+     "detail": "tipClick n1086 tips=1 source=library"
     },
     {
      "name": "radial S2: React map-panel count 1",
@@ -574,63 +626,63 @@
     },
     {
      "name": "radial S3: node n321 (328 tips): event on right node",
-     "ok": false,
-     "detail": "got n440"
+     "ok": true,
+     "detail": "got n321"
     },
     {
      "name": "radial S3: node n321: tip set equals ground truth",
-     "ok": false,
-     "detail": "got 105, want 328"
+     "ok": true,
+     "detail": "got 328, want 328"
     },
     {
      "name": "radial S3: node n321: React map-panel shows 328",
-     "ok": false,
-     "detail": "last=nodeClick n440 tips=105 source=adapter-derived map=105"
+     "ok": true,
+     "detail": "last=nodeClick n321 tips=328 source=adapter-derived map=328"
     },
     {
      "name": "radial S3: node n977 (182 tips): event on right node",
-     "ok": false,
-     "detail": "got n1150"
+     "ok": true,
+     "detail": "got n977"
     },
     {
      "name": "radial S3: node n977: tip set equals ground truth",
-     "ok": false,
-     "detail": "got 17, want 182"
+     "ok": true,
+     "detail": "got 182, want 182"
     },
     {
      "name": "radial S3: node n977: React map-panel shows 182",
-     "ok": false,
-     "detail": "last=nodeClick n1150 tips=17 source=adapter-derived map=17"
+     "ok": true,
+     "detail": "last=nodeClick n977 tips=182 source=adapter-derived map=182"
     },
     {
      "name": "radial S3: node n17 (81 tips): event on right node",
-     "ok": false,
-     "detail": "got n111"
+     "ok": true,
+     "detail": "got n17"
     },
     {
      "name": "radial S3: node n17: tip set equals ground truth",
-     "ok": false,
-     "detail": "got 4, want 81"
+     "ok": true,
+     "detail": "got 81, want 81"
     },
     {
      "name": "radial S3: node n17: React map-panel shows 81",
-     "ok": false,
-     "detail": "last=nodeClick n111 tips=4 source=adapter-derived map=4"
+     "ok": true,
+     "detail": "last=nodeClick n17 tips=81 source=adapter-derived map=81"
     },
     {
      "name": "radial S3: node n238 (37 tips): event on right node",
-     "ok": false,
-     "detail": "got n260"
+     "ok": true,
+     "detail": "got n238"
     },
     {
      "name": "radial S3: node n238: tip set equals ground truth",
-     "ok": false,
-     "detail": "got 4, want 37"
+     "ok": true,
+     "detail": "got 37, want 37"
     },
     {
      "name": "radial S3: node n238: React map-panel shows 37",
-     "ok": false,
-     "detail": "last=nodeClick n260 tips=4 source=adapter-derived map=4"
+     "ok": true,
+     "detail": "last=nodeClick n238 tips=37 source=adapter-derived map=37"
     },
     {
      "name": "radial S3: at least 3 nodes tested",
@@ -640,7 +692,7 @@
     {
      "name": "radial S4: clade A turns red (pixel fraction rises)",
      "ok": true,
-     "detail": "fraction 0.00% -> 48.75%"
+     "detail": "fraction 0.00% -> 28.54%"
     },
     {
      "name": "radial S4: other clade unchanged (control)",
@@ -660,7 +712,7 @@
     {
      "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
      "ok": true,
-     "detail": "A red 48.75%, B blue 46.67%"
+     "detail": "A red 28.54%, B blue 24.00%"
     },
     {
      "name": "radial S4: clear restores the original colours",
@@ -681,7 +733,7 @@
    "measures": {},
    "title": "Radial layout",
    "evidence": "M",
-   "durationSec": 13.732
+   "durationSec": 8.413
   },
   "S13": {
    "status": "pass",
@@ -740,7 +792,7 @@
     {
      "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
      "ok": true,
-     "detail": "2.4 MB"
+     "detail": "1.8 MB"
     },
     {
      "name": "no page errors",
@@ -758,18 +810,18 @@
      "canv": 0
     },
     "heapMB": [
-     8.860754013061523,
-     9.4105224609375,
-     9.426715850830078,
-     10.416179656982422,
-     11.278633117675781
+     8.99540901184082,
+     9.35930061340332,
+     9.793264389038086,
+     10.382528305053711,
+     10.800149917602539
     ],
-    "heapGrowthMB": 2.417879104614258,
+    "heapGrowthMB": 1.8047409057617188,
     "pageErrors": []
    },
    "title": "Two instances, mount/unmount x5",
    "evidence": "M",
-   "durationSec": 7.873
+   "durationSec": 7.203
   },
   "S14": {
    "status": "pass",
@@ -843,28 +895,28 @@
    },
    "title": "Keyboard and screen reader",
    "evidence": "M",
-   "durationSec": 3.709
+   "durationSec": 3.843
   }
  },
  "scale": {},
  "screenshots": [
   {
    "label": "S4-two-clades",
-   "file": "screens/20261014-155655-S4-two-clades.png",
-   "bytes": 53981
+   "file": "screens/20261014-162817-S4-two-clades.png",
+   "bytes": 53742
   },
   {
    "label": "S9-dark",
-   "file": "screens/20261014-155655-S9-dark.png",
-   "bytes": 50177
+   "file": "screens/20261014-162817-S9-dark.png",
+   "bytes": 50039
   },
   {
    "label": "S12-radial",
-   "file": "screens/20261014-155655-S12-radial.png",
-   "bytes": 56939
+   "file": "screens/20261014-162817-S12-radial.png",
+   "bytes": 38370
   }
  ],
- "wallSec": 46.62,
+ "wallSec": 39.258,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"
