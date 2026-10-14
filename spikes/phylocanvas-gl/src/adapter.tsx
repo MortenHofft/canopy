@@ -557,7 +557,7 @@ function PhylocanvasView(props: ViewProps) {
       e.preventDefault();
       e.stopPropagation();
       const delta = -e.deltaY * (e.deltaMode === 1 ? 33 : 1);
-      const sc = 2 / (1 + Math.exp(-Math.abs(delta * 0.01)));
+      const sc = 2 / (1 + Math.exp(-Math.abs(delta * 0.005))); // library: 0.01 (x1.54 per notch); gentler for a row zoom (x1.29)
       const dz = Math.log2(delta < 0 ? 1 / sc : sc);
       const cur = l.getStepZoom();
       if (cur + dz <= 0.001) {

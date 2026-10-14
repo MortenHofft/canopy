@@ -27,6 +27,8 @@ type HNode = any; // d3.hierarchy node as used by phylotree (has .data.name, .ch
 const COL_GAP = 6;
 const HEADER_H = 22; // user units added above the tree when columns are on (column headers)
 let hostCounter = 0;
+// build-time switch for the measurements: VITE_PT_LOD=0 npm run build gives the library's behaviour without the wrapper's label LOD
+const LOD_DEFAULT = (import.meta as any).env?.VITE_PT_LOD !== '0';
 
 // ------------------------------------------------------------------------------------------------ CSS (tokens only)
 
@@ -48,6 +50,8 @@ const CSS = `
 .pt-root .clade{fill:var(--pt-clade);stroke:var(--pt-branch);stroke-width:1px;vector-effect:non-scaling-stroke;opacity:.55}
 .pt-root .phylotree-node-text{font-family:var(--pt-font);font-style:italic;fill:var(--pt-fg);cursor:pointer;paint-order:stroke;stroke:none}
 .pt-root .internal-node .phylotree-node-text{font-style:normal;fill:var(--pt-fg2);cursor:default}
+.pt-root.pt-lod-hide .phylotree-node-text,.pt-root.pt-lod-hide .pt-cell-text{display:none}
+.pt-root text{text-rendering:geometricPrecision}
 .pt-root .pt-link .phylotree-node-text{text-decoration:underline;text-underline-offset:.12em}
 .pt-root a.pt-link:focus-visible{outline:none}
 .pt-root text:focus{outline:none}
@@ -558,8 +562,24 @@ function applyOptions(I: Inst, P: ViewProps) {
   d.set_size([d.height, d.width]);
 }
 
+/** wrapper-level level of detail: hide label text while it would be smaller than ~3.5 px (text layout dominates the cost of every zoom step) */
+function lod(I: Inst) {
+  const d = I.display;
+  if (!d || I.destroyed) return;
+  const P = I.latest.current;
+  let hide = false;
+  if (P.features.labelLod !== false) {
+    const vb = (d.svg.node() as SVGSVGElement).viewBox.baseVal;
+    const s = vb.width > 0 && vb.height > 0 ? Math.min(P.size.width / vb.width, P.size.height / vb.height) : 1;
+    const k: number = d.currentZoomTransform?.k ?? 1;
+    hide = d.shown_font_size * k * s < 3.5;
+  }
+  if (I.host.classList.contains('pt-lod-hide') !== hide) I.host.classList.toggle('pt-lod-hide', hide);
+}
+
 function tune(I: Inst) {
   const d = I.display;
+  d.zoomBehavior?.on('zoom.lod', () => lod(I)); // named listener: keeps the library's own 'zoom' handler
   // the library hard-codes scaleExtent [0.1, 10]; the property is reachable, so widen it (large trees need k in the thousands)
   d.zoomBehavior?.scaleExtent([0.3, 8000]);
   const svg = d.svg.node() as SVGSVGElement;
@@ -618,6 +638,7 @@ function bindEvents(I: Inst) {
     fixScaleBar(I);
     patchViewBox(I);
     drawHeaders(I);
+    lod(I);
   };
   d.on('nodeClick', onNodeClick).on('nodeHover', onNodeHover).on('branchClick', onBranchClick).on('rendered', onRendered);
   const off = () => {
@@ -826,6 +847,7 @@ function createInstance(host: HTMLDivElement, latest: React.MutableRefObject<Vie
   host.appendChild(I.display.show());
   tune(I);
   bindEvents(I);
+  lod(I);
   fixScaleBar(I); // the first update() ran inside the constructor, before our 'rendered' listener existed
   patchViewBox(I);
   drawHeaders(I);
@@ -975,6 +997,7 @@ function PhylotreeView(props: ViewProps) {
     const lk = layoutKeyOf(P);
     const colsChanged = A.columns !== P.columns;
     if (colsChanged) I.colsVersion++;
+    lod(I);
     // options the library reads at click time: no redraw needed
     {
       const menu = P.features.contextMenu === true;
@@ -1062,6 +1085,16 @@ function inside(r: DOMRect, c: DOMRect): boolean {
   return r.right > c.left && r.left < c.right && r.bottom > c.top && r.top < c.bottom;
 }
 
+/** client position of a node's own point (tip anchor), from the layout coordinates and the group's CTM */
+function anchorOf(I: Inst, x: HNode): Point | null {
+  if (x.screen_x === undefined) return null;
+  const svg = I.display.svg.node() as SVGSVGElement;
+  const grp = svg.querySelector('.' + I.display.css_classes['tree-container']) as SVGGElement | null;
+  const m = grp?.getScreenCTM();
+  if (!m) return null;
+  return { x: x.screen_x * m.a + x.screen_y * m.c + m.e, y: x.screen_x * m.b + x.screen_y * m.d + m.f };
+}
+
 function makeHandle(I: Inst, latest: React.MutableRefObject<ViewProps>): ViewHandle {
   const nodeOf = (t: { kind: 'tip' | 'node'; id: string }): HNode | null => {
     if (I.destroyed) return null;
@@ -1079,9 +1112,14 @@ function makeHandle(I: Inst, latest: React.MutableRefObject<ViewProps>): ViewHan
       if (!el || (el as SVGElement).style.display === 'none') return null;
       const r = el.getBoundingClientRect();
       const c = I.host.getBoundingClientRect();
-      const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      let p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      if (r.width === 0 && r.height === 0) {
+        // label hidden by the wrapper LOD: report the tip's anchor point (not clickable until the label is shown)
+        const a = anchorOf(I, x);
+        if (!a) return null;
+        p = a;
+      }
       if (p.x < c.left + 1 || p.x > c.right - 1 || p.y < c.top + 1 || p.y > c.bottom - 1) return null;
-      if (r.width === 0 && r.height === 0) return null;
       return p;
     },
     bounds(t): Rect | null {
@@ -1108,7 +1146,7 @@ function makeHandle(I: Inst, latest: React.MutableRefObject<ViewProps>): ViewHan
       if (t.kind === 'tip') {
         const g = gMapOf(I).get(x);
         const tx = g?.querySelector('text')?.getBoundingClientRect();
-        if (tx) return inside(tx, c) ? { x: tx.left, y: tx.top, width: tx.width, height: tx.height } : null;
+        if (tx && (tx.width > 0 || tx.height > 0)) return inside(tx, c) ? { x: tx.left, y: tx.top, width: tx.width, height: tx.height } : null;
       }
       x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
       x0 = Math.max(c.left, x0); y0 = Math.max(c.top, y0); x1 = Math.min(c.right, x1); y1 = Math.min(c.bottom, y1);
@@ -1196,6 +1234,7 @@ export const adapter: CandidateAdapter = {
     { id: 'ladderize', label: 'Ladderize', kind: 'select', default: 'none', options: [{ value: 'none', label: 'File order' }, { value: 'asc', label: 'Smaller clades first' }, { value: 'desc', label: 'Larger clades first' }], description: 'Re-sorts children by clade size.', level: 'partial', how: "library's resortChildren() sorts by an empty `value` field (no effect); the wrapper sorts the d3.hierarchy with count()/sort() and re-lays out. Ids stay valid because nodes are mapped by object" },
     { id: 'collapseOnClick', label: 'Collapse clade on internal-node click', kind: 'toggle', default: false, description: "Calls display.toggleCollapse(node).update() (library collapse: spline blob, compression 0.2). Collapsed tips leave the DOM, so they can't be located.", level: 'yes', how: 'library toggleCollapse' },
     { id: 'contextMenu', label: "Library context menu (collapse, hide, reroot, select)", kind: 'toggle', default: false, description: 'Node click opens the built-in menu (styled with GBIF tokens by us). Reroot replaces the library display object; ids of rerooted clades that no longer match the shared tree are not reported.', level: 'partial', how: 'library show-menu; reroot() rebuilds the TreeRender so the wrapper re-binds on the DOM reroot event' },
+    { id: 'labelLod', label: 'Hide unreadable labels (wrapper LOD)', kind: 'toggle', default: LOD_DEFAULT, description: 'Hides label text while it would be under 3.5 px. Text layout dominates the cost of each zoom step; switching this off shows the library as shipped (every label always in the DOM and laid out).', level: 'partial', how: 'wrapper adds a class on the host from a named d3 zoom listener; the library itself has no level of detail' },
     { id: 'tipMarkers', label: 'Tip dots (wrapper-added)', kind: 'toggle', default: true, description: 'The library draws no marker at tips; the wrapper appends a small non-interactive dot in the node-styler.', level: 'partial', how: 'node-styler appends an SVG circle per tip' },
   ],
 };

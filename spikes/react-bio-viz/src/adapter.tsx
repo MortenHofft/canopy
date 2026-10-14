@@ -205,12 +205,65 @@ for (const c of 'HY') AA[c] = '#15a4a4';
 AA.U = '#15c015';
 const resColour = (ch: string) => AA[ch.toUpperCase()] ?? '#e2e2e2';
 
+const palInt = new Map<string, number>();
+function resInt(ch: string): number {
+  let v = palInt.get(ch);
+  if (v === undefined) {
+    const h = resColour(ch);
+    v = (0xff << 24) | (parseInt(h.slice(5, 7), 16) << 16) | (parseInt(h.slice(3, 5), 16) << 8) | parseInt(h.slice(1, 3), 16); // ABGR for a little-endian Uint32Array over RGBA
+    palInt.set(ch, v >>> 0);
+    v = v >>> 0;
+  }
+  return v;
+}
+/** One pixel per row and per horizontal pixel: an offscreen image of the whole alignment column, drawn scaled (O(1) per frame instead of O(rows x residues)). */
+const alnCache = new WeakMap<ColumnSpec, { version: number; cv: HTMLCanvasElement }>();
+const MAX_IMG_ROWS = 30000;
+function alignmentImage(c: ColumnSpec, rows: Rows, tree: TreeModel): HTMLCanvasElement | null {
+  if (rows.count > MAX_IMG_ROWS) return null;
+  const hit = alnCache.get(c);
+  if (hit && hit.version === rows.version) return hit.cv;
+  const w = Math.max(1, Math.ceil(c.width)), h = rows.count;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d')!;
+  const img = ctx.createImageData(w, h);
+  const px = new Uint32Array(img.data.buffer);
+  for (let r = 0; r < h; r++) {
+    const i = rows.idx[r];
+    if (tree.childCount[i] !== 0) continue;
+    const val = c.values[tree.tipLabels[tree.tipRank[i]]];
+    if (val === undefined) continue;
+    const seq = String(val);
+    const L = seq.length;
+    if (!L) continue;
+    for (let x = 0; x < w; x++) px[r * w + x] = resInt(seq[Math.min(L - 1, Math.floor((x * L) / w))]);
+  }
+  ctx.putImageData(img, 0, 0);
+  alnCache.set(c, { version: rows.version, cv });
+  return cv;
+}
+
+const maxCache = new WeakMap<ColumnSpec, number>();
+function maxOf(c: ColumnSpec): number {
+  let m = maxCache.get(c);
+  if (m === undefined) {
+    m = 0;
+    for (const key in c.values) m = Math.max(m, Number(c.values[key]));
+    maxCache.set(c, m);
+  }
+  return m;
+}
+
 function barWidth(v: number, max: number, w: number): number {
   if (!(max > 0) || !(v > 0)) return 1;
   return Math.max(1, (Math.log10(1 + v) / Math.log10(1 + max)) * (w - 4));
 }
 
+let rowsVersion = 0;
 interface Rows {
+  version: number;
   y: Float64Array; // user-space y of the row centre (library svg coordinates, margin included)
   x: Float64Array; // user-space x of the marker
   idx: Int32Array; // shared node index of the row (tip, or collapsed clade)
@@ -218,7 +271,7 @@ interface Rows {
   gap: number; // user units between neighbouring rows
   count: number;
 }
-const NO_ROWS: Rows = { y: new Float64Array(0), x: new Float64Array(0), idx: new Int32Array(0), rowOfTipRank: new Int32Array(0), gap: 1, count: 0 };
+const NO_ROWS: Rows = { version: 0, y: new Float64Array(0), x: new Float64Array(0), idx: new Int32Array(0), rowOfTipRank: new Int32Array(0), gap: 1, count: 0 };
 
 function scanRows(svg: SVGSVGElement, p: Prepared, tree: TreeModel, collapsed: Set<string>): Rows {
   const circles = svg.querySelectorAll('circle[data-node-id]');
@@ -242,7 +295,7 @@ function scanRows(svg: SVGSVGElement, p: Prepared, tree: TreeModel, collapsed: S
   }
   const n = ys.length;
   const order = Array.from({ length: n }, (_, k) => k).sort((a, b) => ys[a] - ys[b]);
-  const rows: Rows = { y: new Float64Array(n), x: new Float64Array(n), idx: new Int32Array(n), rowOfTipRank: new Int32Array(tree.tipCount).fill(-1), gap: 1, count: n };
+  const rows: Rows = { version: ++rowsVersion, y: new Float64Array(n), x: new Float64Array(n), idx: new Int32Array(n), rowOfTipRank: new Int32Array(tree.tipCount).fill(-1), gap: 1, count: n };
   for (let r = 0; r < n; r++) {
     const o = order[r];
     rows.y[r] = ys[o];
@@ -568,11 +621,20 @@ function RbvView(props: ViewProps) {
     const r0 = lo;
     let r1 = r0;
     while (r1 < rows.count - 1 && toY(r1) < H + rowPx) r1++;
+    const step = rowPx < 1 ? Math.ceil(1 / rowPx) : 1; // more rows than pixels: draw every n-th row
     columns.forEach((c, k) => {
       const x0 = colLeft(k);
-      let max = 0;
-      if (c.kind === 'bar') for (const key in c.values) max = Math.max(max, Number(c.values[key]));
-      for (let r = r0; r <= r1; r++) {
+      if (c.kind === 'alignment') {
+        const img = alignmentImage(c, rows, tree);
+        if (img) {
+          ctx.imageSmoothingEnabled = false;
+          const top = toY(r0) - rowPx / 2;
+          ctx.drawImage(img, 0, r0, img.width, r1 - r0 + 1, x0, top, c.width, (r1 - r0 + 1) * rowPx);
+        }
+        return;
+      }
+      const max = c.kind === 'bar' ? maxOf(c) : 0;
+      for (let r = r0; r <= r1; r += step) {
         const i = rows.idx[r];
         if (tree.childCount[i] !== 0) continue; // collapsed clade row: no cell
         const val = c.values[tree.tipLabels[tree.tipRank[i]]];
@@ -582,31 +644,17 @@ function RbvView(props: ViewProps) {
           ctx.fillStyle = barC;
           const h = Math.max(1, rowPx * 0.8);
           ctx.fillRect(x0 + 2, yc - h / 2, barWidth(Number(val), max, c.width), h);
-        } else if (c.kind === 'text') {
-          if (rowPx >= 8) {
-            const fs = Math.min(12, rowPx * 0.7);
-            ctx.fillStyle = fg;
-            ctx.font = `${fs}px ${fam}`;
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(val), x0 + 2, yc, c.width - 4);
-          } else {
-            ctx.fillStyle = barC;
-            ctx.globalAlpha = 0.35;
-            ctx.fillRect(x0 + 2, yc - rowPx / 2, c.width - 4, Math.max(1, rowPx));
-            ctx.globalAlpha = 1;
-          }
+        } else if (rowPx >= 8) {
+          const fs = Math.min(12, rowPx * 0.7);
+          ctx.fillStyle = fg;
+          ctx.font = `${fs}px ${fam}`;
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(val), x0 + 2, yc, c.width - 4);
         } else {
-          const seq = String(val);
-          const cw = c.width / Math.max(1, seq.length);
-          const h = Math.max(1, rowPx - (rowPx > 3 ? 1 : 0));
-          let run = 0;
-          for (let j = 1; j <= seq.length; j++) {
-            if (j === seq.length || resColour(seq[j]) !== resColour(seq[run])) {
-              ctx.fillStyle = resColour(seq[run]);
-              ctx.fillRect(x0 + run * cw, yc - h / 2, (j - run) * cw + 0.3, h);
-              run = j;
-            }
-          }
+          ctx.fillStyle = barC;
+          ctx.globalAlpha = 0.35;
+          ctx.fillRect(x0 + 2, yc - rowPx / 2, c.width - 4, Math.max(1, rowPx));
+          ctx.globalAlpha = 1;
         }
       }
     });
@@ -748,8 +796,7 @@ function RbvView(props: ViewProps) {
       const yc = m.d * rows.y[row] + m.f;
       if (yc < cr.top || yc > cr.bottom) return null;
       const rowPx = rows.gap * m.d;
-      let max = 0;
-      if (c.kind === 'bar') for (const key in c.values) max = Math.max(max, Number(c.values[key]));
+      const max = c.kind === 'bar' ? maxOf(c) : 0;
       const w = c.kind === 'bar' ? barWidth(Number(val), max, c.width) : c.width - 4;
       const h = c.kind === 'bar' ? Math.max(1, rowPx * 0.8) : Math.max(1, rowPx);
       return { x: cr.left + colLeft(k) + 2, y: yc - h / 2, width: w, height: h };
