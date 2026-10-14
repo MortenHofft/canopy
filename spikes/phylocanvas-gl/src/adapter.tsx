@@ -390,10 +390,22 @@ function PhylocanvasView(props: ViewProps) {
     const mc = measureCtx(fontFamily, fs);
     const align = lib.getAlignLeafLabels();
     const out: typeof rows = [];
-    for (const leaf of graph.leaves) {
+    // leaves are in row order (y ascending in rectangular and diagonal layouts): bisect to the first visible row instead of
+    // projecting every leaf (190k tips)
+    const leaves = graph.leaves as any[];
+    const yTop = lib.unprojectPoint([0, -pitch])[1];
+    let lo = 0;
+    let hi = leaves.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (leaves[mid].y < yTop) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let i = lo; i < leaves.length; i++) {
+      const leaf = leaves[i];
       if (leaf.isHidden) continue;
       const [px, py] = lib.projectPoint([leaf.x, leaf.y]);
-      if (py < -pitch || py > H + pitch) continue;
+      if (py > H + pitch) break;
       const aoff = align ? lib.getBranchScale() * (graph.root.totalSubtreeLength - leaf.distanceFromRoot) * scale : 0;
       const left = px + nodeSize + aoff;
       if (left > W) continue;
@@ -704,17 +716,31 @@ function PhylocanvasView(props: ViewProps) {
       if (type === 'rc' || type === 'dg') return lib.projectPoint([n.x - d, n.y]);
       return lib.projectPoint([n.x, n.y]);
     }
-    if (type === 'rc') (A = [par.x, n.y]), (B = [n.x, n.y]);
-    else if (type === 'hr') (A = [n.x, par.y]), (B = [n.x, n.y]);
-    else if (type === 'cr') (A = [n.x, n.y]), (B = [n.cx, n.cy]);
+    if (type === 'rc' || type === 'hr') {
+      // the node's own pick region is an L: the piece along the branch axis (rc: horizontal at n.y, hr: vertical at n.x) and the
+      // connector to the parent (rc: vertical at par.x, hr: horizontal at par.y). Zero-length branches (common in gene trees) have no
+      // branch piece, and the children's connectors would win the pick at the node, so use the connector then.
+      const rcType = type === 'rc';
+      const nodeEnd = lib.projectPoint([n.x, n.y]);
+      const corner = lib.projectPoint(rcType ? [par.x, n.y] : [n.x, par.y]);
+      const parentEnd = lib.projectPoint([par.x, par.y]);
+      const Lb = Math.hypot(nodeEnd[0] - corner[0], nodeEnd[1] - corner[1]);
+      const Lc = Math.hypot(parentEnd[0] - corner[0], parentEnd[1] - corner[1]);
+      if (Lb >= 4 || Lc < 4) {
+        const d = Math.min(6, Lb / 2);
+        const t = Lb > 0 ? d / Lb : 0;
+        return [nodeEnd[0] + (corner[0] - nodeEnd[0]) * t, nodeEnd[1] + (corner[1] - nodeEnd[1]) * t];
+      }
+      // three quarters of the way from the parent: the part of the connector not shared with a nearer sibling's connector
+      return [parentEnd[0] + (corner[0] - parentEnd[0]) * 0.75, parentEnd[1] + (corner[1] - parentEnd[1]) * 0.75];
+    }
+    if (type === 'cr') (A = [n.x, n.y]), (B = [n.cx, n.cy]);
     else (A = [par.x, par.y]), (B = [n.x, n.y]);
-    // pick the end nearer to the node when the edge is long enough
+    // circular: the radial line runs node -> parent radius (A is the node end); diagonal, radial: parent -> node (B is the node end)
     const pa = lib.projectPoint(A);
     const pb = lib.projectPoint(B);
     const L = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
-    const target = type === 'cr' ? B : B; // for 'cr' the central line runs node -> parent radius; B is the parent end, A the node
-    void target;
-    const from = type === 'cr' ? pa : pb; // node end
+    const from = type === 'cr' ? pa : pb;
     const to = type === 'cr' ? pb : pa;
     const d = Math.min(6, L / 2);
     const t = L > 0 ? d / L : 0;

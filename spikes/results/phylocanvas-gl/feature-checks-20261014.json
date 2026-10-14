@@ -1,0 +1,111 @@
+{
+ "date": "2026-10-14T18:12:58.626Z",
+ "results": {
+  "layouts": {
+   "rc": {
+    "type": "rc",
+    "internal": 198,
+    "internalOk": 198,
+    "tips": 200,
+    "tipsOk": 200
+   },
+   "cr": {
+    "type": "cr",
+    "internal": 198,
+    "internalOk": 198,
+    "tips": 200,
+    "tipsOk": 200
+   },
+   "rd": {
+    "type": "rd",
+    "internal": 198,
+    "internalOk": 198,
+    "tips": 200,
+    "tipsOk": 200
+   },
+   "dg": {
+    "type": "dg",
+    "internal": 198,
+    "internalOk": 198,
+    "tips": 200,
+    "tipsOk": 200
+   },
+   "hr": {
+    "type": "hr",
+    "internal": 198,
+    "internalOk": 198,
+    "tips": 200,
+    "tipsOk": 200
+   }
+  },
+  "rootAtClicked": {
+   "clicked": {
+    "k": 324,
+    "tips": 38
+   },
+   "after": {
+    "rootId": "__324",
+    "visibleLeaves": 38
+   }
+  },
+  "collapsedClick": {
+   "clade": {
+    "k": 2,
+    "tips": 3
+   },
+   "events": [
+    [
+     "nodeHover",
+     "n2",
+     3,
+     "adapter-derived"
+    ],
+    [
+     "nodeClick",
+     "n2",
+     3,
+     "adapter-derived"
+    ]
+   ],
+   "collapsedClades": 16
+  },
+  "parser": {
+   "biojsObject": {
+    "expectedTips": 7,
+    "libraryTips": 7,
+    "notes": "id mapping exact (library preorder == shared preorder)"
+   },
+   "libraryNewick": {
+    "expectedTips": 7,
+    "libraryTips": 8,
+    "notes": "id mapping NOT exact (1 mismatches, falling back to tip-set search)"
+   }
+  },
+  "contextLostAfterFirstUnmount_release1": true,
+  "cycles": {
+   "release1": {
+    "cycles": 24,
+    "heapMB": [
+     10.8,
+     11.3,
+     11.5,
+     11.6
+    ],
+    "canvasesLeft": 0,
+    "contextMessages": []
+   },
+   "release0": {
+    "cycles": 24,
+    "heapMB": [
+     10.8,
+     11.3,
+     11.5,
+     11.6
+    ],
+    "canvasesLeft": 0,
+    "contextMessages": []
+   }
+  },
+  "contextLostAfterFirstUnmount_release0": false
+ }
+}

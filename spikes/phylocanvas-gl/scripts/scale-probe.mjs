@@ -1,8 +1,7 @@
 // Scale probe for the Phylocanvas.gl demo: splits what the runner's S1 lumps together.
 //   * JS (main-thread) costs, valid on any machine: mount phases, setProps for a view change, style change (clade colour),
 //     hover highlight, own CPU hit-test, heap.
-//   * GPU frame cost, valid ONLY for software GL (SwiftShader) here: redraw + readPixels with the scene versus with no layers
-//     (the empty frame is a fixed floor that depends on canvas pixels, not on the tree).
+//   * GPU frame cost, valid ONLY for software GL (SwiftShader) here: redraw + readPixels of the whole scene (min of 5).
 //   * A Canvas2D reference of the same scene (scripts/canvas2d-ref.html, CPU raster): per-frame JS draw time with and without
 //     culling, to put the software-GL numbers in context.
 // Usage: node scripts/scale-probe.mjs <baseUrl> <out.json> <treeSpec>...   treeSpec = catalogue id or file:<path-to-nwk>:<id>
@@ -19,6 +18,8 @@ if (!baseUrl || !outFile || !specs.length) throw new Error('usage: scale-probe.m
 const CHROMIUM = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const ARGS = ['--enable-precise-memory-info', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-gpu-rasterization', '--js-flags=--expose-gc'];
 const SIZE = { width: 760, height: 560 };
+const DO_GPU = process.env.PROBE_GPU !== '0'; // 0: skip the software-GL frame timings (minutes per tree at 100k+)
+const DO_C2D = process.env.PROBE_C2D !== '0';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 
@@ -44,7 +45,7 @@ async function probeCandidate(browser, spec) {
   const mount = await page.evaluate(async ([id, nw, size]) => window.__spike.mount({ treeId: id, newick: nw, layout: 'rectangular', branchLengths: true, size }), [id, newick, SIZE]);
   const out = { tree: id, tips: mount.tips, mount: { parseMs: mount.parseMs, firstRenderMs: mount.firstRenderMs, sharedParseMs: mount.sharedParseMs, wallMs: Date.now() - t0, notes: mount.notes } };
   await sleep(800);
-  out.js = await page.evaluate(async () => {
+  out.js = await page.evaluate(async (doGpu) => {
     const lib = window.__phylocanvas[0];
     const hit = window.__phylocanvasHit[0];
     const gl = lib.deck.animationLoop.gl;
@@ -71,27 +72,25 @@ async function probeCandidate(browser, spec) {
     o.restyleCladeMs = avg(4, (i) => lib.setProps({ styles: i % 2 ? st2 : st1, strokeColour: [65, 62, 62, 255].slice() }));
     lib.setProps({ styles: {}, strokeColour: [65, 62, 62, 255] });
     // hover highlight of the clade (library path: highlightedId recolours every edge of the subtree)
-    o.highlightMs = avg(6, (i) => lib.highlightNode(i % 2 ? best : null));
+    let best2 = null;
+    for (const n of pre) if (!n.isLeaf && n !== g.root && n !== best && n.totalLeaves > 20 && (!best2 || Math.abs(n.totalLeaves - g.root.totalLeaves * 0.03) < Math.abs(best2.totalLeaves - g.root.totalLeaves * 0.03))) best2 = n;
+    o.highlightMs = avg(7, (i) => lib.highlightNode(i % 2 ? best2 : best)); // two different clades, so every call is a real change
     lib.highlightNode(null);
     // own CPU hit-test: pointer over a branch near the middle of the canvas
     o.hitTestMs = avg(20, (i) => hit(300 + i * 3, 280));
     o.hitTestTipMs = avg(20, (i) => hit(700, 20 + i * 20));
-    // GPU frame cost in software GL: with the scene, and with no layers (floor)
+    // GPU frame cost in software GL (readPixels waits for ALL queued GPU work, so the queue is drained first and the minimum of 5 frames is taken)
+    if (doGpu) {
     sync();
     lib.setProps({});
     await new Promise((r) => setTimeout(r, 2500)); // let queued GPU work drain before timing frames
     const frame = (n) => minOf(n, () => { lib.deck.redraw(true); sync(); });
     frame(3);
     o.sceneFrameMs = frame(5);
-    const layers = lib.deck.props.layers;
-    lib.deck.setProps({ layers: [] });
-    frame(3);
-    o.emptyFrameMs = frame(5);
-    lib.deck.setProps({ layers });
-    lib.setProps({});
+    }
     if (performance.memory) { gc(); o.heapMB = performance.memory.usedJSHeapSize / 1e6; }
     return o;
-  });
+  }, DO_GPU);
   await page.close();
   await ctx.close();
   out.errors = errors;
@@ -143,7 +142,7 @@ for (const spec of specs) {
     await pg.waitForFunction(() => !!window.__spikeData, null, { timeout: 30000 });
     const { newick } = await loadNewick(pg, spec);
     await tmp.close();
-    row.canvas2d = await probeCanvas2d(browser, spec, newick);
+    if (DO_C2D) row.canvas2d = await probeCanvas2d(browser, spec, newick);
   } catch (e) {
     row.canvas2d = { error: String(e.message).split('\n')[0] };
   }

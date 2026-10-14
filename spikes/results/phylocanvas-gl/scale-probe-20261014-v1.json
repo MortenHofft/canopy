@@ -1,0 +1,239 @@
+{
+ "date": "2026-10-14T16:47:53.279Z",
+ "chromium": "141.0.7390.37",
+ "args": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "canvas": {
+  "width": 760,
+  "height": 560
+ },
+ "loadAvg": [
+  4.52,
+  4.62,
+  5.26
+ ],
+ "results": [
+  {
+   "spec": "syn-yule-1000",
+   "phylocanvas": {
+    "tree": "syn-yule-1000",
+    "tips": 1000,
+    "mount": {
+     "parseMs": 44.19999999925494,
+     "firstRenderMs": 2032.199999999255,
+     "sharedParseMs": 11.200000001117587,
+     "wallMs": 2067,
+     "notes": "source: biojs object built from the shared TreeModel (33.7 ms); library parse (own performance.measure) 10.5 ms; constructor total (parse + layout + layers) 346.0 ms; id mapping exact (library preorder == shared preorder); type rc; unicode label patch on; warm-up pick 0 ms after 1 frames"
+    },
+    "js": {
+     "setPropsZoomMs": 0.55,
+     "setStepZoomMs": 1.8,
+     "cladeTips": 98,
+     "restyleCladeMs": 1.5749999997206032,
+     "highlightMs": 0.2333333333954215,
+     "hitTestMs": 0.5950000000186264,
+     "hitTestTipMs": 0.34500000001862646,
+     "sceneFrameMs": 181.88333333314708,
+     "emptyFrameMs": 186.61666666685292,
+     "heapMB": 12.179427
+    },
+    "errors": []
+   },
+   "canvas2d": {
+    "tree": "syn-yule-1000",
+    "load": {
+     "parseLayoutMs": 6.400000000372529,
+     "tips": 1000
+    },
+    "frameFitNoCullMs": 1.6199999999254941,
+    "frameFitCullMs": 2.1,
+    "frameZoomed20xCullMs": 0.13999999985098838,
+    "scripted10s": {
+     "frames": 197,
+     "medianFps": 59.88023952095548,
+     "p5Fps": 5.002501250625299,
+     "maxGapMs": 216.70000000000027
+    }
+   }
+  },
+  {
+   "spec": "syn-yule-10000",
+   "phylocanvas": {
+    "tree": "syn-yule-10000",
+    "tips": 10000,
+    "mount": {
+     "parseMs": 116.00000000186265,
+     "firstRenderMs": 829.1999999992549,
+     "sharedParseMs": 60.30000000074506,
+     "wallMs": 943,
+     "notes": "source: biojs object built from the shared TreeModel (38.2 ms); library parse (own performance.measure) 77.8 ms; constructor total (parse + layout + layers) 317.7 ms; id mapping exact (library preorder == shared preorder); type rc; unicode label patch on; warm-up pick 0 ms after 1 frames"
+    },
+    "js": {
+     "setPropsZoomMs": 0.590000000037253,
+     "setStepZoomMs": 39.97000000011176,
+     "cladeTips": 969,
+     "restyleCladeMs": 19.75,
+     "highlightMs": 0.3333333333333333,
+     "hitTestMs": 6.320000000018626,
+     "hitTestTipMs": 5.7299999999813735,
+     "sceneFrameMs": 1224.4666666664805,
+     "emptyFrameMs": 1160.5166666666046,
+     "heapMB": 41.051014
+    },
+    "errors": []
+   },
+   "canvas2d": {
+    "tree": "syn-yule-10000",
+    "load": {
+     "parseLayoutMs": 21.700000001117587,
+     "tips": 10000
+    },
+    "frameFitNoCullMs": 13.459999999776482,
+    "frameFitCullMs": 12.559999999776483,
+    "frameZoomed20xCullMs": 2.1,
+    "scripted10s": {
+     "frames": 29,
+     "medianFps": 14.992503748125875,
+     "p5Fps": 0.6383258500266182,
+     "maxGapMs": 1566.598
+    }
+   }
+  },
+  {
+   "spec": "file:/tmp/claude-0/-home-user-gbif-phylo/755848e2-b52c-5a39-af58-27e7ed8b2655/scratchpad/phylocanvas-gl/gen50k/newick/yule_50000.nwk:syn-yule-50000",
+   "phylocanvas": {
+    "tree": "syn-yule-50000",
+    "tips": 50000,
+    "mount": {
+     "parseMs": 389.40000000037253,
+     "firstRenderMs": 1770.5999999996275,
+     "sharedParseMs": 66.19999999925494,
+     "wallMs": 2003,
+     "notes": "source: biojs object built from the shared TreeModel (28.1 ms); library parse (own performance.measure) 361.3 ms; constructor total (parse + layout + layers) 815.3 ms; id mapping exact (library preorder == shared preorder); type rc; unicode label patch on; warm-up pick 0 ms after 1 frames"
+    },
+    "js": {
+     "setPropsZoomMs": 1.3399999998509884,
+     "setStepZoomMs": 102.03000000007451,
+     "cladeTips": 5001,
+     "restyleCladeMs": 95.10000000009313,
+     "highlightMs": 0.5,
+     "hitTestMs": 30.19000000003725,
+     "hitTestTipMs": 21.945000000018627,
+     "sceneFrameMs": 7288.033333333209,
+     "emptyFrameMs": 6415.416666666667,
+     "heapMB": 158.542682
+    },
+    "errors": []
+   },
+   "canvas2d": {
+    "tree": "file:/tmp/claude-0/-home-user-gbif-phylo/755848e2-b52c-5a39-af58-27e7ed8b2655/scratchpad/phylocanvas-gl/gen50k/newick/yule_50000.nwk:syn-yule-50000",
+    "load": {
+     "parseLayoutMs": 54.40000000037253,
+     "tips": 50000
+    },
+    "frameFitNoCullMs": 98.97999999970197,
+    "frameFitCullMs": 5882.0800000000745,
+    "frameZoomed20xCullMs": 13.539999999850988,
+    "scripted10s": {
+     "frames": 11,
+     "medianFps": 59.88023952094243,
+     "p5Fps": 0.26907036189963673,
+     "maxGapMs": 3716.5
+    }
+   }
+  },
+  {
+   "spec": "syn-yule-100000",
+   "phylocanvas": {
+    "tree": "syn-yule-100000",
+    "tips": 100000,
+    "mount": {
+     "parseMs": 925.1000000014901,
+     "firstRenderMs": 14227.199999999255,
+     "sharedParseMs": 143.5,
+     "wallMs": 14650,
+     "notes": "source: biojs object built from the shared TreeModel (109.2 ms); library parse (own performance.measure) 815.9 ms; constructor total (parse + layout + layers) 2084.8 ms; id mapping exact (library preorder == shared preorder); type rc; unicode label patch on; warm-up pick 0 ms after 1 frames"
+    },
+    "js": {
+     "setPropsZoomMs": 2.6599999999627473,
+     "setStepZoomMs": 232.8,
+     "cladeTips": 10123,
+     "restyleCladeMs": 207.125,
+     "highlightMs": 0.3166666667287548,
+     "hitTestMs": 53.7,
+     "hitTestTipMs": 48.66500000003725,
+     "sceneFrameMs": 11364.566666666418,
+     "emptyFrameMs": 11250.949999999875,
+     "heapMB": 309.499944
+    },
+    "errors": []
+   },
+   "canvas2d": {
+    "tree": "syn-yule-100000",
+    "load": {
+     "parseLayoutMs": 167.2999999988824,
+     "tips": 100000
+    },
+    "frameFitNoCullMs": 3847.860000000149,
+    "frameFitCullMs": 9449.740000000224,
+    "frameZoomed20xCullMs": 7.840000000223517,
+    "scripted10s": {
+     "frames": 11,
+     "medianFps": 59.88023952091634,
+     "p5Fps": 0.12931759107191362,
+     "maxGapMs": 7732.899999999994
+    }
+   }
+  },
+  {
+   "spec": "gtdb-190k",
+   "phylocanvas": {
+    "tree": "gtdb-190k",
+    "tips": 189801,
+    "mount": {
+     "parseMs": 1432.5999999996275,
+     "firstRenderMs": 6181.9000000003725,
+     "sharedParseMs": 257.90000000037253,
+     "wallMs": 7083,
+     "notes": "source: biojs object built from the shared TreeModel (87.0 ms); library parse (own performance.measure) 1345.6 ms; constructor total (parse + layout + layers) 2936.4 ms; id mapping exact (library preorder == shared preorder); type rc; unicode label patch on; warm-up pick 0 ms after 1 frames"
+    },
+    "js": {
+     "setPropsZoomMs": 5.360000000149012,
+     "setStepZoomMs": 468.54000000003725,
+     "cladeTips": 18940,
+     "restyleCladeMs": 435.54999999981374,
+     "highlightMs": 0.48333333308498067,
+     "hitTestMs": 25.31500000003725,
+     "hitTestTipMs": 109.40999999996275,
+     "sceneFrameMs": 20630.050000000123,
+     "emptyFrameMs": 21093.666666666668,
+     "heapMB": 572.767152
+    },
+    "errors": []
+   },
+   "canvas2d": {
+    "tree": "gtdb-190k",
+    "load": {
+     "parseLayoutMs": 197.69999999925494,
+     "tips": 189801
+    },
+    "frameFitNoCullMs": 14405.180000000075,
+    "frameFitCullMs": 17680.740000000224,
+    "frameZoomed20xCullMs": 13.779999999701976,
+    "scripted10s": {
+     "frames": 11,
+     "medianFps": 59.52380952374765,
+     "p5Fps": 0.07435220640172498,
+     "maxGapMs": 13449.5
+    }
+   }
+  }
+ ]
+}

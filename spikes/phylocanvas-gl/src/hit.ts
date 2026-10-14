@@ -40,7 +40,8 @@ interface Index {
   ly: Float64Array;
 }
 
-let cache: Index | null = null;
+// one index per laid-out graph (the library replaces the graph object on every re-layout); a WeakMap so two instances do not evict each other
+const cache = new WeakMap<object, Index>();
 
 function build(lib: any, graph: any): Index {
   const pre = graph.preorderTraversal as any[];
@@ -105,8 +106,11 @@ function d2seg(px: number, py: number, ax: number, ay: number, bx: number, by: n
  */
 export function hitTest(lib: any, px: number, py: number, measure: ((label: string) => number) | null, edgeTolPx = 4): Hit | null {
   const graph = lib.getGraphAfterLayout();
-  if (!cache || cache.graph !== graph) cache = build(lib, graph);
-  const I = cache;
+  let I = cache.get(graph);
+  if (!I) {
+    I = build(lib, graph);
+    cache.set(graph, I);
+  }
   const type = I.type;
   const root = graph.root;
   const scale: number = lib.getScale();
@@ -156,7 +160,7 @@ export function hitTest(lib: any, px: number, py: number, measure: ((label: stri
       }
     }
   }
-  if (bestTip >= 0) return { node: I.leaves[bestTip], layer: bestLabel ? 'labels' : 'shapes' };
+  // (a tip no longer wins outright: at a dense fit view a branch drawn exactly under the pointer must beat a marker 4 px away)
 
   // ---- 2. collapsed clades (pie charts) and branches
   const tol = edgeTolPx / scale;
@@ -228,5 +232,6 @@ export function hitTest(lib: any, px: number, py: number, measure: ((label: stri
       }
     }
   }
+  if (bestTip >= 0 && (best < 0 || bestTipD <= bestD * scale)) return { node: I.leaves[bestTip], layer: bestLabel ? 'labels' : 'shapes' };
   return best >= 0 ? { node: I.nodes[I.first + best], layer: bestLayer } : null;
 }
