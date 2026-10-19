@@ -1,0 +1,3579 @@
+{
+ "runId": "20261019-145213",
+ "candidate": {
+  "name": "archaeopteryx-js",
+  "version": "3.24.0",
+  "license": "LGPL-3.0-or-later",
+  "notes": "Full viewer application driven imperatively (launch/destroy); d3 7.9.0 and phyloxml 1.1.7 put on globalThis for the UMD file; panel collapsed by default."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "the library has no click callback: the adapter listens for DOM clicks on the container and maps them to a node (the d3 datum of a clicked label, else layout coordinates within 5 units); events are source adapter-derived and the library still opens its own node menu"
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same workaround; internal nodes have no DOM element, so they are found from the library's (undocumented) node coordinates; in the circular layout the polar mapping is re-derived from the labelled nodes; after the node menu's Reroot a node may no longer be a clade of the shared tree, and then no event is reported"
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "no branch elements (branches are batched into one path per style); a click near a branch resolves to the nearest node, never to a branch"
+  },
+  "hover": {
+   "level": "partial",
+   "how": "the library shows its own tooltip and has no callback; the adapter derives tipHover/nodeHover from a throttled mousemove hit test (adapter-derived)"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library emits no payload at all (the selection event is payload-less); tip sets come from the shared TreeModel through the adapter's node mapping (source adapter-derived)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "writes the phyloXML node.color on every node of the clade in the library's live tree object, then forces a redraw with the PageUp/PageDown font-size keys (applyViewState would reset zoom); no colour-a-clade API; an active search dims coloured clades too"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "search box A through applyViewState({searchA: regex on Node Name}); hits get bold label, halo and dot, everything else fades; resets zoom and pan; no per-tip style API"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "search A (highlighted tips + this tip), then the documented Ctrl+G (centres the hit) and Ctrl+Shift+ArrowUp zoom keys dispatched on document; there is no focus/zoom-to API; the tip stays highlighted; rows are made readable up to 12,000 tips (every readable zoom draws a label element per tip)"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "tip labels are SVG <text>; the adapter overlays <a href data-tip-id> on the visible labels (up to 400), repositioned by a MutationObserver after each redraw"
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only built-ins: numeric columns become heat-map columns (2 or more needed: one bar column is drawn with a labelled mirror copy), text columns become label text and Color-by; no custom cell renderers"
+  },
+  "alignmentColumn": {
+   "level": "yes",
+   "how": "mol_seq on the tip nodes; the built-in alignment track (windowed 7 px columns, conservation bar or sequence logo, navigation bar fixed to the viewport)"
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "layout: 'circular' through applyViewState (heat map as rings; alignment track rectangular only; 'unrooted' also exists but is not offered by the shell)"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "applyViewState({display: 'phylogram' | 'cladogram'}); the library draws to scale only when more than half of the branches carry a positive length"
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "a scale bar is drawn for phylograms; showScaleAxis adds a time or distance axis (checked on rich-corvoid-680)"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "the library's own light/dark switch (the adapter clicks its theme button; the choice is stored by the library in localStorage 'aptx-panel-theme'); dark palette is the library's, not GBIF's"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "no token contract: the adapter overrides default-coloured SVG attributes with CSS !important selectors (matching the library's fixed default colour values) and re-points the panel and menu --p-* custom properties"
+  },
+  "multipleInstances": {
+   "level": "no",
+   "how": "module singleton: a second launch() empties the first container and it is not restored (verified: README says \"One viewer per page\")"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "viewer.destroy() removes the DOM, the body tooltip, the resize and the document key/wheel listeners (5 mount/unmount cycles: DOM node count and heap flat); it leaves one <style id=\"aptx-panel-styles\"> and localStorage keys behind"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "view state goes both ways (applyViewState / onViewChange: layout, display, tracks, collapsed clades, searches, colour-by); selection is read-only; no viewport, colour or highlight setters; every applyViewState resets zoom and pan"
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "fits on launch and on window resize (not on container resize: the adapter dispatches a window resize event); Ctrl+0 or the panel button refits"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "built-in overview miniature with a viewport rectangle (always shown: no config key switches it off)"
+  }
+ },
+ "date": "2026-10-19T15:05:23.912Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 1.26,
+  "end": 4.09,
+  "max": 5.26,
+  "noisy": true,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 1.26,
+  "canvas": {
+   "fpsMedian": 136.98630132792624,
+   "fpsP5": 30.030030030029867,
+   "fpsP5Rounds": [
+    30,
+    30,
+    30
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 9,
+   "maxFrameGapMs": 33.5,
+   "frames": 882,
+   "inputSteps": 192,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 5.9,
+   "cpuDragMoveMs": 7.7,
+   "cpuMsPerStep": 7.7,
+   "loadavg": 1.51
+  },
+  "stub200": {
+   "fpsMedian": 30.030030030030275,
+   "fpsP5": 15.015015015015036,
+   "fpsP5Rounds": [
+    12,
+    15,
+    15
+   ],
+   "droppedRatio": 0.13598198610806073,
+   "droppedFrames": 73,
+   "maxFrameGapMs": 66.80000000000018,
+   "frames": 227,
+   "inputSteps": 106,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 12.9,
+   "cpuDragMoveMs": 10.3,
+   "cpuMsPerStep": 12.9,
+   "loadavg": 2.45
+  },
+  "loadEnd": 2.45
+ },
+ "label": "final-2026-10-19",
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "rich-fish-carangaria-135",
+   "rich-ens-protein-197",
+   "syn-yule-200",
+   "rich-birdtree-0000",
+   "rich-corvoid-680",
+   "otl-1k",
+   "syn-yule-1000",
+   "syn-caterpillar-1000",
+   "syn-yule-10000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "otl-10k",
+   "gtdb-10k",
+   "edge-caterpillar-20000",
+   "otl-91k",
+   "syn-yule-100000",
+   "gtdb-100k",
+   "gtdb-190k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1008125,
+  "jsGzipBytes": 332803,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 1026547,
+  "totalGzipBytes": 337473,
+  "files": [
+   {
+    "path": "assets/archaeopteryx-50b0Ku0X.js",
+    "bytes": 449417,
+    "gzipBytes": 146374
+   },
+   {
+    "path": "assets/d3-BlgK36Ox.js",
+    "bytes": 280957,
+    "gzipBytes": 95562
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-CYaGqmU_.js",
+    "bytes": 238924,
+    "gzipBytes": 77128
+   },
+   {
+    "path": "assets/phyloxml-DwTe3DD1.js",
+    "bytes": 38827,
+    "gzipBytes": 13739
+   },
+   {
+    "path": "index.html",
+    "bytes": 656,
+    "gzipBytes": 342
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "pass",
+     "reason": "load 164 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 11 ms, click 15 ms",
+     "loadAvgAtStart": 3.02,
+     "phase": "done",
+     "fetchMs": 19.399999998509884,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 9.5,
+     "firstRenderMs": 154.80000000074506,
+     "sharedParseMs": 2.5,
+     "reportedTips": 5,
+     "notes": "parseTree 9.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 164.30000000074506,
+     "ink": 0.019451903332806775,
+     "heapAfterMountMB": 6.385226249694824,
+     "stats": {
+      "domNodes": 383,
+      "svgElements": 157,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 8,
+       "labelElements": 5,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 383,
+      "svg": 157,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 14.900000000372529,
+     "clickToPaintMs": 50.75,
+     "clickSamples": {
+      "events": 2,
+      "tries": 2,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      20,
+      29.9,
+      29.9
+     ],
+     "droppedRatio": 0.0004535661639640798,
+     "droppedFrames": 23,
+     "maxFrameGapMs": 33.5,
+     "frames": 539,
+     "inputSteps": 235,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 10.7,
+     "cpuDragMoveMs": 4.4,
+     "cpuMsPerStep": 10.7,
+     "loadAvgAtEnd": 3.56,
+     "heapAfterInteractionMB": 7.091756820678711,
+     "heapMB": 7.091756820678711,
+     "unusableFactor": 0.107,
+     "pageErrors": [],
+     "wallSec": 18.927,
+     "relMedianFps": 0.4371257486368198,
+     "relP5Fps": 0.9970059880239684,
+     "cpuVsStub200": 0.8294573643410852
+    },
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "pass",
+     "reason": "load 210 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 29 ms, click 6 ms",
+     "loadAvgAtStart": 3.56,
+     "phase": "done",
+     "fetchMs": 34.399999998509884,
+     "convertMs": 21.600000001490116,
+     "wireBytes": 111429,
+     "parseMs": 10,
+     "firstRenderMs": 199.89999999850988,
+     "sharedParseMs": 3,
+     "reportedTips": 135,
+     "notes": "parseTree 10.0 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 209.89999999850988,
+     "ink": 0.12036487126836204,
+     "heapAfterMountMB": 6.858899116516113,
+     "stats": {
+      "domNodes": 452,
+      "svgElements": 237,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 269,
+       "labelElements": 45,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 452,
+      "svg": 237,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 6,
+     "clickToPaintMs": 70.79999999701977,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.940119760478552,
+     "fpsP5Rounds": [
+      20,
+      29.9,
+      29.9
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 27,
+     "maxFrameGapMs": 50,
+     "frames": 547,
+     "inputSteps": 247,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 28.8,
+     "cpuDragMoveMs": 5.1,
+     "cpuMsPerStep": 28.8,
+     "loadAvgAtEnd": 4.36,
+     "heapAfterInteractionMB": 7.797235488891602,
+     "heapMB": 7.797235488891602,
+     "unusableFactor": 0.28800000000000003,
+     "pageErrors": [],
+     "wallSec": 19.296,
+     "relMedianFps": 0.4371257486368198,
+     "relP5Fps": 0.9970059880239412,
+     "cpuVsStub200": 2.2325581395348837
+    },
+    "rich-ens-protein-197": {
+     "treeId": "rich-ens-protein-197",
+     "tips": 197,
+     "status": "partial",
+     "reason": "sluggish: 56 ms CPU per step (load 198 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 56 ms, click 5 ms)",
+     "loadAvgAtStart": 4.81,
+     "phase": "done",
+     "fetchMs": 14.200000002980232,
+     "convertMs": 0,
+     "wireBytes": 7349,
+     "parseMs": 5.5,
+     "firstRenderMs": 192.30000000074506,
+     "sharedParseMs": 5,
+     "reportedTips": 197,
+     "notes": "parseTree 5.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 197.80000000074506,
+     "ink": 0.06421102511451593,
+     "heapAfterMountMB": 7.646984100341797,
+     "stats": {
+      "domNodes": 460,
+      "svgElements": 245,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 393,
+       "labelElements": 49,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 460,
+      "svg": 245,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 4.800000000745058,
+     "clickToPaintMs": 58.19999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 4
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      29.9,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.00025045220537070717,
+     "droppedFrames": 23,
+     "maxFrameGapMs": 50,
+     "frames": 548,
+     "inputSteps": 240,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 56,
+     "cpuDragMoveMs": 10.6,
+     "cpuMsPerStep": 56,
+     "loadAvgAtEnd": 4.18,
+     "heapAfterInteractionMB": 7.9326982498168945,
+     "heapMB": 7.9326982498168945,
+     "unusableFactor": 0.56,
+     "pageErrors": [],
+     "wallSec": 19.753,
+     "relMedianFps": 0.4371257486368198,
+     "relP5Fps": 0.9970059880239684,
+     "cpuVsStub200": 4.341085271317829
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "pass",
+     "reason": "load 204 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 30 ms, click 10 ms",
+     "loadAvgAtStart": 4.18,
+     "phase": "done",
+     "fetchMs": 11.199999999254942,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 7.100000001490116,
+     "firstRenderMs": 196.89999999850988,
+     "sharedParseMs": 2.399999998509884,
+     "reportedTips": 200,
+     "notes": "parseTree 7.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 204,
+     "ink": 0.11417785499921018,
+     "heapAfterMountMB": 6.892643928527832,
+     "stats": {
+      "domNodes": 462,
+      "svgElements": 247,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 399,
+       "labelElements": 50,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 462,
+      "svg": 247,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 9.599999997764826,
+     "clickToPaintMs": 74.69999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.00402420149211617,
+     "droppedFrames": 23,
+     "maxFrameGapMs": 50,
+     "frames": 514,
+     "inputSteps": 234,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.1,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 29.7,
+     "cpuDragMoveMs": 5.2,
+     "cpuMsPerStep": 29.7,
+     "loadAvgAtEnd": 4.2,
+     "heapAfterInteractionMB": 7.612286567687988,
+     "heapMB": 7.612286567687988,
+     "unusableFactor": 0.297,
+     "pageErrors": [],
+     "wallSec": 19.745,
+     "relMedianFps": 0.4371257486368198,
+     "relP5Fps": 0.9970059880239684,
+     "cpuVsStub200": 2.302325581395349
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "pass",
+     "reason": "load 211 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 29 ms, click 6 ms",
+     "loadAvgAtStart": 4.2,
+     "phase": "done",
+     "fetchMs": 56,
+     "convertMs": 6.899999998509884,
+     "wireBytes": 601687,
+     "parseMs": 8.100000001490116,
+     "firstRenderMs": 202.59999999776483,
+     "sharedParseMs": 1.9000000022351742,
+     "reportedTips": 380,
+     "notes": "parseTree 8.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 210.69999999925494,
+     "ink": 0.15454272626757226,
+     "heapAfterMountMB": 7.040958404541016,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 759,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 6,
+     "clickToPaintMs": 62.600000001490116,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20.040080160320606,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0.0008509914051979242,
+     "droppedFrames": 28,
+     "maxFrameGapMs": 50,
+     "frames": 514,
+     "inputSteps": 246,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 28.9,
+     "cpuDragMoveMs": 5.1,
+     "cpuMsPerStep": 28.9,
+     "loadAvgAtEnd": 3.86,
+     "heapAfterInteractionMB": 8.281800270080566,
+     "heapMB": 8.281800270080566,
+     "unusableFactor": 0.289,
+     "pageErrors": [],
+     "wallSec": 19.448,
+     "relMedianFps": 0.4371257486368198,
+     "relP5Fps": 0.6673346693386798,
+     "cpuVsStub200": 2.24031007751938
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "timeout",
+     "reason": "unusable: 131 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.86,
+     "phase": "done",
+     "fetchMs": 40.5,
+     "convertMs": 49.399999998509884,
+     "wireBytes": 219203,
+     "parseMs": 19.599999997764826,
+     "firstRenderMs": 251,
+     "sharedParseMs": 6.100000001490116,
+     "reportedTips": 680,
+     "notes": "parseTree 19.6 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 270.5999999977648,
+     "ink": 0.165182435634181,
+     "heapAfterMountMB": 7.363124847412109,
+     "stats": {
+      "domNodes": 458,
+      "svgElements": 243,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1359,
+       "labelElements": 48,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 458,
+      "svg": 243,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 9.800000000745058,
+     "clickToPaintMs": 81.10000000149012,
+     "clickSamples": {
+      "events": 4,
+      "tries": 4,
+      "rightNode": 4
+     },
+     "fpsMedian": 29.94011976047774,
+     "fpsP5": 7.496251874062887,
+     "fpsP5Rounds": [
+      7.5,
+      6.7,
+      6.7
+     ],
+     "droppedRatio": 0.4161015578673829,
+     "droppedFrames": 147,
+     "maxFrameGapMs": 150,
+     "frames": 217,
+     "inputSteps": 107,
+     "fpsP95": 59.880239520968516,
+     "idleCpuPctOfOneCore": 9.6,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 131.2,
+     "cpuDragMoveMs": 17.9,
+     "cpuMsPerStep": 131.2,
+     "loadAvgAtEnd": 4.22,
+     "heapAfterInteractionMB": 8.638039588928223,
+     "heapMB": 8.638039588928223,
+     "unusableFactor": 1.3119999999999998,
+     "pageErrors": [],
+     "wallSec": 36.597,
+     "relMedianFps": 0.218562874318398,
+     "relP5Fps": 0.2496251874062955,
+     "cpuVsStub200": 10.170542635658913
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "timeout",
+     "reason": "unusable: 64% of the time in frames > 50 ms (best of 3 rounds); 185 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 4.22,
+     "phase": "done",
+     "fetchMs": 20.400000002235174,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 20.400000002235174,
+     "firstRenderMs": 333.80000000074506,
+     "sharedParseMs": 10.599999997764826,
+     "reportedTips": 888,
+     "notes": "parseTree 20.4 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 354.20000000298023,
+     "ink": 0.23421418417311646,
+     "heapAfterMountMB": 7.298637390136719,
+     "stats": {
+      "domNodes": 436,
+      "svgElements": 234,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1465,
+       "labelElements": 46,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 436,
+      "svg": 234,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 9.200000001117587,
+     "clickToPaintMs": 161.59999999962747,
+     "clickSamples": {
+      "events": 4,
+      "tries": 4,
+      "rightNode": 4
+     },
+     "fpsMedian": 20,
+     "fpsP5": 4.61467466543611,
+     "fpsP5Rounds": [
+      3.8,
+      4.6,
+      4.3
+     ],
+     "droppedRatio": 0.641067897165732,
+     "droppedFrames": 180,
+     "maxFrameGapMs": 216.6999999999989,
+     "frames": 149,
+     "inputSteps": 66,
+     "fpsP95": 30.030030030030687,
+     "idleCpuPctOfOneCore": 11.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 185.1,
+     "cpuDragMoveMs": 17.1,
+     "cpuMsPerStep": 185.1,
+     "loadAvgAtEnd": 4.36,
+     "heapAfterInteractionMB": 8.662630081176758,
+     "heapMB": 8.662630081176758,
+     "unusableFactor": 1.851,
+     "pageErrors": [],
+     "wallSec": 31.52,
+     "relMedianFps": 0.1460000000446962,
+     "relP5Fps": 0.1536686663590233,
+     "cpuVsStub200": 14.348837209302324
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: 204 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 4.36,
+     "phase": "done",
+     "fetchMs": 12.300000000745058,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 16.5,
+     "firstRenderMs": 277.30000000074506,
+     "sharedParseMs": 13,
+     "reportedTips": 1000,
+     "notes": "parseTree 16.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 293.80000000074506,
+     "ink": 0.24396145948507342,
+     "heapAfterMountMB": 8.091516494750977,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 23.199999999254942,
+     "clickToPaintMs": 163.30000000074506,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 29.94011976047937,
+     "fpsP5": 5.998800239951984,
+     "fpsP5Rounds": [
+      6,
+      4.3,
+      4
+     ],
+     "droppedRatio": 0.41076479832372953,
+     "droppedFrames": 155,
+     "maxFrameGapMs": 183.39999999999964,
+     "frames": 194,
+     "inputSteps": 89,
+     "fpsP95": 30.120481927711833,
+     "idleCpuPctOfOneCore": 11.1,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 203.5,
+     "cpuDragMoveMs": 24.6,
+     "cpuMsPerStep": 203.5,
+     "loadAvgAtEnd": 4.54,
+     "heapAfterInteractionMB": 9.852372169494629,
+     "heapMB": 9.852372169494629,
+     "unusableFactor": 2.035,
+     "pageErrors": [],
+     "wallSec": 32.33,
+     "relMedianFps": 0.2185628743184099,
+     "relP5Fps": 0.19976004799040215,
+     "cpuVsStub200": 15.775193798449612
+    },
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "pass",
+     "reason": "load 374 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 35 ms, click 18 ms",
+     "loadAvgAtStart": 4.54,
+     "phase": "done",
+     "fetchMs": 16.300000000745058,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 38.19999999925494,
+     "firstRenderMs": 335.4000000022352,
+     "sharedParseMs": 15.5,
+     "reportedTips": 1000,
+     "notes": "parseTree 38.2 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 373.6000000014901,
+     "ink": 0.363858790080556,
+     "heapAfterMountMB": 7.6006927490234375,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 1999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 18,
+     "clickToPaintMs": 49.600000001490116,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 29.94011976047774,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.002451818906879435,
+     "droppedFrames": 27,
+     "maxFrameGapMs": 50,
+     "frames": 449,
+     "inputSteps": 208,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 35.1,
+     "cpuDragMoveMs": 5.4,
+     "cpuMsPerStep": 35.1,
+     "loadAvgAtEnd": 3.91,
+     "heapAfterInteractionMB": 8.587730407714844,
+     "heapMB": 8.587730407714844,
+     "unusableFactor": 0.35100000000000003,
+     "pageErrors": [],
+     "wallSec": 18.968,
+     "relMedianFps": 0.437125748636796,
+     "relP5Fps": 0.9970059880239142,
+     "cpuVsStub200": 2.7209302325581395
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2277 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.91,
+     "phase": "done",
+     "fetchMs": 30.899999998509884,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 74.20000000298023,
+     "firstRenderMs": 1301.300000000745,
+     "sharedParseMs": 53.80000000074506,
+     "reportedTips": 10000,
+     "notes": "parseTree 74.2 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1375.5000000037253,
+     "ink": 0.3784820723424419,
+     "heapAfterMountMB": 18.917470932006836,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 19999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 31.799999997019768,
+     "clickToPaintMs": 432.8999999985099,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 2.6089225150012845,
+     "fpsP5": 0.33277870216306155,
+     "fpsP5Rounds": [
+      0.3,
+      0.3,
+      0.3
+     ],
+     "droppedRatio": 1,
+     "droppedFrames": 425,
+     "maxFrameGapMs": 3005,
+     "frames": 21,
+     "inputSteps": 6,
+     "fpsP95": 9.990009990010135,
+     "idleCpuPctOfOneCore": 34,
+     "wheelSteps": 8,
+     "cpuWheelStepMs": 2277.3,
+     "cpuDragMoveMs": 468.2,
+     "cpuMsPerStep": 2277.3,
+     "loadAvgAtEnd": 4.63,
+     "heapAfterInteractionMB": 22.64579677581787,
+     "heapMB": 22.64579677581787,
+     "unusableFactor": 22.773000000000003,
+     "pageErrors": [],
+     "wallSec": 126.213,
+     "relMedianFps": 0.019045134365339823,
+     "relP5Fps": 0.01108153078203001,
+     "cpuVsStub200": 176.53488372093025
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 4.63,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.912,
+     "unusableFactor": 1000000
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 3556 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 4.34,
+     "phase": "done",
+     "fetchMs": 23.100000001490116,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 77.69999999925494,
+     "firstRenderMs": 1486.5,
+     "sharedParseMs": 38,
+     "reportedTips": 10000,
+     "notes": "parseTree 77.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1564.199999999255,
+     "ink": 0.38735112936344973,
+     "heapAfterMountMB": 17.62777328491211,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 19999,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 278,
+     "clickToPaintMs": 2363.7999999970198,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 2.999400119975992,
+     "fpsP5": 0.3586028831672763,
+     "fpsP5Rounds": [
+      0.3,
+      0.4,
+      0.3
+     ],
+     "droppedRatio": 1,
+     "droppedFrames": 391,
+     "maxFrameGapMs": 2788.5999999992564,
+     "frames": 23,
+     "inputSteps": 6,
+     "fpsP95": 7.501875468867462,
+     "idleCpuPctOfOneCore": 28.8,
+     "wheelSteps": 6,
+     "cpuWheelStepMs": 3555.5,
+     "cpuDragMoveMs": 1192.1,
+     "cpuMsPerStep": 3555.5,
+     "loadAvgAtEnd": 4.34,
+     "heapAfterInteractionMB": 23.854287147521973,
+     "heapMB": 23.854287147521973,
+     "unusableFactor": 35.555,
+     "pageErrors": [],
+     "wallSec": 141.472,
+     "relMedianFps": 0.021895620882527833,
+     "relP5Fps": 0.011941476009470365,
+     "cpuVsStub200": 275.62015503875966
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2016 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 4.34,
+     "phase": "done",
+     "fetchMs": 25.5,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 61.29999999701977,
+     "firstRenderMs": 953.9000000022352,
+     "sharedParseMs": 26.100000001490116,
+     "reportedTips": 10000,
+     "notes": "parseTree 61.3 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1015.1999999992549,
+     "ink": 0.40566577160006323,
+     "heapAfterMountMB": 14.542084693908691,
+     "stats": {
+      "domNodes": 456,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 13995,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 456,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 14,
+     "clickToPaintMs": 186.09999999776483,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 2.307869836141226,
+     "fpsP5": 0.36752545113759233,
+     "fpsP5Rounds": [
+      0.4,
+      0.4,
+      0.3
+     ],
+     "droppedRatio": 1,
+     "droppedFrames": 460,
+     "maxFrameGapMs": 2720.899999999252,
+     "frames": 27,
+     "inputSteps": 8,
+     "fpsP95": 10.010010010009864,
+     "idleCpuPctOfOneCore": 34.3,
+     "wheelSteps": 9,
+     "cpuWheelStepMs": 2015.8,
+     "cpuDragMoveMs": 430.5,
+     "cpuMsPerStep": 2015.8,
+     "loadAvgAtEnd": 5.26,
+     "heapAfterInteractionMB": 21.12515354156494,
+     "heapMB": 21.12515354156494,
+     "unusableFactor": 20.158,
+     "pageErrors": [],
+     "wallSec": 107.788,
+     "relMedianFps": 0.016847449808988602,
+     "relP5Fps": 0.012238597522881891,
+     "cpuVsStub200": 156.26356589147287
+    },
+    "otl-10k": {
+     "treeId": "otl-10k",
+     "tips": 10018,
+     "status": "timeout",
+     "reason": "unusable: 165 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 5.26,
+     "phase": "done",
+     "fetchMs": 23.700000002980232,
+     "convertMs": 0,
+     "wireBytes": 128748,
+     "parseMs": 61.099999997764826,
+     "firstRenderMs": 1227,
+     "sharedParseMs": 52.20000000298023,
+     "reportedTips": 10018,
+     "notes": "parseTree 61.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 7",
+     "loadMs": 1288.0999999977648,
+     "ink": 0.2361617438003475,
+     "heapAfterMountMB": 13.904321670532227,
+     "stats": {
+      "domNodes": 438,
+      "svgElements": 236,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 14874,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 438,
+      "svg": 236,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 12.099999999627471,
+     "clickToPaintMs": 33.59999999962747,
+     "clickSamples": {
+      "events": 2,
+      "tries": 5,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 5.998800239951984,
+     "fpsP5Rounds": [
+      5.5,
+      6,
+      4.6
+     ],
+     "droppedRatio": 0.4531492103193609,
+     "droppedFrames": 125,
+     "maxFrameGapMs": 183.29999999999927,
+     "frames": 285,
+     "inputSteps": 107,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.9,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 165,
+     "cpuDragMoveMs": 3.7,
+     "cpuMsPerStep": 165,
+     "loadAvgAtEnd": 3.54,
+     "heapAfterInteractionMB": 17.60995388031006,
+     "heapMB": 17.60995388031006,
+     "unusableFactor": 1.65,
+     "pageErrors": [],
+     "wallSec": 34.661,
+     "relMedianFps": 0.437125748636796,
+     "relP5Fps": 0.19976004799040215,
+     "cpuVsStub200": 12.790697674418604
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 291 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 3.54,
+     "phase": "done",
+     "fetchMs": 30.5,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 99.70000000298023,
+     "firstRenderMs": 1713.5,
+     "sharedParseMs": 55.600000001490116,
+     "reportedTips": 10122,
+     "notes": "parseTree 99.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+     "loadMs": 1813.2000000029802,
+     "ink": 0.19943294898120356,
+     "heapAfterMountMB": 18.174898147583008,
+     "stats": {
+      "domNodes": 459,
+      "svgElements": 241,
+      "canvases": 0,
+      "custom": {
+       "libraryNodes": 20243,
+       "labelElements": 47,
+       "branchPaths": 1,
+       "launches": 1,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 459,
+      "svg": 241,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 21.300000000745058,
+     "clickToPaintMs": 250.39999999850988,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 30.030030030030687,
+     "fpsP5": 2.857142857142857,
+     "fpsP5Rounds": [
+      2.7,
+      2.9,
+      2.6
+     ],
+     "droppedRatio": 0.6658481057994371,
+     "droppedFrames": 184,
+     "maxFrameGapMs": 350,
+     "frames": 160,
+     "inputSteps": 59,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 4.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 290.7,
+     "cpuDragMoveMs": 3.5,
+     "cpuMsPerStep": 290.7,
+     "loadAvgAtEnd": 3.86,
+     "heapAfterInteractionMB": 25.974671363830566,
+     "heapMB": 25.974671363830566,
+     "unusableFactor": 2.907,
+     "pageErrors": [],
+     "wallSec": 29.079,
+     "relMedianFps": 0.21921921928633545,
+     "relP5Fps": 0.09514285714285767,
+     "cpuVsStub200": 22.53488372093023
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 3.86,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.8,
+     "unusableFactor": 1000000
+    },
+    "otl-91k": {
+     "treeId": "otl-91k",
+     "tips": 90938,
+     "status": "skipped",
+     "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+    },
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "skipped",
+     "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+    },
+    "gtdb-100k": {
+     "treeId": "gtdb-100k",
+     "tips": 100000,
+     "status": "skipped",
+     "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+    },
+    "gtdb-190k": {
+     "treeId": "gtdb-190k",
+     "tips": 189801,
+     "status": "skipped",
+     "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+    }
+   },
+   "status": "partial",
+   "reason": "rich-ens-protein-197: partial (sluggish: 56 ms CPU per step (load 198 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 56 ms, click 5 ms)); rich-corvoid-680: timeout (unusable: 131 ms main-thread CPU per interaction step > 100); otl-1k: timeout (unusable: 64% of the time in frames > 50 ms (best of 3 rounds); 185 ms main-thread CPU per interaction step > 100); syn-yule-1000: timeout (unusable: 204 ms main-thread CPU per interaction step > 100); syn-yule-10000: timeout (unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2277 ms main-thread CPU per interaction step > 100); syn-caterpillar-10000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); syn-balanced-10000: timeout (unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 3556 ms main-thread CPU per interaction step > 100); syn-bushy-10000: timeout (unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2016 ms main-thread CPU per interaction step > 100); otl-10k: timeout (unusable: 165 ms main-thread CPU per interaction step > 100); gtdb-10k: timeout (unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 291 ms main-thread CPU per interaction step > 100); edge-caterpillar-20000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded) (4 larger tree(s) skipped: skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 657.521
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 3.51
+  },
+  "S3": {
+   "status": "partial",
+   "reason": "syn-yule-1000: tip sets correct but computed by the adapter (source=adapter-derived), not delivered by the library",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "adapter-derived"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 2.515
+  },
+  "S4": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 35.24%"
+    },
+    {
+     "name": "other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 35.24%, B blue 41.72%"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0.35236471413091974,
+     "pixelsBefore": 0,
+     "pixelsAfter": 22113,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 1
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 3.942
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-10000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Pozenea_pseudoglabra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 0%, dy 0%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "7337 pixels differ"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "treeChosenBy": "default (S1 mounted it)",
+    "treeFallbackFrom": null,
+    "initiallyVisible": true,
+    "offCentre": {
+     "dx": 5.2014482887382895e-9,
+     "dy": 0.000003967283648590863
+    },
+    "highlightPixels": 7337
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 9.354
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:36729/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=null"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":514,\"y\":454.421875,\"width\":152.421875,\"height\":14}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:36729/__tip__/Phumideina_macromontana",
+     "tabindex": null,
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 514,
+      "y": 454.421875,
+      "width": 152.421875,
+      "height": 14
+     },
+     "count": 37
+    },
+    "popups": 1,
+    "note": "adapter reports partial: tip labels are SVG <text>; the adapter overlays <a href data-tip-id> on the visible labels (up to 400), repositioned by a MutationObserver after each redraw"
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 6.656
+  },
+  "S7": {
+   "status": "partial",
+   "reason": "syn-yule-1000, column occ (kind bar): after zoom and pan: at least 5 tips with a drawn cell (0 of 226 on-screen tips have a cell); after zoom and pan: cell centre within 2px of tip row (0/0 aligned, max dy 0.0px) [n/a: bar width follows value (only 0 cells on screen)]",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "400 of 400 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "400/400 aligned, max dy 0.5px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": false,
+     "detail": "0 of 226 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": false,
+     "detail": "0/0 aligned, max dy 0.0px"
+    },
+    {
+     "name": "bar width follows value",
+     "ok": true,
+     "na": true,
+     "detail": "only 0 cells on screen"
+    },
+    {
+     "name": "tip without a data row gets no cell (explicitly unmatched)",
+     "ok": true,
+     "detail": "null"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 400,
+     "cells": 400,
+     "aligned": 400,
+     "maxDy": 0.4989999999999952
+    },
+    "zoom": {
+     "startPitch": 0.49800000004268014,
+     "endPitch": 1.0727862934747476,
+     "notches": 14
+    },
+    "after zoom and pan": {
+     "visibleTips": 226,
+     "cells": 0,
+     "aligned": 0,
+     "maxDy": 0
+    },
+    "columnKind": "bar",
+    "declaredColumnKinds": null,
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 8.108
+  },
+  "S8": {
+   "status": "pass",
+   "reason": "rich-ens-protein-197: all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "177 of 177 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "167/177 aligned, max dy 115.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "196 of 196 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "186/196 aligned, max dy 115.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "38% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "3 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 177,
+     "cells": 177,
+     "aligned": 167,
+     "maxDy": 115.03045685279187
+    },
+    "zoom": {
+     "startPitch": 58.53919850298249,
+     "endPitch": 58.53919850298249,
+     "notches": 0
+    },
+    "after zoom and pan": {
+     "visibleTips": 196,
+     "cells": 196,
+     "aligned": 186,
+     "maxDy": 115.03045685279187
+    },
+    "cellDrawnFraction": 0.3761025943396226,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 5.94
+  },
+  "S9": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 225 -> 55"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "73% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": true,
+     "detail": "45637 pixels"
+    }
+   ],
+   "measures": {
+    "inkAtFit": 0.24396145948507342,
+    "lightLuminance": 224.85099749354148,
+    "darkLuminance": 55.110186929323085,
+    "tokenBackgroundFraction": 0.7250560732901595,
+    "tokenBranchPixelsAtCurrentView": 45637,
+    "tokenBranchPixels": 45637
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 3.046
+  },
+  "S10": {
+   "status": "partial",
+   "reason": "gtdb-10k: all checks passed; while zooming out median 59.9 fps, 82% of the time in frames > 50 ms, DOM nodes 515 (shadow DOM included), canvases 0 (more than half of the time in slow frames); overviewOrMinimap self-report: yes",
+   "checks": [
+    {
+     "name": "whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)",
+     "ok": true,
+     "detail": "after 3 wheel notches via bounds"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": true,
+     "detail": "300 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "gtdb-10k",
+    "loadMs": 1543.300000000745,
+    "scaleBefore": {
+     "kind": "pitch",
+     "v": 11.622065350832276
+    },
+    "scaleAfter": {
+     "kind": "pitch",
+     "v": 23.65006277294575
+    },
+    "zoomInChangedView": true,
+    "notches": 3,
+    "zoomOutSec": 1.276,
+    "wholeTreeBy": "bounds",
+    "fpsMedian": 59.88023952095874,
+    "fpsP5": 3.332222592469183,
+    "droppedRatio": 0.8199140960567047,
+    "maxFrameGapMs": 300.09999999999945,
+    "droppedFrames": 59,
+    "inkAfterZoomOut": 0.21839203917232664,
+    "stats": {
+     "domNodes": 515,
+     "svgElements": 297,
+     "canvases": 0,
+     "custom": {
+      "libraryNodes": 20243,
+      "labelElements": 73,
+      "branchPaths": 1,
+      "launches": 1,
+      "shadowRoots": 0
+     }
+    },
+    "domPierced": {
+     "nodes": 515,
+     "svg": 297,
+     "canvases": 0,
+     "shadowRoots": 0
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 9.283
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (yes)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 197 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 203.6 px over 197 tips"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 400 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "visibleTips": 197,
+    "phylogramPearson": 1.0000000000000007,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 203.64494503635171,
+    "ultrametricTipSpread": 3.5016479791052167e-16,
+    "ultrametricTips": 400,
+    "scaleBarSelfReport": "yes: a scale bar is drawn for phylograms; showScaleAxis adds a time or distance axis (checked on rich-corvoid-680)"
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 3.277
+  },
+  "S12": {
+   "status": "pass",
+   "reason": "syn-yule-1000 radial: all checks passed",
+   "checks": [
+    {
+     "name": "setLayout(radial) changes the layout",
+     "ok": true,
+     "detail": "tip moved from 741,347 to 639,540"
+    },
+    {
+     "name": "radial S2: tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "radial S2: tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "radial S2: tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "radial S2: tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    },
+    {
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "radial S3: at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    },
+    {
+     "name": "radial S4: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 26.02%"
+    },
+    {
+     "name": "radial S4: other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 26.02%, B blue 27.17%"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {},
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 10.112
+  },
+  "S13": {
+   "status": "fail",
+   "reason": "both instances draw something (ink 0.00% / 14.83%); instance 0 tip locatable; instance 1 survives unmounting instance 0; adapter self-report: multipleInstances=no",
+   "checks": [
+    {
+     "name": "second instance mounts with its own tip count",
+     "ok": true,
+     "detail": "1000 and 200"
+    },
+    {
+     "name": "both instances draw something",
+     "ok": false,
+     "detail": "ink 0.00% / 14.83%"
+    },
+    {
+     "name": "instance 0 tip locatable",
+     "ok": false,
+     "detail": ""
+    },
+    {
+     "name": "click in instance 1 reaches instance 1",
+     "ok": true,
+     "detail": "events 1"
+    },
+    {
+     "name": "React state of instance 1 updated",
+     "ok": true,
+     "detail": "tipClick n243 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "instance 1 survives unmounting instance 0",
+     "ok": false,
+     "detail": ""
+    },
+    {
+     "name": "unmount leaves nothing in the container",
+     "ok": true,
+     "detail": "domNodes=0 (shadow DOM included) canvases=0"
+    },
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "375 -> 375"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "0.2 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "adapterReportsMultipleInstances": "no: module singleton: a second launch() empties the first container and it is not restored (verified: README says \"One viewer per page\")",
+    "baseline": {
+     "dom": 375,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 375,
+     "canv": 0
+    },
+    "heapMB": [
+     9.287483215332031,
+     9.810041427612305,
+     8.808993339538574,
+     9.394453048706055,
+     9.460771560668945
+    ],
+    "heapGrowthMB": 0.17328834533691406,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 10.341
+  },
+  "S14": {
+   "status": "partial",
+   "reason": "at least one tip-level target (named like a tip) is reachable by Tab (only container-level targets (for example one canvas)); tips were not focusable at the fit view, only after focusTip",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 DISTINCT focusable elements inside the tree",
+     "ok": true,
+     "detail": "5 distinct elements (button)"
+    },
+    {
+     "name": "at least one tip-level target (named like a tip) is reachable by Tab",
+     "ok": false,
+     "detail": "only container-level targets (for example one canvas)"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "5/5 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": true,
+     "detail": "{\"roles\":[\"group\"],\"labelled\":true,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [
+     {
+      "uid": 1,
+      "tag": "button",
+      "role": null,
+      "name": "Archaeopteryx.js",
+      "tipAttr": null
+     },
+     {
+      "uid": 2,
+      "tag": "button",
+      "role": null,
+      "name": "Tree properties and statistics",
+      "tipAttr": null
+     },
+     {
+      "uid": 3,
+      "tag": "button",
+      "role": null,
+      "name": "Control panel cheat sheet",
+      "tipAttr": null
+     },
+     {
+      "uid": 4,
+      "tag": "button",
+      "role": null,
+      "name": "Switch between light and dark",
+      "tipAttr": null
+     },
+     {
+      "uid": 5,
+      "tag": "button",
+      "role": null,
+      "name": "+",
+      "tipAttr": null
+     }
+    ],
+    "tabAfterFocusTip": [
+     {
+      "uid": 1,
+      "tag": "button",
+      "role": null,
+      "name": "Archaeopteryx.js",
+      "tipAttr": null
+     },
+     {
+      "uid": 2,
+      "tag": "button",
+      "role": null,
+      "name": "Tree properties and statistics",
+      "tipAttr": null
+     },
+     {
+      "uid": 3,
+      "tag": "button",
+      "role": null,
+      "name": "Control panel cheat sheet",
+      "tipAttr": null
+     },
+     {
+      "uid": 4,
+      "tag": "button",
+      "role": null,
+      "name": "Switch between light and dark",
+      "tipAttr": null
+     },
+     {
+      "uid": 5,
+      "tag": "button",
+      "role": null,
+      "name": "+",
+      "tipAttr": null
+     }
+    ],
+    "neededFocusTip": true,
+    "distinctFocusable": 5,
+    "tipLevelTargets": 0,
+    "semantics": {
+     "roles": [
+      "group"
+     ],
+     "labelled": true,
+     "textFallback": false
+    }
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 3.547
+  },
+  "S15": {
+   "status": "partial",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 29 ms, to paint 170 ms (median of 5) > 120 ms target (spec: about 100 ms)",
+   "checks": [
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    },
+    {
+     "name": "click-to-paint measurable for at least 3 of 5 clicks (a frame after the commit, never before the click)",
+     "ok": true,
+     "detail": "5 valid, 0 not measurable"
+    },
+    {
+     "name": "clade is red (>= 0.1% of the clade box and >= 20 px move towards red) [checked after zooming in]",
+     "ok": true,
+     "detail": "2.75% of the clade box, box 649 px tall"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "treeChosenBy": "default (S1 mounted it)",
+    "treeFallbackFrom": null,
+    "cladeTips": 969,
+    "clickToCommitMs": [
+     46,
+     37.399999998509884,
+     27.5,
+     28.899999998509884,
+     29
+    ],
+    "clickToPaintMs": [
+     54.899999998509884,
+     193.09999999776483,
+     169.69999999925494,
+     191,
+     35.400000002235174
+    ],
+    "medianCommitMs": 29,
+    "medianPaintMs": 169.69999999925494,
+    "redFractionAfterColour": 0.027467811158798282,
+    "pixelCheck": {
+     "afterZoom": true,
+     "zoom": {
+      "zoomed": true,
+      "notches": 0,
+      "boxPxBefore": 57.98320000000001,
+      "boxPxAfter": 649,
+      "factor": 11.192897252997417,
+      "note": "bounds are clipped to the container, so the factor is approximate"
+     }
+    }
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 21.856
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "pass",
+   "reason": "load 164 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 11 ms, click 15 ms",
+   "loadAvgAtStart": 3.02,
+   "phase": "done",
+   "fetchMs": 19.399999998509884,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 9.5,
+   "firstRenderMs": 154.80000000074506,
+   "sharedParseMs": 2.5,
+   "reportedTips": 5,
+   "notes": "parseTree 9.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 164.30000000074506,
+   "ink": 0.019451903332806775,
+   "heapAfterMountMB": 6.385226249694824,
+   "stats": {
+    "domNodes": 383,
+    "svgElements": 157,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 8,
+     "labelElements": 5,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 383,
+    "svg": 157,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 14.900000000372529,
+   "clickToPaintMs": 50.75,
+   "clickSamples": {
+    "events": 2,
+    "tries": 2,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    20,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0.0004535661639640798,
+   "droppedFrames": 23,
+   "maxFrameGapMs": 33.5,
+   "frames": 539,
+   "inputSteps": 235,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 10.7,
+   "cpuDragMoveMs": 4.4,
+   "cpuMsPerStep": 10.7,
+   "loadAvgAtEnd": 3.56,
+   "heapAfterInteractionMB": 7.091756820678711,
+   "heapMB": 7.091756820678711,
+   "unusableFactor": 0.107,
+   "pageErrors": [],
+   "wallSec": 18.927,
+   "relMedianFps": 0.4371257486368198,
+   "relP5Fps": 0.9970059880239684,
+   "cpuVsStub200": 0.8294573643410852
+  },
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "pass",
+   "reason": "load 210 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 29 ms, click 6 ms",
+   "loadAvgAtStart": 3.56,
+   "phase": "done",
+   "fetchMs": 34.399999998509884,
+   "convertMs": 21.600000001490116,
+   "wireBytes": 111429,
+   "parseMs": 10,
+   "firstRenderMs": 199.89999999850988,
+   "sharedParseMs": 3,
+   "reportedTips": 135,
+   "notes": "parseTree 10.0 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 209.89999999850988,
+   "ink": 0.12036487126836204,
+   "heapAfterMountMB": 6.858899116516113,
+   "stats": {
+    "domNodes": 452,
+    "svgElements": 237,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 269,
+     "labelElements": 45,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 452,
+    "svg": 237,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 6,
+   "clickToPaintMs": 70.79999999701977,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.940119760478552,
+   "fpsP5Rounds": [
+    20,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 27,
+   "maxFrameGapMs": 50,
+   "frames": 547,
+   "inputSteps": 247,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 28.8,
+   "cpuDragMoveMs": 5.1,
+   "cpuMsPerStep": 28.8,
+   "loadAvgAtEnd": 4.36,
+   "heapAfterInteractionMB": 7.797235488891602,
+   "heapMB": 7.797235488891602,
+   "unusableFactor": 0.28800000000000003,
+   "pageErrors": [],
+   "wallSec": 19.296,
+   "relMedianFps": 0.4371257486368198,
+   "relP5Fps": 0.9970059880239412,
+   "cpuVsStub200": 2.2325581395348837
+  },
+  "rich-ens-protein-197": {
+   "treeId": "rich-ens-protein-197",
+   "tips": 197,
+   "status": "partial",
+   "reason": "sluggish: 56 ms CPU per step (load 198 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 56 ms, click 5 ms)",
+   "loadAvgAtStart": 4.81,
+   "phase": "done",
+   "fetchMs": 14.200000002980232,
+   "convertMs": 0,
+   "wireBytes": 7349,
+   "parseMs": 5.5,
+   "firstRenderMs": 192.30000000074506,
+   "sharedParseMs": 5,
+   "reportedTips": 197,
+   "notes": "parseTree 5.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 197.80000000074506,
+   "ink": 0.06421102511451593,
+   "heapAfterMountMB": 7.646984100341797,
+   "stats": {
+    "domNodes": 460,
+    "svgElements": 245,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 393,
+     "labelElements": 49,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 460,
+    "svg": 245,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 4.800000000745058,
+   "clickToPaintMs": 58.19999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 4
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    29.9,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.00025045220537070717,
+   "droppedFrames": 23,
+   "maxFrameGapMs": 50,
+   "frames": 548,
+   "inputSteps": 240,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 56,
+   "cpuDragMoveMs": 10.6,
+   "cpuMsPerStep": 56,
+   "loadAvgAtEnd": 4.18,
+   "heapAfterInteractionMB": 7.9326982498168945,
+   "heapMB": 7.9326982498168945,
+   "unusableFactor": 0.56,
+   "pageErrors": [],
+   "wallSec": 19.753,
+   "relMedianFps": 0.4371257486368198,
+   "relP5Fps": 0.9970059880239684,
+   "cpuVsStub200": 4.341085271317829
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "pass",
+   "reason": "load 204 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 30 ms, click 10 ms",
+   "loadAvgAtStart": 4.18,
+   "phase": "done",
+   "fetchMs": 11.199999999254942,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 7.100000001490116,
+   "firstRenderMs": 196.89999999850988,
+   "sharedParseMs": 2.399999998509884,
+   "reportedTips": 200,
+   "notes": "parseTree 7.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 204,
+   "ink": 0.11417785499921018,
+   "heapAfterMountMB": 6.892643928527832,
+   "stats": {
+    "domNodes": 462,
+    "svgElements": 247,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 399,
+     "labelElements": 50,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 462,
+    "svg": 247,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 9.599999997764826,
+   "clickToPaintMs": 74.69999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.00402420149211617,
+   "droppedFrames": 23,
+   "maxFrameGapMs": 50,
+   "frames": 514,
+   "inputSteps": 234,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.1,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 29.7,
+   "cpuDragMoveMs": 5.2,
+   "cpuMsPerStep": 29.7,
+   "loadAvgAtEnd": 4.2,
+   "heapAfterInteractionMB": 7.612286567687988,
+   "heapMB": 7.612286567687988,
+   "unusableFactor": 0.297,
+   "pageErrors": [],
+   "wallSec": 19.745,
+   "relMedianFps": 0.4371257486368198,
+   "relP5Fps": 0.9970059880239684,
+   "cpuVsStub200": 2.302325581395349
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "pass",
+   "reason": "load 211 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 29 ms, click 6 ms",
+   "loadAvgAtStart": 4.2,
+   "phase": "done",
+   "fetchMs": 56,
+   "convertMs": 6.899999998509884,
+   "wireBytes": 601687,
+   "parseMs": 8.100000001490116,
+   "firstRenderMs": 202.59999999776483,
+   "sharedParseMs": 1.9000000022351742,
+   "reportedTips": 380,
+   "notes": "parseTree 8.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 210.69999999925494,
+   "ink": 0.15454272626757226,
+   "heapAfterMountMB": 7.040958404541016,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 759,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 6,
+   "clickToPaintMs": 62.600000001490116,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20.040080160320606,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0.0008509914051979242,
+   "droppedFrames": 28,
+   "maxFrameGapMs": 50,
+   "frames": 514,
+   "inputSteps": 246,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 28.9,
+   "cpuDragMoveMs": 5.1,
+   "cpuMsPerStep": 28.9,
+   "loadAvgAtEnd": 3.86,
+   "heapAfterInteractionMB": 8.281800270080566,
+   "heapMB": 8.281800270080566,
+   "unusableFactor": 0.289,
+   "pageErrors": [],
+   "wallSec": 19.448,
+   "relMedianFps": 0.4371257486368198,
+   "relP5Fps": 0.6673346693386798,
+   "cpuVsStub200": 2.24031007751938
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "timeout",
+   "reason": "unusable: 131 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.86,
+   "phase": "done",
+   "fetchMs": 40.5,
+   "convertMs": 49.399999998509884,
+   "wireBytes": 219203,
+   "parseMs": 19.599999997764826,
+   "firstRenderMs": 251,
+   "sharedParseMs": 6.100000001490116,
+   "reportedTips": 680,
+   "notes": "parseTree 19.6 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 270.5999999977648,
+   "ink": 0.165182435634181,
+   "heapAfterMountMB": 7.363124847412109,
+   "stats": {
+    "domNodes": 458,
+    "svgElements": 243,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1359,
+     "labelElements": 48,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 458,
+    "svg": 243,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 9.800000000745058,
+   "clickToPaintMs": 81.10000000149012,
+   "clickSamples": {
+    "events": 4,
+    "tries": 4,
+    "rightNode": 4
+   },
+   "fpsMedian": 29.94011976047774,
+   "fpsP5": 7.496251874062887,
+   "fpsP5Rounds": [
+    7.5,
+    6.7,
+    6.7
+   ],
+   "droppedRatio": 0.4161015578673829,
+   "droppedFrames": 147,
+   "maxFrameGapMs": 150,
+   "frames": 217,
+   "inputSteps": 107,
+   "fpsP95": 59.880239520968516,
+   "idleCpuPctOfOneCore": 9.6,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 131.2,
+   "cpuDragMoveMs": 17.9,
+   "cpuMsPerStep": 131.2,
+   "loadAvgAtEnd": 4.22,
+   "heapAfterInteractionMB": 8.638039588928223,
+   "heapMB": 8.638039588928223,
+   "unusableFactor": 1.3119999999999998,
+   "pageErrors": [],
+   "wallSec": 36.597,
+   "relMedianFps": 0.218562874318398,
+   "relP5Fps": 0.2496251874062955,
+   "cpuVsStub200": 10.170542635658913
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "timeout",
+   "reason": "unusable: 64% of the time in frames > 50 ms (best of 3 rounds); 185 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 4.22,
+   "phase": "done",
+   "fetchMs": 20.400000002235174,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 20.400000002235174,
+   "firstRenderMs": 333.80000000074506,
+   "sharedParseMs": 10.599999997764826,
+   "reportedTips": 888,
+   "notes": "parseTree 20.4 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 354.20000000298023,
+   "ink": 0.23421418417311646,
+   "heapAfterMountMB": 7.298637390136719,
+   "stats": {
+    "domNodes": 436,
+    "svgElements": 234,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1465,
+     "labelElements": 46,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 436,
+    "svg": 234,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 9.200000001117587,
+   "clickToPaintMs": 161.59999999962747,
+   "clickSamples": {
+    "events": 4,
+    "tries": 4,
+    "rightNode": 4
+   },
+   "fpsMedian": 20,
+   "fpsP5": 4.61467466543611,
+   "fpsP5Rounds": [
+    3.8,
+    4.6,
+    4.3
+   ],
+   "droppedRatio": 0.641067897165732,
+   "droppedFrames": 180,
+   "maxFrameGapMs": 216.6999999999989,
+   "frames": 149,
+   "inputSteps": 66,
+   "fpsP95": 30.030030030030687,
+   "idleCpuPctOfOneCore": 11.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 185.1,
+   "cpuDragMoveMs": 17.1,
+   "cpuMsPerStep": 185.1,
+   "loadAvgAtEnd": 4.36,
+   "heapAfterInteractionMB": 8.662630081176758,
+   "heapMB": 8.662630081176758,
+   "unusableFactor": 1.851,
+   "pageErrors": [],
+   "wallSec": 31.52,
+   "relMedianFps": 0.1460000000446962,
+   "relP5Fps": 0.1536686663590233,
+   "cpuVsStub200": 14.348837209302324
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: 204 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 4.36,
+   "phase": "done",
+   "fetchMs": 12.300000000745058,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 16.5,
+   "firstRenderMs": 277.30000000074506,
+   "sharedParseMs": 13,
+   "reportedTips": 1000,
+   "notes": "parseTree 16.5 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 293.80000000074506,
+   "ink": 0.24396145948507342,
+   "heapAfterMountMB": 8.091516494750977,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 23.199999999254942,
+   "clickToPaintMs": 163.30000000074506,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 29.94011976047937,
+   "fpsP5": 5.998800239951984,
+   "fpsP5Rounds": [
+    6,
+    4.3,
+    4
+   ],
+   "droppedRatio": 0.41076479832372953,
+   "droppedFrames": 155,
+   "maxFrameGapMs": 183.39999999999964,
+   "frames": 194,
+   "inputSteps": 89,
+   "fpsP95": 30.120481927711833,
+   "idleCpuPctOfOneCore": 11.1,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 203.5,
+   "cpuDragMoveMs": 24.6,
+   "cpuMsPerStep": 203.5,
+   "loadAvgAtEnd": 4.54,
+   "heapAfterInteractionMB": 9.852372169494629,
+   "heapMB": 9.852372169494629,
+   "unusableFactor": 2.035,
+   "pageErrors": [],
+   "wallSec": 32.33,
+   "relMedianFps": 0.2185628743184099,
+   "relP5Fps": 0.19976004799040215,
+   "cpuVsStub200": 15.775193798449612
+  },
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "pass",
+   "reason": "load 374 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 35 ms, click 18 ms",
+   "loadAvgAtStart": 4.54,
+   "phase": "done",
+   "fetchMs": 16.300000000745058,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 38.19999999925494,
+   "firstRenderMs": 335.4000000022352,
+   "sharedParseMs": 15.5,
+   "reportedTips": 1000,
+   "notes": "parseTree 38.2 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 373.6000000014901,
+   "ink": 0.363858790080556,
+   "heapAfterMountMB": 7.6006927490234375,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 1999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 18,
+   "clickToPaintMs": 49.600000001490116,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 29.94011976047774,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.002451818906879435,
+   "droppedFrames": 27,
+   "maxFrameGapMs": 50,
+   "frames": 449,
+   "inputSteps": 208,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 35.1,
+   "cpuDragMoveMs": 5.4,
+   "cpuMsPerStep": 35.1,
+   "loadAvgAtEnd": 3.91,
+   "heapAfterInteractionMB": 8.587730407714844,
+   "heapMB": 8.587730407714844,
+   "unusableFactor": 0.35100000000000003,
+   "pageErrors": [],
+   "wallSec": 18.968,
+   "relMedianFps": 0.437125748636796,
+   "relP5Fps": 0.9970059880239142,
+   "cpuVsStub200": 2.7209302325581395
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2277 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.91,
+   "phase": "done",
+   "fetchMs": 30.899999998509884,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 74.20000000298023,
+   "firstRenderMs": 1301.300000000745,
+   "sharedParseMs": 53.80000000074506,
+   "reportedTips": 10000,
+   "notes": "parseTree 74.2 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1375.5000000037253,
+   "ink": 0.3784820723424419,
+   "heapAfterMountMB": 18.917470932006836,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 19999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 31.799999997019768,
+   "clickToPaintMs": 432.8999999985099,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 2.6089225150012845,
+   "fpsP5": 0.33277870216306155,
+   "fpsP5Rounds": [
+    0.3,
+    0.3,
+    0.3
+   ],
+   "droppedRatio": 1,
+   "droppedFrames": 425,
+   "maxFrameGapMs": 3005,
+   "frames": 21,
+   "inputSteps": 6,
+   "fpsP95": 9.990009990010135,
+   "idleCpuPctOfOneCore": 34,
+   "wheelSteps": 8,
+   "cpuWheelStepMs": 2277.3,
+   "cpuDragMoveMs": 468.2,
+   "cpuMsPerStep": 2277.3,
+   "loadAvgAtEnd": 4.63,
+   "heapAfterInteractionMB": 22.64579677581787,
+   "heapMB": 22.64579677581787,
+   "unusableFactor": 22.773000000000003,
+   "pageErrors": [],
+   "wallSec": 126.213,
+   "relMedianFps": 0.019045134365339823,
+   "relP5Fps": 0.01108153078203001,
+   "cpuVsStub200": 176.53488372093025
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 4.63,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.912,
+   "unusableFactor": 1000000
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 3556 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 4.34,
+   "phase": "done",
+   "fetchMs": 23.100000001490116,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 77.69999999925494,
+   "firstRenderMs": 1486.5,
+   "sharedParseMs": 38,
+   "reportedTips": 10000,
+   "notes": "parseTree 77.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1564.199999999255,
+   "ink": 0.38735112936344973,
+   "heapAfterMountMB": 17.62777328491211,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 19999,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 278,
+   "clickToPaintMs": 2363.7999999970198,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 2.999400119975992,
+   "fpsP5": 0.3586028831672763,
+   "fpsP5Rounds": [
+    0.3,
+    0.4,
+    0.3
+   ],
+   "droppedRatio": 1,
+   "droppedFrames": 391,
+   "maxFrameGapMs": 2788.5999999992564,
+   "frames": 23,
+   "inputSteps": 6,
+   "fpsP95": 7.501875468867462,
+   "idleCpuPctOfOneCore": 28.8,
+   "wheelSteps": 6,
+   "cpuWheelStepMs": 3555.5,
+   "cpuDragMoveMs": 1192.1,
+   "cpuMsPerStep": 3555.5,
+   "loadAvgAtEnd": 4.34,
+   "heapAfterInteractionMB": 23.854287147521973,
+   "heapMB": 23.854287147521973,
+   "unusableFactor": 35.555,
+   "pageErrors": [],
+   "wallSec": 141.472,
+   "relMedianFps": 0.021895620882527833,
+   "relP5Fps": 0.011941476009470365,
+   "cpuVsStub200": 275.62015503875966
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 100% of the time in frames > 50 ms (best of 3 rounds); 2016 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 4.34,
+   "phase": "done",
+   "fetchMs": 25.5,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 61.29999999701977,
+   "firstRenderMs": 953.9000000022352,
+   "sharedParseMs": 26.100000001490116,
+   "reportedTips": 10000,
+   "notes": "parseTree 61.3 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1015.1999999992549,
+   "ink": 0.40566577160006323,
+   "heapAfterMountMB": 14.542084693908691,
+   "stats": {
+    "domNodes": 456,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 13995,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 456,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 14,
+   "clickToPaintMs": 186.09999999776483,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 2.307869836141226,
+   "fpsP5": 0.36752545113759233,
+   "fpsP5Rounds": [
+    0.4,
+    0.4,
+    0.3
+   ],
+   "droppedRatio": 1,
+   "droppedFrames": 460,
+   "maxFrameGapMs": 2720.899999999252,
+   "frames": 27,
+   "inputSteps": 8,
+   "fpsP95": 10.010010010009864,
+   "idleCpuPctOfOneCore": 34.3,
+   "wheelSteps": 9,
+   "cpuWheelStepMs": 2015.8,
+   "cpuDragMoveMs": 430.5,
+   "cpuMsPerStep": 2015.8,
+   "loadAvgAtEnd": 5.26,
+   "heapAfterInteractionMB": 21.12515354156494,
+   "heapMB": 21.12515354156494,
+   "unusableFactor": 20.158,
+   "pageErrors": [],
+   "wallSec": 107.788,
+   "relMedianFps": 0.016847449808988602,
+   "relP5Fps": 0.012238597522881891,
+   "cpuVsStub200": 156.26356589147287
+  },
+  "otl-10k": {
+   "treeId": "otl-10k",
+   "tips": 10018,
+   "status": "timeout",
+   "reason": "unusable: 165 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 5.26,
+   "phase": "done",
+   "fetchMs": 23.700000002980232,
+   "convertMs": 0,
+   "wireBytes": 128748,
+   "parseMs": 61.099999997764826,
+   "firstRenderMs": 1227,
+   "sharedParseMs": 52.20000000298023,
+   "reportedTips": 10018,
+   "notes": "parseTree 61.1 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 7",
+   "loadMs": 1288.0999999977648,
+   "ink": 0.2361617438003475,
+   "heapAfterMountMB": 13.904321670532227,
+   "stats": {
+    "domNodes": 438,
+    "svgElements": 236,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 14874,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 438,
+    "svg": 236,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 12.099999999627471,
+   "clickToPaintMs": 33.59999999962747,
+   "clickSamples": {
+    "events": 2,
+    "tries": 5,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 5.998800239951984,
+   "fpsP5Rounds": [
+    5.5,
+    6,
+    4.6
+   ],
+   "droppedRatio": 0.4531492103193609,
+   "droppedFrames": 125,
+   "maxFrameGapMs": 183.29999999999927,
+   "frames": 285,
+   "inputSteps": 107,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.9,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 165,
+   "cpuDragMoveMs": 3.7,
+   "cpuMsPerStep": 165,
+   "loadAvgAtEnd": 3.54,
+   "heapAfterInteractionMB": 17.60995388031006,
+   "heapMB": 17.60995388031006,
+   "unusableFactor": 1.65,
+   "pageErrors": [],
+   "wallSec": 34.661,
+   "relMedianFps": 0.437125748636796,
+   "relP5Fps": 0.19976004799040215,
+   "cpuVsStub200": 12.790697674418604
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: 67% of the time in frames > 50 ms (best of 3 rounds); 291 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 3.54,
+   "phase": "done",
+   "fetchMs": 30.5,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 99.70000000298023,
+   "firstRenderMs": 1713.5,
+   "sharedParseMs": 55.600000001490116,
+   "reportedTips": 10122,
+   "notes": "parseTree 99.7 ms (Newick->phyloXML model, inside Archaeopteryx), launch() then draws on the next frame from 5,000 nodes (viewer.ready); unmatched library tips 0",
+   "loadMs": 1813.2000000029802,
+   "ink": 0.19943294898120356,
+   "heapAfterMountMB": 18.174898147583008,
+   "stats": {
+    "domNodes": 459,
+    "svgElements": 241,
+    "canvases": 0,
+    "custom": {
+     "libraryNodes": 20243,
+     "labelElements": 47,
+     "branchPaths": 1,
+     "launches": 1,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 459,
+    "svg": 241,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 21.300000000745058,
+   "clickToPaintMs": 250.39999999850988,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 30.030030030030687,
+   "fpsP5": 2.857142857142857,
+   "fpsP5Rounds": [
+    2.7,
+    2.9,
+    2.6
+   ],
+   "droppedRatio": 0.6658481057994371,
+   "droppedFrames": 184,
+   "maxFrameGapMs": 350,
+   "frames": 160,
+   "inputSteps": 59,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 4.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 290.7,
+   "cpuDragMoveMs": 3.5,
+   "cpuMsPerStep": 290.7,
+   "loadAvgAtEnd": 3.86,
+   "heapAfterInteractionMB": 25.974671363830566,
+   "heapMB": 25.974671363830566,
+   "unusableFactor": 2.907,
+   "pageErrors": [],
+   "wallSec": 29.079,
+   "relMedianFps": 0.21921921928633545,
+   "relP5Fps": 0.09514285714285767,
+   "cpuVsStub200": 22.53488372093023
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 3.86,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.addParents (http://127.0.0.1:36729/assets/archaeopteryx-50b0Ku0X.js:1:1)\n    at w.",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.8,
+   "unusableFactor": 1000000
+  },
+  "otl-91k": {
+   "treeId": "otl-91k",
+   "tips": 90938,
+   "status": "skipped",
+   "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+  },
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "skipped",
+   "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+  },
+  "gtdb-100k": {
+   "treeId": "gtdb-100k",
+   "tips": 100000,
+   "status": "skipped",
+   "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+  },
+  "gtdb-190k": {
+   "treeId": "gtdb-190k",
+   "tips": 189801,
+   "status": "skipped",
+   "reason": "skipped: unusable at 10k (factor 36x the threshold, rule: skip above 20k tips when the 10k rung is more than 10x over)"
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261019-145213-S4-two-clades.png",
+   "bytes": 65644
+  },
+  {
+   "label": "S8-alignment",
+   "file": "screens/20261019-145213-S8-alignment.png",
+   "bytes": 121615
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261019-145213-S9-dark.png",
+   "bytes": 68381
+  },
+  {
+   "label": "S12-radial",
+   "file": "screens/20261019-145213-S12-radial.png",
+   "bytes": 99836
+  },
+  {
+   "label": "S1-edge-quoted-labels",
+   "file": "screens/20261019-145213-S1-edge-quoted-labels.png",
+   "bytes": 22505
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261019-145213-S5-focus-highlight.png",
+   "bytes": 84474
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261019-145213-S15-linked-view.png",
+   "bytes": 122467
+  },
+  {
+   "label": "S10-zoomed-out-gtdb-10k",
+   "file": "screens/20261019-145213-S10-zoomed-out-gtdb-10k.png",
+   "bytes": 92929
+  }
+ ],
+ "wallSec": 790.904,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

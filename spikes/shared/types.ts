@@ -222,7 +222,7 @@ export interface CandidateAdapter {
 // ---------------------------------------------------------------- catalogue
 
 export type TreeFormat = 'newick' | 'nexus';
-export type TreeGroup = 'smoke' | 'ladder' | 'worst' | 'real' | 'cols' | 'align' | 'dated' | 'edge';
+export type TreeGroup = 'smoke' | 'ladder' | 'worst' | 'real' | 'cols' | 'align' | 'dated' | 'edge' | 'huge';
 
 export interface ColumnSource {
   id: string;
@@ -248,5 +248,7 @@ export interface TreeEntry {
   tsvKey?: string; // TSV column holding the tip label
   align?: string; // aligned FASTA, path under data/ (ids = tip labels)
   columns?: ColumnSource[]; // how meta / align become ColumnSpecs
+  /** Not committed and not required: absent files are skipped by check-catalogue and the site build, and shown disabled in the demo. */
+  optional?: boolean;
   notes?: string;
 }

@@ -208,6 +208,45 @@ async function zoomPan(s, rect, notches = 8) {
 const heapMB = (s) => s.metrics(() => window.__spikeMetrics.heap(true)?.usedMB ?? null);
 const inputMarks = (s) => s.metrics(() => ({ ...window.__spikeMetrics.input }));
 
+/**
+ * Zoom with real wheel input around a clade until its drawn box is at least `minPx` tall. Strokes of uniform-fit SVG and
+ * WebGL viewers are sub-pixel at the fit view of a big tree, so pixel checks are made after this zoom. Returns what it did.
+ */
+async function zoomIntoClade(s, t, i, caps, minPx = 60, maxNotches = 45) {
+  const id = t.nodeId(i);
+  let b = await s.call('bounds', { kind: 'node', id });
+  const h0 = b?.height ?? 0;
+  if (b && b.height >= minPx) return { zoomed: false, notches: 0, boxPxBefore: h0, boxPxAfter: h0, factor: 1 };
+  await bringTipIntoView(s, t.tipLabels[(t.leafStart[i] + t.leafEnd[i]) >> 1], caps);
+  await s.settle(150);
+  b = await s.call('bounds', { kind: 'node', id });
+  let notches = 0, stuck = 0, last = b?.height ?? 0;
+  while (b && b.height < minPx && notches < maxNotches && stuck < 4) {
+    const c = centre(b);
+    await s.page.mouse.move(c.x, c.y);
+    await s.page.mouse.wheel(0, -120);
+    notches++;
+    await sleep(80);
+    b = await s.call('bounds', { kind: 'node', id });
+    const h = b?.height ?? 0;
+    stuck = h <= last * 1.02 ? stuck + 1 : 0;
+    last = h;
+  }
+  await s.settle(250);
+  return { zoomed: true, notches, boxPxBefore: h0, boxPxAfter: last, factor: h0 > 0 ? last / h0 : null, note: 'bounds are clipped to the container, so the factor is approximate' };
+}
+
+/** Wait (up to timeoutMs) for the paint mark of the last event to exist; returns the marks (paint 0 = never painted). */
+async function waitPaint(s, timeoutMs = 30000) {
+  const t0 = Date.now();
+  let im = await inputMarks(s);
+  while (!(im.lastEventPaint > 0 && im.lastEventCommit > 0 && im.lastEventPaint >= im.lastEventCommit) && Date.now() - t0 < timeoutMs) {
+    await sleep(50);
+    im = await inputMarks(s);
+  }
+  return im;
+}
+
 // ------------------------------------------------------------------------------------------ reusable checks
 
 /** S2: click tips, check event, React state and metadata row. */
@@ -312,7 +351,7 @@ async function checkNodeClick(s, entry, t, caps) {
 }
 
 /** S4: colour clades from React state, check pixels, layout stability, clear. Works with partly visible trees. */
-async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
+async function checkColourOnce(s, entry, t, caps, screenLabel, saveShot, zoomMode) {
   const ck = new Checks();
   const m = {};
   const [a, b] = pickClades(t, [0.2, 0.15], { minTips: 8 });
@@ -329,6 +368,30 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
     ck.add('bounds(clade A) available', false, 'bounds returned null even after focusTip');
     return { ck, measures: m };
   }
+  // Sub-pixel strokes at the fit view (uniform-fit SVG, WebGL): keep the fit-view result as a note, then zoom around the clade
+  if (bA.height < 60 || zoomMode === 'pitch') {
+    const base0 = await s.shot(bA);
+    await s.call('setColouredClades', [{ nodeId: A, colour: RED }]);
+    await s.settle(200);
+    const after0 = await s.shot(bA);
+    const f0 = base0 && after0 ? tintCount(after0.png, base0.png, hexToRgb(RED)) : { frac: NaN, count: 0 };
+    await s.call('setColouredClades', []);
+    await s.settle(200);
+    m.fitViewCheck = { cladeBoxPx: bA.height, redFrac: f0.frac, redPixels: f0.count, note: 'result at the fit view, before zooming' };
+    if (zoomMode === 'pitch') {
+      // retry mode: readable rows (14 px pitch) around the middle of the clade; marker outlines and minimum sizes can hide fills in big views
+      const mid = (t.leafStart[a] + t.leafEnd[a]) >> 1;
+      await bringTipIntoView(s, t.tipLabels[mid], caps);
+      await s.settle(150);
+      m.zoom = { mode: 'row pitch 14 px', ...(await zoomToPitch(s, t, mid, 14)) };
+    } else m.zoom = await zoomIntoClade(s, t, a, caps);
+    bA = await s.call('bounds', { kind: 'node', id: A });
+    m.pixelChecksAfterZoom = true;
+    if (!bA) {
+      ck.add('bounds(clade A) available after zooming', false, 'null');
+      return { ck, measures: m };
+    }
+  }
   const bB = B ? await s.call('bounds', { kind: 'node', id: B }) : null;
   const useB = !!bB && !rectsIntersect(bA, bB);
   if (B && !useB) m.controlNote = bB ? 'control clade overlaps clade A (no control)' : 'control clade not on screen (no control)';
@@ -337,7 +400,7 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
   const probes = thin(await scanVisible(s, spreadTips(t, 400)), 6);
   const pos = async () => Promise.all(probes.map((p) => s.call('locate', { kind: 'tip', id: p.id })));
   const L0 = await pos();
-  const dom0 = (await s.call('getStats')).domNodes;
+  const dom0 = (await s.domStats()).nodes;
   // colour metric: pixels that moved towards the target colour relative to the same pixels before (relative to the drawn branch width)
   const baseA = await s.shot(bA);
   const baseB = useB ? await s.shot(bB) : null;
@@ -369,7 +432,7 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
     return ck.add(label, !moved, `${both.length} probe tips compared`);
   };
   compare(await pos(), 'no layout change when colouring');
-  m.domNodesDelta = (await s.call('getStats')).domNodes - dom0;
+  m.domNodesDelta = (await s.domStats()).nodes - dom0;
 
   if (useB) {
     await s.call('setColouredClades', [{ nodeId: A, colour: RED }, { nodeId: B, colour: BLUE }]);
@@ -395,6 +458,18 @@ async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
   ck.add('React clades panel empty after clear', st.clades?.length === 0, JSON.stringify(st.clades));
   compare(await pos(), 'no layout change after clear');
   return { ck, measures: m };
+}
+
+/** S4 with one retry: if the checks fail at the first zoom level, zoom to readable rows and check again (both results are kept). */
+async function checkColour(s, entry, t, caps, screenLabel, saveShot) {
+  const first = await checkColourOnce(s, entry, t, caps, screenLabel, saveShot, 'auto');
+  if (first.ck.allOk) return first;
+  await s.call('setColouredClades', []).catch(() => {});
+  await s.settle(150);
+  const second = await checkColourOnce(s, entry, t, caps, screenLabel, saveShot, 'pitch');
+  second.measures.firstAttempt = { failed: first.ck.failed.map((c) => `${c.name} (${c.detail})`), measures: first.measures };
+  second.measures.retriedAfterZoom = true;
+  return second;
 }
 
 /** S7/S8: aligned column cells versus tip positions on the tips that are on screen, at the fit view and after a real zoom. */
@@ -514,6 +589,7 @@ export async function scalePhase(s, entry, partial, shots) {
     return;
   }
   partial.stats = await s.call('getStats');
+  partial.domPierced = await s.domStats();
   if (partial.loadMs > 60000) {
     partial.status = 'timeout';
     partial.reason = `load ${fmt(partial.loadMs / 1000, 1)} s > ${THRESHOLDS.loadMs / 1000} s; interaction measures skipped`;
@@ -531,14 +607,14 @@ export async function scalePhase(s, entry, partial, shots) {
     const p = await locateNode(s, t, i, caps, 400);
     if (!p) continue;
     tries++;
+    await s.metrics(() => Object.assign(window.__spikeMetrics.input, { lastEvent: 0, lastEventCommit: 0, lastEventPaint: 0 }));
     const ev = await s.clickAndWait(p, 0, 4000);
     const c = ev.find((e) => e.type.endsWith('Click'));
     if (!c) continue;
     if (c.nodeId === t.nodeId(i)) hits++;
-    await sleep(150);
-    const im = await inputMarks(s);
-    lat.push(Math.max(0, im.lastEvent - im.pointerDown));
-    paint.push(Math.max(0, im.lastEventPaint - im.pointerDown));
+    const im = await waitPaint(s, 8000);
+    if (im.lastEvent >= im.pointerDown - 1 && im.pointerDown > 0) lat.push(Math.max(0, im.lastEvent - im.pointerDown));
+    if (im.lastEventPaint > 0 && im.lastEventPaint >= im.lastEventCommit && im.lastEventCommit >= im.pointerDown) paint.push(im.lastEventPaint - im.pointerDown);
   }
   partial.clickLatencyMs = lat.length ? median(lat) : null;
   partial.clickToPaintMs = paint.length ? median(paint) : null;
@@ -611,6 +687,22 @@ export function makeScenarios(ctx) {
   const fid = opts.functionalTree || FUNCTIONAL;
   const session = (name, fn, ms = timeouts.default) => browser.withSession(name, fn, ms);
   const capsOf = (s) => s.call('getCapabilities');
+  /**
+   * Tree for S5 and S15: an explicit flag wins; otherwise the default (10k Yule) if S1 mounted it within the load limit,
+   * else the largest of 1k and 200 tips that S1 mounted (never above 1k); without S1 results the default.
+   */
+  const chooseTree = (flag, dflt) => {
+    if (flag) return { id: flag, chosenBy: 'flag' };
+    const r1 = opts.s1Results;
+    if (!r1) return { id: dflt, chosenBy: 'default (no S1 result in this run)' };
+    const ok = (id) => {
+      const r = r1[id];
+      return !!r && r.status !== 'skipped' && r.status !== 'fail' && !!r.loadMs && r.loadMs <= THRESHOLDS.loadMs;
+    };
+    if (ok(dflt)) return { id: dflt, chosenBy: 'default (S1 mounted it)' };
+    for (const id of ['syn-yule-1000', 'syn-yule-200']) if (ok(id)) return { id, chosenBy: `fallback: ${dflt} did not mount within ${THRESHOLDS.loadMs / 1000} s in S1 (${r1[dflt]?.status ?? 'not run'}${r1[dflt]?.loadMs ? ', load ' + fmt(r1[dflt].loadMs / 1000, 1) + ' s' : ''})`, fallbackFrom: dflt };
+    return { id: 'syn-yule-200', chosenBy: 'fallback: nothing above 200 tips mounted in S1', fallbackFrom: dflt };
+  };
 
   const S = {};
 
@@ -655,6 +747,11 @@ export function makeScenarios(ctx) {
         if (e instanceof TimeoutError) {
           partial.status = 'timeout';
           partial.reason = `${partial.phase ?? 'start'}: ${e.message}${partial.loadMs ? '' : ' (mount never finished)'}`;
+        } else if (partial.loadMs && /Timeout \d+ms exceeded/.test(e.message)) {
+          // mounted, but the page produced no frame for a screenshot within 30 s: unusable, not a candidate error
+          partial.status = 'timeout';
+          partial.reason = `${partial.phase ?? 'start'}: page unresponsive after mount (${e.message.split('\n')[0]})`;
+          partial.unusableFactor = 1e3;
         } else {
           partial.status = 'fail';
           partial.reason = `${partial.phase ?? 'start'}: ${e.message.split('\n')[0]}`;
@@ -734,11 +831,12 @@ export function makeScenarios(ctx) {
   // -------------------------------------------------------------------- S5
   S.S5 = () =>
     session('S5', async (s) => {
-      const entry = getEntry(opts.s5Tree || 'syn-yule-10000');
+      const pick = chooseTree(opts.s5Tree, 'syn-yule-10000');
+      const entry = getEntry(pick.id);
       const t = truthTree(entry);
       const caps = await capsOf(s);
       const ck = new Checks();
-      const m = {};
+      const m = { tree: entry.id, treeChosenBy: pick.chosenBy, treeFallbackFrom: pick.fallbackFrom ?? null };
       const uh = unsupported(caps, 'highlightTip');
       const uf = unsupported(caps, 'focusTip');
       if (uh && uf) return result('unsupported', `highlightTip=no and focusTip=no`);
@@ -871,7 +969,8 @@ export function makeScenarios(ctx) {
       measures.declaredColumnKinds = declared;
       if (lc.tsvStats) measures.unmatched = { tipsWithoutRow: lc.tsvStats.tipsWithoutRow.length, rowsWithoutTip: lc.tsvStats.rowsWithoutTip.length };
       // an unmatched tip must not get a cell
-      const un = lc.tsvStats?.tipsWithoutRow?.[0];
+      // a tip with no value in the column that was tested (FASTA rows for an alignment column, TSV rows for bar and text columns)
+      const un = t.tipLabels.find((l) => !(l in bar.values));
       if (un) {
         await bringTipIntoView(s, un, caps);
         const c = await s.call('locateCell', bar.id, un);
@@ -918,7 +1017,18 @@ export function makeScenarios(ctx) {
       const ck = new Checks();
       const m = {};
       const rect = await s.containerRect();
-      const lightShot = await s.shot(rect);
+      let lightShot = await s.shot(rect);
+      // hairline strokes at the fit view (uniform-fit SVG, WebGL): look at a zoomed view for every pixel check of this scenario
+      m.inkAtFit = inkFraction(lightShot.png);
+      if (m.inkAtFit < 0.003) {
+        const t9 = truthTree(entry);
+        const mid = Math.floor(t9.tipCount / 2);
+        await bringTipIntoView(s, t9.tipLabels[mid], caps);
+        await s.settle(150);
+        m.zoom = await zoomToPitch(s, t9, mid, 14);
+        m.pixelChecksAfterZoom = true;
+        lightShot = await s.shot(rect);
+      }
       m.lightLuminance = meanLuminance(lightShot.png);
       if (dark) {
         await s.call('setTheme', { dark: true });
@@ -937,8 +1047,21 @@ export function makeScenarios(ctx) {
         await s.settle(250);
         const sh = await s.shot(rect);
         const bgFrac = countNear(sh.png, hexToRgb(bg), 8).frac;
-        const brFrac = countNear(sh.png, hexToRgb(br), 45);
+        let brFrac = countNear(sh.png, hexToRgb(br), 45);
         m.tokenBackgroundFraction = bgFrac;
+        m.tokenBranchPixelsAtCurrentView = brFrac.count;
+        if (brFrac.count < 30 && !m.pixelChecksAfterZoom) {
+          // hairline strokes at the fit view cannot show the token colour: check again at readable rows
+          const t9 = truthTree(entry);
+          const mid = Math.floor(t9.tipCount / 2);
+          await bringTipIntoView(s, t9.tipLabels[mid], caps);
+          await s.settle(150);
+          m.zoom = await zoomToPitch(s, t9, mid, 14);
+          m.pixelChecksAfterZoom = true;
+          const sh2 = await s.shot(rect);
+          if (sh2) brFrac = countNear(sh2.png, hexToRgb(br), 45);
+          m.tokenBranchChecked = 'after zooming to 14 px rows';
+        }
         m.tokenBranchPixels = brFrac.count;
         ck.add('background token applied (dominant colour)', bgFrac > 0.4, `${fmt(bgFrac * 100)}% of pixels`);
         ck.add('branch token applied (pixels in branch colour)', brFrac.count >= 30, `${brFrac.count} pixels`);
@@ -952,7 +1075,7 @@ export function makeScenarios(ctx) {
     // tree: the largest one that mounted (S1 result), preferring the 100k Yule tree; software GL gets 600 s
     const mounted = (e) => {
       const r = opts.s1Results?.[e.id];
-      return !r || (r.status !== 'skipped' && r.loadMs && r.loadMs < 120000);
+      return !r || (r.status !== 'skipped' && r.status !== 'fail' && r.loadMs && r.loadMs < 120000);
     };
     const list = opts.scaleTrees.slice().sort((a, b) => b.tips - a.tips).filter(mounted);
     const entry = list.find((e) => e.id === 'syn-yule-100000') ?? list[0] ?? getEntry('syn-yule-1000');
@@ -1031,12 +1154,13 @@ export function makeScenarios(ctx) {
           saveShot(`S10-zoomed-out-${entry.id}`, sh.buf);
         }
         partial.stats = await s.call('getStats');
+        partial.domPierced = await s.domStats();
         ck.add('whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)', !!how, `after ${notches} wheel notches${how ? ' via ' + how : ''}`);
         ck.add('tree still drawn when zoomed out', (partial.inkAfterZoomOut ?? 0) > 0.0005);
         ck.add('no freeze: longest frame gap < 2 s', fps.maxIntervalMs < 2000, `${fmt(fps.maxIntervalMs)} ms`);
         const smooth = fps.slowTimeFrac <= THRESHOLDS.droppedRatio;
         const status = !how || !ck.list[1].ok ? 'fail' : !ck.list[2].ok ? 'timeout' : smooth ? 'pass' : 'partial';
-        const reason = ck.reason(`${entry.id}: `) + `; while zooming out median ${fmt(fps.medianFps, 1)} fps, ${fmt(fps.slowTimeFrac * 100)}% of the time in frames > 50 ms, DOM nodes ${partial.stats.domNodes}, canvases ${partial.stats.canvases}` + (how && !smooth ? ' (more than half of the time in slow frames)' : '') + `; overviewOrMinimap self-report: ${caps.overviewOrMinimap?.level}`;
+        const reason = ck.reason(`${entry.id}: `) + `; while zooming out median ${fmt(fps.medianFps, 1)} fps, ${fmt(fps.slowTimeFrac * 100)}% of the time in frames > 50 ms, DOM nodes ${partial.domPierced.nodes} (shadow DOM included), canvases ${partial.domPierced.canvases}` + (how && !smooth ? ' (more than half of the time in slow frames)' : '') + `; overviewOrMinimap self-report: ${caps.overviewOrMinimap?.level}`;
         return result(status, reason, { checks: ck.list, measures: partial });
       },
       big ? 900000 : 300000,
@@ -1205,8 +1329,8 @@ export function makeScenarios(ctx) {
         await s.settle(300);
         const sh1 = await s.shot(await s.containerRect(1));
         ck.add('instance 1 survives unmounting instance 0', !!sh1 && inkFraction(sh1.png) > 0.0005);
-        const stats0 = await s.call('getStats');
-        ck.add('unmount leaves nothing in the container', stats0.domNodes === 0 && stats0.canvases === 0, `domNodes=${stats0.domNodes} canvases=${stats0.canvases}`);
+        const stats0 = await s.domStats();
+        ck.add('unmount leaves nothing in the container', stats0.nodes === 0 && stats0.canvases === 0, `domNodes=${stats0.nodes} (shadow DOM included) canvases=${stats0.canvases}`);
       } catch (e) {
         ck.add('two-instance test ran without exceptions', false, String(e.message).split('\n')[0]);
       }
@@ -1333,14 +1457,15 @@ export function makeScenarios(ctx) {
   // -------------------------------------------------------------------- S15
   S.S15 = () =>
     session('S15', async (s) => {
-      let entry = getEntry(opts.s15Tree || 'syn-yule-10000');
+      const pick = chooseTree(opts.s15Tree, 'syn-yule-10000');
+      const entry = getEntry(pick.id);
       const caps = await capsOf(s);
       const u = unsupported(caps, 'internalNodeClick');
       if (u) return u;
       const ck = new Checks();
-      const m = { tree: entry.id };
+      const m = { tree: entry.id, treeChosenBy: pick.chosenBy, treeFallbackFrom: pick.fallbackFrom ?? null };
       const target = entry.tips >= 5000 ? 1000 : 300;
-      let t = truthTree(entry);
+      const t = truthTree(entry);
       const [i] = pickClades(t, [target / t.tipCount], { minTips: 20 });
       const nodeId = t.nodeId(i);
       const truthN = t.tipCountOf(i);
@@ -1348,63 +1473,98 @@ export function makeScenarios(ctx) {
       await mountOrThrow(s, entry);
       await s.page.evaluate(() => window.__spikeShell.setLinkedView(true));
       const colour = await s.page.evaluate(() => window.__spikeShell.linkedColour);
-      const lat = [], paint = [];
-      let okCount = 0;
-      let baseShot = null, baseRect = null;
+      const commit = [], paint = [];
+      let okCount = 0, unmeasured = 0;
       for (let k = 0; k < 5; k++) {
-        const p = await locateNode(s, t, i, caps, 800);
-        if (k === 0) {
-          baseRect = await s.call('bounds', { kind: 'node', id: nodeId });
-          baseShot = baseRect ? await s.shot(baseRect) : null;
-        } // focusTip on a tip inside the clade first (scroll-only viewers)
+        const p = await locateNode(s, t, i, caps, 800); // focusTip on tips of the clade first (scroll-only viewers)
         if (!p) {
           ck.add(`click ${k + 1}: node locatable`, false, 'locate null even after focusTip on tips of the clade');
           break;
         }
         await s.call('clearEvents');
+        // reset the marks so that nothing stale from a previous click can be read as this click's paint
+        await s.metrics(() => Object.assign(window.__spikeMetrics.input, { lastEvent: 0, lastEventCommit: 0, lastEventPaint: 0 }));
         await s.page.mouse.move(p.x, p.y);
         await s.page.mouse.click(p.x, p.y);
         const t0 = Date.now();
         let st;
-        while (Date.now() - t0 < 5000) {
+        while (Date.now() - t0 < 30000) {
           st = await s.reactState();
           if (st.mapCount === truthN && st.clades?.length === 1) break;
           await sleep(10);
         }
-        await sleep(250);
-        const im = await inputMarks(s);
+        const im = await waitPaint(s, 30000); // the first frame after the commit, same performance.now() clock as the pointerdown timestamp
         st = await s.reactState();
         const good = st.mapCount === truthN && st.mapNode === nodeId && st.clades?.[0]?.nodeId === nodeId;
         if (good) okCount++;
-        lat.push(im.lastEventCommit - im.pointerDown);
-        paint.push(im.lastEventPaint - im.pointerDown);
-        if (k === 0) {
-          const b = await s.call('bounds', { kind: 'node', id: nodeId });
-          if (b && baseShot) {
-            const sh2 = await s.shot(baseRect);
-            const f = sh2 ? tintCount(sh2.png, baseShot.png, hexToRgb(colour), 40) : { frac: NaN, count: 0 };
-            m.redFractionAfterClick = f.frac;
-            ck.add('clade is red after the click (>= 0.1% of the clade box and >= 20 px move towards red)', f.frac >= 0.001 && f.count >= 20, `${fmt(f.frac * 100, 2)}% of the clade box`);
-            const sh = await s.shot(await s.containerRect());
-            if (sh) saveShot('S15-linked-view', sh.buf);
-          } else ck.add('clade bounds available', false);
-        }
+        const valid = im.pointerDown > 0 && im.lastEvent >= im.pointerDown - 1 && im.lastEventCommit >= im.lastEvent && im.lastEventPaint >= im.lastEventCommit;
+        commit.push(im.lastEventCommit > 0 && im.lastEventCommit >= im.pointerDown ? im.lastEventCommit - im.pointerDown : NaN);
+        if (valid) paint.push(im.lastEventPaint - im.pointerDown);
+        else unmeasured++;
         await s.page.evaluate(() => window.__spike.setColouredClades([]));
         await s.settle(150);
         await s.page.mouse.move(p.x - 30, p.y + 30);
       }
       ck.add(`map panel shows ${truthN} tips and the clade is in React state (all 5 clicks)`, okCount === 5, `${okCount}/5 clicks ended correctly`);
-      m.clickToCommitMs = lat;
+      ck.add('click-to-paint measurable for at least 3 of 5 clicks (a frame after the commit, never before the click)', paint.length >= 3, `${paint.length} valid, ${unmeasured} not measurable`);
+      m.clickToCommitMs = commit;
       m.clickToPaintMs = paint;
-      m.medianCommitMs = median(lat);
-      m.medianPaintMs = median(paint);
+      m.medianCommitMs = median(commit.filter(Number.isFinite));
+      m.medianPaintMs = paint.length ? median(paint) : null;
+      // pixel check: colour the clade through the same React state the click uses; after zooming in if its strokes are sub-pixel at the fit view
+      try {
+        let z = await zoomIntoClade(s, t, i, caps);
+        let b = await s.call('bounds', { kind: 'node', id: nodeId });
+        const tint = async (bb) => {
+          const base = await s.shot(bb);
+          await s.call('setColouredClades', [{ nodeId, colour }]);
+          await s.settle(250);
+          const after = await s.shot(bb);
+          await s.call('setColouredClades', []);
+          await s.settle(150);
+          return base && after ? tintCount(after.png, base.png, hexToRgb(colour), 40) : { frac: NaN, count: 0 };
+        };
+        if (b) {
+          let f = await tint(b);
+          if (!(f.frac >= 0.001 && f.count >= 20)) {
+            // retry at readable rows (marker outlines can hide the fill in big views)
+            const mid = (t.leafStart[i] + t.leafEnd[i]) >> 1;
+            await bringTipIntoView(s, t.tipLabels[mid], caps);
+            await s.settle(150);
+            const zz = await zoomToPitch(s, t, mid, 14);
+            const b2 = await s.call('bounds', { kind: 'node', id: nodeId });
+            if (b2) {
+              m.pixelCheckFirstAttempt = { frac: f.frac, pixels: f.count };
+              z = { ...z, retriedAtRowPitch14: zz };
+              b = b2;
+              f = await tint(b2);
+              await s.call('setColouredClades', [{ nodeId, colour }]);
+              await s.settle(200);
+            }
+          } else {
+            await s.call('setColouredClades', [{ nodeId, colour }]);
+            await s.settle(200);
+          }
+          m.redFractionAfterColour = f.frac;
+          m.pixelCheck = { afterZoom: z.zoomed, zoom: z };
+          ck.add(`clade is red (>= 0.1% of the clade box and >= 20 px move towards red)${z.zoomed ? ' [checked after zooming in]' : ''}`, f.frac >= 0.001 && f.count >= 20, `${fmt(f.frac * 100, 2)}% of the clade box, box ${fmt(b.height)} px tall`);
+          const sh = await s.shot(await s.containerRect());
+          if (sh) saveShot('S15-linked-view', sh.buf);
+        } else ck.add('clade bounds available for the pixel check', false);
+      } catch (e) {
+        ck.add('pixel check ran', false, String(e.message).split('\n')[0]);
+      }
       const mp = m.medianPaintMs;
       let status = ck.allOk ? 'pass' : 'fail';
-      let reason = ck.reason(`${entry.id}, ${truthN}-tip clade: `);
+      let reason = ck.reason(`${entry.id}, ${truthN}-tip clade${pick.fallbackFrom ? ` (fallback tree: ${pick.chosenBy})` : ''}: `);
+      if (!ck.allOk && ck.failed.length === 1 && ck.failed[0].name.startsWith('click-to-paint')) {
+        status = 'partial';
+        reason += '; the click-to-paint time could not be measured, so the latency verdict is withheld';
+      }
       if (ck.allOk) {
-        reason += `; click to React commit ${fmt(m.medianCommitMs)} ms, to paint ${fmt(mp)} ms (median of 5)`;
-        if (mp > THRESHOLDS.clickMs) status = 'timeout', reason += ` > ${THRESHOLDS.clickMs} ms (unusable)`;
-        else if (mp > THRESHOLDS.linkedMs) status = 'partial', reason += ` > ${THRESHOLDS.linkedMs} ms target (spec: about 100 ms)`;
+        reason += `; click to React commit ${fmt(m.medianCommitMs)} ms, to paint ${fmt(mp)} ms (median of ${paint.length})`;
+        if (mp > THRESHOLDS.clickMs) (status = 'timeout'), (reason += ` > ${THRESHOLDS.clickMs} ms (unusable)`);
+        else if (mp > THRESHOLDS.linkedMs) (status = 'partial'), (reason += ` > ${THRESHOLDS.linkedMs} ms target (spec: about 100 ms)`);
       }
       return result(status, reason, { checks: ck.list, measures: m });
     });

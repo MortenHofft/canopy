@@ -4,8 +4,8 @@ import { catalogue, truthTree, dataExists, readData } from './lib/truth.mjs';
 let bad = 0;
 for (const e of catalogue) {
   if (!dataExists(e.path)) {
-    console.log(`MISSING  ${e.id}  ${e.path}${e.notes ? '  (' + e.notes.slice(0, 60) + ')' : ''}`);
-    bad++;
+    console.log(`${e.optional ? 'optional' : 'MISSING '}  ${e.id}  ${e.path}${e.notes ? '  (' + e.notes.slice(0, 60) + ')' : ''}`);
+    if (!e.optional) bad++;
     continue;
   }
   try {

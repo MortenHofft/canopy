@@ -1,0 +1,3650 @@
+{
+ "runId": "20261019-132449",
+ "candidate": {
+  "name": "tbrowse",
+  "version": "2.10.0",
+  "license": "MIT",
+  "notes": "Flat node table + pluggable row-aligned zones; SVG tree zone, DOM label/column zones, canvas MSA zone; native-scroll virtualised rows, no zoom."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "click on a leaf row, branch or label sets ViewState.selectedNodeId (library state); the adapter turns the change into a tipClick event"
+  },
+  "internalNodeClick": {
+   "level": "yes",
+   "how": "click on an internal branch or collapsed triangle sets ViewState.selectedNodeId; the library also opens its own tooltip with collapse / prune / swap / reroot actions"
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "the branch hit path IS the click target of its child node; branch and node clicks are the same event (reported as nodeClick)"
+  },
+  "hover": {
+   "level": "yes",
+   "how": "ZoneRenderProps.hoveredNodeId inside our own zone body (fires only while that zone is visible); not available through TBrowseProps"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "the library reports only a node id (selectedNodeId); tip sets are computed from the shared TreeModel and flagged source=adapter-derived (hoveredSubtreeIds exists but only in zone render props)"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "no colour prop in the library: inline style patched on the tree SVG branches and leaf dots (path d parsed back to a node through mirrored row geometry) plus React-rendered colour in our tips and column zones; internal-node glyphs and dashed leaders stay grey; re-patched by a MutationObserver"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "library search state (host SearchField) draws a ring on the leaf dot and marks collapsed triangles; our zones add a row band; typing in the library search box replaces it"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "scrolls the library .tbrowse-outer scroll container to centre the row (DOM access, no API); un-collapses and un-prunes ancestors through ViewState first"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "real <a href data-tip-id target=_blank> rendered by our own label zone (ZoneDefinition) for rows in the virtualised range; the built-in labels zone has no links"
+  },
+  "customColumns": {
+   "level": "yes",
+   "how": "one ZoneDefinition per column (Header + Body from ZoneRenderProps.visibleRows/rowRange, data via the hostData prop); rows stay aligned because every zone shares the same row grid"
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "built-in msaZone fed from MSA {alphabet,length,sequences} keyed by geneId = tip label; canvas is as tall as ALL rows, so it goes blank beyond the browser canvas limit (about 1,365 rows at 24 px, source-derived); one alignment only"
+  },
+  "radialLayout": {
+   "level": "no",
+   "how": "rectangular phylogram/cladogram only (TreeZoneState.layoutMode)"
+  },
+  "branchLengthToggle": {
+   "level": "yes",
+   "how": "TreeZoneState.layoutMode phylogram | cladogram through controlled viewState; adapter rescales lengths (absolute 0.01 floor in the library); optional // compression of long branches is a separate toggle"
+  },
+  "scaleBar": {
+   "level": "no",
+   "how": "no scale bar or time axis in the tree zone"
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "theme=\"dark\" prop plus CSS custom properties (--tbrowse-*) re-pointed at gbifDarkTheme() values"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--tbrowse-* custom properties on .tbrowse-root take GBIF token values (bg, text, branch, accent, borders); fixed in code: selection amber, branch width by clade size, glyph sizes, residue colours; no per-node style callbacks"
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "zustand store per <TBrowse>; only global is one injected <style id=tbrowse-theme-style>"
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; the document keydown listener for the search hotkey is removed (and disabled here with hotkeys={{search:false}})"
+  },
+  "controlledState": {
+   "level": "yes",
+   "how": "viewState / onViewStateChange (selection, collapse, prune, swap, zone widths and states, search, row height) controlled from React state"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "no zoom: fixed 24 px rows in a native scroll container. ViewState.rowHeight can be set to fit all rows (the \"fit\" row-height option) but then every row, SVG node and label is drawn (no culling benefit)"
+  },
+  "overviewOrMinimap": {
+   "level": "partial",
+   "how": "no minimap or semantic zoom; collapsedNodeIds turns clades into triangle rows (the adapter \"overview\" option picks them), the MSA zone has its own coverage minimap"
+  }
+ },
+ "date": "2026-10-19T14:03:17.021Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 0.87,
+  "end": 0.96,
+  "max": 2.96,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 0.87,
+  "canvas": {
+   "fpsMedian": 63.69426751441149,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    29.9,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 11,
+   "maxFrameGapMs": 33.40000000000009,
+   "frames": 856,
+   "inputSteps": 192,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 5.5,
+   "cpuDragMoveMs": 6.8,
+   "cpuMsPerStep": 6.8,
+   "loadavg": 0.74
+  },
+  "stub200": {
+   "fpsMedian": 30.030030030029046,
+   "fpsP5": 14.992503748125978,
+   "fpsP5Rounds": [
+    12,
+    15,
+    15
+   ],
+   "droppedRatio": 0.17956741111595909,
+   "droppedFrames": 81,
+   "maxFrameGapMs": 83.30000000000109,
+   "frames": 232,
+   "inputSteps": 113,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 13.7,
+   "cpuDragMoveMs": 10.4,
+   "cpuMsPerStep": 13.7,
+   "loadavg": 1.8
+  },
+  "loadEnd": 1.8
+ },
+ "label": "final-2026-10-19",
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "rich-fish-carangaria-135",
+   "rich-ens-protein-197",
+   "syn-yule-200",
+   "rich-birdtree-0000",
+   "rich-corvoid-680",
+   "otl-1k",
+   "syn-yule-1000",
+   "syn-caterpillar-1000",
+   "syn-yule-10000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "otl-10k",
+   "gtdb-10k",
+   "edge-caterpillar-20000",
+   "otl-91k",
+   "syn-yule-100000",
+   "gtdb-100k",
+   "gtdb-190k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 366671,
+  "jsGzipBytes": 115917,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 384838,
+  "totalGzipBytes": 120514,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-DSxBvWXT.js",
+    "bytes": 366671,
+    "gzipBytes": 115917
+   },
+   {
+    "path": "index.html",
+    "bytes": 401,
+    "gzipBytes": 269
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "pass",
+     "reason": "load 67 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 3 ms, click 6 ms",
+     "loadAvgAtStart": 2.93,
+     "phase": "done",
+     "fetchMs": 10.299999998882413,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 0.10000000149011612,
+     "firstRenderMs": 67.20000000111759,
+     "sharedParseMs": 1.400000000372529,
+     "reportedTips": 5,
+     "notes": "TreeModel -> tbrowse node table in 0.1 ms (8 nodes, lengths x1000); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 67.3000000026077,
+     "ink": 0.012974253672405678,
+     "heapAfterMountMB": 4.076218605041504,
+     "stats": {
+      "domNodes": 136,
+      "svgElements": 76,
+      "canvases": 0,
+      "custom": {
+       "tips": 5,
+       "nodes": 8,
+       "convertMs": 0.10000000149011612,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1000,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 136,
+      "svg": 76,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 6.000000000931323,
+     "clickToPaintMs": 27.050000000745058,
+     "clickSamples": {
+      "events": 2,
+      "tries": 2,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 59.88023952095548,
+     "fpsP5Rounds": [
+      59.9,
+      59.9,
+      59.5
+     ],
+     "droppedRatio": 0.00027832669967297176,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 652,
+     "inputSteps": 432,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 1,
+     "cpuDragMoveMs": 2.5,
+     "cpuMsPerStep": 2.5,
+     "loadAvgAtEnd": 2.35,
+     "heapAfterInteractionMB": 4.629646301269531,
+     "heapMB": 4.629646301269531,
+     "unusableFactor": 0.025,
+     "pageErrors": [],
+     "wallSec": 17.782,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 1.999999999999891,
+     "cpuVsStub200": 0.18248175182481752
+    },
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "pass",
+     "reason": "load 126 ms, median 59.9 fps, best p5 29.9, dropped 1%, CPU/step 20 ms, click 10 ms",
+     "loadAvgAtStart": 2.96,
+     "phase": "done",
+     "fetchMs": 13.5,
+     "convertMs": 19,
+     "wireBytes": 111429,
+     "parseMs": 0.599999999627471,
+     "firstRenderMs": 125.5,
+     "sharedParseMs": 2.099999999627471,
+     "reportedTips": 135,
+     "notes": "TreeModel -> tbrowse node table in 0.6 ms (269 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 126.09999999962747,
+     "ink": 0.06085452535144531,
+     "heapAfterMountMB": 5.235360145568848,
+     "stats": {
+      "domNodes": 650,
+      "svgElements": 512,
+      "canvases": 0,
+      "custom": {
+       "tips": 135,
+       "nodes": 269,
+       "convertMs": 0.599999999627471,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 650,
+      "svg": 512,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 10,
+     "clickToPaintMs": 33.30000000074506,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047774,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.007370529009185171,
+     "droppedFrames": 28,
+     "maxFrameGapMs": 50,
+     "frames": 537,
+     "inputSteps": 244,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 20.2,
+     "cpuDragMoveMs": 11.9,
+     "cpuMsPerStep": 20.2,
+     "loadAvgAtEnd": 2.33,
+     "heapAfterInteractionMB": 6.693944931030273,
+     "heapMB": 6.693944931030273,
+     "unusableFactor": 0.20199999999999999,
+     "pageErrors": [],
+     "wallSec": 21.949,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 0.9999999999999455,
+     "cpuVsStub200": 1.4744525547445255
+    },
+    "rich-ens-protein-197": {
+     "treeId": "rich-ens-protein-197",
+     "tips": 197,
+     "status": "pass",
+     "reason": "load 157 ms, median 59.9 fps, best p5 30.0, dropped 0%, CPU/step 31 ms, click 15 ms",
+     "loadAvgAtStart": 2.33,
+     "phase": "done",
+     "fetchMs": 10.199999999254942,
+     "convertMs": 0,
+     "wireBytes": 7349,
+     "parseMs": 2,
+     "firstRenderMs": 154.60000000149012,
+     "sharedParseMs": 2.200000001117587,
+     "reportedTips": 197,
+     "notes": "TreeModel -> tbrowse node table in 2.0 ms (393 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 156.60000000149012,
+     "ink": 0.05115147685989574,
+     "heapAfterMountMB": 6.274809837341309,
+     "stats": {
+      "domNodes": 650,
+      "svgElements": 512,
+      "canvases": 0,
+      "custom": {
+       "tips": 197,
+       "nodes": 393,
+       "convertMs": 2,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 100,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 650,
+      "svg": 512,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 15.100000001490116,
+     "clickToPaintMs": 38.59999999962747,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 30.030030030029046,
+     "fpsP5Rounds": [
+      29.9,
+      30,
+      29.9
+     ],
+     "droppedRatio": 0.000906717955660997,
+     "droppedFrames": 20,
+     "maxFrameGapMs": 33.400000000001455,
+     "frames": 591,
+     "inputSteps": 294,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.6,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 31.4,
+     "cpuDragMoveMs": 8,
+     "cpuMsPerStep": 31.4,
+     "loadAvgAtEnd": 2.38,
+     "heapAfterInteractionMB": 7.20172119140625,
+     "heapMB": 7.20172119140625,
+     "unusableFactor": 0.314,
+     "pageErrors": [],
+     "wallSec": 21.682,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 1.003003003002959,
+     "cpuVsStub200": 2.291970802919708
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "pass",
+     "reason": "load 170 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 23 ms, click 11 ms",
+     "loadAvgAtStart": 2.38,
+     "phase": "done",
+     "fetchMs": 12,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 1.299999998882413,
+     "firstRenderMs": 168.7000000011176,
+     "sharedParseMs": 2.700000001117587,
+     "reportedTips": 200,
+     "notes": "TreeModel -> tbrowse node table in 1.3 ms (399 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 170,
+     "ink": 0.058954351603222266,
+     "heapAfterMountMB": 5.525238037109375,
+     "stats": {
+      "domNodes": 654,
+      "svgElements": 516,
+      "canvases": 0,
+      "custom": {
+       "tips": 200,
+       "nodes": 399,
+       "convertMs": 1.299999998882413,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 654,
+      "svg": 516,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 11.400000000372529,
+     "clickToPaintMs": 44.5,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 24,
+     "maxFrameGapMs": 50,
+     "frames": 537,
+     "inputSteps": 240,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.6,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 23.1,
+     "cpuDragMoveMs": 9.4,
+     "cpuMsPerStep": 23.1,
+     "loadAvgAtEnd": 2.07,
+     "heapAfterInteractionMB": 6.975042343139648,
+     "heapMB": 6.975042343139648,
+     "unusableFactor": 0.231,
+     "pageErrors": [],
+     "wallSec": 21.791,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 1,
+     "cpuVsStub200": 1.6861313868613141
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "pass",
+     "reason": "load 291 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 34 ms, click 17 ms",
+     "loadAvgAtStart": 2.38,
+     "phase": "done",
+     "fetchMs": 41.899999998509884,
+     "convertMs": 13.200000001117587,
+     "wireBytes": 601687,
+     "parseMs": 5.400000000372529,
+     "firstRenderMs": 285.2000000011176,
+     "sharedParseMs": 3.800000000745058,
+     "reportedTips": 380,
+     "notes": "TreeModel -> tbrowse node table in 5.4 ms (759 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 290.6000000014901,
+     "ink": 0.04775864792291895,
+     "heapAfterMountMB": 10.888699531555176,
+     "stats": {
+      "domNodes": 652,
+      "svgElements": 514,
+      "canvases": 0,
+      "custom": {
+       "tips": 380,
+       "nodes": 759,
+       "convertMs": 5.400000000372529,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 652,
+      "svg": 514,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 17.299999998882413,
+     "clickToPaintMs": 49.40000000037253,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 29.94011976047774,
+     "fpsP5Rounds": [
+      20,
+      29.9,
+      20
+     ],
+     "droppedRatio": 0.0013869240794662165,
+     "droppedFrames": 34,
+     "maxFrameGapMs": 50,
+     "frames": 536,
+     "inputSteps": 240,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 34.4,
+     "cpuDragMoveMs": 16.8,
+     "cpuMsPerStep": 34.4,
+     "loadAvgAtEnd": 2.14,
+     "heapAfterInteractionMB": 7.73236083984375,
+     "heapMB": 7.73236083984375,
+     "unusableFactor": 0.344,
+     "pageErrors": [],
+     "wallSec": 24.736,
+     "relMedianFps": 0.9401197605013191,
+     "relP5Fps": 0.9999999999999455,
+     "cpuVsStub200": 2.510948905109489
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "pass",
+     "reason": "load 338 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 29 ms, click 16 ms",
+     "loadAvgAtStart": 2.45,
+     "phase": "done",
+     "fetchMs": 29.40000000037253,
+     "convertMs": 48.40000000037253,
+     "wireBytes": 219203,
+     "parseMs": 2.799999998882413,
+     "firstRenderMs": 334.7000000011176,
+     "sharedParseMs": 6.600000001490116,
+     "reportedTips": 680,
+     "notes": "TreeModel -> tbrowse node table in 2.8 ms (1359 nodes, lengths x10); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 337.5,
+     "ink": 0.06090349075975354,
+     "heapAfterMountMB": 7.787069320678711,
+     "stats": {
+      "domNodes": 642,
+      "svgElements": 504,
+      "canvases": 0,
+      "custom": {
+       "tips": 680,
+       "nodes": 1359,
+       "convertMs": 2.799999998882413,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 10,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 642,
+      "svg": 504,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 16.300000000745058,
+     "clickToPaintMs": 57.69999999925494,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0.0008191090206700249,
+     "droppedFrames": 42,
+     "maxFrameGapMs": 50,
+     "frames": 550,
+     "inputSteps": 240,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 28.9,
+     "cpuDragMoveMs": 16.4,
+     "cpuMsPerStep": 28.9,
+     "loadAvgAtEnd": 2.34,
+     "heapAfterInteractionMB": 9.04220962524414,
+     "heapMB": 9.04220962524414,
+     "unusableFactor": 0.289,
+     "pageErrors": [],
+     "wallSec": 23.722,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 0.6679999999999927,
+     "cpuVsStub200": 2.1094890510948905
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "pass",
+     "reason": "load 461 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 19 ms, click 19 ms",
+     "loadAvgAtStart": 2.34,
+     "phase": "done",
+     "fetchMs": 18.700000001117587,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 9.300000000745058,
+     "firstRenderMs": 451.59999999962747,
+     "sharedParseMs": 10,
+     "reportedTips": 888,
+     "notes": "TreeModel -> tbrowse node table in 9.3 ms (1465 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 460.90000000037253,
+     "ink": 0.06686463433896694,
+     "heapAfterMountMB": 8.67789077758789,
+     "stats": {
+      "domNodes": 623,
+      "svgElements": 485,
+      "canvases": 0,
+      "custom": {
+       "tips": 888,
+       "nodes": 1465,
+       "convertMs": 9.300000000745058,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 623,
+      "svg": 485,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 19,
+     "clickToPaintMs": 54.30000000074506,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.880239520962,
+     "fpsP5": 20.040080160320787,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 33,
+     "maxFrameGapMs": 50,
+     "frames": 515,
+     "inputSteps": 219,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 1.5,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 18.9,
+     "cpuDragMoveMs": 10.9,
+     "cpuMsPerStep": 18.9,
+     "loadAvgAtEnd": 2.09,
+     "heapAfterInteractionMB": 9.452922821044922,
+     "heapMB": 9.452922821044922,
+     "unusableFactor": 0.18899999999999997,
+     "pageErrors": [],
+     "wallSec": 24.519,
+     "relMedianFps": 0.9401197605014214,
+     "relP5Fps": 0.669338677354707,
+     "cpuVsStub200": 1.3795620437956204
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "pass",
+     "reason": "load 497 ms, median 59.9 fps, best p5 20.0, dropped 2%, CPU/step 40 ms, click 19 ms",
+     "loadAvgAtStart": 2.09,
+     "phase": "done",
+     "fetchMs": 21.5,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 6.199999999254942,
+     "firstRenderMs": 490.30000000074506,
+     "sharedParseMs": 12,
+     "reportedTips": 1000,
+     "notes": "TreeModel -> tbrowse node table in 6.2 ms (1999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 496.5,
+     "ink": 0.05564207866055915,
+     "heapAfterMountMB": 9.967881202697754,
+     "stats": {
+      "domNodes": 650,
+      "svgElements": 512,
+      "canvases": 0,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "convertMs": 6.199999999254942,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 650,
+      "svg": 512,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 19.299999999813735,
+     "clickToPaintMs": 54.00000000093132,
+     "clickSamples": {
+      "events": 4,
+      "tries": 4,
+      "rightNode": 3
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 20.040080160320787,
+     "fpsP5Rounds": [
+      15,
+      20,
+      20
+     ],
+     "droppedRatio": 0.01587092003803209,
+     "droppedFrames": 43,
+     "maxFrameGapMs": 50.10000000000218,
+     "frames": 514,
+     "inputSteps": 228,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 40.4,
+     "cpuDragMoveMs": 11.9,
+     "cpuMsPerStep": 40.4,
+     "loadAvgAtEnd": 2.39,
+     "heapAfterInteractionMB": 10.631770133972168,
+     "heapMB": 10.631770133972168,
+     "unusableFactor": 0.40399999999999997,
+     "pageErrors": [],
+     "wallSec": 26.818,
+     "relMedianFps": 0.9401197605013191,
+     "relP5Fps": 0.669338677354707,
+     "cpuVsStub200": 2.948905109489051
+    },
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "pass",
+     "reason": "load 576 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 41 ms, click 5 ms",
+     "loadAvgAtStart": 2.44,
+     "phase": "done",
+     "fetchMs": 14.599999999627471,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 4.199999999254942,
+     "firstRenderMs": 572.0999999996275,
+     "sharedParseMs": 7.600000001490116,
+     "reportedTips": 1000,
+     "notes": "TreeModel -> tbrowse node table in 4.2 ms (1999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 576.2999999988824,
+     "ink": 0.07133470225872685,
+     "heapAfterMountMB": 9.247566223144531,
+     "stats": {
+      "domNodes": 650,
+      "svgElements": 512,
+      "canvases": 0,
+      "custom": {
+       "tips": 1000,
+       "nodes": 1999,
+       "convertMs": 4.199999999254942,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 650,
+      "svg": 512,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 4.5,
+     "clickToPaintMs": 47.79999999888241,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047774,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.00007968974137284039,
+     "droppedFrames": 43,
+     "maxFrameGapMs": 50,
+     "frames": 524,
+     "inputSteps": 230,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 41.2,
+     "cpuDragMoveMs": 13,
+     "cpuMsPerStep": 41.2,
+     "loadAvgAtEnd": 2.33,
+     "heapAfterInteractionMB": 10.14908504486084,
+     "heapMB": 10.14908504486084,
+     "unusableFactor": 0.41200000000000003,
+     "pageErrors": [],
+     "wallSec": 20.139,
+     "relMedianFps": 0.9401197605013702,
+     "relP5Fps": 0.9999999999999455,
+     "cpuVsStub200": 3.007299270072993
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 89% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 2.71,
+     "phase": "done",
+     "fetchMs": 25.300000000745058,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 30.699999999254942,
+     "firstRenderMs": 6037.199999999255,
+     "sharedParseMs": 37,
+     "reportedTips": 10000,
+     "notes": "TreeModel -> tbrowse node table in 30.7 ms (19999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 6067.89999999851,
+     "ink": 0.051197283209603484,
+     "heapAfterMountMB": 53.17741107940674,
+     "stats": {
+      "domNodes": 648,
+      "svgElements": 510,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "convertMs": 30.699999999254942,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 648,
+      "svg": 510,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 241.2999999988824,
+     "clickToPaintMs": 521,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 59.88023952094243,
+     "fpsP5": 1.3636983499250046,
+     "fpsP5Rounds": [
+      1.1,
+      1.1,
+      1.4
+     ],
+     "droppedRatio": 0.8890911225927751,
+     "droppedFrames": 208,
+     "maxFrameGapMs": 733.2999999999956,
+     "frames": 70,
+     "inputSteps": 28,
+     "fpsP95": 138.88888888894502,
+     "idleCpuPctOfOneCore": 3.1,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 0.8,
+     "cpuDragMoveMs": 0.9,
+     "cpuMsPerStep": 0.9,
+     "loadAvgAtEnd": 1.65,
+     "heapAfterInteractionMB": 47.77487850189209,
+     "heapMB": 47.77487850189209,
+     "unusableFactor": 1.7781822451855502,
+     "pageErrors": [],
+     "wallSec": 55.68,
+     "relMedianFps": 0.9401197605011142,
+     "relP5Fps": 0.04554752488749465,
+     "cpuVsStub200": 0.06569343065693431
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 1.65,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at Set.has (<anonymous>)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/asse",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.915,
+     "unusableFactor": 1000000
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 890 ms main-thread CPU per interaction step > 100; click latency 344 ms > 300 ms",
+     "loadAvgAtStart": 1.65,
+     "phase": "done",
+     "fetchMs": 24.09999999962747,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 49.29999999888241,
+     "firstRenderMs": 6808.799999998882,
+     "sharedParseMs": 44.40000000037253,
+     "reportedTips": 10000,
+     "notes": "TreeModel -> tbrowse node table in 49.3 ms (19999 nodes, lengths x10); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 6858.099999997765,
+     "ink": 0.0538809034907598,
+     "heapAfterMountMB": 49.891608238220215,
+     "stats": {
+      "domNodes": 656,
+      "svgElements": 518,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "nodes": 19999,
+       "convertMs": 49.29999999888241,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 10,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 656,
+      "svg": 518,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 343.5,
+     "clickToPaintMs": 608.4000000003725,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 2,
+     "fpsP5": 1.0909884355225852,
+     "fpsP5Rounds": [
+      1.1,
+      0.5,
+      0.9
+     ],
+     "droppedRatio": 0.9688427646495107,
+     "droppedFrames": 246,
+     "maxFrameGapMs": 916.5999999999985,
+     "frames": 32,
+     "inputSteps": 11,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 3.7,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 889.8,
+     "cpuDragMoveMs": 252.8,
+     "cpuMsPerStep": 889.8,
+     "loadAvgAtEnd": 1.62,
+     "heapAfterInteractionMB": 44.96159744262695,
+     "heapMB": 44.96159744262695,
+     "unusableFactor": 8.898,
+     "pageErrors": [],
+     "wallSec": 73.168,
+     "relMedianFps": 0.03140000000074542,
+     "relP5Fps": 0.036439013746453947,
+     "cpuVsStub200": 64.94890510948905
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 517 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.62,
+     "phase": "done",
+     "fetchMs": 44.100000001490116,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 20.600000001490116,
+     "firstRenderMs": 5027.0999999996275,
+     "sharedParseMs": 42,
+     "reportedTips": 10000,
+     "notes": "TreeModel -> tbrowse node table in 20.6 ms (13995 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 5047.700000001118,
+     "ink": 0.053253830358553134,
+     "heapAfterMountMB": 38.01940155029297,
+     "stats": {
+      "domNodes": 558,
+      "svgElements": 420,
+      "canvases": 0,
+      "custom": {
+       "tips": 10000,
+       "nodes": 13995,
+       "convertMs": 20.600000001490116,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 558,
+      "svg": 420,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 261.25,
+     "clickToPaintMs": 503.55000000074506,
+     "clickSamples": {
+      "events": 4,
+      "tries": 4,
+      "rightNode": 4
+     },
+     "fpsMedian": 4.614674665436149,
+     "fpsP5": 1.6666666666666667,
+     "fpsP5Rounds": [
+      1.7,
+      1.6,
+      1.7
+     ],
+     "droppedRatio": 0.970158602330932,
+     "droppedFrames": 208,
+     "maxFrameGapMs": 600,
+     "frames": 50,
+     "inputSteps": 17,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 26.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 516.8,
+     "cpuDragMoveMs": 147.7,
+     "cpuMsPerStep": 516.8,
+     "loadAvgAtEnd": 1.52,
+     "heapAfterInteractionMB": 33.847527503967285,
+     "heapMB": 33.847527503967285,
+     "unusableFactor": 5.167999999999999,
+     "pageErrors": [],
+     "wallSec": 60.407,
+     "relMedianFps": 0.07245039224906748,
+     "relP5Fps": 0.05566666666666606,
+     "cpuVsStub200": 37.722627737226276
+    },
+    "otl-10k": {
+     "treeId": "otl-10k",
+     "tips": 10018,
+     "status": "timeout",
+     "reason": "unusable: 88% of the time in frames > 50 ms (best of 3 rounds); 288 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.79,
+     "phase": "done",
+     "fetchMs": 44.29999999888241,
+     "convertMs": 0,
+     "wireBytes": 128748,
+     "parseMs": 17.199999999254942,
+     "firstRenderMs": 5442.10000000149,
+     "sharedParseMs": 35.69999999925494,
+     "reportedTips": 10018,
+     "notes": "TreeModel -> tbrowse node table in 17.2 ms (14874 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 5459.300000000745,
+     "ink": 0.06397093666087506,
+     "heapAfterMountMB": 42.564735412597656,
+     "stats": {
+      "domNodes": 661,
+      "svgElements": 523,
+      "canvases": 0,
+      "custom": {
+       "tips": 10018,
+       "nodes": 14874,
+       "convertMs": 17.199999999254942,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 661,
+      "svg": 523,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 126.3999999994412,
+     "clickToPaintMs": 580.5,
+     "clickSamples": {
+      "events": 2,
+      "tries": 2,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952094243,
+     "fpsP5": 1.538224888478699,
+     "fpsP5Rounds": [
+      1.5,
+      1.5,
+      1.4
+     ],
+     "droppedRatio": 0.882569996056654,
+     "droppedFrames": 181,
+     "maxFrameGapMs": 650.0999999999985,
+     "frames": 88,
+     "inputSteps": 39,
+     "fpsP95": 60.60606060606061,
+     "idleCpuPctOfOneCore": 3.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 78.5,
+     "cpuDragMoveMs": 287.7,
+     "cpuMsPerStep": 287.7,
+     "loadAvgAtEnd": 1.06,
+     "heapAfterInteractionMB": 38.03791046142578,
+     "heapMB": 38.03791046142578,
+     "unusableFactor": 2.877,
+     "pageErrors": [],
+     "wallSec": 57.493,
+     "relMedianFps": 0.9401197605011142,
+     "relP5Fps": 0.05137671127518799,
+     "cpuVsStub200": 21
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "timeout",
+     "reason": "unusable: 96% of the time in frames > 50 ms (best of 3 rounds); 738 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.06,
+     "phase": "done",
+     "fetchMs": 25.299999998882413,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 22.800000000745058,
+     "firstRenderMs": 6672.0999999996275,
+     "sharedParseMs": 52.80000000074506,
+     "reportedTips": 10122,
+     "notes": "TreeModel -> tbrowse node table in 22.8 ms (20243 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 6694.9000000003725,
+     "ink": 0.05174064128889588,
+     "heapAfterMountMB": 50.955965995788574,
+     "stats": {
+      "domNodes": 638,
+      "svgElements": 500,
+      "canvases": 0,
+      "custom": {
+       "tips": 10122,
+       "nodes": 20243,
+       "convertMs": 22.800000000745058,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 100,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 638,
+      "svg": 500,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 224.30000000074506,
+     "clickToPaintMs": 478.5,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 3.750937734433629,
+     "fpsP5": 1.538224888478699,
+     "fpsP5Rounds": [
+      0.8,
+      1.4,
+      1.5
+     ],
+     "droppedRatio": 0.9584950297798082,
+     "droppedFrames": 263,
+     "maxFrameGapMs": 650.0999999999985,
+     "frames": 55,
+     "inputSteps": 16,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 3.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 737.8,
+     "cpuDragMoveMs": 270.6,
+     "cpuMsPerStep": 737.8,
+     "loadAvgAtEnd": 1.23,
+     "heapAfterInteractionMB": 45.98309803009033,
+     "heapMB": 45.98309803009033,
+     "unusableFactor": 7.377999999999999,
+     "pageErrors": [],
+     "wallSec": 75.716,
+     "relMedianFps": 0.05888972243200599,
+     "relP5Fps": 0.05137671127518799,
+     "cpuVsStub200": 53.85401459854015
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 1.23,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at Set.has (<anonymous>)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/asse",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.98,
+     "unusableFactor": 1000000
+    },
+    "otl-91k": {
+     "treeId": "otl-91k",
+     "tips": 90938,
+     "status": "timeout",
+     "reason": "load 176.2 s > 10 s; interaction measures skipped",
+     "loadAvgAtStart": 1.23,
+     "phase": "mount",
+     "fetchMs": 57.69999999925494,
+     "convertMs": 0,
+     "wireBytes": 1203875,
+     "parseMs": 204.7000000011176,
+     "firstRenderMs": 176003.09999999963,
+     "sharedParseMs": 148.5,
+     "reportedTips": 90938,
+     "notes": "TreeModel -> tbrowse node table in 204.7 ms (138646 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 176207.80000000075,
+     "ink": 0.06143105354604328,
+     "heapAfterMountMB": 352.4968452453613,
+     "stats": {
+      "domNodes": 613,
+      "svgElements": 475,
+      "canvases": 0,
+      "custom": {
+       "tips": 90938,
+       "nodes": 138646,
+       "convertMs": 204.7000000011176,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 613,
+      "svg": 475,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "unusableFactor": 17.620780000000074,
+     "pageErrors": [],
+     "wallSec": 245.368
+    },
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "load 317.3 s > 10 s; interaction measures skipped",
+     "loadAvgAtStart": 1.1,
+     "phase": "mount",
+     "fetchMs": 64.5,
+     "convertMs": 0,
+     "wireBytes": 4139363,
+     "parseMs": 312,
+     "firstRenderMs": 316987.80000000075,
+     "sharedParseMs": 166.5,
+     "reportedTips": 100000,
+     "notes": "TreeModel -> tbrowse node table in 312.0 ms (199999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 317299.80000000075,
+     "ink": 0.051377349549834195,
+     "heapAfterMountMB": 450.56897258758545,
+     "stats": {
+      "domNodes": 656,
+      "svgElements": 518,
+      "canvases": 0,
+      "custom": {
+       "tips": 100000,
+       "nodes": 199999,
+       "convertMs": 312,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 1,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 656,
+      "svg": 518,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "unusableFactor": 31.729980000000076,
+     "pageErrors": [],
+     "wallSec": 434.036
+    },
+    "gtdb-100k": {
+     "treeId": "gtdb-100k",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "load 260.6 s > 10 s; interaction measures skipped",
+     "loadAvgAtStart": 1.4,
+     "phase": "mount",
+     "fetchMs": 75.30000000074506,
+     "convertMs": 0,
+     "wireBytes": 1294403,
+     "parseMs": 388.59999999962747,
+     "firstRenderMs": 260184.5,
+     "sharedParseMs": 245.2000000011176,
+     "reportedTips": 100000,
+     "notes": "TreeModel -> tbrowse node table in 388.6 ms (199999 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+     "loadMs": 260573.09999999963,
+     "ink": 0.041557415890064786,
+     "heapAfterMountMB": 460.2017421722412,
+     "stats": {
+      "domNodes": 654,
+      "svgElements": 516,
+      "canvases": 0,
+      "custom": {
+       "tips": 100000,
+       "nodes": 199999,
+       "convertMs": 388.59999999962747,
+       "rows": -1,
+       "rowHeight": 16,
+       "lengthScale": 100,
+       "collapsed": 0,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 654,
+      "svg": 516,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "unusableFactor": 26.057309999999962,
+     "pageErrors": [],
+     "wallSec": 373.682
+    },
+    "gtdb-190k": {
+     "treeId": "gtdb-190k",
+     "tips": 189801,
+     "status": "timeout",
+     "reason": "mount: S1 gtdb-190k exceeded 600 s (mount never finished)",
+     "loadAvgAtStart": 1.01,
+     "phase": "mount",
+     "pageErrors": [],
+     "wallSec": 600.147,
+     "unusableFactor": 1000000
+    }
+   },
+   "status": "partial",
+   "reason": "syn-yule-10000: timeout (unusable: 89% of the time in frames > 50 ms (best of 3 rounds)); syn-caterpillar-10000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); syn-balanced-10000: timeout (unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 890 ms main-thread CPU per interaction step > 100; click latency 344 ms > 300 ms); syn-bushy-10000: timeout (unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 517 ms main-thread CPU per interaction step > 100); otl-10k: timeout (unusable: 88% of the time in frames > 50 ms (best of 3 rounds); 288 ms main-thread CPU per interaction step > 100); gtdb-10k: timeout (unusable: 96% of the time in frames > 50 ms (best of 3 rounds); 738 ms main-thread CPU per interaction step > 100); edge-caterpillar-20000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); otl-91k: timeout (load 176.2 s > 10 s; interaction measures skipped); syn-yule-100000: timeout (load 317.3 s > 10 s; interaction measures skipped); gtdb-100k: timeout (load 260.6 s > 10 s; interaction measures skipped); gtdb-190k: timeout (mount: S1 gtdb-190k exceeded 600 s (mount never finished))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 2180.743
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 3.214
+  },
+  "S3": {
+   "status": "partial",
+   "reason": "syn-yule-1000: tip sets correct but computed by the adapter (source=adapter-derived), not delivered by the library",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeClick n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeClick n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeClick n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "adapter-derived"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 7.375
+  },
+  "S4": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 5.73%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {
+    "controlNote": "control clade not on screen (no control)",
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0.05729650703625203,
+     "pixelsBefore": 0,
+     "pixelsAfter": 31196,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 0
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 4.059
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-10000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Pozenea_pseudoglabra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 5%, dy 7%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "165 pixels differ"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "treeChosenBy": "default (S1 mounted it)",
+    "treeFallbackFrom": null,
+    "initiallyVisible": false,
+    "offCentre": {
+     "dx": 0.05477297428452259,
+     "dy": 0.06856702619414484
+    },
+    "highlightPixels": 165
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 11.899
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:34127/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=0"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":614.390625,\"y\":497.625,\"width\":159.515625,\"height\":18}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:34127/__tip__/Phumideina_macromontana",
+     "tabindex": "0",
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 614.390625,
+      "y": 497.625,
+      "width": 159.515625,
+      "height": 18
+     },
+     "count": 49
+    },
+    "popups": 1,
+    "note": "adapter reports partial: real <a href data-tip-id target=_blank> rendered by our own label zone (ZoneDefinition) for rows in the virtualised range; the built-in labels zone has no links"
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 3.716
+  },
+  "S7": {
+   "status": "pass",
+   "reason": "syn-yule-1000, column occ (kind bar): all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "18 of 18 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "18/18 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "18 of 18 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "18/18 aligned, max dy 0.0px"
+    },
+    {
+     "name": "bar width increases with value (Spearman >= 0.7)",
+     "ok": true,
+     "detail": "rho=1.00 over 18 cells"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "79% of the cell rect changes"
+    },
+    {
+     "name": "tip without a data row gets no cell (explicitly unmatched)",
+     "ok": true,
+     "detail": "null"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 18,
+     "cells": 18,
+     "aligned": 18,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 16,
+     "endPitch": 16,
+     "notches": 0
+    },
+    "after zoom and pan": {
+     "visibleTips": 18,
+     "cells": 18,
+     "aligned": 18,
+     "maxDy": 0
+    },
+    "barRankCorrelation": 1,
+    "cellDrawnFraction": 0.7857142857142857,
+    "columnKind": "bar",
+    "declaredColumnKinds": null,
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 3.946
+  },
+  "S8": {
+   "status": "pass",
+   "reason": "rich-ens-protein-197: all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "35 of 35 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "35/35 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "35 of 35 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "35/35 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "59% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "9 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 35,
+     "cells": 35,
+     "aligned": 35,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 16.001476991270575,
+     "endPitch": 16.001476991270575,
+     "notches": 0
+    },
+    "after zoom and pan": {
+     "visibleTips": 35,
+     "cells": 35,
+     "aligned": 35,
+     "maxDy": 0
+    },
+    "cellDrawnFraction": 0.5856697819314641,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 5.897
+  },
+  "S9": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 246 -> 45"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "92% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": true,
+     "detail": "9412 pixels"
+    }
+   ],
+   "measures": {
+    "inkAtFit": 0.05564207866055915,
+    "lightLuminance": 245.64119830942568,
+    "darkLuminance": 44.70230386447159,
+    "tokenBackgroundFraction": 0.9213062707313221,
+    "tokenBranchPixelsAtCurrentView": 9412,
+    "tokenBranchPixels": 9412
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 3.378
+  },
+  "S10": {
+   "status": "n/a",
+   "reason": "gtdb-10k: wheel zoom-in did not change the view (whole tree stays at the same size and position, so a zoom-out cannot be tested; the viewer may pan or scroll instead of zooming with a plain wheel)",
+   "measures": {
+    "treeId": "gtdb-10k",
+    "loadMs": 5788.5,
+    "scaleBefore": null,
+    "scaleAfter": null,
+    "zoomInChangedView": false
+   },
+   "checks": [],
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 12.972
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (no)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 35 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 122.5 px over 35 tips"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 35 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "visibleTips": 35,
+    "phylogramPearson": 0.9999995074691329,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 122.4900137765067,
+    "ultrametricTipSpread": 0,
+    "ultrametricTips": 35,
+    "scaleBarSelfReport": "no: no scale bar or time axis in the tree zone"
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 2.925
+  },
+  "S12": {
+   "status": "unsupported",
+   "reason": "adapter reports radialLayout=no: rectangular phylogram/cladogram only (TreeZoneState.layoutMode)",
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 0.437
+  },
+  "S13": {
+   "status": "pass",
+   "reason": "all checks passed; adapter self-report: multipleInstances=yes",
+   "checks": [
+    {
+     "name": "second instance mounts with its own tip count",
+     "ok": true,
+     "detail": "1000 and 200"
+    },
+    {
+     "name": "both instances draw something",
+     "ok": true,
+     "detail": "ink 6.87% / 10.92%"
+    },
+    {
+     "name": "click in instance 0 reaches only instance 0",
+     "ok": true,
+     "detail": "events 2/0"
+    },
+    {
+     "name": "click in instance 1 reaches instance 1",
+     "ok": true,
+     "detail": "events 2"
+    },
+    {
+     "name": "React state of instance 1 updated",
+     "ok": true,
+     "detail": "tipClick n243 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "instance 1 survives unmounting instance 0",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unmount leaves nothing in the container",
+     "ok": true,
+     "detail": "domNodes=0 (shadow DOM included) canvases=0"
+    },
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "362 -> 362"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "-0.9 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "adapterReportsMultipleInstances": "yes: zustand store per <TBrowse>; only global is one injected <style id=tbrowse-theme-style>",
+    "baseline": {
+     "dom": 362,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 362,
+     "canv": 0
+    },
+    "heapMB": [
+     6.4297637939453125,
+     5.434695243835449,
+     5.439208030700684,
+     5.473372459411621,
+     5.496642112731934
+    ],
+    "heapGrowthMB": -0.9331216812133789,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 8.724
+  },
+  "S14": {
+   "status": "pass",
+   "reason": "all checks passed; tips were not focusable at the fit view, only after focusTip",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 DISTINCT focusable elements inside the tree",
+     "ok": true,
+     "detail": "8 distinct elements (button, span)"
+    },
+    {
+     "name": "at least one tip-level target (named like a tip) is reachable by Tab",
+     "ok": true,
+     "detail": "Giphemua_pseudoborealis, Giphemua_neorubra"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "8/8 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": true,
+     "detail": "{\"roles\":[\"img\",\"region\",\"list\",\"listitem\"],\"labelled\":true,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [
+     {
+      "uid": 1,
+      "tag": "a",
+      "role": null,
+      "name": "TBrowse",
+      "tipAttr": null
+     },
+     {
+      "uid": 2,
+      "tag": "button",
+      "role": null,
+      "name": "Search",
+      "tipAttr": null
+     },
+     {
+      "uid": 3,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 4,
+      "tag": "button",
+      "role": null,
+      "name": "Search settings",
+      "tipAttr": null
+     },
+     {
+      "uid": 5,
+      "tag": "button",
+      "role": null,
+      "name": "Zones",
+      "tipAttr": null
+     },
+     {
+      "uid": 6,
+      "tag": "button",
+      "role": null,
+      "name": "Tree",
+      "tipAttr": null
+     },
+     {
+      "uid": 7,
+      "tag": "button",
+      "role": null,
+      "name": "Tips",
+      "tipAttr": null
+     },
+     {
+      "uid": 8,
+      "tag": "button",
+      "role": null,
+      "name": "//",
+      "tipAttr": null
+     }
+    ],
+    "tabAfterFocusTip": [
+     {
+      "uid": 9,
+      "tag": "button",
+      "role": null,
+      "name": "phylo",
+      "tipAttr": null
+     },
+     {
+      "uid": 10,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_pseudoborealis",
+      "tipAttr": "Giphemua_pseudoborealis"
+     },
+     {
+      "uid": 11,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_neorubra",
+      "tipAttr": "Giphemua_neorubra"
+     },
+     {
+      "uid": 12,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_neoparva",
+      "tipAttr": "Giphemua_neoparva"
+     },
+     {
+      "uid": 13,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_microgracilis",
+      "tipAttr": "Giphemua_microgracilis"
+     },
+     {
+      "uid": 14,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_micropallida",
+      "tipAttr": "Giphemua_micropallida"
+     },
+     {
+      "uid": 15,
+      "tag": "span",
+      "role": null,
+      "name": "Giphemua_macroaquatica",
+      "tipAttr": "Giphemua_macroaquatica"
+     },
+     {
+      "uid": 16,
+      "tag": "span",
+      "role": null,
+      "name": "Boleduia_paraborealis",
+      "tipAttr": "Boleduia_paraborealis"
+     }
+    ],
+    "neededFocusTip": true,
+    "distinctFocusable": 8,
+    "tipLevelTargets": 7,
+    "semantics": {
+     "roles": [
+      "img",
+      "region",
+      "list",
+      "listitem"
+     ],
+     "labelled": true,
+     "textFallback": false
+    },
+    "enterActivates": true
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 2.358
+  },
+  "S15": {
+   "status": "timeout",
+   "reason": "syn-yule-10000, 969-tip clade: all checks passed; click to React commit 491 ms, to paint 505 ms (median of 5) > 300 ms (unusable)",
+   "checks": [
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    },
+    {
+     "name": "click-to-paint measurable for at least 3 of 5 clicks (a frame after the commit, never before the click)",
+     "ok": true,
+     "detail": "5 valid, 0 not measurable"
+    },
+    {
+     "name": "clade is red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "8.70% of the clade box, box 558 px tall"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "treeChosenBy": "default (S1 mounted it)",
+    "treeFallbackFrom": null,
+    "cladeTips": 969,
+    "clickToCommitMs": [
+     295.5,
+     1144.7999999988824,
+     497.7000000011176,
+     491.2000000011176,
+     480.80000000074506
+    ],
+    "clickToPaintMs": [
+     316.19999999925494,
+     1158.5999999996275,
+     509,
+     505.09999999962747,
+     492.7000000011176
+    ],
+    "medianCommitMs": 491.2000000011176,
+    "medianPaintMs": 505.09999999962747,
+    "redFractionAfterColour": 0.08700540277483632,
+    "pixelCheck": {
+     "afterZoom": false,
+     "zoom": {
+      "zoomed": false,
+      "notches": 0,
+      "boxPxBefore": 558,
+      "boxPxAfter": 558,
+      "factor": 1
+     }
+    }
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 24.355
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "pass",
+   "reason": "load 67 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 3 ms, click 6 ms",
+   "loadAvgAtStart": 2.93,
+   "phase": "done",
+   "fetchMs": 10.299999998882413,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 0.10000000149011612,
+   "firstRenderMs": 67.20000000111759,
+   "sharedParseMs": 1.400000000372529,
+   "reportedTips": 5,
+   "notes": "TreeModel -> tbrowse node table in 0.1 ms (8 nodes, lengths x1000); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 67.3000000026077,
+   "ink": 0.012974253672405678,
+   "heapAfterMountMB": 4.076218605041504,
+   "stats": {
+    "domNodes": 136,
+    "svgElements": 76,
+    "canvases": 0,
+    "custom": {
+     "tips": 5,
+     "nodes": 8,
+     "convertMs": 0.10000000149011612,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1000,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 136,
+    "svg": 76,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 6.000000000931323,
+   "clickToPaintMs": 27.050000000745058,
+   "clickSamples": {
+    "events": 2,
+    "tries": 2,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.88023952095548,
+   "fpsP5Rounds": [
+    59.9,
+    59.9,
+    59.5
+   ],
+   "droppedRatio": 0.00027832669967297176,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 652,
+   "inputSteps": 432,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 1,
+   "cpuDragMoveMs": 2.5,
+   "cpuMsPerStep": 2.5,
+   "loadAvgAtEnd": 2.35,
+   "heapAfterInteractionMB": 4.629646301269531,
+   "heapMB": 4.629646301269531,
+   "unusableFactor": 0.025,
+   "pageErrors": [],
+   "wallSec": 17.782,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 1.999999999999891,
+   "cpuVsStub200": 0.18248175182481752
+  },
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "pass",
+   "reason": "load 126 ms, median 59.9 fps, best p5 29.9, dropped 1%, CPU/step 20 ms, click 10 ms",
+   "loadAvgAtStart": 2.96,
+   "phase": "done",
+   "fetchMs": 13.5,
+   "convertMs": 19,
+   "wireBytes": 111429,
+   "parseMs": 0.599999999627471,
+   "firstRenderMs": 125.5,
+   "sharedParseMs": 2.099999999627471,
+   "reportedTips": 135,
+   "notes": "TreeModel -> tbrowse node table in 0.6 ms (269 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 126.09999999962747,
+   "ink": 0.06085452535144531,
+   "heapAfterMountMB": 5.235360145568848,
+   "stats": {
+    "domNodes": 650,
+    "svgElements": 512,
+    "canvases": 0,
+    "custom": {
+     "tips": 135,
+     "nodes": 269,
+     "convertMs": 0.599999999627471,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 650,
+    "svg": 512,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 10,
+   "clickToPaintMs": 33.30000000074506,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047774,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.007370529009185171,
+   "droppedFrames": 28,
+   "maxFrameGapMs": 50,
+   "frames": 537,
+   "inputSteps": 244,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 20.2,
+   "cpuDragMoveMs": 11.9,
+   "cpuMsPerStep": 20.2,
+   "loadAvgAtEnd": 2.33,
+   "heapAfterInteractionMB": 6.693944931030273,
+   "heapMB": 6.693944931030273,
+   "unusableFactor": 0.20199999999999999,
+   "pageErrors": [],
+   "wallSec": 21.949,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 0.9999999999999455,
+   "cpuVsStub200": 1.4744525547445255
+  },
+  "rich-ens-protein-197": {
+   "treeId": "rich-ens-protein-197",
+   "tips": 197,
+   "status": "pass",
+   "reason": "load 157 ms, median 59.9 fps, best p5 30.0, dropped 0%, CPU/step 31 ms, click 15 ms",
+   "loadAvgAtStart": 2.33,
+   "phase": "done",
+   "fetchMs": 10.199999999254942,
+   "convertMs": 0,
+   "wireBytes": 7349,
+   "parseMs": 2,
+   "firstRenderMs": 154.60000000149012,
+   "sharedParseMs": 2.200000001117587,
+   "reportedTips": 197,
+   "notes": "TreeModel -> tbrowse node table in 2.0 ms (393 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 156.60000000149012,
+   "ink": 0.05115147685989574,
+   "heapAfterMountMB": 6.274809837341309,
+   "stats": {
+    "domNodes": 650,
+    "svgElements": 512,
+    "canvases": 0,
+    "custom": {
+     "tips": 197,
+     "nodes": 393,
+     "convertMs": 2,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 100,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 650,
+    "svg": 512,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 15.100000001490116,
+   "clickToPaintMs": 38.59999999962747,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 30.030030030029046,
+   "fpsP5Rounds": [
+    29.9,
+    30,
+    29.9
+   ],
+   "droppedRatio": 0.000906717955660997,
+   "droppedFrames": 20,
+   "maxFrameGapMs": 33.400000000001455,
+   "frames": 591,
+   "inputSteps": 294,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.6,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 31.4,
+   "cpuDragMoveMs": 8,
+   "cpuMsPerStep": 31.4,
+   "loadAvgAtEnd": 2.38,
+   "heapAfterInteractionMB": 7.20172119140625,
+   "heapMB": 7.20172119140625,
+   "unusableFactor": 0.314,
+   "pageErrors": [],
+   "wallSec": 21.682,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 1.003003003002959,
+   "cpuVsStub200": 2.291970802919708
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "pass",
+   "reason": "load 170 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 23 ms, click 11 ms",
+   "loadAvgAtStart": 2.38,
+   "phase": "done",
+   "fetchMs": 12,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 1.299999998882413,
+   "firstRenderMs": 168.7000000011176,
+   "sharedParseMs": 2.700000001117587,
+   "reportedTips": 200,
+   "notes": "TreeModel -> tbrowse node table in 1.3 ms (399 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 170,
+   "ink": 0.058954351603222266,
+   "heapAfterMountMB": 5.525238037109375,
+   "stats": {
+    "domNodes": 654,
+    "svgElements": 516,
+    "canvases": 0,
+    "custom": {
+     "tips": 200,
+     "nodes": 399,
+     "convertMs": 1.299999998882413,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 654,
+    "svg": 516,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 11.400000000372529,
+   "clickToPaintMs": 44.5,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 24,
+   "maxFrameGapMs": 50,
+   "frames": 537,
+   "inputSteps": 240,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.6,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 23.1,
+   "cpuDragMoveMs": 9.4,
+   "cpuMsPerStep": 23.1,
+   "loadAvgAtEnd": 2.07,
+   "heapAfterInteractionMB": 6.975042343139648,
+   "heapMB": 6.975042343139648,
+   "unusableFactor": 0.231,
+   "pageErrors": [],
+   "wallSec": 21.791,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 1,
+   "cpuVsStub200": 1.6861313868613141
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "pass",
+   "reason": "load 291 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 34 ms, click 17 ms",
+   "loadAvgAtStart": 2.38,
+   "phase": "done",
+   "fetchMs": 41.899999998509884,
+   "convertMs": 13.200000001117587,
+   "wireBytes": 601687,
+   "parseMs": 5.400000000372529,
+   "firstRenderMs": 285.2000000011176,
+   "sharedParseMs": 3.800000000745058,
+   "reportedTips": 380,
+   "notes": "TreeModel -> tbrowse node table in 5.4 ms (759 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 290.6000000014901,
+   "ink": 0.04775864792291895,
+   "heapAfterMountMB": 10.888699531555176,
+   "stats": {
+    "domNodes": 652,
+    "svgElements": 514,
+    "canvases": 0,
+    "custom": {
+     "tips": 380,
+     "nodes": 759,
+     "convertMs": 5.400000000372529,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 652,
+    "svg": 514,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 17.299999998882413,
+   "clickToPaintMs": 49.40000000037253,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 29.94011976047774,
+   "fpsP5Rounds": [
+    20,
+    29.9,
+    20
+   ],
+   "droppedRatio": 0.0013869240794662165,
+   "droppedFrames": 34,
+   "maxFrameGapMs": 50,
+   "frames": 536,
+   "inputSteps": 240,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 34.4,
+   "cpuDragMoveMs": 16.8,
+   "cpuMsPerStep": 34.4,
+   "loadAvgAtEnd": 2.14,
+   "heapAfterInteractionMB": 7.73236083984375,
+   "heapMB": 7.73236083984375,
+   "unusableFactor": 0.344,
+   "pageErrors": [],
+   "wallSec": 24.736,
+   "relMedianFps": 0.9401197605013191,
+   "relP5Fps": 0.9999999999999455,
+   "cpuVsStub200": 2.510948905109489
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "pass",
+   "reason": "load 338 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 29 ms, click 16 ms",
+   "loadAvgAtStart": 2.45,
+   "phase": "done",
+   "fetchMs": 29.40000000037253,
+   "convertMs": 48.40000000037253,
+   "wireBytes": 219203,
+   "parseMs": 2.799999998882413,
+   "firstRenderMs": 334.7000000011176,
+   "sharedParseMs": 6.600000001490116,
+   "reportedTips": 680,
+   "notes": "TreeModel -> tbrowse node table in 2.8 ms (1359 nodes, lengths x10); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 337.5,
+   "ink": 0.06090349075975354,
+   "heapAfterMountMB": 7.787069320678711,
+   "stats": {
+    "domNodes": 642,
+    "svgElements": 504,
+    "canvases": 0,
+    "custom": {
+     "tips": 680,
+     "nodes": 1359,
+     "convertMs": 2.799999998882413,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 10,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 642,
+    "svg": 504,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 16.300000000745058,
+   "clickToPaintMs": 57.69999999925494,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0.0008191090206700249,
+   "droppedFrames": 42,
+   "maxFrameGapMs": 50,
+   "frames": 550,
+   "inputSteps": 240,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 28.9,
+   "cpuDragMoveMs": 16.4,
+   "cpuMsPerStep": 28.9,
+   "loadAvgAtEnd": 2.34,
+   "heapAfterInteractionMB": 9.04220962524414,
+   "heapMB": 9.04220962524414,
+   "unusableFactor": 0.289,
+   "pageErrors": [],
+   "wallSec": 23.722,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 0.6679999999999927,
+   "cpuVsStub200": 2.1094890510948905
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "pass",
+   "reason": "load 461 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 19 ms, click 19 ms",
+   "loadAvgAtStart": 2.34,
+   "phase": "done",
+   "fetchMs": 18.700000001117587,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 9.300000000745058,
+   "firstRenderMs": 451.59999999962747,
+   "sharedParseMs": 10,
+   "reportedTips": 888,
+   "notes": "TreeModel -> tbrowse node table in 9.3 ms (1465 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 460.90000000037253,
+   "ink": 0.06686463433896694,
+   "heapAfterMountMB": 8.67789077758789,
+   "stats": {
+    "domNodes": 623,
+    "svgElements": 485,
+    "canvases": 0,
+    "custom": {
+     "tips": 888,
+     "nodes": 1465,
+     "convertMs": 9.300000000745058,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 623,
+    "svg": 485,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 19,
+   "clickToPaintMs": 54.30000000074506,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.880239520962,
+   "fpsP5": 20.040080160320787,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 33,
+   "maxFrameGapMs": 50,
+   "frames": 515,
+   "inputSteps": 219,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 1.5,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 18.9,
+   "cpuDragMoveMs": 10.9,
+   "cpuMsPerStep": 18.9,
+   "loadAvgAtEnd": 2.09,
+   "heapAfterInteractionMB": 9.452922821044922,
+   "heapMB": 9.452922821044922,
+   "unusableFactor": 0.18899999999999997,
+   "pageErrors": [],
+   "wallSec": 24.519,
+   "relMedianFps": 0.9401197605014214,
+   "relP5Fps": 0.669338677354707,
+   "cpuVsStub200": 1.3795620437956204
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "pass",
+   "reason": "load 497 ms, median 59.9 fps, best p5 20.0, dropped 2%, CPU/step 40 ms, click 19 ms",
+   "loadAvgAtStart": 2.09,
+   "phase": "done",
+   "fetchMs": 21.5,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 6.199999999254942,
+   "firstRenderMs": 490.30000000074506,
+   "sharedParseMs": 12,
+   "reportedTips": 1000,
+   "notes": "TreeModel -> tbrowse node table in 6.2 ms (1999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 496.5,
+   "ink": 0.05564207866055915,
+   "heapAfterMountMB": 9.967881202697754,
+   "stats": {
+    "domNodes": 650,
+    "svgElements": 512,
+    "canvases": 0,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "convertMs": 6.199999999254942,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 650,
+    "svg": 512,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 19.299999999813735,
+   "clickToPaintMs": 54.00000000093132,
+   "clickSamples": {
+    "events": 4,
+    "tries": 4,
+    "rightNode": 3
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 20.040080160320787,
+   "fpsP5Rounds": [
+    15,
+    20,
+    20
+   ],
+   "droppedRatio": 0.01587092003803209,
+   "droppedFrames": 43,
+   "maxFrameGapMs": 50.10000000000218,
+   "frames": 514,
+   "inputSteps": 228,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 40.4,
+   "cpuDragMoveMs": 11.9,
+   "cpuMsPerStep": 40.4,
+   "loadAvgAtEnd": 2.39,
+   "heapAfterInteractionMB": 10.631770133972168,
+   "heapMB": 10.631770133972168,
+   "unusableFactor": 0.40399999999999997,
+   "pageErrors": [],
+   "wallSec": 26.818,
+   "relMedianFps": 0.9401197605013191,
+   "relP5Fps": 0.669338677354707,
+   "cpuVsStub200": 2.948905109489051
+  },
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "pass",
+   "reason": "load 576 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 41 ms, click 5 ms",
+   "loadAvgAtStart": 2.44,
+   "phase": "done",
+   "fetchMs": 14.599999999627471,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 4.199999999254942,
+   "firstRenderMs": 572.0999999996275,
+   "sharedParseMs": 7.600000001490116,
+   "reportedTips": 1000,
+   "notes": "TreeModel -> tbrowse node table in 4.2 ms (1999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 576.2999999988824,
+   "ink": 0.07133470225872685,
+   "heapAfterMountMB": 9.247566223144531,
+   "stats": {
+    "domNodes": 650,
+    "svgElements": 512,
+    "canvases": 0,
+    "custom": {
+     "tips": 1000,
+     "nodes": 1999,
+     "convertMs": 4.199999999254942,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 650,
+    "svg": 512,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 4.5,
+   "clickToPaintMs": 47.79999999888241,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047774,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.00007968974137284039,
+   "droppedFrames": 43,
+   "maxFrameGapMs": 50,
+   "frames": 524,
+   "inputSteps": 230,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 41.2,
+   "cpuDragMoveMs": 13,
+   "cpuMsPerStep": 41.2,
+   "loadAvgAtEnd": 2.33,
+   "heapAfterInteractionMB": 10.14908504486084,
+   "heapMB": 10.14908504486084,
+   "unusableFactor": 0.41200000000000003,
+   "pageErrors": [],
+   "wallSec": 20.139,
+   "relMedianFps": 0.9401197605013702,
+   "relP5Fps": 0.9999999999999455,
+   "cpuVsStub200": 3.007299270072993
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 89% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 2.71,
+   "phase": "done",
+   "fetchMs": 25.300000000745058,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 30.699999999254942,
+   "firstRenderMs": 6037.199999999255,
+   "sharedParseMs": 37,
+   "reportedTips": 10000,
+   "notes": "TreeModel -> tbrowse node table in 30.7 ms (19999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 6067.89999999851,
+   "ink": 0.051197283209603484,
+   "heapAfterMountMB": 53.17741107940674,
+   "stats": {
+    "domNodes": 648,
+    "svgElements": 510,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "convertMs": 30.699999999254942,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 648,
+    "svg": 510,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 241.2999999988824,
+   "clickToPaintMs": 521,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 59.88023952094243,
+   "fpsP5": 1.3636983499250046,
+   "fpsP5Rounds": [
+    1.1,
+    1.1,
+    1.4
+   ],
+   "droppedRatio": 0.8890911225927751,
+   "droppedFrames": 208,
+   "maxFrameGapMs": 733.2999999999956,
+   "frames": 70,
+   "inputSteps": 28,
+   "fpsP95": 138.88888888894502,
+   "idleCpuPctOfOneCore": 3.1,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 0.8,
+   "cpuDragMoveMs": 0.9,
+   "cpuMsPerStep": 0.9,
+   "loadAvgAtEnd": 1.65,
+   "heapAfterInteractionMB": 47.77487850189209,
+   "heapMB": 47.77487850189209,
+   "unusableFactor": 1.7781822451855502,
+   "pageErrors": [],
+   "wallSec": 55.68,
+   "relMedianFps": 0.9401197605011142,
+   "relP5Fps": 0.04554752488749465,
+   "cpuVsStub200": 0.06569343065693431
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 1.65,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at Set.has (<anonymous>)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/asse",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.915,
+   "unusableFactor": 1000000
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 890 ms main-thread CPU per interaction step > 100; click latency 344 ms > 300 ms",
+   "loadAvgAtStart": 1.65,
+   "phase": "done",
+   "fetchMs": 24.09999999962747,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 49.29999999888241,
+   "firstRenderMs": 6808.799999998882,
+   "sharedParseMs": 44.40000000037253,
+   "reportedTips": 10000,
+   "notes": "TreeModel -> tbrowse node table in 49.3 ms (19999 nodes, lengths x10); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 6858.099999997765,
+   "ink": 0.0538809034907598,
+   "heapAfterMountMB": 49.891608238220215,
+   "stats": {
+    "domNodes": 656,
+    "svgElements": 518,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "nodes": 19999,
+     "convertMs": 49.29999999888241,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 10,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 656,
+    "svg": 518,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 343.5,
+   "clickToPaintMs": 608.4000000003725,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 2,
+   "fpsP5": 1.0909884355225852,
+   "fpsP5Rounds": [
+    1.1,
+    0.5,
+    0.9
+   ],
+   "droppedRatio": 0.9688427646495107,
+   "droppedFrames": 246,
+   "maxFrameGapMs": 916.5999999999985,
+   "frames": 32,
+   "inputSteps": 11,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 3.7,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 889.8,
+   "cpuDragMoveMs": 252.8,
+   "cpuMsPerStep": 889.8,
+   "loadAvgAtEnd": 1.62,
+   "heapAfterInteractionMB": 44.96159744262695,
+   "heapMB": 44.96159744262695,
+   "unusableFactor": 8.898,
+   "pageErrors": [],
+   "wallSec": 73.168,
+   "relMedianFps": 0.03140000000074542,
+   "relP5Fps": 0.036439013746453947,
+   "cpuVsStub200": 64.94890510948905
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 97% of the time in frames > 50 ms (best of 3 rounds); 517 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.62,
+   "phase": "done",
+   "fetchMs": 44.100000001490116,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 20.600000001490116,
+   "firstRenderMs": 5027.0999999996275,
+   "sharedParseMs": 42,
+   "reportedTips": 10000,
+   "notes": "TreeModel -> tbrowse node table in 20.6 ms (13995 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 5047.700000001118,
+   "ink": 0.053253830358553134,
+   "heapAfterMountMB": 38.01940155029297,
+   "stats": {
+    "domNodes": 558,
+    "svgElements": 420,
+    "canvases": 0,
+    "custom": {
+     "tips": 10000,
+     "nodes": 13995,
+     "convertMs": 20.600000001490116,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 558,
+    "svg": 420,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 261.25,
+   "clickToPaintMs": 503.55000000074506,
+   "clickSamples": {
+    "events": 4,
+    "tries": 4,
+    "rightNode": 4
+   },
+   "fpsMedian": 4.614674665436149,
+   "fpsP5": 1.6666666666666667,
+   "fpsP5Rounds": [
+    1.7,
+    1.6,
+    1.7
+   ],
+   "droppedRatio": 0.970158602330932,
+   "droppedFrames": 208,
+   "maxFrameGapMs": 600,
+   "frames": 50,
+   "inputSteps": 17,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 26.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 516.8,
+   "cpuDragMoveMs": 147.7,
+   "cpuMsPerStep": 516.8,
+   "loadAvgAtEnd": 1.52,
+   "heapAfterInteractionMB": 33.847527503967285,
+   "heapMB": 33.847527503967285,
+   "unusableFactor": 5.167999999999999,
+   "pageErrors": [],
+   "wallSec": 60.407,
+   "relMedianFps": 0.07245039224906748,
+   "relP5Fps": 0.05566666666666606,
+   "cpuVsStub200": 37.722627737226276
+  },
+  "otl-10k": {
+   "treeId": "otl-10k",
+   "tips": 10018,
+   "status": "timeout",
+   "reason": "unusable: 88% of the time in frames > 50 ms (best of 3 rounds); 288 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.79,
+   "phase": "done",
+   "fetchMs": 44.29999999888241,
+   "convertMs": 0,
+   "wireBytes": 128748,
+   "parseMs": 17.199999999254942,
+   "firstRenderMs": 5442.10000000149,
+   "sharedParseMs": 35.69999999925494,
+   "reportedTips": 10018,
+   "notes": "TreeModel -> tbrowse node table in 17.2 ms (14874 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 5459.300000000745,
+   "ink": 0.06397093666087506,
+   "heapAfterMountMB": 42.564735412597656,
+   "stats": {
+    "domNodes": 661,
+    "svgElements": 523,
+    "canvases": 0,
+    "custom": {
+     "tips": 10018,
+     "nodes": 14874,
+     "convertMs": 17.199999999254942,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 661,
+    "svg": 523,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 126.3999999994412,
+   "clickToPaintMs": 580.5,
+   "clickSamples": {
+    "events": 2,
+    "tries": 2,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952094243,
+   "fpsP5": 1.538224888478699,
+   "fpsP5Rounds": [
+    1.5,
+    1.5,
+    1.4
+   ],
+   "droppedRatio": 0.882569996056654,
+   "droppedFrames": 181,
+   "maxFrameGapMs": 650.0999999999985,
+   "frames": 88,
+   "inputSteps": 39,
+   "fpsP95": 60.60606060606061,
+   "idleCpuPctOfOneCore": 3.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 78.5,
+   "cpuDragMoveMs": 287.7,
+   "cpuMsPerStep": 287.7,
+   "loadAvgAtEnd": 1.06,
+   "heapAfterInteractionMB": 38.03791046142578,
+   "heapMB": 38.03791046142578,
+   "unusableFactor": 2.877,
+   "pageErrors": [],
+   "wallSec": 57.493,
+   "relMedianFps": 0.9401197605011142,
+   "relP5Fps": 0.05137671127518799,
+   "cpuVsStub200": 21
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "timeout",
+   "reason": "unusable: 96% of the time in frames > 50 ms (best of 3 rounds); 738 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.06,
+   "phase": "done",
+   "fetchMs": 25.299999998882413,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 22.800000000745058,
+   "firstRenderMs": 6672.0999999996275,
+   "sharedParseMs": 52.80000000074506,
+   "reportedTips": 10122,
+   "notes": "TreeModel -> tbrowse node table in 22.8 ms (20243 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 6694.9000000003725,
+   "ink": 0.05174064128889588,
+   "heapAfterMountMB": 50.955965995788574,
+   "stats": {
+    "domNodes": 638,
+    "svgElements": 500,
+    "canvases": 0,
+    "custom": {
+     "tips": 10122,
+     "nodes": 20243,
+     "convertMs": 22.800000000745058,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 100,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 638,
+    "svg": 500,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 224.30000000074506,
+   "clickToPaintMs": 478.5,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 3.750937734433629,
+   "fpsP5": 1.538224888478699,
+   "fpsP5Rounds": [
+    0.8,
+    1.4,
+    1.5
+   ],
+   "droppedRatio": 0.9584950297798082,
+   "droppedFrames": 263,
+   "maxFrameGapMs": 650.0999999999985,
+   "frames": 55,
+   "inputSteps": 16,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 3.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 737.8,
+   "cpuDragMoveMs": 270.6,
+   "cpuMsPerStep": 737.8,
+   "loadAvgAtEnd": 1.23,
+   "heapAfterInteractionMB": 45.98309803009033,
+   "heapMB": 45.98309803009033,
+   "unusableFactor": 7.377999999999999,
+   "pageErrors": [],
+   "wallSec": 75.716,
+   "relMedianFps": 0.05888972243200599,
+   "relP5Fps": 0.05137671127518799,
+   "cpuVsStub200": 53.85401459854015
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 1.23,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at Set.has (<anonymous>)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/assets/index-DSxBvWXT.js:1:1)\n    at c (http://127.0.0.1:34127/asse",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.98,
+   "unusableFactor": 1000000
+  },
+  "otl-91k": {
+   "treeId": "otl-91k",
+   "tips": 90938,
+   "status": "timeout",
+   "reason": "load 176.2 s > 10 s; interaction measures skipped",
+   "loadAvgAtStart": 1.23,
+   "phase": "mount",
+   "fetchMs": 57.69999999925494,
+   "convertMs": 0,
+   "wireBytes": 1203875,
+   "parseMs": 204.7000000011176,
+   "firstRenderMs": 176003.09999999963,
+   "sharedParseMs": 148.5,
+   "reportedTips": 90938,
+   "notes": "TreeModel -> tbrowse node table in 204.7 ms (138646 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 176207.80000000075,
+   "ink": 0.06143105354604328,
+   "heapAfterMountMB": 352.4968452453613,
+   "stats": {
+    "domNodes": 613,
+    "svgElements": 475,
+    "canvases": 0,
+    "custom": {
+     "tips": 90938,
+     "nodes": 138646,
+     "convertMs": 204.7000000011176,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 613,
+    "svg": 475,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "unusableFactor": 17.620780000000074,
+   "pageErrors": [],
+   "wallSec": 245.368
+  },
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "load 317.3 s > 10 s; interaction measures skipped",
+   "loadAvgAtStart": 1.1,
+   "phase": "mount",
+   "fetchMs": 64.5,
+   "convertMs": 0,
+   "wireBytes": 4139363,
+   "parseMs": 312,
+   "firstRenderMs": 316987.80000000075,
+   "sharedParseMs": 166.5,
+   "reportedTips": 100000,
+   "notes": "TreeModel -> tbrowse node table in 312.0 ms (199999 nodes, lengths x1); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 317299.80000000075,
+   "ink": 0.051377349549834195,
+   "heapAfterMountMB": 450.56897258758545,
+   "stats": {
+    "domNodes": 656,
+    "svgElements": 518,
+    "canvases": 0,
+    "custom": {
+     "tips": 100000,
+     "nodes": 199999,
+     "convertMs": 312,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 1,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 656,
+    "svg": 518,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "unusableFactor": 31.729980000000076,
+   "pageErrors": [],
+   "wallSec": 434.036
+  },
+  "gtdb-100k": {
+   "treeId": "gtdb-100k",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "load 260.6 s > 10 s; interaction measures skipped",
+   "loadAvgAtStart": 1.4,
+   "phase": "mount",
+   "fetchMs": 75.30000000074506,
+   "convertMs": 0,
+   "wireBytes": 1294403,
+   "parseMs": 388.59999999962747,
+   "firstRenderMs": 260184.5,
+   "sharedParseMs": 245.2000000011176,
+   "reportedTips": 100000,
+   "notes": "TreeModel -> tbrowse node table in 388.6 ms (199999 nodes, lengths x100); tips counted from the converted table (tbrowse does not report a tip count); the library renders every row on its first render before its ResizeObserver switches virtualisation on",
+   "loadMs": 260573.09999999963,
+   "ink": 0.041557415890064786,
+   "heapAfterMountMB": 460.2017421722412,
+   "stats": {
+    "domNodes": 654,
+    "svgElements": 516,
+    "canvases": 0,
+    "custom": {
+     "tips": 100000,
+     "nodes": 199999,
+     "convertMs": 388.59999999962747,
+     "rows": -1,
+     "rowHeight": 16,
+     "lengthScale": 100,
+     "collapsed": 0,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 654,
+    "svg": 516,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "unusableFactor": 26.057309999999962,
+   "pageErrors": [],
+   "wallSec": 373.682
+  },
+  "gtdb-190k": {
+   "treeId": "gtdb-190k",
+   "tips": 189801,
+   "status": "timeout",
+   "reason": "mount: S1 gtdb-190k exceeded 600 s (mount never finished)",
+   "loadAvgAtStart": 1.01,
+   "phase": "mount",
+   "pageErrors": [],
+   "wallSec": 600.147,
+   "unusableFactor": 1000000
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261019-132449-S4-two-clades.png",
+   "bytes": 106957
+  },
+  {
+   "label": "S8-alignment",
+   "file": "screens/20261019-132449-S8-alignment.png",
+   "bytes": 87769
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261019-132449-S9-dark.png",
+   "bytes": 125468
+  },
+  {
+   "label": "S1-edge-quoted-labels",
+   "file": "screens/20261019-132449-S1-edge-quoted-labels.png",
+   "bytes": 24439
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261019-132449-S5-focus-highlight.png",
+   "bytes": 133203
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261019-132449-S15-linked-view.png",
+   "bytes": 57910
+  }
+ ],
+ "wallSec": 2307.842,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

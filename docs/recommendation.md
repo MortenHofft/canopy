@@ -14,6 +14,16 @@ Everything below the line "Scorecard" was written before any library was run. Al
 4. **Interaction is a different story from scale.** react-bio-viz is the only library whose node click delivers the tip set itself; tbrowse has the best aligned-columns model; phylotree.js has the most hooks. Phylocanvas.gl and Archaeopteryx.js need adapter-derived events (their authors' workarounds are labelled `partial`). Archaeopteryx.js cannot host two instances (S13 fails).
 5. **Robustness problems in every library:** deep (ladderised) trees overflow the call stack at 5k to 10k tips (tbrowse, react-bio-viz, phylotree.js, Archaeopteryx.js; custom handles them but still walks the whole tree per frame); react-bio-viz throws on the 91k to 190k real trees.
 
+### Round 2 (2026-10-19): three more libraries, same scenarios
+
+Taxonium (GPL-3.0, demo only), Reactree and Heat-tree were also built into the shell and run through the runner (runner fixes in [results/summary.md](results/summary.md), "Round 2"). They confirm the pattern rather than change it:
+
+- **Taxonium** is the only library that loads a 1M-tip tree (23.5 s, 725 MB heap) and 100k in 6 s, so its large-tree claim holds for loading; its frame rate could not be judged without a GPU. It has no hover, columns, alignment or radial layout, allows one tree per page, is controlled only through React internals, and is GPL-3.0.
+- **Reactree**: 1,000 tips already sluggish, 10k takes 47 s to mount, deep trees overflow the stack, quoted labels break the parser, and it silently read only 1,436 of 189,801 tips on one real tree.
+- **Heat-tree**: first render is quadratic (1k 2 s, 5k 17 s, 10k over 270 s), no callbacks, no alignment rendering, BEAST Nexus and quoted labels fail.
+
+Nothing in these results changes the recommendation below. Note the machine used for round 2 was slower than in round 1 (heavy main-thread libraries 1.5 to 2.5 times slower); ratios between libraries are stable, absolute numbers are not comparable across rounds.
+
 ### Revised recommendation
 
 The earlier question was whether an existing library could be adopted or extended to avoid a rewrite. For small trees yes; for large trees no, because the limits are in how the libraries draw and traverse the tree, not in missing features.

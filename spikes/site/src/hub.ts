@@ -169,7 +169,7 @@ async function renderMeasured() {
     }).join('');
     return `<tr><th scope="row" title="${esc(label)}">${id} <span class="note">${esc(label)}</span></th>${cells}</tr>`;
   }).join('');
-  const rungs = ['syn-yule-1000', 'syn-yule-10000', 'syn-yule-100000'];
+  const rungs = ['syn-yule-1000', 'syn-yule-10000', 'syn-yule-100000', 'syn-yule-1000000'];
   const scaleHead = `<tr><th>Library</th><th>Tips</th><th class="text-end">First render</th><th class="text-end">Median fps</th><th class="text-end">Slow frames</th><th class="text-end">CPU per step</th><th class="text-end">Click</th><th>Status</th></tr>`;
   const scaleRows = names.map((n) => fin.candidates[n].trees.filter((t) => rungs.includes(t.treeId)).sort((a, b) => a.tips - b.tips).map((t) =>
     `<tr><td>${esc(n)}</td><td class="text-end">${t.tips.toLocaleString('en')}</td><td class="text-end">${ms(t.firstRenderMs)}</td><td class="text-end">${t.fpsMedian?.toFixed(0) ?? ''}</td><td class="text-end">${t.droppedRatio == null ? '' : Math.round(t.droppedRatio * 100) + '%'}</td><td class="text-end">${ms(t.cpuMsPerStep)}</td><td class="text-end">${ms(t.clickMs)}</td><td><span class="status ${esc(statusClass(t.status))}" title="${esc(t.reason)}">${esc(t.status)}</span></td></tr>`).join('')).join('');
@@ -179,7 +179,7 @@ async function renderMeasured() {
     <div class="table-scroll"><table class="scorecard"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
     <h3 class="subhead">Scale on balanced (Yule) trees</h3>
     <div class="table-scroll"><table class="scorecard table-captions"><thead>${scaleHead}</thead><tbody>${scaleRows}</tbody></table></div>
-    <p class="note">The custom baseline is a prototype built during this spike (about 3,100 lines); the others are existing libraries used as a gbif.org developer would use them. 100k trees that took over 10 s to load are not interaction-tested. Caterpillar (ladderised) trees of 10k tips overflow the call stack in every library except Phylocanvas.gl.</p>`;
+    <p class="note">The custom baseline is a prototype built during this spike (about 3,100 lines); the others are existing libraries used as a gbif.org developer would use them (Taxonium is GPL-3.0 and is shown for comparison only). Absolute numbers vary between rounds because the test machine's speed varies; ratios between libraries are stable. 100k trees that took over 10 s to load are not interaction-tested. Caterpillar (ladderised) trees of 10k tips overflow the call stack in every library except Phylocanvas.gl.</p>`;
 }
 
 async function main() {

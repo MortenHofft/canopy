@@ -40,4 +40,4 @@ Start with [docs/recommendation.md](docs/recommendation.md): the consolidated fi
 
 ## Status
 
-Research and browser spike done. Six candidate demos (five libraries and our own prototype) run through 15 scenarios in a shared GBIF-styled shell; results in [docs/results/](docs/results/summary.md), a deployable comparison site (see [docs/deploy-vercel.md](docs/deploy-vercel.md)), and an updated [recommendation](docs/recommendation.md). Open question: real tree sizes from publishers.
+Research and browser spike done. Ten demos (nine libraries and our own prototype) run through 15 scenarios in a shared GBIF-styled shell; results in [docs/results/](docs/results/summary.md), a deployable comparison site (see [docs/deploy-vercel.md](docs/deploy-vercel.md)), and an updated [recommendation](docs/recommendation.md). Open question: real tree sizes from publishers.

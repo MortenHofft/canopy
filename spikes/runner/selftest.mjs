@@ -15,12 +15,16 @@ const cases = [
   { fault: 'keyboard', scenario: 'S14', expect: { S14: ['fail', 'partial'] } },
   { fault: 'tips', scenario: 'S3', expect: { S3: ['fail', 'partial'] } },
   { fault: 'wheel', scenario: 'S10', expect: { S10: ['n/a'] } },
+  // S15: click-to-paint must be measured on the same clock, after the commit, never negative
+  { fault: null, scenario: 'S15', expect: { S15: ['pass', 'partial'] }, check: (run) => { const m = run.scenarios.S15.measures; return m.medianPaintMs >= m.medianCommitMs && m.medianCommitMs >= 0 ? null : `paint ${m.medianPaintMs} vs commit ${m.medianCommitMs}`; } },
+  // a small --max-minutes must still measure something in S1 (it used to skip every tree below 9 minutes)
+  { fault: null, scenario: 'S1', extra: ['--max-minutes', '3'], expect: { S1: ['pass', 'partial'] }, check: (run) => (Object.values(run.scale).some((r) => r.status !== 'skipped') ? null : 'every tree skipped') },
 ];
 let bad = 0;
 for (const c of cases) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'spike-selftest-'));
   const env = { ...process.env, ...(c.fault ? { SPIKE_QUERY: `fault=${c.fault}` } : {}) };
-  const r = spawnSync('node', [path.join(SPIKES_DIR, 'runner/run.mjs'), '--candidate', 'stub', '--no-build', '--no-calibration', '--scenarios', c.scenario, '--trees', 'syn-yule-200', '--out', out], { env, encoding: 'utf8' });
+  const r = spawnSync('node', [path.join(SPIKES_DIR, 'runner/run.mjs'), '--candidate', 'stub', '--no-build', '--no-calibration', '--scenarios', c.scenario, '--trees', 'syn-yule-200', '--out', out, ...(c.extra ?? [])], { env, encoding: 'utf8' });
   const f = fs.readdirSync(out).find((x) => x.endsWith('.json'));
   if (!f) {
     console.log(`ERROR  fault=${c.fault}: no result\n${r.stdout.slice(-500)}${r.stderr.slice(-500)}`);
@@ -33,6 +37,11 @@ for (const c of cases) {
     const good = ok.includes(st);
     if (!good) bad++;
     console.log(`${good ? 'ok   ' : 'WRONG'}  fault=${String(c.fault).padEnd(8)} ${sid.padEnd(4)} -> ${st} (expected ${ok.join(' or ')})  ${good ? '' : run.scenarios[sid]?.reason?.slice(0, 160)}`);
+  }
+  if (c.check) {
+    const err = c.check(run);
+    if (err) bad++;
+    console.log(`${err ? 'WRONG' : 'ok   '}  check ${c.scenario} ${c.extra ? c.extra.join(' ') : ''} ${err ?? ''}`);
   }
   fs.rmSync(out, { recursive: true, force: true });
 }

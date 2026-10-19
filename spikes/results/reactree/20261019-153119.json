@@ -1,0 +1,3494 @@
+{
+ "runId": "20261019-153119",
+ "candidate": {
+  "name": "Reactree",
+  "version": "1.0.3",
+  "license": "MIT",
+  "notes": "reactreejs: React component with three props (newick, fasta, defaultHeight), D3 SVG, built-in toolbar. Everything beyond rendering is driven through its DOM (partial).",
+  "columnKinds": [
+   "alignment"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no callback; capture-phase click listener on our wrapper reads the d3 datum (__data__) of the clicked circle.r-hit or text.leaf-label. The library itself only opens its own node-info panel on a tip click."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same DOM listener on circle.r-hit. The library collapses the clade into a triangle on that click; the adapter stops that by default (option switch) so colouring works."
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "path.b-hit (12 px transparent hit stroke) listener; datum is the link, target = clade below the branch. The library reacts only in colour mode."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover capture on circle.r-hit and tip labels; the library shows tooltips only inside its edit modes. Events are adapter-derived."
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "no payload at all: the adapter walks the datum (d.data.children) for leaf names and maps them to the shared TreeModel (mrca by name); after a library reroot/ladderize the clade may not exist in the shared tree (flagged exactClade=false)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "drives the library colour mode through its own toolbar button, palette swatch and synthetic clicks on node hit circles (one rebuild per colour). Only the 12 palette colours exist (nearest chosen); no free colour, no API."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "own SVG ring circles inserted into the tip group after each rebuild (re-applied by a MutationObserver). Library search (Ctrl+F) highlights one substring only and is not used for this."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "synthetic wheel and mouse events fed to the library d3-zoom (zoom to about 24 px row pitch, then drag the tip to the middle); instant, no API."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only the alignment kind: the library has no per-tip column API, its one per-tip panel is the FASTA alignment canvas. Bar and text columns are skipped (cannot be drawn)."
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "one alignment column becomes the fasta prop; panel is shown by clicking its toolbar button; fixed 14 px cells and 172 px label canvas (ColumnSpec.width ignored), rectangular layout only, rows scroll with the tree."
+  },
+  "radialLayout": {
+   "level": "partial",
+   "how": "library has a circular layout, switched by clicking its toolbar button (no prop)."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "library phylogram/cladogram buttons, clicked from the adapter (no prop). Cladogram uses d3.cluster so tips align."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "documented data-theme=\"dark\" on <html> (MutationObserver); rebuilds the SVG. Global attribute, so it also affects the host page."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--clr-* and --font-family map onto GBIF tokens for the chrome; tree colours are hard-coded hex in JS, re-themed with CSS attribute selectors on those hex values (brittle). Canvas alignment colours and fonts cannot be styled."
+  },
+  "multipleInstances": {
+   "level": "partial",
+   "how": "two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13."
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; effects remove their window listeners and the MutationObserver; portals unmount with the component (verified in S13/S1 teardown)."
+  },
+  "controlledState": {
+   "level": "no",
+   "how": "three props only (newick, fasta, defaultHeight); a changed newick resets all state. Everything else is internal React state reachable only through the DOM."
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fits on mount and on layout change; a Fit toolbar button exists but no API."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none; every node and label is always drawn, min zoom 0.05."
+  }
+ },
+ "date": "2026-10-19T15:44:05.806Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 0.93,
+  "end": 2.32,
+  "max": 2.83,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 0.93,
+  "canvas": {
+   "fpsMedian": 60.240963855423665,
+   "fpsP5": 30.03003003002997,
+   "fpsP5Rounds": [
+    30,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 6,
+   "maxFrameGapMs": 33.40000000000009,
+   "frames": 863,
+   "inputSteps": 193,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 5.7,
+   "cpuDragMoveMs": 6,
+   "cpuMsPerStep": 6,
+   "loadavg": 1.08
+  },
+  "stub200": {
+   "fpsMedian": 30.030030030030275,
+   "fpsP5": 19.96007984031958,
+   "fpsP5Rounds": [
+    15,
+    15,
+    20
+   ],
+   "droppedRatio": 0.09192247032186804,
+   "droppedFrames": 65,
+   "maxFrameGapMs": 66.60000000000036,
+   "frames": 274,
+   "inputSteps": 144,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 6.6,
+   "cpuDragMoveMs": 9.7,
+   "cpuMsPerStep": 9.7,
+   "loadavg": 1.54
+  },
+  "loadEnd": 1.54
+ },
+ "label": "final-2026-10-19",
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "rich-fish-carangaria-135",
+   "rich-ens-protein-197",
+   "syn-yule-200",
+   "rich-birdtree-0000",
+   "rich-corvoid-680",
+   "otl-1k",
+   "syn-yule-1000",
+   "syn-caterpillar-1000",
+   "syn-yule-10000",
+   "syn-caterpillar-10000",
+   "syn-balanced-10000",
+   "syn-bushy-10000",
+   "otl-10k",
+   "gtdb-10k",
+   "edge-caterpillar-20000",
+   "otl-91k",
+   "syn-yule-100000",
+   "gtdb-100k",
+   "gtdb-190k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1142119,
+  "jsGzipBytes": 354318,
+  "cssBytes": 49827,
+  "cssGzipBytes": 9332,
+  "totalBytes": 1192348,
+  "totalGzipBytes": 363919,
+  "files": [
+   {
+    "path": "assets/html2canvas.esm-BfxBtG_O.js",
+    "bytes": 202285,
+    "gzipBytes": 47774
+   },
+   {
+    "path": "assets/index-Bsh3rAgE.css",
+    "bytes": 49827,
+    "gzipBytes": 9332
+   },
+   {
+    "path": "assets/index-CC_LiNnT.js",
+    "bytes": 368436,
+    "gzipBytes": 115030
+   },
+   {
+    "path": "assets/index.es-h_z6cp1Y.js",
+    "bytes": 150909,
+    "gzipBytes": 51472
+   },
+   {
+    "path": "assets/jspdf.es.min-m1do1oRU.js",
+    "bytes": 390020,
+    "gzipBytes": 128326
+   },
+   {
+    "path": "assets/purify.es-CAi2OJFm.js",
+    "bytes": 30469,
+    "gzipBytes": 11716
+   },
+   {
+    "path": "index.html",
+    "bytes": 402,
+    "gzipBytes": 269
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "fail",
+     "reason": "library reports 2 tips, expected 5",
+     "loadAvgAtStart": 2.42,
+     "phase": "mount",
+     "fetchMs": 13.099999997764826,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 0,
+     "firstRenderMs": 375.80000000074506,
+     "sharedParseMs": 1,
+     "reportedTips": 2,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 20 ms after mount, ready after 288 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+     "loadMs": 375.80000000074506,
+     "pageErrors": [],
+     "wallSec": 0.856
+    },
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "pass",
+     "reason": "load 492 ms, median 59.9 fps, best p5 59.5, dropped 0%, CPU/step 15 ms, click 26 ms",
+     "loadAvgAtStart": 2.42,
+     "phase": "done",
+     "fetchMs": 12.600000001490116,
+     "convertMs": 12.099999997764826,
+     "wireBytes": 111429,
+     "parseMs": 0,
+     "firstRenderMs": 492.1000000014901,
+     "sharedParseMs": 0.8999999985098839,
+     "reportedTips": 135,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 65 ms after mount, ready after 381 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.9; rebuilds so far 2",
+     "loadMs": 492.1000000014901,
+     "ink": 0.027806033801927033,
+     "heapAfterMountMB": 5.118059158325195,
+     "stats": {
+      "domNodes": 2042,
+      "svgElements": 1982,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 135,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.13691864204961063,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 2042,
+      "svg": 1982,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 26.199999999254942,
+     "clickToPaintMs": 135.80000000074506,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 59.523809523812105,
+     "fpsP5Rounds": [
+      20,
+      20,
+      59.5
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 525,
+     "inputSteps": 257,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 14.7,
+     "cpuDragMoveMs": 7.8,
+     "cpuMsPerStep": 14.7,
+     "loadAvgAtEnd": 2.56,
+     "heapAfterInteractionMB": 5.960338592529297,
+     "heapMB": 5.960338592529297,
+     "unusableFactor": 0.147,
+     "pageErrors": [],
+     "wallSec": 19.718,
+     "relMedianFps": 0.9940119760478824,
+     "relP5Fps": 1.9821428571429471,
+     "cpuVsStub200": 1.5154639175257731
+    },
+    "rich-ens-protein-197": {
+     "treeId": "rich-ens-protein-197",
+     "tips": 197,
+     "status": "pass",
+     "reason": "load 562 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 20 ms, click 30 ms",
+     "loadAvgAtStart": 2.56,
+     "phase": "done",
+     "fetchMs": 15,
+     "convertMs": 0,
+     "wireBytes": 7349,
+     "parseMs": 0,
+     "firstRenderMs": 561.6999999992549,
+     "sharedParseMs": 2.199999999254942,
+     "reportedTips": 197,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 105 ms after mount, ready after 444 ms including its ~350 ms fade-in and fit animation; sharedParseMs=2.2; rebuilds so far 2",
+     "loadMs": 561.6999999992549,
+     "ink": 0.016281788027167954,
+     "heapAfterMountMB": 6.103294372558594,
+     "stats": {
+      "domNodes": 2895,
+      "svgElements": 2837,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 197,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.09569239723864162,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 2895,
+      "svg": 2837,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 29.600000001490116,
+     "clickToPaintMs": 90.5,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 2
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.0016160127015042805,
+     "droppedFrames": 10,
+     "maxFrameGapMs": 50,
+     "frames": 462,
+     "inputSteps": 230,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 19.6,
+     "cpuDragMoveMs": 10.9,
+     "cpuMsPerStep": 19.6,
+     "loadAvgAtEnd": 2.36,
+     "heapAfterInteractionMB": 6.087040901184082,
+     "heapMB": 6.087040901184082,
+     "unusableFactor": 0.196,
+     "pageErrors": [],
+     "wallSec": 19.419,
+     "relMedianFps": 0.9940119760478283,
+     "relP5Fps": 0.997005988023965,
+     "cpuVsStub200": 2.0206185567010313
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "pass",
+     "reason": "load 591 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 20 ms, click 43 ms",
+     "loadAvgAtStart": 2.36,
+     "phase": "done",
+     "fetchMs": 24.899999998509884,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 0,
+     "firstRenderMs": 590.8999999985099,
+     "sharedParseMs": 4,
+     "reportedTips": 200,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 105 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=4.0; rebuilds so far 2",
+     "loadMs": 590.8999999985099,
+     "ink": 0.01942031274680145,
+     "heapAfterMountMB": 5.379673957824707,
+     "stats": {
+      "domNodes": 2943,
+      "svgElements": 2885,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 200,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.09417990994702445,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 2943,
+      "svg": 2885,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 43.100000001490116,
+     "clickToPaintMs": 178.60000000149012,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 59.88023952095548,
+     "fpsP5Rounds": [
+      20,
+      29.9,
+      59.9
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 565,
+     "inputSteps": 288,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 19.9,
+     "cpuDragMoveMs": 8.8,
+     "cpuMsPerStep": 19.9,
+     "loadAvgAtEnd": 2.09,
+     "heapAfterInteractionMB": 6.336682319641113,
+     "heapMB": 6.336682319641113,
+     "unusableFactor": 0.19899999999999998,
+     "pageErrors": [],
+     "wallSec": 20.022,
+     "relMedianFps": 0.9940119760478824,
+     "relP5Fps": 1.9940119760478214,
+     "cpuVsStub200": 2.051546391752577
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "pass",
+     "reason": "load 688 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 37 ms, click 55 ms",
+     "loadAvgAtStart": 2.09,
+     "phase": "done",
+     "fetchMs": 44.099999997764826,
+     "convertMs": 13.199999999254942,
+     "wireBytes": 601687,
+     "parseMs": 0,
+     "firstRenderMs": 688.1999999992549,
+     "sharedParseMs": 4.5,
+     "reportedTips": 380,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 196 ms after mount, ready after 505 ms including its ~350 ms fade-in and fit animation; sharedParseMs=4.5; rebuilds so far 2",
+     "loadMs": 688.1999999992549,
+     "ink": 0.015485705259832616,
+     "heapAfterMountMB": 6.305783271789551,
+     "stats": {
+      "domNodes": 5472,
+      "svgElements": 5412,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 380,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.05068962087688147,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 5472,
+      "svg": 5412,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 54.5,
+     "clickToPaintMs": 283.4000000022352,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 29.94011976047937,
+     "fpsP5Rounds": [
+      10,
+      29.9,
+      29.9
+     ],
+     "droppedRatio": 0.0016390199790885052,
+     "droppedFrames": 19,
+     "maxFrameGapMs": 33.399999999999636,
+     "frames": 497,
+     "inputSteps": 244,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 36.9,
+     "cpuDragMoveMs": 16.3,
+     "cpuMsPerStep": 36.9,
+     "loadAvgAtEnd": 2.36,
+     "heapAfterInteractionMB": 7.188514709472656,
+     "heapMB": 7.188514709472656,
+     "unusableFactor": 0.369,
+     "pageErrors": [],
+     "wallSec": 20.667,
+     "relMedianFps": 0.9940119760478824,
+     "relP5Fps": 0.997005988023965,
+     "cpuVsStub200": 3.8041237113402064
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "partial",
+     "reason": "sluggish: 53 ms CPU per step (load 913 ms, median 59.9 fps, best p5 15.0, dropped 9%, CPU/step 53 ms, click 87 ms)",
+     "loadAvgAtStart": 2.36,
+     "phase": "done",
+     "fetchMs": 38,
+     "convertMs": 60.900000002235174,
+     "wireBytes": 219203,
+     "parseMs": 0,
+     "firstRenderMs": 912.6000000014901,
+     "sharedParseMs": 5.199999999254942,
+     "reportedTips": 680,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 368 ms after mount, ready after 708 ms including its ~350 ms fade-in and fit animation; sharedParseMs=5.2; rebuilds so far 2",
+     "loadMs": 912.6000000014901,
+     "ink": 0.012195545727373247,
+     "heapAfterMountMB": 8.004218101501465,
+     "stats": {
+      "domNodes": 9655,
+      "svgElements": 9597,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 680,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.028573162644499304,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 9655,
+      "svg": 9597,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 86.80000000074506,
+     "clickToPaintMs": 484.80000000074506,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 15.015015015014933,
+     "fpsP5Rounds": [
+      15,
+      15,
+      15
+     ],
+     "droppedRatio": 0.09384584564563532,
+     "droppedFrames": 75,
+     "maxFrameGapMs": 66.70000000000073,
+     "frames": 454,
+     "inputSteps": 192,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 52.8,
+     "cpuDragMoveMs": 26.3,
+     "cpuMsPerStep": 52.8,
+     "loadAvgAtEnd": 2.23,
+     "heapAfterInteractionMB": 9.098788261413574,
+     "heapMB": 9.098788261413574,
+     "unusableFactor": 0.528,
+     "pageErrors": [],
+     "wallSec": 23.624,
+     "relMedianFps": 0.9940119760478283,
+     "relP5Fps": 0.4999999999999983,
+     "cpuVsStub200": 5.443298969072165
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "partial",
+     "reason": "sluggish: 28% of the time in frames > 50 ms (load 1129 ms, median 59.9 fps, best p5 10.0, dropped 28%, CPU/step 49 ms, click 105 ms)",
+     "loadAvgAtStart": 2.29,
+     "phase": "done",
+     "fetchMs": 19.5,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 0,
+     "firstRenderMs": 1128.6000000014901,
+     "sharedParseMs": 8.199999999254942,
+     "reportedTips": 888,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 525 ms after mount, ready after 909 ms including its ~350 ms fade-in and fit animation; sharedParseMs=8.2; rebuilds so far 3",
+     "loadMs": 1128.6000000014901,
+     "ink": 0.010053703996209085,
+     "heapAfterMountMB": 8.956620216369629,
+     "stats": {
+      "domNodes": 10691,
+      "svgElements": 10633,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 888,
+       "rebuilds": 3,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 250.40000000223517,
+       "k": 0.020716081139404405,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 10691,
+      "svg": 10633,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 104.5,
+     "clickToPaintMs": 581.8999999985099,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 10,
+     "fpsP5Rounds": [
+      8.6,
+      8.6,
+      10
+     ],
+     "droppedRatio": 0.2818248504684623,
+     "droppedFrames": 89,
+     "maxFrameGapMs": 100,
+     "frames": 342,
+     "inputSteps": 144,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 49.2,
+     "cpuDragMoveMs": 27.9,
+     "cpuMsPerStep": 49.2,
+     "loadAvgAtEnd": 2.26,
+     "heapAfterInteractionMB": 9.285691261291504,
+     "heapMB": 9.285691261291504,
+     "unusableFactor": 0.5636497009369246,
+     "pageErrors": [],
+     "wallSec": 31.174,
+     "relMedianFps": 0.9940119760478283,
+     "relP5Fps": 0.3330000000000007,
+     "cpuVsStub200": 5.072164948453609
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "partial",
+     "reason": "sluggish: 49% of the time in frames > 50 ms; 89 ms CPU per step (load 1773 ms, median 59.9 fps, best p5 10.0, dropped 49%, CPU/step 89 ms, click 124 ms)",
+     "loadAvgAtStart": 2.26,
+     "phase": "done",
+     "fetchMs": 14,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 0,
+     "firstRenderMs": 1772.699999999255,
+     "sharedParseMs": 12.199999999254942,
+     "reportedTips": 1000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 751 ms after mount, ready after 1379 ms including its ~350 ms fade-in and fit animation; sharedParseMs=12.2; rebuilds so far 2",
+     "loadMs": 1772.699999999255,
+     "ink": 0.010183225398831097,
+     "heapAfterMountMB": 10.258685111999512,
+     "stats": {
+      "domNodes": 14143,
+      "svgElements": 14085,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 1000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.019786011546149715,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 14143,
+      "svg": 14085,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 123.60000000149012,
+     "clickToPaintMs": 711.6999999992549,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 10,
+     "fpsP5Rounds": [
+      7.5,
+      10,
+      8.6
+     ],
+     "droppedRatio": 0.4948107851160323,
+     "droppedFrames": 109,
+     "maxFrameGapMs": 133.29999999999927,
+     "frames": 317,
+     "inputSteps": 134,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 88.7,
+     "cpuDragMoveMs": 33.6,
+     "cpuMsPerStep": 88.7,
+     "loadAvgAtEnd": 1.95,
+     "heapAfterInteractionMB": 11.019891738891602,
+     "heapMB": 11.019891738891602,
+     "unusableFactor": 0.9896215702320647,
+     "pageErrors": [],
+     "wallSec": 24.847,
+     "relMedianFps": 0.9940119760478283,
+     "relP5Fps": 0.3330000000000007,
+     "cpuVsStub200": 9.144329896907218
+    },
+    "syn-caterpillar-1000": {
+     "treeId": "syn-caterpillar-1000",
+     "tips": 1000,
+     "status": "timeout",
+     "reason": "unusable: 106 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.95,
+     "phase": "done",
+     "fetchMs": 12.399999998509884,
+     "convertMs": 0,
+     "wireBytes": 42114,
+     "parseMs": 0,
+     "firstRenderMs": 1678.7000000029802,
+     "sharedParseMs": 9.899999998509884,
+     "reportedTips": 1000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 707 ms after mount, ready after 1161 ms including its ~350 ms fade-in and fit animation; sharedParseMs=9.9; rebuilds so far 2",
+     "loadMs": 1678.7000000029802,
+     "ink": 0.010197441162533516,
+     "heapAfterMountMB": 29.492475509643555,
+     "stats": {
+      "domNodes": 14143,
+      "svgElements": 14085,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 1000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.01978835978835979,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 14143,
+      "svg": 14085,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 197.10000000149012,
+     "clickToPaintMs": 1110.300000000745,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 11.990407673860963,
+     "fpsP5Rounds": [
+      10,
+      12,
+      10
+     ],
+     "droppedRatio": 0.38737679211469467,
+     "droppedFrames": 86,
+     "maxFrameGapMs": 83.39999999999964,
+     "frames": 357,
+     "inputSteps": 144,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 106.4,
+     "cpuDragMoveMs": 40.5,
+     "cpuMsPerStep": 106.4,
+     "loadAvgAtEnd": 1.92,
+     "heapAfterInteractionMB": 30.097976684570312,
+     "heapMB": 30.097976684570312,
+     "unusableFactor": 1.064,
+     "pageErrors": [],
+     "wallSec": 21.633,
+     "relMedianFps": 0.9940119760478283,
+     "relP5Fps": 0.39928057553957086,
+     "cpuVsStub200": 10.969072164948455
+    },
+    "syn-yule-10000": {
+     "treeId": "syn-yule-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: load 46.7 s > 10 s; 94% of the time in frames > 50 ms (best of 3 rounds); click latency 1670 ms > 300 ms",
+     "loadAvgAtStart": 1.92,
+     "phase": "done",
+     "fetchMs": 17.5,
+     "convertMs": 0,
+     "wireBytes": 149065,
+     "parseMs": 0,
+     "firstRenderMs": 46729.89999999851,
+     "sharedParseMs": 37.20000000298023,
+     "reportedTips": 10000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 4328 ms after mount, ready after 44446 ms including its ~350 ms fade-in and fit animation; sharedParseMs=37.2; rebuilds so far 2",
+     "loadMs": 46729.89999999851,
+     "ink": 0.010063181172010771,
+     "heapAfterMountMB": 65.27799701690674,
+     "stats": {
+      "domNodes": 140152,
+      "svgElements": 140092,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 10000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.0019844510577433274,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 140152,
+      "svg": 140092,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 1669.8999999985099,
+     "clickToPaintMs": 8248.39999999851,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 12.004801920767887,
+     "fpsP5": 1.3335111348179602,
+     "fpsP5Rounds": [
+      1.2,
+      1.1,
+      1.3
+     ],
+     "droppedRatio": 0.9439962350410124,
+     "droppedFrames": 254,
+     "maxFrameGapMs": 749.9000000000087,
+     "frames": 41,
+     "inputSteps": 17,
+     "fpsP95": 60.60606060606061,
+     "idleCpuPctOfOneCore": 92.8,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 33.3,
+     "cpuDragMoveMs": 5.1,
+     "cpuMsPerStep": 33.3,
+     "loadAvgAtEnd": 1.29,
+     "heapAfterInteractionMB": 64.55820274353027,
+     "heapMB": 64.55820274353027,
+     "unusableFactor": 5.566333333328366,
+     "pageErrors": [],
+     "wallSec": 141.848,
+     "relMedianFps": 0.1992797118847404,
+     "relP5Fps": 0.04440592078943816,
+     "cpuVsStub200": 3.4329896907216493
+    },
+    "syn-caterpillar-10000": {
+     "treeId": "syn-caterpillar-10000",
+     "tips": 10000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 1.29,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at parseFloat (<anonymous>)\n    at e0 (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1\n    at Array.some (<anonymous>)\n    at e0 (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    ",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.934,
+     "unusableFactor": 1000000
+    },
+    "syn-balanced-10000": {
+     "treeId": "syn-balanced-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "load 60.3 s > 10 s; interaction measures skipped",
+     "loadAvgAtStart": 1.75,
+     "phase": "mount",
+     "fetchMs": 19.700000002980232,
+     "convertMs": 0,
+     "wireBytes": 61341,
+     "parseMs": 0,
+     "firstRenderMs": 60339,
+     "sharedParseMs": 40,
+     "reportedTips": 10000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 4382 ms after mount, ready after 58667 ms including its ~350 ms fade-in and fit animation; sharedParseMs=40.0; rebuilds so far 2",
+     "loadMs": 60339,
+     "ink": 0.010063181172010771,
+     "heapAfterMountMB": 58.13872051239014,
+     "stats": {
+      "domNodes": 140150,
+      "svgElements": 140090,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 10000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.0019844510577433274,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 140150,
+      "svg": 140090,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "unusableFactor": 6.0339,
+     "pageErrors": [],
+     "wallSec": 63.615
+    },
+    "syn-bushy-10000": {
+     "treeId": "syn-bushy-10000",
+     "tips": 10000,
+     "status": "timeout",
+     "reason": "unusable: 93% of the time in frames > 50 ms (best of 3 rounds); 414 ms main-thread CPU per interaction step > 100; click latency 1021 ms > 300 ms",
+     "loadAvgAtStart": 1.38,
+     "phase": "done",
+     "fetchMs": 15.899999998509884,
+     "convertMs": 0,
+     "wireBytes": 59839,
+     "parseMs": 0,
+     "firstRenderMs": 9214.300000000745,
+     "sharedParseMs": 31.800000000745058,
+     "reportedTips": 10000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 3076 ms after mount, ready after 7981 ms including its ~350 ms fade-in and fit animation; sharedParseMs=31.8; rebuilds so far 2",
+     "loadMs": 9214.300000000745,
+     "ink": 0.010063181172010771,
+     "heapAfterMountMB": 43.41039276123047,
+     "stats": {
+      "domNodes": 104128,
+      "svgElements": 104068,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 10000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.0019844510577433274,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 104128,
+      "svg": 104068,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": 1021.1999999992549,
+     "clickToPaintMs": 5763.79999999702,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 29.94011976047774,
+     "fpsP5": 1.5015015014998283,
+     "fpsP5Rounds": [
+      1.5,
+      1.3,
+      1.2
+     ],
+     "droppedRatio": 0.9330736069831825,
+     "droppedFrames": 263,
+     "maxFrameGapMs": 666.0000000007421,
+     "frames": 74,
+     "inputSteps": 28,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 39.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 413.9,
+     "cpuDragMoveMs": 196.9,
+     "cpuMsPerStep": 413.9,
+     "loadAvgAtEnd": 1.28,
+     "heapAfterInteractionMB": 44.34074401855469,
+     "heapMB": 44.34074401855469,
+     "unusableFactor": 4.138999999999999,
+     "pageErrors": [],
+     "wallSec": 86.581,
+     "relMedianFps": 0.49700598802391416,
+     "relP5Fps": 0.04999999999994438,
+     "cpuVsStub200": 42.670103092783506
+    },
+    "otl-10k": {
+     "treeId": "otl-10k",
+     "tips": 10018,
+     "status": "timeout",
+     "reason": "unusable: load 15.5 s > 10 s; 95% of the time in frames > 50 ms (best of 3 rounds); 441 ms main-thread CPU per interaction step > 100",
+     "loadAvgAtStart": 1.26,
+     "phase": "done",
+     "fetchMs": 40.70000000298023,
+     "convertMs": 0,
+     "wireBytes": 128748,
+     "parseMs": 0,
+     "firstRenderMs": 15453.89999999851,
+     "sharedParseMs": 46.5,
+     "reportedTips": 10018,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 5892 ms after mount, ready after 14167 ms including its ~350 ms fade-in and fit animation; sharedParseMs=46.5; rebuilds so far 3",
+     "loadMs": 15453.89999999851,
+     "ink": 0.009145474648554752,
+     "heapAfterMountMB": 57.12955379486084,
+     "stats": {
+      "domNodes": 109405,
+      "svgElements": 109347,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 10018,
+       "rebuilds": 3,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 2785.699999999255,
+       "k": 0.001842224525043178,
+       "shadowRoots": 0
+      }
+     },
+     "domPierced": {
+      "nodes": 109405,
+      "svg": 109347,
+      "canvases": 0,
+      "shadowRoots": 0
+     },
+     "clickLatencyMs": null,
+     "clickToPaintMs": null,
+     "clickSamples": {
+      "events": 0,
+      "tries": 0,
+      "rightNode": 0
+     },
+     "fpsMedian": 19.960079840319942,
+     "fpsP5": 1.224439818782911,
+     "fpsP5Rounds": [
+      1,
+      1.1,
+      1.2
+     ],
+     "droppedRatio": 0.9519478521709306,
+     "droppedFrames": 200,
+     "maxFrameGapMs": 816.6999999999971,
+     "frames": 50,
+     "inputSteps": 16,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 440.9,
+     "cpuDragMoveMs": 300.8,
+     "cpuMsPerStep": 440.9,
+     "loadAvgAtEnd": 1.27,
+     "heapAfterInteractionMB": 42.64934825897217,
+     "heapMB": 42.64934825897217,
+     "unusableFactor": 4.409,
+     "pageErrors": [],
+     "wallSec": 69.53,
+     "relMedianFps": 0.33133732534930016,
+     "relP5Fps": 0.04077384596547102,
+     "cpuVsStub200": 45.45360824742268
+    },
+    "gtdb-10k": {
+     "treeId": "gtdb-10k",
+     "tips": 10122,
+     "status": "fail",
+     "reason": "library reports 10 tips, expected 10122",
+     "loadAvgAtStart": 2.13,
+     "phase": "mount",
+     "fetchMs": 33.599999997764826,
+     "convertMs": 0,
+     "wireBytes": 154525,
+     "parseMs": 0,
+     "firstRenderMs": 562,
+     "sharedParseMs": 59.900000002235174,
+     "reportedTips": 10,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 25 ms after mount, ready after 459 ms including its ~350 ms fade-in and fit animation; sharedParseMs=59.9; rebuilds so far 2",
+     "loadMs": 562,
+     "pageErrors": [],
+     "wallSec": 1.254
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 2.13,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n   ",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.706,
+     "unusableFactor": 1000000
+    },
+    "otl-91k": {
+     "treeId": "otl-91k",
+     "tips": 90938,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 2.13,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:127:20989\n    at fs (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:24250)\n    at ni (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:42305)\n    at Tv (http://127.0.0.1:39315/assets/index-CC_Li",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 4.491,
+     "unusableFactor": 1000000
+    },
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 2.04,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:127:20989\n    at fs (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:24250)\n    at ni (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:42305)\n    at Tv (http://127.0.0.1:39315/assets/index-CC_Li",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 3.612,
+     "unusableFactor": 1000000
+    },
+    "gtdb-100k": {
+     "treeId": "gtdb-100k",
+     "tips": 100000,
+     "status": "fail",
+     "reason": "library reports 989 tips, expected 100000",
+     "loadAvgAtStart": 2.83,
+     "phase": "mount",
+     "fetchMs": 59.69999999925494,
+     "convertMs": 0,
+     "wireBytes": 1294403,
+     "parseMs": 0,
+     "firstRenderMs": 1758.1000000014901,
+     "sharedParseMs": 202.89999999850988,
+     "reportedTips": 989,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 809 ms after mount, ready after 1500 ms including its ~350 ms fade-in and fit animation; sharedParseMs=202.9; rebuilds so far 2",
+     "loadMs": 1758.1000000014901,
+     "pageErrors": [],
+     "wallSec": 2.784
+    },
+    "gtdb-190k": {
+     "treeId": "gtdb-190k",
+     "tips": 189801,
+     "status": "fail",
+     "reason": "library reports 1436 tips, expected 189801",
+     "loadAvgAtStart": 2.83,
+     "phase": "mount",
+     "fetchMs": 103.40000000223517,
+     "convertMs": 0,
+     "wireBytes": 2408861,
+     "parseMs": 0,
+     "firstRenderMs": 2757.39999999851,
+     "sharedParseMs": 354.0999999977648,
+     "reportedTips": 1436,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 1256 ms after mount, ready after 2367 ms including its ~350 ms fade-in and fit animation; sharedParseMs=354.1; rebuilds so far 2",
+     "loadMs": 2757.39999999851,
+     "pageErrors": [],
+     "wallSec": 4.029
+    }
+   },
+   "status": "partial",
+   "reason": "edge-quoted-labels: fail (library reports 2 tips, expected 5); rich-corvoid-680: partial (sluggish: 53 ms CPU per step (load 913 ms, median 59.9 fps, best p5 15.0, dropped 9%, CPU/step 53 ms, click 87 ms)); otl-1k: partial (sluggish: 28% of the time in frames > 50 ms (load 1129 ms, median 59.9 fps, best p5 10.0, dropped 28%, CPU/step 49 ms, click 105 ms)); syn-yule-1000: partial (sluggish: 49% of the time in frames > 50 ms; 89 ms CPU per step (load 1773 ms, median 59.9 fps, best p5 10.0, dropped 49%, CPU/step 89 ms, click 124 ms)); syn-caterpillar-1000: timeout (unusable: 106 ms main-thread CPU per interaction step > 100); syn-yule-10000: timeout (unusable: load 46.7 s > 10 s; 94% of the time in frames > 50 ms (best of 3 rounds); click latency 1670 ms > 300 ms); syn-caterpillar-10000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); syn-balanced-10000: timeout (load 60.3 s > 10 s; interaction measures skipped); syn-bushy-10000: timeout (unusable: 93% of the time in frames > 50 ms (best of 3 rounds); 414 ms main-thread CPU per interaction step > 100; click latency 1021 ms > 300 ms); otl-10k: timeout (unusable: load 15.5 s > 10 s; 95% of the time in frames > 50 ms (best of 3 rounds); 441 ms main-thread CPU per interaction step > 100); gtdb-10k: fail (library reports 10 tips, expected 10122); edge-caterpillar-20000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); otl-91k: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); syn-yule-100000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded); gtdb-100k: fail (library reports 989 tips, expected 100000); gtdb-190k: fail (library reports 1436 tips, expected 189801)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 561.35
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 4.83
+  },
+  "S3": {
+   "status": "partial",
+   "reason": "syn-yule-1000: tip sets correct but computed by the adapter (source=adapter-derived), not delivered by the library",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeHover n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeHover n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeHover n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "adapter-derived"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 7.211
+  },
+  "S4": {
+   "status": "partial",
+   "reason": "syn-yule-1000: no layout change when colouring (6 probe tips compared)",
+   "checks": [
+    {
+     "name": "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 3.07%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": false,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {
+    "fitViewCheck": {
+     "cladeBoxPx": 97.95881472101331,
+     "redFrac": 0,
+     "redPixels": 0,
+     "note": "result at the fit view, before zooming"
+    },
+    "zoom": {
+     "mode": "row pitch 14 px",
+     "startPitch": 23.999832153320312,
+     "endPitch": 23.999832153320312,
+     "notches": 0
+    },
+    "pixelChecksAfterZoom": true,
+    "controlNote": "control clade not on screen (no control)",
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0.030669005886852695,
+     "pixelsBefore": 0,
+     "pixelsAfter": 7377,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 1,
+    "firstAttempt": {
+     "failed": [
+      "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red) (fraction 0.00% -> 0.00%)",
+      "no layout change when colouring (6 probe tips compared)",
+      "two clades, two colours (A red kept, B blue appears) (A red 0.00%, B blue 0.00%)"
+     ],
+     "measures": {
+      "cladeTips": 193,
+      "redFrac": {
+       "before": 0,
+       "after": 0,
+       "pixelsBefore": 0,
+       "pixelsAfter": 0,
+       "controlBefore": 0,
+       "controlAfter": 0
+      },
+      "domNodesDelta": 1
+     }
+    },
+    "retriedAfterZoom": true
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 12.199
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Phecisius_eurubra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 0%, dy 5%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "335 pixels differ"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-1000",
+    "treeChosenBy": "fallback: syn-yule-10000 did not mount within 10 s in S1 (timeout, load 46.7 s)",
+    "treeFallbackFrom": "syn-yule-10000",
+    "initiallyVisible": true,
+    "offCentre": {
+     "dx": 0.0018257908752566734,
+     "dy": 0.05270124767520946
+    },
+    "highlightPixels": 335
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 3.785
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:39315/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=0"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":514.810791015625,\"y\":490.8111267089844,\"width\":115.7032470703125,\"height\":10.999603271484375}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:39315/__tip__/Phumideina_macromontana",
+     "tabindex": "0",
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 514.810791015625,
+      "y": 490.8111267089844,
+      "width": 115.7032470703125,
+      "height": 10.999603271484375
+     },
+     "count": 1000
+    },
+    "popups": 1,
+    "note": "adapter reports partial: each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 4.809
+  },
+  "S7": {
+   "status": "partial",
+   "reason": "syn-yule-1000, column aln (kind alignment: the library cannot draw bars, tested with its supported kind): all checks passed",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "399 of 400 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "399/399 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "19 of 21 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "19/19 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "91% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "7 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 400,
+     "cells": 399,
+     "aligned": 399,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 0.6198883056640625,
+     "endPitch": 16.090957641601562,
+     "notches": 15
+    },
+    "after zoom and pan": {
+     "visibleTips": 21,
+     "cells": 19,
+     "aligned": 19,
+     "maxDy": 0
+    },
+    "cellDrawnFraction": 0.907563025210084,
+    "columnKind": "alignment",
+    "declaredColumnKinds": [
+     "alignment"
+    ],
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 48.503
+  },
+  "S8": {
+   "status": "partial",
+   "reason": "rich-ens-protein-197: cell is actually painted (pixels change when the column is removed) (5% of the cell rect changes); alignment cell shows several residue colours (2 colour groups)",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "197 of 197 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "197/197 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "38 of 43 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "38/38 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": false,
+     "detail": "5% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": false,
+     "detail": "2 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 197,
+     "cells": 197,
+     "aligned": 197,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 2.8486633301189914,
+     "endPitch": 15.035339355964286,
+     "notches": 10
+    },
+    "after zoom and pan": {
+     "visibleTips": 43,
+     "cells": 38,
+     "aligned": 38,
+     "maxDy": 0
+    },
+    "cellDrawnFraction": 0.04718810601163542,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 7.596
+  },
+  "S9": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 244 -> 48"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "97% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": true,
+     "detail": "997 pixels"
+    }
+   ],
+   "measures": {
+    "inkAtFit": 0.010131100931922266,
+    "lightLuminance": 244.28743275180008,
+    "darkLuminance": 47.78948735152433,
+    "tokenBackgroundFraction": 0.966758805875849,
+    "tokenBranchPixelsAtCurrentView": 0,
+    "zoom": {
+     "startPitch": 24.000015258789062,
+     "endPitch": 24.000015258789062,
+     "notches": 0
+    },
+    "pixelChecksAfterZoom": true,
+    "tokenBranchChecked": "after zooming to 14 px rows",
+    "tokenBranchPixels": 997
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 6.198
+  },
+  "S10": {
+   "status": "n/a",
+   "reason": "gtdb-190k: wheel zoom-in did not change the view (whole tree stays at the same size and position, so a zoom-out cannot be tested; the viewer may pan or scroll instead of zooming with a plain wheel)",
+   "measures": {
+    "treeId": "gtdb-190k",
+    "loadMs": 2504.900000002235,
+    "scaleBefore": null,
+    "scaleAfter": null,
+    "zoomInChangedView": false
+   },
+   "checks": [],
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 7.987
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (yes)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 197 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 19.2 px over 197 tips"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 400 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "visibleTips": 197,
+    "phylogramPearson": 0.9999999999997269,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 19.24539161333578,
+    "ultrametricTipSpread": 0,
+    "ultrametricTips": 400,
+    "scaleBarSelfReport": "yes: axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 4.24
+  },
+  "S12": {
+   "status": "fail",
+   "reason": "syn-yule-1000 radial: radial S2: tipClick event for Domefaodon_paraborealis (got tipClick n294); radial S2: tipIds=[tip] for Domefaodon_paraborealis ([\"Vukarea_meganigra\"]); radial S2: React last-event shows tip Domefaodon_paraborealis (tipClick n294 tips=1 source=adapter-derived); radial S2: metadata row shown for Domefaodon_paraborealis (Vukarea_meganigra: occurrence_count=188 country_code=US trait_value=5.4655); radial S2: tipClick event for Cherikoina_megagracilis (got tipClick n900); radial S2: tipIds=[tip] for Cherikoina_megagracilis ([\"Magogoella_microrobusta\"]); radial S2: React last-event shows tip Cherikoina_megagracilis (tipClick n900 tips=1 source=adapter-derived); radial S2: metadata row shown for Cherikoina_megagracilis (Magogoella_microrobusta: occurrence_count=1 country_code=AU trait_value=6.2071); radial S2: tipClick event for Melavuodon_prolutea (got tipClick n1612); radial S2: tipIds=[tip] for Melavuodon_prolutea ([\"Moruhais_subglabra\"]); radial S2: React last-event shows tip Melavuodon_prolutea (tipClick n1612 tips=1 source=adapter-derived); radial S2: metadata row shown for Melavuodon_prolutea (Moruhais_subglabra: occurrence_count=1 country_code=DE trait_value=4.6007); radial S2: tipClick event for Morivoa_pseudolonga (got tipClick n92); radial S2: tipIds=[tip] for Morivoa_pseudolonga ([\"Nachegoina_vulgaris\"]); radial S2: React last-event shows tip Morivoa_pseudolonga (tipClick n92 tips=1 source=adapter-derived); radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED (Nachegoina_vulgaris: occurrence_count=2 country_code=US trait_value=7.7665); radial S3: node n835 (467 tips): event on right node (got n836); radial S3: node n835: tip set equals ground truth (got 305, want 467); radial S3: node n835: React map-panel shows 467 (last=nodeHover n835 tips=467 source=adapter-derived map=305); radial S3: node n388 (224 tips): event on right node (got n404); radial S3: node n388: tip set equals ground truth (got 216, want 224); radial S3: node n388: React map-panel shows 224 (last=nodeHover n404 tips=216 source=adapter-derived map=216); radial S3: node n1768 (116 tips): event on right node (got n1899); radial S3: node n1768: tip set equals ground truth (got 26, want 116); radial S3: node n1768: React map-panel shows 116 (last=nodeHover n1899 tips=26 source=adapter-derived map=26); radial S3: node n260 (56 tips): event on right node (got n261); radial S3: node n260: tip set equals ground truth (got 51, want 56); radial S3: node n260: React map-panel shows 56 (last=nodeHover n261 tips=51 source=adapter-derived map=51); radial S4: no layout change when colouring (6 probe tips compared)",
+   "checks": [
+    {
+     "name": "setLayout(radial) changes the layout",
+     "ok": true,
+     "detail": "tip moved from 510,410 to 600,553"
+    },
+    {
+     "name": "radial S2: tipClick event for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "got tipClick n294"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "[\"Vukarea_meganigra\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "tipClick n294 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "Vukarea_meganigra: occurrence_count=188 country_code=US trait_value=5.4655"
+    },
+    {
+     "name": "radial S2: tipClick event for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "got tipClick n900"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "[\"Magogoella_microrobusta\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "tipClick n900 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "Magogoella_microrobusta: occurrence_count=1 country_code=AU trait_value=6.2071"
+    },
+    {
+     "name": "radial S2: tipClick event for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "got tipClick n1612"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "[\"Moruhais_subglabra\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
+     "ok": false,
+     "detail": "tipClick n1612 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "Moruhais_subglabra: occurrence_count=1 country_code=DE trait_value=4.6007"
+    },
+    {
+     "name": "radial S2: tipClick event for Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "got tipClick n92"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "[\"Nachegoina_vulgaris\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "tipClick n92 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": false,
+     "detail": "Nachegoina_vulgaris: occurrence_count=2 country_code=US trait_value=7.7665"
+    },
+    {
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": false,
+     "detail": "got n836"
+    },
+    {
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 305, want 467"
+    },
+    {
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": false,
+     "detail": "last=nodeHover n835 tips=467 source=adapter-derived map=305"
+    },
+    {
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": false,
+     "detail": "got n404"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 216, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": false,
+     "detail": "last=nodeHover n404 tips=216 source=adapter-derived map=216"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": false,
+     "detail": "got n1899"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 26, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": false,
+     "detail": "last=nodeHover n1899 tips=26 source=adapter-derived map=26"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": false,
+     "detail": "got n261"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 51, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": false,
+     "detail": "last=nodeHover n261 tips=51 source=adapter-derived map=51"
+    },
+    {
+     "name": "radial S3: at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    },
+    {
+     "name": "radial S4: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 67.67%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": false,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {},
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 30.777
+  },
+  "S13": {
+   "status": "pass",
+   "reason": "all checks passed; adapter self-report: multipleInstances=partial",
+   "checks": [
+    {
+     "name": "second instance mounts with its own tip count",
+     "ok": true,
+     "detail": "1000 and 200"
+    },
+    {
+     "name": "both instances draw something",
+     "ok": true,
+     "detail": "ink 1.26% / 2.94%"
+    },
+    {
+     "name": "click in instance 0 reaches only instance 0",
+     "ok": true,
+     "detail": "events 2/0"
+    },
+    {
+     "name": "click in instance 1 reaches instance 1",
+     "ok": true,
+     "detail": "events 2"
+    },
+    {
+     "name": "React state of instance 1 updated",
+     "ok": true,
+     "detail": "tipClick n243 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "instance 1 survives unmounting instance 0",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unmount leaves nothing in the container",
+     "ok": true,
+     "detail": "domNodes=0 (shadow DOM included) canvases=0"
+    },
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "331 -> 331"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "4.5 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "adapterReportsMultipleInstances": "partial: two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13.",
+    "baseline": {
+     "dom": 331,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 331,
+     "canv": 0
+    },
+    "heapMB": [
+     13.81113052368164,
+     14.355293273925781,
+     14.556800842285156,
+     18.243388175964355,
+     18.32612133026123
+    ],
+    "heapGrowthMB": 4.51499080657959,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 16.283
+  },
+  "S14": {
+   "status": "partial",
+   "reason": "at least one tip-level target (named like a tip) is reachable by Tab (only container-level targets (for example one canvas)); tree container exposes a role/label or a text fallback ({\"roles\":[],\"labelled\":false,\"textFallback\":false}); tips were not focusable at the fit view, only after focusTip",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 DISTINCT focusable elements inside the tree",
+     "ok": true,
+     "detail": "8 distinct elements (button)"
+    },
+    {
+     "name": "at least one tip-level target (named like a tip) is reachable by Tab",
+     "ok": false,
+     "detail": "only container-level targets (for example one canvas)"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "8/8 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": false,
+     "detail": "{\"roles\":[],\"labelled\":false,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [
+     {
+      "uid": 1,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 2,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 3,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 4,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 5,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 6,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 7,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 8,
+      "tag": "button",
+      "role": null,
+      "name": "1.5",
+      "tipAttr": null
+     }
+    ],
+    "tabAfterFocusTip": [
+     {
+      "uid": 9,
+      "tag": "button",
+      "role": null,
+      "name": "Rectangular",
+      "tipAttr": null
+     },
+     {
+      "uid": 10,
+      "tag": "button",
+      "role": null,
+      "name": "Circular",
+      "tipAttr": null
+     },
+     {
+      "uid": 11,
+      "tag": "button",
+      "role": null,
+      "name": "Phylogram — branch lengths proportional",
+      "tipAttr": null
+     },
+     {
+      "uid": 12,
+      "tag": "button",
+      "role": null,
+      "name": "Cladogram — topology only",
+      "tipAttr": null
+     },
+     {
+      "uid": 13,
+      "tag": "button",
+      "role": null,
+      "name": "Search taxa (⌘F)",
+      "tipAttr": null
+     },
+     {
+      "uid": 14,
+      "tag": "button",
+      "role": null,
+      "name": "Export",
+      "tipAttr": null
+     },
+     {
+      "uid": 15,
+      "tag": "button",
+      "role": null,
+      "name": "Fit",
+      "tipAttr": null
+     },
+     {
+      "uid": 16,
+      "tag": "button",
+      "role": null,
+      "name": "Reroot",
+      "tipAttr": null
+     }
+    ],
+    "neededFocusTip": true,
+    "distinctFocusable": 8,
+    "tipLevelTargets": 0,
+    "semantics": {
+     "roles": [],
+     "labelled": false,
+     "textFallback": false
+    }
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 2.985
+  },
+  "S15": {
+   "status": "timeout",
+   "reason": "syn-yule-1000, 305-tip clade (fallback tree: fallback: syn-yule-10000 did not mount within 10 s in S1 (timeout, load 46.7 s)): all checks passed; click to React commit 213 ms, to paint 705 ms (median of 5) > 300 ms (unusable)",
+   "checks": [
+    {
+     "name": "map panel shows 305 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    },
+    {
+     "name": "click-to-paint measurable for at least 3 of 5 clicks (a frame after the commit, never before the click)",
+     "ok": true,
+     "detail": "5 valid, 0 not measurable"
+    },
+    {
+     "name": "clade is red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "2.75% of the clade box, box 561 px tall"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-1000",
+    "treeChosenBy": "fallback: syn-yule-10000 did not mount within 10 s in S1 (timeout, load 46.7 s)",
+    "treeFallbackFrom": "syn-yule-10000",
+    "cladeTips": 305,
+    "clickToCommitMs": [
+     212.80000000074506,
+     172.80000000074506,
+     223.80000000074506,
+     172.09999999776483,
+     415.80000000074506
+    ],
+    "clickToPaintMs": [
+     704.8000000007451,
+     575.2000000029802,
+     711.8999999985099,
+     658.7999999970198,
+     881.3000000007451
+    ],
+    "medianCommitMs": 212.80000000074506,
+    "medianPaintMs": 704.8000000007451,
+    "pixelCheckFirstAttempt": {
+     "frac": 0,
+     "pixels": 0
+    },
+    "redFractionAfterColour": 0.027474330552476518,
+    "pixelCheck": {
+     "afterZoom": false,
+     "zoom": {
+      "zoomed": false,
+      "notches": 0,
+      "boxPxBefore": 156.6593055896834,
+      "boxPxAfter": 156.6593055896834,
+      "factor": 1,
+      "retriedAtRowPitch14": {
+       "startPitch": 23.999862670898438,
+       "endPitch": 23.999862670898438,
+       "notches": 0
+      }
+     }
+    }
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 15.83
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "fail",
+   "reason": "library reports 2 tips, expected 5",
+   "loadAvgAtStart": 2.42,
+   "phase": "mount",
+   "fetchMs": 13.099999997764826,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 0,
+   "firstRenderMs": 375.80000000074506,
+   "sharedParseMs": 1,
+   "reportedTips": 2,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 20 ms after mount, ready after 288 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+   "loadMs": 375.80000000074506,
+   "pageErrors": [],
+   "wallSec": 0.856
+  },
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "pass",
+   "reason": "load 492 ms, median 59.9 fps, best p5 59.5, dropped 0%, CPU/step 15 ms, click 26 ms",
+   "loadAvgAtStart": 2.42,
+   "phase": "done",
+   "fetchMs": 12.600000001490116,
+   "convertMs": 12.099999997764826,
+   "wireBytes": 111429,
+   "parseMs": 0,
+   "firstRenderMs": 492.1000000014901,
+   "sharedParseMs": 0.8999999985098839,
+   "reportedTips": 135,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 65 ms after mount, ready after 381 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.9; rebuilds so far 2",
+   "loadMs": 492.1000000014901,
+   "ink": 0.027806033801927033,
+   "heapAfterMountMB": 5.118059158325195,
+   "stats": {
+    "domNodes": 2042,
+    "svgElements": 1982,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 135,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.13691864204961063,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 2042,
+    "svg": 1982,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 26.199999999254942,
+   "clickToPaintMs": 135.80000000074506,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.523809523812105,
+   "fpsP5Rounds": [
+    20,
+    20,
+    59.5
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 525,
+   "inputSteps": 257,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 14.7,
+   "cpuDragMoveMs": 7.8,
+   "cpuMsPerStep": 14.7,
+   "loadAvgAtEnd": 2.56,
+   "heapAfterInteractionMB": 5.960338592529297,
+   "heapMB": 5.960338592529297,
+   "unusableFactor": 0.147,
+   "pageErrors": [],
+   "wallSec": 19.718,
+   "relMedianFps": 0.9940119760478824,
+   "relP5Fps": 1.9821428571429471,
+   "cpuVsStub200": 1.5154639175257731
+  },
+  "rich-ens-protein-197": {
+   "treeId": "rich-ens-protein-197",
+   "tips": 197,
+   "status": "pass",
+   "reason": "load 562 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 20 ms, click 30 ms",
+   "loadAvgAtStart": 2.56,
+   "phase": "done",
+   "fetchMs": 15,
+   "convertMs": 0,
+   "wireBytes": 7349,
+   "parseMs": 0,
+   "firstRenderMs": 561.6999999992549,
+   "sharedParseMs": 2.199999999254942,
+   "reportedTips": 197,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 105 ms after mount, ready after 444 ms including its ~350 ms fade-in and fit animation; sharedParseMs=2.2; rebuilds so far 2",
+   "loadMs": 561.6999999992549,
+   "ink": 0.016281788027167954,
+   "heapAfterMountMB": 6.103294372558594,
+   "stats": {
+    "domNodes": 2895,
+    "svgElements": 2837,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 197,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.09569239723864162,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 2895,
+    "svg": 2837,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 29.600000001490116,
+   "clickToPaintMs": 90.5,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 2
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.0016160127015042805,
+   "droppedFrames": 10,
+   "maxFrameGapMs": 50,
+   "frames": 462,
+   "inputSteps": 230,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 19.6,
+   "cpuDragMoveMs": 10.9,
+   "cpuMsPerStep": 19.6,
+   "loadAvgAtEnd": 2.36,
+   "heapAfterInteractionMB": 6.087040901184082,
+   "heapMB": 6.087040901184082,
+   "unusableFactor": 0.196,
+   "pageErrors": [],
+   "wallSec": 19.419,
+   "relMedianFps": 0.9940119760478283,
+   "relP5Fps": 0.997005988023965,
+   "cpuVsStub200": 2.0206185567010313
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "pass",
+   "reason": "load 591 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 20 ms, click 43 ms",
+   "loadAvgAtStart": 2.36,
+   "phase": "done",
+   "fetchMs": 24.899999998509884,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 0,
+   "firstRenderMs": 590.8999999985099,
+   "sharedParseMs": 4,
+   "reportedTips": 200,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 105 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=4.0; rebuilds so far 2",
+   "loadMs": 590.8999999985099,
+   "ink": 0.01942031274680145,
+   "heapAfterMountMB": 5.379673957824707,
+   "stats": {
+    "domNodes": 2943,
+    "svgElements": 2885,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 200,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.09417990994702445,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 2943,
+    "svg": 2885,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 43.100000001490116,
+   "clickToPaintMs": 178.60000000149012,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.88023952095548,
+   "fpsP5Rounds": [
+    20,
+    29.9,
+    59.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 565,
+   "inputSteps": 288,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 19.9,
+   "cpuDragMoveMs": 8.8,
+   "cpuMsPerStep": 19.9,
+   "loadAvgAtEnd": 2.09,
+   "heapAfterInteractionMB": 6.336682319641113,
+   "heapMB": 6.336682319641113,
+   "unusableFactor": 0.19899999999999998,
+   "pageErrors": [],
+   "wallSec": 20.022,
+   "relMedianFps": 0.9940119760478824,
+   "relP5Fps": 1.9940119760478214,
+   "cpuVsStub200": 2.051546391752577
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "pass",
+   "reason": "load 688 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 37 ms, click 55 ms",
+   "loadAvgAtStart": 2.09,
+   "phase": "done",
+   "fetchMs": 44.099999997764826,
+   "convertMs": 13.199999999254942,
+   "wireBytes": 601687,
+   "parseMs": 0,
+   "firstRenderMs": 688.1999999992549,
+   "sharedParseMs": 4.5,
+   "reportedTips": 380,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 196 ms after mount, ready after 505 ms including its ~350 ms fade-in and fit animation; sharedParseMs=4.5; rebuilds so far 2",
+   "loadMs": 688.1999999992549,
+   "ink": 0.015485705259832616,
+   "heapAfterMountMB": 6.305783271789551,
+   "stats": {
+    "domNodes": 5472,
+    "svgElements": 5412,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 380,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.05068962087688147,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 5472,
+    "svg": 5412,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 54.5,
+   "clickToPaintMs": 283.4000000022352,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    10,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0.0016390199790885052,
+   "droppedFrames": 19,
+   "maxFrameGapMs": 33.399999999999636,
+   "frames": 497,
+   "inputSteps": 244,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 36.9,
+   "cpuDragMoveMs": 16.3,
+   "cpuMsPerStep": 36.9,
+   "loadAvgAtEnd": 2.36,
+   "heapAfterInteractionMB": 7.188514709472656,
+   "heapMB": 7.188514709472656,
+   "unusableFactor": 0.369,
+   "pageErrors": [],
+   "wallSec": 20.667,
+   "relMedianFps": 0.9940119760478824,
+   "relP5Fps": 0.997005988023965,
+   "cpuVsStub200": 3.8041237113402064
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "partial",
+   "reason": "sluggish: 53 ms CPU per step (load 913 ms, median 59.9 fps, best p5 15.0, dropped 9%, CPU/step 53 ms, click 87 ms)",
+   "loadAvgAtStart": 2.36,
+   "phase": "done",
+   "fetchMs": 38,
+   "convertMs": 60.900000002235174,
+   "wireBytes": 219203,
+   "parseMs": 0,
+   "firstRenderMs": 912.6000000014901,
+   "sharedParseMs": 5.199999999254942,
+   "reportedTips": 680,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 368 ms after mount, ready after 708 ms including its ~350 ms fade-in and fit animation; sharedParseMs=5.2; rebuilds so far 2",
+   "loadMs": 912.6000000014901,
+   "ink": 0.012195545727373247,
+   "heapAfterMountMB": 8.004218101501465,
+   "stats": {
+    "domNodes": 9655,
+    "svgElements": 9597,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 680,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.028573162644499304,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 9655,
+    "svg": 9597,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 86.80000000074506,
+   "clickToPaintMs": 484.80000000074506,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 15.015015015014933,
+   "fpsP5Rounds": [
+    15,
+    15,
+    15
+   ],
+   "droppedRatio": 0.09384584564563532,
+   "droppedFrames": 75,
+   "maxFrameGapMs": 66.70000000000073,
+   "frames": 454,
+   "inputSteps": 192,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 52.8,
+   "cpuDragMoveMs": 26.3,
+   "cpuMsPerStep": 52.8,
+   "loadAvgAtEnd": 2.23,
+   "heapAfterInteractionMB": 9.098788261413574,
+   "heapMB": 9.098788261413574,
+   "unusableFactor": 0.528,
+   "pageErrors": [],
+   "wallSec": 23.624,
+   "relMedianFps": 0.9940119760478283,
+   "relP5Fps": 0.4999999999999983,
+   "cpuVsStub200": 5.443298969072165
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "partial",
+   "reason": "sluggish: 28% of the time in frames > 50 ms (load 1129 ms, median 59.9 fps, best p5 10.0, dropped 28%, CPU/step 49 ms, click 105 ms)",
+   "loadAvgAtStart": 2.29,
+   "phase": "done",
+   "fetchMs": 19.5,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 0,
+   "firstRenderMs": 1128.6000000014901,
+   "sharedParseMs": 8.199999999254942,
+   "reportedTips": 888,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 525 ms after mount, ready after 909 ms including its ~350 ms fade-in and fit animation; sharedParseMs=8.2; rebuilds so far 3",
+   "loadMs": 1128.6000000014901,
+   "ink": 0.010053703996209085,
+   "heapAfterMountMB": 8.956620216369629,
+   "stats": {
+    "domNodes": 10691,
+    "svgElements": 10633,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 888,
+     "rebuilds": 3,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 250.40000000223517,
+     "k": 0.020716081139404405,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 10691,
+    "svg": 10633,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 104.5,
+   "clickToPaintMs": 581.8999999985099,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 10,
+   "fpsP5Rounds": [
+    8.6,
+    8.6,
+    10
+   ],
+   "droppedRatio": 0.2818248504684623,
+   "droppedFrames": 89,
+   "maxFrameGapMs": 100,
+   "frames": 342,
+   "inputSteps": 144,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 49.2,
+   "cpuDragMoveMs": 27.9,
+   "cpuMsPerStep": 49.2,
+   "loadAvgAtEnd": 2.26,
+   "heapAfterInteractionMB": 9.285691261291504,
+   "heapMB": 9.285691261291504,
+   "unusableFactor": 0.5636497009369246,
+   "pageErrors": [],
+   "wallSec": 31.174,
+   "relMedianFps": 0.9940119760478283,
+   "relP5Fps": 0.3330000000000007,
+   "cpuVsStub200": 5.072164948453609
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "partial",
+   "reason": "sluggish: 49% of the time in frames > 50 ms; 89 ms CPU per step (load 1773 ms, median 59.9 fps, best p5 10.0, dropped 49%, CPU/step 89 ms, click 124 ms)",
+   "loadAvgAtStart": 2.26,
+   "phase": "done",
+   "fetchMs": 14,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 0,
+   "firstRenderMs": 1772.699999999255,
+   "sharedParseMs": 12.199999999254942,
+   "reportedTips": 1000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 751 ms after mount, ready after 1379 ms including its ~350 ms fade-in and fit animation; sharedParseMs=12.2; rebuilds so far 2",
+   "loadMs": 1772.699999999255,
+   "ink": 0.010183225398831097,
+   "heapAfterMountMB": 10.258685111999512,
+   "stats": {
+    "domNodes": 14143,
+    "svgElements": 14085,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 1000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.019786011546149715,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 14143,
+    "svg": 14085,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 123.60000000149012,
+   "clickToPaintMs": 711.6999999992549,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 10,
+   "fpsP5Rounds": [
+    7.5,
+    10,
+    8.6
+   ],
+   "droppedRatio": 0.4948107851160323,
+   "droppedFrames": 109,
+   "maxFrameGapMs": 133.29999999999927,
+   "frames": 317,
+   "inputSteps": 134,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 88.7,
+   "cpuDragMoveMs": 33.6,
+   "cpuMsPerStep": 88.7,
+   "loadAvgAtEnd": 1.95,
+   "heapAfterInteractionMB": 11.019891738891602,
+   "heapMB": 11.019891738891602,
+   "unusableFactor": 0.9896215702320647,
+   "pageErrors": [],
+   "wallSec": 24.847,
+   "relMedianFps": 0.9940119760478283,
+   "relP5Fps": 0.3330000000000007,
+   "cpuVsStub200": 9.144329896907218
+  },
+  "syn-caterpillar-1000": {
+   "treeId": "syn-caterpillar-1000",
+   "tips": 1000,
+   "status": "timeout",
+   "reason": "unusable: 106 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.95,
+   "phase": "done",
+   "fetchMs": 12.399999998509884,
+   "convertMs": 0,
+   "wireBytes": 42114,
+   "parseMs": 0,
+   "firstRenderMs": 1678.7000000029802,
+   "sharedParseMs": 9.899999998509884,
+   "reportedTips": 1000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 707 ms after mount, ready after 1161 ms including its ~350 ms fade-in and fit animation; sharedParseMs=9.9; rebuilds so far 2",
+   "loadMs": 1678.7000000029802,
+   "ink": 0.010197441162533516,
+   "heapAfterMountMB": 29.492475509643555,
+   "stats": {
+    "domNodes": 14143,
+    "svgElements": 14085,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 1000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.01978835978835979,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 14143,
+    "svg": 14085,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 197.10000000149012,
+   "clickToPaintMs": 1110.300000000745,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 11.990407673860963,
+   "fpsP5Rounds": [
+    10,
+    12,
+    10
+   ],
+   "droppedRatio": 0.38737679211469467,
+   "droppedFrames": 86,
+   "maxFrameGapMs": 83.39999999999964,
+   "frames": 357,
+   "inputSteps": 144,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 106.4,
+   "cpuDragMoveMs": 40.5,
+   "cpuMsPerStep": 106.4,
+   "loadAvgAtEnd": 1.92,
+   "heapAfterInteractionMB": 30.097976684570312,
+   "heapMB": 30.097976684570312,
+   "unusableFactor": 1.064,
+   "pageErrors": [],
+   "wallSec": 21.633,
+   "relMedianFps": 0.9940119760478283,
+   "relP5Fps": 0.39928057553957086,
+   "cpuVsStub200": 10.969072164948455
+  },
+  "syn-yule-10000": {
+   "treeId": "syn-yule-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: load 46.7 s > 10 s; 94% of the time in frames > 50 ms (best of 3 rounds); click latency 1670 ms > 300 ms",
+   "loadAvgAtStart": 1.92,
+   "phase": "done",
+   "fetchMs": 17.5,
+   "convertMs": 0,
+   "wireBytes": 149065,
+   "parseMs": 0,
+   "firstRenderMs": 46729.89999999851,
+   "sharedParseMs": 37.20000000298023,
+   "reportedTips": 10000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 4328 ms after mount, ready after 44446 ms including its ~350 ms fade-in and fit animation; sharedParseMs=37.2; rebuilds so far 2",
+   "loadMs": 46729.89999999851,
+   "ink": 0.010063181172010771,
+   "heapAfterMountMB": 65.27799701690674,
+   "stats": {
+    "domNodes": 140152,
+    "svgElements": 140092,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 10000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.0019844510577433274,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 140152,
+    "svg": 140092,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 1669.8999999985099,
+   "clickToPaintMs": 8248.39999999851,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 12.004801920767887,
+   "fpsP5": 1.3335111348179602,
+   "fpsP5Rounds": [
+    1.2,
+    1.1,
+    1.3
+   ],
+   "droppedRatio": 0.9439962350410124,
+   "droppedFrames": 254,
+   "maxFrameGapMs": 749.9000000000087,
+   "frames": 41,
+   "inputSteps": 17,
+   "fpsP95": 60.60606060606061,
+   "idleCpuPctOfOneCore": 92.8,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 33.3,
+   "cpuDragMoveMs": 5.1,
+   "cpuMsPerStep": 33.3,
+   "loadAvgAtEnd": 1.29,
+   "heapAfterInteractionMB": 64.55820274353027,
+   "heapMB": 64.55820274353027,
+   "unusableFactor": 5.566333333328366,
+   "pageErrors": [],
+   "wallSec": 141.848,
+   "relMedianFps": 0.1992797118847404,
+   "relP5Fps": 0.04440592078943816,
+   "cpuVsStub200": 3.4329896907216493
+  },
+  "syn-caterpillar-10000": {
+   "treeId": "syn-caterpillar-10000",
+   "tips": 10000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 1.29,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at parseFloat (<anonymous>)\n    at e0 (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1\n    at Array.some (<anonymous>)\n    at e0 (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    ",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.934,
+   "unusableFactor": 1000000
+  },
+  "syn-balanced-10000": {
+   "treeId": "syn-balanced-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "load 60.3 s > 10 s; interaction measures skipped",
+   "loadAvgAtStart": 1.75,
+   "phase": "mount",
+   "fetchMs": 19.700000002980232,
+   "convertMs": 0,
+   "wireBytes": 61341,
+   "parseMs": 0,
+   "firstRenderMs": 60339,
+   "sharedParseMs": 40,
+   "reportedTips": 10000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 4382 ms after mount, ready after 58667 ms including its ~350 ms fade-in and fit animation; sharedParseMs=40.0; rebuilds so far 2",
+   "loadMs": 60339,
+   "ink": 0.010063181172010771,
+   "heapAfterMountMB": 58.13872051239014,
+   "stats": {
+    "domNodes": 140150,
+    "svgElements": 140090,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 10000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.0019844510577433274,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 140150,
+    "svg": 140090,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "unusableFactor": 6.0339,
+   "pageErrors": [],
+   "wallSec": 63.615
+  },
+  "syn-bushy-10000": {
+   "treeId": "syn-bushy-10000",
+   "tips": 10000,
+   "status": "timeout",
+   "reason": "unusable: 93% of the time in frames > 50 ms (best of 3 rounds); 414 ms main-thread CPU per interaction step > 100; click latency 1021 ms > 300 ms",
+   "loadAvgAtStart": 1.38,
+   "phase": "done",
+   "fetchMs": 15.899999998509884,
+   "convertMs": 0,
+   "wireBytes": 59839,
+   "parseMs": 0,
+   "firstRenderMs": 9214.300000000745,
+   "sharedParseMs": 31.800000000745058,
+   "reportedTips": 10000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 3076 ms after mount, ready after 7981 ms including its ~350 ms fade-in and fit animation; sharedParseMs=31.8; rebuilds so far 2",
+   "loadMs": 9214.300000000745,
+   "ink": 0.010063181172010771,
+   "heapAfterMountMB": 43.41039276123047,
+   "stats": {
+    "domNodes": 104128,
+    "svgElements": 104068,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 10000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.0019844510577433274,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 104128,
+    "svg": 104068,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": 1021.1999999992549,
+   "clickToPaintMs": 5763.79999999702,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 29.94011976047774,
+   "fpsP5": 1.5015015014998283,
+   "fpsP5Rounds": [
+    1.5,
+    1.3,
+    1.2
+   ],
+   "droppedRatio": 0.9330736069831825,
+   "droppedFrames": 263,
+   "maxFrameGapMs": 666.0000000007421,
+   "frames": 74,
+   "inputSteps": 28,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 39.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 413.9,
+   "cpuDragMoveMs": 196.9,
+   "cpuMsPerStep": 413.9,
+   "loadAvgAtEnd": 1.28,
+   "heapAfterInteractionMB": 44.34074401855469,
+   "heapMB": 44.34074401855469,
+   "unusableFactor": 4.138999999999999,
+   "pageErrors": [],
+   "wallSec": 86.581,
+   "relMedianFps": 0.49700598802391416,
+   "relP5Fps": 0.04999999999994438,
+   "cpuVsStub200": 42.670103092783506
+  },
+  "otl-10k": {
+   "treeId": "otl-10k",
+   "tips": 10018,
+   "status": "timeout",
+   "reason": "unusable: load 15.5 s > 10 s; 95% of the time in frames > 50 ms (best of 3 rounds); 441 ms main-thread CPU per interaction step > 100",
+   "loadAvgAtStart": 1.26,
+   "phase": "done",
+   "fetchMs": 40.70000000298023,
+   "convertMs": 0,
+   "wireBytes": 128748,
+   "parseMs": 0,
+   "firstRenderMs": 15453.89999999851,
+   "sharedParseMs": 46.5,
+   "reportedTips": 10018,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 5892 ms after mount, ready after 14167 ms including its ~350 ms fade-in and fit animation; sharedParseMs=46.5; rebuilds so far 3",
+   "loadMs": 15453.89999999851,
+   "ink": 0.009145474648554752,
+   "heapAfterMountMB": 57.12955379486084,
+   "stats": {
+    "domNodes": 109405,
+    "svgElements": 109347,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 10018,
+     "rebuilds": 3,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 2785.699999999255,
+     "k": 0.001842224525043178,
+     "shadowRoots": 0
+    }
+   },
+   "domPierced": {
+    "nodes": 109405,
+    "svg": 109347,
+    "canvases": 0,
+    "shadowRoots": 0
+   },
+   "clickLatencyMs": null,
+   "clickToPaintMs": null,
+   "clickSamples": {
+    "events": 0,
+    "tries": 0,
+    "rightNode": 0
+   },
+   "fpsMedian": 19.960079840319942,
+   "fpsP5": 1.224439818782911,
+   "fpsP5Rounds": [
+    1,
+    1.1,
+    1.2
+   ],
+   "droppedRatio": 0.9519478521709306,
+   "droppedFrames": 200,
+   "maxFrameGapMs": 816.6999999999971,
+   "frames": 50,
+   "inputSteps": 16,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 440.9,
+   "cpuDragMoveMs": 300.8,
+   "cpuMsPerStep": 440.9,
+   "loadAvgAtEnd": 1.27,
+   "heapAfterInteractionMB": 42.64934825897217,
+   "heapMB": 42.64934825897217,
+   "unusableFactor": 4.409,
+   "pageErrors": [],
+   "wallSec": 69.53,
+   "relMedianFps": 0.33133732534930016,
+   "relP5Fps": 0.04077384596547102,
+   "cpuVsStub200": 45.45360824742268
+  },
+  "gtdb-10k": {
+   "treeId": "gtdb-10k",
+   "tips": 10122,
+   "status": "fail",
+   "reason": "library reports 10 tips, expected 10122",
+   "loadAvgAtStart": 2.13,
+   "phase": "mount",
+   "fetchMs": 33.599999997764826,
+   "convertMs": 0,
+   "wireBytes": 154525,
+   "parseMs": 0,
+   "firstRenderMs": 562,
+   "sharedParseMs": 59.900000002235174,
+   "reportedTips": 10,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 25 ms after mount, ready after 459 ms including its ~350 ms fade-in and fit animation; sharedParseMs=59.9; rebuilds so far 2",
+   "loadMs": 562,
+   "pageErrors": [],
+   "wallSec": 1.254
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 2.13,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n    at n (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:1:1)\n   ",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.706,
+   "unusableFactor": 1000000
+  },
+  "otl-91k": {
+   "treeId": "otl-91k",
+   "tips": 90938,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 2.13,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:127:20989\n    at fs (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:24250)\n    at ni (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:42305)\n    at Tv (http://127.0.0.1:39315/assets/index-CC_Li",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 4.491,
+   "unusableFactor": 1000000
+  },
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 2.04,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at http://127.0.0.1:39315/assets/index-CC_LiNnT.js:127:20989\n    at fs (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:24250)\n    at ni (http://127.0.0.1:39315/assets/index-CC_LiNnT.js:40:42305)\n    at Tv (http://127.0.0.1:39315/assets/index-CC_Li",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 3.612,
+   "unusableFactor": 1000000
+  },
+  "gtdb-100k": {
+   "treeId": "gtdb-100k",
+   "tips": 100000,
+   "status": "fail",
+   "reason": "library reports 989 tips, expected 100000",
+   "loadAvgAtStart": 2.83,
+   "phase": "mount",
+   "fetchMs": 59.69999999925494,
+   "convertMs": 0,
+   "wireBytes": 1294403,
+   "parseMs": 0,
+   "firstRenderMs": 1758.1000000014901,
+   "sharedParseMs": 202.89999999850988,
+   "reportedTips": 989,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 809 ms after mount, ready after 1500 ms including its ~350 ms fade-in and fit animation; sharedParseMs=202.9; rebuilds so far 2",
+   "loadMs": 1758.1000000014901,
+   "pageErrors": [],
+   "wallSec": 2.784
+  },
+  "gtdb-190k": {
+   "treeId": "gtdb-190k",
+   "tips": 189801,
+   "status": "fail",
+   "reason": "library reports 1436 tips, expected 189801",
+   "loadAvgAtStart": 2.83,
+   "phase": "mount",
+   "fetchMs": 103.40000000223517,
+   "convertMs": 0,
+   "wireBytes": 2408861,
+   "parseMs": 0,
+   "firstRenderMs": 2757.39999999851,
+   "sharedParseMs": 354.0999999977648,
+   "reportedTips": 1436,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 1256 ms after mount, ready after 2367 ms including its ~350 ms fade-in and fit animation; sharedParseMs=354.1; rebuilds so far 2",
+   "loadMs": 2757.39999999851,
+   "pageErrors": [],
+   "wallSec": 4.029
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261019-153119-S4-two-clades.png",
+   "bytes": 47009
+  },
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261019-153119-S4-two-clades.png",
+   "bytes": 101591
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261019-153119-S9-dark.png",
+   "bytes": 49248
+  },
+  {
+   "label": "S12-radial",
+   "file": "screens/20261019-153119-S12-radial.png",
+   "bytes": 50392
+  },
+  {
+   "label": "S1-rich-fish-carangaria-135",
+   "file": "screens/20261019-153119-S1-rich-fish-carangaria-135.png",
+   "bytes": 70697
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261019-153119-S5-focus-highlight.png",
+   "bytes": 111439
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261019-153119-S15-linked-view.png",
+   "bytes": 119004
+  }
+ ],
+ "wallSec": 766.693,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

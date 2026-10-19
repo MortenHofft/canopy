@@ -9,7 +9,7 @@ import { RESULTS_DIR, fmt } from './lib/util.mjs';
 const SC = Array.from({ length: 15 }, (_, i) => `S${i + 1}`);
 const LABEL = { pass: 'pass', partial: 'partial', fail: 'FAIL', unsupported: 'unsupported', timeout: 'TIMEOUT', 'n/a': 'n/a', skipped: 'skipped' };
 const cell = (r) => (r ? LABEL[r.status] ?? r.status : '-');
-const ORDER = ['stub', 'custom', 'react-bio-viz', 'phylotree-js', 'tbrowse', 'phylocanvas-gl', 'archaeopteryx-js'];
+const ORDER = ['stub', 'custom', 'react-bio-viz', 'phylotree-js', 'tbrowse', 'phylocanvas-gl', 'archaeopteryx-js', 'taxonium', 'reactree', 'heat-tree'];
 
 const finalFile = path.join(RESULTS_DIR, 'FINAL.json');
 const FINAL = fs.existsSync(finalFile) ? JSON.parse(fs.readFileSync(finalFile, 'utf8')) : null;

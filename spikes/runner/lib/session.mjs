@@ -139,6 +139,33 @@ export class Session {
     }, i);
   }
 
+  /** DOM size of a tree container including the content of open shadow roots (the shell's light-DOM-only count missed them). */
+  domStats(i = 0) {
+    return this.page.evaluate((i) => {
+      const root = document.querySelector(`[data-testid=${i === 0 ? 'tree-container' : 'tree-container-' + i}]`);
+      let nodes = 0, svg = 0, canvases = 0, shadowRoots = 0;
+      if (!root) return { nodes, svg, canvases, shadowRoots };
+      const stack = [root];
+      if (root.shadowRoot) {
+        shadowRoots++;
+        stack.push(root.shadowRoot);
+      }
+      while (stack.length) {
+        const top = stack.pop();
+        for (const e of top.querySelectorAll('*')) {
+          nodes++;
+          if (e.namespaceURI === 'http://www.w3.org/2000/svg') svg++;
+          if (e.tagName === 'CANVAS') canvases++;
+          if (e.shadowRoot) {
+            shadowRoots++;
+            stack.push(e.shadowRoot);
+          }
+        }
+      }
+      return { nodes, svg, canvases, shadowRoots };
+    }, i);
+  }
+
   async settle(ms = 120) {
     await this.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     await sleep(ms);

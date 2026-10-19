@@ -1,5 +1,5 @@
 {
- "asOf": "2026-10-14",
+ "asOf": "2026-10-19",
  "legend": {
   "c": {
    "y": "Yes",
@@ -696,110 +696,110 @@
   {
    "id": "taxonium",
    "title": "Taxonium",
-   "kind": "reference",
+   "kind": "spike",
    "repo": "https://github.com/theosanderson/taxonium",
    "demo": "https://taxonium.org",
    "license": "GPL-3.0",
-   "version": "",
+   "version": "taxonium-component 2.1.24 (React 19)",
    "rendering": "WebGL (deck.gl)",
    "research": "docs/research/taxonium.md",
-   "summary": "WebGL viewer for trees with millions of nodes, shipped as a whole app inside a React component.",
-   "verdict": "Strong renderer, wrong packaging: GPL-3.0, React 19 only, singleton, only onNodeSelect. Not spiked.",
+   "summary": "WebGL viewer for very large trees, packaged as a whole app inside a React component. GPL-3.0: demo only.",
+   "verdict": "Demo only (GPL-3.0). Loads 100k tips in 6 s and the 1M tree in 23.5 s (725 MB heap): the large-tree claim holds on loading. Frame rate could not be judged without a GPU. No hover, columns, alignment or radial layout; one tree per page; state reachable only through React internals; poor Nexus support.",
    "cells": {
     "g1": {
      "c": "n",
      "e": "S",
-     "t": "GPL-3.0; no license field in the component package"
+     "t": "GPL-3.0 (taxonium-component); 12 other packages are MPL-2.0. Demo only, not for shipping"
     },
     "g2": {
      "c": "y",
-     "e": "S",
-     "t": "Static mode available"
+     "e": "M",
+     "t": "Static"
     },
     "g3": {
      "c": "p",
-     "e": "S",
-     "t": "React 19 only; module-level singleton"
+     "e": "M",
+     "t": "React 19 only; the shell runs on it unchanged; singleton worker: S13 fails"
     },
     "g4": {
      "c": "y",
      "e": "S",
-     "t": "Last commit 2026-10-07; npm 2026-02-04; about 85% of commits by one person"
+     "t": "Active; about 85% of commits by one person"
     },
     "tip": {
-     "c": "p",
-     "e": "S",
-     "t": "onNodeSelect(nodeId) only"
+     "c": "y",
+     "e": "M",
+     "t": "S2 pass"
     },
     "node": {
-     "c": "u",
-     "e": "U",
-     "t": "Not confirmed for internal nodes"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: node click via the branch line, tip set adapter-derived"
     },
     "clade": {
      "c": "p",
-     "e": "S",
-     "t": "Colour by metadata field or search state"
+     "e": "M",
+     "t": "S4 pass after zooming in; tips only; outlines hide the fill below 3,000 drawn nodes"
     },
     "link": {
-     "c": "n",
-     "e": "U",
-     "t": "WebGL"
+     "c": "p",
+     "e": "M",
+     "t": "S6 pass via a DOM overlay"
     },
     "cols": {
      "c": "n",
-     "e": "S",
-     "t": "Fixed layers; no custom columns"
+     "e": "M",
+     "t": "S7, S8 unsupported"
     },
     "style": {
      "c": "p",
-     "e": "S",
-     "t": "Colour config, no per-node callback"
+     "e": "M",
+     "t": "S9 pass: GBIF colours and dark theme, but camera, colours and settings are reached through React fiber props (not an API)"
     },
     "layout": {
      "c": "n",
-     "e": "S",
-     "t": "Rectangular only"
+     "e": "M",
+     "t": "Rectangular only; S12 unsupported"
     },
     "bl": {
      "c": "p",
-     "e": "S",
-     "t": "x axis can switch between distance and time"
+     "e": "M",
+     "t": "S11 pass by remounting; no scale bar or time axis"
     },
     "overview": {
      "c": "p",
-     "e": "D",
-     "t": "Level of detail by design"
+     "e": "M",
+     "t": "Minimap exists; S10 timeout (software GL)"
     },
     "scale": {
-     "c": "y",
-     "e": "C",
-     "t": "Millions of nodes claimed; browser unreliable above about 6M tips"
+     "c": "u",
+     "e": "M",
+     "t": "Loads 100k in 6.1 s and 1M in 23.5 s (725 MB heap); recolouring a clade blocked the main thread for 2.5 s at 1M; frame rate not judgeable without a GPU"
     },
     "parse": {
      "c": "p",
-     "e": "S",
-     "t": "Newick, Nexus via regex; no phyloXML"
+     "e": "M",
+     "t": "Newick plus TSV; TRANSLATE not applied on real MCC files; quoted labels and multi-tree Nexus give errors"
     },
     "ops": {
      "c": "n",
-     "e": "U",
-     "t": ""
+     "e": "M",
+     "t": "None; the singleton worker keeps the last tree after unmount (35 MB per 100k tips)"
     }
    }
   },
   {
    "id": "reactree",
    "title": "Reactree",
-   "kind": "reference",
+   "kind": "spike",
    "repo": "https://github.com/vaaloo/reactreejs",
    "demo": "https://reactree.vaaloo.fr/",
    "license": "MIT",
-   "version": "",
+   "version": "reactreejs 1.0.3",
    "rendering": "SVG (d3)",
    "research": "docs/research/reactree.md",
-   "summary": "React component for Newick trees with an optional alignment panel.",
-   "verdict": "Three props, no callbacks or custom content; rebuilds the whole SVG on any change; captures Ctrl/Cmd+F. Rejected.",
+   "summary": "React component for Newick trees with D3 zoom and pan and an optional FASTA alignment panel.",
+   "verdict": "Does more than its three props suggest, but everything beyond drawing a Newick string goes through its DOM (partial at best). 1,000 tips are sluggish, 10k takes 47 s to mount, 5,000+ deep trees overflow the stack, quoted labels break the parser, and it silently read 1,436 of 189,801 tips on one real tree.",
    "cells": {
     "g1": {
      "c": "y",
@@ -808,13 +808,13 @@
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
      "c": "p",
-     "e": "S",
-     "t": "Component, but no callbacks or refs"
+     "e": "M",
+     "t": "Component; no callbacks; two instances and clean unmount work (S13 pass)"
     },
     "g4": {
      "c": "p",
@@ -822,159 +822,159 @@
      "t": "11 commits, 1 star, no releases"
     },
     "tip": {
-     "c": "n",
-     "e": "S",
-     "t": "No callbacks"
+     "c": "p",
+     "e": "M",
+     "t": "S2 pass: clicks read from the d3 datum (adapter-derived)"
     },
     "node": {
-     "c": "n",
-     "e": "S",
-     "t": "Click collapses a clade internally; no event"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial: tip set derived by the adapter"
     },
     "clade": {
-     "c": "n",
-     "e": "S",
-     "t": "UI feature only; no API"
+     "c": "p",
+     "e": "M",
+     "t": "S4 partial: drives the library's own colour mode; only 12 palette colours"
     },
     "link": {
-     "c": "n",
-     "e": "S",
-     "t": "No"
+     "c": "p",
+     "e": "M",
+     "t": "S6 pass via an overlay"
     },
     "cols": {
-     "c": "n",
-     "e": "S",
-     "t": "FASTA panel only"
+     "c": "p",
+     "e": "M",
+     "t": "S7, S8 partial: its FASTA panel lines up with tips to 0.0 px, but substring matching can draw another tip's sequence"
     },
     "style": {
-     "c": "p",
-     "e": "S",
-     "t": "CSS tokens and data-theme dark mode"
+     "c": "y",
+     "e": "M",
+     "t": "S9 pass: CSS tokens and data-theme dark mode"
     },
     "layout": {
-     "c": "y",
-     "e": "S",
-     "t": "Rectangular and circular"
+     "c": "p",
+     "e": "M",
+     "t": "Rectangular and circular; S12 fails in the runner"
     },
     "bl": {
      "c": "y",
-     "e": "S",
-     "t": "Phylogram and cladogram"
+     "e": "M",
+     "t": "S11 pass"
     },
     "overview": {
      "c": "n",
-     "e": "S",
-     "t": "No"
+     "e": "M",
+     "t": "Fit view of a 1,000-tip tree is an 8 px wide sliver"
     },
     "scale": {
      "c": "n",
-     "e": "S",
-     "t": "26 px per leaf, whole SVG rebuilt on change"
+     "e": "M",
+     "t": "1k sluggish (89 ms CPU per step); 5k ready after 15.5 s; 10k 47 s to mount; fails at 91k and 100k with a stack overflow"
     },
     "parse": {
      "c": "p",
-     "e": "S",
-     "t": "Naive Newick"
+     "e": "M",
+     "t": "Newick only; quoted labels break the parser; caterpillars of 3,500+ tips crash"
     },
     "ops": {
      "c": "p",
-     "e": "D",
-     "t": "Reroot and collapse in the UI"
+     "e": "M",
+     "t": "Collapse, reroot, search and export in its UI"
     }
    }
   },
   {
    "id": "heat-tree",
    "title": "Heat-tree",
-   "kind": "reference",
+   "kind": "spike",
    "repo": "https://grunwaldlab.github.io/heattree/",
    "demo": "https://grunwaldlab.github.io/heattree/",
    "license": "MIT (R package); none in JS repo",
-   "version": "",
+   "version": "@grunwaldlab/heat-tree 0.3.1",
    "rendering": "unconfirmed",
    "research": "docs/research/heat-tree.md",
-   "summary": "2026 embeddable tree widget with JS, R and Python packages.",
-   "verdict": "No click, hover or select callbacks and no highlight API; good Nexus parsing (TRANSLATE, multi-tree). Rejected as a component.",
+   "summary": "Embeddable tree widget with a built-in control panel and metadata-to-visual mapping.",
+   "verdict": "Works but does not scale: first render is quadratic (1k 2 s, 5k 17 s, 10k over 270 s). No callbacks or highlight API (shadow-DOM workarounds), panel cannot be hidden, quoted labels and BEAST Nexus fail, no alignment rendering.",
    "cells": {
     "g1": {
      "c": "p",
      "e": "S",
-     "t": "MIT on the R package; no LICENSE file in the JS repo"
+     "t": "MIT declared; no LICENSE file in the npm package or the JS repo"
     },
     "g2": {
      "c": "y",
-     "e": "S",
+     "e": "M",
      "t": "Static"
     },
     "g3": {
-     "c": "u",
-     "e": "U",
-     "t": "Not confirmed"
+     "c": "p",
+     "e": "M",
+     "t": "Imperative widget; shadow DOM; naive unmount throws d3-zoom errors (worked around); two instances OK (S13 pass)"
     },
     "g4": {
-     "c": "u",
-     "e": "U",
-     "t": "Very new (2026)"
+     "c": "p",
+     "e": "S",
+     "t": "Very new; 63 downloads a month"
     },
     "tip": {
-     "c": "n",
-     "e": "S",
-     "t": "No callbacks"
+     "c": "p",
+     "e": "M",
+     "t": "S2 pass via the shadow DOM (adapter-derived)"
     },
     "node": {
-     "c": "n",
-     "e": "S",
-     "t": "No callbacks"
+     "c": "p",
+     "e": "M",
+     "t": "S3 partial"
     },
     "clade": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "p",
+     "e": "M",
+     "t": "S4 pass via shadow-DOM workarounds"
     },
     "link": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "p",
+     "e": "M",
+     "t": "S6 pass via an overlay"
     },
     "cols": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "p",
+     "e": "M",
+     "t": "S7 partial; no alignment rendering (S8 unsupported)"
     },
     "style": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "p",
+     "e": "M",
+     "t": "S9 pass; panel cannot be hidden"
     },
     "layout": {
      "c": "y",
-     "e": "D",
-     "t": "Radial and rectangular"
+     "e": "M",
+     "t": "Radial and rectangular; S12 pass"
     },
     "bl": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "y",
+     "e": "M",
+     "t": "S11 pass"
     },
     "overview": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "n",
+     "e": "M",
+     "t": "No overview; wheel zoom works"
     },
     "scale": {
-     "c": "u",
-     "e": "U",
-     "t": "No numbers"
+     "c": "n",
+     "e": "M",
+     "t": "First render quadratic: 1k 2 s, 5k 17 s, 10k 273 to 330 s; pan and zoom 53 to 76 ms per step at 1k"
     },
     "parse": {
-     "c": "y",
-     "e": "S",
-     "t": "Nexus with TRANSLATE and multiple trees"
+     "c": "p",
+     "e": "M",
+     "t": "Quoted labels fail, BEAST Nexus fails, plain multi-tree Nexus works; caterpillars overflow at 10,000 depth"
     },
     "ops": {
-     "c": "u",
-     "e": "U",
-     "t": ""
+     "c": "n",
+     "e": "M",
+     "t": "SVG and PNG export only, no Newick export"
     }
    }
   },

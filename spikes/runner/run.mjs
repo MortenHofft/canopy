@@ -14,11 +14,11 @@ import { makeScenarios, SCENARIO_TITLES } from './lib/scenarios.mjs';
 import { calibrate, loadavg } from './lib/measure.mjs';
 
 const ALL = Array.from({ length: 15 }, (_, i) => `S${i + 1}`);
-const GROUPS = ['smoke', 'ladder', 'worst', 'real', 'cols', 'align', 'dated', 'edge'];
+const GROUPS = ['smoke', 'ladder', 'worst', 'real', 'cols', 'align', 'dated', 'edge', 'huge'];
 
 function usage() {
   console.log(`usage: node spikes/runner/run.mjs --candidate <name> [--scenarios S1,S2|all] [--trees smoke|ladder|worst|real|cols|align|dated|edge|<tree ids>]
-                                     [--port N] [--no-build] [--out dir] [--functional-tree <id>] [--skip-large] [--max-minutes N] [--no-calibration] [--label text]
+                                     [--port N] [--no-build] [--out dir] [--functional-tree <id>] [--skip-large] [--max-minutes N] [--s5-tree <id>] [--s15-tree <id>] [--no-calibration] [--label text]
   --trees selects the trees for S1 (scale table) and S10; the other scenarios use fixed trees (see README).
   tree ids: ${catalogue.map((t) => t.id).join(', ')}`);
 }
@@ -108,13 +108,21 @@ try {
     if (stubServer && stubServer !== server) await stubServer.stop();
   }
   const maxMin = args['max-minutes'] ? Number(args['max-minutes']) : null;
-  const opts = { scaleTrees, functionalTree: args['functional-tree'], skipLarge: !!args['skip-large'], deadline: maxMin ? started + (maxMin - 8) * 60000 : null, s1Results: null };
+  const opts = { scaleTrees, functionalTree: args['functional-tree'], skipLarge: !!args['skip-large'], deadline: null, s1Results: null, s5Tree: args['s5-tree'], s15Tree: args['s15-tree'] };
   const S = makeScenarios({ browser, opts, saveShot, log });
   const scenarios = {};
   // order: functional scenarios first (quick, always get run), then the scale ladder S1 (bounded by the time cap), then S10 (needs S1's mounts)
-  const order = [...scenarioIds.filter((x) => x !== 'S1' && x !== 'S10'), ...scenarioIds.filter((x) => x === 'S1'), ...scenarioIds.filter((x) => x === 'S10')];
+  // S5 and S15 come after S1 because they fall back to the largest tree S1 mounted when the default (10k) did not mount
+  const early = (x) => !['S1', 'S5', 'S10', 'S15'].includes(x);
+  const order = [...scenarioIds.filter(early), ...['S1', 'S5', 'S15', 'S10'].filter((x) => scenarioIds.includes(x))];
   for (const sid of order) {
     const t0 = Date.now();
+    if (sid === 'S1' && maxMin) {
+      // S1's budget: what is left of the cap minus a reserve for S5, S15 and S10 (at least 30 s, so a small cap still measures something)
+      const remaining = maxMin * 60000 - (Date.now() - started);
+      const reserve = Math.min(8, 0.25 * maxMin) * 60000;
+      opts.deadline = Date.now() + Math.max(30000, remaining - reserve);
+    }
     log(`${sid} ${SCENARIO_TITLES[sid]}`);
     let r;
     try {

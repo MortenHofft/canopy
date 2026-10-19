@@ -297,6 +297,10 @@ class InstanceController implements SpikeApi {
     const r = await d.promise;
     const tPaint = await nextPaint();
     this.set({ status: 'mounted' });
+    // a mount through window.__spike.mount (not through the demo's own picker) must also leave the demo UI "mounted"
+    if (this.index === 0 && this.shared.ui.state.phase !== 'loading') {
+      this.shared.ui.set({ treeId: o.treeId, phase: 'mounted', error: null, result: { tips: r.tips, expected: r.tips, parseMs: r.parseMs, firstRenderMs: tPaint - t0, fetchMs: 0, sharedParseMs, notes: r.notes } });
+    }
     await metaP;
     return { parseMs: r.parseMs, firstRenderMs: tPaint - t0, tips: r.tips, notes: r.notes, sharedParseMs };
   }
@@ -304,6 +308,7 @@ class InstanceController implements SpikeApi {
   async unmount(): Promise<void> {
     this.readyDeferred = null;
     flushSync(() => this.set({ ...initialState(), size: this.state.size }));
+    if (this.index === 0 && this.shared.ui.state.phase === 'mounted') this.shared.ui.set({ phase: 'idle', result: null });
     this.handleRef.current = null;
     await nextPaint();
   }
@@ -370,13 +375,32 @@ class InstanceController implements SpikeApi {
     const el = this.containerEl;
     const h = this.handleRef.current;
     if (!el) return { domNodes: 0, svgElements: 0, canvases: 0 };
-    return {
-      domNodes: el.querySelectorAll('*').length,
-      svgElements: el.querySelectorAll('svg, svg *').length,
-      canvases: el.querySelectorAll('canvas').length,
-      custom: h?.custom?.(),
-    };
+    const c = countDom(el);
+    return { domNodes: c.nodes, svgElements: c.svg, canvases: c.canvases, custom: { ...(h?.custom?.() ?? {}), shadowRoots: c.shadowRoots } };
   }
+}
+
+/** Element counts under `root`, including the content of open shadow roots (iterative; light-DOM-only counts miss them). */
+export function countDom(root: Element): { nodes: number; svg: number; canvases: number; shadowRoots: number } {
+  let nodes = 0, svg = 0, canvases = 0, shadowRoots = 0;
+  const stack: (Element | ShadowRoot)[] = [root];
+  if (root.shadowRoot) {
+    shadowRoots++;
+    stack.push(root.shadowRoot);
+  }
+  while (stack.length) {
+    const top = stack.pop() as Element | ShadowRoot;
+    for (const e of top.querySelectorAll('*')) {
+      nodes++;
+      if (e.namespaceURI === 'http://www.w3.org/2000/svg') svg++;
+      if (e.tagName === 'CANVAS') canvases++;
+      if (e.shadowRoot) {
+        shadowRoots++;
+        stack.push(e.shadowRoot);
+      }
+    }
+  }
+  return { nodes, svg, canvases, shadowRoots };
 }
 
 function safePayload(p: unknown): unknown {
@@ -425,8 +449,14 @@ function Viewer({ ctl, adapter, shared }: { ctl: InstanceController; adapter: Ca
   useEffect(() => {
     if (!s.eventCount) return;
     const m = shared.metrics.input;
-    m.lastEventCommit = performance.now();
-    void nextPaint().then((t) => (m.lastEventPaint = t));
+    const commitT = performance.now();
+    m.lastEventCommit = commitT;
+    m.lastEventPaint = 0; // not painted yet: readers wait for a value >= lastEventCommit instead of reading a stale one
+    // first frame after this commit (two animation frames), same performance.now() clock as event.timeStamp; never earlier than the commit
+    void nextPaint().then((t) => {
+      if (t >= m.lastEventCommit) m.lastEventPaint = t;
+    });
+    void commitT;
   }, [s.eventCount, shared.metrics.input]);
   const View = adapter.View;
   const props: ViewProps | null =
@@ -941,7 +971,7 @@ function Shell({ shared, c0, c1, embed }: { shared: Shared; c0: InstanceControll
           <main className="main">
             <Viewer ctl={c0} adapter={shared.adapter} shared={shared} />
             <HoverTip shared={shared} c0={c0} />
-            {u.phase === 'idle' && <div className="empty-state">Choose a tree in the Tree panel to load it.</div>}
+            {u.phase === 'idle' && !s0.mountId && !s1.mountId && <div className="empty-state">Choose a tree in the Tree panel to load it.</div>}
             {u.phase === 'loading' && <div className="overlay-loading" aria-hidden="true">Loading {u.loadingTips.toLocaleString()} tips...</div>}
             {u.phase === 'error' && <div className="overlay-loading error">{u.error}</div>}
           </main>
