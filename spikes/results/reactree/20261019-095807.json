@@ -1,0 +1,1700 @@
+{
+ "runId": "20261019-095807",
+ "candidate": {
+  "name": "Reactree",
+  "version": "1.0.3",
+  "license": "MIT",
+  "notes": "reactreejs: React component with three props (newick, fasta, defaultHeight), D3 SVG, built-in toolbar. Everything beyond rendering is driven through its DOM (partial).",
+  "columnKinds": [
+   "alignment"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no callback; capture-phase click listener on our wrapper reads the d3 datum (__data__) of the clicked circle.r-hit or text.leaf-label. The library itself only opens its own node-info panel on a tip click."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same DOM listener on circle.r-hit. The library collapses the clade into a triangle on that click; the adapter stops that by default (option switch) so colouring works."
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "path.b-hit (12 px transparent hit stroke) listener; datum is the link, target = clade below the branch. The library reacts only in colour mode."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover capture on circle.r-hit and tip labels; the library shows tooltips only inside its edit modes. Events are adapter-derived."
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "no payload at all: the adapter walks the datum (d.data.children) for leaf names and maps them to the shared TreeModel (mrca by name); after a library reroot/ladderize the clade may not exist in the shared tree (flagged exactClade=false)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "drives the library colour mode through its own toolbar button, palette swatch and synthetic clicks on node hit circles (one rebuild per colour). Only the 12 palette colours exist (nearest chosen); no free colour, no API."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "own SVG ring circles inserted into the tip group after each rebuild (re-applied by a MutationObserver). Library search (Ctrl+F) highlights one substring only and is not used for this."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "synthetic wheel and mouse events fed to the library d3-zoom (zoom to about 24 px row pitch, then drag the tip to the middle); instant, no API."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+  },
+  "customColumns": {
+   "level": "no",
+   "how": "no per-tip column API; the only per-tip panel is the FASTA alignment canvas (bar and text columns cannot be drawn)."
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "one alignment column becomes the fasta prop; panel is shown by clicking its toolbar button; fixed 14 px cells and 172 px label canvas (ColumnSpec.width ignored), rectangular layout only, rows scroll with the tree."
+  },
+  "radialLayout": {
+   "level": "partial",
+   "how": "library has a circular layout, switched by clicking its toolbar button (no prop)."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "library phylogram/cladogram buttons, clicked from the adapter (no prop). Cladogram uses d3.cluster so tips align."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "documented data-theme=\"dark\" on <html> (MutationObserver); rebuilds the SVG. Global attribute, so it also affects the host page."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--clr-* and --font-family map onto GBIF tokens for the chrome; tree colours are hard-coded hex in JS, re-themed with CSS attribute selectors on those hex values (brittle). Canvas alignment colours and fonts cannot be styled."
+  },
+  "multipleInstances": {
+   "level": "partial",
+   "how": "two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13."
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; effects remove their window listeners and the MutationObserver; portals unmount with the component (verified in S13/S1 teardown)."
+  },
+  "controlledState": {
+   "level": "no",
+   "how": "three props only (newick, fasta, defaultHeight); a changed newick resets all state. Everything else is internal React state reachable only through the DOM."
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fits on mount and on layout change; a Fit toolbar button exists but no API."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none; every node and label is always drawn, min zoom 0.05."
+  }
+ },
+ "date": "2026-10-19T10:04:40.979Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 1.25,
+  "end": 5.33,
+  "max": 5.6,
+  "noisy": true,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 1.25,
+  "canvas": {
+   "fpsMedian": 102.04081632604576,
+   "fpsP5": 29.94011976047896,
+   "fpsP5Rounds": [
+    29.9,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 21,
+   "maxFrameGapMs": 50,
+   "frames": 835,
+   "inputSteps": 192,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 5.4,
+   "cpuDragMoveMs": 5.4,
+   "cpuMsPerStep": 5.4,
+   "loadavg": 1.84
+  },
+  "stub200": {
+   "error": "page.waitForFunction: Timeout 20000ms exceeded."
+  },
+  "loadEnd": 1.68
+ },
+ "label": null,
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S2",
+   "S3",
+   "S4",
+   "S5",
+   "S6",
+   "S7",
+   "S8",
+   "S9",
+   "S10",
+   "S11",
+   "S12",
+   "S13",
+   "S14",
+   "S15"
+  ],
+  "scaleTrees": [
+   "edge-quoted-labels",
+   "syn-yule-200",
+   "syn-yule-1000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1137078,
+  "jsGzipBytes": 352572,
+  "cssBytes": 49827,
+  "cssGzipBytes": 9332,
+  "totalBytes": 1187307,
+  "totalGzipBytes": 362171,
+  "files": [
+   {
+    "path": "assets/html2canvas.esm-BfxBtG_O.js",
+    "bytes": 202285,
+    "gzipBytes": 47774
+   },
+   {
+    "path": "assets/index-Bsh3rAgE.css",
+    "bytes": 49827,
+    "gzipBytes": 9332
+   },
+   {
+    "path": "assets/index-BxUYaesV.js",
+    "bytes": 363395,
+    "gzipBytes": 113286
+   },
+   {
+    "path": "assets/index.es-DXTViln0.js",
+    "bytes": 150909,
+    "gzipBytes": 51472
+   },
+   {
+    "path": "assets/jspdf.es.min-BKkQIMgT.js",
+    "bytes": 390020,
+    "gzipBytes": 128324
+   },
+   {
+    "path": "assets/purify.es-CAi2OJFm.js",
+    "bytes": 30469,
+    "gzipBytes": 11716
+   },
+   {
+    "path": "index.html",
+    "bytes": 402,
+    "gzipBytes": 267
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "fail",
+     "reason": "library reports 2 tips, expected 5",
+     "loadAvgAtStart": 5.6,
+     "phase": "mount",
+     "fetchMs": 41.5,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 0,
+     "firstRenderMs": 586.5999999999767,
+     "sharedParseMs": 1,
+     "reportedTips": 2,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 5 ms, ready after 490 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+     "loadMs": 586.5999999999767,
+     "pageErrors": [],
+     "wallSec": 1.467
+    },
+    "syn-yule-200": {
+     "treeId": "syn-yule-200",
+     "tips": 200,
+     "status": "pass",
+     "reason": "load 594 ms, median 59.5 fps, best p5 20.0, dropped 7%, CPU/step 22 ms, click 32 ms",
+     "loadAvgAtStart": 5.6,
+     "phase": "done",
+     "fetchMs": 13.699999999953434,
+     "convertMs": 0,
+     "wireBytes": 8432,
+     "parseMs": 0,
+     "firstRenderMs": 593.6999999999534,
+     "sharedParseMs": 6.5,
+     "reportedTips": 200,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 2 ms, ready after 486 ms including its ~350 ms fade-in and fit animation; sharedParseMs=6.5; rebuilds so far 2",
+     "loadMs": 593.6999999999534,
+     "ink": 0.021472121307850256,
+     "heapAfterMountMB": 5.364091873168945,
+     "stats": {
+      "domNodes": 2943,
+      "svgElements": 2885,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 200,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.09362718713006526
+      }
+     },
+     "clickLatencyMs": 32.300000000046566,
+     "clickToPaintMs": 280.30000000004657,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.52380952380888,
+     "fpsP5": 19.960079840319217,
+     "fpsP5Rounds": [
+      10,
+      10,
+      20
+     ],
+     "droppedRatio": 0.06664413272490456,
+     "droppedFrames": 75,
+     "maxFrameGapMs": 66.60000000000036,
+     "frames": 348,
+     "inputSteps": 164,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 21.8,
+     "cpuDragMoveMs": 8.7,
+     "cpuMsPerStep": 21.8,
+     "loadAvgAtEnd": 4.39,
+     "heapAfterInteractionMB": 6.400148391723633,
+     "heapMB": 6.400148391723633,
+     "unusableFactor": 0.218,
+     "pageErrors": [],
+     "wallSec": 22.4,
+     "relMedianFps": 0.5833333333360987,
+     "relP5Fps": 0.6666666666666636
+    },
+    "syn-yule-1000": {
+     "treeId": "syn-yule-1000",
+     "tips": 1000,
+     "status": "partial",
+     "reason": "sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms)",
+     "loadAvgAtStart": 4.39,
+     "phase": "done",
+     "fetchMs": 14.699999999953434,
+     "convertMs": 0,
+     "wireBytes": 41755,
+     "parseMs": 0,
+     "firstRenderMs": 1917.1999999999534,
+     "sharedParseMs": 15,
+     "reportedTips": 1000,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 3 ms, ready after 1572 ms including its ~350 ms fade-in and fit animation; sharedParseMs=15.0; rebuilds so far 2",
+     "loadMs": 1917.1999999999534,
+     "ink": 0.012415100300110615,
+     "heapAfterMountMB": 10.413246154785156,
+     "stats": {
+      "domNodes": 14143,
+      "svgElements": 14085,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 1000,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.019755671811445868
+      }
+     },
+     "clickLatencyMs": 133.5,
+     "clickToPaintMs": 1137.9000000000233,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 10,
+     "fpsP5Rounds": [
+      8.6,
+      8.6,
+      10
+     ],
+     "droppedRatio": 0.4126606377915336,
+     "droppedFrames": 90,
+     "maxFrameGapMs": 116.60000000000218,
+     "frames": 351,
+     "inputSteps": 144,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 90.1,
+     "cpuDragMoveMs": 35.5,
+     "cpuMsPerStep": 90.1,
+     "loadAvgAtEnd": 5.35,
+     "heapAfterInteractionMB": 11.142605781555176,
+     "heapMB": 11.142605781555176,
+     "unusableFactor": 0.9009999999999999,
+     "pageErrors": [],
+     "wallSec": 29.089,
+     "relMedianFps": 0.5868263473081521,
+     "relP5Fps": 0.3340000000000009
+    }
+   },
+   "status": "partial",
+   "reason": "edge-quoted-labels: fail (library reports 2 tips, expected 5); syn-yule-1000: partial (sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 52.957
+  },
+  "S2": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "tipClick event for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "got tipClick n252"
+    },
+    {
+     "name": "tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "[\"Domefaodon_paraborealis\"]"
+    },
+    {
+     "name": "React last-event shows tip Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "tipClick n252 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Domefaodon_paraborealis",
+     "ok": true,
+     "detail": "Domefaodon_paraborealis: occurrence_count=1 country_code=US trait_value=5.9998"
+    },
+    {
+     "name": "tipClick event for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "got tipClick n921"
+    },
+    {
+     "name": "tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "[\"Cherikoina_megagracilis\"]"
+    },
+    {
+     "name": "React last-event shows tip Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "tipClick n921 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Cherikoina_megagracilis",
+     "ok": true,
+     "detail": "Cherikoina_megagracilis: occurrence_count=1 country_code=AU trait_value=6.4799"
+    },
+    {
+     "name": "tipClick event for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "got tipClick n1583"
+    },
+    {
+     "name": "tipIds=[tip] for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "[\"Melavuodon_prolutea\"]"
+    },
+    {
+     "name": "React last-event shows tip Melavuodon_prolutea",
+     "ok": true,
+     "detail": "tipClick n1583 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "metadata row shown for Melavuodon_prolutea",
+     "ok": true,
+     "detail": "Melavuodon_prolutea: occurrence_count=3 country_code=DE trait_value=5.6942"
+    },
+    {
+     "name": "tipClick event for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "got tipClick n64"
+    },
+    {
+     "name": "tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "[\"Morivoa_pseudolonga\"]"
+    },
+    {
+     "name": "React last-event shows tip Morivoa_pseudolonga",
+     "ok": true,
+     "detail": "tipClick n64 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": true,
+     "detail": "Morivoa_pseudolonga: UNMATCHED (no metadata row)"
+    }
+   ],
+   "measures": {
+    "focusNeeded": false,
+    "tipsTried": 4,
+    "tipsOk": 4,
+    "metadataChecked": true
+   },
+   "notes": [
+    "tips are made visible with focusTip first because rows are sub-pixel at the fit view"
+   ],
+   "title": "Click a tip",
+   "evidence": "M",
+   "durationSec": 4.711
+  },
+  "S3": {
+   "status": "partial",
+   "reason": "syn-yule-1000: tip sets correct but computed by the adapter (source=adapter-derived), not delivered by the library",
+   "checks": [
+    {
+     "name": "node n835 (467 tips): event on right node",
+     "ok": true,
+     "detail": "got n835"
+    },
+    {
+     "name": "node n835: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 467, want 467"
+    },
+    {
+     "name": "node n835: React map-panel shows 467",
+     "ok": true,
+     "detail": "last=nodeClick n835 tips=467 source=adapter-derived map=467"
+    },
+    {
+     "name": "node n388 (224 tips): event on right node",
+     "ok": true,
+     "detail": "got n388"
+    },
+    {
+     "name": "node n388: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 224, want 224"
+    },
+    {
+     "name": "node n388: React map-panel shows 224",
+     "ok": true,
+     "detail": "last=nodeHover n388 tips=224 source=adapter-derived map=224"
+    },
+    {
+     "name": "node n1768 (116 tips): event on right node",
+     "ok": true,
+     "detail": "got n1768"
+    },
+    {
+     "name": "node n1768: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 116, want 116"
+    },
+    {
+     "name": "node n1768: React map-panel shows 116",
+     "ok": true,
+     "detail": "last=nodeHover n1768 tips=116 source=adapter-derived map=116"
+    },
+    {
+     "name": "node n260 (56 tips): event on right node",
+     "ok": true,
+     "detail": "got n260"
+    },
+    {
+     "name": "node n260: tip set equals ground truth",
+     "ok": true,
+     "detail": "got 56, want 56"
+    },
+    {
+     "name": "node n260: React map-panel shows 56",
+     "ok": true,
+     "detail": "last=nodeHover n260 tips=56 source=adapter-derived map=56"
+    },
+    {
+     "name": "at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    }
+   ],
+   "measures": {
+    "nodes": [
+     {
+      "nodeId": "n835",
+      "tips": 467,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n388",
+      "tips": 224,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n1768",
+      "tips": 116,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     },
+     {
+      "nodeId": "n260",
+      "tips": 56,
+      "hit": true,
+      "setOk": true,
+      "source": "adapter-derived"
+     }
+    ],
+    "nodesOk": 4,
+    "sources": [
+     "adapter-derived"
+    ]
+   },
+   "title": "Click an internal node",
+   "evidence": "M",
+   "durationSec": 9.146
+  },
+  "S4": {
+   "status": "fail",
+   "reason": "syn-yule-1000: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red) (fraction 0.00% -> 0.00%); no layout change when colouring (6 probe tips compared); two clades, two colours (A red kept, B blue appears) (A red 0.00%, B blue 0.00%)",
+   "checks": [
+    {
+     "name": "clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": false,
+     "detail": "fraction 0.00% -> 0.00%"
+    },
+    {
+     "name": "other clade unchanged (control)",
+     "ok": true,
+     "detail": "0.00% -> 0.00%"
+    },
+    {
+     "name": "React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "no layout change when colouring",
+     "ok": false,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "two clades, two colours (A red kept, B blue appears)",
+     "ok": false,
+     "detail": "A red 0.00%, B blue 0.00%"
+    },
+    {
+     "name": "clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {
+    "cladeTips": 193,
+    "redFrac": {
+     "before": 0,
+     "after": 0,
+     "pixelsBefore": 0,
+     "pixelsAfter": 0,
+     "controlBefore": 0,
+     "controlAfter": 0
+    },
+    "domNodesDelta": 1
+   },
+   "title": "Colour clades from React state",
+   "evidence": "M",
+   "durationSec": 7.691
+  },
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-10000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Pozenea_pseudoglabra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 0%, dy 5%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "341 pixels differ"
+    }
+   ],
+   "measures": {
+    "initiallyVisible": true,
+    "offCentre": {
+     "dx": 0.00161160384849846,
+     "dy": 0.05366020026302484
+    },
+    "highlightPixels": 341
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 59.183
+  },
+  "S6": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "a[href][data-tip-id] exists for a visible tip",
+     "ok": true,
+     "detail": "no matching anchor in the DOM"
+    },
+    {
+     "name": "href is the requested URL",
+     "ok": true,
+     "detail": "http://127.0.0.1:5208/__tip__/Phumideina_macromontana"
+    },
+    {
+     "name": "keyboard focusable (tabindex not -1)",
+     "ok": true,
+     "detail": "tabindex=0"
+    },
+    {
+     "name": "element.focus() takes focus",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "has non-zero size",
+     "ok": true,
+     "detail": "{\"x\":514.5606689453125,\"y\":490.8265380859375,\"width\":115.7032470703125,\"height\":11.000030517578125}"
+    },
+    {
+     "name": "real click opens a new tab",
+     "ok": true,
+     "detail": "target=_blank; popups=1"
+    },
+    {
+     "name": "setTipLinks(null) removes the anchors",
+     "ok": true,
+     "detail": "0 remain"
+    }
+   ],
+   "measures": {
+    "anchor": {
+     "href": "http://127.0.0.1:5208/__tip__/Phumideina_macromontana",
+     "tabindex": "0",
+     "target": "_blank",
+     "rel": "noopener noreferrer",
+     "rect": {
+      "x": 514.5606689453125,
+      "y": 490.8265380859375,
+      "width": 115.7032470703125,
+      "height": 11.000030517578125
+     },
+     "count": 1000
+    },
+    "popups": 1,
+    "note": "adapter reports partial: each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+   },
+   "title": "Tip label as a link",
+   "evidence": "M",
+   "durationSec": 5.322
+  },
+  "S7": {
+   "status": "unsupported",
+   "reason": "adapter reports customColumns=no: no per-tip column API; the only per-tip panel is the FASTA alignment canvas (bar and text columns cannot be drawn).",
+   "title": "Custom column (bar) aligned to tips",
+   "evidence": "M",
+   "durationSec": 0.607
+  },
+  "S8": {
+   "status": "partial",
+   "reason": "rich-ens-protein-197: cell is actually painted (pixels change when the column is removed) (6% of the cell rect changes); alignment cell shows several residue colours (2 colour groups)",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "197 of 197 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "197/197 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "38 of 43 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "38/38 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": false,
+     "detail": "6% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": false,
+     "detail": "2 colour groups"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 197,
+     "cells": 197,
+     "aligned": 197,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 2.85821533207198,
+     "endPitch": 15.085723877331253,
+     "notches": 10
+    },
+    "after zoom and pan": {
+     "visibleTips": 43,
+     "cells": 38,
+     "aligned": 38,
+     "maxDy": 0
+    },
+    "cellDrawnFraction": 0.06190476190476191,
+    "alignmentTipsWithSequence": 197
+   },
+   "title": "Alignment column",
+   "evidence": "M",
+   "durationSec": 8.13
+  },
+  "S9": {
+   "status": "partial",
+   "reason": "syn-yule-1000: branch token applied (pixels in branch colour) (0 pixels)",
+   "checks": [
+    {
+     "name": "dark theme darkens the view",
+     "ok": true,
+     "detail": "mean luminance 244 -> 48"
+    },
+    {
+     "name": "dark theme still draws the tree",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "background token applied (dominant colour)",
+     "ok": true,
+     "detail": "96% of pixels"
+    },
+    {
+     "name": "branch token applied (pixels in branch colour)",
+     "ok": false,
+     "detail": "0 pixels"
+    }
+   ],
+   "measures": {
+    "lightLuminance": 244.0242327252592,
+    "darkLuminance": 47.86822312501763,
+    "tokenBackgroundFraction": 0.9567272152898436,
+    "tokenBranchPixels": 0
+   },
+   "notes": [
+    "per-node colour from a callback is covered by S4 (setColouredClades); no separate callback API in the contract"
+   ],
+   "title": "Theming (dark, tokens)",
+   "evidence": "M",
+   "durationSec": 5.64
+  },
+  "S10": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed; while zooming out median 59.9 fps, 26% of the time in frames > 50 ms, DOM nodes 14143, canvases 0; overviewOrMinimap self-report: no",
+   "checks": [
+    {
+     "name": "whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)",
+     "ok": true,
+     "detail": "after 3 wheel notches via bounds"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": true,
+     "detail": "67 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "syn-yule-1000",
+    "loadMs": 1628.5,
+    "scaleBefore": {
+     "kind": "pitch",
+     "v": 0.62017822265625
+    },
+    "scaleAfter": null,
+    "zoomInChangedView": true,
+    "notches": 3,
+    "zoomOutSec": 0.246,
+    "wholeTreeBy": "bounds",
+    "fpsMedian": 59.88023952095548,
+    "fpsP5": 14.992503748125978,
+    "droppedRatio": 0.26499801350824176,
+    "maxFrameGapMs": 66.69999999999982,
+    "droppedFrames": 7,
+    "inkAfterZoomOut": 0.03207234244195234,
+    "stats": {
+     "domNodes": 14143,
+     "svgElements": 14085,
+     "canvases": 0,
+     "custom": {
+      "leafLabels": 1000,
+      "rebuilds": 2,
+      "unmatchedEvents": 0,
+      "inexactClicks": 0,
+      "colourSkipped": 0,
+      "lastDriveMs": 0,
+      "k": 0.18921152934511895
+     }
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 6.191
+  },
+  "S11": {
+   "status": "pass",
+   "reason": "all checks passed; scale bar / time axis is self-reported only (yes)",
+   "checks": [
+    {
+     "name": "phylogram: tip x follows root-to-tip length (Pearson >= 0.97)",
+     "ok": true,
+     "detail": "r=1.000 over 197 visible tips"
+    },
+    {
+     "name": "toggle to cladogram changes the layout (tips move)",
+     "ok": true,
+     "detail": "mean tip shift 19.1 px over 197 tips"
+    },
+    {
+     "name": "cladogram no longer proportional to length",
+     "ok": true,
+     "detail": "r 1.000 -> -"
+    },
+    {
+     "name": "toggling back restores the phylogram",
+     "ok": true,
+     "detail": "r=1.000"
+    },
+    {
+     "name": "dated (ultrametric) phylogram: tips end at the same x (spread < 2% of width)",
+     "ok": true,
+     "detail": "spread 0.00% over 400 tips"
+    },
+    {
+     "name": "edge case with missing, zero and negative lengths renders",
+     "ok": true,
+     "detail": "tips 10"
+    },
+    {
+     "name": "tip with a negative length is locatable",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "visibleTips": 197,
+    "phylogramPearson": 0.9999999999995223,
+    "cladogramPearson": null,
+    "meanTipShiftPx": 19.097275090096566,
+    "ultrametricTipSpread": 0,
+    "ultrametricTips": 400,
+    "scaleBarSelfReport": "yes: axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+   },
+   "title": "Phylogram / cladogram",
+   "evidence": "M",
+   "durationSec": 4.465
+  },
+  "S12": {
+   "status": "fail",
+   "reason": "syn-yule-1000 radial: radial S2: tipClick event for Domefaodon_paraborealis (got tipClick n294); radial S2: tipIds=[tip] for Domefaodon_paraborealis ([\"Vukarea_meganigra\"]); radial S2: React last-event shows tip Domefaodon_paraborealis (tipClick n294 tips=1 source=adapter-derived); radial S2: metadata row shown for Domefaodon_paraborealis (Vukarea_meganigra: occurrence_count=188 country_code=US trait_value=5.4655); radial S2: tipClick event for Cherikoina_megagracilis (got tipClick n900); radial S2: tipIds=[tip] for Cherikoina_megagracilis ([\"Magogoella_microrobusta\"]); radial S2: React last-event shows tip Cherikoina_megagracilis (tipClick n900 tips=1 source=adapter-derived); radial S2: metadata row shown for Cherikoina_megagracilis (Magogoella_microrobusta: occurrence_count=1 country_code=AU trait_value=6.2071); radial S2: tipClick event for Melavuodon_prolutea (got tipClick n1612); radial S2: tipIds=[tip] for Melavuodon_prolutea ([\"Moruhais_subglabra\"]); radial S2: React last-event shows tip Melavuodon_prolutea (tipClick n1612 tips=1 source=adapter-derived); radial S2: metadata row shown for Melavuodon_prolutea (Moruhais_subglabra: occurrence_count=1 country_code=DE trait_value=4.6007); radial S2: tipClick event for Morivoa_pseudolonga (got tipClick n92); radial S2: tipIds=[tip] for Morivoa_pseudolonga ([\"Nachegoina_vulgaris\"]); radial S2: React last-event shows tip Morivoa_pseudolonga (tipClick n92 tips=1 source=adapter-derived); radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED (Nachegoina_vulgaris: occurrence_count=2 country_code=US trait_value=7.7665); radial S3: node n835 (467 tips): event on right node (got n836); radial S3: node n835: tip set equals ground truth (got 305, want 467); radial S3: node n835: React map-panel shows 467 (last=nodeHover n835 tips=467 source=adapter-derived map=305); radial S3: node n388 (224 tips): event on right node (got n404); radial S3: node n388: tip set equals ground truth (got 216, want 224); radial S3: node n388: React map-panel shows 224 (last=nodeHover n404 tips=216 source=adapter-derived map=216); radial S3: node n1768 (116 tips): event on right node (got n1899); radial S3: node n1768: tip set equals ground truth (got 26, want 116); radial S3: node n1768: React map-panel shows 116 (last=nodeHover n1899 tips=26 source=adapter-derived map=26); radial S3: node n260 (56 tips): event on right node (got n261); radial S3: node n260: tip set equals ground truth (got 51, want 56); radial S3: node n260: React map-panel shows 56 (last=nodeHover n261 tips=51 source=adapter-derived map=51); radial S4: other clade unchanged (control) (0.00% -> 13.22%); radial S4: no layout change when colouring (6 probe tips compared)",
+   "checks": [
+    {
+     "name": "setLayout(radial) changes the layout",
+     "ok": true,
+     "detail": "tip moved from 510,408 to 600,553"
+    },
+    {
+     "name": "radial S2: tipClick event for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "got tipClick n294"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "[\"Vukarea_meganigra\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "tipClick n294 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Domefaodon_paraborealis",
+     "ok": false,
+     "detail": "Vukarea_meganigra: occurrence_count=188 country_code=US trait_value=5.4655"
+    },
+    {
+     "name": "radial S2: tipClick event for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "got tipClick n900"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "[\"Magogoella_microrobusta\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "tipClick n900 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Cherikoina_megagracilis",
+     "ok": false,
+     "detail": "Magogoella_microrobusta: occurrence_count=1 country_code=AU trait_value=6.2071"
+    },
+    {
+     "name": "radial S2: tipClick event for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "got tipClick n1612"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "[\"Moruhais_subglabra\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Melavuodon_prolutea",
+     "ok": false,
+     "detail": "tipClick n1612 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: metadata row shown for Melavuodon_prolutea",
+     "ok": false,
+     "detail": "Moruhais_subglabra: occurrence_count=1 country_code=DE trait_value=4.6007"
+    },
+    {
+     "name": "radial S2: tipClick event for Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "got tipClick n92"
+    },
+    {
+     "name": "radial S2: tipIds=[tip] for Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "[\"Nachegoina_vulgaris\"]"
+    },
+    {
+     "name": "radial S2: React last-event shows tip Morivoa_pseudolonga",
+     "ok": false,
+     "detail": "tipClick n92 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "radial S2: React map-panel count 1",
+     "ok": true,
+     "detail": "count=1"
+    },
+    {
+     "name": "radial S2: unmatched tip Morivoa_pseudolonga reported as UNMATCHED",
+     "ok": false,
+     "detail": "Nachegoina_vulgaris: occurrence_count=2 country_code=US trait_value=7.7665"
+    },
+    {
+     "name": "radial S3: node n835 (467 tips): event on right node",
+     "ok": false,
+     "detail": "got n836"
+    },
+    {
+     "name": "radial S3: node n835: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 305, want 467"
+    },
+    {
+     "name": "radial S3: node n835: React map-panel shows 467",
+     "ok": false,
+     "detail": "last=nodeHover n835 tips=467 source=adapter-derived map=305"
+    },
+    {
+     "name": "radial S3: node n388 (224 tips): event on right node",
+     "ok": false,
+     "detail": "got n404"
+    },
+    {
+     "name": "radial S3: node n388: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 216, want 224"
+    },
+    {
+     "name": "radial S3: node n388: React map-panel shows 224",
+     "ok": false,
+     "detail": "last=nodeHover n404 tips=216 source=adapter-derived map=216"
+    },
+    {
+     "name": "radial S3: node n1768 (116 tips): event on right node",
+     "ok": false,
+     "detail": "got n1899"
+    },
+    {
+     "name": "radial S3: node n1768: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 26, want 116"
+    },
+    {
+     "name": "radial S3: node n1768: React map-panel shows 116",
+     "ok": false,
+     "detail": "last=nodeHover n1899 tips=26 source=adapter-derived map=26"
+    },
+    {
+     "name": "radial S3: node n260 (56 tips): event on right node",
+     "ok": false,
+     "detail": "got n261"
+    },
+    {
+     "name": "radial S3: node n260: tip set equals ground truth",
+     "ok": false,
+     "detail": "got 51, want 56"
+    },
+    {
+     "name": "radial S3: node n260: React map-panel shows 56",
+     "ok": false,
+     "detail": "last=nodeHover n261 tips=51 source=adapter-derived map=51"
+    },
+    {
+     "name": "radial S3: at least 3 nodes tested",
+     "ok": true,
+     "detail": "tested 4"
+    },
+    {
+     "name": "radial S4: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
+     "ok": true,
+     "detail": "fraction 0.00% -> 52.79%"
+    },
+    {
+     "name": "radial S4: other clade unchanged (control)",
+     "ok": false,
+     "detail": "0.00% -> 13.22%"
+    },
+    {
+     "name": "radial S4: React clades panel lists A",
+     "ok": true,
+     "detail": "[{\"nodeId\":\"n3\",\"colour\":\"#ff0000\"}]"
+    },
+    {
+     "name": "radial S4: no layout change when colouring",
+     "ok": false,
+     "detail": "6 probe tips compared"
+    },
+    {
+     "name": "radial S4: two clades, two colours (A red kept, B blue appears)",
+     "ok": true,
+     "detail": "A red 52.79%, B blue 47.65%"
+    },
+    {
+     "name": "radial S4: clear restores the original colours",
+     "ok": true,
+     "detail": "A red 0.00% (was 0.00%)"
+    },
+    {
+     "name": "radial S4: React clades panel empty after clear",
+     "ok": true,
+     "detail": "[]"
+    },
+    {
+     "name": "radial S4: no layout change after clear",
+     "ok": true,
+     "detail": "6 probe tips compared"
+    }
+   ],
+   "measures": {},
+   "title": "Radial layout",
+   "evidence": "M",
+   "durationSec": 25.984
+  },
+  "S13": {
+   "status": "pass",
+   "reason": "all checks passed; adapter self-report: multipleInstances=partial",
+   "checks": [
+    {
+     "name": "second instance mounts with its own tip count",
+     "ok": true,
+     "detail": "1000 and 200"
+    },
+    {
+     "name": "both instances draw something",
+     "ok": true,
+     "detail": "ink 1.60% / 2.93%"
+    },
+    {
+     "name": "click in instance 0 reaches only instance 0",
+     "ok": true,
+     "detail": "events 2/0"
+    },
+    {
+     "name": "click in instance 1 reaches instance 1",
+     "ok": true,
+     "detail": "events 2"
+    },
+    {
+     "name": "React state of instance 1 updated",
+     "ok": true,
+     "detail": "tipClick n243 tips=1 source=adapter-derived"
+    },
+    {
+     "name": "instance 1 survives unmounting instance 0",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unmount leaves nothing in the container",
+     "ok": true,
+     "detail": "domNodes=0 canvases=0"
+    },
+    {
+     "name": "five mount/unmount cycles complete",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "document DOM node count returns to baseline",
+     "ok": true,
+     "detail": "314 -> 314"
+    },
+    {
+     "name": "no canvases / GL contexts left behind",
+     "ok": true,
+     "detail": "0 -> 0"
+    },
+    {
+     "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
+     "ok": true,
+     "detail": "9.1 MB"
+    },
+    {
+     "name": "no page errors",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "measures": {
+    "adapterReportsMultipleInstances": "partial: two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13.",
+    "baseline": {
+     "dom": 314,
+     "canv": 0
+    },
+    "afterCycles": {
+     "dom": 314,
+     "canv": 0
+    },
+    "heapMB": [
+     13.558266639709473,
+     17.956900596618652,
+     18.268935203552246,
+     18.80409526824951,
+     22.634531021118164
+    ],
+    "heapGrowthMB": 9.076264381408691,
+    "pageErrors": []
+   },
+   "title": "Two instances, mount/unmount x5",
+   "evidence": "M",
+   "durationSec": 16.257
+  },
+  "S14": {
+   "status": "partial",
+   "reason": "at least one tip-level target (named like a tip) is reachable by Tab (only container-level targets (for example one canvas)); tree container exposes a role/label or a text fallback ({\"roles\":[],\"labelled\":false,\"textFallback\":false}); tips were not focusable at the fit view, only after focusTip",
+   "checks": [
+    {
+     "name": "Tab reaches at least 3 DISTINCT focusable elements inside the tree",
+     "ok": true,
+     "detail": "8 distinct elements (button)"
+    },
+    {
+     "name": "at least one tip-level target (named like a tip) is reachable by Tab",
+     "ok": false,
+     "detail": "only container-level targets (for example one canvas)"
+    },
+    {
+     "name": "focusable elements have accessible names",
+     "ok": true,
+     "detail": "8/8 named"
+    },
+    {
+     "name": "tree container exposes a role/label or a text fallback",
+     "ok": false,
+     "detail": "{\"roles\":[],\"labelled\":false,\"textFallback\":false}"
+    }
+   ],
+   "measures": {
+    "tabAtFit": [
+     {
+      "uid": 1,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 2,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 3,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 4,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 5,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 6,
+      "tag": "button",
+      "role": null,
+      "name": "1.0×",
+      "tipAttr": null
+     },
+     {
+      "uid": 7,
+      "tag": "input",
+      "role": null,
+      "name": "",
+      "tipAttr": null
+     },
+     {
+      "uid": 8,
+      "tag": "button",
+      "role": null,
+      "name": "1.5",
+      "tipAttr": null
+     }
+    ],
+    "tabAfterFocusTip": [
+     {
+      "uid": 9,
+      "tag": "button",
+      "role": null,
+      "name": "Rectangular",
+      "tipAttr": null
+     },
+     {
+      "uid": 10,
+      "tag": "button",
+      "role": null,
+      "name": "Circular",
+      "tipAttr": null
+     },
+     {
+      "uid": 11,
+      "tag": "button",
+      "role": null,
+      "name": "Phylogram — branch lengths proportional",
+      "tipAttr": null
+     },
+     {
+      "uid": 12,
+      "tag": "button",
+      "role": null,
+      "name": "Cladogram — topology only",
+      "tipAttr": null
+     },
+     {
+      "uid": 13,
+      "tag": "button",
+      "role": null,
+      "name": "Search taxa (⌘F)",
+      "tipAttr": null
+     },
+     {
+      "uid": 14,
+      "tag": "button",
+      "role": null,
+      "name": "Export",
+      "tipAttr": null
+     },
+     {
+      "uid": 15,
+      "tag": "button",
+      "role": null,
+      "name": "Fit",
+      "tipAttr": null
+     },
+     {
+      "uid": 16,
+      "tag": "button",
+      "role": null,
+      "name": "Reroot",
+      "tipAttr": null
+     }
+    ],
+    "neededFocusTip": true,
+    "distinctFocusable": 8,
+    "tipLevelTargets": 0,
+    "semantics": {
+     "roles": [],
+     "labelled": false,
+     "textFallback": false
+    }
+   },
+   "title": "Keyboard and screen reader",
+   "evidence": "M",
+   "durationSec": 3.274
+  },
+  "S15": {
+   "status": "fail",
+   "reason": "syn-yule-10000, 969-tip clade: clade bounds available",
+   "checks": [
+    {
+     "name": "clade bounds available",
+     "ok": false,
+     "detail": ""
+    },
+    {
+     "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
+     "ok": true,
+     "detail": "5/5 clicks ended correctly"
+    }
+   ],
+   "measures": {
+    "tree": "syn-yule-10000",
+    "cladeTips": 969,
+    "clickToCommitMs": [
+     3459.0999999999767,
+     2212.0999999999767,
+     2253,
+     2094.3000000000466,
+     2224.9000000000233
+    ],
+    "clickToPaintMs": [
+     16828.599999999977,
+     7445.5,
+     6519.099999999977,
+     7525,
+     13546.79999999993
+    ],
+    "medianCommitMs": 2224.9000000000233,
+    "medianPaintMs": 7525
+   },
+   "title": "Linked view (click clade, colour, map panel)",
+   "evidence": "M",
+   "durationSec": 137.531
+  }
+ },
+ "scale": {
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "fail",
+   "reason": "library reports 2 tips, expected 5",
+   "loadAvgAtStart": 5.6,
+   "phase": "mount",
+   "fetchMs": 41.5,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 0,
+   "firstRenderMs": 586.5999999999767,
+   "sharedParseMs": 1,
+   "reportedTips": 2,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 5 ms, ready after 490 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+   "loadMs": 586.5999999999767,
+   "pageErrors": [],
+   "wallSec": 1.467
+  },
+  "syn-yule-200": {
+   "treeId": "syn-yule-200",
+   "tips": 200,
+   "status": "pass",
+   "reason": "load 594 ms, median 59.5 fps, best p5 20.0, dropped 7%, CPU/step 22 ms, click 32 ms",
+   "loadAvgAtStart": 5.6,
+   "phase": "done",
+   "fetchMs": 13.699999999953434,
+   "convertMs": 0,
+   "wireBytes": 8432,
+   "parseMs": 0,
+   "firstRenderMs": 593.6999999999534,
+   "sharedParseMs": 6.5,
+   "reportedTips": 200,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 2 ms, ready after 486 ms including its ~350 ms fade-in and fit animation; sharedParseMs=6.5; rebuilds so far 2",
+   "loadMs": 593.6999999999534,
+   "ink": 0.021472121307850256,
+   "heapAfterMountMB": 5.364091873168945,
+   "stats": {
+    "domNodes": 2943,
+    "svgElements": 2885,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 200,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.09362718713006526
+    }
+   },
+   "clickLatencyMs": 32.300000000046566,
+   "clickToPaintMs": 280.30000000004657,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.52380952380888,
+   "fpsP5": 19.960079840319217,
+   "fpsP5Rounds": [
+    10,
+    10,
+    20
+   ],
+   "droppedRatio": 0.06664413272490456,
+   "droppedFrames": 75,
+   "maxFrameGapMs": 66.60000000000036,
+   "frames": 348,
+   "inputSteps": 164,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 21.8,
+   "cpuDragMoveMs": 8.7,
+   "cpuMsPerStep": 21.8,
+   "loadAvgAtEnd": 4.39,
+   "heapAfterInteractionMB": 6.400148391723633,
+   "heapMB": 6.400148391723633,
+   "unusableFactor": 0.218,
+   "pageErrors": [],
+   "wallSec": 22.4,
+   "relMedianFps": 0.5833333333360987,
+   "relP5Fps": 0.6666666666666636
+  },
+  "syn-yule-1000": {
+   "treeId": "syn-yule-1000",
+   "tips": 1000,
+   "status": "partial",
+   "reason": "sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms)",
+   "loadAvgAtStart": 4.39,
+   "phase": "done",
+   "fetchMs": 14.699999999953434,
+   "convertMs": 0,
+   "wireBytes": 41755,
+   "parseMs": 0,
+   "firstRenderMs": 1917.1999999999534,
+   "sharedParseMs": 15,
+   "reportedTips": 1000,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 3 ms, ready after 1572 ms including its ~350 ms fade-in and fit animation; sharedParseMs=15.0; rebuilds so far 2",
+   "loadMs": 1917.1999999999534,
+   "ink": 0.012415100300110615,
+   "heapAfterMountMB": 10.413246154785156,
+   "stats": {
+    "domNodes": 14143,
+    "svgElements": 14085,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 1000,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.019755671811445868
+    }
+   },
+   "clickLatencyMs": 133.5,
+   "clickToPaintMs": 1137.9000000000233,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 10,
+   "fpsP5Rounds": [
+    8.6,
+    8.6,
+    10
+   ],
+   "droppedRatio": 0.4126606377915336,
+   "droppedFrames": 90,
+   "maxFrameGapMs": 116.60000000000218,
+   "frames": 351,
+   "inputSteps": 144,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 90.1,
+   "cpuDragMoveMs": 35.5,
+   "cpuMsPerStep": 90.1,
+   "loadAvgAtEnd": 5.35,
+   "heapAfterInteractionMB": 11.142605781555176,
+   "heapMB": 11.142605781555176,
+   "unusableFactor": 0.9009999999999999,
+   "pageErrors": [],
+   "wallSec": 29.089,
+   "relMedianFps": 0.5868263473081521,
+   "relP5Fps": 0.3340000000000009
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S4-two-clades",
+   "file": "screens/20261019-095807-S4-two-clades.png",
+   "bytes": 54414
+  },
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261019-095807-S5-focus-highlight.png",
+   "bytes": 116837
+  },
+  {
+   "label": "S9-dark",
+   "file": "screens/20261019-095807-S9-dark.png",
+   "bytes": 56269
+  },
+  {
+   "label": "S12-radial",
+   "file": "screens/20261019-095807-S12-radial.png",
+   "bytes": 50590
+  },
+  {
+   "label": "S1-syn-yule-200",
+   "file": "screens/20261019-095807-S1-syn-yule-200.png",
+   "bytes": 68001
+  },
+  {
+   "label": "S10-zoomed-out-syn-yule-1000",
+   "file": "screens/20261019-095807-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 81679
+  }
+ ],
+ "wallSec": 393.394,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

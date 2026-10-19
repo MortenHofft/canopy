@@ -1,0 +1,694 @@
+{
+ "runId": "20261019-102102",
+ "candidate": {
+  "name": "heat-tree",
+  "version": "0.3.1",
+  "license": "MIT (declared; no LICENSE file in tarball)",
+  "notes": "d3 SVG widget with its own toolbar inside a shadow root; no callbacks, so click/hover/colour/highlight/focus are adapter workarounds on its DOM.",
+  "columnKinds": [
+   "text"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "No callback. A capture listener on the open shadow root reads the d3 datum (__data__) of the library's own .tip-hit path; emitted tip set is adapter-derived from the shared TreeModel. The library also shows its selection box and action buttons (collapse, hide, rotate)."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "No callback and no node markers. Clicking inside a clade selects the deepest .hit region (a clade-sized rectangle or wedge); read from the d3 datum via the shadow root. The click point for a node is the strip between the node and its first child."
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "Branches are not clickable; only the clade-sized hit areas are. A branch click selects the clade region, which is reported as nodeClick."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover on .hit / .tip-hit read from the shadow root; tip sets adapter-derived. Hover over a clade region reports the deepest enclosing clade (no per-branch hover)."
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "The library emits nothing. Tip sets are computed by the adapter from the shared TreeModel (source adapter-derived)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "No API. Adapter sets inline stroke on the library's branch paths and fill (important) on tip-label text, derived from d3 datums, and re-applies after TreeState coordinateChange. Elements created later by expanding a collapsed clade are styled after the next redraw."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "No API. A class on the library's tip-label <text> (bold, primary colour, soft halo via paint-order stroke); no marker or row band. Applies to rendered labels only."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "No API. Applies a d3-zoom transform through TreeView.treeZoom (public but undocumented field) centred on the tip with label size at least 18 px; instant."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "The library draws SVG text only. HTML <a href data-tip-id tabindex=0> overlay positioned over up to 400 visible tip labels, repositioned on every zoom event (d3-zoom namespaced listener)."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "No aligned columns. The first text column drives tipLabelColor (categorical, GBIF palette) and the first bar column drives tipLabelSize (continuous), through TreeData.addTable + TreeState.setAesthetics (the library's own per-field mapping). The \"cell\" is the tip label."
+  },
+  "alignmentColumn": {
+   "level": "no",
+   "how": "No sequence or alignment rendering; only label colour, size, font, style and text can be mapped to metadata."
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "TreeState.setLayout('circular'); real polar layout with rotated labels."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "No cladogram mode. Adapter rewrites node.data.length on the d3 hierarchy (height difference, tips aligned) and calls TreeState.update(); original lengths are restored for the phylogram. Trees without lengths get synthetic lengths."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "A branch-length scale legend is always drawn under the tree."
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "Library CSS custom properties (--color-background, --color-text ...) and branch/label/legend rules overridden by a <style> appended to the open shadow root. The built-in toolbar follows the variables and color-scheme; colours set by metadata mappings stay as mapped."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "Page CSS cannot reach into the shadow root (default isolation). Values from gbifTheme() are passed as custom properties on the host and consumed by an adapter-supplied <style> in the shadow root. isolation:'none' exists but injects the library's global stylesheet into the page."
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "Each heatTree() call attaches its own shadow root; no module singletons found. Each call also appends a hidden 5000x5000 measurement container to document.body (removed by the adapter on unmount)."
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "No destroy(). Adapter removes the host, calls TreeView.destroy(), detaches its listeners and removes the library's hidden <div> from document.body. The library's ResizeObserver is not exposed and is left to garbage collection with the detached element."
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "Layout is a TreeState method; everything else (colour, highlight, lengths, columns) goes through adapter workarounds. No props, no update(options): options are read once at heatTree()."
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "Fits on mount, on layout change and on container resize (ResizeObserver, 100 ms debounce); TreeView.fitToView() and the autoZoom/autoPan options (Default, Both, X, Y, None)."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "None. Collapse (triangle) of clades is manual through the selection buttons; no level of detail by zoom."
+  }
+ },
+ "date": "2026-10-19T10:22:55.106Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 5.64,
+  "end": 8.86,
+  "max": 8.86,
+  "noisy": true,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": null,
+ "label": "rungs-real-dated",
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "rich-fish-carangaria-135",
+   "rich-birdtree-0000",
+   "rich-corvoid-680",
+   "otl-1k"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 408369,
+  "jsGzipBytes": 125683,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 426538,
+  "totalGzipBytes": 130282,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-CXsLwF45.js",
+    "bytes": 408369,
+    "gzipBytes": 125683
+   },
+   {
+    "path": "index.html",
+    "bytes": 403,
+    "gzipBytes": 271
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "timeout",
+     "reason": "unusable: 57% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 5.64,
+     "phase": "done",
+     "fetchMs": 149.89999999990687,
+     "convertMs": 60.299999999813735,
+     "wireBytes": 111429,
+     "parseMs": 238.0999999998603,
+     "firstRenderMs": 333.69999999995343,
+     "sharedParseMs": 2.1000000000931323,
+     "reportedTips": 135,
+     "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 2.1 ms is separate; ",
+     "loadMs": 571.7999999998137,
+     "ink": 0.11043121149897328,
+     "heapAfterMountMB": 4.92768669128418,
+     "stats": {
+      "domNodes": 5,
+      "svgElements": 0,
+      "canvases": 0,
+      "custom": {
+       "tips": 135,
+       "hitAreas": 269,
+       "branchLenToPx": 5.347712832037645,
+       "labelPx": 12
+      }
+     },
+     "clickLatencyMs": 4.100000000093132,
+     "clickToPaintMs": 61.200000000186265,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.523809523812105,
+     "fpsP5": 6.666666666666667,
+     "fpsP5Rounds": [
+      5.5,
+      6.7,
+      4.6
+     ],
+     "droppedRatio": 0.5738556188971262,
+     "droppedFrames": 125,
+     "maxFrameGapMs": 150,
+     "frames": 249,
+     "inputSteps": 101,
+     "fpsP95": 60.24096385542037,
+     "idleCpuPctOfOneCore": 0.2,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 13.4,
+     "cpuDragMoveMs": 6.4,
+     "cpuMsPerStep": 13.4,
+     "loadAvgAtEnd": 6.86,
+     "heapAfterInteractionMB": 5.2654218673706055,
+     "heapMB": 5.2654218673706055,
+     "unusableFactor": 1.1477112377942524,
+     "pageErrors": [],
+     "wallSec": 24.826
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "timeout",
+     "reason": "unusable: 50% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 7.11,
+     "phase": "done",
+     "fetchMs": 97.10000000009313,
+     "convertMs": 19.299999999813735,
+     "wireBytes": 601687,
+     "parseMs": 531.1999999999534,
+     "firstRenderMs": 728.2000000001863,
+     "sharedParseMs": 5.300000000046566,
+     "reportedTips": 380,
+     "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 5.3 ms is separate; ",
+     "loadMs": 1259.4000000001397,
+     "ink": 0.0669278155109777,
+     "heapAfterMountMB": 5.739933013916016,
+     "stats": {
+      "domNodes": 5,
+      "svgElements": 0,
+      "canvases": 0,
+      "custom": {
+       "tips": 380,
+       "hitAreas": 759,
+       "branchLenToPx": 6.064993541746576,
+       "labelPx": 12
+      }
+     },
+     "clickLatencyMs": 3.800000000046566,
+     "clickToPaintMs": 116.60000000009313,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 10,
+     "fpsP5Rounds": [
+      10,
+      4,
+      10
+     ],
+     "droppedRatio": 0.504822469409458,
+     "droppedFrames": 118,
+     "maxFrameGapMs": 133.39999999999964,
+     "frames": 269,
+     "inputSteps": 103,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.4,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 29.4,
+     "cpuDragMoveMs": 9.8,
+     "cpuMsPerStep": 29.4,
+     "loadAvgAtEnd": 7.76,
+     "heapAfterInteractionMB": 6.31925106048584,
+     "heapMB": 6.31925106048584,
+     "unusableFactor": 1.009644938818916,
+     "pageErrors": [],
+     "wallSec": 26.655
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "timeout",
+     "reason": "unusable: 52% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 7.76,
+     "phase": "done",
+     "fetchMs": 31.100000000093132,
+     "convertMs": 62.89999999990687,
+     "wireBytes": 219203,
+     "parseMs": 907.6999999999534,
+     "firstRenderMs": 1203,
+     "sharedParseMs": 6.100000000093132,
+     "reportedTips": 680,
+     "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 6.1 ms is separate; ",
+     "loadMs": 2110.6999999999534,
+     "ink": 0.092582530405939,
+     "heapAfterMountMB": 7.713502883911133,
+     "stats": {
+      "domNodes": 5,
+      "svgElements": 0,
+      "canvases": 0,
+      "custom": {
+       "tips": 680,
+       "hitAreas": 1359,
+       "branchLenToPx": 10.238076568996593,
+       "labelPx": 12
+      }
+     },
+     "clickLatencyMs": 14.5,
+     "clickToPaintMs": 156.80000000004657,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 30.030030030030687,
+     "fpsP5": 5.002501250625322,
+     "fpsP5Rounds": [
+      5,
+      1.9,
+      4.6
+     ],
+     "droppedRatio": 0.5173378076062561,
+     "droppedFrames": 126,
+     "maxFrameGapMs": 199.89999999999964,
+     "frames": 250,
+     "inputSteps": 101,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.9,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 43.1,
+     "cpuDragMoveMs": 17.2,
+     "cpuMsPerStep": 43.1,
+     "loadAvgAtEnd": 8.39,
+     "heapAfterInteractionMB": 7.667511940002441,
+     "heapMB": 7.667511940002441,
+     "unusableFactor": 1.0346756152125123,
+     "pageErrors": [],
+     "wallSec": 27.778
+    },
+    "otl-1k": {
+     "treeId": "otl-1k",
+     "tips": 888,
+     "status": "timeout",
+     "reason": "unusable: 74% of the time in frames > 50 ms (best of 3 rounds)",
+     "loadAvgAtStart": 8.39,
+     "phase": "done",
+     "fetchMs": 48.199999999953434,
+     "convertMs": 0,
+     "wireBytes": 13601,
+     "parseMs": 2042.9000000001397,
+     "firstRenderMs": 3128,
+     "sharedParseMs": 9.300000000046566,
+     "reportedTips": 888,
+     "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 9.3 ms is separate; tree has no lengths: cladogram lengths synthesised by the adapter",
+     "loadMs": 5170.90000000014,
+     "ink": 0.11574000947717578,
+     "heapAfterMountMB": 8.477422714233398,
+     "stats": {
+      "domNodes": 5,
+      "svgElements": 0,
+      "canvases": 0,
+      "custom": {
+       "tips": 888,
+       "hitAreas": 1341,
+       "branchLenToPx": 21.27230282738095,
+       "labelPx": 12
+      }
+     },
+     "clickLatencyMs": 15.300000000046566,
+     "clickToPaintMs": 165.69999999995343,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 30.030030030030687,
+     "fpsP5": 5.455537370430901,
+     "fpsP5Rounds": [
+      3.7,
+      5.5,
+      3.5
+     ],
+     "droppedRatio": 0.7418526565277429,
+     "droppedFrames": 147,
+     "maxFrameGapMs": 183.3000000000029,
+     "frames": 170,
+     "inputSteps": 75,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.7,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 75.8,
+     "cpuDragMoveMs": 22.9,
+     "cpuMsPerStep": 75.8,
+     "loadAvgAtEnd": 8.86,
+     "heapAfterInteractionMB": 9.086992263793945,
+     "heapMB": 9.086992263793945,
+     "unusableFactor": 1.4837053130554858,
+     "pageErrors": [
+      "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-156.…\".",
+      "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-151.…\".",
+      "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-147.…\".",
+      "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-143.…\".",
+      "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-138.…\"."
+     ],
+     "wallSec": 30.368
+    }
+   },
+   "status": "timeout",
+   "reason": "rich-fish-carangaria-135: timeout (unusable: 57% of the time in frames > 50 ms (best of 3 rounds)); rich-birdtree-0000: timeout (unusable: 50% of the time in frames > 50 ms (best of 3 rounds)); rich-corvoid-680: timeout (unusable: 52% of the time in frames > 50 ms (best of 3 rounds)); otl-1k: timeout (unusable: 74% of the time in frames > 50 ms (best of 3 rounds))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 109.628
+  }
+ },
+ "scale": {
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "timeout",
+   "reason": "unusable: 57% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 5.64,
+   "phase": "done",
+   "fetchMs": 149.89999999990687,
+   "convertMs": 60.299999999813735,
+   "wireBytes": 111429,
+   "parseMs": 238.0999999998603,
+   "firstRenderMs": 333.69999999995343,
+   "sharedParseMs": 2.1000000000931323,
+   "reportedTips": 135,
+   "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 2.1 ms is separate; ",
+   "loadMs": 571.7999999998137,
+   "ink": 0.11043121149897328,
+   "heapAfterMountMB": 4.92768669128418,
+   "stats": {
+    "domNodes": 5,
+    "svgElements": 0,
+    "canvases": 0,
+    "custom": {
+     "tips": 135,
+     "hitAreas": 269,
+     "branchLenToPx": 5.347712832037645,
+     "labelPx": 12
+    }
+   },
+   "clickLatencyMs": 4.100000000093132,
+   "clickToPaintMs": 61.200000000186265,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.523809523812105,
+   "fpsP5": 6.666666666666667,
+   "fpsP5Rounds": [
+    5.5,
+    6.7,
+    4.6
+   ],
+   "droppedRatio": 0.5738556188971262,
+   "droppedFrames": 125,
+   "maxFrameGapMs": 150,
+   "frames": 249,
+   "inputSteps": 101,
+   "fpsP95": 60.24096385542037,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 13.4,
+   "cpuDragMoveMs": 6.4,
+   "cpuMsPerStep": 13.4,
+   "loadAvgAtEnd": 6.86,
+   "heapAfterInteractionMB": 5.2654218673706055,
+   "heapMB": 5.2654218673706055,
+   "unusableFactor": 1.1477112377942524,
+   "pageErrors": [],
+   "wallSec": 24.826
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "timeout",
+   "reason": "unusable: 50% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 7.11,
+   "phase": "done",
+   "fetchMs": 97.10000000009313,
+   "convertMs": 19.299999999813735,
+   "wireBytes": 601687,
+   "parseMs": 531.1999999999534,
+   "firstRenderMs": 728.2000000001863,
+   "sharedParseMs": 5.300000000046566,
+   "reportedTips": 380,
+   "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 5.3 ms is separate; ",
+   "loadMs": 1259.4000000001397,
+   "ink": 0.0669278155109777,
+   "heapAfterMountMB": 5.739933013916016,
+   "stats": {
+    "domNodes": 5,
+    "svgElements": 0,
+    "canvases": 0,
+    "custom": {
+     "tips": 380,
+     "hitAreas": 759,
+     "branchLenToPx": 6.064993541746576,
+     "labelPx": 12
+    }
+   },
+   "clickLatencyMs": 3.800000000046566,
+   "clickToPaintMs": 116.60000000009313,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 10,
+   "fpsP5Rounds": [
+    10,
+    4,
+    10
+   ],
+   "droppedRatio": 0.504822469409458,
+   "droppedFrames": 118,
+   "maxFrameGapMs": 133.39999999999964,
+   "frames": 269,
+   "inputSteps": 103,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.4,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 29.4,
+   "cpuDragMoveMs": 9.8,
+   "cpuMsPerStep": 29.4,
+   "loadAvgAtEnd": 7.76,
+   "heapAfterInteractionMB": 6.31925106048584,
+   "heapMB": 6.31925106048584,
+   "unusableFactor": 1.009644938818916,
+   "pageErrors": [],
+   "wallSec": 26.655
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "timeout",
+   "reason": "unusable: 52% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 7.76,
+   "phase": "done",
+   "fetchMs": 31.100000000093132,
+   "convertMs": 62.89999999990687,
+   "wireBytes": 219203,
+   "parseMs": 907.6999999999534,
+   "firstRenderMs": 1203,
+   "sharedParseMs": 6.100000000093132,
+   "reportedTips": 680,
+   "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 6.1 ms is separate; ",
+   "loadMs": 2110.6999999999534,
+   "ink": 0.092582530405939,
+   "heapAfterMountMB": 7.713502883911133,
+   "stats": {
+    "domNodes": 5,
+    "svgElements": 0,
+    "canvases": 0,
+    "custom": {
+     "tips": 680,
+     "hitAreas": 1359,
+     "branchLenToPx": 10.238076568996593,
+     "labelPx": 12
+    }
+   },
+   "clickLatencyMs": 14.5,
+   "clickToPaintMs": 156.80000000004657,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 30.030030030030687,
+   "fpsP5": 5.002501250625322,
+   "fpsP5Rounds": [
+    5,
+    1.9,
+    4.6
+   ],
+   "droppedRatio": 0.5173378076062561,
+   "droppedFrames": 126,
+   "maxFrameGapMs": 199.89999999999964,
+   "frames": 250,
+   "inputSteps": 101,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.9,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 43.1,
+   "cpuDragMoveMs": 17.2,
+   "cpuMsPerStep": 43.1,
+   "loadAvgAtEnd": 8.39,
+   "heapAfterInteractionMB": 7.667511940002441,
+   "heapMB": 7.667511940002441,
+   "unusableFactor": 1.0346756152125123,
+   "pageErrors": [],
+   "wallSec": 27.778
+  },
+  "otl-1k": {
+   "treeId": "otl-1k",
+   "tips": 888,
+   "status": "timeout",
+   "reason": "unusable: 74% of the time in frames > 50 ms (best of 3 rounds)",
+   "loadAvgAtStart": 8.39,
+   "phase": "done",
+   "fetchMs": 48.199999999953434,
+   "convertMs": 0,
+   "wireBytes": 13601,
+   "parseMs": 2042.9000000001397,
+   "firstRenderMs": 3128,
+   "sharedParseMs": 9.300000000046566,
+   "reportedTips": 888,
+   "notes": "parseMs = whole heatTree() call (library parse + layout + first SVG render, not separable); transitionDuration 0; shared parse 9.3 ms is separate; tree has no lengths: cladogram lengths synthesised by the adapter",
+   "loadMs": 5170.90000000014,
+   "ink": 0.11574000947717578,
+   "heapAfterMountMB": 8.477422714233398,
+   "stats": {
+    "domNodes": 5,
+    "svgElements": 0,
+    "canvases": 0,
+    "custom": {
+     "tips": 888,
+     "hitAreas": 1341,
+     "branchLenToPx": 21.27230282738095,
+     "labelPx": 12
+    }
+   },
+   "clickLatencyMs": 15.300000000046566,
+   "clickToPaintMs": 165.69999999995343,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 30.030030030030687,
+   "fpsP5": 5.455537370430901,
+   "fpsP5Rounds": [
+    3.7,
+    5.5,
+    3.5
+   ],
+   "droppedRatio": 0.7418526565277429,
+   "droppedFrames": 147,
+   "maxFrameGapMs": 183.3000000000029,
+   "frames": 170,
+   "inputSteps": 75,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.7,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 75.8,
+   "cpuDragMoveMs": 22.9,
+   "cpuMsPerStep": 75.8,
+   "loadAvgAtEnd": 8.86,
+   "heapAfterInteractionMB": 9.086992263793945,
+   "heapMB": 9.086992263793945,
+   "unusableFactor": 1.4837053130554858,
+   "pageErrors": [
+    "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-156.…\".",
+    "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-151.…\".",
+    "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-147.…\".",
+    "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-143.…\".",
+    "console.error: Error: <path> attribute d: Expected number, \"MNaN,0 CNaN,-138.…\"."
+   ],
+   "wallSec": 30.368
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-rich-fish-carangaria-135",
+   "file": "screens/20261019-102102-S1-rich-fish-carangaria-135.png",
+   "bytes": 74015
+  }
+ ],
+ "wallSec": 112.733,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

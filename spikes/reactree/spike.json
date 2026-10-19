@@ -1,0 +1,16 @@
+{
+  "title": "Reactree",
+  "library": "reactreejs",
+  "version": "1.0.3",
+  "license": "MIT",
+  "description": "A React 18/19 component (three props: newick, fasta, defaultHeight) that draws a Newick tree as one D3 SVG with a built-in editing toolbar and an optional FASTA alignment panel.",
+  "repo": "https://github.com/vaaloo/reactreejs",
+  "demo": "https://reactree.vaaloo.fr",
+  "docs": "docs/results/reactree.md",
+  "rendering": "SVG (tree) + Canvas (alignment panel)",
+  "styling": {
+    "applied": [],
+    "not_possible": [],
+    "notes": ""
+  }
+}

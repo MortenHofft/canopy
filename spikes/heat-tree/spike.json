@@ -1,0 +1,31 @@
+{
+  "title": "Heat-tree",
+  "library": "@grunwaldlab/heat-tree",
+  "version": "0.3.1",
+  "license": "MIT (package.json \"license\" field and README say MIT; the npm tarball 0.3.1 contains only dist/, package.json and README.md, no LICENSE file; the JS repo has no LICENSE file in its root per docs/research/heat-tree.md; the R package grunwaldlab/heattree declares 'MIT + file LICENSE' and has a LICENSE file). Dependencies d3 (ISC) and vanilla-picker (ISC).",
+  "description": "A d3-based SVG phylogenetic tree widget with its own built-in control panel (layout, per-field metadata mapping to label colour and size, collapse/hide/rotate, SVG/PNG export), embeddable from JavaScript, R and Python.",
+  "repo": "https://github.com/grunwaldlab/heat-tree",
+  "demo": "https://grunwaldlab.github.io/heattree/articles/Getting-started.html",
+  "docs": "docs/results/heat-tree.md",
+  "rendering": "SVG",
+  "styling": {
+    "applied": [
+      "background, label, branch, border and accent colours from the GBIF tokens (gbifTheme()) by overriding the library's own CSS custom properties (--color-background, --color-text, --color-border, --color-muted, --color-accent) and branch and legend rules in a <style> appended to the open shadow root",
+      "built-in toolbar (tabs, panels, buttons, toggles) recoloured and set in the GBIF body font by overriding its hard-coded hex colours with selector rules in the same shadow-root <style> (undocumented class names)",
+      "tip labels in the GBIF body font (Rubik) and italic (scientific names), by CSS in the shadow root (the library's text-size estimator still measures with its own default font, so label spacing is approximate)",
+      "highlight and the selection rectangle in --color-primary (class on the label text; stroke override on .selection-rect)",
+      "clade colours from the categorical palette on branch strokes and label fills (inline styles on the library's elements)",
+      "categorical colour mapping of a text column uses the first five GBIF categorical colours (Aesthetic.updateState colorPalette), continuous size mapping for a bar column",
+      "dark theme from gbifDarkTheme() through the same custom properties and color-scheme",
+      "page chrome (header, cards, buttons, footer band) from the shared shell"
+    ],
+    "not_possible": [
+      "the built-in toolbar cannot be hidden or omitted by any supported option (no such option in 0.3.1); its layout, button shapes, inputs and colour picker are the library's, only colours and font were overridden by CSS; at 390 px width its hamburger overlaps the last tab",
+      "page CSS cannot reach inside the default shadow root; isolation:'none' avoids that but injects the library's unscoped stylesheet (for example a global .hidden rule) into the page, so it was not used",
+      "node shapes and sizes, branch widths, hover colours, tooltips: not configurable (branch width is derived from label size; there are no node markers or hover states)",
+      "legend text/line colours and the scale bar are drawn in SVG with fixed colours; they are recoloured only by the adapter's CSS rules",
+      "label font family is not driven by tokens through the library (tipLabelFont is a metadata mapping); the adapter overrides it with CSS"
+    ],
+    "notes": "Styling goes through three layers: library options (few), the library's CSS custom properties inside its shadow root (reachable only by appending a style element to the open shadow root, a DOM patch), and inline styles on its SVG elements. Colour mapping of metadata is the library's strongest styling feature and is not token-aware beyond the palette passed to it."
+  }
+}

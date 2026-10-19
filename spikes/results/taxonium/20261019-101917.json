@@ -1,0 +1,1358 @@
+{
+ "runId": "20261019-101917",
+ "candidate": {
+  "name": "taxonium",
+  "version": "2.1.24",
+  "license": "GPL-3.0",
+  "notes": "DEMO ONLY, GPL-3.0, not for shipping. React 19, WebGL (deck.gl 9.1.14 bundled), singleton worker. Camera, colours and settings are reached through React fiber props of the library's inner Deck component."
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "yes",
+   "how": "onNodeSelect(node_id) then onNodeDetailsLoaded(node_id, details); details.name is the tip label. The event reaches us only after the worker answered the details request (about 50 ms debounce plus a round trip)"
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "Internal nodes have no marker: a click on the node's branch line selects it (pickingRadius 10 px). Same callbacks as tips; the node name comes back as n<preorder> because the adapter named the internal nodes in the Newick it wrote. The root has no edge and cannot be selected"
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "A branch click IS the node selection (the line object is the child node); the library cannot tell the two apart, so it is reported as nodeClick"
+  },
+  "hover": {
+   "level": "no",
+   "how": "No hover prop or callback in 2.1.24. The library shows its own hover tooltip and ring internally (useHoverDetails), which we cannot subscribe to"
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "Details carry num_tips, not the tip list (the side panel has a separate \"list\" request that no callback exposes). Tip sets are computed from the TreeModel (source adapter-derived); num_tips is cross-checked in libraryPayload"
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "Colours TIP DOTS only (branches use one line colour from settings; internal nodes have no dots unless the internal-markers option is on). Done by giving every tip a unique key (TSV column) and pushing a key-to-RGB map into the library's own colour state through setAdditionalColorMapping (React fiber props of the inner Deck). O(tips) per change; the library recolours without a reload"
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "query.srch / query.enabled (controlled prop): a text_per_line search on the tip name draws red rings (fixed colour list, radius 5 px). Debounced 500 ms plus a worker round trip; matching is case-insensitive; at most 10k results"
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "No prop. Calls the library's own view.setViewState (React fiber props of the inner Deck) with a new zoom and target; instant, no animation. query.zoomToSearch exists but is read only when the component mounts (useState initialiser), so it cannot refocus a loaded tree"
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "DOM overlay: real a[href][data-tip-id] elements for rows at least 8 px tall (the WebGL labels stay under them); other tips have no anchor"
+  },
+  "customColumns": {
+   "level": "no",
+   "how": "No aligned per-tip columns. Metadata TSV columns only appear in the hover tooltip, the side panel and as a colour-by field"
+  },
+  "alignmentColumn": {
+   "level": "no",
+   "how": "No alignment column (the JBrowse panel is for mutation-annotated trees of the Treenome kind, not for sequences from a FASTA)"
+  },
+  "radialLayout": {
+   "level": "no",
+   "how": "Rectangular only: the layers are horizontal and vertical lines on an orthographic view (useLayers.tsx)"
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "The library always lays out with branch lengths (useDistances is forced true in the worker). A cladogram is obtained by writing the Newick without lengths and remounting the component (full reload of the tree). x_time exists only for jsonl/Nextstrain files, so xType cannot switch a Newick tree"
+  },
+  "scaleBar": {
+   "level": "no",
+   "how": "No scale bar or time axis in the main view for a Newick tree (no axis layer in useLayers.tsx)"
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "Host background via CSS; line, label and dot colours by the library settings setters (React fiber props). The library's own chrome (buttons, tooltips, hover ring, selection ring, minimap) is fixed light/black and does not follow"
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "Background, line colour, tip colour and label colour from the GBIF tokens through settings setters and the colour mapping. Not possible: label font (hard-coded Roboto in the TextLayer), highlight colour, selection ring, tooltip chrome, minimap colours"
+  },
+  "multipleInstances": {
+   "level": "no",
+   "how": "useLocalBackend.ts creates ONE module-level Worker and global onQueryReceipt/onConfigReceipt callbacks: a second <Taxonium> replaces the first one's tree (see S13)"
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "React unmount tears down deck.gl, but the module-level worker is never terminated and keeps the last parsed tree in memory (see S13 and the leak probe)"
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "query/updateQuery control search, colour field and x axis. Selection, camera and colour mapping are internal state (reached through fiber props)"
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "The library's default view is a fixed zoom/target, not a fit; the adapter fits on mount through view.setViewState. The in-canvas reset button returns to the library default, not to our fit"
+  },
+  "overviewOrMinimap": {
+   "level": "yes",
+   "how": "Built-in minimap (top right) showing the whole de-overplotted tree and the viewport; click to pan. Toggle in Library options (settings.toggleMinimapEnabled)"
+  }
+ },
+ "date": "2026-10-19T10:24:24.954Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 6.65,
+  "end": 6.79,
+  "max": 8.47,
+  "noisy": true,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 6.65,
+  "canvas": {
+   "fpsMedian": 60.240963855423665,
+   "fpsP5": 29.94011976047937,
+   "fpsP5Rounds": [
+    29.9,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0.00007885813419818529,
+   "droppedFrames": 21,
+   "maxFrameGapMs": 33.400000000000546,
+   "frames": 877,
+   "inputSteps": 180,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 6,
+   "cpuDragMoveMs": 6.7,
+   "cpuMsPerStep": 6.7,
+   "loadavg": 6.37
+  },
+  "stub200": {
+   "error": "page.waitForFunction: Timeout 20000ms exceeded."
+  },
+  "loadEnd": 5.15
+ },
+ "label": "ladder-100k",
+ "selection": {
+  "scenarios": [
+   "S1",
+   "S10"
+  ],
+  "scaleTrees": [
+   "syn-yule-100000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 9284944,
+  "jsGzipBytes": 2859753,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 9303130,
+  "totalGzipBytes": 2864365,
+  "files": [
+   {
+    "path": "assets/AbortablePromiseCache-CcuMrnn7-56xRj2xE.js",
+    "bytes": 2612,
+    "gzipBytes": 1012
+   },
+   {
+    "path": "assets/AboutDialog-ChhMe7Qv-CQj5Lnfh.js",
+    "bytes": 4240,
+    "gzipBytes": 1799
+   },
+   {
+    "path": "assets/AddConnectionWidget-B_vr-m9F-CIR7Rfe0.js",
+    "bytes": 2509,
+    "gzipBytes": 1262
+   },
+   {
+    "path": "assets/AddCustomPluginDialog-jBZXoI8s-BY9Tpc_g.js",
+    "bytes": 2268,
+    "gzipBytes": 1073
+   },
+   {
+    "path": "assets/AddFiltersDialog-BS7GQrAI-B4VMU8we.js",
+    "bytes": 2044,
+    "gzipBytes": 1013
+   },
+   {
+    "path": "assets/AddFiltersDialog-Bb3WD38p-1jogtYLH.js",
+    "bytes": 2044,
+    "gzipBytes": 1013
+   },
+   {
+    "path": "assets/AddTrackWidget-DwyNVeRJ-0bu7HpuL.js",
+    "bytes": 10908,
+    "gzipBytes": 4040
+   },
+   {
+    "path": "assets/AddTrackWorkflow-BJkSDUPq-CYjG6DYz.js",
+    "bytes": 2634,
+    "gzipBytes": 1393
+   },
+   {
+    "path": "assets/AlignmentsFeatureDetail-DHfxuUw8-CDiqYnYV.js",
+    "bytes": 6260,
+    "gzipBytes": 2726
+   },
+   {
+    "path": "assets/ArcTooltip-DUSwD72a-CdVRTVu6.js",
+    "bytes": 419,
+    "gzipBytes": 295
+   },
+   {
+    "path": "assets/Arcs-D2BU3PrX-CFay93eQ.js",
+    "bytes": 3300,
+    "gzipBytes": 1500
+   },
+   {
+    "path": "assets/Badge-CnFA6CHB-CZORm_NQ.js",
+    "bytes": 7066,
+    "gzipBytes": 2142
+   },
+   {
+    "path": "assets/BamAdapter-lVmrDAGd-B-5yI7K1.js",
+    "bytes": 25199,
+    "gzipBytes": 8879
+   },
+   {
+    "path": "assets/BaseCard-uve71KMy-B_SOKHPJ.js",
+    "bytes": 135,
+    "gzipBytes": 135
+   },
+   {
+    "path": "assets/BaseDisplayComponent-4h8vJvX5-BYh7TZ4i.js",
+    "bytes": 1306,
+    "gzipBytes": 677
+   },
+   {
+    "path": "assets/BedAdapter-CKtgo-RC-BdQnaQoq.js",
+    "bytes": 2440,
+    "gzipBytes": 1171
+   },
+   {
+    "path": "assets/BedGraphAdapter-n8izSG8z-DDa7JpF2.js",
+    "bytes": 2104,
+    "gzipBytes": 1083
+   },
+   {
+    "path": "assets/BedGraphTabixAdapter-D5H_-Pv5-BCM0kaY0.js",
+    "bytes": 2276,
+    "gzipBytes": 1223
+   },
+   {
+    "path": "assets/BedTabixAdapter-t35CC1kE-DwuEMBbJ.js",
+    "bytes": 2410,
+    "gzipBytes": 1192
+   },
+   {
+    "path": "assets/BedpeAdapter-icL8QBNU-DNYHLOUY.js",
+    "bytes": 2769,
+    "gzipBytes": 1379
+   },
+   {
+    "path": "assets/BgzipFastaAdapter-CqBgyTNQ-c1xxZd-g.js",
+    "bytes": 2663,
+    "gzipBytes": 1289
+   },
+   {
+    "path": "assets/BigBedAdapter-DyrJgn2D-BJbbaDiz.js",
+    "bytes": 6863,
+    "gzipBytes": 2946
+   },
+   {
+    "path": "assets/BigWigAdapter-CP6Ip79f-DoFvMLQq.js",
+    "bytes": 2115,
+    "gzipBytes": 1154
+   },
+   {
+    "path": "assets/BlockErrorMessage-dwz9CaUz-CSFHmCe-.js",
+    "bytes": 681,
+    "gzipBytes": 426
+   },
+   {
+    "path": "assets/BreakendSingleLevelOptionDialog-B8nI5mHp-CdG8-Kvo.js",
+    "bytes": 6744,
+    "gzipBytes": 2311
+   },
+   {
+    "path": "assets/CardContent-CBvdvL5S-D5yUFpZx.js",
+    "bytes": 1542,
+    "gzipBytes": 709
+   },
+   {
+    "path": "assets/CenterLine-CpPf4ng2-BB00EepP.js",
+    "bytes": 959,
+    "gzipBytes": 562
+   },
+   {
+    "path": "assets/Checkbox-D7_LksK2-CLTqyhk3.js",
+    "bytes": 3585,
+    "gzipBytes": 1550
+   },
+   {
+    "path": "assets/ChromSizesAdapter-BAQMokzG-BHfYVmp_.js",
+    "bytes": 680,
+    "gzipBytes": 439
+   },
+   {
+    "path": "assets/Clear-BiEOus7g-DSMd4kpE.js",
+    "bytes": 253,
+    "gzipBytes": 201
+   },
+   {
+    "path": "assets/CloseConnectionDialog-CW8-HaVc-otHusizb.js",
+    "bytes": 927,
+    "gzipBytes": 542
+   },
+   {
+    "path": "assets/ClusterDialog-BREUIiJk-EpeA2BIK.js",
+    "bytes": 5934,
+    "gzipBytes": 2392
+   },
+   {
+    "path": "assets/Collapse-DhaMDwX6-BSPBavaJ.js",
+    "bytes": 4254,
+    "gzipBytes": 1677
+   },
+   {
+    "path": "assets/ColorByTagDialog-BC9Q2fgt-DuUMtxPQ.js",
+    "bytes": 1062,
+    "gzipBytes": 647
+   },
+   {
+    "path": "assets/ColorPicker-BTI_Q3I7-B8D9WKR0.js",
+    "bytes": 16706,
+    "gzipBytes": 5919
+   },
+   {
+    "path": "assets/ConfigurationEditor-DnT8ZzuM-D3s1Jo1q.js",
+    "bytes": 22001,
+    "gzipBytes": 7923
+   },
+   {
+    "path": "assets/ConfirmDialog-BEQ-8BVV-ByIJKxm5.js",
+    "bytes": 1036,
+    "gzipBytes": 607
+   },
+   {
+    "path": "assets/CramAdapter-DjxZ1V8K-ch1fISAw.js",
+    "bytes": 164096,
+    "gzipBytes": 53000
+   },
+   {
+    "path": "assets/DataGrid-cokHFdGI-BnjAke9D.js",
+    "bytes": 439309,
+    "gzipBytes": 127936
+   },
+   {
+    "path": "assets/DataGridFlexContainer-fD_l1wuy-CaXK6iuO.js",
+    "bytes": 135,
+    "gzipBytes": 135
+   },
+   {
+    "path": "assets/Delete-CRntlDho-R0oFiShW.js",
+    "bytes": 225,
+    "gzipBytes": 209
+   },
+   {
+    "path": "assets/DeleteConnectionDialog-BWa7xmK6-2mpNSiJC.js",
+    "bytes": 715,
+    "gzipBytes": 447
+   },
+   {
+    "path": "assets/DeletePluginDialog-Dub5FSVa-Y_vdbKL4.js",
+    "bytes": 711,
+    "gzipBytes": 426
+   },
+   {
+    "path": "assets/Dialog-Dbk1wDAi-CxX8VVjg.js",
+    "bytes": 135,
+    "gzipBytes": 135
+   },
+   {
+    "path": "assets/DialogContentText-CyyKmj20-DxIRfbF3.js",
+    "bytes": 858,
+    "gzipBytes": 522
+   },
+   {
+    "path": "assets/Divider-36OQM56c-sGEVPpFa.js",
+    "bytes": 4194,
+    "gzipBytes": 1485
+   },
+   {
+    "path": "assets/DraggableDialog-SkGHL3cH-C2otA649.js",
+    "bytes": 20360,
+    "gzipBytes": 6871
+   },
+   {
+    "path": "assets/EditGCContentParams-o8LLYY8E-BQ_c0uep.js",
+    "bytes": 1287,
+    "gzipBytes": 651
+   },
+   {
+    "path": "assets/ErrorMessageStackTraceDialog-CUZk-xoT-uL6idhZH.js",
+    "bytes": 521,
+    "gzipBytes": 379
+   },
+   {
+    "path": "assets/ExpandMore-BPp-WDGi-WWB2cs2a.js",
+    "bytes": 7591,
+    "gzipBytes": 2599
+   },
+   {
+    "path": "assets/ExportSvgDialog-BalteoMV-C-LaC8n5.js",
+    "bytes": 2283,
+    "gzipBytes": 1179
+   },
+   {
+    "path": "assets/ExportSvgDialog-DsDN2DAJ-9pcPXvhx.js",
+    "bytes": 1906,
+    "gzipBytes": 1066
+   },
+   {
+    "path": "assets/FacetedDialog-C5qn2Y6C-CUQV1wqa.js",
+    "bytes": 6611,
+    "gzipBytes": 2899
+   },
+   {
+    "path": "assets/FeatureDetails-BEUoAeO7-DED69sdn.js",
+    "bytes": 136,
+    "gzipBytes": 136
+   },
+   {
+    "path": "assets/FilterByTagDialog-BVmHBc24-C6btLz0a.js",
+    "bytes": 3095,
+    "gzipBytes": 1398
+   },
+   {
+    "path": "assets/FormControlLabel-CfHqydvH-c68jBvPd.js",
+    "bytes": 6210,
+    "gzipBytes": 2464
+   },
+   {
+    "path": "assets/FromConfigAdapter-Bd1qOD4C-CRRiw3dT.js",
+    "bytes": 993,
+    "gzipBytes": 572
+   },
+   {
+    "path": "assets/FromConfigRegionsAdapter-BVUBjPvK-B-2N1Dba.js",
+    "bytes": 720,
+    "gzipBytes": 458
+   },
+   {
+    "path": "assets/FromConfigSequenceAdapter-DO3Eu4O_-D11z3p6i.js",
+    "bytes": 879,
+    "gzipBytes": 543
+   },
+   {
+    "path": "assets/GCContentAdapter-DMqMsuEN-Zt6s1wq6.js",
+    "bytes": 1580,
+    "gzipBytes": 935
+   },
+   {
+    "path": "assets/GetSequenceDialog-DE1yIJwk-xaCZfgve.js",
+    "bytes": 3467,
+    "gzipBytes": 1869
+   },
+   {
+    "path": "assets/Gff3Adapter-Cm8K4l2t-Csy0ibAX.js",
+    "bytes": 1961,
+    "gzipBytes": 1047
+   },
+   {
+    "path": "assets/Gff3TabixAdapter-RPdaIXNV-D8SLnPH8.js",
+    "bytes": 2882,
+    "gzipBytes": 1417
+   },
+   {
+    "path": "assets/Grid-C1WwTq0M-DqCy5HaV.js",
+    "bytes": 7992,
+    "gzipBytes": 2761
+   },
+   {
+    "path": "assets/GroupByDialog-Dp-rce-4-BrQ7y-Bk.js",
+    "bytes": 3402,
+    "gzipBytes": 1441
+   },
+   {
+    "path": "assets/HelpDialog-1Klx-BQ9-0Z0N_nd4.js",
+    "bytes": 1905,
+    "gzipBytes": 804
+   },
+   {
+    "path": "assets/HierarchicalTrackSelector-CsnEBzgg-StYbAGkw.js",
+    "bytes": 41825,
+    "gzipBytes": 14557
+   },
+   {
+    "path": "assets/Highlight-C8CtWO7t-SN1UEB3H.js",
+    "bytes": 1896,
+    "gzipBytes": 1065
+   },
+   {
+    "path": "assets/HtsgetBamAdapter-BL-voECU-BkGNfGh3.js",
+    "bytes": 2877,
+    "gzipBytes": 1443
+   },
+   {
+    "path": "assets/ImportForm-DtRosmVh-Brbpu462.js",
+    "bytes": 5010,
+    "gzipBytes": 2098
+   },
+   {
+    "path": "assets/IndexedFastaAdapter-CqEccOzJ-CgoHk2Zp.js",
+    "bytes": 3935,
+    "gzipBytes": 1833
+   },
+   {
+    "path": "assets/JBrowse1TextSearchAdapter-D51GTsh9-McFdNKBy.js",
+    "bytes": 2209,
+    "gzipBytes": 1111
+   },
+   {
+    "path": "assets/JBrowsePanel-BNE3gNW1-GMdkvfKW.js",
+    "bytes": 4381536,
+    "gzipBytes": 1215460
+   },
+   {
+    "path": "assets/LaunchBreakendPanel-DlICa3xR-CQ15Ao7n.js",
+    "bytes": 2491,
+    "gzipBytes": 1124
+   },
+   {
+    "path": "assets/Link-M04Fp4z_-BtAHFA9l.js",
+    "bytes": 3900,
+    "gzipBytes": 1605
+   },
+   {
+    "path": "assets/LinkedPairedAlignments--RaGJiEw-CfGamZXs.js",
+    "bytes": 1980,
+    "gzipBytes": 910
+   },
+   {
+    "path": "assets/ListItem-hho_hfbE-HGt2UvPk.js",
+    "bytes": 5450,
+    "gzipBytes": 1992
+   },
+   {
+    "path": "assets/MAFFilterDialog-mQMMwEKk-tEKvQfUf.js",
+    "bytes": 6876,
+    "gzipBytes": 2597
+   },
+   {
+    "path": "assets/ManageConnectionsDialog-DI1WJrAI-BMkJGvMa.js",
+    "bytes": 1183,
+    "gzipBytes": 650
+   },
+   {
+    "path": "assets/MenuItem-DAMdxuDJ-CKydVo6x.js",
+    "bytes": 4034,
+    "gzipBytes": 1664
+   },
+   {
+    "path": "assets/MultiWiggleAdapter-DMVIk4oX-S8vRUo5I.js",
+    "bytes": 1763,
+    "gzipBytes": 899
+   },
+   {
+    "path": "assets/NCListAdapter-CskSou40-zPHrStoC.js",
+    "bytes": 10849,
+    "gzipBytes": 4341
+   },
+   {
+    "path": "assets/NcbiSequenceReportAliasAdapter-BduRx2iC-D7l5cZ_Q.js",
+    "bytes": 935,
+    "gzipBytes": 551
+   },
+   {
+    "path": "assets/NoTracksActiveButton-OaoEOk6_-D0ntj0TP.js",
+    "bytes": 658,
+    "gzipBytes": 439
+   },
+   {
+    "path": "assets/Observable-bHPg1QB7--zuHAEv9.js",
+    "bytes": 1630,
+    "gzipBytes": 731
+   },
+   {
+    "path": "assets/PluginStoreWidget-CMjlz5EI-ayAHGymG.js",
+    "bytes": 7563,
+    "gzipBytes": 3263
+   },
+   {
+    "path": "assets/QuickLRU-BaqKky94-BpiQz-Sr.js",
+    "bytes": 131,
+    "gzipBytes": 133
+   },
+   {
+    "path": "assets/Radio-Bf0n3fp_-DUqPTGaZ.js",
+    "bytes": 4841,
+    "gzipBytes": 2001
+   },
+   {
+    "path": "assets/RadioGroup-VjVK5G6V-DRDabXYN.js",
+    "bytes": 1159,
+    "gzipBytes": 679
+   },
+   {
+    "path": "assets/ReactComponent-BOXnxkqG-DTRmJpPR.js",
+    "bytes": 1845,
+    "gzipBytes": 906
+   },
+   {
+    "path": "assets/ReactComponent-BfpDrAna-uCkXfgJH.js",
+    "bytes": 559,
+    "gzipBytes": 389
+   },
+   {
+    "path": "assets/ReactComponent-D7cL0iK8-6FDQMJQR.js",
+    "bytes": 561,
+    "gzipBytes": 391
+   },
+   {
+    "path": "assets/RefNameAliasAdapter-Bqvy0Huc-2uC77zu2.js",
+    "bytes": 721,
+    "gzipBytes": 453
+   },
+   {
+    "path": "assets/RegionWidthEditorDialog-DmeZdg72-EaPXcDQ4.js",
+    "bytes": 1024,
+    "gzipBytes": 635
+   },
+   {
+    "path": "assets/Report-BC67Z51U-Dw8ep4i0.js",
+    "bytes": 532,
+    "gzipBytes": 359
+   },
+   {
+    "path": "assets/ReturnToImportFormDialog-DQQs6SJu-DDv_Kc-_.js",
+    "bytes": 1322,
+    "gzipBytes": 763
+   },
+   {
+    "path": "assets/SNPCoverageAdapter-B0LRA71f-DeN6bLDw.js",
+    "bytes": 5692,
+    "gzipBytes": 2313
+   },
+   {
+    "path": "assets/SVGLinearGenomeView-BO8POiqL-CpRE7QTF.js",
+    "bytes": 19955,
+    "gzipBytes": 7271
+   },
+   {
+    "path": "assets/SanitizedHTML-5tMbEWIc-BQ0NwTwL.js",
+    "bytes": 135,
+    "gzipBytes": 135
+   },
+   {
+    "path": "assets/SearchResultsDialog-CNbeFvhr-Zyxx_i-l.js",
+    "bytes": 7375,
+    "gzipBytes": 2443
+   },
+   {
+    "path": "assets/SequenceSearchAdapter-BaQIhfKZ-3Vz7BG0H.js",
+    "bytes": 1496,
+    "gzipBytes": 773
+   },
+   {
+    "path": "assets/SequenceSearchDialog-B6UDBVkR-DaTP7gPq.js",
+    "bytes": 1951,
+    "gzipBytes": 1013
+   },
+   {
+    "path": "assets/SetColorDialog-BgsJDCy_-BqvVROrI.js",
+    "bytes": 4349,
+    "gzipBytes": 1974
+   },
+   {
+    "path": "assets/SetColorDialog-Ckj5ZWgy-D37iRYPp.js",
+    "bytes": 1549,
+    "gzipBytes": 686
+   },
+   {
+    "path": "assets/SetColorDialog-CzpTQ92l-Cg4wo-CH.js",
+    "bytes": 7774,
+    "gzipBytes": 3100
+   },
+   {
+    "path": "assets/SetFeatureHeightDialog-DJCIOjqV-C94Fmf00.js",
+    "bytes": 1233,
+    "gzipBytes": 697
+   },
+   {
+    "path": "assets/SetMaxHeightDialog-CChjkE07-CsNR8zVu.js",
+    "bytes": 982,
+    "gzipBytes": 606
+   },
+   {
+    "path": "assets/SetMaxHeightDialog-CUM94uYk-Bq2duS86.js",
+    "bytes": 933,
+    "gzipBytes": 568
+   },
+   {
+    "path": "assets/SetMinMaxDialog-BGLKPU1L-C1Nz-Ddw.js",
+    "bytes": 1196,
+    "gzipBytes": 632
+   },
+   {
+    "path": "assets/SetRowHeightDialog-p9ceKa_C-UK9xQngK.js",
+    "bytes": 598,
+    "gzipBytes": 394
+   },
+   {
+    "path": "assets/SortByTagDialog-lnhXXGz7-ODdD9jOX.js",
+    "bytes": 1027,
+    "gzipBytes": 605
+   },
+   {
+    "path": "assets/SplitVcfTabixAdapter-BnDiIcxB-Daw6qlF5.js",
+    "bytes": 2149,
+    "gzipBytes": 1108
+   },
+   {
+    "path": "assets/Stepper-CYaq8zXr-C8t_ckmw.js",
+    "bytes": 12804,
+    "gzipBytes": 3707
+   },
+   {
+    "path": "assets/SupplementaryAlignments-CgGqkF4V-CddVRB_y.js",
+    "bytes": 3772,
+    "gzipBytes": 1705
+   },
+   {
+    "path": "assets/TableCell-BMrUTE1N-BJi0KOPP.js",
+    "bytes": 3522,
+    "gzipBytes": 1516
+   },
+   {
+    "path": "assets/ToggleConnectionsDialog-CQ3Te9EU-BF6KS-xp.js",
+    "bytes": 1514,
+    "gzipBytes": 797
+   },
+   {
+    "path": "assets/Tooltip-CZOJvflf-CJ4NBT5b.js",
+    "bytes": 1122,
+    "gzipBytes": 588
+   },
+   {
+    "path": "assets/Tooltip-DlPtfW1i-CQku2iT3.js",
+    "bytes": 2087,
+    "gzipBytes": 959
+   },
+   {
+    "path": "assets/TrixTextSearchAdapter-DHWV5uY9-BJ6TiVhH.js",
+    "bytes": 3051,
+    "gzipBytes": 1495
+   },
+   {
+    "path": "assets/TwoBitAdapter-BSeVsbr5-w4-vKYeR.js",
+    "bytes": 6498,
+    "gzipBytes": 2414
+   },
+   {
+    "path": "assets/UnindexedFastaAdapter-DOtbySVo-_ZyFb1vv.js",
+    "bytes": 1463,
+    "gzipBytes": 777
+   },
+   {
+    "path": "assets/VariantConsequenceDataGrid-Cbj_NF6D-Chcie_u_.js",
+    "bytes": 1209,
+    "gzipBytes": 749
+   },
+   {
+    "path": "assets/VariantDisplayComponent-CaofoTfe-C0lUQOs2.js",
+    "bytes": 558,
+    "gzipBytes": 385
+   },
+   {
+    "path": "assets/VariantFeatureWidget-C_HTn85S-BwO3LmSd.js",
+    "bytes": 16094,
+    "gzipBytes": 5772
+   },
+   {
+    "path": "assets/VcfAdapter-pR1cYedD-C_DlZN_b.js",
+    "bytes": 2488,
+    "gzipBytes": 1243
+   },
+   {
+    "path": "assets/VcfTabixAdapter-BRe9bKpN-C-F23GzL.js",
+    "bytes": 2830,
+    "gzipBytes": 1306
+   },
+   {
+    "path": "assets/VersionAboutDialog-BgECET0R-DRnjFQ1F.js",
+    "bytes": 1137,
+    "gzipBytes": 573
+   },
+   {
+    "path": "assets/WiggleClusterDialog-D_xrwA7d-DT1Skb6h.js",
+    "bytes": 6509,
+    "gzipBytes": 2517
+   },
+   {
+    "path": "assets/WiggleDisplayComponent-BzqT51un-BQ4VuWaE.js",
+    "bytes": 326,
+    "gzipBytes": 262
+   },
+   {
+    "path": "assets/YScaleBars--OMCRyp4-ewh5RTr7.js",
+    "bytes": 2707,
+    "gzipBytes": 1123
+   },
+   {
+    "path": "assets/_commonjs-dynamic-modules-BpilXLfW-DfYEAvWy.js",
+    "bytes": 239,
+    "gzipBytes": 191
+   },
+   {
+    "path": "assets/aborting-DGGWtAh2-DAZzq0aj.js",
+    "bytes": 82,
+    "gzipBytes": 97
+   },
+   {
+    "path": "assets/afterAttach-DGc9l8bx-ZgTUunwM.js",
+    "bytes": 644,
+    "gzipBytes": 434
+   },
+   {
+    "path": "assets/afterAttach-e7aspwHJ-B_F78ID8.js",
+    "bytes": 953,
+    "gzipBytes": 544
+   },
+   {
+    "path": "assets/bbi-Bgo-D0LY-q2p6CnL_.js",
+    "bytes": 31630,
+    "gzipBytes": 11273
+   },
+   {
+    "path": "assets/browser-BpRiKmO--zAOSyNoU.js",
+    "bytes": 145,
+    "gzipBytes": 95
+   },
+   {
+    "path": "assets/canvas2svg-DAAoZGqq-Dg_n87Cr.js",
+    "bytes": 514,
+    "gzipBytes": 374
+   },
+   {
+    "path": "assets/color-DJfrUNJU-CyQmkOqa.js",
+    "bytes": 1501,
+    "gzipBytes": 620
+   },
+   {
+    "path": "assets/core-DaJmTGYs-D7JTEepK.js",
+    "bytes": 703109,
+    "gzipBytes": 201828
+   },
+   {
+    "path": "assets/crc32-CxoSWZf_-CJxmRem5.js",
+    "bytes": 2912,
+    "gzipBytes": 1514
+   },
+   {
+    "path": "assets/dividerClasses-C8EDcmuE-TTF_ZwBL.js",
+    "bytes": 322,
+    "gzipBytes": 241
+   },
+   {
+    "path": "assets/doAfterAttach-CrsReCGs-CiIZbb8z.js",
+    "bytes": 1108,
+    "gzipBytes": 576
+   },
+   {
+    "path": "assets/doConnect-D0hZZmH3-BBYtJLsl.js",
+    "bytes": 827,
+    "gzipBytes": 526
+   },
+   {
+    "path": "assets/doConnect-DJ12l-bO-BN39Ajgs.js",
+    "bytes": 8738,
+    "gzipBytes": 3266
+   },
+   {
+    "path": "assets/drawDensity-ApfWAEID-BxKfk8XS.js",
+    "bytes": 1381,
+    "gzipBytes": 722
+   },
+   {
+    "path": "assets/drawFeats-8AWRZeen-CXazaSrw.js",
+    "bytes": 3907,
+    "gzipBytes": 1555
+   },
+   {
+    "path": "assets/drawFeats-BcNO7n8T-BHtD1pj9.js",
+    "bytes": 2399,
+    "gzipBytes": 1181
+   },
+   {
+    "path": "assets/drawLine-BjbCNCOV-B6WCX-cc.js",
+    "bytes": 1233,
+    "gzipBytes": 769
+   },
+   {
+    "path": "assets/drawPhased-CAb_z73L-CNQ7ixAv.js",
+    "bytes": 1075,
+    "gzipBytes": 561
+   },
+   {
+    "path": "assets/drawXY-CoA4T3_0-CX9v4iwc.js",
+    "bytes": 2969,
+    "gzipBytes": 1225
+   },
+   {
+    "path": "assets/enc-base64-CYHElPpt-C7XIfrqe.js",
+    "bytes": 1555,
+    "gzipBytes": 939
+   },
+   {
+    "path": "assets/featureData-Bm8gwGZK-C5GIydBc.js",
+    "bytes": 6962,
+    "gzipBytes": 2448
+   },
+   {
+    "path": "assets/getMethBins-CvqMYb7k-WMnGxJ0X.js",
+    "bytes": 2291,
+    "gzipBytes": 1133
+   },
+   {
+    "path": "assets/getMultiVariantFeaturesAutorun-Sb3madbX-CO48By-4.js",
+    "bytes": 988,
+    "gzipBytes": 603
+   },
+   {
+    "path": "assets/getMultiVariantSourcesAutorun-BFj27V0u-Bkw79VkL.js",
+    "bytes": 644,
+    "gzipBytes": 438
+   },
+   {
+    "path": "assets/getMultiWiggleSourcesAutorun-ClZ5Huy8-C7Mjm328.js",
+    "bytes": 665,
+    "gzipBytes": 446
+   },
+   {
+    "path": "assets/getQuantitativeStatsAutorun-XXftvspN-C6sgDIXF.js",
+    "bytes": 1612,
+    "gzipBytes": 828
+   },
+   {
+    "path": "assets/getThemeProps-0-NQjaiI-ByXXs8yA.js",
+    "bytes": 250,
+    "gzipBytes": 191
+   },
+   {
+    "path": "assets/index-BIrnKBxe.js",
+    "bytes": 2904949,
+    "gzipBytes": 980738
+   },
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-Be2G1OpM-hB1JTIRn.js",
+    "bytes": 521,
+    "gzipBytes": 379
+   },
+   {
+    "path": "assets/index-BwsTbrGS-DhlI7zvt.js",
+    "bytes": 6613,
+    "gzipBytes": 2264
+   },
+   {
+    "path": "assets/index-CpJXUZUB-B9q1fbRR.js",
+    "bytes": 82,
+    "gzipBytes": 97
+   },
+   {
+    "path": "assets/index-D_0IW05l-CKrl7RJ8.js",
+    "bytes": 10195,
+    "gzipBytes": 3585
+   },
+   {
+    "path": "assets/jb1ConfigLoad-CclVrkOQ-CTJJYXRL.js",
+    "bytes": 13313,
+    "gzipBytes": 5063
+   },
+   {
+    "path": "assets/jb1ToJb2-DHgiRdqC-DAsM1hnO.js",
+    "bytes": 5984,
+    "gzipBytes": 1415
+   },
+   {
+    "path": "assets/jexlStrings-67ERYa8R-DPGTc0mo.js",
+    "bytes": 82,
+    "gzipBytes": 97
+   },
+   {
+    "path": "assets/main-D1zX1xg0-CI_PM91Q.js",
+    "bytes": 8416,
+    "gzipBytes": 2104
+   },
+   {
+    "path": "assets/makeImage-Yl3i1_VI-7cQ6I_7C.js",
+    "bytes": 4712,
+    "gzipBytes": 1895
+   },
+   {
+    "path": "assets/makeImageData-D0Rxqm57-DUJ1fdkr.js",
+    "bytes": 1899,
+    "gzipBytes": 1066
+   },
+   {
+    "path": "assets/makeImageData-Dl4PPM5j-BjVtMFPt.js",
+    "bytes": 11097,
+    "gzipBytes": 4180
+   },
+   {
+    "path": "assets/makeImageData-aRwKAGbW-DS9wuUq_.js",
+    "bytes": 1965,
+    "gzipBytes": 1016
+   },
+   {
+    "path": "assets/merge-BKxtGK-k-DXJSTRaH.js",
+    "bytes": 5506,
+    "gzipBytes": 2026
+   },
+   {
+    "path": "assets/parseLineByLine-u4wRqQjK-bNYfju85.js",
+    "bytes": 485,
+    "gzipBytes": 380
+   },
+   {
+    "path": "assets/remoteFile-H_6BTCFF-j8fcWvKC.js",
+    "bytes": 2200,
+    "gzipBytes": 1016
+   },
+   {
+    "path": "assets/renderSvg-BVWIXf4E-Cd-sAIq7.js",
+    "bytes": 522,
+    "gzipBytes": 376
+   },
+   {
+    "path": "assets/renderSvg-BzDS1-I2-fQyBNuOt.js",
+    "bytes": 1169,
+    "gzipBytes": 668
+   },
+   {
+    "path": "assets/renderSvg-CCbmygwF-DpVvNoSS.js",
+    "bytes": 461,
+    "gzipBytes": 346
+   },
+   {
+    "path": "assets/renderSvg-CTRk8ufX-tl_57NHI.js",
+    "bytes": 523,
+    "gzipBytes": 386
+   },
+   {
+    "path": "assets/renderSvg-D366OFDW-Ckg5Tp5J.js",
+    "bytes": 546,
+    "gzipBytes": 368
+   },
+   {
+    "path": "assets/renderSvg-D4d2SOpu-Bz0OBAsq.js",
+    "bytes": 430,
+    "gzipBytes": 323
+   },
+   {
+    "path": "assets/renderSvgUtil-KkVpKsWN-D8VxWMTE.js",
+    "bytes": 1105,
+    "gzipBytes": 668
+   },
+   {
+    "path": "assets/rxjs-L4bS73F7-Ebwb6C18.js",
+    "bytes": 82,
+    "gzipBytes": 95
+   },
+   {
+    "path": "assets/sha256-D0kWwxgT-DgOVm7J6.js",
+    "bytes": 2052,
+    "gzipBytes": 1233
+   },
+   {
+    "path": "assets/simpleFeature-DimH8SQV-BhPhZO4c.js",
+    "bytes": 135,
+    "gzipBytes": 135
+   },
+   {
+    "path": "assets/tabixIndexedFile-WXUhSlHL-DnVmumKa.js",
+    "bytes": 11972,
+    "gzipBytes": 4581
+   },
+   {
+    "path": "assets/unzip-NIBF0hze-CcPWDhZU.js",
+    "bytes": 1328,
+    "gzipBytes": 648
+   },
+   {
+    "path": "assets/util-1O8hqJLz-C5DGwbE2.js",
+    "bytes": 664,
+    "gzipBytes": 390
+   },
+   {
+    "path": "assets/util-B1Sm35mH-zsEGfboc.js",
+    "bytes": 152,
+    "gzipBytes": 144
+   },
+   {
+    "path": "assets/util-DIF6WZFN-aD3gKAL3.js",
+    "bytes": 26642,
+    "gzipBytes": 8120
+   },
+   {
+    "path": "index.html",
+    "bytes": 420,
+    "gzipBytes": 284
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "syn-yule-100000": {
+     "treeId": "syn-yule-100000",
+     "tips": 100000,
+     "status": "timeout",
+     "reason": "unusable: 98% of the time in frames > 50 ms (best of 3 rounds); 140 ms main-thread CPU per interaction step > 100; click latency 7432 ms > 300 ms",
+     "loadAvgAtStart": 5.06,
+     "phase": "done",
+     "fetchMs": 93,
+     "convertMs": 0,
+     "wireBytes": 4139363,
+     "parseMs": 191.69999999995343,
+     "firstRenderMs": 7181.5,
+     "sharedParseMs": 276.10000000009313,
+     "reportedTips": 100000,
+     "notes": "parseMs = adapter-side Newick+TSV writing only (the worker's parse and layout are inside firstRenderMs); first data after 2284 ms; tips from the library's config.num_tips; library draws a de-overplotted subset (17854 nodes at first query)",
+     "loadMs": 7373.199999999953,
+     "ink": 0.4170683936187016,
+     "heapAfterMountMB": 92.87060546875,
+     "stats": {
+      "domNodes": 89,
+      "svgElements": 33,
+      "canvases": 1,
+      "custom": {
+       "tips": 100000,
+       "nodes": 199999,
+       "inputMs": 191.69999999995343,
+       "newickKB": 4649.90234375,
+       "drawnNodes": 17854,
+       "geomCheckedNodes": 17854,
+       "geomMaxRelErr": 2.2737367544323206e-16,
+       "pxPerUnitX": 1.6604443946311136,
+       "pxPerUnitY": 0.3050299999999986
+      }
+     },
+     "clickLatencyMs": 7431.59999999986,
+     "clickToPaintMs": 7401.699999999953,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 4
+     },
+     "fpsMedian": 29.940119760471216,
+     "fpsP5": 0.2765027926782056,
+     "fpsP5Rounds": [
+      0.3,
+      0.1,
+      0.3
+     ],
+     "droppedRatio": 0.9793252156265486,
+     "droppedFrames": 231,
+     "maxFrameGapMs": 3616.600000000006,
+     "frames": 15,
+     "inputSteps": 3,
+     "fpsP95": 60.24096385545337,
+     "idleCpuPctOfOneCore": 0.9,
+     "wheelSteps": 6,
+     "cpuWheelStepMs": 139.7,
+     "cpuDragMoveMs": 0,
+     "cpuMsPerStep": 139.7,
+     "loadAvgAtEnd": 8.47,
+     "heapAfterInteractionMB": 117.39795017242432,
+     "heapMB": 117.39795017242432,
+     "unusableFactor": 24.771999999999533,
+     "pageErrors": [],
+     "wallSec": 185.667,
+     "relMedianFps": 0.49700598802380586,
+     "relP5Fps": 0.009235193275451966
+    }
+   },
+   "status": "timeout",
+   "reason": "syn-yule-100000: timeout (unusable: 98% of the time in frames > 50 ms (best of 3 rounds); 140 ms main-thread CPU per interaction step > 100; click latency 7432 ms > 300 ms)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 185.668
+  },
+  "S10": {
+   "status": "timeout",
+   "reason": "syn-yule-100000: no freeze: longest frame gap < 2 s (3350 ms); while zooming out median 59.9 fps, 98% of the time in frames > 50 ms, DOM nodes 91, canvases 1 (more than half of the time in slow frames); overviewOrMinimap self-report: yes",
+   "checks": [
+    {
+     "name": "whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)",
+     "ok": true,
+     "detail": "after 3 wheel notches via bounds"
+    },
+    {
+     "name": "tree still drawn when zoomed out",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no freeze: longest frame gap < 2 s",
+     "ok": false,
+     "detail": "3350 ms"
+    }
+   ],
+   "measures": {
+    "treeId": "syn-yule-100000",
+    "loadMs": 6471.899999999907,
+    "scaleBefore": {
+     "kind": "pitch",
+     "v": 0.006100661006598784
+    },
+    "scaleAfter": {
+     "kind": "pitch",
+     "v": 0.6901500049862079
+    },
+    "zoomInChangedView": true,
+    "notches": 3,
+    "zoomOutSec": 7.939,
+    "wholeTreeBy": "bounds",
+    "fpsMedian": 59.88023952091634,
+    "fpsP5": 0.29851637362309247,
+    "droppedRatio": 0.9838341550761005,
+    "maxFrameGapMs": 3349.9000000000087,
+    "droppedFrames": 297,
+    "inkAfterZoomOut": 0.2201263623440215,
+    "stats": {
+     "domNodes": 91,
+     "svgElements": 33,
+     "canvases": 1,
+     "custom": {
+      "tips": 100000,
+      "nodes": 199999,
+      "inputMs": 165.70000000018626,
+      "newickKB": 4649.90234375,
+      "drawnNodes": 9232,
+      "geomCheckedNodes": 9232,
+      "geomMaxRelErr": 2.2737367544323206e-16,
+      "pxPerUnitX": 1.6604443946311278,
+      "pxPerUnitY": 9.502667600281711
+     }
+    }
+   },
+   "title": "Zoom out to the whole tree",
+   "evidence": "M",
+   "durationSec": 84.213
+  }
+ },
+ "scale": {
+  "syn-yule-100000": {
+   "treeId": "syn-yule-100000",
+   "tips": 100000,
+   "status": "timeout",
+   "reason": "unusable: 98% of the time in frames > 50 ms (best of 3 rounds); 140 ms main-thread CPU per interaction step > 100; click latency 7432 ms > 300 ms",
+   "loadAvgAtStart": 5.06,
+   "phase": "done",
+   "fetchMs": 93,
+   "convertMs": 0,
+   "wireBytes": 4139363,
+   "parseMs": 191.69999999995343,
+   "firstRenderMs": 7181.5,
+   "sharedParseMs": 276.10000000009313,
+   "reportedTips": 100000,
+   "notes": "parseMs = adapter-side Newick+TSV writing only (the worker's parse and layout are inside firstRenderMs); first data after 2284 ms; tips from the library's config.num_tips; library draws a de-overplotted subset (17854 nodes at first query)",
+   "loadMs": 7373.199999999953,
+   "ink": 0.4170683936187016,
+   "heapAfterMountMB": 92.87060546875,
+   "stats": {
+    "domNodes": 89,
+    "svgElements": 33,
+    "canvases": 1,
+    "custom": {
+     "tips": 100000,
+     "nodes": 199999,
+     "inputMs": 191.69999999995343,
+     "newickKB": 4649.90234375,
+     "drawnNodes": 17854,
+     "geomCheckedNodes": 17854,
+     "geomMaxRelErr": 2.2737367544323206e-16,
+     "pxPerUnitX": 1.6604443946311136,
+     "pxPerUnitY": 0.3050299999999986
+    }
+   },
+   "clickLatencyMs": 7431.59999999986,
+   "clickToPaintMs": 7401.699999999953,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 4
+   },
+   "fpsMedian": 29.940119760471216,
+   "fpsP5": 0.2765027926782056,
+   "fpsP5Rounds": [
+    0.3,
+    0.1,
+    0.3
+   ],
+   "droppedRatio": 0.9793252156265486,
+   "droppedFrames": 231,
+   "maxFrameGapMs": 3616.600000000006,
+   "frames": 15,
+   "inputSteps": 3,
+   "fpsP95": 60.24096385545337,
+   "idleCpuPctOfOneCore": 0.9,
+   "wheelSteps": 6,
+   "cpuWheelStepMs": 139.7,
+   "cpuDragMoveMs": 0,
+   "cpuMsPerStep": 139.7,
+   "loadAvgAtEnd": 8.47,
+   "heapAfterInteractionMB": 117.39795017242432,
+   "heapMB": 117.39795017242432,
+   "unusableFactor": 24.771999999999533,
+   "pageErrors": [],
+   "wallSec": 185.667,
+   "relMedianFps": 0.49700598802380586,
+   "relP5Fps": 0.009235193275451966
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-syn-yule-100000",
+   "file": "screens/20261019-101917-S1-syn-yule-100000.png",
+   "bytes": 43498
+  },
+  {
+   "label": "S10-zoomed-out-syn-yule-100000",
+   "file": "screens/20261019-101917-S10-zoomed-out-syn-yule-100000.png",
+   "bytes": 55422
+  }
+ ],
+ "wallSec": 307.515,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

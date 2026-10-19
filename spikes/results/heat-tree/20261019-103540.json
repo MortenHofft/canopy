@@ -1,0 +1,233 @@
+{
+ "runId": "20261019-103540",
+ "candidate": {
+  "name": "heat-tree",
+  "version": "0.3.1",
+  "license": "MIT (declared; no LICENSE file in tarball)",
+  "notes": "d3 SVG widget with its own toolbar inside a shadow root; no callbacks, so click/hover/colour/highlight/focus are adapter workarounds on its DOM.",
+  "columnKinds": [
+   "text"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "No callback. A capture listener on the open shadow root reads the d3 datum (__data__) of the library's own .tip-hit path; emitted tip set is adapter-derived from the shared TreeModel. The library also shows its selection box and action buttons (collapse, hide, rotate)."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "No callback and no node markers. Clicking inside a clade selects the deepest .hit region (a clade-sized rectangle or wedge); read from the d3 datum via the shadow root. The click point for a node is the strip between the node and its first child."
+  },
+  "branchClick": {
+   "level": "no",
+   "how": "Branches are not clickable; only the clade-sized hit areas are. A branch click selects the clade region, which is reported as nodeClick."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover on .hit / .tip-hit read from the shadow root; tip sets adapter-derived. Hover over a clade region reports the deepest enclosing clade (no per-branch hover)."
+  },
+  "descendantTipsInPayload": {
+   "level": "no",
+   "how": "The library emits nothing. Tip sets are computed by the adapter from the shared TreeModel (source adapter-derived)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "No API. Adapter sets inline stroke on the library's branch paths and fill (important) on tip-label text, derived from d3 datums, and re-applies after TreeState coordinateChange. Elements created later by expanding a collapsed clade are styled after the next redraw."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "No API. A class on the library's tip-label <text> (bold, primary colour, soft halo via paint-order stroke); no marker or row band. Applies to rendered labels only."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "No API. Applies a d3-zoom transform through TreeView.treeZoom (public but undocumented field) centred on the tip with label size at least 18 px; instant."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "The library draws SVG text only. HTML <a href data-tip-id tabindex=0> overlay positioned over up to 400 visible tip labels, repositioned on every zoom event (d3-zoom namespaced listener)."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "No aligned columns. The first text column drives tipLabelColor (categorical, GBIF palette) and the first bar column drives tipLabelSize (continuous), through TreeData.addTable + TreeState.setAesthetics (the library's own per-field mapping). The \"cell\" is the tip label."
+  },
+  "alignmentColumn": {
+   "level": "no",
+   "how": "No sequence or alignment rendering; only label colour, size, font, style and text can be mapped to metadata."
+  },
+  "radialLayout": {
+   "level": "yes",
+   "how": "TreeState.setLayout('circular'); real polar layout with rotated labels."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "No cladogram mode. Adapter rewrites node.data.length on the d3 hierarchy (height difference, tips aligned) and calls TreeState.update(); original lengths are restored for the phylogram. Trees without lengths get synthetic lengths."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "A branch-length scale legend is always drawn under the tree."
+  },
+  "darkTheme": {
+   "level": "partial",
+   "how": "Library CSS custom properties (--color-background, --color-text ...) and branch/label/legend rules overridden by a <style> appended to the open shadow root. The built-in toolbar follows the variables and color-scheme; colours set by metadata mappings stay as mapped."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "Page CSS cannot reach into the shadow root (default isolation). Values from gbifTheme() are passed as custom properties on the host and consumed by an adapter-supplied <style> in the shadow root. isolation:'none' exists but injects the library's global stylesheet into the page."
+  },
+  "multipleInstances": {
+   "level": "yes",
+   "how": "Each heatTree() call attaches its own shadow root; no module singletons found. Each call also appends a hidden 5000x5000 measurement container to document.body (removed by the adapter on unmount)."
+  },
+  "cleanUnmount": {
+   "level": "partial",
+   "how": "No destroy(). Adapter removes the host, calls TreeView.destroy(), detaches its listeners and removes the library's hidden <div> from document.body. The library's ResizeObserver is not exposed and is left to garbage collection with the detached element."
+  },
+  "controlledState": {
+   "level": "partial",
+   "how": "Layout is a TreeState method; everything else (colour, highlight, lengths, columns) goes through adapter workarounds. No props, no update(options): options are read once at heatTree()."
+  },
+  "zoomToFit": {
+   "level": "yes",
+   "how": "Fits on mount, on layout change and on container resize (ResizeObserver, 100 ms debounce); TreeView.fitToView() and the autoZoom/autoPan options (Default, Both, X, Y, None)."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "None. Collapse (triangle) of clades is manual through the selection buttons; no level of detail by zoom."
+  }
+ },
+ "date": "2026-10-19T10:35:45.902Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 8.45,
+  "end": 8.45,
+  "max": 8.45,
+  "noisy": true,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": null,
+ "label": "adhoc-S5-on-syn-yule-1000-via-copy-of-run.mjs",
+ "selection": {
+  "scenarios": [
+   "S5"
+  ],
+  "scaleTrees": [
+   "syn-yule-200"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 409224,
+  "jsGzipBytes": 125877,
+  "cssBytes": 17766,
+  "cssGzipBytes": 4328,
+  "totalBytes": 427393,
+  "totalGzipBytes": 130477,
+  "files": [
+   {
+    "path": "assets/index-BXVbu3c0.css",
+    "bytes": 17766,
+    "gzipBytes": 4328
+   },
+   {
+    "path": "assets/index-p6CnwI2O.js",
+    "bytes": 409224,
+    "gzipBytes": 125877
+   },
+   {
+    "path": "index.html",
+    "bytes": 403,
+    "gzipBytes": 272
+   }
+  ]
+ },
+ "scenarios": {
+  "S5": {
+   "status": "pass",
+   "reason": "syn-yule-1000: all checks passed",
+   "checks": [
+    {
+     "name": "React highlighted panel lists the tip",
+     "ok": true,
+     "detail": "Phecisius_eurubra"
+    },
+    {
+     "name": "tip is in view after focusTip",
+     "ok": true,
+     "detail": "locate returned null"
+    },
+    {
+     "name": "tip near the centre of the view (within 30% vertically, 40% horizontally)",
+     "ok": true,
+     "detail": "dx 29%, dy 3%"
+    },
+    {
+     "name": "sibling tips (parent clade) are visible",
+     "ok": true,
+     "detail": "1/1 siblings located"
+    },
+    {
+     "name": "parent clade has drawn bounds in view",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "React highlighted panel empty after clearing",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "highlight is visible (pixels around the tip change)",
+     "ok": true,
+     "detail": "953 pixels differ"
+    }
+   ],
+   "measures": {
+    "initiallyVisible": false,
+    "offCentre": {
+     "dx": 0.29164869555212886,
+     "dy": 0.02619386270343798
+    },
+    "highlightPixels": 953
+   },
+   "title": "Highlight and focus a tip",
+   "evidence": "M",
+   "durationSec": 3.777
+  }
+ },
+ "scale": {},
+ "screenshots": [
+  {
+   "label": "S5-focus-highlight",
+   "file": "screens/20261019-103540-S5-focus-highlight.png",
+   "bytes": 65582
+  }
+ ],
+ "wallSec": 5.369,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}
