@@ -1,5 +1,5 @@
 {
- "runId": "20261019-095807",
+ "runId": "20261019-110442",
  "candidate": {
   "name": "Reactree",
   "version": "1.0.3",
@@ -47,8 +47,8 @@
    "how": "each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
   },
   "customColumns": {
-   "level": "no",
-   "how": "no per-tip column API; the only per-tip panel is the FASTA alignment canvas (bar and text columns cannot be drawn)."
+   "level": "partial",
+   "how": "only the alignment kind: the library has no per-tip column API, its one per-tip panel is the FASTA alignment canvas. Bar and text columns are skipped (cannot be drawn)."
   },
   "alignmentColumn": {
    "level": "partial",
@@ -95,7 +95,7 @@
    "how": "none; every node and label is always drawn, min zoom 0.05."
   }
  },
- "date": "2026-10-19T10:04:40.979Z",
+ "date": "2026-10-19T11:10:55.279Z",
  "chromium": "141.0.7390.37",
  "chromiumArgs": [
   "--enable-precise-memory-info",
@@ -122,40 +122,40 @@
   "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
  },
  "load": {
-  "start": 1.25,
-  "end": 5.33,
-  "max": 5.6,
-  "noisy": true,
+  "start": 0.67,
+  "end": 2.67,
+  "max": 2.67,
+  "noisy": false,
   "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
  },
  "calibration": {
-  "loadStart": 1.25,
+  "loadStart": 0.67,
   "canvas": {
-   "fpsMedian": 102.04081632604576,
-   "fpsP5": 29.94011976047896,
+   "fpsMedian": 344.82758611826137,
+   "fpsP5": 59.52380952380888,
    "fpsP5Rounds": [
     29.9,
-    29.9,
+    59.5,
     29.9
    ],
    "droppedRatio": 0,
-   "droppedFrames": 21,
-   "maxFrameGapMs": 50,
-   "frames": 835,
-   "inputSteps": 192,
-   "idleCpuPctOfOneCore": 0.2,
+   "droppedFrames": 2,
+   "maxFrameGapMs": 33.399999999999636,
+   "frames": 872,
+   "inputSteps": 197,
+   "idleCpuPctOfOneCore": 0.3,
    "wheelSteps": 24,
-   "cpuWheelStepMs": 5.4,
-   "cpuDragMoveMs": 5.4,
-   "cpuMsPerStep": 5.4,
-   "loadavg": 1.84
+   "cpuWheelStepMs": 5.7,
+   "cpuDragMoveMs": 6.7,
+   "cpuMsPerStep": 6.7,
+   "loadavg": 0.52
   },
   "stub200": {
    "error": "page.waitForFunction: Timeout 20000ms exceeded."
   },
-  "loadEnd": 1.68
+  "loadEnd": 0.37
  },
- "label": null,
+ "label": "final-smoke",
  "selection": {
   "scenarios": [
    "S1",
@@ -181,12 +181,12 @@
   ]
  },
  "bundle": {
-  "jsBytes": 1137078,
-  "jsGzipBytes": 352572,
+  "jsBytes": 1140891,
+  "jsGzipBytes": 353985,
   "cssBytes": 49827,
   "cssGzipBytes": 9332,
-  "totalBytes": 1187307,
-  "totalGzipBytes": 362171,
+  "totalBytes": 1191120,
+  "totalGzipBytes": 363586,
   "files": [
    {
     "path": "assets/html2canvas.esm-BfxBtG_O.js",
@@ -199,19 +199,19 @@
     "gzipBytes": 9332
    },
    {
-    "path": "assets/index-BxUYaesV.js",
-    "bytes": 363395,
-    "gzipBytes": 113286
+    "path": "assets/index-BwB5OLB2.js",
+    "bytes": 367208,
+    "gzipBytes": 114695
    },
    {
-    "path": "assets/index.es-DXTViln0.js",
+    "path": "assets/index.es-EVfgI4EI.js",
     "bytes": 150909,
-    "gzipBytes": 51472
+    "gzipBytes": 51473
    },
    {
-    "path": "assets/jspdf.es.min-BKkQIMgT.js",
+    "path": "assets/jspdf.es.min-BpxEbZLv.js",
     "bytes": 390020,
-    "gzipBytes": 128324
+    "gzipBytes": 128327
    },
    {
     "path": "assets/purify.es-CAi2OJFm.js",
@@ -221,7 +221,7 @@
    {
     "path": "index.html",
     "bytes": 402,
-    "gzipBytes": 267
+    "gzipBytes": 269
    }
   ]
  },
@@ -233,38 +233,38 @@
      "tips": 5,
      "status": "fail",
      "reason": "library reports 2 tips, expected 5",
-     "loadAvgAtStart": 5.6,
+     "loadAvgAtStart": 1.79,
      "phase": "mount",
-     "fetchMs": 41.5,
+     "fetchMs": 14.100000000558794,
      "convertMs": 0,
      "wireBytes": 149,
      "parseMs": 0,
-     "firstRenderMs": 586.5999999999767,
-     "sharedParseMs": 1,
+     "firstRenderMs": 520.7000000001863,
+     "sharedParseMs": 1.2000000001862645,
      "reportedTips": 2,
-     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 5 ms, ready after 490 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
-     "loadMs": 586.5999999999767,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 25 ms after mount, ready after 430 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.2; rebuilds so far 2",
+     "loadMs": 520.7000000001863,
      "pageErrors": [],
-     "wallSec": 1.467
+     "wallSec": 0.975
     },
     "syn-yule-200": {
      "treeId": "syn-yule-200",
      "tips": 200,
      "status": "pass",
-     "reason": "load 594 ms, median 59.5 fps, best p5 20.0, dropped 7%, CPU/step 22 ms, click 32 ms",
-     "loadAvgAtStart": 5.6,
+     "reason": "load 603 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 17 ms, click 33 ms",
+     "loadAvgAtStart": 2.05,
      "phase": "done",
-     "fetchMs": 13.699999999953434,
+     "fetchMs": 15.200000000186265,
      "convertMs": 0,
      "wireBytes": 8432,
      "parseMs": 0,
-     "firstRenderMs": 593.6999999999534,
-     "sharedParseMs": 6.5,
+     "firstRenderMs": 602.7999999998137,
+     "sharedParseMs": 8,
      "reportedTips": 200,
-     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 2 ms, ready after 486 ms including its ~350 ms fade-in and fit animation; sharedParseMs=6.5; rebuilds so far 2",
-     "loadMs": 593.6999999999534,
-     "ink": 0.021472121307850256,
-     "heapAfterMountMB": 5.364091873168945,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 96 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=8.0; rebuilds so far 2",
+     "loadMs": 602.7999999998137,
+     "ink": 0.021325225082925336,
+     "heapAfterMountMB": 5.381155967712402,
      "stats": {
       "domNodes": 2943,
       "svgElements": 2885,
@@ -276,61 +276,61 @@
        "inexactClicks": 0,
        "colourSkipped": 0,
        "lastDriveMs": 0,
-       "k": 0.09362718713006526
+       "k": 0.09428295165424053
       }
      },
-     "clickLatencyMs": 32.300000000046566,
-     "clickToPaintMs": 280.30000000004657,
+     "clickLatencyMs": 32.89999999944121,
+     "clickToPaintMs": 177.3999999994412,
      "clickSamples": {
       "events": 5,
       "tries": 5,
       "rightNode": 5
      },
-     "fpsMedian": 59.52380952380888,
-     "fpsP5": 19.960079840319217,
+     "fpsMedian": 59.880239520962,
+     "fpsP5": 59.88023952095548,
      "fpsP5Rounds": [
-      10,
-      10,
-      20
+      20,
+      29.9,
+      59.9
      ],
-     "droppedRatio": 0.06664413272490456,
-     "droppedFrames": 75,
-     "maxFrameGapMs": 66.60000000000036,
-     "frames": 348,
-     "inputSteps": 164,
+     "droppedRatio": 0.0024429736099920558,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 562,
+     "inputSteps": 283,
      "fpsP95": 60.24096385542697,
-     "idleCpuPctOfOneCore": 0.3,
+     "idleCpuPctOfOneCore": 2.6,
      "wheelSteps": 24,
-     "cpuWheelStepMs": 21.8,
+     "cpuWheelStepMs": 16.9,
      "cpuDragMoveMs": 8.7,
-     "cpuMsPerStep": 21.8,
-     "loadAvgAtEnd": 4.39,
-     "heapAfterInteractionMB": 6.400148391723633,
-     "heapMB": 6.400148391723633,
-     "unusableFactor": 0.218,
+     "cpuMsPerStep": 16.9,
+     "loadAvgAtEnd": 1.85,
+     "heapAfterInteractionMB": 6.257453918457031,
+     "heapMB": 6.257453918457031,
+     "unusableFactor": 0.16899999999999998,
      "pageErrors": [],
-     "wallSec": 22.4,
-     "relMedianFps": 0.5833333333360987,
-     "relP5Fps": 0.6666666666666636
+     "wallSec": 20.521,
+     "relMedianFps": 0.17365269465542585,
+     "relP5Fps": 1.0059880239520629
     },
     "syn-yule-1000": {
      "treeId": "syn-yule-1000",
      "tips": 1000,
      "status": "partial",
-     "reason": "sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms)",
-     "loadAvgAtStart": 4.39,
+     "reason": "sluggish: 34% of the time in frames > 50 ms; 86 ms CPU per step (load 1547 ms, median 59.9 fps, best p5 10.0, dropped 34%, CPU/step 86 ms, click 120 ms)",
+     "loadAvgAtStart": 1.85,
      "phase": "done",
-     "fetchMs": 14.699999999953434,
+     "fetchMs": 9.5,
      "convertMs": 0,
      "wireBytes": 41755,
      "parseMs": 0,
-     "firstRenderMs": 1917.1999999999534,
-     "sharedParseMs": 15,
+     "firstRenderMs": 1546.9000000003725,
+     "sharedParseMs": 7.599999999627471,
      "reportedTips": 1000,
-     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 3 ms, ready after 1572 ms including its ~350 ms fade-in and fit animation; sharedParseMs=15.0; rebuilds so far 2",
-     "loadMs": 1917.1999999999534,
-     "ink": 0.012415100300110615,
-     "heapAfterMountMB": 10.413246154785156,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 768 ms after mount, ready after 1270 ms including its ~350 ms fade-in and fit animation; sharedParseMs=7.6; rebuilds so far 2",
+     "loadMs": 1546.9000000003725,
+     "ink": 0.012422997946611947,
+     "heapAfterMountMB": 10.37351131439209,
      "stats": {
       "domNodes": 14143,
       "svgElements": 14085,
@@ -342,11 +342,11 @@
        "inexactClicks": 0,
        "colourSkipped": 0,
        "lastDriveMs": 0,
-       "k": 0.019755671811445868
+       "k": 0.019661685146151704
       }
      },
-     "clickLatencyMs": 133.5,
-     "clickToPaintMs": 1137.9000000000233,
+     "clickLatencyMs": 120.09999999962747,
+     "clickToPaintMs": 638.0999999996275,
      "clickSamples": {
       "events": 5,
       "tries": 5,
@@ -355,36 +355,36 @@
      "fpsMedian": 59.88023952095548,
      "fpsP5": 10,
      "fpsP5Rounds": [
-      8.6,
-      8.6,
-      10
+      10,
+      10,
+      8.6
      ],
-     "droppedRatio": 0.4126606377915336,
+     "droppedRatio": 0.3432290397415405,
      "droppedFrames": 90,
-     "maxFrameGapMs": 116.60000000000218,
-     "frames": 351,
-     "inputSteps": 144,
+     "maxFrameGapMs": 100,
+     "frames": 353,
+     "inputSteps": 145,
      "fpsP95": 60.24096385542697,
      "idleCpuPctOfOneCore": 0.2,
      "wheelSteps": 24,
-     "cpuWheelStepMs": 90.1,
-     "cpuDragMoveMs": 35.5,
-     "cpuMsPerStep": 90.1,
-     "loadAvgAtEnd": 5.35,
-     "heapAfterInteractionMB": 11.142605781555176,
-     "heapMB": 11.142605781555176,
-     "unusableFactor": 0.9009999999999999,
+     "cpuWheelStepMs": 86.3,
+     "cpuDragMoveMs": 31.3,
+     "cpuMsPerStep": 86.3,
+     "loadAvgAtEnd": 2.12,
+     "heapAfterInteractionMB": 11.104236602783203,
+     "heapMB": 11.104236602783203,
+     "unusableFactor": 0.863,
      "pageErrors": [],
-     "wallSec": 29.089,
-     "relMedianFps": 0.5868263473081521,
-     "relP5Fps": 0.3340000000000009
+     "wallSec": 24.567,
+     "relMedianFps": 0.17365269465540692,
+     "relP5Fps": 0.16800000000000181
     }
    },
    "status": "partial",
-   "reason": "edge-quoted-labels: fail (library reports 2 tips, expected 5); syn-yule-1000: partial (sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms))",
+   "reason": "edge-quoted-labels: fail (library reports 2 tips, expected 5); syn-yule-1000: partial (sluggish: 34% of the time in frames > 50 ms; 86 ms CPU per step (load 1547 ms, median 59.9 fps, best p5 10.0, dropped 34%, CPU/step 86 ms, click 120 ms))",
    "title": "Load and fit to screen (scale ladder)",
    "evidence": "M",
-   "durationSec": 52.957
+   "durationSec": 46.065
   },
   "S2": {
    "status": "pass",
@@ -502,7 +502,7 @@
    ],
    "title": "Click a tip",
    "evidence": "M",
-   "durationSec": 4.711
+   "durationSec": 4.714
   },
   "S3": {
    "status": "partial",
@@ -612,7 +612,7 @@
    },
    "title": "Click an internal node",
    "evidence": "M",
-   "durationSec": 9.146
+   "durationSec": 6.837
   },
   "S4": {
    "status": "fail",
@@ -673,7 +673,7 @@
    },
    "title": "Colour clades from React state",
    "evidence": "M",
-   "durationSec": 7.691
+   "durationSec": 6.511
   },
   "S5": {
    "status": "pass",
@@ -725,7 +725,7 @@
    },
    "title": "Highlight and focus a tip",
    "evidence": "M",
-   "durationSec": 59.183
+   "durationSec": 48.216
   },
   "S6": {
    "status": "pass",
@@ -754,7 +754,7 @@
     {
      "name": "has non-zero size",
      "ok": true,
-     "detail": "{\"x\":514.5606689453125,\"y\":490.8265380859375,\"width\":115.7032470703125,\"height\":11.000030517578125}"
+     "detail": "{\"x\":514.2963256835938,\"y\":490.4023132324219,\"width\":115.7032470703125,\"height\":10.999481201171875}"
     },
     {
      "name": "real click opens a new tab",
@@ -774,10 +774,10 @@
      "target": "_blank",
      "rel": "noopener noreferrer",
      "rect": {
-      "x": 514.5606689453125,
-      "y": 490.8265380859375,
+      "x": 514.2963256835938,
+      "y": 490.4023132324219,
       "width": 115.7032470703125,
-      "height": 11.000030517578125
+      "height": 10.999481201171875
      },
      "count": 1000
     },
@@ -786,18 +786,83 @@
    },
    "title": "Tip label as a link",
    "evidence": "M",
-   "durationSec": 5.322
+   "durationSec": 4.618
   },
   "S7": {
-   "status": "unsupported",
-   "reason": "adapter reports customColumns=no: no per-tip column API; the only per-tip panel is the FASTA alignment canvas (bar and text columns cannot be drawn).",
+   "status": "partial",
+   "reason": "syn-yule-1000, column aln (kind alignment: the library cannot draw bars, tested with its supported kind): tip without a data row gets no cell (explicitly unmatched) ({\"x\":754.59375,\"y\":488.83390231751224,\"width\":237.40625,\"height\":15.130413138412976})",
+   "checks": [
+    {
+     "name": "fit view: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "399 of 400 on-screen tips have a cell"
+    },
+    {
+     "name": "fit view: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "399/399 aligned, max dy 0.0px"
+    },
+    {
+     "name": "after zoom and pan: at least 5 tips with a drawn cell",
+     "ok": true,
+     "detail": "19 of 21 on-screen tips have a cell"
+    },
+    {
+     "name": "after zoom and pan: cell centre within 2px of tip row",
+     "ok": true,
+     "detail": "19/19 aligned, max dy 0.0px"
+    },
+    {
+     "name": "cell is actually painted (pixels change when the column is removed)",
+     "ok": true,
+     "detail": "84% of the cell rect changes"
+    },
+    {
+     "name": "alignment cell shows several residue colours",
+     "ok": true,
+     "detail": "5 colour groups"
+    },
+    {
+     "name": "tip without a data row gets no cell (explicitly unmatched)",
+     "ok": false,
+     "detail": "{\"x\":754.59375,\"y\":488.83390231751224,\"width\":237.40625,\"height\":15.130413138412976}"
+    }
+   ],
+   "measures": {
+    "fit view": {
+     "visibleTips": 400,
+     "cells": 399,
+     "aligned": 399,
+     "maxDy": 0
+    },
+    "zoom": {
+     "startPitch": 0.61920166015625,
+     "endPitch": 16.090957641601562,
+     "notches": 15
+    },
+    "after zoom and pan": {
+     "visibleTips": 21,
+     "cells": 19,
+     "aligned": 19,
+     "maxDy": 0
+    },
+    "cellDrawnFraction": 0.8390433096315449,
+    "columnKind": "alignment",
+    "declaredColumnKinds": [
+     "alignment"
+    ],
+    "unmatched": {
+     "tipsWithoutRow": 18,
+     "rowsWithoutTip": 3
+    }
+   },
    "title": "Custom column (bar) aligned to tips",
    "evidence": "M",
-   "durationSec": 0.607
+   "durationSec": 46.484
   },
   "S8": {
    "status": "partial",
-   "reason": "rich-ens-protein-197: cell is actually painted (pixels change when the column is removed) (6% of the cell rect changes); alignment cell shows several residue colours (2 colour groups)",
+   "reason": "rich-ens-protein-197: cell is actually painted (pixels change when the column is removed) (5% of the cell rect changes); alignment cell shows several residue colours (2 colour groups)",
    "checks": [
     {
      "name": "fit view: at least 5 tips with a drawn cell",
@@ -822,7 +887,7 @@
     {
      "name": "cell is actually painted (pixels change when the column is removed)",
      "ok": false,
-     "detail": "6% of the cell rect changes"
+     "detail": "5% of the cell rect changes"
     },
     {
      "name": "alignment cell shows several residue colours",
@@ -838,8 +903,8 @@
      "maxDy": 0
     },
     "zoom": {
-     "startPitch": 2.85821533207198,
-     "endPitch": 15.085723877331253,
+     "startPitch": 2.826309204266322,
+     "endPitch": 14.917358398936955,
      "notches": 10
     },
     "after zoom and pan": {
@@ -848,12 +913,12 @@
      "aligned": 38,
      "maxDy": 0
     },
-    "cellDrawnFraction": 0.06190476190476191,
+    "cellDrawnFraction": 0.05332902391725921,
     "alignmentTipsWithSequence": 197
    },
    "title": "Alignment column",
    "evidence": "M",
-   "durationSec": 8.13
+   "durationSec": 7.518
   },
   "S9": {
    "status": "partial",
@@ -881,9 +946,9 @@
     }
    ],
    "measures": {
-    "lightLuminance": 244.0242327252592,
-    "darkLuminance": 47.86822312501763,
-    "tokenBackgroundFraction": 0.9567272152898436,
+    "lightLuminance": 244.09190830257677,
+    "darkLuminance": 47.88668586044678,
+    "tokenBackgroundFraction": 0.9644068867477492,
     "tokenBranchPixels": 0
    },
    "notes": [
@@ -891,11 +956,11 @@
    ],
    "title": "Theming (dark, tokens)",
    "evidence": "M",
-   "durationSec": 5.64
+   "durationSec": 4.795
   },
   "S10": {
    "status": "pass",
-   "reason": "syn-yule-1000: all checks passed; while zooming out median 59.9 fps, 26% of the time in frames > 50 ms, DOM nodes 14143, canvases 0; overviewOrMinimap self-report: no",
+   "reason": "syn-yule-1000: all checks passed; while zooming out median 59.9 fps, 22% of the time in frames > 50 ms, DOM nodes 14143, canvases 0; overviewOrMinimap self-report: no",
    "checks": [
     {
      "name": "whole tree in view after zooming out by wheel (first and last tip locatable, or root bounds inside the container)",
@@ -910,27 +975,27 @@
     {
      "name": "no freeze: longest frame gap < 2 s",
      "ok": true,
-     "detail": "67 ms"
+     "detail": "50 ms"
     }
    ],
    "measures": {
     "treeId": "syn-yule-1000",
-    "loadMs": 1628.5,
+    "loadMs": 1718.7000000001863,
     "scaleBefore": {
      "kind": "pitch",
-     "v": 0.62017822265625
+     "v": 0.6189422607421875
     },
     "scaleAfter": null,
     "zoomInChangedView": true,
     "notches": 3,
-    "zoomOutSec": 0.246,
+    "zoomOutSec": 0.224,
     "wholeTreeBy": "bounds",
-    "fpsMedian": 59.88023952095548,
-    "fpsP5": 14.992503748125978,
-    "droppedRatio": 0.26499801350824176,
-    "maxFrameGapMs": 66.69999999999982,
-    "droppedFrames": 7,
-    "inkAfterZoomOut": 0.03207234244195234,
+    "fpsMedian": 59.88023952095874,
+    "fpsP5": 19.960079840319217,
+    "droppedRatio": 0.21725932350372928,
+    "maxFrameGapMs": 50.100000000000364,
+    "droppedFrames": 6,
+    "inkAfterZoomOut": 0.033157479071236784,
     "stats": {
      "domNodes": 14143,
      "svgElements": 14085,
@@ -948,7 +1013,7 @@
    },
    "title": "Zoom out to the whole tree",
    "evidence": "M",
-   "durationSec": 6.191
+   "durationSec": 6.161
   },
   "S11": {
    "status": "pass",
@@ -962,7 +1027,7 @@
     {
      "name": "toggle to cladogram changes the layout (tips move)",
      "ok": true,
-     "detail": "mean tip shift 19.1 px over 197 tips"
+     "detail": "mean tip shift 19.0 px over 197 tips"
     },
     {
      "name": "cladogram no longer proportional to length",
@@ -992,16 +1057,16 @@
    ],
    "measures": {
     "visibleTips": 197,
-    "phylogramPearson": 0.9999999999995223,
+    "phylogramPearson": 0.99999999999979,
     "cladogramPearson": null,
-    "meanTipShiftPx": 19.097275090096566,
+    "meanTipShiftPx": 19.014528071214706,
     "ultrametricTipSpread": 0,
     "ultrametricTips": 400,
     "scaleBarSelfReport": "yes: axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
    },
    "title": "Phylogram / cladogram",
    "evidence": "M",
-   "durationSec": 4.465
+   "durationSec": 3.815
   },
   "S12": {
    "status": "fail",
@@ -1010,7 +1075,7 @@
     {
      "name": "setLayout(radial) changes the layout",
      "ok": true,
-     "detail": "tip moved from 510,408 to 600,553"
+     "detail": "tip moved from 510,409 to 600,553"
     },
     {
      "name": "radial S2: tipClick event for Domefaodon_paraborealis",
@@ -1180,7 +1245,7 @@
     {
      "name": "radial S4: clade A turns red (>= 0.1% of the clade box and >= 20 px move towards red)",
      "ok": true,
-     "detail": "fraction 0.00% -> 52.79%"
+     "detail": "fraction 0.00% -> 52.81%"
     },
     {
      "name": "radial S4: other clade unchanged (control)",
@@ -1221,7 +1286,7 @@
    "measures": {},
    "title": "Radial layout",
    "evidence": "M",
-   "durationSec": 25.984
+   "durationSec": 20.477
   },
   "S13": {
    "status": "pass",
@@ -1235,7 +1300,7 @@
     {
      "name": "both instances draw something",
      "ok": true,
-     "detail": "ink 1.60% / 2.93%"
+     "detail": "ink 1.60% / 2.92%"
     },
     {
      "name": "click in instance 0 reaches only instance 0",
@@ -1270,7 +1335,7 @@
     {
      "name": "document DOM node count returns to baseline",
      "ok": true,
-     "detail": "314 -> 314"
+     "detail": "328 -> 328"
     },
     {
      "name": "no canvases / GL contexts left behind",
@@ -1280,7 +1345,7 @@
     {
      "name": "JS heap growth over cycles 2 to 5 below 15 MB (after gc)",
      "ok": true,
-     "detail": "9.1 MB"
+     "detail": "5.1 MB"
     },
     {
      "name": "no page errors",
@@ -1291,26 +1356,26 @@
    "measures": {
     "adapterReportsMultipleInstances": "partial: two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13.",
     "baseline": {
-     "dom": 314,
+     "dom": 328,
      "canv": 0
     },
     "afterCycles": {
-     "dom": 314,
+     "dom": 328,
      "canv": 0
     },
     "heapMB": [
-     13.558266639709473,
-     17.956900596618652,
-     18.268935203552246,
-     18.80409526824951,
-     22.634531021118164
+     10.467131614685059,
+     10.940082550048828,
+     15.295084953308105,
+     15.416338920593262,
+     15.578146934509277
     ],
-    "heapGrowthMB": 9.076264381408691,
+    "heapGrowthMB": 5.111015319824219,
     "pageErrors": []
    },
    "title": "Two instances, mount/unmount x5",
    "evidence": "M",
-   "durationSec": 16.257
+   "durationSec": 14.474
   },
   "S14": {
    "status": "partial",
@@ -1465,16 +1530,16 @@
    },
    "title": "Keyboard and screen reader",
    "evidence": "M",
-   "durationSec": 3.274
+   "durationSec": 3.009
   },
   "S15": {
    "status": "fail",
-   "reason": "syn-yule-10000, 969-tip clade: clade bounds available",
+   "reason": "syn-yule-10000, 969-tip clade: clade is red after the click (>= 0.1% of the clade box and >= 20 px move towards red) (0.00% of the clade box)",
    "checks": [
     {
-     "name": "clade bounds available",
+     "name": "clade is red after the click (>= 0.1% of the clade box and >= 20 px move towards red)",
      "ok": false,
-     "detail": ""
+     "detail": "0.00% of the clade box"
     },
     {
      "name": "map panel shows 969 tips and the clade is in React state (all 5 clicks)",
@@ -1485,26 +1550,27 @@
    "measures": {
     "tree": "syn-yule-10000",
     "cladeTips": 969,
+    "redFractionAfterClick": 0,
     "clickToCommitMs": [
-     3459.0999999999767,
-     2212.0999999999767,
-     2253,
-     2094.3000000000466,
-     2224.9000000000233
+     2103.899999999441,
+     2202.2000000001863,
+     2176.5,
+     2045,
+     2049.899999999441
     ],
     "clickToPaintMs": [
-     16828.599999999977,
-     7445.5,
-     6519.099999999977,
-     7525,
-     13546.79999999993
+     7068.899999999441,
+     7332.700000000186,
+     7181,
+     6773.9000000003725,
+     7045
     ],
-    "medianCommitMs": 2224.9000000000233,
-    "medianPaintMs": 7525
+    "medianCommitMs": 2103.899999999441,
+    "medianPaintMs": 7068.899999999441
    },
    "title": "Linked view (click clade, colour, map panel)",
    "evidence": "M",
-   "durationSec": 137.531
+   "durationSec": 112.686
   }
  },
  "scale": {
@@ -1513,38 +1579,38 @@
    "tips": 5,
    "status": "fail",
    "reason": "library reports 2 tips, expected 5",
-   "loadAvgAtStart": 5.6,
+   "loadAvgAtStart": 1.79,
    "phase": "mount",
-   "fetchMs": 41.5,
+   "fetchMs": 14.100000000558794,
    "convertMs": 0,
    "wireBytes": 149,
    "parseMs": 0,
-   "firstRenderMs": 586.5999999999767,
-   "sharedParseMs": 1,
+   "firstRenderMs": 520.7000000001863,
+   "sharedParseMs": 1.2000000001862645,
    "reportedTips": 2,
-   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 5 ms, ready after 490 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
-   "loadMs": 586.5999999999767,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 25 ms after mount, ready after 430 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.2; rebuilds so far 2",
+   "loadMs": 520.7000000001863,
    "pageErrors": [],
-   "wallSec": 1.467
+   "wallSec": 0.975
   },
   "syn-yule-200": {
    "treeId": "syn-yule-200",
    "tips": 200,
    "status": "pass",
-   "reason": "load 594 ms, median 59.5 fps, best p5 20.0, dropped 7%, CPU/step 22 ms, click 32 ms",
-   "loadAvgAtStart": 5.6,
+   "reason": "load 603 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 17 ms, click 33 ms",
+   "loadAvgAtStart": 2.05,
    "phase": "done",
-   "fetchMs": 13.699999999953434,
+   "fetchMs": 15.200000000186265,
    "convertMs": 0,
    "wireBytes": 8432,
    "parseMs": 0,
-   "firstRenderMs": 593.6999999999534,
-   "sharedParseMs": 6.5,
+   "firstRenderMs": 602.7999999998137,
+   "sharedParseMs": 8,
    "reportedTips": 200,
-   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 2 ms, ready after 486 ms including its ~350 ms fade-in and fit animation; sharedParseMs=6.5; rebuilds so far 2",
-   "loadMs": 593.6999999999534,
-   "ink": 0.021472121307850256,
-   "heapAfterMountMB": 5.364091873168945,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 96 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=8.0; rebuilds so far 2",
+   "loadMs": 602.7999999998137,
+   "ink": 0.021325225082925336,
+   "heapAfterMountMB": 5.381155967712402,
    "stats": {
     "domNodes": 2943,
     "svgElements": 2885,
@@ -1556,61 +1622,61 @@
      "inexactClicks": 0,
      "colourSkipped": 0,
      "lastDriveMs": 0,
-     "k": 0.09362718713006526
+     "k": 0.09428295165424053
     }
    },
-   "clickLatencyMs": 32.300000000046566,
-   "clickToPaintMs": 280.30000000004657,
+   "clickLatencyMs": 32.89999999944121,
+   "clickToPaintMs": 177.3999999994412,
    "clickSamples": {
     "events": 5,
     "tries": 5,
     "rightNode": 5
    },
-   "fpsMedian": 59.52380952380888,
-   "fpsP5": 19.960079840319217,
+   "fpsMedian": 59.880239520962,
+   "fpsP5": 59.88023952095548,
    "fpsP5Rounds": [
-    10,
-    10,
-    20
+    20,
+    29.9,
+    59.9
    ],
-   "droppedRatio": 0.06664413272490456,
-   "droppedFrames": 75,
-   "maxFrameGapMs": 66.60000000000036,
-   "frames": 348,
-   "inputSteps": 164,
+   "droppedRatio": 0.0024429736099920558,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 562,
+   "inputSteps": 283,
    "fpsP95": 60.24096385542697,
-   "idleCpuPctOfOneCore": 0.3,
+   "idleCpuPctOfOneCore": 2.6,
    "wheelSteps": 24,
-   "cpuWheelStepMs": 21.8,
+   "cpuWheelStepMs": 16.9,
    "cpuDragMoveMs": 8.7,
-   "cpuMsPerStep": 21.8,
-   "loadAvgAtEnd": 4.39,
-   "heapAfterInteractionMB": 6.400148391723633,
-   "heapMB": 6.400148391723633,
-   "unusableFactor": 0.218,
+   "cpuMsPerStep": 16.9,
+   "loadAvgAtEnd": 1.85,
+   "heapAfterInteractionMB": 6.257453918457031,
+   "heapMB": 6.257453918457031,
+   "unusableFactor": 0.16899999999999998,
    "pageErrors": [],
-   "wallSec": 22.4,
-   "relMedianFps": 0.5833333333360987,
-   "relP5Fps": 0.6666666666666636
+   "wallSec": 20.521,
+   "relMedianFps": 0.17365269465542585,
+   "relP5Fps": 1.0059880239520629
   },
   "syn-yule-1000": {
    "treeId": "syn-yule-1000",
    "tips": 1000,
    "status": "partial",
-   "reason": "sluggish: 41% of the time in frames > 50 ms; 90 ms CPU per step (load 1917 ms, median 59.9 fps, best p5 10.0, dropped 41%, CPU/step 90 ms, click 134 ms)",
-   "loadAvgAtStart": 4.39,
+   "reason": "sluggish: 34% of the time in frames > 50 ms; 86 ms CPU per step (load 1547 ms, median 59.9 fps, best p5 10.0, dropped 34%, CPU/step 86 ms, click 120 ms)",
+   "loadAvgAtStart": 1.85,
    "phase": "done",
-   "fetchMs": 14.699999999953434,
+   "fetchMs": 9.5,
    "convertMs": 0,
    "wireBytes": 41755,
    "parseMs": 0,
-   "firstRenderMs": 1917.1999999999534,
-   "sharedParseMs": 15,
+   "firstRenderMs": 1546.9000000003725,
+   "sharedParseMs": 7.599999999627471,
    "reportedTips": 1000,
-   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); first build visible after 3 ms, ready after 1572 ms including its ~350 ms fade-in and fit animation; sharedParseMs=15.0; rebuilds so far 2",
-   "loadMs": 1917.1999999999534,
-   "ink": 0.012415100300110615,
-   "heapAfterMountMB": 10.413246154785156,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 768 ms after mount, ready after 1270 ms including its ~350 ms fade-in and fit animation; sharedParseMs=7.6; rebuilds so far 2",
+   "loadMs": 1546.9000000003725,
+   "ink": 0.012422997946611947,
+   "heapAfterMountMB": 10.37351131439209,
    "stats": {
     "domNodes": 14143,
     "svgElements": 14085,
@@ -1622,11 +1688,11 @@
      "inexactClicks": 0,
      "colourSkipped": 0,
      "lastDriveMs": 0,
-     "k": 0.019755671811445868
+     "k": 0.019661685146151704
     }
    },
-   "clickLatencyMs": 133.5,
-   "clickToPaintMs": 1137.9000000000233,
+   "clickLatencyMs": 120.09999999962747,
+   "clickToPaintMs": 638.0999999996275,
    "clickSamples": {
     "events": 5,
     "tries": 5,
@@ -1635,64 +1701,69 @@
    "fpsMedian": 59.88023952095548,
    "fpsP5": 10,
    "fpsP5Rounds": [
-    8.6,
-    8.6,
-    10
+    10,
+    10,
+    8.6
    ],
-   "droppedRatio": 0.4126606377915336,
+   "droppedRatio": 0.3432290397415405,
    "droppedFrames": 90,
-   "maxFrameGapMs": 116.60000000000218,
-   "frames": 351,
-   "inputSteps": 144,
+   "maxFrameGapMs": 100,
+   "frames": 353,
+   "inputSteps": 145,
    "fpsP95": 60.24096385542697,
    "idleCpuPctOfOneCore": 0.2,
    "wheelSteps": 24,
-   "cpuWheelStepMs": 90.1,
-   "cpuDragMoveMs": 35.5,
-   "cpuMsPerStep": 90.1,
-   "loadAvgAtEnd": 5.35,
-   "heapAfterInteractionMB": 11.142605781555176,
-   "heapMB": 11.142605781555176,
-   "unusableFactor": 0.9009999999999999,
+   "cpuWheelStepMs": 86.3,
+   "cpuDragMoveMs": 31.3,
+   "cpuMsPerStep": 86.3,
+   "loadAvgAtEnd": 2.12,
+   "heapAfterInteractionMB": 11.104236602783203,
+   "heapMB": 11.104236602783203,
+   "unusableFactor": 0.863,
    "pageErrors": [],
-   "wallSec": 29.089,
-   "relMedianFps": 0.5868263473081521,
-   "relP5Fps": 0.3340000000000009
+   "wallSec": 24.567,
+   "relMedianFps": 0.17365269465540692,
+   "relP5Fps": 0.16800000000000181
   }
  },
  "screenshots": [
   {
    "label": "S4-two-clades",
-   "file": "screens/20261019-095807-S4-two-clades.png",
-   "bytes": 54414
+   "file": "screens/20261019-110442-S4-two-clades.png",
+   "bytes": 53789
   },
   {
    "label": "S5-focus-highlight",
-   "file": "screens/20261019-095807-S5-focus-highlight.png",
-   "bytes": 116837
+   "file": "screens/20261019-110442-S5-focus-highlight.png",
+   "bytes": 116206
   },
   {
    "label": "S9-dark",
-   "file": "screens/20261019-095807-S9-dark.png",
-   "bytes": 56269
+   "file": "screens/20261019-110442-S9-dark.png",
+   "bytes": 55630
   },
   {
    "label": "S12-radial",
-   "file": "screens/20261019-095807-S12-radial.png",
-   "bytes": 50590
+   "file": "screens/20261019-110442-S12-radial.png",
+   "bytes": 50424
+  },
+  {
+   "label": "S15-linked-view",
+   "file": "screens/20261019-110442-S15-linked-view.png",
+   "bytes": 48614
   },
   {
    "label": "S1-syn-yule-200",
-   "file": "screens/20261019-095807-S1-syn-yule-200.png",
-   "bytes": 68001
+   "file": "screens/20261019-110442-S1-syn-yule-200.png",
+   "bytes": 67989
   },
   {
    "label": "S10-zoomed-out-syn-yule-1000",
-   "file": "screens/20261019-095807-S10-zoomed-out-syn-yule-1000.png",
-   "bytes": 81679
+   "file": "screens/20261019-110442-S10-zoomed-out-syn-yule-1000.png",
+   "bytes": 81238
   }
  ],
- "wallSec": 393.394,
+ "wallSec": 372.649,
  "runner": {
   "version": "0.1.0",
   "node": "v22.22.0"

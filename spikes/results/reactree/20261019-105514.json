@@ -1,0 +1,744 @@
+{
+ "runId": "20261019-105514",
+ "candidate": {
+  "name": "Reactree",
+  "version": "1.0.3",
+  "license": "MIT",
+  "notes": "reactreejs: React component with three props (newick, fasta, defaultHeight), D3 SVG, built-in toolbar. Everything beyond rendering is driven through its DOM (partial).",
+  "columnKinds": [
+   "alignment"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no callback; capture-phase click listener on our wrapper reads the d3 datum (__data__) of the clicked circle.r-hit or text.leaf-label. The library itself only opens its own node-info panel on a tip click."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same DOM listener on circle.r-hit. The library collapses the clade into a triangle on that click; the adapter stops that by default (option switch) so colouring works."
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "path.b-hit (12 px transparent hit stroke) listener; datum is the link, target = clade below the branch. The library reacts only in colour mode."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover capture on circle.r-hit and tip labels; the library shows tooltips only inside its edit modes. Events are adapter-derived."
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "no payload at all: the adapter walks the datum (d.data.children) for leaf names and maps them to the shared TreeModel (mrca by name); after a library reroot/ladderize the clade may not exist in the shared tree (flagged exactClade=false)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "drives the library colour mode through its own toolbar button, palette swatch and synthetic clicks on node hit circles (one rebuild per colour). Only the 12 palette colours exist (nearest chosen); no free colour, no API."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "own SVG ring circles inserted into the tip group after each rebuild (re-applied by a MutationObserver). Library search (Ctrl+F) highlights one substring only and is not used for this."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "synthetic wheel and mouse events fed to the library d3-zoom (zoom to about 24 px row pitch, then drag the tip to the middle); instant, no API."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only the alignment kind: the library has no per-tip column API, its one per-tip panel is the FASTA alignment canvas. Bar and text columns are skipped (cannot be drawn)."
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "one alignment column becomes the fasta prop; panel is shown by clicking its toolbar button; fixed 14 px cells and 172 px label canvas (ColumnSpec.width ignored), rectangular layout only, rows scroll with the tree."
+  },
+  "radialLayout": {
+   "level": "partial",
+   "how": "library has a circular layout, switched by clicking its toolbar button (no prop)."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "library phylogram/cladogram buttons, clicked from the adapter (no prop). Cladogram uses d3.cluster so tips align."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "documented data-theme=\"dark\" on <html> (MutationObserver); rebuilds the SVG. Global attribute, so it also affects the host page."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--clr-* and --font-family map onto GBIF tokens for the chrome; tree colours are hard-coded hex in JS, re-themed with CSS attribute selectors on those hex values (brittle). Canvas alignment colours and fonts cannot be styled."
+  },
+  "multipleInstances": {
+   "level": "partial",
+   "how": "two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13."
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; effects remove their window listeners and the MutationObserver; portals unmount with the component (verified in S13/S1 teardown)."
+  },
+  "controlledState": {
+   "level": "no",
+   "how": "three props only (newick, fasta, defaultHeight); a changed newick resets all state. Everything else is internal React state reachable only through the DOM."
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fits on mount and on layout change; a Fit toolbar button exists but no API."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none; every node and label is always drawn, min zoom 0.05."
+  }
+ },
+ "date": "2026-10-19T10:56:59.827Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 1.14,
+  "end": 1.61,
+  "max": 1.61,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 1.14,
+  "canvas": {
+   "fpsMedian": 76.92307692307692,
+   "fpsP5": 30.030030030029867,
+   "fpsP5Rounds": [
+    30,
+    30,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 9,
+   "maxFrameGapMs": 33.40000000000009,
+   "frames": 871,
+   "inputSteps": 193,
+   "idleCpuPctOfOneCore": 0.2,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 5.7,
+   "cpuDragMoveMs": 6.4,
+   "cpuMsPerStep": 6.4,
+   "loadavg": 1.37
+  },
+  "stub200": {
+   "error": "page.waitForFunction: Timeout 20000ms exceeded."
+  },
+  "loadEnd": 1.06
+ },
+ "label": "s1-edge",
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "edge-trifurcating-root",
+   "edge-quoted-labels",
+   "edge-internal-support",
+   "edge-multi-tree-nexus",
+   "edge-polytomy-missing",
+   "edge-caterpillar-20000"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1137757,
+  "jsGzipBytes": 352829,
+  "cssBytes": 49827,
+  "cssGzipBytes": 9332,
+  "totalBytes": 1187986,
+  "totalGzipBytes": 362430,
+  "files": [
+   {
+    "path": "assets/html2canvas.esm-BfxBtG_O.js",
+    "bytes": 202285,
+    "gzipBytes": 47774
+   },
+   {
+    "path": "assets/index-Bsh3rAgE.css",
+    "bytes": 49827,
+    "gzipBytes": 9332
+   },
+   {
+    "path": "assets/index-D8aSlKOg.js",
+    "bytes": 364074,
+    "gzipBytes": 113541
+   },
+   {
+    "path": "assets/index.es-DrWNCI8-.js",
+    "bytes": 150909,
+    "gzipBytes": 51471
+   },
+   {
+    "path": "assets/jspdf.es.min-aOknI3mr.js",
+    "bytes": 390020,
+    "gzipBytes": 128327
+   },
+   {
+    "path": "assets/purify.es-CAi2OJFm.js",
+    "bytes": 30469,
+    "gzipBytes": 11716
+   },
+   {
+    "path": "index.html",
+    "bytes": 402,
+    "gzipBytes": 269
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "edge-trifurcating-root": {
+     "treeId": "edge-trifurcating-root",
+     "tips": 4,
+     "status": "pass",
+     "reason": "load 488 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 4 ms, click 5 ms",
+     "loadAvgAtStart": 1.06,
+     "phase": "done",
+     "fetchMs": 15.399999999906868,
+     "convertMs": 0,
+     "wireBytes": 34,
+     "parseMs": 0,
+     "firstRenderMs": 487.60000000009313,
+     "sharedParseMs": 0.6000000000931323,
+     "reportedTips": 4,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 24 ms after mount, ready after 380 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.6; rebuilds so far 2",
+     "loadMs": 487.60000000009313,
+     "ink": 0.020497551729584562,
+     "heapAfterMountMB": 4.096814155578613,
+     "stats": {
+      "domNodes": 191,
+      "svgElements": 133,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 4,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.8556
+      }
+     },
+     "clickLatencyMs": 5.399999999906868,
+     "clickToPaintMs": 71.39999999990687,
+     "clickSamples": {
+      "events": 1,
+      "tries": 1,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 59.88023952095548,
+     "fpsP5Rounds": [
+      20,
+      29.9,
+      59.9
+     ],
+     "droppedRatio": 0.0029024272259847543,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 549,
+     "inputSteps": 273,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 3.1,
+     "cpuDragMoveMs": 3.6,
+     "cpuMsPerStep": 3.6,
+     "loadAvgAtEnd": 1.09,
+     "heapAfterInteractionMB": 4.595877647399902,
+     "heapMB": 4.595877647399902,
+     "unusableFactor": 0.04876000000000931,
+     "pageErrors": [],
+     "wallSec": 18.937,
+     "relMedianFps": 0.7784431137724637,
+     "relP5Fps": 1.9940119760478283
+    },
+    "edge-quoted-labels": {
+     "treeId": "edge-quoted-labels",
+     "tips": 5,
+     "status": "fail",
+     "reason": "library reports 2 tips, expected 5",
+     "loadAvgAtStart": 1.57,
+     "phase": "mount",
+     "fetchMs": 11.800000000279397,
+     "convertMs": 0,
+     "wireBytes": 149,
+     "parseMs": 0,
+     "firstRenderMs": 428.5,
+     "sharedParseMs": 0.900000000372529,
+     "reportedTips": 2,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 19 ms after mount, ready after 338 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.9; rebuilds so far 2",
+     "loadMs": 428.5,
+     "pageErrors": [],
+     "wallSec": 0.874
+    },
+    "edge-internal-support": {
+     "treeId": "edge-internal-support",
+     "tips": 6,
+     "status": "pass",
+     "reason": "load 491 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 5 ms, click 6 ms",
+     "loadAvgAtStart": 1.57,
+     "phase": "done",
+     "fetchMs": 12.700000000186265,
+     "convertMs": 0,
+     "wireBytes": 81,
+     "parseMs": 0,
+     "firstRenderMs": 491.10000000009313,
+     "sharedParseMs": 1.400000000372529,
+     "reportedTips": 6,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 30 ms after mount, ready after 401 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.4; rebuilds so far 2",
+     "loadMs": 491.10000000009313,
+     "ink": 0.022802084978676307,
+     "heapAfterMountMB": 4.097308158874512,
+     "stats": {
+      "domNodes": 216,
+      "svgElements": 158,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 6,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.8719530986751629
+      }
+     },
+     "clickLatencyMs": 6.199999999720603,
+     "clickToPaintMs": 61.60000000009313,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 3
+     },
+     "fpsMedian": 59.880239520957105,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0.0064618224976677385,
+     "droppedFrames": 41,
+     "maxFrameGapMs": 50,
+     "frames": 506,
+     "inputSteps": 256,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 4.6,
+     "cpuDragMoveMs": 3.3,
+     "cpuMsPerStep": 4.6,
+     "loadAvgAtEnd": 1.33,
+     "heapAfterInteractionMB": 4.885533332824707,
+     "heapMB": 4.885533332824707,
+     "unusableFactor": 0.04911000000000931,
+     "pageErrors": [],
+     "wallSec": 19.971,
+     "relMedianFps": 0.7784431137724424,
+     "relP5Fps": 0.6660000000000036
+    },
+    "edge-multi-tree-nexus": {
+     "treeId": "edge-multi-tree-nexus",
+     "tips": 7,
+     "status": "fail",
+     "reason": "library reports 3 tips, expected 7",
+     "loadAvgAtStart": 1.33,
+     "phase": "mount",
+     "fetchMs": 11.899999999906868,
+     "convertMs": 2.7999999998137355,
+     "wireBytes": 847,
+     "parseMs": 0,
+     "firstRenderMs": 401.29999999981374,
+     "sharedParseMs": 0,
+     "reportedTips": 3,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 16 ms after mount, ready after 320 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.0; rebuilds so far 2",
+     "loadMs": 401.29999999981374,
+     "pageErrors": [],
+     "wallSec": 0.818
+    },
+    "edge-polytomy-missing": {
+     "treeId": "edge-polytomy-missing",
+     "tips": 10,
+     "status": "pass",
+     "reason": "load 444 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 4 ms, click 5 ms",
+     "loadAvgAtStart": 1.33,
+     "phase": "done",
+     "fetchMs": 11.399999999906868,
+     "convertMs": 0,
+     "wireBytes": 85,
+     "parseMs": 0,
+     "firstRenderMs": 443.59999999962747,
+     "sharedParseMs": 1,
+     "reportedTips": 10,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 24 ms after mount, ready after 370 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+     "loadMs": 443.59999999962747,
+     "ink": 0.022179750434370593,
+     "heapAfterMountMB": 4.134706497192383,
+     "stats": {
+      "domNodes": 245,
+      "svgElements": 187,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 10,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.8556
+      }
+     },
+     "clickLatencyMs": 4.5,
+     "clickToPaintMs": 84.90000000037253,
+     "clickSamples": {
+      "events": 3,
+      "tries": 3,
+      "rightNode": 1
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 20,
+     "fpsP5Rounds": [
+      20,
+      20,
+      20
+     ],
+     "droppedRatio": 0,
+     "droppedFrames": 56,
+     "maxFrameGapMs": 50,
+     "frames": 472,
+     "inputSteps": 240,
+     "fpsP95": 60.240963855423665,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 3.6,
+     "cpuDragMoveMs": 3.7,
+     "cpuMsPerStep": 3.7,
+     "loadAvgAtEnd": 1.61,
+     "heapAfterInteractionMB": 4.807969093322754,
+     "heapMB": 4.807969093322754,
+     "unusableFactor": 0.04435999999996275,
+     "pageErrors": [],
+     "wallSec": 19.901,
+     "relMedianFps": 0.7784431137724213,
+     "relP5Fps": 0.6660000000000036
+    },
+    "edge-caterpillar-20000": {
+     "treeId": "edge-caterpillar-20000",
+     "tips": 20000,
+     "status": "fail",
+     "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+     "loadAvgAtStart": 1.61,
+     "phase": "mount",
+     "pageErrors": [
+      "console.error: RangeError: Maximum call stack size exceeded\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at ",
+      "console.error: Maximum call stack size exceeded",
+      "view error (instance 0): Maximum call stack size exceeded"
+     ],
+     "wallSec": 0.635,
+     "unusableFactor": 1000000
+    }
+   },
+   "status": "partial",
+   "reason": "edge-quoted-labels: fail (library reports 2 tips, expected 5); edge-multi-tree-nexus: fail (library reports 3 tips, expected 7); edge-caterpillar-20000: fail (mount: page.evaluate: RangeError: Maximum call stack size exceeded)",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 61.139
+  }
+ },
+ "scale": {
+  "edge-trifurcating-root": {
+   "treeId": "edge-trifurcating-root",
+   "tips": 4,
+   "status": "pass",
+   "reason": "load 488 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 4 ms, click 5 ms",
+   "loadAvgAtStart": 1.06,
+   "phase": "done",
+   "fetchMs": 15.399999999906868,
+   "convertMs": 0,
+   "wireBytes": 34,
+   "parseMs": 0,
+   "firstRenderMs": 487.60000000009313,
+   "sharedParseMs": 0.6000000000931323,
+   "reportedTips": 4,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 24 ms after mount, ready after 380 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.6; rebuilds so far 2",
+   "loadMs": 487.60000000009313,
+   "ink": 0.020497551729584562,
+   "heapAfterMountMB": 4.096814155578613,
+   "stats": {
+    "domNodes": 191,
+    "svgElements": 133,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 4,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.8556
+    }
+   },
+   "clickLatencyMs": 5.399999999906868,
+   "clickToPaintMs": 71.39999999990687,
+   "clickSamples": {
+    "events": 1,
+    "tries": 1,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.88023952095548,
+   "fpsP5Rounds": [
+    20,
+    29.9,
+    59.9
+   ],
+   "droppedRatio": 0.0029024272259847543,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 549,
+   "inputSteps": 273,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 3.1,
+   "cpuDragMoveMs": 3.6,
+   "cpuMsPerStep": 3.6,
+   "loadAvgAtEnd": 1.09,
+   "heapAfterInteractionMB": 4.595877647399902,
+   "heapMB": 4.595877647399902,
+   "unusableFactor": 0.04876000000000931,
+   "pageErrors": [],
+   "wallSec": 18.937,
+   "relMedianFps": 0.7784431137724637,
+   "relP5Fps": 1.9940119760478283
+  },
+  "edge-quoted-labels": {
+   "treeId": "edge-quoted-labels",
+   "tips": 5,
+   "status": "fail",
+   "reason": "library reports 2 tips, expected 5",
+   "loadAvgAtStart": 1.57,
+   "phase": "mount",
+   "fetchMs": 11.800000000279397,
+   "convertMs": 0,
+   "wireBytes": 149,
+   "parseMs": 0,
+   "firstRenderMs": 428.5,
+   "sharedParseMs": 0.900000000372529,
+   "reportedTips": 2,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 19 ms after mount, ready after 338 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.9; rebuilds so far 2",
+   "loadMs": 428.5,
+   "pageErrors": [],
+   "wallSec": 0.874
+  },
+  "edge-internal-support": {
+   "treeId": "edge-internal-support",
+   "tips": 6,
+   "status": "pass",
+   "reason": "load 491 ms, median 59.9 fps, best p5 20.0, dropped 1%, CPU/step 5 ms, click 6 ms",
+   "loadAvgAtStart": 1.57,
+   "phase": "done",
+   "fetchMs": 12.700000000186265,
+   "convertMs": 0,
+   "wireBytes": 81,
+   "parseMs": 0,
+   "firstRenderMs": 491.10000000009313,
+   "sharedParseMs": 1.400000000372529,
+   "reportedTips": 6,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 30 ms after mount, ready after 401 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.4; rebuilds so far 2",
+   "loadMs": 491.10000000009313,
+   "ink": 0.022802084978676307,
+   "heapAfterMountMB": 4.097308158874512,
+   "stats": {
+    "domNodes": 216,
+    "svgElements": 158,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 6,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.8719530986751629
+    }
+   },
+   "clickLatencyMs": 6.199999999720603,
+   "clickToPaintMs": 61.60000000009313,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 3
+   },
+   "fpsMedian": 59.880239520957105,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0.0064618224976677385,
+   "droppedFrames": 41,
+   "maxFrameGapMs": 50,
+   "frames": 506,
+   "inputSteps": 256,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 4.6,
+   "cpuDragMoveMs": 3.3,
+   "cpuMsPerStep": 4.6,
+   "loadAvgAtEnd": 1.33,
+   "heapAfterInteractionMB": 4.885533332824707,
+   "heapMB": 4.885533332824707,
+   "unusableFactor": 0.04911000000000931,
+   "pageErrors": [],
+   "wallSec": 19.971,
+   "relMedianFps": 0.7784431137724424,
+   "relP5Fps": 0.6660000000000036
+  },
+  "edge-multi-tree-nexus": {
+   "treeId": "edge-multi-tree-nexus",
+   "tips": 7,
+   "status": "fail",
+   "reason": "library reports 3 tips, expected 7",
+   "loadAvgAtStart": 1.33,
+   "phase": "mount",
+   "fetchMs": 11.899999999906868,
+   "convertMs": 2.7999999998137355,
+   "wireBytes": 847,
+   "parseMs": 0,
+   "firstRenderMs": 401.29999999981374,
+   "sharedParseMs": 0,
+   "reportedTips": 3,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 16 ms after mount, ready after 320 ms including its ~350 ms fade-in and fit animation; sharedParseMs=0.0; rebuilds so far 2",
+   "loadMs": 401.29999999981374,
+   "pageErrors": [],
+   "wallSec": 0.818
+  },
+  "edge-polytomy-missing": {
+   "treeId": "edge-polytomy-missing",
+   "tips": 10,
+   "status": "pass",
+   "reason": "load 444 ms, median 59.9 fps, best p5 20.0, dropped 0%, CPU/step 4 ms, click 5 ms",
+   "loadAvgAtStart": 1.33,
+   "phase": "done",
+   "fetchMs": 11.399999999906868,
+   "convertMs": 0,
+   "wireBytes": 85,
+   "parseMs": 0,
+   "firstRenderMs": 443.59999999962747,
+   "sharedParseMs": 1,
+   "reportedTips": 10,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 24 ms after mount, ready after 370 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.0; rebuilds so far 2",
+   "loadMs": 443.59999999962747,
+   "ink": 0.022179750434370593,
+   "heapAfterMountMB": 4.134706497192383,
+   "stats": {
+    "domNodes": 245,
+    "svgElements": 187,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 10,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.8556
+    }
+   },
+   "clickLatencyMs": 4.5,
+   "clickToPaintMs": 84.90000000037253,
+   "clickSamples": {
+    "events": 3,
+    "tries": 3,
+    "rightNode": 1
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 20,
+   "fpsP5Rounds": [
+    20,
+    20,
+    20
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 56,
+   "maxFrameGapMs": 50,
+   "frames": 472,
+   "inputSteps": 240,
+   "fpsP95": 60.240963855423665,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 3.6,
+   "cpuDragMoveMs": 3.7,
+   "cpuMsPerStep": 3.7,
+   "loadAvgAtEnd": 1.61,
+   "heapAfterInteractionMB": 4.807969093322754,
+   "heapMB": 4.807969093322754,
+   "unusableFactor": 0.04435999999996275,
+   "pageErrors": [],
+   "wallSec": 19.901,
+   "relMedianFps": 0.7784431137724213,
+   "relP5Fps": 0.6660000000000036
+  },
+  "edge-caterpillar-20000": {
+   "treeId": "edge-caterpillar-20000",
+   "tips": 20000,
+   "status": "fail",
+   "reason": "mount: page.evaluate: RangeError: Maximum call stack size exceeded",
+   "loadAvgAtStart": 1.61,
+   "phase": "mount",
+   "pageErrors": [
+    "console.error: RangeError: Maximum call stack size exceeded\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at n (http://127.0.0.1:5208/assets/index-D8aSlKOg.js:1:1)\n    at ",
+    "console.error: Maximum call stack size exceeded",
+    "view error (instance 0): Maximum call stack size exceeded"
+   ],
+   "wallSec": 0.635,
+   "unusableFactor": 1000000
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-edge-trifurcating-root",
+   "file": "screens/20261019-105514-S1-edge-trifurcating-root.png",
+   "bytes": 50482
+  }
+ ],
+ "wallSec": 105.097,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

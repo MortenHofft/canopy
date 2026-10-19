@@ -1,0 +1,635 @@
+{
+ "runId": "20261019-105700",
+ "candidate": {
+  "name": "Reactree",
+  "version": "1.0.3",
+  "license": "MIT",
+  "notes": "reactreejs: React component with three props (newick, fasta, defaultHeight), D3 SVG, built-in toolbar. Everything beyond rendering is driven through its DOM (partial).",
+  "columnKinds": [
+   "alignment"
+  ]
+ },
+ "capabilities": {
+  "tipClick": {
+   "level": "partial",
+   "how": "no callback; capture-phase click listener on our wrapper reads the d3 datum (__data__) of the clicked circle.r-hit or text.leaf-label. The library itself only opens its own node-info panel on a tip click."
+  },
+  "internalNodeClick": {
+   "level": "partial",
+   "how": "same DOM listener on circle.r-hit. The library collapses the clade into a triangle on that click; the adapter stops that by default (option switch) so colouring works."
+  },
+  "branchClick": {
+   "level": "partial",
+   "how": "path.b-hit (12 px transparent hit stroke) listener; datum is the link, target = clade below the branch. The library reacts only in colour mode."
+  },
+  "hover": {
+   "level": "partial",
+   "how": "mouseover capture on circle.r-hit and tip labels; the library shows tooltips only inside its edit modes. Events are adapter-derived."
+  },
+  "descendantTipsInPayload": {
+   "level": "partial",
+   "how": "no payload at all: the adapter walks the datum (d.data.children) for leaf names and maps them to the shared TreeModel (mrca by name); after a library reroot/ladderize the clade may not exist in the shared tree (flagged exactClade=false)."
+  },
+  "cladeColouring": {
+   "level": "partial",
+   "how": "drives the library colour mode through its own toolbar button, palette swatch and synthetic clicks on node hit circles (one rebuild per colour). Only the 12 palette colours exist (nearest chosen); no free colour, no API."
+  },
+  "highlightTip": {
+   "level": "partial",
+   "how": "own SVG ring circles inserted into the tip group after each rebuild (re-applied by a MutationObserver). Library search (Ctrl+F) highlights one substring only and is not used for this."
+  },
+  "focusTip": {
+   "level": "partial",
+   "how": "synthetic wheel and mouse events fed to the library d3-zoom (zoom to about 24 px row pitch, then drag the tip to the middle); instant, no API."
+  },
+  "tipAsLink": {
+   "level": "partial",
+   "how": "each leaf <text> is wrapped in an SVG <a href data-tip-id tabindex=0> after every rebuild; all tips are in the DOM so all are links (names over 30 chars are truncated for display only)."
+  },
+  "customColumns": {
+   "level": "partial",
+   "how": "only the alignment kind: the library has no per-tip column API, its one per-tip panel is the FASTA alignment canvas. Bar and text columns are skipped (cannot be drawn)."
+  },
+  "alignmentColumn": {
+   "level": "partial",
+   "how": "one alignment column becomes the fasta prop; panel is shown by clicking its toolbar button; fixed 14 px cells and 172 px label canvas (ColumnSpec.width ignored), rectangular layout only, rows scroll with the tree."
+  },
+  "radialLayout": {
+   "level": "partial",
+   "how": "library has a circular layout, switched by clicking its toolbar button (no prop)."
+  },
+  "branchLengthToggle": {
+   "level": "partial",
+   "how": "library phylogram/cladogram buttons, clicked from the adapter (no prop). Cladogram uses d3.cluster so tips align."
+  },
+  "scaleBar": {
+   "level": "yes",
+   "how": "axis with ticks under the rectangular phylogram, a scale bar in the circular one (always labelled substitutions / site)."
+  },
+  "darkTheme": {
+   "level": "yes",
+   "how": "documented data-theme=\"dark\" on <html> (MutationObserver); rebuilds the SVG. Global attribute, so it also affects the host page."
+  },
+  "cssTokens": {
+   "level": "partial",
+   "how": "--clr-* and --font-family map onto GBIF tokens for the chrome; tree colours are hard-coded hex in JS, re-themed with CSS attribute selectors on those hex values (brittle). Canvas alignment colours and fonts cannot be styled."
+  },
+  "multipleInstances": {
+   "level": "partial",
+   "how": "two instances render, but they share window keydown handling, the data-theme attribute and document-level portals; see S13."
+  },
+  "cleanUnmount": {
+   "level": "yes",
+   "how": "React unmount; effects remove their window listeners and the MutationObserver; portals unmount with the component (verified in S13/S1 teardown)."
+  },
+  "controlledState": {
+   "level": "no",
+   "how": "three props only (newick, fasta, defaultHeight); a changed newick resets all state. Everything else is internal React state reachable only through the DOM."
+  },
+  "zoomToFit": {
+   "level": "partial",
+   "how": "fits on mount and on layout change; a Fit toolbar button exists but no API."
+  },
+  "overviewOrMinimap": {
+   "level": "no",
+   "how": "none; every node and label is always drawn, min zoom 0.05."
+  }
+ },
+ "date": "2026-10-19T10:58:49.255Z",
+ "chromium": "141.0.7390.37",
+ "chromiumArgs": [
+  "--enable-precise-memory-info",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--ignore-gpu-blocklist",
+  "--no-sandbox",
+  "--disable-gpu-rasterization",
+  "--js-flags=--expose-gc"
+ ],
+ "machine": {
+  "platform": "linux 6.18.44-fc-v139",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "memGB": 16,
+  "gpu": false
+ },
+ "caveat": "Headless Chromium without a GPU (SwiftShader software rendering): absolute FPS for canvas and WebGL candidates is pessimistic; use for functional tests and relative comparison. Final scale numbers need a real browser on a normal laptop.",
+ "thresholds": {
+  "loadMs": 10000,
+  "droppedRatio": 0.5,
+  "cpuStepMs": 100,
+  "clickMs": 300,
+  "note": "unusable = load > 10 s, or > 50% of the time in frames > 50 ms (best of 3 rounds), or > 100 ms main-thread CPU per interaction step, or click latency > 300 ms; p5 FPS is reported (best of 3) but not judged"
+ },
+ "load": {
+  "start": 1.88,
+  "end": 2.49,
+  "max": 2.49,
+  "noisy": false,
+  "note": "os.loadavg()[0] (1-minute); runs with start or end load above 4 are marked noisy"
+ },
+ "calibration": {
+  "loadStart": 1.88,
+  "canvas": {
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.52380952380968,
+   "fpsP5Rounds": [
+    59.5,
+    29.9,
+    29.9
+   ],
+   "droppedRatio": 0,
+   "droppedFrames": 2,
+   "maxFrameGapMs": 33.40000000000009,
+   "frames": 580,
+   "inputSteps": 196,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 6,
+   "cpuDragMoveMs": 6.9,
+   "cpuMsPerStep": 6.9,
+   "loadavg": 2.82
+  },
+  "stub200": {
+   "error": "page.waitForFunction: Timeout 20000ms exceeded."
+  },
+  "loadEnd": 2.08
+ },
+ "label": "s1-dated",
+ "selection": {
+  "scenarios": [
+   "S1"
+  ],
+  "scaleTrees": [
+   "rich-fish-carangaria-135",
+   "rich-birdtree-0000",
+   "rich-corvoid-680"
+  ]
+ },
+ "bundle": {
+  "jsBytes": 1137757,
+  "jsGzipBytes": 352829,
+  "cssBytes": 49827,
+  "cssGzipBytes": 9332,
+  "totalBytes": 1187986,
+  "totalGzipBytes": 362430,
+  "files": [
+   {
+    "path": "assets/html2canvas.esm-BfxBtG_O.js",
+    "bytes": 202285,
+    "gzipBytes": 47774
+   },
+   {
+    "path": "assets/index-Bsh3rAgE.css",
+    "bytes": 49827,
+    "gzipBytes": 9332
+   },
+   {
+    "path": "assets/index-D8aSlKOg.js",
+    "bytes": 364074,
+    "gzipBytes": 113541
+   },
+   {
+    "path": "assets/index.es-DrWNCI8-.js",
+    "bytes": 150909,
+    "gzipBytes": 51471
+   },
+   {
+    "path": "assets/jspdf.es.min-aOknI3mr.js",
+    "bytes": 390020,
+    "gzipBytes": 128327
+   },
+   {
+    "path": "assets/purify.es-CAi2OJFm.js",
+    "bytes": 30469,
+    "gzipBytes": 11716
+   },
+   {
+    "path": "index.html",
+    "bytes": 402,
+    "gzipBytes": 269
+   }
+  ]
+ },
+ "scenarios": {
+  "S1": {
+   "trees": {
+    "rich-fish-carangaria-135": {
+     "treeId": "rich-fish-carangaria-135",
+     "tips": 135,
+     "status": "pass",
+     "reason": "load 563 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 15 ms, click 20 ms",
+     "loadAvgAtStart": 2.08,
+     "phase": "done",
+     "fetchMs": 38.200000000186265,
+     "convertMs": 18.399999999906868,
+     "wireBytes": 111429,
+     "parseMs": 0,
+     "firstRenderMs": 563.2000000001863,
+     "sharedParseMs": 1.1000000000931323,
+     "reportedTips": 135,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 116 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.1; rebuilds so far 2",
+     "loadMs": 563.2000000001863,
+     "ink": 0.029534038856420808,
+     "heapAfterMountMB": 5.097786903381348,
+     "stats": {
+      "domNodes": 2042,
+      "svgElements": 1982,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 135,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.1380412810312202
+      }
+     },
+     "clickLatencyMs": 20.100000000093132,
+     "clickToPaintMs": 113.10000000009313,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095874,
+     "fpsP5": 59.88023952095548,
+     "fpsP5Rounds": [
+      20,
+      20,
+      59.9
+     ],
+     "droppedRatio": 0.0005256459912063009,
+     "droppedFrames": 0,
+     "maxFrameGapMs": 16.80000000000109,
+     "frames": 545,
+     "inputSteps": 258,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 15.1,
+     "cpuDragMoveMs": 7.5,
+     "cpuMsPerStep": 15.1,
+     "loadAvgAtEnd": 1.8,
+     "heapAfterInteractionMB": 5.896448135375977,
+     "heapMB": 5.896448135375977,
+     "unusableFactor": 0.151,
+     "pageErrors": [],
+     "wallSec": 20.538,
+     "relMedianFps": 1,
+     "relP5Fps": 1.0059880239520493
+    },
+    "rich-birdtree-0000": {
+     "treeId": "rich-birdtree-0000",
+     "tips": 380,
+     "status": "pass",
+     "reason": "load 701 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 36 ms, click 58 ms",
+     "loadAvgAtStart": 1.8,
+     "phase": "done",
+     "fetchMs": 40.700000000186265,
+     "convertMs": 8.700000000186265,
+     "wireBytes": 601687,
+     "parseMs": 0,
+     "firstRenderMs": 701,
+     "sharedParseMs": 2,
+     "reportedTips": 380,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 192 ms after mount, ready after 538 ms including its ~350 ms fade-in and fit animation; sharedParseMs=2.0; rebuilds so far 2",
+     "loadMs": 701,
+     "ink": 0.017600694992892074,
+     "heapAfterMountMB": 6.285106658935547,
+     "stats": {
+      "domNodes": 5472,
+      "svgElements": 5412,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 380,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.05057265916444198
+      }
+     },
+     "clickLatencyMs": 58.200000000186265,
+     "clickToPaintMs": 278.70000000018626,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 29.94011976047774,
+     "fpsP5Rounds": [
+      20,
+      20,
+      29.9
+     ],
+     "droppedRatio": 0.0021944632004353426,
+     "droppedFrames": 22,
+     "maxFrameGapMs": 50,
+     "frames": 481,
+     "inputSteps": 227,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 35.9,
+     "cpuDragMoveMs": 12.6,
+     "cpuMsPerStep": 35.9,
+     "loadAvgAtEnd": 2.15,
+     "heapAfterInteractionMB": 7.087514877319336,
+     "heapMB": 7.087514877319336,
+     "unusableFactor": 0.359,
+     "pageErrors": [],
+     "wallSec": 21.249,
+     "relMedianFps": 0.9999999999999455,
+     "relP5Fps": 0.5029940119760247
+    },
+    "rich-corvoid-680": {
+     "treeId": "rich-corvoid-680",
+     "tips": 680,
+     "status": "partial",
+     "reason": "sluggish: 68 ms CPU per step (load 884 ms, median 59.9 fps, best p5 15.0, dropped 18%, CPU/step 68 ms, click 92 ms)",
+     "loadAvgAtStart": 2.15,
+     "phase": "done",
+     "fetchMs": 29.200000000186265,
+     "convertMs": 35.299999999813735,
+     "wireBytes": 219203,
+     "parseMs": 0,
+     "firstRenderMs": 884.1000000005588,
+     "sharedParseMs": 3.099999999627471,
+     "reportedTips": 680,
+     "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 349 ms after mount, ready after 679 ms including its ~350 ms fade-in and fit animation; sharedParseMs=3.1; rebuilds so far 2",
+     "loadMs": 884.1000000005588,
+     "ink": 0.014466908861159422,
+     "heapAfterMountMB": 8.08018970489502,
+     "stats": {
+      "domNodes": 9655,
+      "svgElements": 9597,
+      "canvases": 0,
+      "custom": {
+       "leafLabels": 680,
+       "rebuilds": 2,
+       "unmatchedEvents": 0,
+       "inexactClicks": 0,
+       "colourSkipped": 0,
+       "lastDriveMs": 0,
+       "k": 0.028585135660251584
+      }
+     },
+     "clickLatencyMs": 91.79999999981374,
+     "clickToPaintMs": 510.59999999962747,
+     "clickSamples": {
+      "events": 5,
+      "tries": 5,
+      "rightNode": 5
+     },
+     "fpsMedian": 59.88023952095548,
+     "fpsP5": 14.992503748125978,
+     "fpsP5Rounds": [
+      15,
+      15,
+      12
+     ],
+     "droppedRatio": 0.18332383159400084,
+     "droppedFrames": 90,
+     "maxFrameGapMs": 66.70000000000073,
+     "frames": 365,
+     "inputSteps": 159,
+     "fpsP95": 60.24096385542697,
+     "idleCpuPctOfOneCore": 0.3,
+     "wheelSteps": 24,
+     "cpuWheelStepMs": 68.3,
+     "cpuDragMoveMs": 25.1,
+     "cpuMsPerStep": 68.3,
+     "loadAvgAtEnd": 2.49,
+     "heapAfterInteractionMB": 9.070589065551758,
+     "heapMB": 9.070589065551758,
+     "unusableFactor": 0.6829999999999999,
+     "pageErrors": [],
+     "wallSec": 23.373,
+     "relMedianFps": 0.9999999999999455,
+     "relP5Fps": 0.2518740629685158
+    }
+   },
+   "status": "partial",
+   "reason": "rich-corvoid-680: partial (sluggish: 68 ms CPU per step (load 884 ms, median 59.9 fps, best p5 15.0, dropped 18%, CPU/step 68 ms, click 92 ms))",
+   "title": "Load and fit to screen (scale ladder)",
+   "evidence": "M",
+   "durationSec": 65.161
+  }
+ },
+ "scale": {
+  "rich-fish-carangaria-135": {
+   "treeId": "rich-fish-carangaria-135",
+   "tips": 135,
+   "status": "pass",
+   "reason": "load 563 ms, median 59.9 fps, best p5 59.9, dropped 0%, CPU/step 15 ms, click 20 ms",
+   "loadAvgAtStart": 2.08,
+   "phase": "done",
+   "fetchMs": 38.200000000186265,
+   "convertMs": 18.399999999906868,
+   "wireBytes": 111429,
+   "parseMs": 0,
+   "firstRenderMs": 563.2000000001863,
+   "sharedParseMs": 1.1000000000931323,
+   "reportedTips": 135,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 116 ms after mount, ready after 460 ms including its ~350 ms fade-in and fit animation; sharedParseMs=1.1; rebuilds so far 2",
+   "loadMs": 563.2000000001863,
+   "ink": 0.029534038856420808,
+   "heapAfterMountMB": 5.097786903381348,
+   "stats": {
+    "domNodes": 2042,
+    "svgElements": 1982,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 135,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.1380412810312202
+    }
+   },
+   "clickLatencyMs": 20.100000000093132,
+   "clickToPaintMs": 113.10000000009313,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095874,
+   "fpsP5": 59.88023952095548,
+   "fpsP5Rounds": [
+    20,
+    20,
+    59.9
+   ],
+   "droppedRatio": 0.0005256459912063009,
+   "droppedFrames": 0,
+   "maxFrameGapMs": 16.80000000000109,
+   "frames": 545,
+   "inputSteps": 258,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 15.1,
+   "cpuDragMoveMs": 7.5,
+   "cpuMsPerStep": 15.1,
+   "loadAvgAtEnd": 1.8,
+   "heapAfterInteractionMB": 5.896448135375977,
+   "heapMB": 5.896448135375977,
+   "unusableFactor": 0.151,
+   "pageErrors": [],
+   "wallSec": 20.538,
+   "relMedianFps": 1,
+   "relP5Fps": 1.0059880239520493
+  },
+  "rich-birdtree-0000": {
+   "treeId": "rich-birdtree-0000",
+   "tips": 380,
+   "status": "pass",
+   "reason": "load 701 ms, median 59.9 fps, best p5 29.9, dropped 0%, CPU/step 36 ms, click 58 ms",
+   "loadAvgAtStart": 1.8,
+   "phase": "done",
+   "fetchMs": 40.700000000186265,
+   "convertMs": 8.700000000186265,
+   "wireBytes": 601687,
+   "parseMs": 0,
+   "firstRenderMs": 701,
+   "sharedParseMs": 2,
+   "reportedTips": 380,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 192 ms after mount, ready after 538 ms including its ~350 ms fade-in and fit animation; sharedParseMs=2.0; rebuilds so far 2",
+   "loadMs": 701,
+   "ink": 0.017600694992892074,
+   "heapAfterMountMB": 6.285106658935547,
+   "stats": {
+    "domNodes": 5472,
+    "svgElements": 5412,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 380,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.05057265916444198
+    }
+   },
+   "clickLatencyMs": 58.200000000186265,
+   "clickToPaintMs": 278.70000000018626,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 29.94011976047774,
+   "fpsP5Rounds": [
+    20,
+    20,
+    29.9
+   ],
+   "droppedRatio": 0.0021944632004353426,
+   "droppedFrames": 22,
+   "maxFrameGapMs": 50,
+   "frames": 481,
+   "inputSteps": 227,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 35.9,
+   "cpuDragMoveMs": 12.6,
+   "cpuMsPerStep": 35.9,
+   "loadAvgAtEnd": 2.15,
+   "heapAfterInteractionMB": 7.087514877319336,
+   "heapMB": 7.087514877319336,
+   "unusableFactor": 0.359,
+   "pageErrors": [],
+   "wallSec": 21.249,
+   "relMedianFps": 0.9999999999999455,
+   "relP5Fps": 0.5029940119760247
+  },
+  "rich-corvoid-680": {
+   "treeId": "rich-corvoid-680",
+   "tips": 680,
+   "status": "partial",
+   "reason": "sluggish: 68 ms CPU per step (load 884 ms, median 59.9 fps, best p5 15.0, dropped 18%, CPU/step 68 ms, click 92 ms)",
+   "loadAvgAtStart": 2.15,
+   "phase": "done",
+   "fetchMs": 29.200000000186265,
+   "convertMs": 35.299999999813735,
+   "wireBytes": 219203,
+   "parseMs": 0,
+   "firstRenderMs": 884.1000000005588,
+   "sharedParseMs": 3.099999999627471,
+   "reportedTips": 680,
+   "notes": "library parses and builds in its own effects (parseMs not separable, included in firstRenderMs); it builds twice on mount (RESET effect); last rebuild finished 349 ms after mount, ready after 679 ms including its ~350 ms fade-in and fit animation; sharedParseMs=3.1; rebuilds so far 2",
+   "loadMs": 884.1000000005588,
+   "ink": 0.014466908861159422,
+   "heapAfterMountMB": 8.08018970489502,
+   "stats": {
+    "domNodes": 9655,
+    "svgElements": 9597,
+    "canvases": 0,
+    "custom": {
+     "leafLabels": 680,
+     "rebuilds": 2,
+     "unmatchedEvents": 0,
+     "inexactClicks": 0,
+     "colourSkipped": 0,
+     "lastDriveMs": 0,
+     "k": 0.028585135660251584
+    }
+   },
+   "clickLatencyMs": 91.79999999981374,
+   "clickToPaintMs": 510.59999999962747,
+   "clickSamples": {
+    "events": 5,
+    "tries": 5,
+    "rightNode": 5
+   },
+   "fpsMedian": 59.88023952095548,
+   "fpsP5": 14.992503748125978,
+   "fpsP5Rounds": [
+    15,
+    15,
+    12
+   ],
+   "droppedRatio": 0.18332383159400084,
+   "droppedFrames": 90,
+   "maxFrameGapMs": 66.70000000000073,
+   "frames": 365,
+   "inputSteps": 159,
+   "fpsP95": 60.24096385542697,
+   "idleCpuPctOfOneCore": 0.3,
+   "wheelSteps": 24,
+   "cpuWheelStepMs": 68.3,
+   "cpuDragMoveMs": 25.1,
+   "cpuMsPerStep": 68.3,
+   "loadAvgAtEnd": 2.49,
+   "heapAfterInteractionMB": 9.070589065551758,
+   "heapMB": 9.070589065551758,
+   "unusableFactor": 0.6829999999999999,
+   "pageErrors": [],
+   "wallSec": 23.373,
+   "relMedianFps": 0.9999999999999455,
+   "relP5Fps": 0.2518740629685158
+  }
+ },
+ "screenshots": [
+  {
+   "label": "S1-rich-fish-carangaria-135",
+   "file": "screens/20261019-105700-S1-rich-fish-carangaria-135.png",
+   "bytes": 77190
+  }
+ ],
+ "wallSec": 108.544,
+ "runner": {
+  "version": "0.1.0",
+  "node": "v22.22.0"
+ }
+}

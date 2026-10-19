@@ -51,6 +51,7 @@ const TOKEN_CSS = `
   --rt-branch:var(--slate-200);--rt-fg:var(--bg1);
 }
 .rt-host{position:relative;width:100%;height:100%;overflow:auto;background:var(--clr-surface-a0);color:var(--clr-text-primary);font-family:var(--font-family)}
+.rt-host .Reactree_outer{border-radius:var(--radius-md);box-shadow:none}
 .rt-host svg text{font-family:var(--rt-font)}
 /* library colours are hex presentation attributes: attribute selectors on the two base colours (light slate-600, dark slate-300) */
 .rt-host svg path[stroke="#475569"],.rt-host svg path[stroke="#cbd5e1"]{stroke:var(--rt-branch)}
@@ -701,6 +702,8 @@ function ReactreeView(props: ViewProps) {
     },
     locateCell(colId, tipId) {
       if (colId !== alnColId || latest.current.layout !== 'rectangular') return null;
+      const col = latest.current.columns.find((c) => c.id === colId);
+      if (!col || col.values[tipId] === undefined) return null; // no sequence row for this tip: nothing is meant to be drawn
       const host = hostRef.current;
       const cv = host?.querySelector<HTMLCanvasElement>('canvas.Reactree_alnCanvas');
       const wrap = cv?.parentElement;
