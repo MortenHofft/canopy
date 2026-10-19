@@ -1,0 +1,46 @@
+{
+ "label": "yule1m",
+ "path": "synthetic/newick/yule_1000000.nwk",
+ "heapBeforeMB": 12.189255714416504,
+ "mount": {
+  "fetchMs": 335.70000000018626,
+  "parseMs": 2308.3000000002794,
+  "firstRenderMs": 19927.899999999907,
+  "tips": 1000000,
+  "notes": "parseMs = adapter-side Newick+TSV writing only (the worker's parse and layout are inside firstRenderMs); first data after 13358 ms; tips from the library's config.num_tips; library draws a de-overplot",
+  "sharedParseMs": 1300.8000000002794
+ },
+ "wallMs": 21577,
+ "heapAfterMB": 582.0460138320923,
+ "workerHeapMB": null,
+ "stats": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "inputMs": 2308.3000000002794,
+  "newickKB": 47419.8291015625,
+  "lastColourBuildMs": 455,
+  "colourCalls": 2,
+  "drawnNodes": 27163,
+  "geomCheckedNodes": 27163,
+  "geomMaxRelErr": 2.2737367544323206e-16,
+  "pxPerUnitX": 1.351111057066671,
+  "pxPerUnitY": 0.24440000000000062
+ },
+ "colourCommitWallMs": 2988,
+ "colourBuildMs": 456.29999999981374,
+ "maxMainThreadGapAfterClearMs": 2455.2999999998137,
+ "tipLocated": true,
+ "clickToEventMs": 985,
+ "clickEvents": [
+  {
+   "type": "tipClick",
+   "tip": true
+  }
+ ],
+ "afterUnmountHeapMB": 595.0867967605591,
+ "afterUnmountWorkerHeapMB": null,
+ "logsTail": [
+  "log: max_y_index: 1999998",
+  "log: max_y_index: 800081"
+ ]
+}

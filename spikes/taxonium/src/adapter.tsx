@@ -29,8 +29,8 @@ const VERSION = '2.1.24';
 const CSS = `
 .tx-root{position:relative;width:100%;height:100%;overflow:hidden;background:var(--tx-bg);color:var(--tx-fg);font-family:var(--tx-font)}
 .tx-root .taxonium{background:transparent}
-/* Taxonium's colour legend lists 10 arbitrary tip keys in our use (one unique key per tip): hidden, there is no prop for it */
-.tx-root div:has(> .key-text){display:none}
+/* Taxonium's colour legend (Key) lists 10 arbitrary tip keys in our use (one unique key per tip): hidden with CSS, there is no prop for it (h3 = collapsed state, .key-text = expanded) */
+.tx-root div:has(> h3.cursor-pointer), .tx-root div:has(> .key-text){display:none}
 .tx-links{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .tx-links a{position:absolute;white-space:nowrap;pointer-events:auto;font-style:italic;color:var(--tx-fg);background:var(--tx-bg);text-decoration:underline;padding:0 2px;outline-offset:1px;font-family:var(--tx-font)}
 .tx-links a:focus-visible{outline:2px solid var(--tx-hl)}
@@ -315,6 +315,12 @@ function TaxView(props: ViewProps) {
       props.handleRef.current = null;
     };
   });
+  useEffect(
+    () => () => {
+      if (props.instanceId === 0) delete (window as any).__taxoniumDebug; // do not keep the tree alive after unmount
+    },
+    [],
+  );
 
   // ---- view: fit and focus through view.setViewState (Taxonium has no prop for the camera)
   const fit = useCallback(() => {

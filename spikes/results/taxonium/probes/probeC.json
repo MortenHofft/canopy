@@ -1,0 +1,87 @@
+[
+ {
+  "label": "start (no tree)",
+  "mainMB": 12.19158935546875,
+  "workers": [
+   {
+    "url": "blob:http://127.0.0.1:5207/38b",
+    "usedMB": 1.6,
+    "err": null
+   }
+  ]
+ },
+ {
+  "label": "100k tips mounted",
+  "mainMB": 90.1708869934082,
+  "workers": [
+   {
+    "url": "blob:http://127.0.0.1:5207/38b",
+    "usedMB": 35.2,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/c20",
+    "usedMB": 0.3,
+    "err": null
+   }
+  ]
+ },
+ {
+  "label": "after unmount of the 100k tree",
+  "mainMB": 89.05075263977051,
+  "workers": [
+   {
+    "url": "blob:http://127.0.0.1:5207/38b",
+    "usedMB": 35.2,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/c20",
+    "usedMB": 0.3,
+    "err": null
+   }
+  ]
+ },
+ {
+  "label": "200 tips mounted (replaces the tree in the worker)",
+  "mainMB": 75.1917495727539,
+  "workers": [
+   {
+    "url": "blob:http://127.0.0.1:5207/38b",
+    "usedMB": 1.9,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/c20",
+    "usedMB": 0.3,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/37e",
+    "usedMB": 0.3,
+    "err": null
+   }
+  ]
+ },
+ {
+  "label": "after unmount of the 200-tip tree",
+  "mainMB": 74.01496315002441,
+  "workers": [
+   {
+    "url": "blob:http://127.0.0.1:5207/38b",
+    "usedMB": 1.9,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/c20",
+    "usedMB": 0.3,
+    "err": null
+   },
+   {
+    "url": "blob:http://127.0.0.1:5207/37e",
+    "usedMB": 0.3,
+    "err": null
+   }
+  ]
+ }
+]
