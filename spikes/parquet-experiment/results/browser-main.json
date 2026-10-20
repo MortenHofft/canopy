@@ -6258,6 +6258,1546 @@
       }
      ],
      "loadEnd": "0.59"
+    },
+    "3g": {
+     "profile": {
+      "mbps": 1.6,
+      "latency": 400
+     },
+     "loadStart": "0.59",
+     "overview": [
+      {
+       "ms": 1881.7000000001863,
+       "manifestMs": 1211.0999999996275,
+       "overviewMs": 670.6000000005588,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 58130,
+       "typedBytes": 131008,
+       "heapDelta": 1789275,
+       "manifestBytes": 1404,
+       "serverLog": [
+        {
+         "url": "/gtdb190k/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 1404,
+         "fresh": true
+        },
+        {
+         "url": "/gtdb190k/overview.parquet",
+         "method": "GET",
+         "range": "bytes=676551-733276",
+         "bytes": 56726,
+         "fresh": false
+        }
+       ],
+       "wallMs": 1886
+      },
+      {
+       "ms": 1881.699999999255,
+       "manifestMs": 1207.2999999998137,
+       "overviewMs": 674.3999999994412,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 58130,
+       "typedBytes": 131008,
+       "heapDelta": 1438999,
+       "manifestBytes": 1404,
+       "serverLog": [
+        {
+         "url": "/gtdb190k/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 1404,
+         "fresh": true
+        },
+        {
+         "url": "/gtdb190k/overview.parquet",
+         "method": "GET",
+         "range": "bytes=676551-733276",
+         "bytes": 56726,
+         "fresh": false
+        }
+       ],
+       "wallMs": 1887
+      }
+     ],
+     "footers": {
+      "ms": 1206.2999999998137,
+      "requests": 2,
+      "bytes": 30603
+     },
+     "levels": [
+      {
+       "level": 1,
+       "ms": 1160.2999999998137,
+       "rows": 8527,
+       "typedBytes": 545728,
+       "requests": 1,
+       "bytes": 148100
+      },
+      {
+       "level": 2,
+       "ms": 3068.7000000001863,
+       "rows": 34884,
+       "typedBytes": 2232576,
+       "requests": 1,
+       "bytes": 528447
+      }
+     ],
+     "clades": [
+      {
+       "target": 1000,
+       "node": 102912,
+       "tips": 1000,
+       "nodeRows": 1999,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 1394.7000000001863,
+          "requests": 1,
+          "bytes": 210759,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 0,
+          "heapDelta": -7452550
+         },
+         "withLabels": {
+          "ms": 1636,
+          "requests": 2,
+          "bytes": 250934,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 1000,
+          "heapDelta": 2967447
+         }
+        }
+       ]
+      },
+      {
+       "target": 1000,
+       "node": 368223,
+       "tips": 999,
+       "nodeRows": 1997,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 1395.5999999996275,
+          "requests": 1,
+          "bytes": 210548,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 0,
+          "heapDelta": 1708604
+         },
+         "withLabels": {
+          "ms": 1601,
+          "requests": 2,
+          "bytes": 251305,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 999,
+          "heapDelta": -1279357
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 97432,
+       "tips": 10126,
+       "nodeRows": 20251,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 3862.5,
+          "requests": 1,
+          "bytes": 695911,
+          "nodeRows": 20251,
+          "tips": 10126,
+          "typedBytes": 729036,
+          "labels": 0,
+          "heapDelta": 5547894
+         },
+         "withLabels": {
+          "ms": 4489.5,
+          "requests": 2,
+          "bytes": 820863,
+          "nodeRows": 20251,
+          "tips": 10126,
+          "typedBytes": 729036,
+          "labels": 10126,
+          "heapDelta": 1008370
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 270035,
+       "tips": 10008,
+       "nodeRows": 20015,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 2547.600000000559,
+          "requests": 1,
+          "bytes": 437914,
+          "nodeRows": 20015,
+          "tips": 10008,
+          "typedBytes": 720540,
+          "labels": 0,
+          "heapDelta": 2033899
+         },
+         "withLabels": {
+          "ms": 3011,
+          "requests": 2,
+          "bytes": 525220,
+          "nodeRows": 20015,
+          "tips": 10008,
+          "typedBytes": 720540,
+          "labels": 10008,
+          "heapDelta": -10625886
+         }
+        }
+       ]
+      }
+     ],
+     "memory": {
+      "heapDelta": 5450803,
+      "typedBytes": 851548,
+      "labels": 10008
+     },
+     "memoryClade": {
+      "target": 10000,
+      "tips": 10008
+     },
+     "paths": [
+      {
+       "ms": 2438.7999999998137,
+       "depth": 44,
+       "requests": 5,
+       "bytes": 68882
+      },
+      {
+       "ms": 1363.199999999255,
+       "depth": 72,
+       "requests": 3,
+       "bytes": 132056
+      },
+      {
+       "ms": 1273.699999999255,
+       "depth": 45,
+       "requests": 4,
+       "bytes": 66660
+      }
+     ],
+     "labelLookup": [
+      {
+       "ms": 1326.5999999996275,
+       "ok": true,
+       "requests": 2,
+       "bytes": 101244
+      },
+      {
+       "ms": 1244.9000000003725,
+       "ok": true,
+       "requests": 2,
+       "bytes": 98411
+      },
+      {
+       "ms": 1243.6000000005588,
+       "ok": true,
+       "requests": 2,
+       "bytes": 98444
+      }
+     ],
+     "focus": [
+      {
+       "ms": 3704.7999999998137,
+       "depth": 44,
+       "cladeTips": 1423,
+       "cladeRows": 2845,
+       "level": 0,
+       "overviewRows": 2047,
+       "requests": 6,
+       "bytes": 326858
+      },
+      {
+       "ms": 2553.5,
+       "depth": 72,
+       "cladeTips": 1058,
+       "cladeRows": 2115,
+       "level": 0,
+       "overviewRows": 2047,
+       "requests": 5,
+       "bytes": 300049
+      },
+      {
+       "ms": 2951.5,
+       "depth": 45,
+       "cladeTips": 1017,
+       "cladeRows": 2033,
+       "level": 0,
+       "overviewRows": 2047,
+       "requests": 6,
+       "bytes": 332058
+      }
+     ],
+     "tipColumns": {
+      "occurrence_count": {
+       "ms": 980.7000000001863,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 10126,
+       "requests": 2,
+       "bytes": 42285
+      },
+      "occurrence_count+country": {
+       "ms": 576.8999999994412,
+       "columns": [
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10126,
+       "requests": 1,
+       "bytes": 44024
+      },
+      "tip_label": {
+       "ms": 1008.7999999998137,
+       "columns": [
+        "tip_label"
+       ],
+       "rows": 10126,
+       "requests": 1,
+       "bytes": 124952
+      },
+      "tip_label+occurrence_count+country": {
+       "ms": 1229.9000000003725,
+       "columns": [
+        "tip_label",
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10126,
+       "requests": 2,
+       "bytes": 168976
+      },
+      "_allTips_occ": {
+       "ms": 2060.899999999441,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 189801,
+       "requests": 1,
+       "bytes": 339225
+      }
+     },
+     "baseline": [
+      {
+       "bytes": 2407485,
+       "rawChars": 9409978,
+       "fetchMs": 13176.600000000559,
+       "inflateMs": 54.700000000186265,
+       "parseBuildMs": 258.3999999994412,
+       "totalMs": 13489.700000000186,
+       "nodes": 379601,
+       "tips": 189801,
+       "typedBytes": 23535264,
+       "heapAfter": 38372175,
+       "heapDelta": 36930595
+      }
+     ],
+     "loadEnd": "0.16"
+    }
+   }
+  },
+  "yule1M": {
+   "tips": 1000000,
+   "nodes": 1999999,
+   "files": {
+    "nodes": 21054594,
+    "tips": 6241649,
+    "tipmeta": 1817063,
+    "overview": 2706680,
+    "spine": 52569,
+    "labels": 8604187,
+    "open": 37656
+   },
+   "newickGz": 14539671,
+   "profiles": {
+    "none": {
+     "profile": {
+      "mbps": 0,
+      "latency": 0
+     },
+     "loadStart": "0.16",
+     "overview": [
+      {
+       "ms": 25.5,
+       "manifestMs": 4.2999999998137355,
+       "overviewMs": 21.200000000186265,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 63448,
+       "typedBytes": 122820,
+       "heapDelta": 1395529,
+       "manifestBytes": 2886,
+       "serverLog": [
+        {
+         "url": "/yule1M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2886,
+         "fresh": true
+        },
+        {
+         "url": "/yule1M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=2646118-2706679",
+         "bytes": 60562,
+         "fresh": false
+        }
+       ],
+       "wallMs": 29
+      },
+      {
+       "ms": 29.5,
+       "manifestMs": 4.599999999627471,
+       "overviewMs": 24.90000000037253,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 63448,
+       "typedBytes": 122820,
+       "heapDelta": 2837361,
+       "manifestBytes": 2886,
+       "serverLog": [
+        {
+         "url": "/yule1M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2886,
+         "fresh": true
+        },
+        {
+         "url": "/yule1M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=2646118-2706679",
+         "bytes": 60562,
+         "fresh": false
+        }
+       ],
+       "wallMs": 33
+      }
+     ],
+     "footers": {
+      "ms": 26.59999999962747,
+      "requests": 2,
+      "bytes": 124704
+     },
+     "levels": [
+      {
+       "level": 1,
+       "ms": 20.5,
+       "rows": 8954,
+       "typedBytes": 537240,
+       "requests": 1,
+       "bytes": 155644
+      },
+      {
+       "level": 2,
+       "ms": 50,
+       "rows": 36619,
+       "typedBytes": 2197140,
+       "requests": 1,
+       "bytes": 558480
+      },
+      {
+       "level": 3,
+       "ms": 134.90000000037253,
+       "rows": 147366,
+       "typedBytes": 8841960,
+       "requests": 1,
+       "bytes": 1931990
+      }
+     ],
+     "clades": [
+      {
+       "target": 1000,
+       "node": 720988,
+       "tips": 999,
+       "nodeRows": 1997,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 23,
+          "requests": 1,
+          "bytes": 153256,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 0,
+          "heapDelta": 1598928
+         },
+         "withLabels": {
+          "ms": 32.700000000186265,
+          "requests": 2,
+          "bytes": 201731,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 999,
+          "heapDelta": -37406303
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 11.5,
+          "requests": 1,
+          "bytes": 153256,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 0,
+          "heapDelta": 1567114
+         },
+         "withLabels": {
+          "ms": 19.09999999962747,
+          "requests": 2,
+          "bytes": 201731,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 999,
+          "heapDelta": 2432472
+         }
+        }
+       ]
+      },
+      {
+       "target": 1000,
+       "node": 1234038,
+       "tips": 1000,
+       "nodeRows": 1999,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 8.799999999813735,
+          "requests": 1,
+          "bytes": 151684,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 0,
+          "heapDelta": 1510074
+         },
+         "withLabels": {
+          "ms": 25.299999999813735,
+          "requests": 2,
+          "bytes": 199993,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 1000,
+          "heapDelta": -4388516
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 11.200000000186265,
+          "requests": 1,
+          "bytes": 151684,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 0,
+          "heapDelta": 1539738
+         },
+         "withLabels": {
+          "ms": 18.899999999441206,
+          "requests": 2,
+          "bytes": 199993,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 1000,
+          "heapDelta": 2419160
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 195328,
+       "tips": 10026,
+       "nodeRows": 20051,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 20.09999999962747,
+          "requests": 1,
+          "bytes": 499035,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 0,
+          "heapDelta": 5076533
+         },
+         "withLabels": {
+          "ms": 41.40000000037253,
+          "requests": 2,
+          "bytes": 649257,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 10026,
+          "heapDelta": 8770452
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 19.40000000037253,
+          "requests": 1,
+          "bytes": 499035,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 0,
+          "heapDelta": -8808417
+         },
+         "withLabels": {
+          "ms": 51.39999999944121,
+          "requests": 2,
+          "bytes": 649257,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 10026,
+          "heapDelta": 7780433
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 1878602,
+       "tips": 9983,
+       "nodeRows": 19965,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 15.300000000745058,
+          "requests": 1,
+          "bytes": 324771,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 0,
+          "heapDelta": 3610646
+         },
+         "withLabels": {
+          "ms": 32.39999999944121,
+          "requests": 2,
+          "bytes": 424292,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 9983,
+          "heapDelta": 6092573
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 18.5,
+          "requests": 1,
+          "bytes": 324771,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 0,
+          "heapDelta": -12742451
+         },
+         "withLabels": {
+          "ms": 26,
+          "requests": 2,
+          "bytes": 424292,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 9983,
+          "heapDelta": 5433624
+         }
+        }
+       ]
+      },
+      {
+       "target": 100000,
+       "node": 126310,
+       "tips": 97196,
+       "nodeRows": 194391,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 95.79999999981374,
+          "requests": 1,
+          "bytes": 2216900,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 0,
+          "heapDelta": 25946808
+         },
+         "withLabels": {
+          "ms": 167.40000000037253,
+          "requests": 2,
+          "bytes": 2875417,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 97196,
+          "heapDelta": -131148
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 94.5,
+          "requests": 1,
+          "bytes": 2216900,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 0,
+          "heapDelta": 25832060
+         },
+         "withLabels": {
+          "ms": 289.79999999981374,
+          "requests": 2,
+          "bytes": 2875417,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 97196,
+          "heapDelta": -45184807
+         }
+        }
+       ]
+      },
+      {
+       "target": 100000,
+       "node": 1759607,
+       "tips": 104601,
+       "nodeRows": 209201,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 71.59999999962747,
+          "requests": 1,
+          "bytes": 2383804,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 0,
+          "heapDelta": 27777320
+         },
+         "withLabels": {
+          "ms": 210.5,
+          "requests": 2,
+          "bytes": 3095046,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 104601,
+          "heapDelta": -25597663
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 73.29999999981374,
+          "requests": 1,
+          "bytes": 2383804,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 0,
+          "heapDelta": 27791228
+         },
+         "withLabels": {
+          "ms": 261.29999999981374,
+          "requests": 2,
+          "bytes": 3095046,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 104601,
+          "heapDelta": -32588535
+         }
+        }
+       ]
+      }
+     ],
+     "memory": {
+      "heapDelta": 34840176,
+      "typedBytes": 7654056,
+      "labels": 104601
+     },
+     "memoryClade": {
+      "target": 100000,
+      "tips": 104601
+     },
+     "paths": [
+      {
+       "ms": 69.70000000018626,
+       "depth": 21,
+       "requests": 4,
+       "bytes": 196693
+      },
+      {
+       "ms": 9.799999999813735,
+       "depth": 33,
+       "requests": 3,
+       "bytes": 193866
+      },
+      {
+       "ms": 11,
+       "depth": 33,
+       "requests": 3,
+       "bytes": 193699
+      }
+     ],
+     "labelLookup": [
+      {
+       "ms": 27.799999999813735,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153386
+      },
+      {
+       "ms": 19.59999999962747,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153386
+      },
+      {
+       "ms": 28.90000000037253,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153261
+      }
+     ],
+     "focus": [
+      {
+       "ms": 22,
+       "depth": 21,
+       "cladeTips": 2291,
+       "cladeRows": 4581,
+       "level": 0,
+       "overviewRows": 2047,
+       "requests": 5,
+       "bytes": 408079
+      },
+      {
+       "ms": 37.09999999962747,
+       "depth": 33,
+       "cladeTips": 1085,
+       "cladeRows": 2169,
+       "level": 1,
+       "overviewRows": 8954,
+       "requests": 6,
+       "bytes": 561455
+      },
+      {
+       "ms": 26.09999999962747,
+       "depth": 33,
+       "cladeTips": 1181,
+       "cladeRows": 2361,
+       "level": 1,
+       "overviewRows": 8954,
+       "requests": 6,
+       "bytes": 561610
+      }
+     ],
+     "tipColumns": {
+      "occurrence_count": {
+       "ms": 9.700000000186265,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 10026,
+       "requests": 2,
+       "bytes": 61060
+      },
+      "occurrence_count+country": {
+       "ms": 8,
+       "columns": [
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10026,
+       "requests": 1,
+       "bytes": 44073
+      },
+      "tip_label": {
+       "ms": 27.899999999441206,
+       "columns": [
+        "tip_label"
+       ],
+       "rows": 10026,
+       "requests": 1,
+       "bytes": 150222
+      },
+      "tip_label+occurrence_count+country": {
+       "ms": 46.19999999925494,
+       "columns": [
+        "tip_label",
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10026,
+       "requests": 2,
+       "bytes": 194295
+      },
+      "_allTips_occ": {
+       "ms": 68.20000000018626,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 1000000,
+       "requests": 1,
+       "bytes": 1792754
+      }
+     },
+     "decode": {
+      "nodesAll": {
+       "rows": 200000,
+       "ms": 52.299999999813735,
+       "msPer100k": 26.149999999906868
+      },
+      "nodesTwoCols": {
+       "rows": 200000,
+       "ms": 9,
+       "msPer100k": 4.5
+      },
+      "tipsLabels": {
+       "rows": 100000,
+       "ms": 61.5,
+       "msPer100k": 61.5
+      },
+      "tipsOcc": {
+       "rows": 100000,
+       "ms": 4.7000000001862645,
+       "msPer100k": 4.7000000001862645
+      }
+     },
+     "baseline": [
+      {
+       "bytes": 14539671,
+       "rawChars": 41335021,
+       "fetchMs": 92,
+       "inflateMs": 249.09999999962747,
+       "parseBuildMs": 891.5,
+       "totalMs": 1232.5999999996275,
+       "nodes": 1999999,
+       "tips": 1000000,
+       "typedBytes": 123999940,
+       "heapAfter": 148033173,
+       "heapDelta": 146591593
+      },
+      {
+       "bytes": 14539671,
+       "rawChars": 41335021,
+       "fetchMs": 86.69999999925494,
+       "inflateMs": 287.90000000037253,
+       "parseBuildMs": 1107.2999999998137,
+       "totalMs": 1481.8999999994412,
+       "nodes": 1999999,
+       "tips": 1000000,
+       "typedBytes": 123999940,
+       "heapAfter": 148033117,
+       "heapDelta": 146591593
+      }
+     ],
+     "loadEnd": "0.95"
+    },
+    "wifi": {
+     "profile": {
+      "mbps": 30,
+      "latency": 20
+     },
+     "loadStart": "0.95",
+     "overview": [
+      {
+       "ms": 124.70000000018626,
+       "manifestMs": 65.70000000018626,
+       "overviewMs": 59,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 63448,
+       "typedBytes": 122820,
+       "heapDelta": 1393461,
+       "manifestBytes": 2886,
+       "serverLog": [
+        {
+         "url": "/yule1M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2886,
+         "fresh": true
+        },
+        {
+         "url": "/yule1M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=2646118-2706679",
+         "bytes": 60562,
+         "fresh": false
+        }
+       ],
+       "wallMs": 130
+      },
+      {
+       "ms": 122.5,
+       "manifestMs": 65.40000000037253,
+       "overviewMs": 57.09999999962747,
+       "rows": 2047,
+       "requests": 2,
+       "bytes": 63448,
+       "typedBytes": 122820,
+       "heapDelta": 2065845,
+       "manifestBytes": 2886,
+       "serverLog": [
+        {
+         "url": "/yule1M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2886,
+         "fresh": true
+        },
+        {
+         "url": "/yule1M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=2646118-2706679",
+         "bytes": 60562,
+         "fresh": false
+        }
+       ],
+       "wallMs": 128
+      }
+     ],
+     "footers": {
+      "ms": 72.6000000005588,
+      "requests": 2,
+      "bytes": 124704
+     },
+     "levels": [
+      {
+       "level": 1,
+       "ms": 80.3999999994412,
+       "rows": 8954,
+       "typedBytes": 537240,
+       "requests": 1,
+       "bytes": 155644
+      },
+      {
+       "level": 2,
+       "ms": 207,
+       "rows": 36619,
+       "typedBytes": 2197140,
+       "requests": 1,
+       "bytes": 558480
+      },
+      {
+       "level": 3,
+       "ms": 662.2000000001863,
+       "rows": 147366,
+       "typedBytes": 8841960,
+       "requests": 1,
+       "bytes": 1931990
+      }
+     ],
+     "clades": [
+      {
+       "target": 1000,
+       "node": 720988,
+       "tips": 999,
+       "nodeRows": 1997,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 80.09999999962747,
+          "requests": 1,
+          "bytes": 153256,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 0,
+          "heapDelta": 1559568
+         },
+         "withLabels": {
+          "ms": 81.3999999994412,
+          "requests": 2,
+          "bytes": 201731,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 999,
+          "heapDelta": -37313651
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 68.1000000005588,
+          "requests": 1,
+          "bytes": 153256,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 0,
+          "heapDelta": 1710638
+         },
+         "withLabels": {
+          "ms": 83.70000000018626,
+          "requests": 2,
+          "bytes": 201731,
+          "nodeRows": 1997,
+          "tips": 999,
+          "typedBytes": 71892,
+          "labels": 999,
+          "heapDelta": 2432468
+         }
+        }
+       ]
+      },
+      {
+       "target": 1000,
+       "node": 1234038,
+       "tips": 1000,
+       "nodeRows": 1999,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 69.6000000005588,
+          "requests": 1,
+          "bytes": 151684,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 0,
+          "heapDelta": 1510086
+         },
+         "withLabels": {
+          "ms": 80.20000000018626,
+          "requests": 2,
+          "bytes": 199993,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 1000,
+          "heapDelta": 2774915
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 66.70000000018626,
+          "requests": 1,
+          "bytes": 151684,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 0,
+          "heapDelta": 1538906
+         },
+         "withLabels": {
+          "ms": 103.6000000005588,
+          "requests": 2,
+          "bytes": 199993,
+          "nodeRows": 1999,
+          "tips": 1000,
+          "typedBytes": 71964,
+          "labels": 1000,
+          "heapDelta": -27935656
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 195328,
+       "tips": 10026,
+       "nodeRows": 20051,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 180.20000000018626,
+          "requests": 1,
+          "bytes": 499035,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 0,
+          "heapDelta": 5138972
+         },
+         "withLabels": {
+          "ms": 206.59999999962747,
+          "requests": 2,
+          "bytes": 649257,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 10026,
+          "heapDelta": 8944948
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 166.3999999994412,
+          "requests": 1,
+          "bytes": 499035,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 0,
+          "heapDelta": 5081053
+         },
+         "withLabels": {
+          "ms": 207,
+          "requests": 2,
+          "bytes": 649257,
+          "nodeRows": 20051,
+          "tips": 10026,
+          "typedBytes": 721836,
+          "labels": 10026,
+          "heapDelta": -9733384
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 1878602,
+       "tips": 9983,
+       "nodeRows": 19965,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 112.5,
+          "requests": 1,
+          "bytes": 324771,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 0,
+          "heapDelta": 3610818
+         },
+         "withLabels": {
+          "ms": 149,
+          "requests": 2,
+          "bytes": 424292,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 9983,
+          "heapDelta": 6178177
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 114.69999999925494,
+          "requests": 1,
+          "bytes": 324771,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 0,
+          "heapDelta": 3611642
+         },
+         "withLabels": {
+          "ms": 145.20000000018626,
+          "requests": 2,
+          "bytes": 424292,
+          "nodeRows": 19965,
+          "tips": 9983,
+          "typedBytes": 718740,
+          "labels": 9983,
+          "heapDelta": -13517728
+         }
+        }
+       ]
+      },
+      {
+       "target": 100000,
+       "node": 126310,
+       "tips": 97196,
+       "nodeRows": 194391,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 695.9000000003725,
+          "requests": 1,
+          "bytes": 2216900,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 0,
+          "heapDelta": 25940580
+         },
+         "withLabels": {
+          "ms": 852.2999999998137,
+          "requests": 2,
+          "bytes": 2875417,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 97196,
+          "heapDelta": 572385
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 686,
+          "requests": 1,
+          "bytes": 2216900,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 0,
+          "heapDelta": 919336
+         },
+         "withLabels": {
+          "ms": 893.3999999994412,
+          "requests": 2,
+          "bytes": 2875417,
+          "nodeRows": 194391,
+          "tips": 97196,
+          "typedBytes": 6998076,
+          "labels": 97196,
+          "heapDelta": 11328812
+         }
+        }
+       ]
+      },
+      {
+       "target": 100000,
+       "node": 1759607,
+       "tips": 104601,
+       "nodeRows": 209201,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 716.5999999996275,
+          "requests": 1,
+          "bytes": 2383804,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 0,
+          "heapDelta": 27786124
+         },
+         "withLabels": {
+          "ms": 918.5999999996275,
+          "requests": 2,
+          "bytes": 3095046,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 104601,
+          "heapDelta": -32503321
+         }
+        },
+        {
+         "nodesOnly": {
+          "ms": 740.7999999998137,
+          "requests": 1,
+          "bytes": 2383804,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 0,
+          "heapDelta": 4576497
+         },
+         "withLabels": {
+          "ms": 921,
+          "requests": 2,
+          "bytes": 3095046,
+          "nodeRows": 209201,
+          "tips": 104601,
+          "typedBytes": 7531236,
+          "labels": 104601,
+          "heapDelta": -166768
+         }
+        }
+       ]
+      }
+     ],
+     "memory": {
+      "heapDelta": 34543979,
+      "typedBytes": 7654056,
+      "labels": 104601
+     },
+     "memoryClade": {
+      "target": 100000,
+      "tips": 104601
+     },
+     "paths": [
+      {
+       "ms": 122.90000000037253,
+       "depth": 21,
+       "requests": 4,
+       "bytes": 196693
+      },
+      {
+       "ms": 97.40000000037253,
+       "depth": 33,
+       "requests": 3,
+       "bytes": 193866
+      },
+      {
+       "ms": 98.29999999981374,
+       "depth": 33,
+       "requests": 3,
+       "bytes": 193699
+      }
+     ],
+     "labelLookup": [
+      {
+       "ms": 106.90000000037253,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153386
+      },
+      {
+       "ms": 99.79999999981374,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153386
+      },
+      {
+       "ms": 100.59999999962747,
+       "ok": true,
+       "requests": 2,
+       "bytes": 153261
+      }
+     ],
+     "focus": [
+      {
+       "ms": 204.09999999962747,
+       "depth": 21,
+       "cladeTips": 2291,
+       "cladeRows": 4581,
+       "level": 0,
+       "overviewRows": 2047,
+       "requests": 5,
+       "bytes": 408079
+      },
+      {
+       "ms": 226.29999999981374,
+       "depth": 33,
+       "cladeTips": 1085,
+       "cladeRows": 2169,
+       "level": 1,
+       "overviewRows": 8954,
+       "requests": 6,
+       "bytes": 561455
+      },
+      {
+       "ms": 222.59999999962747,
+       "depth": 33,
+       "cladeTips": 1181,
+       "cladeRows": 2361,
+       "level": 1,
+       "overviewRows": 8954,
+       "requests": 6,
+       "bytes": 561610
+      }
+     ],
+     "tipColumns": {
+      "occurrence_count": {
+       "ms": 62.90000000037253,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 10026,
+       "requests": 2,
+       "bytes": 61060
+      },
+      "occurrence_count+country": {
+       "ms": 38.69999999925494,
+       "columns": [
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10026,
+       "requests": 1,
+       "bytes": 44073
+      },
+      "tip_label": {
+       "ms": 87.09999999962747,
+       "columns": [
+        "tip_label"
+       ],
+       "rows": 10026,
+       "requests": 1,
+       "bytes": 150222
+      },
+      "tip_label+occurrence_count+country": {
+       "ms": 89.59999999962747,
+       "columns": [
+        "tip_label",
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10026,
+       "requests": 2,
+       "bytes": 194295
+      },
+      "_allTips_occ": {
+       "ms": 551.1999999992549,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 1000000,
+       "requests": 1,
+       "bytes": 1792754
+      }
+     },
+     "fullParquet": {
+      "ms": 8023.799999999814,
+      "requests": 2,
+      "bytes": 27167493
+     },
+     "baseline": [
+      {
+       "bytes": 14539671,
+       "rawChars": 41335021,
+       "fetchMs": 3994.5999999996275,
+       "inflateMs": 314.40000000037253,
+       "parseBuildMs": 869.1999999992549,
+       "totalMs": 5178.199999999255,
+       "nodes": 1999999,
+       "tips": 1000000,
+       "typedBytes": 123999940,
+       "heapAfter": 156033077,
+       "heapDelta": 154591497
+      },
+      {
+       "bytes": 14539671,
+       "rawChars": 41335021,
+       "fetchMs": 3990.9000000003725,
+       "inflateMs": 258.8999999994412,
+       "parseBuildMs": 827.5,
+       "totalMs": 5077.299999999814,
+       "nodes": 1999999,
+       "tips": 1000000,
+       "typedBytes": 123999940,
+       "heapAfter": 156033101,
+       "heapDelta": 154591521
+      }
+     ],
+     "loadEnd": "0.83"
     }
    }
   }
