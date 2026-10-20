@@ -310,3 +310,59 @@ Source: OTL synthesis opentree16.1, the full `labelled_supertree_simplified_ottn
 | Radial | 1.17 s | 137 ms | 604 ms | 36.8 ms (cut 35.7, 5 budget retries) | 1,940 (1,250) | 647 MB |
 
 Zoomed in (3% and 0.03% windows) frames cost under 1 ms in both layouts. What this shows: it works at 2.4M tips; the costs are the one-off parse (about 1.1 s, belongs in a worker), the heap (about 0.6 GB, a real concern on phones and low-end devices; this is where a TreeSource backed by Parquet or a tiled model would help), and the whole-tree fit view in radial (budget search, 37 ms). Download is 23 MB gzipped (86 MB raw). Not measured: raster, a real GPU, a real device.
+
+## Polytomies and runs (issue 13, 2026-10)
+
+### Problem
+
+A node with thousands of children costs one draw primitive per child once its children are a pixel or two apart, and under budget pressure those primitives push the global collapse threshold up for the whole tree. The first fix (`isSlice` in `src/core/lod.ts`) collapses a node whose children are ALL tips into one slice. The real case is a mixed polytomy: `Polyphaga_ott684689` in `otl-2m-full` (git-ignored local file) has 8,550 children, 912 tips and 7,638 clades (median 2 tips, p90 10, p99 57, one of 198,609 tips, 93 of more than 50 tips). Not all-tips, so the slice did not apply (M, script reading the parsed tree).
+
+### What changed
+
+Rule R in the cut (`cutRadial`, `cutRect`): consecutive siblings (same parent, the next one starts at the previous one's `subtreeEnd`, same colour class) that are each a tip or a collapsed clade smaller than `minPx` (radial: arc at the tips; rectangular: height) form a run. A run of at least `SLICE_MIN_CHILDREN` (16) members is ONE draw-list entry; shorter runs are emitted as before. Large children (expanded, or collapsed but not smaller than `minPx`) break the run and are drawn normally. Stubs (`TreeSnapshot.stub`) and `K_STUB` never join a run.
+
+- Representation: `DrawList` has two more arrays, `last` (the last member of a run, -1 for every other entry) and `xmax` (largest `XMAX` of the members). A run is a `K_SUMMARY` entry with `node` = first member, so every consumer that only reads `node` and `kind` still sees an ordered list. Shape: radial = ring segment from the parent's depth to `xmax` over angles `[leafStart[first], leafEnd[last])`; rectangular = rectangle over the same rows. No branch is drawn for a run (the parent draws its own).
+- `isSlice` (whole node, all-tip children) stays. It is the special case "the run is all the children", but it is decided in O(1) without walking thousands of children and without drawing the parent's connector, and the star regression test (section 9) is written against it. Not merged into runs on purpose.
+- Cost: runs are only tracked under a parent with at least 16 children (`childCount[parent]`), so binary trees do not touch the run state. The first 15 members of a pending run are emitted as usual and taken back (list length and counters restored) when the 16th arrives, so a run needs no buffer and no second pass; the pixel cells those members marked stay marked in `Seen` (harmless: the slice covers them). A run's slice is deduped like any entry (anchored at the whole-pixel origin, so a sub-pixel pan gives the same cut).
+- Budget search: a run is one primitive. It counts as `forced` only under budget pressure and when one of its members is at least the base threshold; its tips go to `summaryTips`, or to `mergedTips` if its pixel cell was already taken.
+- Hit-testing and events: a click or hover on a run returns `Hit { node: <parent>, kind: 'summary', run: { first, last } }`. `NodeEvent` / `TreeNodeEvent` then carry the parent as `node`/`nodeId`, `tipRange` = exactly `[leafStart[first], leafEnd[last])` (so `tipCount` and `tipIds()` are only the run's tips) and `run: { clades, single }`. The run is not a clade, so nothing colours or selects the whole parent in the component. Tooltip: `23,634 tips in 5,629 clades and 595 single tips` under `<parent label>`.
+- Limit of the shared shell: `spikes/shared/app-shell.tsx` colours and links by `nodeId` (the parent), not by `tipIds`, and the shell is not ours to change here. So `src/adapter.tsx` reports a click on a run as a `nodeHover` (exact `tipIds`, no selection, no colour) instead of `nodeClick`. Colouring or linking just a run needs the shell to act on a tip range (a change to `SpikeEvent`, not made). Double click on a run zooms to the parent; keyboard navigation looks nodes up in the draw list by index, so it may land on a run's first member; neither was tested (U).
+
+### Results
+
+All M unless marked. Headless Chromium 1194, no GPU, `bench/bench.mjs --frames 5`, fit view, medians of 4 alternating old/new runs (old = branch head before this change, with the all-tip slice). Frame = cut + draw JS time.
+
+| tree, layout | old: frame / cut / drawn / minPx | new: frame / cut / drawn / minPx |
+| --- | --- | --- |
+| otl-2m-full radial | 57.7 / 55.7 ms / 1,940 / 18.2 | 13.7 / 12.0 ms / 1,311 / 11.7 |
+| otl-2m-full rectangular | 25.2 / 11.6 ms / 2,581 / 3.0 | 12.7 / 8.4 ms / 1,694 / 3.0 |
+| otl-100k-vertebrata radial | 9.9 / 7.4 ms / 1,959 / 8.0 | 11.4 / 9.5 ms / 1,961 / 6.0 |
+| otl-100k-vertebrata rectangular | 4.7 / 1.1 ms / 1,542 / 3.0 | 5.2 / 1.9 ms / 1,355 / 3.0 |
+| gtdb-190k-bacteria radial | 6.2 / 3.7 ms / 1,970 / 4.6 | 6.0 / 3.8 ms / 1,970 / 4.6 |
+| gtdb-190k-bacteria rectangular | 4.9 / 0.6 ms / 1,778 / 3.0 | 5.6 / 0.8 ms / 1,778 / 3.0 |
+
+Reading it: the fit view of the 2.39M-tip tree gets 4x cheaper in radial and half as expensive in rectangular, with the threshold lower (more detail for the same budget). The otl-100k radial rows differ because the final threshold differs (8.0 versus 6.0, so the new cut visits 8,772 nodes instead of 6,803 to draw more detail); not a like-for-like cost. gtdb (no polytomies, same entries) is within noise. Repeats to settle the two rows that looked slower: otl-100k rectangular at 60 frames, 6 alternating runs: frame 3.70 ms old, 3.27 ms new, cut 0.54 versus 0.68 ms (the 0.1 ms timer resolution makes the cut number soft); gtdb radial at 20 frames, 6 runs: frame 4.17 / 4.21 ms, cut 2.74 / 2.81 ms. A first version that tracked runs under every parent measured +20% cut time on gtdb radial in the browser (2.6 to 3.2 ms) although Node showed +2%; restricting tracking to parents with at least 16 children removed it. Node microbenchmark of the cut alone (same minPx, 150 alternating runs): gtdb 0.97 to 1.10 of the old time, otl-100k 0.65 to 0.88.
+
+Polyphaga zoomed in, radial, `otl-2m`, six 3x zooms anchored on its widest run, same viewports for both builds (screenshots in the session scratchpad, `shots/{old,new}-step*.png`):
+
+| zoom step | old: drawn / entries of Polyphaga's children | new: drawn / entries (of them runs) |
+| --- | --- | --- |
+| 0 | 1,980 / 695 (threshold raised to 3.9, 14 forced) | 374 / 14 (2) |
+| 1 | 1,949 / 1,584 | 207 / 56 (12) |
+| 2 | 1,658 / 1,621 | 87 / 50 (16) |
+| 3 | 1,267 / 1,242 | 120 / 95 (22) |
+| 4 | 958 / 470 | 861 / 373 (5) |
+| 5 | 571 / 179 | 571 / 179 (0) |
+
+So thousands of siblings now cost a handful of primitives (one run per stretch between large children) while the threshold stays at the base value; once the children are 3 px apart or more they are drawn individually as before.
+
+Tests (`scripts/check-radial-cut.mjs`, all pass): sections 8 (pan stability, now also on the polytomy tree) and 9 unchanged; new section 10 builds a node with 8,000 children (1,000 tips, 6,900 pairs, 100 clades of 60 tips spread through a deterministic shuffle) beside two 1,000-tip clades, radial and rectangular, budgets 500 and 2,000, fit and zoomed. Zoomed radial 8x: 232 primitives, 32 of them children of the polytomy (9 runs of 1,334 tips), both large children in view still their own entry, threshold 3.0, forced 0. With rule R disabled the same checks fail (713 entries for 2 large children at budget 2,000, threshold 3,350 at budget 500). Also checked: no tip covered by two entries, tip sums (fit: drawn + summarised + merged = 22,800), a click on 40 run centres per view returns the parent, `run.first`/`run.last` of that run. `check-radial-ui.mjs` passes. Hover over a run on `otl-2m` in the browser: tooltip `23,634 tips in 5,629 clades and 595 single tips under Polyphaga_ott684689`, click reported as `nodeHover n1321962 tips=23634`, nothing coloured.
+
+Demo tree: `syn-polytomy-mixed-22800` (`data/synthetic/make_polytomy_mixed.py`, 66 KB gzipped, CC0): `?tree=syn-polytomy-mixed-22800&layout=radial`.
+
+### Not verified (U)
+
+- Real GPU and real-device frame rates; all timings are headless CPU, 5 to 60 frames, medians, with a 0.1 ms timer.
+- Rectangular layout of `otl-2m` was not inspected visually (the synthetic tree and the fit numbers cover it); a `TreeSource` with stubs (`ParquetSource`) was not run with runs (the code never merges a stub).
+- Run boundaries depend on the viewport at its padded edge (a culled sibling ends a run), so a run's extent can change when a pan moves a sibling across that edge; sub-pixel pans gave identical cuts in section 8, larger pans were not compared.
+- Colouring or linking only a run in the shared shell (needs a tip-range event in `SpikeEvent`), double click and keyboard on runs.

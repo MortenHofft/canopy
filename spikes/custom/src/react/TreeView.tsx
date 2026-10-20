@@ -24,6 +24,9 @@ export interface TreeNodeEvent {
   via: 'pointer' | 'keyboard';
   clientX: number;
   clientY: number;
+  /** A run of small siblings drawn as one slice: `node` is their parent, kind is 'summary' and tipRange / tipCount / tipIds()
+   *  are ONLY the run's tips. Absent for every other target. */
+  run?: { clades: number; single: number };
 }
 
 export interface TreeViewHandle {
@@ -108,6 +111,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       via: e.via,
       clientX: e.clientX,
       clientY: e.clientY,
+      run: e.run,
     };
   };
 
@@ -198,8 +202,8 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   const nodeLabel = (node: number): string => { const t = source.snapshot(); return t.labels[t.toLocal(node)] ?? ''; };
   const defaultTip = (e: TreeNodeEvent) => (
     <>
-      <div style={{ fontStyle: e.isTip ? 'italic' : 'normal', fontWeight: 600 }}>{e.isTip ? (options.formatLabel ?? ((s: string) => s.replace(/_/g, ' ')))(e.tipId ?? '') : e.kind === 'summary' ? `Collapsed clade, ${e.tipCount} tips` : `Clade, ${e.tipCount} tips`}</div>
-      {!e.isTip && nodeLabel(e.node) && <div>{nodeLabel(e.node)}</div>}
+      <div style={{ fontStyle: e.isTip ? 'italic' : 'normal', fontWeight: 600 }}>{e.isTip ? (options.formatLabel ?? ((s: string) => s.replace(/_/g, ' ')))(e.tipId ?? '') : e.run ? runText(e) : e.kind === 'summary' ? `Collapsed clade, ${e.tipCount} tips` : `Clade, ${e.tipCount} tips`}</div>
+      {!e.isTip && (e.run ? <div>under {nodeLabel(e.node) || 'an unnamed node'}</div> : nodeLabel(e.node) && <div>{nodeLabel(e.node)}</div>)}
     </>
   );
   return (
@@ -215,3 +219,13 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
 });
 
 const o = <T,>(v: T | undefined): v is T => v !== undefined;
+
+/** Tooltip headline of a run of small siblings: '6,900 tips in 3,450 clades and 12 single tips'. */
+function runText(e: TreeNodeEvent): string {
+  const r = e.run!;
+  const n = (v: number) => v.toLocaleString('en');
+  const parts: string[] = [];
+  if (r.clades) parts.push(`${n(r.clades)} ${r.clades === 1 ? 'clade' : 'clades'}`);
+  if (r.single) parts.push(`${n(r.single)} single ${r.single === 1 ? 'tip' : 'tips'}`);
+  return `${n(e.tipCount)} tips in ${parts.join(' and ')}`;
+}

@@ -6,7 +6,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { AdapterFeature, CandidateAdapter, CapabilityReport, ThemeSpec, ViewHandle, ViewProps } from '../../shared/types.ts';
 import { gbifDarkTheme, gbifTheme } from '../../shared/gbif-theme.ts';
 import { TreeView, type TreeNodeEvent, type TreeViewHandle } from './react/TreeView.tsx';
-import type { LabelDensity, TreeTheme } from './core/types.ts';
+import type { FrameStats, LabelDensity, TreeTheme } from './core/types.ts';
 
 /** GBIF tokens -> renderer theme. Runner tokens (background, foreground, branch, highlight, fontFamily) override. */
 function buildTheme(t: ThemeSpec): TreeTheme {
@@ -33,6 +33,7 @@ function CustomView(props: ViewProps) {
     () => ({
       lod: features.lod !== false,
       drawBudget: Number(features.budget ?? 20000),
+      minCladePx: Number(features.minCladePx ?? 3),
       showSummaries: features.summaries !== false,
       overview: features.overview !== false,
       labelDensity: (features.density as LabelDensity) ?? 'normal',
@@ -48,7 +49,9 @@ function CustomView(props: ViewProps) {
   );
 
   const evt = (e: TreeNodeEvent, hover: boolean) => {
-    const type = e.isTip ? (hover ? 'tipHover' : 'tipClick') : hover ? 'nodeHover' : e.kind === 'branch' ? 'branchClick' : 'nodeClick';
+    // a run of small siblings is not a clade: the shell colours and links by nodeId (the whole parent), so a click on a run is
+    // reported as a hover (exact tipIds, no selection or colouring) until the shell can act on a tip range (issue 13)
+    const type = e.isTip ? (hover ? 'tipHover' : 'tipClick') : hover || e.run ? 'nodeHover' : e.kind === 'branch' ? 'branchClick' : 'nodeClick';
     emit({
       type,
       nodeId: e.nodeId,
@@ -57,7 +60,7 @@ function CustomView(props: ViewProps) {
       // the descendant set is the leaf-contiguous range of the shared TreeModel (preorder layout), O(1) to find and
       // a slice to materialise; reported as adapter-derived because the data model is ours, not a library payload
       source: 'adapter-derived',
-      libraryPayload: { kind: e.kind, via: e.via, tipRange: e.tipRange, tipCount: e.tipCount },
+      libraryPayload: { kind: e.kind, via: e.via, tipRange: e.tipRange, tipCount: e.tipCount, run: e.run },
     });
   };
 
@@ -95,7 +98,7 @@ function CustomView(props: ViewProps) {
   // fps = rate over the last second while frames are being drawn. Written straight to the DOM, no React render.
   const readoutRef = useRef<HTMLDivElement>(null);
   const meter = useRef({ times: [] as number[], paint: 0, js: 0, drawn: 0, last: 0 });
-  const onFrame = (st: { frameMs: number; drawn: number }) => {
+  const onFrame = (st: FrameStats) => {
     const m = meter.current;
     const end = performance.now();
     m.js = st.frameMs; m.drawn = st.drawn;
@@ -108,7 +111,15 @@ function CustomView(props: ViewProps) {
       if (!el) return;
       const active = performance.now() - m.times[m.times.length - 1] < 1000;
       const fps = m.times.length > 1 ? ((m.times.length - 1) * 1000) / (m.times[m.times.length - 1] - m.times[0]) : 0;
-      el.textContent = `JS ${m.js.toFixed(1)} ms · paint ${m.paint.toFixed(0)} ms${active && fps ? ` · ${fps.toFixed(0)} fps` : ''} · ${m.drawn.toLocaleString()} drawn`;
+      let text = `JS ${m.js.toFixed(1)} ms · paint ${m.paint.toFixed(0)} ms${active && fps ? ` · ${fps.toFixed(0)} fps` : ''} · ${m.drawn.toLocaleString()} drawn`;
+      if (features.debugInfo === true) {
+        // for bug reports: what the cut did and where the view is (zoom k in px per layout unit, viewport in layout units)
+        const v = ref.current?.getViewport();
+        const k = ref.current?.getStats()?.kx ?? 0;
+        text += `\nthreshold ${st.minPxUsed.toFixed(2)} px · budget ${st.budget} · passes ${st.budgetRetries + 1} · forced ${st.forced} · visited ${st.visited} · collapsed ${st.summaries}`;
+        text += `\n${layout} · k ${k.toFixed(2)} px/unit · view x ${v ? v.x0.toFixed(4) : '?'}..${v ? v.x1.toFixed(4) : '?'} y ${v ? v.y0.toFixed(4) : '?'}..${v ? v.y1.toFixed(4) : '?'} · canvas ${size.width}x${size.height} css px, scale ${st.scale}`;
+      }
+      el.textContent = text;
     }, 0));
   };
 
@@ -145,7 +156,7 @@ function CustomView(props: ViewProps) {
   return (
     <div style={{ position: 'relative', width: size.width, height: size.height }}>
       {view}
-      <div ref={readoutRef} aria-hidden="true" style={{ position: 'absolute', right: 8, bottom: 8, zIndex: 6, padding: '2px 8px', borderRadius: 6, font: '11px/1.5 ui-monospace, monospace', background: 'rgba(15,23,42,.72)', color: '#fff', pointerEvents: 'none' }}>frame time: move or zoom</div>
+      <div ref={readoutRef} aria-hidden="true" style={{ position: 'absolute', right: 8, bottom: 8, zIndex: 6, padding: '2px 8px', borderRadius: 6, font: '11px/1.5 ui-monospace, monospace', whiteSpace: 'pre', textAlign: 'right', background: 'rgba(15,23,42,.72)', color: '#fff', pointerEvents: 'none' }}>frame time: move or zoom</div>
     </div>
   );
 }
@@ -190,6 +201,8 @@ const CPU_DEFAULT: boolean = (() => {
 const features: AdapterFeature[] = [
   { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
   { id: 'frameReadout', label: 'Frame-time readout', kind: 'toggle', default: true, description: 'JS time per frame, time until painted (includes raster) and fps while interacting. Useful for reporting numbers from your own device.' },
+  { id: 'minCladePx', label: 'Smallest clade drawn (px)', kind: 'select', default: '3', options: [{ value: '1', label: '1 px (most detail)' }, { value: '2', label: '2 px' }, { value: '3', label: '3 px (default)' }, { value: '5', label: '5 px' }, { value: '8', label: '8 px' }], description: 'Clades smaller than this on screen collapse into a triangle, fan or slice; a polytomy collapses when its children are closer together than this. The draw budget can only raise it, never lower it.' },
+  { id: 'debugInfo', label: 'Debug info in the readout', kind: 'toggle', default: false, description: 'Adds the collapse threshold, budget passes, zoom (px per unit), viewport and canvas size to the frame-time readout, to paste into a bug report.' },
   { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '500', label: '500 primitives' }, { value: '1000', label: '1,000 primitives' }, { value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
   { id: 'summaries', label: 'Show collapsed clades as triangles', kind: 'toggle', default: true },
   { id: 'overview', label: 'Show overview strip', kind: 'toggle', default: true },

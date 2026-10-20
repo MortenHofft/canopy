@@ -11,6 +11,16 @@
 //   5. zooming in reveals detail: at 16x the collapse threshold is back at the base value and no summary is forced
 //   6. hit-testing: a point inside a drawn summary hits that summary (kind 'summary') with the right tip range
 //   7. a deep zoom visits a small part of the tree (the cull is a sector test, not a bounding box of the whole tree)
+//   9. a polytomy of thousands of tips (issue 13) is drawn as one slice and does not push the collapse threshold up: at a zoom
+//      where its children are about a pixel apart, no child is drawn individually, nothing is forced, and a click on it hits it
+//  10. a mixed polytomy (issue 13: 8,000 children, 1,000 tips, 6,900 pairs, 100 clades of 60 tips, spread through the order) is
+//      drawn as runs of small siblings plus its large children as their own entries, in radial and rectangular layout: a bounded
+//      number of primitives, threshold not raised, no tip covered twice, tips add up at the fit view, a click in a run reports
+//      exactly the run's tip range
+//  11. zooming in smoothly changes few entries per step: on the real OTL 91k tree, radial, a 2% zoom step changes at most 8% of
+//      the draw list (it was about 13% when the pixel-cell dedupe grid moved with the scale; about 5% is the natural change)
+//  12. the collapse threshold is stable while zooming in: along a smooth 3% zoom path on the real OTL 91k tree (radial, budgets
+//      500 and 2,000) it rises at most once (the old bisecting search made it rise 11 times in 111 steps at budget 500)
 //   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
 //      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
 // Exit code 1 on any failure.
@@ -29,7 +39,7 @@ const BUDGET = Number(args.budget || 2000);
 const { parseNewick } = await import(path.join(root, 'spikes/shared/newick.ts'));
 const { computeLayout, ensureTrig } = await import(path.join(root, 'spikes/custom/src/core/layout.ts'));
 const { makeTransform } = await import(path.join(root, 'spikes/custom/src/core/geom.ts'));
-const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY } = await import(path.join(root, 'spikes/custom/src/core/lod.ts'));
+const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY, isSlice, SLICE_MIN_CHILDREN } = await import(path.join(root, 'spikes/custom/src/core/lod.ts'));
 const { HitIndex } = await import(path.join(root, 'spikes/custom/src/core/hit.ts'));
 
 // ---- the tree: committed 10k file when TIPS is 10000, otherwise generated with the repo's generator
@@ -177,6 +187,210 @@ if (fs.existsSync(otlFile)) {
   const Lo = computeLayout(otl, true);
   ensureTrig(Lo);
   panCheck('OTL 91k', otl, Lo, otl.tipCount);
+}
+// 9 a star of 10,000 tips next to two balanced 1,000-tip clades
+{
+  const bal = (n, p) => (n === 1 ? `${p}:1` : `(${bal(n >> 1, p + 'l')},${bal(n - (n >> 1), p + 'r')}):1`);
+  const STAR = 10000;
+  const star = Array.from({ length: STAR }, (_, j) => `s${j}:1`).join(',');
+  const st = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${star}):10);`);
+  const Ls = computeLayout(st, true);
+  ensureTrig(Ls);
+  const Ns = st.tipCount;
+  const starNode = (() => { for (let i = 0; i < st.nodeCount; i++) if (st.childCount[i] === STAR) return i; return -1; })();
+  ok(starNode >= 0 && isSlice(st, starNode), 'star: the polytomy node is not recognised as a slice');
+  const mid = st.tipNode[st.leafStart[starNode] + STAR / 2];
+  const rr = Ls.X[mid], aa = Ls.ROW[mid] * ((2 * Math.PI) / Ns);
+  for (const b of [500, 2000]) {
+    for (const z of [3, 8, 20]) {
+      const vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
+      const T = makeTransform('radial', W, H, vp, area, Ns);
+      const { res, minPx } = searchCut(false, st, Ls, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+      let kids = 0, sliceDrawn = 0, other = 0;
+      for (let e = 0; e < list.count; e++) {
+        const i = list.node[e];
+        if (st.parent[i] === starNode) kids++;
+        else if (i === starNode && list.kind[e] === K_SUMMARY) sliceDrawn++;
+        else other++;
+      }
+      const dense = ((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k < 3; // children closer than the 3 px base threshold
+      console.log(`star ${STAR}, budget ${b}, zoom ${z}x: tip pitch ${(((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k).toFixed(2)} px, children drawn ${kids}, slice ${sliceDrawn}, other primitives ${other}, minPx ${minPx.toFixed(2)}, forced ${res.forced}`);
+      if (dense) {
+        ok(kids === 0, `star ${b} ${z}x: ${kids} children of the polytomy drawn individually`);
+        ok(res.forced === 0 && minPx <= 3 + 1e-9, `star ${b} ${z}x: the threshold was raised to ${minPx.toFixed(2)} (forced ${res.forced}) because of the polytomy`);
+        ok(sliceDrawn === 1, `star ${b} ${z}x: the polytomy was not drawn as one slice (${sliceDrawn})`);
+        const hit = new HitIndex(st, Ls);
+        hit.build(list, T);
+        const rc = Ls.XMAX[starNode] * T.k - 3; // just inside the outer edge, which is at the centre of the view
+        const x = T.cx + rc * Math.cos(aa), y = T.cy + rc * Math.sin(aa);
+        const h = hit.query(x, y, T);
+        ok(h && h.kind === 'summary' && h.node === starNode, `star ${b} ${z}x: click inside the slice returned ${JSON.stringify(h)}`);
+      }
+    }
+  }
+}
+// 10 a mixed polytomy next to two balanced clades: 1,000 tips, 6,900 pairs and 100 clades of 60 tips, the large ones spread through the order
+{
+  const bal = (n, p) => (n === 1 ? `${p}:1` : `(${bal(n >> 1, p + 'l')},${bal(n - (n >> 1), p + 'r')}):1`);
+  let rng = 12345;
+  const rnd = () => { rng = (Math.imul(rng, 1103515245) + 12345) >>> 0; return rng / 4294967296; };
+  const small = [];
+  for (let j = 0; j < 1000; j++) small.push(`t${j}:1`);
+  for (let j = 0; j < 6900; j++) small.push(`(p${j}a:1,p${j}b:1):1`);
+  for (let j = small.length - 1; j > 0; j--) { const q = Math.floor(rnd() * (j + 1)); [small[j], small[q]] = [small[q], small[j]]; }
+  const kids = [];
+  for (let b = 0; b < 100; b++) { for (let j = 0; j < 79; j++) kids.push(small[b * 79 + j]); kids.push(bal(60, `L${b}_`)); }
+  const poly = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${kids.join(',')}):10);`);
+  const Lp = computeLayout(poly, true);
+  ensureTrig(Lp);
+  const Np = poly.tipCount;
+  const P = (() => { for (let i = 0; i < poly.nodeCount; i++) if (poly.childCount[i] === kids.length) return i; return -1; })();
+  ok(P >= 0 && kids.length === 8000 && Np === 22800, `polytomy: unexpected shape (node ${P}, ${kids.length} children, ${Np} tips)`);
+  const large = [];
+  for (let c = poly.firstChild[P]; c < poly.subtreeEnd[P]; c = poly.subtreeEnd[c]) if (poly.leafEnd[c] - poly.leafStart[c] === 60) large.push(c);
+  ok(large.length === 100, `polytomy: ${large.length} large children`);
+  const midTip = poly.tipNode[(poly.leafStart[P] + poly.leafEnd[P]) >> 1];
+  const rows = (c) => (Lp.ROW[poly.firstChild[c]] + Lp.ROW[Lp.LAST[c]]) / 2; // not used for placement, only a stable centre row
+  void rows;
+  const checkCut = (label, rect, T, b, vis) => {
+    const { res, minPx } = searchCut(rect, poly, Lp, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+    let runs = 0, direct = 0, tipsDrawn = 0, runTips = 0, sumTips = 0, over = 0;
+    const cov = new Uint8Array(Np);
+    const cover = (a, z) => { for (let r = a; r < z; r++) if (cov[r]++) over++; };
+    for (let e = 0; e < list.count; e++) {
+      const i = list.node[e], lm = list.last[e];
+      if (poly.parent[i] === P) direct++;
+      if (list.kind[e] === K_TIP) { tipsDrawn++; cover(poly.tipRank[i], poly.tipRank[i] + 1); }
+      else if (list.kind[e] === K_SUMMARY) {
+        const z = lm >= 0 ? poly.leafEnd[lm] : poly.leafEnd[i];
+        if (lm >= 0) { runs++; runTips += z - poly.leafStart[i]; ok(poly.parent[lm] === P && lm >= i && lm < poly.subtreeEnd[P], `${label}: run ${i}..${lm} is not a set of children of the polytomy`); }
+        else sumTips += z - poly.leafStart[i];
+        cover(poly.leafStart[i], z);
+      }
+    }
+    let visLarge = 0, ownEntry = 0;
+    for (const c of large) {
+      if (!vis(c)) continue;
+      visLarge++;
+      let has = false;
+      for (let e = 0; e < list.count && !has; e++) if (list.node[e] === c) has = true;
+      if (has) ownEntry++;
+    }
+    console.log(`${label}, budget ${b}: drawn ${list.count}, polytomy entries ${direct} (runs ${runs} of ${runTips} tips), large children in view ${visLarge} (own entry ${ownEntry}), minPx ${minPx.toFixed(2)}, forced ${res.forced}`);
+    ok(!res.overflow && list.count <= b, `${label} ${b}: drawn ${list.count} over the budget`);
+    ok(over === 0, `${label} ${b}: ${over} tips are covered by more than one entry`);
+    ok(sumTips + runTips === res.summaryTips, `${label} ${b}: summaryTips ${res.summaryTips} != ${sumTips + runTips}`);
+    ok(tipsDrawn === res.tips, `${label} ${b}: tips ${res.tips} != ${tipsDrawn}`);
+    return { res, minPx, direct, runs, visLarge, ownEntry, tipsDrawn, runTips, sumTips };
+  };
+  // fit view: everything is in view, the tips must add up
+  for (const [kind, rect] of [['radial', false], ['rectangular', true]]) {
+    for (const b of [500, 2000]) {
+      const vp = rect ? { x0: -0.03, x1: 1.03, y0: -1, y1: Np + 1 } : fitView;
+      const T = makeTransform(kind, W, H, vp, area, Np);
+      const r = checkCut(`polytomy ${kind} fit`, rect, T, b, () => true);
+      const total = r.tipsDrawn + r.res.summaryTips + r.res.mergedTips;
+      ok(total === Np, `polytomy ${kind} fit ${b}: tips drawn ${r.tipsDrawn} + summarised ${r.res.summaryTips} + merged ${r.res.mergedTips} = ${total} != ${Np}`);
+    }
+  }
+  // zoomed on the polytomy
+  const aa = Lp.ROW[midTip] * ((2 * Math.PI) / Np), rr = Lp.X[midTip];
+  const midRow = Lp.ROW[midTip];
+  for (const [kind, rect] of [['radial', false], ['rectangular', true]]) {
+    for (const b of [500, 2000]) {
+      for (const z of rect ? [8, 20, 60] : [4, 8, 16]) {
+        let vp;
+        if (rect) { const h = (Np + 2) / z; vp = { x0: -0.03, x1: 1.03, y0: midRow - h / 2, y1: midRow + h / 2 }; }
+        else vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
+        const T = makeTransform(kind, W, H, vp, area, Np);
+        const pitch = rect ? T.ky : ((2 * Math.PI) / Np) * Lp.XMAX[midTip] * T.k;
+        const vis = rect
+          ? (c) => { const y = T.oy + (poly.leafStart[c] + poly.leafEnd[c]) / 2 * T.ky; return y > 0 && y < H; }
+          : (c) => { const nd = poly.tipNode[(poly.leafStart[c] + poly.leafEnd[c]) >> 1]; const x = T.cx + Lp.X[nd] * T.k * Lp.COS[nd], y = T.cy + Lp.X[nd] * T.k * Lp.SIN[nd]; return x > 0 && x < W && y > 0 && y < H; };
+        const r = checkCut(`polytomy ${kind} ${z}x (tip pitch ${pitch.toFixed(2)} px)`, rect, T, b, vis);
+        if (2 * pitch < 3 && r.visLarge > 0) {
+          ok(r.ownEntry === r.visLarge, `polytomy ${kind} ${b} ${z}x: ${r.visLarge - r.ownEntry} of ${r.visLarge} large children in view lost their own entry`);
+          ok(r.direct < 3 * r.visLarge + 300, `polytomy ${kind} ${b} ${z}x: ${r.direct} polytomy entries for ${r.visLarge} large children`);
+          ok(r.res.forced === 0 && r.minPx <= 3 + 1e-9, `polytomy ${kind} ${b} ${z}x: threshold raised to ${r.minPx.toFixed(2)} (forced ${r.res.forced}) because of the polytomy`);
+          ok(r.runs > 0, `polytomy ${kind} ${b} ${z}x: no run was formed`);
+          // a click inside a run reports exactly the run
+          const hit = new HitIndex(poly, Lp);
+          hit.build(list, T);
+          let tried = 0, good = 0;
+          for (let e = 0; e < list.count && tried < 40; e++) {
+            const i = list.node[e], lm = list.last[e];
+            if (lm < 0) continue;
+            let x, y;
+            if (rect) {
+              const x1 = T.ox + list.xmax[e] * T.kx, x0 = T.ox + Lp.X[P] * T.kx;
+              x = x1 - 3; y = T.oy + (poly.leafStart[i] + poly.leafEnd[lm]) / 2 * T.ky;
+              if (x1 - x0 < 8 || (poly.leafEnd[lm] - poly.leafStart[i]) * T.ky < 6) continue;
+            } else {
+              const a = ((poly.leafStart[i] + poly.leafEnd[lm]) / 2) * T.da, r1 = list.xmax[e] * T.k, r0 = Lp.X[P] * T.k;
+              if (r1 - r0 < 8 || (poly.leafEnd[lm] - poly.leafStart[i]) * T.da * r1 < 6) continue;
+              x = T.cx + (r1 - 3) * Math.cos(a); y = T.cy + (r1 - 3) * Math.sin(a);
+            }
+            if (x < 2 || y < 2 || x > W - 2 || y > H - 2) continue;
+            tried++;
+            const h = hit.query(x, y, T);
+            if (h && h.kind === 'summary' && h.node === P && h.run && h.run.first === i && h.run.last === lm) good++;
+          }
+          console.log(`  hit-test: ${good}/${tried} run centres hit their own run (parent ${P}, tip range of the run only)`);
+          ok(tried > 0 && good === tried, `polytomy ${kind} ${b} ${z}x: hit-test on runs ${good}/${tried}`);
+        }
+      }
+    }
+  }
+  panCheck('polytomy', poly, Lp, Np);
+  void SLICE_MIN_CHILDREN;
+}
+// 11 zoom churn: the entries of the draw list that appear or disappear per 2% zoom step
+if (fs.existsSync(otlFile)) {
+  const otl2 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
+  const Lz = computeLayout(otl2, true);
+  ensureTrig(Lz);
+  const Nz = otl2.tipCount;
+  for (const b of [500, 2000]) {
+    let changed = 0, size = 0, steps = 0;
+    for (const [r, deg] of [[0.75, 200], [0.9, 20], [0.6, 120], [0.85, 300]]) {
+      const a = (deg * Math.PI) / 180, px = r * Math.cos(a), py = r * Math.sin(a);
+      let prev = null, hint = 0;
+      for (let z = 2; z <= 30; z *= 1.02) {
+        const w = W / kfit / z, h = H / kfit / z;
+        const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz);
+        const { minPx } = searchCut(false, otl2, Lz, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+        hint = minPx;
+        const cur = new Set();
+        for (let e = 0; e < list.count; e++) cur.add(list.node[e] * 8 + list.kind[e]);
+        if (prev) { let d = 0; for (const x of cur) if (!prev.has(x)) d++; for (const x of prev) if (!cur.has(x)) d++; changed += d; size += cur.size; steps++; }
+        prev = cur;
+      }
+    }
+    const frac = changed / size;
+    console.log(`zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (${(changed / steps).toFixed(1)} of ${(size / steps).toFixed(0)})`);
+    ok(frac <= 0.08, `zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (limit 8%)`);
+  }
+}
+// 12 threshold stability along a zoom path
+if (fs.existsSync(otlFile)) {
+  const otl3 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
+  const L3 = computeLayout(otl3, true);
+  ensureTrig(L3);
+  const N3 = otl3.tipCount;
+  for (const b of [500, 2000]) {
+    const a = (200 * Math.PI) / 180, px = 0.75 * Math.cos(a), py = 0.75 * Math.sin(a);
+    let hint = 0, prevM = 0, rises = 0, steps = 0, maxM = 0;
+    for (let z = 1.5; z <= 40; z *= 1.03) {
+      const w = W / kfit / z, h = H / kfit / z;
+      const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3);
+      const { minPx } = searchCut(false, otl3, L3, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+      hint = minPx;
+      if (prevM && minPx > prevM * 1.001) rises++;
+      prevM = minPx; maxM = Math.max(maxM, minPx); steps++;
+    }
+    console.log(`threshold along a zoom path, OTL 91k radial, budget ${b}: ${steps} steps, rises ${rises}, max ${maxM.toFixed(2)} px`);
+    ok(rises <= 1, `threshold along a zoom path, OTL 91k radial, budget ${b}: the threshold rose ${rises} times while zooming in (limit 1)`);
+  }
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

@@ -8,6 +8,9 @@
 //             < minPx while it is still shorter than 4*minPx (a tall thin comb keeps its rows, labels and links)
 //   rule C    sub-pixel primitives that land on the same pixel cells as an earlier one are not emitted again
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
+//   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
+//             than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
+//             primitive per run, while its large children stay their own entries (issue 13)
 //   rule D    if the list still exceeds the budget, minPx is raised and the cut is redone (cheap: the aborted
 //             pass stops as soon as the budget is exceeded); the search is in the renderer (fitCut)
 //
@@ -27,20 +30,39 @@ export const K_TIP = 1;
 export const K_SUMMARY = 2; // collapsed clade drawn as a triangle
 export const K_STUB = 3; // collapsed or cut clade drawn as its branch only
 
+/** A collapsed clade whose children are all tips (a polytomy of at least this many) is drawn as a slice: the band from the
+ *  node's depth to the longest tip over the clade's angles (radial) or rows (rectangular), not as a fan or triangle. */
+export const SLICE_MIN_CHILDREN = 16;
+/** Dedupe-key kind of a run slice (after K_NODE..K_STUB). */
+const K_RUN = 4;
+export function isSlice(tree: TreeSnapshot, i: number): boolean {
+  const c = tree.childCount[i];
+  return c >= SLICE_MIN_CHILDREN && tree.leafEnd[i] - tree.leafStart[i] === c && (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0);
+}
+
+/** A run (rule R) is a K_SUMMARY entry with last >= 0: `node` is its first member, `last` its last member (siblings, adjacent in
+ *  preorder, so its tips are exactly [leafStart[node], leafEnd[last]) and its parent is parent[node]) and `xmax` the largest
+ *  XMAX of the members. The slice spans from the parent's depth to xmax. Every other entry has last = -1. */
 export class DrawList {
   node = new Int32Array(8192);
   kind = new Uint8Array(8192);
   cls = new Uint8Array(8192);
+  last = new Int32Array(8192);
+  xmax = new Float32Array(8192);
   count = 0;
-  push(i: number, kind: number, cls: number): void {
+  push(i: number, kind: number, cls: number, last = -1, xmax = 0): void {
     if (this.count === this.node.length) this.grow();
     const c = this.count++;
     this.node[c] = i;
     this.kind[c] = kind;
     this.cls[c] = cls;
+    this.last[c] = last;
+    this.xmax[c] = xmax;
   }
   private grow(): void {
     const n = this.node.length * 2;
+    const d = new Int32Array(n); d.set(this.last); this.last = d;
+    const e = new Float32Array(n); e.set(this.xmax); this.xmax = e;
     const a = new Int32Array(n); a.set(this.node); this.node = a;
     const b = new Uint8Array(n); b.set(this.kind); this.kind = b;
     const c = new Uint8Array(n); c.set(this.cls); this.cls = c;
@@ -126,8 +148,31 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
   let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
   const base = P.baseMinPx ?? minPx;
   let overflow = false;
+  // pending run of small siblings (rule R; only under a parent with at least SLICE_MIN_CHILDREN children, which keeps
+  // binary trees off this path). Its first members are emitted as usual and taken back when the run reaches
+  // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member
+  const canRun = lod && P.summaries;
+  let runCount = 0, runFirst = 0, runLast = 0, runEnd = -1, runParent = -1, runCls = 0, runXmax = 0, runPx = 0, force = false;
+  let snapOut = 0, snapS = 0, snapT = 0, snapF = 0, snapST = 0, snapM = 0;
   let i = 0;
-  while (i < n) {
+  while (i < n || runCount >= SLICE_MIN_CHILDREN) {
+    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+      force = false;
+      if (runCount >= SLICE_MIN_CHILDREN) {
+        const tipsRun = leafEnd[runLast] - leafStart[runFirst];
+        const xp = X[parent[runFirst]];
+        const d = cell(oys + leafStart[runFirst] * ky);
+        if (seen.add(cell(oxs + xp * kx), cell(oxs + runXmax * kx), d, d + K_RUN * 8192, cell(oys + leafEnd[runLast] * ky))) {
+          if (out.count >= budget) { overflow = true; break; }
+          out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
+          summaries++;
+          summaryTips += tipsRun;
+          if (minPx > base && runPx >= base) forced++;
+        } else mergedTips += tipsRun;
+      }
+      runCount = 0;
+      if (i >= n) break;
+    }
     visited++;
     const yTop = oy + leafStart[i] * ky;
     const yBot = oy + leafEnd[i] * ky;
@@ -145,6 +190,25 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
     else if (sx > clipR + PAD) kind = K_STUB;
     else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else { kind = K_NODE; descend = true; }
+    if (canRun) {
+      const px = yBot - yTop;
+      if (i > 0 && px < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN && (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))) {
+        const cl = classOf ? classOf[i] : 0;
+        if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
+          if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+          runCount = 0;
+        }
+        if (runCount === 0) { runFirst = i; runParent = parent[i]; runCls = cl; runXmax = 0; runPx = 0; snapOut = out.count; snapS = summaries; snapT = tips; snapF = forced; snapST = summaryTips; snapM = mergedTips; }
+        runCount++; runLast = i; runEnd = subtreeEnd[i];
+        if (XMAX[i] > runXmax) runXmax = XMAX[i];
+        if (px > runPx) runPx = px;
+        if (runCount === SLICE_MIN_CHILDREN) { out.count = snapOut; summaries = snapS; tips = snapT; forced = snapF; summaryTips = snapST; mergedTips = snapM; }
+        if (runCount >= SLICE_MIN_CHILDREN) { i = runEnd; continue; }
+      } else if (runCount !== 0) {
+        if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+        runCount = 0;
+      }
+    }
     let emit = true;
     if (lod) {
       let d: number, e: number;
@@ -207,9 +271,11 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = 8;
-  // dedupe cells are anchored at the whole-pixel part of the origin, so a sub-pixel pan moves every primitive by the same
-  // amount relative to the cell grid, i.e. leaves the cut unchanged
-  const cxs = Math.floor(cx), cys = Math.floor(cy);
+  // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
+  // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
+  // frame, so which of two close clades survives does not flicker
+  const fq = Math.pow(2, Math.floor(Math.log2(k))) / k;
+  const ou = Math.floor(((clipL + clipR) / 2 - cx) * fq), ov = Math.floor(((clipT + clipB) / 2 - cy) * fq);
   radialWindow(cx, cy, clipL - PAD, clipT - PAD, clipR + PAD, clipB + PAD);
   const W = radialWindowState;
   const rMin = W.rMin, rMax = W.rMax, all = W.all, lo = W.lo, hi = W.hi, wrap = W.wrap;
@@ -217,8 +283,29 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   seen.reset();
   let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
   let overflow = false;
+  // pending run of small siblings (rule R), see cutRect
+  const canRun = lod && P.summaries;
+  let runCount = 0, runFirst = 0, runLast = 0, runEnd = -1, runParent = -1, runCls = 0, runXmax = 0, runPx = 0, force = false;
+  let snapOut = 0, snapS = 0, snapT = 0, snapF = 0, snapST = 0, snapM = 0;
   let i = 0;
-  while (i < n) {
+  while (i < n || runCount >= SLICE_MIN_CHILDREN) {
+    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+      force = false;
+      if (runCount >= SLICE_MIN_CHILDREN) {
+        const tipsRun = leafEnd[runLast] - leafStart[runFirst];
+        const rq = runXmax * k, rp = X[parent[runFirst]] * k;
+        const sa0 = leafStart[runFirst] * da, sa1 = leafEnd[runLast] * da, mid = (sa0 + sa1) / 2, cm = Math.cos(mid), sm = Math.sin(mid);
+        if (seen.add(cell(rq * cm * fq - ou), cell(rq * sm * fq - ov), cell(rp * cm * fq - ou), cell(rp * sm * fq - ov) + K_RUN * 8192, Math.min(8191, Math.round((sa1 - sa0) * rq)))) {
+          if (out.count >= budget) { overflow = true; break; }
+          out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
+          summaries++;
+          summaryTips += tipsRun;
+          if (minPx > base && runPx >= base) forced++;
+        } else mergedTips += tipsRun;
+      }
+      runCount = 0;
+      if (i >= n) break;
+    }
     visited++;
     const r1 = XMAX[i] * k;
     const r0 = i > 0 ? X[parent[i]] * k : 0;
@@ -251,15 +338,34 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
     else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB;
-    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
+    // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
+    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else { kind = K_NODE; descend = true; }
+    if (canRun) {
+      if (i > 0 && arc < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN && (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))) {
+        const cl = classOf ? classOf[i] : 0;
+        if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
+          if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+          runCount = 0;
+        }
+        if (runCount === 0) { runFirst = i; runParent = parent[i]; runCls = cl; runXmax = 0; runPx = 0; snapOut = out.count; snapS = summaries; snapT = tips; snapF = forced; snapST = summaryTips; snapM = mergedTips; }
+        runCount++; runLast = i; runEnd = subtreeEnd[i];
+        if (XMAX[i] > runXmax) runXmax = XMAX[i];
+        if (arc > runPx) runPx = arc;
+        if (runCount === SLICE_MIN_CHILDREN) { out.count = snapOut; summaries = snapS; tips = snapT; forced = snapF; summaryTips = snapST; mergedTips = snapM; }
+        if (runCount >= SLICE_MIN_CHILDREN) { i = runEnd; continue; }
+      } else if (runCount !== 0) {
+        if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+        runCount = 0;
+      }
+    }
     let emit = true;
     if (lod) {
       const rp = i > 0 ? r0 : ri;
       let e = 0;
       if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * da * ri));
       else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(arc));
-      emit = seen.add(cell(cxs + ri * ca), cell(cys + ri * sa), cell(cxs + rp * ca), cell(cys + rp * sa) + kind * 8192, e);
+      emit = seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) { overflow = true; break; }
@@ -267,7 +373,7 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base))) forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))) forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
@@ -275,6 +381,9 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   res.visited = visited; res.summaries = summaries; res.tips = tips; res.overflow = overflow; res.forced = forced; res.summaryTips = summaryTips; res.mergedTips = mergedTips;
   return res;
 }
+
+const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
+const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
 
 export interface SearchOpts {
   lod: boolean;
@@ -296,27 +405,26 @@ export function searchCut(rect: boolean, tree: TreeSnapshot, L: Layout, T: Trans
     const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
     return rect ? cutRect(tree, L, T, P, classOf, list, seen) : cutRadial(tree, L, T, P, classOf, list, seen);
   };
-  let m = o.hint > base ? Math.max(base, o.hint / 1.3) : base;
+  // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
+  // when the next level down also fits with room to spare. The number of primitives is not monotone in the threshold (the
+  // pixel-cell dedupe), so a search for "the smallest threshold that fits" jumped between frames at nearly the same zoom.
+  const lvl = (n: number): number => base * Math.pow(LEVEL_STEP, n);
+  let n = o.hint > base ? Math.round(Math.log(o.hint / base) / Math.log(LEVEL_STEP)) : 0;
+  let m = lvl(n);
   let res = run(m);
   let passes = 1;
-  if (o.lod && (res.overflow || m > base) && res.visited < 80000) {
-    let hi = res.overflow ? -1 : m; // smallest threshold known to fit
-    let lo = res.overflow ? m : -1; // largest threshold known to overflow
-    while (passes < 40 && (hi < 0 || lo < 0) && !(hi >= 0 && hi <= base)) {
-      m = hi >= 0 ? Math.max(base, hi / 1.3) : lo * 1.3;
-      const r = run(m);
-      passes++;
-      if (r.overflow) lo = m;
-      else { hi = m; res = r; }
+  if (o.lod && res.visited < 80000) {
+    if (res.overflow) {
+      while (res.overflow && passes < 60) { n++; m = lvl(n); res = run(m); passes++; }
+    } else {
+      while (n > 0 && passes < 60) {
+        const r = run(lvl(n - 1));
+        passes++;
+        if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
+        n--; m = lvl(n); res = r;
+      }
+      if (lastM !== m) { res = run(m); passes++; }
     }
-    for (let k = 0; k < 3 && lo > 0 && hi > 0 && hi / lo > 1.04; k++) {
-      m = Math.sqrt(lo * hi);
-      const r = run(m);
-      passes++;
-      if (r.overflow) lo = m;
-      else { hi = m; res = r; }
-    }
-    if (hi > 0) { if (lastM !== hi) res = run(hi); m = hi; passes++; }
   } else if (res.overflow && o.lod) {
     // very expensive walks (caterpillar-like): no search, just double until it fits
     while (res.overflow && passes < 24) { m *= 2; res = run(m); passes++; }
