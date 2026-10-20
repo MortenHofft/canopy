@@ -32,7 +32,7 @@ def run(enc, codec, rg, f64, cs):
     t0 = time.time()
     sz, _ = layout.write_all(a, d, cfg, only="nodes+tips")
     r = dict(enc=enc, codec=codec, rg=rg, float="f64" if f64 else "f32", cols=cs, nodes=sz["nodes"], tips=sz["tips"], write_s=round(time.time() - t0, 2))
-    if codec == "none":
+    if codec == "none" and rg == 65536 and not f64:   # gzip-on-the-wire of the uncompressed file (only the 64k / f32 rows: gzip -9 of 60 MB is slow)
         for k in ("nodes", "tips"):
             r[k + "_gzip"] = len(zlib.compress(open(os.path.join(d, k + ".parquet"), "rb").read(), 9))
     rows.append(r)

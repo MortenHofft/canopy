@@ -37,6 +37,8 @@ def _table(a, idx, cfg, extra=None):
         cols["tip_count"] = pa.array(a["tip_count"][idx], pa.int32())
         cols["cum_len"] = pa.array(a["cum_len"][idx].astype(f))
         cols["max_cum"] = pa.array(a["max_cum"][idx].astype(f))
+        if extra is not None:  # overview / spine rows only: a fully loaded clade recomputes `row` locally (reader.layoutRows)
+            cols["row"] = pa.array(a["row"][idx].astype(np.float32 if not cfg["f64"] else np.float64))
         cols["depth"] = pa.array(a["depth"][idx].astype(np.uint16), pa.uint16())
         cols["max_depth"] = pa.array(a["max_depth"][idx].astype(np.uint16), pa.uint16())
     if cfg["occ"]:
@@ -66,10 +68,10 @@ def writer_opts(cfg, cols):
         o["use_dictionary"] = [c for c in ("country", "name") if c in cols]
     elif cfg["enc"] == "bss":      # PLAIN integers, BYTE_STREAM_SPLIT floats
         o["use_dictionary"] = [c for c in ("country", "name") if c in cols]
-        o["column_encoding"] = {c: "BYTE_STREAM_SPLIT" for c in ("len", "cum_len", "max_cum", "support") if c in cols}
+        o["column_encoding"] = {c: "BYTE_STREAM_SPLIT" for c in ("len", "cum_len", "max_cum", "row", "support") if c in cols}
     elif cfg["enc"] == "tuned":
         delta = [c for c in ("parent", "subtree_end", "leaf_start", "tip_count", "depth", "max_depth", "node") if c in cols]
-        bss = [c for c in ("len", "cum_len", "max_cum", "support") if c in cols]
+        bss = [c for c in ("len", "cum_len", "max_cum", "row", "support") if c in cols]
         dic = [c for c in ("country", "name") if c in cols]
         enc = {c: "DELTA_BINARY_PACKED" for c in delta}
         enc.update({c: "BYTE_STREAM_SPLIT" for c in bss})

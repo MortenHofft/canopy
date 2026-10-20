@@ -108,6 +108,18 @@ function newLike(chunk, n) {
   return C === Array ? new Array(n) : new C(n);
 }
 
+/** Layout row (y) of every node of a fully loaded clade [lo, lo+n): tips leaf_start + 0.5, internal nodes the midpoint of the rows of
+ *  their first and last child (same rule as custom/src/core/layout.ts). The node table does not store `row`; stubs get it from the overview. */
+export function layoutRows(nd, lo) {
+  const n = nd.parent.length, row = new Float64Array(n), last = new Int32Array(n).fill(-1);
+  for (let j = n - 1; j > 0; j--) { const p = nd.parent[j] - lo; if (p >= 0 && last[p] < 0) last[p] = j; }
+  for (let j = n - 1; j >= 0; j--) {
+    if (nd.subtree_end[j] === lo + j + 1) row[j] = nd.leaf_start[j] + 0.5;
+    else row[j] = (row[j + 1] + row[last[j]]) / 2;
+  }
+  return row;
+}
+
 export class ParquetTreeSource {
   static async open(base, opts = {}) {
     const f = opts.fetch ?? ((...a) => globalThis.fetch(...a));

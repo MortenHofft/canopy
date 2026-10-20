@@ -86,6 +86,17 @@ def load_arrays(path, cache_dir=None):
             maxc[q] = maxc[i]
     max_depth = np.array(maxd, dtype=np.int32)
     max_cum = np.array(maxc, dtype=np.float64)
+    # layout row (y) of the rectangular / radial layout: tip rank + 0.5, internal = midpoint of first and last child (as layout.ts)
+    last = [-1] * n
+    for i in range(1, n):
+        last[p[i]] = i
+    row = [0.0] * n
+    for r, i in enumerate(np.flatnonzero(is_tip).tolist()):
+        row[i] = r + 0.5
+    for i in range(n - 1, -1, -1):
+        if last[i] >= 0:
+            row[i] = (row[i + 1] + row[last[i]]) / 2
+    row = np.array(row, dtype=np.float64)
     # labels
     support = np.full(n, np.nan)
     names = [None] * n
@@ -109,7 +120,7 @@ def load_arrays(path, cache_dir=None):
     occ_sum = pref[leaf_prefix[end]] - pref[leaf_prefix[:n]]
     out = dict(parent=par, subtree_end=end, leaf_start=leaf_start, tip_count=tip_count, depth=depth_a, max_depth=max_depth,
                len=raw, cum_len=cum, max_cum=max_cum, support=support, node_of_tip=node_of_tip, occ_sum=occ_sum,
-               tip_label=np.array(tip_labels, dtype=object), name=np.array(names, dtype=object), occ=occ, country=country,
+               row=row, tip_label=np.array(tip_labels, dtype=object), name=np.array(names, dtype=object), occ=occ, country=country,
                has_len=np.array(has_len), timing={"parse_s": t_parse, "arrays_s": t_total - t_parse})
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)

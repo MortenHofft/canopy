@@ -23,7 +23,7 @@ for t in yule10k otl91k yule100k gtdb190k yule1M otl1.49M; do
   if [[ "${SRC[$t]}" == *.gz ]]; then zcat "${SRC[$t]}" | nice -n 19 gzip -9 -n > "$SRV/$t/tree.nwk.gz"; else nice -n 19 gzip -9 -n -c "${SRC[$t]}" > "$SRV/$t/tree.nwk.gz"; fi
 done
 # variants of the 1M tree for the browser decode / granularity comparison
-for v in "snappy:--codec snappy --enc tuned" "none:--codec none --enc tuned" "rg16k:--codec zstd --enc tuned --rg 16384" "rg256k:--codec zstd --enc tuned --rg 262144" "plainzstd:--codec zstd --enc plain"; do
+for v in "snappy:--codec snappy --enc tuned" "none:--codec none --enc tuned" "rg16k:--codec zstd --enc tuned --rg 16384" "rg256k:--codec zstd --enc tuned --rg 262144" "plainzstd:--codec zstd --enc plain" "paged:--codec zstd --enc tuned --page-kb 64"; do
   name="yule1M__${v%%:*}"; args="${v#*:}"
   conv "$name" yule1M $args
   cp "$SRV/yule1M/clades.json" "$SRV/$name/clades.json"

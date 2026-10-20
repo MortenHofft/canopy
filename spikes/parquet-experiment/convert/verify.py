@@ -91,6 +91,17 @@ if "tip_count" in cols:
         root = float(col("max_cum")[0]); xm = (col("max_cum").astype(np.float64) / root).astype(np.float32)
         ref = (a["cum_len"] / a["cum_len"].max()).astype(np.float32); refmax = rmax(ref)
         check("max_cum/root == renderer XMAX (float32 tolerance 1e-6)", np.allclose(xm, refmax, atol=1e-6))
+    if True:
+        # independent layout row: tip rank + .5 for tips; internal = midpoint of rows of first child (i+1) and last child (end of the sibling chain)
+        rowc = np.zeros(N); tpos = np.flatnonzero(tip); rowc[tpos] = np.arange(len(tpos)) + 0.5
+        lastc = np.full(N, -1, np.int64)
+        for i in range(1, N): lastc[par[i]] = i
+        for i in range(N - 1, -1, -1):
+            if lastc[i] >= 0: rowc[i] = (rowc[i + 1] + rowc[lastc[i]]) / 2
+        ovr = pq.read_table(os.path.join(A.dir, "overview.parquet"))
+        okr = np.array_equal(fl(rowc)[ovr.column("node").to_numpy()], ovr.column("row").to_numpy())
+        check("overview.row == layout ROW (midpoint of first/last child), stored width", okr)
+        np.save(os.path.join(os.environ.get("TMPDIR", "/tmp"), "verify_rowc.npy"), rowc) if os.environ.get("KEEP_ROWC") else None
     if "occ_sum" in cols:
         tt = pq.read_table(os.path.join(A.dir, "tips.parquet"), columns=["occurrence_count"]).column(0).to_numpy().astype(np.int64)
         op = np.concatenate(([0], np.cumsum(tt)))
