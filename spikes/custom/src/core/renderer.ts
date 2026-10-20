@@ -7,6 +7,7 @@ import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, 
 import { makeTransform, nodeXY, sectorBBox, viewportEquals, type Area, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { computeLayout, ensureTrig, type Layout } from './layout.ts';
+import { staticFor } from './static-lod.ts';
 import { cutRadial, cutRect, searchCut, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
@@ -229,7 +230,7 @@ export class TreeRenderer {
     this.opts = { ...o, ...p };
     if (layoutChanged || lengthsChanged) this.minPxHint = 0;
     if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
-    if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
+    if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined || p.cutMethod !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
@@ -738,7 +739,10 @@ export class TreeRenderer {
     const T = this.T;
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const reduced = this.interacting && opts.interactionLOD;
+    // static cuts (spike, radial only) are drawn at full quality always: their cost is bounded by the budget and a reduced frame
+    // would make the state of a clade depend on whether the user is interacting
+    const staticCut = !rect && opts.lod && opts.cutMethod !== 'current' ? opts.cutMethod : null;
+    const reduced = this.interacting && opts.interactionLOD && staticCut === null;
 
     // ---- cut
     const tc = performance.now();
@@ -750,7 +754,18 @@ export class TreeRenderer {
       budget = Math.max(500, Math.floor(budget / 4));
       if (this.lastFullDrawn > HEAVY_PRIMS) base = baseMinPx * REDUCED_MINPX;
     }
-    const cutRes = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
+    let cutRes: { res: CutResult; minPx: number; retries: number };
+    let budgetHit = false;
+    let cutInfo: string | undefined;
+    if (staticCut !== null) {
+      const sr = staticFor(tree, L).cut(T, { method: staticCut, ladder: opts.staticLadder, base, budget, summaries: opts.showSummaries }, this.classOf, this.list);
+      cutRes = { res: sr, minPx: sr.minPx, retries: 0 };
+      budgetHit = sr.level < sr.zoomIndex || sr.overflow;
+      cutInfo = `zoom step ${sr.zoomIndex} · level ${sr.level}${sr.levelMax !== sr.level ? '..' + sr.levelMax : ''} · threshold ${sr.minPxFine.toFixed(1)}..${sr.minPx.toFixed(1)} px${staticCut === 'static-tiles' ? ` · tiles ${sr.tilesUsed} (+${sr.tilesComputed} new)` : ''}`;
+    } else {
+      cutRes = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
+      budgetHit = cutRes.minPx > base || cutRes.res.overflow;
+    }
     const { minPx, retries } = cutRes;
     const res = { ...cutRes.res }; // the cut functions return a shared scratch object; the overview cut below would overwrite it
     const cutMs = performance.now() - tc;
@@ -796,7 +811,7 @@ export class TreeRenderer {
     const frameMs = performance.now() - t0;
     const st = this.stats;
     st.frameMs = frameMs; st.cutMs = cutMs; st.drawMs = drawMs; st.visited = res.visited; st.drawn = this.list.count; st.summaries = res.summaries; st.tips = res.tips;
-    st.labels = this.labels.count; st.minPxUsed = minPx; st.budgetRetries = retries; st.budgetHit = minPx > base || res.overflow; st.truncated = res.overflow; st.frames++;
+    st.labels = this.labels.count; st.minPxUsed = minPx; st.budgetRetries = retries; st.budgetHit = budgetHit; st.cutInfo = cutInfo; st.truncated = res.overflow; st.frames++;
     st.budget = budget; st.forced = res.forced; st.summaryTips = res.summaryTips; st.mergedTips = res.mergedTips; st.reduced = reduced; st.scale = dpr;
     this.msSum += frameMs; this.msN++; if (frameMs > this.msMax) this.msMax = frameMs;
     this.cb.onFrame?.(st);

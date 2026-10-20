@@ -127,6 +127,13 @@ export interface RendererOptions {
   refineMs: number;
   /** Small notice in the canvas corner when the radial cut-off is summarising clades the normal threshold would show. */
   summaryNotice: boolean;
+  /** Radial layout only. 'current' = the viewport cut of lod.ts (threshold search, pixel-cell dedupe). 'static-global' and
+   *  'static-tiles' = the static cuts of static-lod.ts (spike): the drawn state of a clade depends on the quantised zoom and a
+   *  detail level that depends on the zoom only (global) or on a fixed 256 px tile (tiles), never on the viewport contents. They
+   *  ignore interactionLOD. Rectangular always uses the current cut. */
+  cutMethod: 'current' | 'static-global' | 'static-tiles';
+  /** Zoom ladder ratio of the static cuts (2 = powers of two). */
+  staticLadder: number;
 }
 
 export const DEFAULT_OPTIONS: RendererOptions = {
@@ -150,6 +157,8 @@ export const DEFAULT_OPTIONS: RendererOptions = {
   interactionLOD: true,
   refineMs: 120,
   summaryNotice: true,
+  cutMethod: 'current',
+  staticLadder: 1.1892,
 };
 
 export type HitKind = 'tip' | 'node' | 'summary' | 'branch';
@@ -197,6 +206,7 @@ export interface FrameStats {
   frames: number; // total frames rendered so far
   budget: number; // primitive budget in force for this frame (radial: the cut-off; reduced while interacting)
   forced: number; // summary fans that the normal threshold would have expanded (clades summarised because of the budget)
+  cutInfo?: string; // static cuts: zoom index, level range, tiles (debug readout)
   summaryTips: number; // tips inside the drawn summaries
   mergedTips: number; // tips of primitives not emitted because they land on the same pixel cells as an earlier one
   reduced: boolean; // this frame was drawn in reduced (interaction) quality

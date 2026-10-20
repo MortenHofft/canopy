@@ -167,8 +167,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       ...(o(options.axis) && { axis: options.axis }), ...(o(options.italicLabels) && { italicLabels: options.italicLabels }), ...(o(options.minCladePx) && { minCladePx: options.minCladePx }),
       ...(o(options.formatLabel) && { formatLabel: options.formatLabel }), ...(o(options.ariaLabel) && { ariaLabel: options.ariaLabel }),
       ...(o(options.dprCap) && { dprCap: options.dprCap }), ...(o(options.radialMaxNodes) && { radialMaxNodes: options.radialMaxNodes }), ...(o(options.interactionLOD) && { interactionLOD: options.interactionLOD }), ...(o(options.refineMs) && { refineMs: options.refineMs }), ...(o(options.summaryNotice) && { summaryNotice: options.summaryNotice }),
+      ...(o(options.cutMethod) && { cutMethod: options.cutMethod }), ...(o(options.staticLadder) && { staticLadder: options.staticLadder }),
     });
-  }, [gen, layout, branchLengths, tipHref, options.lod, options.drawBudget, options.showSummaries, options.overview, options.labelDensity, options.rowHeight, options.axis, options.italicLabels, options.minCladePx, options.formatLabel, options.ariaLabel, options.dprCap, options.radialMaxNodes, options.interactionLOD, options.refineMs, options.summaryNotice]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gen, layout, branchLengths, tipHref, options.lod, options.drawBudget, options.showSummaries, options.overview, options.labelDensity, options.rowHeight, options.axis, options.italicLabels, options.minCladePx, options.formatLabel, options.ariaLabel, options.dprCap, options.radialMaxNodes, options.interactionLOD, options.refineMs, options.summaryNotice, options.cutMethod, options.staticLadder]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     R?.setClades((clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0));
   }, [gen, clades]); // eslint-disable-line react-hooks/exhaustive-deps

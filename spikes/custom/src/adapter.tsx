@@ -43,6 +43,9 @@ function CustomView(props: ViewProps) {
       dprCap: features.dprCap === 'native' ? Infinity : Number(features.dprCap ?? 2),
       radialMaxNodes: features.radialMax === 'unlimited' ? Infinity : Number(features.radialMax ?? 2000),
       interactionLOD: features.interactionLOD !== false,
+      cutMethod: (features.cutMethod as 'current' | 'static-global' | 'static-tiles') ?? 'current',
+      // automatic: 1.19x for the global level; powers of two for the per-tile level, where tiles nest and zoom-in is strictly monotone
+      staticLadder: features.staticLadder === undefined || features.staticLadder === 'auto' ? (features.cutMethod === 'static-tiles' ? 2 : 1.1892) : Number(features.staticLadder),
       ariaLabel: `Phylogenetic tree, ${tree.tipCount} tips (custom Canvas2D renderer)`,
     }),
     [features, tree],
@@ -117,6 +120,7 @@ function CustomView(props: ViewProps) {
         const v = ref.current?.getViewport();
         const k = ref.current?.getStats()?.kx ?? 0;
         text += `\nthreshold ${st.minPxUsed.toFixed(2)} px · budget ${st.budget} · passes ${st.budgetRetries + 1} · forced ${st.forced} · visited ${st.visited} · collapsed ${st.summaries}`;
+        if (st.cutInfo) text += `\n${st.cutInfo}`;
         text += `\n${layout} · k ${k.toFixed(2)} px/unit · view x ${v ? v.x0.toFixed(4) : '?'}..${v ? v.x1.toFixed(4) : '?'} y ${v ? v.y0.toFixed(4) : '?'}..${v ? v.y1.toFixed(4) : '?'} · canvas ${size.width}x${size.height} css px, scale ${st.scale}`;
       }
       el.textContent = text;
@@ -213,6 +217,8 @@ const features: AdapterFeature[] = [
   { id: 'dprCap', label: 'Resolution: device pixel ratio cap', kind: 'select', default: '2', options: [{ value: '1', label: '1 (fastest, soft on retina)' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2 (default)' }, { value: 'native', label: 'Native (3 on some phones)' }], description: 'Canvas backing store is min(devicePixelRatio, cap) times the CSS size. At ratio 2 or 3 the canvas has 4 or 9 times the pixels of ratio 1, which costs raster time on large canvases. Hit-testing and the overlay always use CSS pixels.' },
   { id: 'radialMax', label: 'Max drawn nodes (radial)', kind: 'select', default: '2000', options: [{ value: '500', label: '500' }, { value: '1000', label: '1,000' }, { value: '2000', label: '2,000 (default)' }, { value: '5000', label: '5,000' }, { value: '20000', label: '20,000' }, { value: 'unlimited', label: 'Unlimited (draw budget only)' }], description: 'Radial layout only. If the visible sector holds more primitives than this, the smallest clades are drawn as fans (summaries) until it fits; zooming in reveals them. A note in the corner says when this happens. Rectangular keeps the draw budget above.' },
   { id: 'interactionLOD', label: 'Reduce detail while zooming or dragging', kind: 'toggle', default: true, description: 'During wheel, pinch and drag the draw uses a quarter of the budget (at least 500) and a coarser clade threshold, then one full-quality frame follows 120 ms after the last input. Clicks and hovers always use a full-quality frame.' },
+  { id: 'cutMethod', label: 'Cut method (radial)', kind: 'select', default: 'current', options: [{ value: 'current', label: 'Current (view-dependent cut, default)' }, { value: 'static-global', label: 'Static, global level' }, { value: 'static-tiles', label: 'Static, per-tile level' }], description: 'Spike. Radial layout only; rectangular always uses the current cut. Current: the threshold is searched from what is in view and small clades on the same pixel are merged. Static: a clade is drawn expanded or collapsed from fixed per-node data and a quantised zoom, so panning never changes it and zooming in only adds detail. Global level: one detail level per zoom for the whole view, the finest at which the densest window of the tree fits the budget (a dense region elsewhere can coarsen a sparse one). Per-tile level: each 256 px tile of the plane gets its own level from its own content (seams are possible where levels differ). The static cuts ignore "Reduce detail while zooming or dragging".' },
+  { id: 'staticLadder', label: 'Static cut: zoom steps', kind: 'select', default: 'auto', options: [{ value: 'auto', label: 'Automatic (1.19x; powers of two for per-tile)' }, { value: '2', label: 'Powers of two (details appear in bursts)' }, { value: '1.4142', label: '1.41x steps' }, { value: '1.1892', label: '1.19x steps' }, { value: '1.15', label: '1.15x steps' }], description: 'Only for the static cut methods: the detail decision uses the zoom rounded down to this ladder, so the cut changes only when the zoom crosses a step (finer steps = smaller bursts of new detail). The global level is strictly monotone on any ladder; the per-tile level only on powers of two, because only then do the tiles of one zoom step nest inside those of the previous one.' },
   { id: 'tooltip', label: 'Built-in tooltip at the cursor', kind: 'toggle', default: true },
 ];
 
