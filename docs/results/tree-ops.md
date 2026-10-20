@@ -1,6 +1,6 @@
 # Tree operations in the browser (reroot, midpoint, ladderise, collapse, prune)
 
-Date: 2026-10-20. Code: [spikes/shared/ops.ts](../../spikes/shared/ops.ts), tests [spikes/shared/test/ops.test.mjs](../../spikes/shared/test/ops.test.mjs), benchmark [spikes/custom/bench/tree-ops.mjs](../../spikes/custom/bench/tree-ops.mjs), UI on the custom candidate's dev page `spikes/custom/demo.html`.
+Date: 2026-10-20. Code: the separate package [packages/tree-ops](../../packages/tree-ops/README.md) (operations, tests, benchmark). The UI integration is a node menu slot on `<TreeView>` (`spikes/custom/src/react/TreeView.tsx`, prop `nodeMenu`), filled with actions on the custom candidate's dev page `spikes/custom/demo.html`. Library survey: [../research/tree-ops-libraries.md](../research/tree-ops-libraries.md).
 
 ## Question
 
@@ -8,9 +8,15 @@ Viewers like phylotree.js bundle a few operations that change the tree rather th
 
 Position taken (from the project owner): if offered, these are **operations a user chooses to apply to a tree**, not something GBIF does to a published tree. They run client-side and never change the archived file.
 
+## Where it lives
+
+The operations are data work and live outside the viewer in `packages/tree-ops`. They have no React, DOM or rendering imports and typecheck against ES2022 alone. They read any model with the right arrays (`TreeInput`; the spikes' `TreeModel` fits) and return plain arrays. The viewer has only a generic slot: `<TreeView nodeMenu={(e) => items}>` shows a menu at the clicked tip or clade (keyboard: Enter on the cursor, arrows, Escape) and calls the chosen item. The page decides what the items are and swaps in the tree that comes back. That page-level wiring is the only overlap.
+
+On the demo page, per-node actions are in the menu (Rotate, Reroot here, Show only this clade, Remove this tip/clade, Colour) and whole-tree actions in a toolbar (Midpoint root, Ladderise ↑/↓, Collapse support below x, Keep coloured, Undo, Reset). A status line says when the tree shown is "changed by you, not as published". Driven end to end in headless Chromium: menu opens on a tip and on a clade, focus moves into it, arrows and Escape work (focus returns to the canvas), an outside click closes it, and each action updates the tree.
+
 ## What was built
 
-Pure functions on the shared `TreeModel` (typed arrays, preorder ids). Each returns a **new** tree plus `map` (old node index to new, -1 if removed), so the page can keep the original for undo and reset and carry clade colours and the selection across. All passes are iterative (no recursion), O(n); ladderise is O(n log k) for k children.
+Pure functions on typed arrays with preorder ids. Each returns a **new** tree plus `map` (old node index to new, -1 if removed), so the page can keep the original for undo and reset and carry clade colours and the selection across. All passes are iterative (no recursion), O(n); ladderise is O(n log k) for k children.
 
 | Function | What it does | Notes |
 |---|---|---|
@@ -22,11 +28,11 @@ Pure functions on the shared `TreeModel` (typed arrays, preorder ids). Each retu
 | `prune(t, keepTipRank)` | Keep a subset of tips | Unary nodes removed with lengths summed, edges above the new root dropped |
 | `subtree(t, node)` | A clade as its own tree | |
 
-Tests (23 with the parser's, all passing, `node --experimental-transform-types --test spikes/shared/test/*.mjs`): exact Newick for small cases, and invariants on real trees. After any reroot, all tip-to-tip distances and the set of unrooted splits are unchanged. After midpoint rooting, the two farthest tips are on different sides of the root and the deepest tip on each side is at most half the diameter. Pruning keeps the distances between kept tips. A sweep reroots the edge-case trees (polytomies, missing lengths, trifurcating root, quoted labels) on every node.
+Tests (13, all passing, `npm test` in `packages/tree-ops`): exact Newick for small cases, and invariants on real trees. After any reroot, all tip-to-tip distances and the set of unrooted splits are unchanged. After midpoint rooting, the two farthest tips are on different sides of the root and the deepest tip on each side is at most half the diameter. Pruning keeps the distances between kept tips. A sweep reroots the edge-case trees (polytomies, missing lengths, trifurcating root, quoted labels) on every node. A 100k-deep caterpillar (pattern from patristic's deep test) goes through reroot, midpoint, ladderise and prune.
 
 ## Cost (measured, M)
 
-Node 22.22 (same V8 as Chromium) in the cloud sandbox, 4 vCPU, no rendering. Median of 5 runs. Each time **includes building the new `TreeModel`**. Parse time is shown for scale. Reroot is on the deepest tip (longest path to reverse). Run: `node --experimental-transform-types bench/tree-ops.mjs <files>` in `spikes/custom`.
+Node 22.22 (same V8 as Chromium) in the cloud sandbox, 4 vCPU, no rendering. Median of 5 runs. Each time **includes building the new `TreeModel`**. Parse time is shown for scale. Reroot is on the deepest tip (longest path to reverse). Run: `npm run bench -- <files>` in `packages/tree-ops`.
 
 | Tree | Tips | Max depth | Parse | Reroot | Midpoint | Ladderise | Collapse < 70 | Prune to 10% |
 |---|---|---|---|---|---|---|---|---|
@@ -47,6 +53,14 @@ Reading:
 - An earlier stripped-down prototype (parent arrays only, no labels or model rebuild) was about 2 to 4 times faster. The difference is building the full `TreeModel` and copying labels, not the algorithms.
 - **Not measured: what the renderer does after an operation.** A new tree remounts the renderer (layout, LOD index, first frame). For the custom candidate that cost is in [custom.md](custom.md) (first render) and is of the same order as the operation itself or larger.
 
+## Existing implementations
+
+Surveyed from primary sources on 2026-10-20 ([../research/tree-ops-libraries.md](../research/tree-ops-libraries.md)): 11 JS packages, 6 Rust crates, gotree (Go) and TreeSwift (Python). Verdict: keep our own.
+
+- **JS:** no permissively licensed library covers edge reroot with support moved, threshold collapse and prune-to-set. phylotree.js (MIT) has reroot and midpoint, but on d3 objects with heavy dependencies, and supports stay on the nodes. PhyloJS's licence conflicts (MIT in package.json, GPL-3.0 in the LICENSE file). phylocanvas.gl's reroot recurses and its midpoint compares all pairs of leaves. patristic (CDC, Apache-2.0, 0.7.1) is the closest: a typed-array store, deep-tree tests, rotate and simplify. But it reroots on nodes only, has no midpoint, threshold collapse or prune-to-set, and leaves supports on nodes.
+- **Rust:** the crates that have the operations are copyleft (`phylotree` GPL-3.0, `newick`/`sorbus` LGPL-3.0, `light_phylogeny` CeCILL). The permissive ones lack them: `phylo` (MIT) declares a `Reroot` trait with no implementation found, and `bio` (MIT) only parses. A port would cost more than the module it replaces.
+- **Borrowed:** the deep-tree test idea (patristic), and the rule that support lives on edges, which gotree builds into its data model and TreeSwift exposes as `branch_support=True`.
+
 ## WebAssembly
 
 Not needed for these. They are linear, so time is dominated by memory traffic and rebuilding the model, where typed-array JavaScript is already close to native. WebAssembly's speed-up for this kind of code is commonly put at under about 2× (**unverified**, no WebAssembly version was measured). It would add a toolchain and copies across the JS/WebAssembly boundary. A Worker matters more than WebAssembly.
@@ -62,5 +76,5 @@ The operations work on an in-memory `TreeModel` only. A `ParquetSource` (src/par
 - **Where the result lives:** an operation produces a view state, not a new published tree. A shareable URL needs the operations encoded (for example `reroot=<tip label>` or `<MRCA of two tip labels>`, which survive renumbering, plus `ladderise=inc`) and replayed on load. Not built.
 - **Wording in the UI:** after a reroot, say so clearly ("rooted by you on …, not as published") with a reset next to it.
 - **Comparison site:** the operations are on the dev page `demo.html` only. The harness shell (`app-shell.tsx`) has no slot for actions that replace the tree, so the deployed comparison site does not show them yet.
-- **Library comparison:** which of the evaluated libraries offer which of these operations natively is not tabulated here (phylotree.js has rerooting and collapse per [comparison.md](../comparison.md)).
+- **Cross-check against an independent implementation:** run TreeSwift or gotree (GPL, so outside this repo) on the test trees and compare splits and lengths after reroot, midpoint, collapse and prune.
 - **Worker:** move the operations into a Worker. The model is typed arrays plus a label array, so it can be transferred without copying the arrays.

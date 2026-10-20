@@ -1,8 +1,11 @@
 // Dev-only page (not part of the production build): <TreeView> used the way a gbif.org page would use it, without
 // the harness shell. Two instances share ONE controlled viewport (pan or zoom either one and the other follows),
-// a click colours the clade in both, and the callbacks write into plain React state. Open /demo.html in `npm run dev`.
-// The toolbar applies the user-triggered tree operations of shared/ops.ts (reroot, midpoint, ladderise, ...): each one
-// returns a new tree that replaces the one shown; the original is kept for undo and reset, never changed.
+// and the callbacks write into plain React state. Open /demo.html in `npm run dev`.
+//
+// Tree operations come from packages/tree-ops (no rendering in there) and this page is the only place the two meet:
+// clicking a tip or clade opens <TreeView>'s node menu with per-node actions (rotate, reroot here, ...), the toolbar holds
+// whole-tree actions (midpoint root, ladderise, collapse by support). Each action returns a new tree that replaces the one
+// shown; the tree as published is kept for undo and reset and never changed.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -10,20 +13,19 @@ import '../../shared/gbif-tokens.css';
 import { gbifTheme } from '../../shared/gbif-theme.ts';
 import { loadTree } from '../../shared/data.ts';
 import { parseNewick } from '../../shared/newick.ts';
-import type { TreeModel } from '../../shared/tree.ts';
-import { collapseBySupport, ladderise, midpointRoot, prune, reroot, rotate, subtree, type OpResult } from '../../shared/ops.ts';
-import { TreeView, type CladeProp, type TreeNodeEvent } from './react/TreeView.tsx';
+import { TreeModel } from '../../shared/tree.ts';
+import * as ops from '../../../packages/tree-ops/src/index.ts';
+import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent } from './react/TreeView.tsx';
 import type { Viewport } from './core/types.ts';
 
 function App() {
   const params = new URLSearchParams(location.search);
-  const [history, setHistory] = useState<TreeModel[]>([]); // [original, ...each operation's result]
+  const [history, setHistory] = useState<TreeModel[]>([]); // [as published, ...each action's result]
   const tree = history[history.length - 1] ?? null;
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [hl, setHl] = useState<string[]>([]);
-  const [selected, setSelected] = useState<number | null>(null); // node index of the last clicked tip or clade
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
-  const [last, setLast] = useState('click a clade or a tip');
+  const [last, setLast] = useState('click a tip or a clade for its actions');
   const [minSupport, setMinSupport] = useState(70);
   useEffect(() => {
     void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([parseNewick(t.newick)]));
@@ -44,20 +46,10 @@ function App() {
 
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
-  const onNode = (e: TreeNodeEvent) => {
-    setSelected(e.node);
-    setClades((cs) => (cs.some((c) => c.nodeId === e.nodeId) ? cs.filter((c) => c.nodeId !== e.nodeId) : [...cs, { nodeId: e.nodeId, colour: palette[cs.length % palette.length] }]));
-    setHl(e.tipIds().slice(0, 5));
-    setLast(`${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipRange.join(', ')})`);
-  };
-  const onTip = (e: TreeNodeEvent) => {
-    setSelected(e.node);
-    setLast(`tip ${e.tipId}`);
-  };
 
-  /** Run an operation on the current tree; carry clade colours and the selection over through the node map. */
-  const apply = (name: string, op: (t: TreeModel) => OpResult) => {
-    let r: OpResult;
+  /** Run a tree operation on the current tree; carry clade colours over through the node map. */
+  const apply = (name: string, op: (t: TreeModel) => ops.OpResult) => {
+    let r: ops.OpResult;
     const t0 = performance.now();
     try {
       r = op(tree);
@@ -65,45 +57,64 @@ function App() {
       setLast(`${name}: ${(err as Error).message}`);
       return;
     }
+    if (!r.changed) return setLast(`${name}: nothing to change`);
+    const next = new TreeModel(r.tree);
     const ms = performance.now() - t0;
-    if (r.tree === tree) return setLast(`${name}: nothing to change`);
     const m = (id: string) => r.map[Number(id.slice(1))] ?? -1;
     setClades((cs) => cs.flatMap((c) => (m(c.nodeId) >= 0 ? [{ ...c, nodeId: 'n' + m(c.nodeId) }] : [])));
-    setSelected((s) => (s !== null && r.map[s] >= 0 ? r.map[s] : null));
     setVp(undefined); // the new tree is fitted when its renderer mounts
-    setHistory((h) => [...h, r.tree]);
-    setLast(`${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${r.tree.tipCount.toLocaleString('en')} after)`);
+    setHistory((h) => [...h, next]);
+    setLast(`${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)`);
   };
   const back = (to: number) => {
     setHistory((h) => h.slice(0, to));
     setClades([]);
-    setSelected(null);
     setVp(undefined);
     setLast(to === 1 ? 'reset to the tree as published' : 'undone');
   };
-  const sel = selected !== null && selected < tree.nodeCount ? selected : null;
-  const selIsTip = sel !== null && tree.childCount[sel] === 0;
-  const common = { tree, clades, highlighted: hl, theme, viewport: vp, onViewportChange: setVp, onNodeClick: onNode, onTipClick: onTip, tipHref: (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}` };
+  const toggleColour = (nodeId: string) =>
+    setClades((cs) => (cs.some((c) => c.nodeId === nodeId) ? cs.filter((c) => c.nodeId !== nodeId) : [...cs, { nodeId, colour: palette[cs.length % palette.length] }]));
+
+  // per-node actions: what the node menu offers for the clicked tip or clade
+  const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] => {
+    if (e.run) return []; // a run of small siblings is not one node
+    const v = e.node;
+    const what = e.isTip ? 'tip' : 'clade';
+    const coloured = clades.some((c) => c.nodeId === e.nodeId);
+    const items: NodeMenuItem[] = [];
+    if (!e.isTip) items.push({ id: 'rotate', label: 'Rotate', hint: 'swap the order of its branches', disabled: tree.childCount[v] < 2, onSelect: () => apply('rotate', (t) => ops.rotate(t, v)) });
+    items.push({ id: 'reroot', label: 'Reroot here', hint: `root on the branch above this ${what}`, disabled: v === 0, onSelect: () => apply('reroot', (t) => ops.reroot(t, v)) });
+    if (!e.isTip) items.push({ id: 'subtree', label: 'Show only this clade', hint: `${e.tipCount.toLocaleString('en')} tips`, disabled: v === 0, onSelect: () => apply('show only this clade', (t) => ops.subtree(t, v)) });
+    items.push({
+      id: 'remove', label: `Remove this ${what}`, hint: e.isTip ? 'prune the tip' : `prune its ${e.tipCount.toLocaleString('en')} tips`, disabled: v === 0 || e.tipCount >= tree.tipCount - 1,
+      onSelect: () => apply(`remove ${what}`, (t) => ops.prune(t, (r) => r < t.leafStart[v] || r >= t.leafEnd[v])),
+    });
+    if (!e.isTip) items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(e.nodeId) });
+    return items;
+  };
+  const onClick = (e: TreeNodeEvent) => {
+    setHl(e.isTip ? [] : e.tipIds().slice(0, 5));
+    setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipRange.join(', ')})`);
+  };
+
+  const common = { tree, clades, highlighted: hl, theme, viewport: vp, onViewportChange: setVp, onNodeClick: onClick, onTipClick: onClick, nodeMenu, tipHref: (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}` };
   const btn = 'btn btn-secondary';
   return (
     <div style={{ font: '14px var(--font-body)', padding: 12, color: 'var(--fg1)', background: 'var(--bg-surface)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <div role="toolbar" aria-label="Tree operations" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-        <button className={btn} disabled={sel === null || sel === 0} title="Root on the branch above the selected tip or clade (halfway along it)" onClick={() => apply('reroot', (t) => reroot(t, sel!))}>Root on selected branch</button>
-        <button className={btn} disabled={!tree.hasLengths} title={tree.hasLengths ? 'Root halfway along the longest tip-to-tip path' : 'needs branch lengths'} onClick={() => apply('midpoint root', midpointRoot)}>Midpoint root</button>
-        <button className={btn} onClick={() => apply('ladderise', (t) => ladderise(t))}>Ladderise ↑</button>
-        <button className={btn} onClick={() => apply('ladderise (decreasing)', (t) => ladderise(t, { order: 'decreasing' }))}>Ladderise ↓</button>
-        <button className={btn} disabled={sel === null || selIsTip} onClick={() => apply('rotate', (t) => rotate(t, sel!))}>Rotate selected</button>
+      <div role="toolbar" aria-label="Whole-tree actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+        <button className={btn} disabled={!tree.hasLengths} title={tree.hasLengths ? 'Root halfway along the longest tip-to-tip path' : 'needs branch lengths'} onClick={() => apply('midpoint root', ops.midpointRoot)}>Midpoint root</button>
+        <button className={btn} title="Smaller clades first" onClick={() => apply('ladderise', (t) => ops.ladderise(t))}>Ladderise ↑</button>
+        <button className={btn} title="Larger clades first" onClick={() => apply('ladderise (decreasing)', (t) => ops.ladderise(t, { order: 'decreasing' }))}>Ladderise ↓</button>
         <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center' }}>
-          <button className={btn} disabled={!hasSupport} title={hasSupport ? 'Collapse branches with support below the value into polytomies' : 'this tree has no support values'} onClick={() => apply(`collapse support < ${minSupport}`, (t) => collapseBySupport(t, minSupport))}>Collapse support &lt;</button>
+          <button className={btn} disabled={!hasSupport} title={hasSupport ? 'Collapse branches with support below the value into polytomies' : 'this tree has no support values'} onClick={() => apply(`collapse support < ${minSupport}`, (t) => ops.collapseBySupport(t, minSupport))}>Collapse support &lt;</button>
           <input type="number" aria-label="Minimum support" value={minSupport} min={0} step={1} onChange={(e) => setMinSupport(Number(e.target.value))} style={{ width: 64, font: 'inherit', padding: '4px 6px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-md)' }} />
         </span>
-        <button className={btn} disabled={sel === null || selIsTip} onClick={() => apply('show clade only', (t) => subtree(t, sel!))}>Selected clade only</button>
-        <button className={btn} disabled={colouredTips.n < 2} title="Keep only the tips of the coloured clades" onClick={() => apply('prune to coloured', (t) => prune(t, (r) => colouredTips.keep[r] === 1))}>Prune to coloured ({colouredTips.n.toLocaleString('en')})</button>
+        <button className={btn} disabled={colouredTips.n < 2} title="Keep only the tips of the coloured clades" onClick={() => apply('keep coloured', (t) => ops.prune(t, (r) => colouredTips.keep[r] === 1))}>Keep coloured ({colouredTips.n.toLocaleString('en')})</button>
         <button className="btn btn-outline" disabled={history.length < 2} onClick={() => back(history.length - 1)}>Undo</button>
         <button className="btn btn-outline" disabled={history.length < 2} onClick={() => back(1)}>Reset</button>
       </div>
       <p style={{ margin: '0 0 8px' }} aria-live="polite">
-        {last} · {history.length > 1 ? `${history.length - 1} operation${history.length > 2 ? 's' : ''} applied` : 'tree as published'} · selected {sel === null ? 'nothing' : 'n' + sel} · {clades.length} coloured clades
+        {last} · {history.length > 1 ? `${history.length - 1} change${history.length > 2 ? 's' : ''} by you, not as published` : 'tree as published'} · {clades.length} coloured clades
       </p>
       <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 110px)' }}>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}><TreeView {...common} branchLengths /></div>

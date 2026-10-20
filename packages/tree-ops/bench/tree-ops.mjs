@@ -1,12 +1,12 @@
-// Cost of the user-triggered tree operations (spikes/shared/ops.ts) on large trees, in Node (same V8 as Chromium, no
-// rendering): each operation builds a new TreeModel, so the times include that rebuild. Median of --reps runs.
-//   node --experimental-transform-types bench/tree-ops.mjs [--reps 5] file.nwk[.gz] ...
+// Cost of the tree operations (src/) on large trees, in Node (same V8 as Chromium, no rendering). Each operation builds
+// new preorder arrays and the times include that; wrapping them in a tree model is the caller's. Median of --reps runs.
+//   npm run bench -- [--reps 5] file.nwk[.gz] ...   (from packages/tree-ops)
 // The big synthetic trees are git-ignored: `make large` in data/synthetic generates them.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { parseNewick } from '../../shared/newick.ts';
-import { collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../../shared/ops.ts';
+import { collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../src/index.ts';
+import { parseNewick } from '../../../spikes/shared/newick.ts'; // fixture: text -> TreeInput
 
 const argv = process.argv.slice(2);
 const reps = argv[0] === '--reps' ? Number(argv[1]) : 5;

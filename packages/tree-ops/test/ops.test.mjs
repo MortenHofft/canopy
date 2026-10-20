@@ -1,14 +1,20 @@
-// Run: node --test shared/test/   (Node >= 22.18 strips TypeScript types natively)
+// Run from packages/tree-ops: npm test
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, toNewick } from '../newick.ts';
-import { collapseBySupport, collapseShortBranches, ladderise, midpointRoot, prune, reroot, rotate, subtree } from '../ops.ts';
+import * as ops from '../src/index.ts';
+// Test fixtures only: the spikes' Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
+// something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
+import { parseNewick, toNewick } from '../../../spikes/shared/newick.ts';
+import { TreeModel } from '../../../spikes/shared/tree.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
+const wrap = (fn) => (...a) => { const r = fn(...a); return { ...r, tree: r.changed ? new TreeModel(r.tree) : r.tree }; };
+const reroot = wrap(ops.reroot), midpointRoot = wrap(ops.midpointRoot), ladderise = wrap(ops.ladderise), rotate = wrap(ops.rotate);
+const collapseBySupport = wrap(ops.collapseBySupport), collapseShortBranches = wrap(ops.collapseShortBranches), prune = wrap(ops.prune), subtree = wrap(ops.subtree);
 const readTree = (p) => parseNewick(zlib.gunzipSync(fs.readFileSync(path.join(DATA, p))).toString('utf8'));
 const tip = (t, l) => t.tipIndex(l);
 const nwk = (t) => toNewick(t);
@@ -142,7 +148,8 @@ test('collapse by support and by length', () => {
   assert.equal(nwk(collapseBySupport(t, 50).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
   assert.equal(nwk(collapseBySupport(t, 70).tree), '((A:1,B:1)95:0.5,C:1,D:1,E:1);');
   assert.equal(nwk(collapseShortBranches(t, 0.01).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
-  assert.equal(collapseBySupport(t, 10).tree, t); // nothing to do: same object
+  assert.equal(collapseBySupport(t, 10).changed, false); // nothing to do: the input comes back
+  assert.equal(collapseBySupport(t, 10).tree, t);
   checkModel(collapseBySupport(t, 70).tree);
 });
 
@@ -189,4 +196,22 @@ test('edge-case trees: reroot on every node, midpoint, prune and collapse keep t
     checkModel(collapseBySupport(t, 70).tree);
     checkModel(prune(t, (r) => r % 2 === 0).tree);
   }
+});
+
+test('deep tree: a 100k-tip caterpillar (depth 100k) reroots, midpoint-roots, ladderises and prunes without recursion', () => {
+  // ((((t0:1,t1:1):1,t2:1):1,...) built iteratively; idea from patristic's test/deep.test.js
+  const N = 100000;
+  const parts = new Array(N);
+  parts[0] = '('.repeat(N - 1) + 't0:1';
+  for (let i = 1; i < N; i++) parts[i] = `,t${i}:1):1`;
+  const t = parseNewick(parts.join('').replace(/:1$/, '') + ';');
+  assert.equal(t.tipCount, N);
+  const deepest = t.tipIndex('t0');
+  const r = reroot(t, deepest);
+  assert.equal(r.tree.tipCount, N);
+  assert.ok(Math.abs(dist(r.tree, r.map[deepest], r.map[t.tipIndex('t5')]) - dist(t, deepest, t.tipIndex('t5'))) < 1e-9);
+  const m = midpointRoot(t);
+  assert.ok(Math.abs(m.info.diameter - N) < 1e-6); // t0 to t(N-1): N-2 internal edges plus the two tip edges
+  assert.equal(ladderise(t).tree.tipCount, N);
+  assert.equal(prune(t, (k) => k % 3 === 0).tree.tipCount, Math.ceil(N / 3));
 });
