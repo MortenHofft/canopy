@@ -1,0 +1,33 @@
+PASS rows == node count
+PASS nodes.parent == ground truth
+PASS nodes.subtree_end == ground truth
+PASS nodes.leaf_start == ground truth
+PASS nodes.tip_count == ground truth
+PASS nodes.depth == ground truth
+PASS nodes.max_depth == ground truth
+PASS nodes.len == ground truth
+PASS nodes.cum_len == ground truth
+PASS nodes.max_cum == ground truth
+PASS nodes.occ_sum == ground truth
+PASS independent subtree_end (stack scan)
+PASS independent tip_count (tip prefix sums)
+PASS independent leaf_start
+PASS independent depth (pointer jumping)
+PASS independent max_depth (sparse table)
+PASS independent max_cum (sparse table over cum_len)
+PASS max_cum/root == renderer XMAX (float32 tolerance 1e-6)
+PASS overview.row == layout ROW (midpoint of first/last child), float64
+PASS independent occ_sum (from tips.parquet via prefix sums)
+PASS tips.node == positions of tips
+PASS tips.label == Newick labels
+PASS tips row groups aligned with node row groups
+PASS labels.parquet sorted by label and rank maps back to the tip label
+PASS overview level 0: rows (2049) equal node-table rows
+PASS overview level 0: 1025 stub/tip rows tile the 100000 tips exactly once
+PASS overview level 0: triangle widths non-negative and finite
+PASS overview level 1: rows (8976) equal node-table rows
+PASS overview level 1: 4097 stub/tip rows tile the 100000 tips exactly once
+PASS overview level 1: triangle widths non-negative and finite
+PASS path root->tip from one node row group + rg_open (2000 random tips)
+
+ALL PASS

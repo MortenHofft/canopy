@@ -1,0 +1,16 @@
+{
+ "timings": {
+  "parse_ms": 136.535277,
+  "arrays_ms": 167.26546300000004,
+  "write_ms": 934.2970789999999,
+  "total_ms": 1238.097819
+ },
+ "sizes": {
+  "nodes": 2037768,
+  "tips": 835112,
+  "overview": 193945,
+  "spine": 3474,
+  "labels": 830852,
+  "manifest": 1888
+ }
+}

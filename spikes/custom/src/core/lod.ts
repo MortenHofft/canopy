@@ -14,7 +14,8 @@
 // Radial culling (2026-10): a node is skipped when its annular sector (radius X[parent]..XMAX, angle leafStart..leafEnd)
 // cannot touch the padded clip rectangle: a radius-range test (distance from the root to the nearest and the farthest
 // point of the rectangle) and an angle-range test (the angular interval the rectangle subtends as seen from the root).
-// No trigonometry per visited node, and a sector that merely has its bounding box over the viewport is culled too.
+// Survivors then get the sector's exact bounding box test (cached boundary cos/sin, no trigonometry per node): the cheap tests
+// alone keep more off-screen primitives in the list than a bounding box does when the window is wide and off-centre.
 
 import type { Layout } from './layout.ts';
 import type { Transform } from './geom.ts';
@@ -163,6 +164,7 @@ export function cutRect(tree: TreeData, L: Layout, T: Transform, P: CutParams, c
 }
 
 const TWO_PI = 2 * Math.PI;
+const HALF_PI = Math.PI / 2;
 // the viewport as seen from the root (radial culling), recomputed per cut: scratch values, no allocation
 export const radialWindowState = { rMin: 0, rMax: 0, all: true, lo: 0, hi: 0, wrap: false };
 const cornerA = [0, 0, 0, 0];
@@ -193,7 +195,7 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
   ensureTrig(L);
   const n = L.n;
   const { X, ROW, XMAX, LAST } = L;
-  const COS = L.COS!, SIN = L.SIN!;
+  const COS = L.COS!, SIN = L.SIN!, BC = L.BC!, BS = L.BS!;
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
   const { cx, cy, k, da, clipL, clipR, clipT, clipB } = T;
   const { lod, minPx, budget } = P;
@@ -215,6 +217,23 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
     const a0 = leafStart[i] * da;
     const a1 = leafEnd[i] * da;
     if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) { i = subtreeEnd[i]; continue; }
+    // exact enough: the sector's bounding box against the padded clip rectangle (corner points from the cached boundary
+    // cos/sin, plus the axis crossings), after the cheap radius and angle tests above
+    {
+      const ls = leafStart[i], le = leafEnd[i];
+      const c0 = BC[ls], s0 = BS[ls], c1 = BC[le], s1 = BS[le];
+      let bx0 = Math.min(r0 * c0, r1 * c0, r0 * c1, r1 * c1), bx1 = Math.max(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
+      let by0 = Math.min(r0 * s0, r1 * s0, r0 * s1, r1 * s1), by1 = Math.max(r0 * s0, r1 * s0, r0 * s1, r1 * s1);
+      for (let q = Math.ceil(a0 / HALF_PI); q * HALF_PI <= a1; q++) {
+        switch (q & 3) {
+          case 0: if (r1 > bx1) bx1 = r1; break;
+          case 1: if (r1 > by1) by1 = r1; break;
+          case 2: if (-r1 < bx0) bx0 = -r1; break;
+          default: if (-r1 < by0) by0 = -r1;
+        }
+      }
+      if (cx + bx1 < clipL - PAD || cx + bx0 > clipR + PAD || cy + by1 < clipT - PAD || cy + by0 > clipB + PAD) { i = subtreeEnd[i]; continue; }
+    }
     const ri = X[i] * k;
     const ca = COS[i], sa = SIN[i];
     const sx = cx + ri * ca, sy = cy + ri * sa;

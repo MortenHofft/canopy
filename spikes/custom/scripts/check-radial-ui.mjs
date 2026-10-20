@@ -74,7 +74,7 @@ ev = await page.evaluate(() => window.__spike.getEvents());
 const clk = ev.filter((e) => e.type === 'nodeClick').pop();
 ok(clk && clk.nodeId === 'n' + target.node && clk.tipIds.length === target.tips, `click on a summary: ${clk?.nodeId}, ${clk?.tipIds.length} tips`);
 const lastEvent = await page.locator('[data-testid=last-event]').textContent();
-ok(/nodeClick/.test(lastEvent ?? ''), `React state shows the event: ${(lastEvent ?? '').slice(0, 60)}`);
+ok(new RegExp('(nodeClick|nodeHover) n' + target.node + ' ').test(lastEvent ?? ''), `React state shows the event (a hover can follow the click): ${(lastEvent ?? '').slice(0, 60)}`);
 
 // ---- colouring a summarised clade: pixels at its fan turn red
 const before = await rd(({ x, y }) => { const c = window.__customTree.handle().renderer().ctx; const d = c.getImageData(Math.round(x * (devicePixelRatio || 1)), Math.round(y * (devicePixelRatio || 1)), 1, 1).data; return [d[0], d[1], d[2]]; }, target);

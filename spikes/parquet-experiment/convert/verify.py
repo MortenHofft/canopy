@@ -99,8 +99,8 @@ if "tip_count" in cols:
         for i in range(N - 1, -1, -1):
             if lastc[i] >= 0: rowc[i] = (rowc[i + 1] + rowc[lastc[i]]) / 2
         ovr = pq.read_table(os.path.join(A.dir, "overview.parquet"))
-        okr = np.array_equal(fl(rowc)[ovr.column("node").to_numpy()], ovr.column("row").to_numpy())
-        check("overview.row == layout ROW (midpoint of first/last child), stored width", okr)
+        okr = np.array_equal(rowc[ovr.column("node").to_numpy()], ovr.column("row").to_numpy())
+        check("overview.row == layout ROW (midpoint of first/last child), float64", okr)
         np.save(os.path.join(os.environ.get("TMPDIR", "/tmp"), "verify_rowc.npy"), rowc) if os.environ.get("KEEP_ROWC") else None
     if "occ_sum" in cols:
         tt = pq.read_table(os.path.join(A.dir, "tips.parquet"), columns=["occurrence_count"]).column(0).to_numpy().astype(np.int64)

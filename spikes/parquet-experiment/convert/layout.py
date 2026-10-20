@@ -12,13 +12,13 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-OVERVIEW_BUDGETS = [1024, 4096, 16384, 65536]  # internal nodes expanded per pyramid level (cumulative top-B by tip_count)
+OVERVIEW_BUDGETS = [2048, 8192, 32768, 131072]  # ROWS (expanded nodes + their child stubs) per pyramid level, cumulative; v1 counted expanded nodes only
 
 
-def budgets_for(n_internal):
-    """Keep only levels that stay at or below 1/8 of the internal nodes, so the overview never approaches the full tree."""
-    b = [x for x in OVERVIEW_BUDGETS if x <= n_internal // 8]
-    return b or [max(1, n_internal // 4)]
+def budgets_for(n_nodes):
+    """Keep only levels that stay at or below 1/8 of all nodes, so the overview never approaches the full tree."""
+    b = [x for x in OVERVIEW_BUDGETS if x <= n_nodes // 8]
+    return b or [max(8, n_nodes // 8)]
 
 
 def _table(a, idx, cfg, extra=None):
@@ -38,7 +38,7 @@ def _table(a, idx, cfg, extra=None):
         cols["cum_len"] = pa.array(a["cum_len"][idx].astype(f))
         cols["max_cum"] = pa.array(a["max_cum"][idx].astype(f))
         if extra is not None:  # overview / spine rows only: a fully loaded clade recomputes `row` locally (reader.layoutRows)
-            cols["row"] = pa.array(a["row"][idx].astype(np.float32 if not cfg["f64"] else np.float64))
+            cols["row"] = pa.array(a["row"][idx])  # always float64: float32 loses 0.004..0.06 rows above 32k tips (measured by test/overview_vs_layout.mjs)
         cols["depth"] = pa.array(a["depth"][idx].astype(np.uint16), pa.uint16())
         cols["max_depth"] = pa.array(a["max_depth"][idx].astype(np.uint16), pa.uint16())
     if cfg["occ"]:
@@ -82,18 +82,24 @@ def writer_opts(cfg, cols):
 
 def select_overview(a, budgets=None):
     """Return (sel_level, rows_by_level). sel_level[i] = pyramid level at which internal node i becomes expanded (255 never).
-    Selection = the top-B internal nodes by tip_count (ties: lower preorder first), which is ancestor-closed."""
+    Selection = internal nodes by tip_count descending (ties: lower preorder first), which is ancestor-closed, taken while the rows
+    of the level (1 + total children of the expanded nodes = expanded nodes + child stubs) stay within the level's row budget.
+    Counting rows, not nodes, matters for polytomies (Open Tree has nodes with thousands of children)."""
     n = len(a["parent"])
     tc = a["tip_count"]
     internal = a["subtree_end"] != np.arange(1, n + 1)
     cand = np.flatnonzero(internal)
-    budgets = budgets or budgets_for(len(cand))
+    budgets = budgets or budgets_for(n)
     order = cand[np.lexsort((cand, -tc[cand].astype(np.int64)))]
+    nchild = np.bincount(a["parent"][1:], minlength=n)
+    cum = 1 + np.cumsum(nchild[order])            # rows of the cut after expanding the first k nodes of `order`
     sel = np.full(n, 255, dtype=np.uint8)
     prev = 0
     for L, B in enumerate(budgets):
-        sel[order[prev:B]] = L
-        prev = max(prev, B)
+        k = int(np.searchsorted(cum, B, side="right"))
+        k = max(k, prev, 1)                        # the root is always expanded
+        sel[order[prev:k]] = L
+        prev = k
     par = a["parent"]
     rows = []
     for L in range(len(budgets)):
@@ -217,7 +223,7 @@ def write_all(a, outdir, cfg, only=None):
         "has_names": has_names, "max_depth": int(a["max_depth"][0]), "max_cum": float(a["max_cum"][0]), "root_occ_sum": int(a["occ_sum"][0]),
         "float": "f64" if cfg["f64"] else "f32", "codec": cfg["codec"], "rg_rows": rg,
         "rg_node_start": rg_node_start + [n], "rg_tip_start": rg_tip_start,
-        "overview": {"budgets": budgets_for(int((a["subtree_end"] != np.arange(1, n + 1)).sum())), "level_rows": lvl_rows},
+        "overview": {"row_budgets": budgets_for(n), "level_rows": lvl_rows},
         "rg_open": open_ids, "spine_nodes": [int(x) for x in uniq],
         "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet", "labels": "labels.parquet"},
         "notes": "len is raw (NaN when missing); cum_len/max_cum clamp negative or missing lengths to 0; occ_sum is SYNTHETIC test metadata",

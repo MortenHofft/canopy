@@ -20,6 +20,9 @@ export interface Layout {
   /** cos and sin of the node's radial angle (ROW * 2*pi/tips); built on first use by ensureTrig() (radial layout only) */
   COS: Float64Array | null;
   SIN: Float64Array | null;
+  /** cos and sin of the tip-rank boundaries k * 2*pi/tips, k = 0..tips (sector bounding boxes without trigonometry) */
+  BC: Float64Array | null;
+  BS: Float64Array | null;
 }
 
 /** Cache cos/sin of every node's radial angle (the angle does not depend on the zoom or on branch lengths), so the cut,
@@ -35,8 +38,13 @@ export function ensureTrig(L: Layout): void {
     C[i] = Math.cos(a);
     S[i] = Math.sin(a);
   }
+  const T = L.tips;
+  const BC = new Float64Array(T + 1), BS = new Float64Array(T + 1);
+  for (let k = 0; k <= T; k++) { BC[k] = Math.cos(k * da); BS[k] = Math.sin(k * da); }
   L.COS = C;
   L.SIN = S;
+  L.BC = BC;
+  L.BS = BS;
 }
 
 export function computeLayout(tree: TreeData, branchLengths: boolean): Layout {
@@ -79,5 +87,5 @@ export function computeLayout(tree: TreeData, branchLengths: boolean): Layout {
     const p = parent[i];
     if (XMAX[i] > XMAX[p]) XMAX[p] = XMAX[i];
   }
-  return { n, tips: tree.tipCount, usedLengths, maxLen, ultrametric, X, ROW, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null };
+  return { n, tips: tree.tipCount, usedLengths, maxLen, ultrametric, X, ROW, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null, BC: null, BS: null };
 }

@@ -17,8 +17,8 @@ import { compressors as readCompressors } from 'hyparquet-compressors';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { parseNewick } = await import(path.join(here, 'dist', 'newick.mjs'));
 
-const BUDGETS = [1024, 4096, 16384, 65536];
-const budgetsFor = (nInternal) => { const b = BUDGETS.filter((x) => x <= Math.floor(nInternal / 8)); return b.length ? b : [Math.max(1, Math.floor(nInternal / 4))]; };
+const BUDGETS = [2048, 8192, 32768, 131072]; // ROWS per level (expanded nodes + child stubs), cumulative
+const budgetsFor = (nNodes) => { const b = BUDGETS.filter((x) => x <= Math.floor(nNodes / 8)); return b.length ? b : [Math.max(8, Math.floor(nNodes / 8))]; };
 
 export function arraysFromTree(t, occ) {
   const n = t.nodeCount, p = t.parent;
@@ -46,7 +46,7 @@ function colsFor(a, idx, o, withRow = false) {
   const take = (arr) => { const out = new arr.constructor(idx.length); for (let k = 0; k < idx.length; k++) out[k] = arr[idx[k]]; return out; };
   const I = (name, x) => ({ name, data: take(x), type: 'INT32', nullable: false, ...(o.tuned ? { encoding: 'DELTA_BINARY_PACKED' } : {}) });
   const F = (name, x) => ({ name, data: o.f64 ? take(x) : Float32Array.from(take(x)), type: o.f64 ? 'DOUBLE' : 'FLOAT', nullable: false, ...(o.tuned ? { encoding: 'BYTE_STREAM_SPLIT' } : {}) });
-  return [I('parent', a.parent), I('subtree_end', a.subtreeEnd), F('len', a.len), I('leaf_start', a.leafStart), I('tip_count', a.tipCount), F('cum_len', a.cum), F('max_cum', a.maxCum), ...(withRow ? [F('row', a.row)] : []),
+  return [I('parent', a.parent), I('subtree_end', a.subtreeEnd), F('len', a.len), I('leaf_start', a.leafStart), I('tip_count', a.tipCount), F('cum_len', a.cum), F('max_cum', a.maxCum), ...(withRow ? [{ name: 'row', data: take(a.row), type: 'DOUBLE', nullable: false, ...(o.tuned ? { encoding: 'BYTE_STREAM_SPLIT' } : {}) }] : []),
     I('depth', a.depth), I('max_depth', a.maxDepth), { name: 'occ_sum', data: take(a.occSum), type: 'INT64', nullable: false }];
 }
 
@@ -120,10 +120,17 @@ export async function convert(treeFile, outDir, opts) {
   keys.sort(); // ascending: iterate from the end for tip_count desc, index asc
   const order = new Int32Array(cand.length);
   for (let k = 0; k < cand.length; k++) order[k] = SH - 1 - (keys[cand.length - 1 - k] % SH);
-  const budgets = budgetsFor(cand.length);
+  const budgets = budgetsFor(n);
+  const nchild = new Int32Array(n); for (let i = 1; i < n; i++) nchild[a.parent[i]]++;
+  const cum = new Float64Array(order.length); { let c = 1; for (let k = 0; k < order.length; k++) { c += nchild[order[k]]; cum[k] = c; } }
   const sel = new Uint8Array(n).fill(255);
   let prev = 0;
-  budgets.forEach((B, L) => { for (let k = prev; k < Math.min(B, order.length); k++) sel[order[k]] = L; prev = Math.max(prev, B); });
+  budgets.forEach((B, L) => {
+    let k = 0; while (k < cum.length && cum[k] <= B) k++;   // rows of the cut after expanding the first k nodes
+    k = Math.max(k, prev, 1);
+    for (let q = prev; q < k; q++) sel[order[q]] = L;
+    prev = k;
+  });
   const levelRows = [], levelGroups = [];
   for (let L = 0; L < budgets.length; L++) {
     const isNew = new Uint8Array(n);
@@ -164,7 +171,7 @@ export async function convert(treeFile, outDir, opts) {
   const manifest = {
     version: 1, nodes: n, tips: tree.tipCount, has_lengths: a.hasLen, has_support: false, has_names: false, max_depth: a.maxDepth[0], max_cum: a.maxCum[0], root_occ_sum: Number(a.occSum[0]),
     float: 'f32', codec: opts.codec, rg_rows: rg, rg_node_start: starts, rg_tip_start: tipStart,
-    overview: { budgets, level_rows: levelRows, level_min_tips: budgets.map((_, L) => { let m = Infinity; for (let i = 0; i < n; i++) if (sel[i] === L && a.tipCount[i] < m) m = a.tipCount[i]; return m === Infinity ? 0 : m; }), tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
+    overview: { row_budgets: budgets, level_rows: levelRows, level_min_tips: budgets.map((_, L) => { let m = Infinity; for (let i = 0; i < n; i++) if (sel[i] === L && a.tipCount[i] < m) m = a.tipCount[i]; return m === Infinity ? 0 : m; }), tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
     rg_open: openIds, spine_nodes: uniq,
     files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet'), labels: info(labBuf, 'labels.parquet') },
     notes: 'written by hyparquet-writer (node-writer/convert.mjs)',

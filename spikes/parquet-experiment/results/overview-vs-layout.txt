@@ -1,0 +1,3 @@
+PASS overview rows=147371 (levels 2049+6909+27666+110747) mode=phylogram mismatches=0 worst |dX|=3.81e-8 |dXMAX|=6.59e-8 |dROW|=0.00e+0
+PASS overview rows=728797 (levels 63670+167779+497348) mode=cladogram mismatches=0 worst |dX|=0.00e+0 |dXMAX|=0.00e+0 |dROW|=0.00e+0
+PASS overview rows=2049 (levels 2049) mode=phylogram mismatches=0 worst |dX|=3.81e-8 |dXMAX|=3.96e-8 |dROW|=0.00e+0

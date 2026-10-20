@@ -1,0 +1,461 @@
+{
+ "gtdb190k": {
+  "tips": 189801,
+  "nodes": 379601,
+  "newick_gz": 2407485,
+  "manifest": 3391,
+  "files": {
+   "nodes": 5452117,
+   "tips": 1299204,
+   "overview": 734272,
+   "spine": 7783,
+   "labels": 1056856
+  },
+  "footers": {
+   "nodes": 7363,
+   "tips": 2802,
+   "overview": 4674,
+   "spine": 2308,
+   "labels": 2719
+  },
+  "row_groups": {
+   "nodes": 6,
+   "tips": 6,
+   "overview": 3,
+   "spine": 1,
+   "labels": 12
+  },
+  "overview_level_rows": [
+   2049,
+   6480,
+   26357
+  ],
+  "overview_level_min_tips": [
+   829,
+   165,
+   33
+  ],
+  "overview_tail_bytes": 56954
+ },
+ "otl1.49M": {
+  "tips": 1490245,
+  "nodes": 1717413,
+  "newick_gz": 14987041,
+  "manifest": 10112,
+  "files": {
+   "nodes": 7551182,
+   "tips": 18190798,
+   "overview": 2159595,
+   "spine": 9892,
+   "labels": 20762175
+  },
+  "footers": {
+   "nodes": 25755,
+   "tips": 11880,
+   "overview": 4369,
+   "spine": 2126,
+   "labels": 20945
+  },
+  "row_groups": {
+   "nodes": 27,
+   "tips": 27,
+   "overview": 3,
+   "spine": 1,
+   "labels": 91
+  },
+  "overview_level_rows": [
+   63670,
+   167779,
+   497348
+  ],
+  "overview_level_min_tips": [
+   3132,
+   496,
+   71
+  ],
+  "overview_tail_bytes": 339896
+ },
+ "otl91k": {
+  "tips": 90938,
+  "nodes": 138646,
+  "newick_gz": 1203023,
+  "manifest": 1522,
+  "files": {
+   "nodes": 1098401,
+   "tips": 1223964,
+   "overview": 197290,
+   "spine": 3848,
+   "labels": 1305214
+  },
+  "footers": {
+   "nodes": 3894,
+   "tips": 1830,
+   "overview": 3315,
+   "spine": 2111,
+   "labels": 1734
+  },
+  "row_groups": {
+   "nodes": 3,
+   "tips": 3,
+   "overview": 2,
+   "spine": 1,
+   "labels": 6
+  },
+  "overview_level_rows": [
+   10524,
+   22643
+  ],
+  "overview_level_min_tips": [
+   249,
+   42
+  ],
+  "overview_tail_bytes": 63029
+ },
+ "yule100k": {
+  "tips": 100000,
+  "nodes": 199999,
+  "newick_gz": 1462440,
+  "manifest": 1957,
+  "files": {
+   "nodes": 2104932,
+   "tips": 786351,
+   "overview": 179192,
+   "spine": 4907,
+   "labels": 831975
+  },
+  "footers": {
+   "nodes": 4270,
+   "tips": 2047,
+   "overview": 3331,
+   "spine": 2152,
+   "labels": 1768
+  },
+  "row_groups": {
+   "nodes": 4,
+   "tips": 4,
+   "overview": 2,
+   "spine": 1,
+   "labels": 7
+  },
+  "overview_level_rows": [
+   2049,
+   6927
+  ],
+  "overview_level_min_tips": [
+   197,
+   48
+  ],
+  "overview_tail_bytes": 50024
+ },
+ "yule10k": {
+  "tips": 10000,
+  "nodes": 19999,
+  "newick_gz": 149065,
+  "manifest": 878,
+  "files": {
+   "nodes": 211156,
+   "tips": 80515,
+   "overview": 40712,
+   "labels": 81778
+  },
+  "footers": {
+   "nodes": 1879,
+   "tips": 939,
+   "overview": 2325,
+   "labels": 567
+  },
+  "row_groups": {
+   "nodes": 1,
+   "tips": 1,
+   "overview": 1,
+   "labels": 1
+  },
+  "overview_level_rows": [
+   2049
+  ],
+  "overview_level_min_tips": [
+   19
+  ],
+  "overview_tail_bytes": 40708
+ },
+ "yule1M": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 11424,
+  "files": {
+   "nodes": 21010698,
+   "tips": 7829196,
+   "overview": 2709162,
+   "spine": 18350,
+   "labels": 8604187
+  },
+  "footers": {
+   "nodes": 26057,
+   "tips": 12298,
+   "overview": 5441,
+   "spine": 2159,
+   "labels": 12983
+  },
+  "row_groups": {
+   "nodes": 31,
+   "tips": 31,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 60708
+ },
+ "yule1M__none": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 11426,
+  "files": {
+   "nodes": 49017116,
+   "tips": 29702916,
+   "overview": 5714572,
+   "spine": 27618,
+   "labels": 28223849
+  },
+  "footers": {
+   "nodes": 26124,
+   "tips": 12316,
+   "overview": 5453,
+   "spine": 2160,
+   "labels": 13000
+  },
+  "row_groups": {
+   "nodes": 31,
+   "tips": 31,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 94526
+ },
+ "yule1M__paged": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 11424,
+  "files": {
+   "nodes": 21010221,
+   "tips": 8060290,
+   "overview": 2723552,
+   "spine": 18566,
+   "labels": 8790999
+  },
+  "footers": {
+   "nodes": 30458,
+   "tips": 14099,
+   "overview": 6197,
+   "spine": 2303,
+   "labels": 14841
+  },
+  "row_groups": {
+   "nodes": 31,
+   "tips": 31,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 65932
+ },
+ "yule1M__plainzstd": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 11425,
+  "files": {
+   "nodes": 24965824,
+   "tips": 10231158,
+   "overview": 3511473,
+   "spine": 20244,
+   "labels": 8604187
+  },
+  "footers": {
+   "nodes": 26061,
+   "tips": 12337,
+   "overview": 5455,
+   "spine": 2160,
+   "labels": 12983
+  },
+  "row_groups": {
+   "nodes": 31,
+   "tips": 31,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 69073
+ },
+ "yule1M__rg16k": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 40409,
+  "files": {
+   "nodes": 21054594,
+   "tips": 8056363,
+   "overview": 2709162,
+   "spine": 52569,
+   "labels": 8604187
+  },
+  "footers": {
+   "nodes": 99397,
+   "tips": 46519,
+   "overview": 5441,
+   "spine": 2169,
+   "labels": 12983
+  },
+  "row_groups": {
+   "nodes": 123,
+   "tips": 123,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 60708
+ },
+ "yule1M__rg256k": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 3633,
+  "files": {
+   "nodes": 20982284,
+   "tips": 7796668,
+   "overview": 2709162,
+   "spine": 7560,
+   "labels": 8604187
+  },
+  "footers": {
+   "nodes": 7571,
+   "tips": 3615,
+   "overview": 5441,
+   "spine": 2152,
+   "labels": 12983
+  },
+  "row_groups": {
+   "nodes": 8,
+   "tips": 8,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 60708
+ },
+ "yule1M__snappy": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 11428,
+  "files": {
+   "nodes": 26121637,
+   "tips": 12128310,
+   "overview": 3348762,
+   "spine": 21235,
+   "labels": 12030079
+  },
+  "footers": {
+   "nodes": 26088,
+   "tips": 12310,
+   "overview": 5447,
+   "spine": 2160,
+   "labels": 12989
+  },
+  "row_groups": {
+   "nodes": 31,
+   "tips": 31,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2049,
+   6909,
+   27666,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 70725
+ }
+}
