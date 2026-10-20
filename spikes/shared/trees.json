@@ -451,7 +451,7 @@
   {
    "id": "otl-1m",
    "label": "Open Tree of Life, Metazoa (1.49M tips)",
-   "path": "real-ladder/fetched/otl-1m-metazoa.nwk.gz",
+   "path": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-1m-metazoa.nwk.gz",
    "format": "newick",
    "tips": 1490245,
    "hasLengths": false,
@@ -460,12 +460,13 @@
     "real"
    ],
    "licence": "CC0-1.0 qualified (Open Tree of Life, see data/real-ladder/manifest.json)",
-   "optional": true
+   "optional": true,
+   "notes": "Served from the throwaway branch data/otl-large through raw.githubusercontent.com (CORS *, range requests). Local: data/real-ladder/fetch.sh otl."
   },
   {
    "id": "otl-2m",
    "label": "Open Tree of Life, whole synthetic tree (2.39M tips)",
-   "path": "real-ladder/fetched/otl-2m-full.nwk.gz",
+   "path": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-2m-full.nwk.gz",
    "format": "newick",
    "tips": 2385875,
    "hasLengths": false,
@@ -474,7 +475,8 @@
     "real"
    ],
    "licence": "CC0-1.0 qualified (Open Tree of Life, see data/real-ladder/manifest.json)",
-   "optional": true
+   "optional": true,
+   "notes": "Served from the throwaway branch data/otl-large through raw.githubusercontent.com (CORS *, range requests). Local: data/real-ladder/fetch.sh otl."
   }
  ]
 }

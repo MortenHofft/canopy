@@ -236,7 +236,7 @@ export interface ColumnSource {
 export interface TreeEntry {
   id: string;
   label: string;
-  path: string; // under data/, served at /data/<path>
+  path: string; // under data/, served at /data/<path>; or an absolute https URL (remote copy, needs CORS)
   format: TreeFormat;
   tips: number; // expected tip count (checked by runner/check-catalogue.mjs and by every run)
   hasLengths: boolean;

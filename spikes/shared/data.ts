@@ -149,8 +149,10 @@ export interface LoadedTree {
 export const DATA_BASE = '/data/';
 
 async function fetchBytes(path: string): Promise<Uint8Array> {
-  const r = await fetch(DATA_BASE + path.split('/').map(encodeURIComponent).join('/'));
-  if (!r.ok) throw new Error(`GET ${DATA_BASE}${path} -> HTTP ${r.status}. Large trees are git-ignored; see data/README.md (yule_100000 is made with generate.py).`);
+  // an absolute URL (a remote copy of a large tree, needs CORS) is fetched as is; anything else is under data/
+  const url = /^https?:\/\//.test(path) ? path : DATA_BASE + path.split('/').map(encodeURIComponent).join('/');
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`GET ${url} -> HTTP ${r.status}. Large trees are git-ignored; see data/README.md (yule_100000 is made with generate.py).`);
   return new Uint8Array(await r.arrayBuffer());
 }
 

@@ -107,6 +107,7 @@ const wanted = new Set();
 for (const t of entries) {
   const rel = t.path ?? t.file;
   if (!rel) continue;
+  if (/^https?:\/\//.test(rel)) { available.push({ ...t, bytes: 0, remote: true }); continue; } // remote copy: nothing to deploy
   const abs = path.join(dataSrc, rel);
   if (!fs.existsSync(abs)) { console.log(`   missing (not deployed): ${rel}`); continue; }
   wanted.add(rel);
