@@ -20,6 +20,7 @@ export interface CompiledColumn {
   max: number;
   seqLen: number;
   bitmap: HTMLCanvasElement | null;
+  runs: (Int32Array | undefined)[]; // alignment: start,end pairs of the gap-free stretches by rank, filled on first use
   x: number; // left edge in container px, set by layoutColumns
 }
 
@@ -92,7 +93,7 @@ export function compileColumns(tree: TreeSnapshot, cols: Column[]): CompiledColu
         } else bitmap = null;
       }
     }
-    return { spec, num, txt, has, max, seqLen, bitmap, x: 0 };
+    return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
   });
 }
 
@@ -116,8 +117,33 @@ export function barWidth(v: number, max: number, w: number): number {
 }
 
 const TEXT_ROW_PX = 9;
+const GAP_ROW_PX = 4; // rows thinner than this get no gap between them
+const BLOCK_ROW_PX = 1.5; // blocks need rows at least this tall, below it the residue bitmap is used
 
-export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeSnapshot, T: Transform, theme: TreeTheme, headY: number, barColour: string): void {
+export interface ColumnDrawOptions {
+  alignStyle: 'residues' | 'blocks';
+  alignRowGap: number;
+}
+
+/** Start/end pairs (alignment columns) of the stretches without gaps in the sequence of rank r, cached on the column. */
+function runsOf(c: CompiledColumn, r: number): Int32Array {
+  let v = c.runs[r];
+  if (v) return v;
+  const s = c.txt![r] ?? '';
+  const out: number[] = [];
+  let start = -1;
+  for (let j = 0; j <= s.length; j++) {
+    const ch = j < s.length ? s.charCodeAt(j) : 45;
+    const gap = ch === 45 || ch === 46;
+    if (!gap && start < 0) start = j;
+    else if (gap && start >= 0) { out.push(start, j); start = -1; }
+  }
+  v = Int32Array.from(out);
+  c.runs[r] = v;
+  return v;
+}
+
+export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeSnapshot, T: Transform, theme: TreeTheme, headY: number, barColour: string, opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 }): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
   const { oy, ky, area } = T;
@@ -136,7 +162,42 @@ export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[
     ctx.beginPath();
     ctx.rect(c.x, top, w, bottom - top);
     ctx.clip();
-    if (c.spec.kind === 'alignment' && c.bitmap) {
+    if (c.spec.kind === 'alignment' && c.txt && opts.alignStyle === 'blocks' && ky >= BLOCK_ROW_PX) {
+      // ETE style: a thin line over the whole width, grey blocks over the stretches without gaps
+      const cw = w / Math.max(1, c.seqLen);
+      const inset = ky >= GAP_ROW_PX ? Math.max(opts.alignRowGap, ky * 0.25) : 0;
+      const bh = Math.max(1, ky - inset);
+      const rr = Math.min(3, bh / 2);
+      const canRound = typeof ctx.roundRect === 'function' && bh >= 4;
+      ctx.strokeStyle = theme.muted;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let r = r0; r <= r1; r++) {
+        if (!c.has[r] || ky < GAP_ROW_PX) continue;
+        const ym = Math.round(oy + (r + 0.5) * ky) + 0.5;
+        ctx.moveTo(c.x, ym);
+        ctx.lineTo(c.x + w, ym);
+      }
+      ctx.stroke();
+      ctx.fillStyle = theme.summary;
+      ctx.beginPath();
+      for (let r = r0; r <= r1; r++) {
+        if (!c.has[r]) continue;
+        const runs = runsOf(c, r);
+        const y = oy + r * ky + inset / 2;
+        for (let k = 0; k < runs.length; k += 2) {
+          const x0 = c.x + runs[k] * cw, bw = Math.max(1, (runs[k + 1] - runs[k]) * cw);
+          if (canRound) ctx.roundRect(x0, y, bw, bh, Math.min(rr, bw / 2));
+          else ctx.rect(x0, y, bw, bh);
+        }
+      }
+      ctx.fill();
+    } else if (c.spec.kind === 'alignment' && c.bitmap && opts.alignRowGap > 0 && ky >= GAP_ROW_PX) {
+      // residues with a gap between sequences: one blit per visible row, a little shorter than the row
+      ctx.imageSmoothingEnabled = false;
+      const g = Math.min(opts.alignRowGap, ky - 1);
+      for (let r = r0; r <= r1; r++) ctx.drawImage(c.bitmap, 0, r, c.seqLen, 1, c.x, oy + r * ky + g / 2, w, ky - g);
+    } else if (c.spec.kind === 'alignment' && c.bitmap) {
       ctx.imageSmoothingEnabled = ky < 1;
       ctx.drawImage(c.bitmap, 0, r0, c.seqLen, r1 - r0 + 1, c.x, oy + r0 * ky, w, (r1 - r0 + 1) * ky);
     } else if (ky < 1.5) {

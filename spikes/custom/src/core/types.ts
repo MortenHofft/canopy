@@ -110,6 +110,11 @@ export interface RendererOptions {
   axis: boolean; // scale bar / time axis
   italicLabels: boolean;
   minCladePx: number; // collapse clades smaller than this many pixels (either direction)
+  /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
+   *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
+  alignStyle: 'residues' | 'blocks';
+  /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep at least a quarter of the row free. */
+  alignRowGap: number;
   formatLabel: (tipId: string) => string;
   tipHref: ((tipId: string) => string) | null;
   ariaLabel: string;
@@ -141,6 +146,8 @@ export const DEFAULT_OPTIONS: RendererOptions = {
   axis: true,
   italicLabels: true,
   minCladePx: 3,
+  alignStyle: 'residues',
+  alignRowGap: 0,
   formatLabel: (s) => s.replace(/_/g, ' '),
   tipHref: null,
   ariaLabel: 'Phylogenetic tree',
