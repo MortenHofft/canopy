@@ -3,8 +3,9 @@
 // every instance owns its renderer, which is created in a layout effect and destroyed on unmount (rAF
 // cancelled, observers and listeners removed, canvases released).
 
-import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeRenderer } from '../core/renderer.ts';
+import { InMemorySource, type TreeSource } from '../core/source.ts';
 import {
   FALLBACK_THEME,
   type Column, type FrameStats, type HitKind, type LayoutKind, type NodeEvent, type RendererOptions, type TreeData, type TreeTheme, type Viewport,
@@ -18,7 +19,8 @@ export interface TreeNodeEvent {
   tipId: string | null; // the tip's label when isTip
   tipCount: number;
   tipRange: [number, number]; // descendant tips are the leaf-rank range [start, end): O(1), no traversal
-  tipIds(): string[]; // the descendant tip labels (a slice; allocated on demand)
+  tipIds(): string[]; // the descendant tip labels (a slice; allocated on demand); only the loaded ones with a partial source
+  tipLabels(): Promise<string[]>; // the same through the source, also for clades whose labels are not loaded
   via: 'pointer' | 'keyboard';
   clientX: number;
   clientY: number;
@@ -45,7 +47,9 @@ export interface CladeProp {
 }
 
 export interface TreeViewProps {
-  tree: TreeData;
+  tree?: TreeData; // a tree in memory (wrapped in an InMemorySource) ...
+  source?: TreeSource; // ... or a source that loads parts of it on demand; one of the two, `source` wins
+
   layout?: LayoutKind;
   branchLengths?: boolean;
   clades?: CladeProp[];
@@ -72,15 +76,16 @@ export interface TreeViewProps {
 const NODE_ID = /^n(\d+)$/;
 const EMPTY = {} as NonNullable<TreeViewProps['options']>;
 
-function nodeIndexOf(tree: TreeData, id: string): number {
+function nodeIndexOf(nodeCount: number, id: string): number {
   const m = NODE_ID.exec(id);
   if (!m) return -1;
   const k = Number(m[1]);
-  return k < tree.nodeCount ? k : -1;
+  return k < nodeCount ? k : -1;
 }
 
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(props, ref) {
-  const { tree, layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, theme, tipHref = null, focus, options = EMPTY, tooltip = true } = props;
+  const { layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, theme, tipHref = null, focus, options = EMPTY, tooltip = true } = props;
+  const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rendRef = useRef<TreeRenderer | null>(null);
@@ -90,16 +95,16 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   const [tip, setTip] = useState<{ ev: TreeNodeEvent; x: number; y: number } | null>(null);
 
   const toEvent = (e: NodeEvent): TreeNodeEvent => {
-    const isTip = tree.childCount[e.node] === 0;
     return {
       nodeId: 'n' + e.node,
       node: e.node,
-      isTip,
+      isTip: e.isTip,
       kind: e.kind,
-      tipId: isTip ? tree.labels[e.node] : null,
+      tipId: e.tipId,
       tipCount: e.tipEnd - e.tipStart,
       tipRange: [e.tipStart, e.tipEnd],
-      tipIds: () => tree.tipLabels.slice(e.tipStart, e.tipEnd),
+      tipIds: () => source.snapshot().tipLabels.slice(e.tipStart, e.tipEnd),
+      tipLabels: () => source.tipLabels(e.tipStart, e.tipEnd),
       via: e.via,
       clientX: e.clientX,
       clientY: e.clientY,
@@ -112,7 +117,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     const o = latest.current.options ?? EMPTY;
     const r = new TreeRenderer(
       host,
-      tree,
+      source,
       {
         onClick: (e) => {
           const ev = toEvent(e);
@@ -137,7 +142,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     setGen((g) => g + 1);
     let ready = 0;
     ready = requestAnimationFrame(() => {
-      ready = requestAnimationFrame(() => latest.current.onReady?.({ layoutMs: r.layout.layoutMs, tips: tree.tipCount }));
+      ready = requestAnimationFrame(() => latest.current.onReady?.({ layoutMs: r.layout.layoutMs, tips: source.tipCount }));
     });
     return () => {
       cancelAnimationFrame(ready);
@@ -146,7 +151,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       setTip(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree, options.softwareCanvas]);
+  }, [source, options.softwareCanvas]);
 
   const R = rendRef.current;
   useLayoutEffect(() => { R?.setTheme({ ...FALLBACK_THEME, ...(theme ?? {}) }); }, [gen, theme]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -161,39 +166,40 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     });
   }, [gen, layout, branchLengths, tipHref, options.lod, options.drawBudget, options.showSummaries, options.overview, options.labelDensity, options.rowHeight, options.axis, options.italicLabels, options.minCladePx, options.formatLabel, options.ariaLabel, options.dprCap, options.radialMaxNodes, options.interactionLOD, options.refineMs, options.summaryNotice]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    R?.setClades((clades ?? []).map((c) => ({ node: nodeIndexOf(tree, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0));
+    R?.setClades((clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0));
   }, [gen, clades]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => { R?.setHighlighted(highlighted ?? []); }, [gen, highlighted]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => { R?.setColumns(columns ?? []); }, [gen, columns]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => { if (viewport) R?.setViewport(viewport); }, [gen, viewport?.x0, viewport?.x1, viewport?.y0, viewport?.y1]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     if (!focus) return;
-    const n = tree.tipIndex(focus.tipId);
-    if (n >= 0) R?.focusTip(tree.tipRank[n]);
+    const n = source.snapshot().tipIndex(focus.tipId);
+    if (n >= 0) R?.focusTip(source.snapshot().tipRank[n]);
   }, [gen, focus?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
     fit: () => rendRef.current?.fit(true),
-    focusTip: (id) => { const n = tree.tipIndex(id); if (n >= 0) rendRef.current?.focusTip(tree.tipRank[n], true); },
-    zoomToNode: (id) => { const k = nodeIndexOf(tree, id); if (k >= 0) rendRef.current?.zoomToNode(k, true); },
+    focusTip: (id) => { const n = source.snapshot().tipIndex(id); if (n >= 0) rendRef.current?.focusTip(source.snapshot().tipRank[n], true); },
+    zoomToNode: (id) => { const k = nodeIndexOf(source.nodeCount, id); if (k >= 0) rendRef.current?.zoomToNode(k, true); },
     getViewport: () => rendRef.current!.getViewport(),
     setViewport: (v) => rendRef.current?.setViewport(v),
-    locateTip: (id) => { const n = tree.tipIndex(id); return n < 0 ? null : rendRef.current?.locateNode(n) ?? null; },
-    locateNode: (id) => { const k = nodeIndexOf(tree, id); return k < 0 ? null : rendRef.current?.locateNode(k) ?? null; },
-    nodeBounds: (id) => { const k = nodeIndexOf(tree, id); return k < 0 ? null : rendRef.current?.nodeBounds(k) ?? null; },
-    columnCell: (c, id) => { const n = tree.tipIndex(id); return n < 0 ? null : rendRef.current?.columnCell(c, tree.tipRank[n]) ?? null; },
+    locateTip: (id) => { const n = source.snapshot().tipIndex(id); return n < 0 ? null : rendRef.current?.locateNode(n) ?? null; },
+    locateNode: (id) => { const k = nodeIndexOf(source.nodeCount, id); return k < 0 ? null : rendRef.current?.locateNode(k) ?? null; },
+    nodeBounds: (id) => { const k = nodeIndexOf(source.nodeCount, id); return k < 0 ? null : rendRef.current?.nodeBounds(k) ?? null; },
+    columnCell: (c, id) => { const n = source.snapshot().tipIndex(id); return n < 0 ? null : rendRef.current?.columnCell(c, source.snapshot().tipRank[n]) ?? null; },
     getStats: () => rendRef.current!.getStats(),
     benchmark: (n) => rendRef.current!.benchmark(n),
     renderer: () => rendRef.current,
-  }), [tree]);
+  }), [source]);
 
   // keep the tooltip fresh only while hovering
   useEffect(() => { if (!tooltip) setTip(null); }, [tooltip]);
 
+  const nodeLabel = (node: number): string => { const t = source.snapshot(); return t.labels[t.toLocal(node)] ?? ''; };
   const defaultTip = (e: TreeNodeEvent) => (
     <>
       <div style={{ fontStyle: e.isTip ? 'italic' : 'normal', fontWeight: 600 }}>{e.isTip ? (options.formatLabel ?? ((s: string) => s.replace(/_/g, ' ')))(e.tipId ?? '') : e.kind === 'summary' ? `Collapsed clade, ${e.tipCount} tips` : `Clade, ${e.tipCount} tips`}</div>
-      {!e.isTip && tree.labels[e.node] && <div>{tree.labels[e.node]}</div>}
+      {!e.isTip && nodeLabel(e.node) && <div>{nodeLabel(e.node)}</div>}
     </>
   );
   return (

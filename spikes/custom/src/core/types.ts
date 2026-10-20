@@ -22,6 +22,31 @@ export interface TreeData {
   tipIndex(label: string): number; // label -> node index, -1 if absent
 }
 
+/** Rollups of a partially loaded tree, one value per snapshot row (all rows, stubs and loaded). The layout takes X, XMAX and ROW
+ *  from them instead of from its own passes, because a stub row has no descendants to derive them from. */
+export interface RollupData {
+  readonly cumLength: Float64Array; // distance from the root, clamped lengths, before normalisation
+  readonly maxCum: Float64Array; // largest cumLength in the subtree (XMAX source)
+  readonly depth: Int32Array;
+  readonly maxDepth: Int32Array; // deepest tip below; cladogram X = 1 - (maxDepth - depth) / maxDepth[0]
+  readonly row: Float64Array; // layout row (y) of the node
+}
+
+/** What the renderer reads each frame: the tree as typed arrays over the rows that are currently loaded, in preorder, plus the
+ *  fields that only a partially loaded tree needs. The in-memory snapshot is a plain TreeData with all three of them null.
+ *  `nodeCount` is the number of ROWS of this snapshot (array length); ids in the arrays (parent, subtreeEnd, tipNode) are row
+ *  indexes; `tipCount`, `leafStart`, `leafEnd` and `tipRank` are ranks of the FULL tree. */
+export interface TreeSnapshot extends TreeData {
+  /** 1 = the row stands for a clade whose rows are not loaded: drawn as a triangle from its rollups, never descended into
+   *  (subtreeEnd[i] = i + 1, childCount[i] > 0 so it is not taken for a tip). null = no stubs (in memory). */
+  readonly stub: Uint8Array | null;
+  /** row -> preorder id in the full tree, what the public API and NodeEvent.node speak. null = identity. */
+  readonly globalId: Int32Array | null;
+  readonly rollup: RollupData | null;
+  /** row of a global id, or -1 when that node is not part of the snapshot */
+  toLocal(globalId: number): number;
+}
+
 export type LayoutKind = 'rectangular' | 'radial';
 
 /** Visible window in layout coordinates. Rectangular: x in [0,1] (root to tips), y in rows (tip rank, 0..tips).
@@ -134,7 +159,9 @@ export interface Hit {
 }
 
 export interface NodeEvent {
-  node: number; // node index (tip: the tip's node)
+  node: number; // node index (tip: the tip's node); with a partial source the preorder id in the FULL tree
+  isTip: boolean;
+  tipId: string | null; // the tip's label when isTip and the label is loaded
   kind: HitKind;
   tipStart: number; // descendant tips are the rank range [tipStart, tipEnd)
   tipEnd: number;

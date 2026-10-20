@@ -20,7 +20,7 @@
 import type { Layout } from './layout.ts';
 import type { Transform } from './geom.ts';
 import { ensureTrig } from './layout.ts';
-import type { TreeData } from './types.ts';
+import type { TreeSnapshot } from './types.ts';
 
 export const K_NODE = 0; // expanded internal node: branch + connector, children follow
 export const K_TIP = 1;
@@ -110,10 +110,11 @@ export interface CutParams {
   summaries: boolean;
 }
 
-export function cutRect(tree: TreeData, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
+export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
   const n = L.n;
   const { X, ROW, XMAX, LAST } = L;
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
+  const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { ox, oy, kx, ky, clipL, clipR, clipT, clipB } = T;
   const { lod, minPx, budget } = P;
   const PAD = 8;
@@ -137,6 +138,7 @@ export function cutRect(tree: TreeData, L: Layout, T: Transform, P: CutParams, c
     let kind: number;
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
+    else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB; // clade not loaded: a triangle, never opened
     else if (sx > clipR + PAD) kind = K_STUB;
     else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else { kind = K_NODE; descend = true; }
@@ -154,7 +156,7 @@ export function cutRect(tree: TreeData, L: Layout, T: Transform, P: CutParams, c
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base))) forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base))) forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
@@ -191,12 +193,13 @@ export function radialWindow(cx: number, cy: number, L: number, T: number, R: nu
   W.lo -= eps; W.hi += eps;
 }
 
-export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
+export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
   ensureTrig(L);
   const n = L.n;
   const { X, ROW, XMAX, LAST } = L;
   const COS = L.COS!, SIN = L.SIN!, BC = L.BC!, BS = L.BS!;
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
+  const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { cx, cy, k, da, clipL, clipR, clipT, clipB } = T;
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
@@ -241,6 +244,7 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
     let kind: number;
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
+    else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB;
     else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else { kind = K_NODE; descend = true; }
     let emit = true;
@@ -257,7 +261,7 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && !(arc < base || (r1 - ri < base && arc < 4 * base))) forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base))) forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
@@ -278,7 +282,7 @@ export interface SearchOpts {
  *  budget pressure that is one pass. Under pressure: start at the previous full frame's threshold (relaxed by 1.3x), step
  *  by 1.3x down or up until a fit and an overflow bracket the answer, bisect the bracket (3 steps, geometric), and make
  *  sure the list left behind is the one for the smallest threshold that fits. Passes that overflow stop at the budget. */
-export function searchCut(rect: boolean, tree: TreeData, L: Layout, T: Transform, classOf: Uint8Array | null, list: DrawList, seen: Seen, o: SearchOpts): { res: CutResult; minPx: number; retries: number } {
+export function searchCut(rect: boolean, tree: TreeSnapshot, L: Layout, T: Transform, classOf: Uint8Array | null, list: DrawList, seen: Seen, o: SearchOpts): { res: CutResult; minPx: number; retries: number } {
   const { base, budget, summaries } = o;
   let lastM = -1;
   const run = (minPx: number): CutResult => {

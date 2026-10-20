@@ -5,10 +5,10 @@ import { nodeXY, type Transform } from './geom.ts';
 import { ensureTrig, type Layout } from './layout.ts';
 import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, radialWindow, radialWindowState } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
-import type { LabelDensity, TreeData, TreeTheme } from './types.ts';
+import type { LabelDensity, TreeSnapshot, TreeTheme } from './types.ts';
 
 export interface Scene {
-  tree: TreeData;
+  tree: TreeSnapshot;
   L: Layout;
   T: Transform;
   list: DrawList;
@@ -335,7 +335,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     const hl = highlight ? highlight[r] === 1 : false;
     const f = hl ? fontH : fontN;
     if (f !== lastFont) { ctx.font = f; lastFont = f; }
-    const text = S.format(tree.tipLabels[r]);
+    const text = S.format(tree.tipLabels[r] ?? '');
     const w = textWidth(ctx, text, f);
     if (f !== lastFont) { ctx.font = f; lastFont = f; } // textWidth may have set the font
     const cl = classOf ? classOf[i] : 0;

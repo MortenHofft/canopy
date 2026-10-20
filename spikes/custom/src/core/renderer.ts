@@ -8,9 +8,10 @@ import { makeTransform, nodeXY, sectorBBox, viewportEquals, type Area, type Tran
 import { HitIndex } from './hit.ts';
 import { computeLayout, ensureTrig, type Layout } from './layout.ts';
 import { cutRadial, cutRect, searchCut, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
+import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS, FALLBACK_THEME,
-  type CladeColour, type Column, type FrameStats, type Hit, type NodeEvent, type RendererCallbacks, type RendererOptions, type TreeData, type TreeTheme, type Viewport,
+  type CladeColour, type Column, type FrameStats, type Hit, type NodeEvent, type RendererCallbacks, type RendererOptions, type TreeData, type TreeSnapshot, type TreeTheme, type Viewport,
 } from './types.ts';
 
 const OV_W = 56; // overview strip width (rectangular)
@@ -23,6 +24,10 @@ const MAX_LABEL_NODES = 600;
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
+const DETAIL_PX = 40; // a stub taller than this on screen is opened (partial sources)
+const BIG_CLADE_ROWS = 20000; // a stub that costs more rows than this waits until it fills DETAIL_FRAC of the view
+const DETAIL_FRAC = 0.33;
+const DETAIL_INFLIGHT = 4; // clade requests in flight at once, below the browser's 6 connections per host
 
 const SR_ONLY = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0';
 
@@ -62,6 +67,10 @@ export class TreeRenderer {
   private classOf: Uint8Array | null = null;
   private colours: string[] = [''];
   private cladeKey = '';
+  private clades: CladeColour[] = [];
+  private pending = new Map<number, AbortController>(); // clade requests in flight, by node id of the full tree
+  private failedDetail = new Set<number>();
+  private doneAt = new Map<number, number>(); // node id -> source version at which ensureClade resolved without effect
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
   private list = new DrawList();
@@ -104,12 +113,23 @@ export class TreeRenderer {
   private msMax = 0;
   private onWin: (() => void) | null = null;
 
-  constructor(private host: HTMLElement, private tree: TreeData, cb: RendererCallbacks = {}, opts: Partial<RendererOptions> = {}, theme: TreeTheme = FALLBACK_THEME) {
+  /** The tree as of the last source version we looked at. Re-read through source.snapshot() when the version changes (syncSource),
+   *  so a frame always works on one consistent set of arrays. For an in-memory source the version never changes. */
+  private tree: TreeSnapshot;
+  private source: TreeSource;
+  private srcVersion: number;
+  private unsubscribe: () => void;
+
+  constructor(private host: HTMLElement, tree: TreeData | TreeSource, cb: RendererCallbacks = {}, opts: Partial<RendererOptions> = {}, theme: TreeTheme = FALLBACK_THEME) {
+    this.source = isTreeSource(tree) ? tree : new InMemorySource(tree);
+    this.srcVersion = this.source.version;
+    this.tree = this.source.snapshot();
+    this.unsubscribe = this.source.subscribe(() => { this.syncSource(); this.invalidate(); });
     this.opts = { ...DEFAULT_OPTIONS, ...opts };
     this.theme = theme;
     this.cb = cb;
     this.L = this.layoutFor(this.opts.branchLengths);
-    this.hit = new HitIndex(tree, this.L);
+    this.hit = new HitIndex(this.tree, this.L);
 
     const mk = <K extends keyof HTMLElementTagNameMap>(tag: K, css: string): HTMLElementTagNameMap[K] => {
       const el = document.createElement(tag);
@@ -163,6 +183,30 @@ export class TreeRenderer {
 
   private onFonts = () => this.invalidate(true);
 
+  /** Pick up a new snapshot when the source changed (rows arrived or were dropped). Everything derived from the rows is rebuilt:
+   *  layouts, hit index, label reserve. Per-node state keyed by row (classOf, activeNode, hover) is reset, ranks (highlights,
+   *  columns) stay valid because they are ranks of the full tree. */
+  private syncSource(): void {
+    const v = this.source.version;
+    if (v === this.srcVersion || this.destroyed) return;
+    this.srcVersion = v;
+    this.tree = this.source.snapshot();
+    this.layouts.clear();
+    this.L = this.layoutFor(this.opts.branchLengths);
+    this.hit = new HitIndex(this.tree, this.L);
+    this.applyClades();
+    this.activeNode = -1;
+    this.hoverNode = -1;
+    this.maxChars = -1;
+    this.ovDirty = true;
+    this.minPxHint = 0;
+  }
+
+  /** Row of the snapshot for a node id of the public API (preorder id of the full tree), -1 when that node is not loaded. */
+  private rowOf(node: number): number {
+    return this.tree.globalId === null ? (node >= 0 && node < this.tree.nodeCount ? node : -1) : this.tree.toLocal(node);
+  }
+
   // ================================================================= public API
 
   get layout(): Layout {
@@ -210,23 +254,31 @@ export class TreeRenderer {
     const key = clades.map((c) => c.node + ':' + c.colour).join('|');
     if (key === this.cladeKey) return;
     this.cladeKey = key;
+    this.clades = clades;
+    this.applyClades();
+    this.ovDirty = true;
+    this.invalidate();
+  }
+
+  /** Colour classes per row from the clade list (node ids of the full tree). Clades that are not part of the snapshot are skipped. */
+  private applyClades(): void {
+    const clades = this.clades;
     if (!clades.length) {
       this.classOf = null;
       this.colours = [''];
-    } else {
-      const n = this.tree.nodeCount;
-      const cls = new Uint8Array(n);
-      const colours = [''];
-      for (const c of clades) {
-        let k = colours.indexOf(c.colour);
-        if (k < 0) { k = Math.min(255, colours.push(c.colour) - 1); }
-        cls.fill(k, c.node, this.tree.subtreeEnd[c.node]);
-      }
-      this.classOf = cls;
-      this.colours = colours;
+      return;
     }
-    this.ovDirty = true;
-    this.invalidate();
+    const cls = new Uint8Array(this.tree.nodeCount);
+    const colours = [''];
+    for (const c of clades) {
+      const r = this.rowOf(c.node);
+      if (r < 0) continue;
+      let k = colours.indexOf(c.colour);
+      if (k < 0) { k = Math.min(255, colours.push(c.colour) - 1); }
+      cls.fill(k, r, this.tree.subtreeEnd[r]);
+    }
+    this.classOf = cls;
+    this.colours = colours;
   }
 
   setHighlighted(tipIds: string[]): void {
@@ -286,6 +338,7 @@ export class TreeRenderer {
   focusTip(rank: number, animate = false): void {
     if (rank < 0 || rank >= this.tree.tipCount) return;
     const node = this.tree.tipNode[rank];
+    if (node < 0) return; // the tip's row is not loaded
     this.activeNode = -1;
     this.computeArea();
     const v = this.view;
@@ -311,8 +364,9 @@ export class TreeRenderer {
     this.setViewport(nv, animate);
   }
 
-  zoomToNode(node: number, animate = false): void {
-    if (node < 0 || node >= this.tree.nodeCount) return;
+  zoomToNode(id: number, animate = false): void {
+    const node = this.rowOf(id);
+    if (node < 0) return;
     this.computeArea();
     const a = this.area;
     const ls = this.tree.leafStart[node], le = this.tree.leafEnd[node];
@@ -338,9 +392,10 @@ export class TreeRenderer {
   }
 
   /** Where a click would land on node i (client px), or null when the node is not drawn / not in view. */
-  locateNode(i: number): { x: number; y: number } | null {
+  locateNode(id: number): { x: number; y: number } | null {
     this.renderNow();
-    if (i < 0 || i >= this.tree.nodeCount) return null;
+    const i = this.rowOf(id);
+    if (i < 0) return null;
     const e = this.findInList(i);
     const isTip = this.tree.childCount[i] === 0;
     if (e < 0 && !isTip) return null;
@@ -353,9 +408,10 @@ export class TreeRenderer {
   }
 
   /** Drawn extent of the clade below node i (client px), clipped to the plot area; null when not visible. */
-  nodeBounds(i: number): { x: number; y: number; width: number; height: number } | null {
+  nodeBounds(id: number): { x: number; y: number; width: number; height: number } | null {
     this.renderNow();
-    if (i < 0 || i >= this.tree.nodeCount) return null;
+    const i = this.rowOf(id);
+    if (i < 0) return null;
     const T = this.T;
     let x0: number, y0: number, x1: number, y1: number;
     const isTip = this.tree.childCount[i] === 0;
@@ -467,6 +523,9 @@ export class TreeRenderer {
     this.pool.clear();
     this.columns = [];
     this.layouts.clear();
+    this.unsubscribe();
+    for (const ac of this.pending.values()) ac.abort();
+    this.pending.clear();
   }
 
   // ================================================================= layout, area, fit
@@ -533,7 +592,8 @@ export class TreeRenderer {
     if (this.maxChars < 0) {
       let m = 0;
       const t = this.tree.tipLabels;
-      for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
+      if (this.tree.stub) m = 28; // partial tree: labels are not loaded, assume a typical binomial
+      else for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
       this.maxChars = m;
     }
     return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14));
@@ -666,6 +726,7 @@ export class TreeRenderer {
   private render(): void {
     this.dirty = false;
     const t0 = performance.now();
+    this.syncSource();
     this.ensureDpr();
     const { W, H, opts, tree, L } = this;
     const dpr = this.dpr;
@@ -726,6 +787,7 @@ export class TreeRenderer {
       this.updateNotice(!rect && opts.summaryNotice && opts.lod && res.forced > 0, res.forced);
     }
     this.reducedFrame = reduced;
+    if (!reduced && this.tree.stub !== null) this.requestDetail(rect);
     this.updateOverviewBox();
     if (this.ovDirty) this.drawOverview();
     if (this.hoverNode >= 0 || this.activeNode >= 0 || this.topHad) this.topDirty = true;
@@ -737,6 +799,40 @@ export class TreeRenderer {
     st.budget = budget; st.forced = res.forced; st.summaryTips = res.summaryTips; st.mergedTips = res.mergedTips; st.reduced = reduced; st.scale = dpr;
     this.msSum += frameMs; this.msN++; if (frameMs > this.msMax) this.msMax = frameMs;
     this.cb.onFrame?.(st);
+  }
+
+  /** Stubs in the draw list that are big enough on screen to be worth opening: ask the source for their rows (biggest first, a few
+   *  at a time, cancelled when they leave the view). The source bumps its version when they arrive and the next frame draws them
+   *  as regular rows. Only runs for a source with stubs. */
+  private requestDetail(rect: boolean): void {
+    if (this.fitted) return; // the first view is the overview as it is; opening starts with the first zoom or pan
+    const { tree, list, T, L } = this;
+    const extent = rect ? T.clipB - T.clipT : Math.min(T.clipR - T.clipL, T.clipB - T.clipT);
+    const want: Array<{ id: number; px: number }> = [];
+    for (let e = 0; e < list.count; e++) {
+      if (list.kind[e] !== K_SUMMARY) continue;
+      const i = list.node[e];
+      if (tree.stub![i] !== 1) continue;
+      const px = rect ? (tree.leafEnd[i] - tree.leafStart[i]) * T.ky : (tree.leafEnd[i] - tree.leafStart[i]) * T.da * L.XMAX[i] * T.k;
+      const id = tree.globalId![i];
+      // a clade that costs many rows must fill a good part of the view first; a small one opens as soon as it is DETAIL_PX tall
+      const need = (this.source.openCost?.(id) ?? 0) > BIG_CLADE_ROWS ? Math.max(DETAIL_PX, DETAIL_FRAC * extent) : DETAIL_PX;
+      if (px >= need && this.doneAt.get(id) !== this.srcVersion) want.push({ id, px });
+    }
+    want.sort((a, b) => b.px - a.px);
+    const keep = new Set(want.map((w) => w.id));
+    for (const [id, ac] of this.pending) if (!keep.has(id)) { ac.abort(); this.pending.delete(id); }
+    for (const w of want) {
+      if (this.pending.size >= DETAIL_INFLIGHT) break;
+      if (this.pending.has(w.id) || this.failedDetail.has(w.id)) continue;
+      const ac = new AbortController();
+      const v0 = this.source.version;
+      this.pending.set(w.id, ac);
+      this.source.ensureClade(w.id, { signal: ac.signal, priority: w.px }).then(
+        () => { this.pending.delete(w.id); if (this.source.version !== v0) this.invalidate(); else this.doneAt.set(w.id, v0); }, // nothing changed: do not ask again until the version moves
+        (err) => { this.pending.delete(w.id); if (!ac.signal.aborted) { this.failedDetail.add(w.id); console.warn('TreeSource.ensureClade failed', w.id, err); } },
+      );
+    }
   }
 
   private updateNotice(show: boolean, n: number): void {
@@ -804,7 +900,7 @@ export class TreeRenderer {
       const r = labels.rank[k];
       used.add(r);
       let el = this.pool.get(r);
-      const id = this.tree.tipLabels[r];
+      const id = this.tree.tipLabels[r] ?? '';
       if (!el) {
         el = document.createElement(mode);
         el.dataset.tipId = id;
@@ -860,7 +956,7 @@ export class TreeRenderer {
       total++;
       if (items.length < 60) {
         const li = document.createElement('li');
-        li.textContent = opts.formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]]);
+        li.textContent = opts.formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '');
         items.push(li);
       }
     }
@@ -903,7 +999,9 @@ export class TreeRenderer {
   }
 
   private mkEvent(node: number, kind: Hit['kind'], via: 'pointer' | 'keyboard', cx: number, cy: number): NodeEvent {
-    return { node, kind, tipStart: this.tree.leafStart[node], tipEnd: this.tree.leafEnd[node], clientX: cx, clientY: cy, via };
+    const t = this.tree;
+    const isTip = t.childCount[node] === 0;
+    return { node: t.globalId === null ? node : t.globalId[node], isTip, tipId: isTip ? t.labels[node] ?? null : null, kind, tipStart: t.leafStart[node], tipEnd: t.leafEnd[node], clientX: cx, clientY: cy, via };
   }
 
   private doHover(): void {
@@ -1153,7 +1251,7 @@ export class TreeRenderer {
     this.renderNow();
     if (announce && node >= 0) {
       const tip = this.tree.childCount[node] === 0;
-      this.announce(tip ? this.opts.formatLabel(this.tree.labels[node]) : `Clade of ${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`);
+      this.announce(tip ? this.opts.formatLabel(this.tree.labels[node] ?? '') : `Clade of ${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`);
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root) {
         const el = this.pool.get(this.tree.tipRank[node]);
@@ -1196,6 +1294,7 @@ export class TreeRenderer {
     if (e.altKey || e.metaKey) return;
     const tree = this.tree;
     let node = this.activeNode >= 0 ? this.activeNode : this.defaultActive();
+    if (node < 0) node = 0; // partial tree: the tip row at the view centre is not loaded
     const N = tree.tipCount;
     const rows = this.opts.layout === 'rectangular' ? Math.max(1, Math.floor(this.view.y1 - this.view.y0)) : 10;
     const tipOf = (r: number) => tree.tipNode[Math.max(0, Math.min(N - 1, r))];
@@ -1209,7 +1308,7 @@ export class TreeRenderer {
       case 'Home': next = tipOf(0); break;
       case 'End': next = tipOf(N - 1); break;
       case 'ArrowLeft': next = node > 0 ? tree.parent[node] : node; break;
-      case 'ArrowRight': next = tree.childCount[node] > 0 ? tree.firstChild[node] : node; break;
+      case 'ArrowRight': next = tree.firstChild[node] >= 0 ? tree.firstChild[node] : node; break; // a stub has no loaded children
       case 'Enter':
       case ' ': {
         if (this.activeNode < 0) this.activeNode = node;

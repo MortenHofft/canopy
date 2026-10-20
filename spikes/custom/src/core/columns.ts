@@ -8,7 +8,7 @@
 // Values are looked up by tip label once, when the columns change, into arrays by tip rank.
 
 import type { Transform } from './geom.ts';
-import type { Column, TreeData, TreeTheme } from './types.ts';
+import type { Column, TreeSnapshot, TreeTheme } from './types.ts';
 
 export const COL_GAP = 6;
 
@@ -46,7 +46,7 @@ function residueTable(): Uint32Array {
   return t;
 }
 
-export function compileColumns(tree: TreeData, cols: Column[]): CompiledColumn[] {
+export function compileColumns(tree: TreeSnapshot, cols: Column[]): CompiledColumn[] {
   const N = tree.tipCount;
   return cols.map((spec) => {
     const has = new Uint8Array(N);
@@ -117,7 +117,7 @@ export function barWidth(v: number, max: number, w: number): number {
 
 const TEXT_ROW_PX = 9;
 
-export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeData, T: Transform, theme: TreeTheme, headY: number, barColour: string): void {
+export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeSnapshot, T: Transform, theme: TreeTheme, headY: number, barColour: string): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
   const { oy, ky, area } = T;

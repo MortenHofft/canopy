@@ -6,7 +6,7 @@
 import type { Layout } from './layout.ts';
 import type { Transform } from './geom.ts';
 import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP } from './lod.ts';
-import type { Hit, TreeData } from './types.ts';
+import type { Hit, TreeSnapshot } from './types.ts';
 
 export const MARKER_PX = 12; // internal node markers are drawn (and hittable) when the clade is at least this tall
 const CELL = 24;
@@ -29,7 +29,7 @@ export class HitIndex {
   items = 0;
   entries = 0;
 
-  constructor(private tree: TreeData, private L: Layout) {}
+  constructor(private tree: TreeSnapshot, private L: Layout) {}
 
   setLayout(L: Layout): void {
     this.L = L;

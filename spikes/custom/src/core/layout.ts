@@ -4,7 +4,7 @@
 // Rectangular: screen x from X, screen y from ROW. Radial: angle = 2*pi*ROW/tips, radius = X.
 // Three linear passes over preorder-ordered arrays, no recursion, no per-node objects.
 
-import type { TreeData } from './types.ts';
+import type { TreeSnapshot } from './types.ts';
 
 export interface Layout {
   n: number;
@@ -47,8 +47,39 @@ export function ensureTrig(L: Layout): void {
   L.BS = BS;
 }
 
-export function computeLayout(tree: TreeData, branchLengths: boolean): Layout {
+/** Layout of a partially loaded tree: every row (loaded or stub) takes X, XMAX and ROW from the rollups of the snapshot, so no
+ *  pass over descendants is needed and a stub gets the same numbers the full tree would give it (checked by
+ *  parquet-experiment/test/overview_vs_layout.mjs). */
+function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number): Layout {
+  const n = tree.nodeCount, R = tree.rollup!;
+  const X = new Float64Array(n), XMAX = new Float32Array(n);
+  const maxLen = R.maxCum[0]; // the root's rollup is the largest distance of the FULL tree, whatever is loaded
+  const usedLengths = branchLengths && tree.hasLengths && maxLen > 0;
+  let ultrametric = false;
+  if (usedLengths) {
+    const inv = 1 / maxLen;
+    let lo = Infinity;
+    for (let i = 0; i < n; i++) {
+      X[i] = R.cumLength[i] * inv;
+      XMAX[i] = R.maxCum[i] * inv;
+      if (tree.childCount[i] === 0 && X[i] < lo) lo = X[i];
+    }
+    ultrametric = Number.isFinite(lo) && (1 - lo) <= 1e-3;
+  } else {
+    const H = R.maxDepth[0] || 1;
+    for (let i = 0; i < n; i++) {
+      X[i] = tree.childCount[i] === 0 ? 1 : 1 - (R.maxDepth[i] - R.depth[i]) / H;
+      XMAX[i] = 1;
+    }
+  }
+  const LAST = new Int32Array(n).fill(-1);
+  for (let i = 1; i < n; i++) LAST[tree.parent[i]] = i; // a stub has no rows below it, so its LAST stays -1
+  return { n, tips: tree.tipCount, usedLengths, maxLen: usedLengths ? maxLen : 1, ultrametric, X, ROW: R.row, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null, BC: null, BS: null };
+}
+
+export function computeLayout(tree: TreeSnapshot, branchLengths: boolean): Layout {
   const t0 = performance.now();
+  if (tree.rollup) return layoutFromRollup(tree, branchLengths, t0);
   const n = tree.nodeCount;
   const parent = tree.parent;
   const X = new Float64Array(n);
