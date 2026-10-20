@@ -102,8 +102,7 @@ export class HitIndex {
         px = i > 0 ? T.ox + X[tree.parent[i]] * T.kx : x;
         py = y;
       } else {
-        const a = ROW[i] * T.da;
-        const ca = Math.cos(a), sa = Math.sin(a);
+        const ca = L.COS ? L.COS[i] : Math.cos(ROW[i] * T.da), sa = L.SIN ? L.SIN[i] : Math.sin(ROW[i] * T.da);
         x = T.cx + X[i] * T.k * ca;
         y = T.cy + X[i] * T.k * sa;
         const rp = i > 0 ? X[tree.parent[i]] * T.k : X[i] * T.k;
@@ -222,7 +221,9 @@ export class HitIndex {
               const r1 = L.XMAX[i] * T.k;
               const slack = 3 / Math.max(rr, 1);
               if (rr < r - 3 || rr > r1 + 3 || th < a0 - slack || th > a1 + slack) continue;
-              d = 0;
+              // inside the fan scores 0; inside the 3 px slack only, the distance outside (px), so the fan under the pointer
+              // beats a neighbour whose slack reaches the same point
+              d = (th < a0 ? a0 - th : th > a1 ? th - a1 : 0) * rr + (rr < r ? r - rr : rr > r1 ? rr - r1 : 0);
             } else if (type === T_STUB) {
               const rp = L.X[tree.parent[i]] * T.k;
               const x0 = T.cx + rp * ca, y0 = T.cy + rp * sa;

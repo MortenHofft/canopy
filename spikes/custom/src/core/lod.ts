@@ -164,16 +164,17 @@ export function cutRect(tree: TreeData, L: Layout, T: Transform, P: CutParams, c
 
 const TWO_PI = 2 * Math.PI;
 // the viewport as seen from the root (radial culling), recomputed per cut: scratch values, no allocation
-let wRmin = 0, wRmax = 0, wAll = true, wLo = 0, wHi = 0, wWrap = false;
+export const radialWindowState = { rMin: 0, rMax: 0, all: true, lo: 0, hi: 0, wrap: false };
 const cornerA = [0, 0, 0, 0];
 
-function radialWindow(cx: number, cy: number, L: number, T: number, R: number, B: number): void {
+export function radialWindow(cx: number, cy: number, L: number, T: number, R: number, B: number): void {
   const dxMin = cx < L ? L - cx : cx > R ? cx - R : 0;
   const dyMin = cy < T ? T - cy : cy > B ? cy - B : 0;
-  wRmin = Math.hypot(dxMin, dyMin);
-  wRmax = Math.hypot(Math.max(Math.abs(cx - L), Math.abs(cx - R)), Math.max(Math.abs(cy - T), Math.abs(cy - B)));
-  wAll = dxMin === 0 && dyMin === 0; // the root is inside the window: every angle is visible
-  if (wAll) { wLo = 0; wHi = TWO_PI; wWrap = false; return; }
+  const W = radialWindowState;
+  W.rMin = Math.hypot(dxMin, dyMin);
+  W.rMax = Math.hypot(Math.max(Math.abs(cx - L), Math.abs(cx - R)), Math.max(Math.abs(cy - T), Math.abs(cy - B)));
+  W.all = dxMin === 0 && dyMin === 0; // the root is inside the window: every angle is visible
+  if (W.all) { W.lo = 0; W.hi = TWO_PI; W.wrap = false; return; }
   // the rectangle subtends less than pi seen from an outside point: its angular interval is the complement of the
   // largest gap between the four corner angles
   const c = cornerA;
@@ -182,10 +183,10 @@ function radialWindow(cx: number, cy: number, L: number, T: number, R: number, B
   c.sort((p, q) => p - q);
   let gap = c[0] + TWO_PI - c[3], at = 3;
   for (let k = 0; k < 3; k++) if (c[k + 1] - c[k] > gap) { gap = c[k + 1] - c[k]; at = k; }
-  if (at === 3) { wLo = c[0]; wHi = c[3]; wWrap = false; }
-  else { wLo = c[at + 1]; wHi = c[at]; wWrap = true; }
+  if (at === 3) { W.lo = c[0]; W.hi = c[3]; W.wrap = false; }
+  else { W.lo = c[at + 1]; W.hi = c[at]; W.wrap = true; }
   const eps = 1e-9;
-  wLo -= eps; wHi += eps;
+  W.lo -= eps; W.hi += eps;
 }
 
 export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
@@ -199,7 +200,8 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
   const base = P.baseMinPx ?? minPx;
   const PAD = 8;
   radialWindow(cx, cy, clipL - PAD, clipT - PAD, clipR + PAD, clipB + PAD);
-  const rMin = wRmin, rMax = wRmax, all = wAll, lo = wLo, hi = wHi, wrap = wWrap;
+  const W = radialWindowState;
+  const rMin = W.rMin, rMax = W.rMax, all = W.all, lo = W.lo, hi = W.hi, wrap = W.wrap;
   out.count = 0;
   seen.reset();
   let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
@@ -243,4 +245,52 @@ export function cutRadial(tree: TreeData, L: Layout, T: Transform, P: CutParams,
   }
   res.visited = visited; res.summaries = summaries; res.tips = tips; res.overflow = overflow; res.forced = forced; res.summaryTips = summaryTips; res.mergedTips = mergedTips;
   return res;
+}
+
+export interface SearchOpts {
+  lod: boolean;
+  base: number; // collapse threshold without budget pressure (px)
+  budget: number;
+  summaries: boolean;
+  hint: number; // threshold of the previous full frame, 0 for none
+}
+
+/** Run the cut, raising the collapse threshold until the draw list fits the budget, and no further than needed. Without
+ *  budget pressure that is one pass. Under pressure: start at the previous full frame's threshold (relaxed by 1.3x), step
+ *  by 1.3x down or up until a fit and an overflow bracket the answer, bisect the bracket (3 steps, geometric), and make
+ *  sure the list left behind is the one for the smallest threshold that fits. Passes that overflow stop at the budget. */
+export function searchCut(rect: boolean, tree: TreeData, L: Layout, T: Transform, classOf: Uint8Array | null, list: DrawList, seen: Seen, o: SearchOpts): { res: CutResult; minPx: number; retries: number } {
+  const { base, budget, summaries } = o;
+  let lastM = -1;
+  const run = (minPx: number): CutResult => {
+    lastM = minPx;
+    const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
+    return rect ? cutRect(tree, L, T, P, classOf, list, seen) : cutRadial(tree, L, T, P, classOf, list, seen);
+  };
+  let m = o.hint > base ? Math.max(base, o.hint / 1.3) : base;
+  let res = run(m);
+  let passes = 1;
+  if (o.lod && (res.overflow || m > base) && res.visited < 80000) {
+    let hi = res.overflow ? -1 : m; // smallest threshold known to fit
+    let lo = res.overflow ? m : -1; // largest threshold known to overflow
+    while (passes < 40 && (hi < 0 || lo < 0) && !(hi >= 0 && hi <= base)) {
+      m = hi >= 0 ? Math.max(base, hi / 1.3) : lo * 1.3;
+      const r = run(m);
+      passes++;
+      if (r.overflow) lo = m;
+      else { hi = m; res = r; }
+    }
+    for (let k = 0; k < 3 && lo > 0 && hi > 0 && hi / lo > 1.04; k++) {
+      m = Math.sqrt(lo * hi);
+      const r = run(m);
+      passes++;
+      if (r.overflow) lo = m;
+      else { hi = m; res = r; }
+    }
+    if (hi > 0) { if (lastM !== hi) res = run(hi); m = hi; passes++; }
+  } else if (res.overflow && o.lod) {
+    // very expensive walks (caterpillar-like): no search, just double until it fits
+    while (res.overflow && passes < 24) { m *= 2; res = run(m); passes++; }
+  }
+  return { res, minPx: m, retries: passes - 1 };
 }

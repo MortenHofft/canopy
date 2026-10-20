@@ -302,7 +302,9 @@ export function drawRing(ctx: CanvasRenderingContext2D, S: Scene, node: number, 
   ctx.stroke();
 }
 
-/** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay. */
+/** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay.
+ *  Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
+ *  setTransform per label instead of save/translate/rotate/restore (cos/sin come from the layout cache). */
 export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList, effMinPx: number): void {
   const { tree, L, T, list, theme, classOf, colours, highlight } = S;
   labels.clear();
@@ -311,12 +313,17 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
   const size = Math.max(8, Math.min(13, Math.round(pitch * 0.78)));
-  const font = (it: boolean, bold: boolean) => `${it ? 'italic ' : ''}${bold ? '600 ' : ''}${size}px ${theme.fontFamily}`;
+  const fontN = `${S.italic ? 'italic ' : ''}${size}px ${theme.fontFamily}`;
+  const fontH = `${S.italic ? 'italic ' : ''}600 ${size}px ${theme.fontFamily}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   const p = { x: 0, y: 0 };
-  const MAXL = 600;
+  const MAXL = rect ? 600 : RADIAL_LABEL_CAP;
+  const sc = S.scale;
+  if (!rect) ensureTrig(L);
   let lastFont = '';
+  let lastFill = '';
+  let lastAlign = 'left';
   for (let e = 0; e < list.count && labels.count < MAXL; e++) {
     if (list.kind[e] !== K_TIP) continue;
     const i = list.node[e];
@@ -326,28 +333,30 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x > T.clipR) continue;
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
     const hl = highlight ? highlight[r] === 1 : false;
-    const f = font(S.italic, hl);
+    const f = hl ? fontH : fontN;
     if (f !== lastFont) { ctx.font = f; lastFont = f; }
     const text = S.format(tree.tipLabels[r]);
     const w = textWidth(ctx, text, f);
+    if (f !== lastFont) { ctx.font = f; lastFont = f; } // textWidth may have set the font
     const cl = classOf ? classOf[i] : 0;
-    ctx.fillStyle = hl ? theme.highlight : cl ? colours[cl] : theme.foreground;
+    const fill = hl ? theme.highlight : cl ? colours[cl] : theme.foreground;
+    if (fill !== lastFill) { ctx.fillStyle = fill; lastFill = fill; }
     if (rect) {
       const x = p.x + 8;
       ctx.fillText(text, x, p.y + 0.5);
       labels.add(r, x, p.y, w, size + 2, 0, 0);
     } else {
-      const a = L.ROW[i] * T.da;
-      const left = Math.cos(a) < 0;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(left ? a + Math.PI : a);
-      ctx.textAlign = left ? 'right' : 'left';
+      const left = L.COS![i] < 0;
+      const c = left ? -L.COS![i] : L.COS![i], sn = left ? -L.SIN![i] : L.SIN![i];
+      ctx.setTransform(sc * c, sc * sn, -sc * sn, sc * c, sc * p.x, sc * p.y);
+      const al = left ? 'right' : 'left';
+      if (al !== lastAlign) { ctx.textAlign = al; lastAlign = al; }
       ctx.fillText(text, left ? -8 : 8, 0.5);
-      ctx.restore();
+      const a = L.ROW[i] * T.da;
       labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0);
     }
   }
+  if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.textAlign = 'left';
 }
 

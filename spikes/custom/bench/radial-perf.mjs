@@ -36,6 +36,7 @@ const browser = await chromium.launch({
   headless: true,
   args: ['--no-sandbox', '--enable-precise-memory-info', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--js-flags=--expose-gc', '--disable-gpu-rasterization', '--disable-frame-rate-limit'],
 });
+import os from 'node:os';
 const out = { tag, dsf, cpu, port, cutoff, date: new Date().toISOString(), rows: [] };
 
 const INIT = `
@@ -101,6 +102,9 @@ for (const f of files) {
           rd.benchmark(3); // warm up (JIT, font cache)
           const b = rd.benchmark(frames);
           const s = rd.getStats();
+          // JS + raster for a CPU-backed canvas: force the pending canvas work to complete after every frame
+          let flush = null;
+          { const c2 = rd.ctx; const t0 = performance.now(); const nf = 8; for (let q = 0; q < nf; q++) { rd.benchmark(1); c2.getImageData(0, 0, 1, 1); } flush = (performance.now() - t0) / nf; }
           // counting pass
           window.__cnt.install(); window.__cnt.reset();
           rd.benchmark(3);
@@ -135,14 +139,14 @@ for (const f of files) {
             });
           }
           rd.setViewport(f);
-          return { frameMs: b.meanMs, cutMs: b.cutMs, drawMs: b.drawMs, maxMs: b.maxMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, retries: s.budgetRetries, truncated: s.truncated, calls: c, e2e: e, kx: s.kx };
+          return { frameMs: b.meanMs, cutMs: b.cutMs, drawMs: b.drawMs, maxMs: b.maxMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, retries: s.budgetRetries, truncated: s.truncated, calls: c, e2e: e, flushMs: flush, kx: s.kx };
         },
         { view, frames, e2e, cutoff, layout },
       );
-      const row = { tag, shape: f.shape, size: Number(f.size), layout, view, dsf, cpu, tips: res.tips, firstRenderMs: res.firstRenderMs, ...m };
+      const row = { load1: os.loadavg()[0], tag, shape: f.shape, size: Number(f.size), layout, view, dsf, cpu, tips: res.tips, firstRenderMs: res.firstRenderMs, ...m };
       out.rows.push(row);
       const segs = ['moveTo', 'lineTo', 'arc', 'rect'].reduce((p, k) => p + (m.calls[k] || 0), 0);
-      console.log(`${tag} dsf${dsf} cpu${+cpu} ${f.shape}-${f.size} ${layout} ${view}: drawn ${m.drawn} (sum ${m.summaries}) js ${m.frameMs.toFixed(1)} (cut ${m.cutMs.toFixed(1)} draw ${m.drawMs.toFixed(1)}) segs ${segs} strokes ${m.calls.stroke || 0} fills ${m.calls.fill || 0} text ${m.calls.fillText || 0} e2e ${m.e2e ? m.e2e.intervalMs.toFixed(1) : '-'} minPx ${m.minPxUsed.toFixed(1)}`);
+      console.log(`load ${os.loadavg()[0].toFixed(1)} ${tag} dsf${dsf} cpu${+cpu} ${f.shape}-${f.size} ${layout} ${view}: drawn ${m.drawn} (sum ${m.summaries}) js ${m.frameMs.toFixed(1)} (cut ${m.cutMs.toFixed(1)} draw ${m.drawMs.toFixed(1)}) segs ${segs} strokes ${m.calls.stroke || 0} fills ${m.calls.fill || 0} text ${m.calls.fillText || 0} flush ${m.flushMs.toFixed(1)} e2e ${m.e2e ? m.e2e.intervalMs.toFixed(1) : '-'} minPx ${m.minPxUsed.toFixed(1)}`);
     }
   }
   await ctx.close();

@@ -39,6 +39,9 @@ function CustomView(props: ViewProps) {
       rowHeight: features.rowHeight === undefined || features.rowHeight === 'fit' ? null : Number(features.rowHeight),
       axis: features.axis !== false,
       softwareCanvas: features.cpuCanvas !== false,
+      dprCap: features.dprCap === 'native' ? Infinity : Number(features.dprCap ?? 2),
+      radialMaxNodes: features.radialMax === 'unlimited' ? Infinity : Number(features.radialMax ?? 2000),
+      interactionLOD: features.interactionLOD !== false,
       ariaLabel: `Phylogenetic tree, ${tree.tipCount} tips (custom Canvas2D renderer)`,
     }),
     [features, tree],
@@ -74,7 +77,7 @@ function CustomView(props: ViewProps) {
       custom: (): Record<string, number> => {
         const s = h()?.getStats();
         if (!s) return {};
-        return { layoutMs: s.layoutMs, frameMs: s.frameMs, cutMs: s.cutMs, drawMs: s.drawMs, avgFrameMs: s.avgFrameMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, budgetRetries: s.budgetRetries, budgetHit: s.budgetHit ? 1 : 0, frames: s.frames, hitBuildMs: s.hitBuildMs, kx: s.kx, ky: s.ky };
+        return { layoutMs: s.layoutMs, frameMs: s.frameMs, cutMs: s.cutMs, drawMs: s.drawMs, avgFrameMs: s.avgFrameMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, budgetRetries: s.budgetRetries, budgetHit: s.budgetHit ? 1 : 0, frames: s.frames, hitBuildMs: s.hitBuildMs, kx: s.kx, ky: s.ky, budget: s.budget, forced: s.forced, summaryTips: s.summaryTips, mergedTips: s.mergedTips, reduced: s.reduced ? 1 : 0, scale: s.scale };
       },
     };
     props.handleRef.current = handle;
@@ -141,6 +144,19 @@ const capabilities: CapabilityReport = {
   overviewOrMinimap: { level: 'yes', how: 'overview strip (rectangular, aligned with the rows) or a small disc (radial) drawn once from the LOD cut at fit, with a draggable viewport rectangle; click or drag to move' },
 };
 
+/** CPU canvas default: automation (navigator.webdriver, the runner) keeps the CPU canvas because headless Chromium has no GPU and
+ *  an accelerated canvas there runs through SwiftShader, 3 to 10 times slower; real visitors get the GPU canvas. ?cpu=1|0 overrides. */
+const CPU_DEFAULT: boolean = (() => {
+  try {
+    const q = new URLSearchParams(window.location.search).get('cpu');
+    if (q === '1') return true;
+    if (q === '0') return false;
+    return navigator.webdriver === true;
+  } catch {
+    return false;
+  }
+})();
+
 const features: AdapterFeature[] = [
   { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
   { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
@@ -149,7 +165,10 @@ const features: AdapterFeature[] = [
   { id: 'density', label: 'Label density', kind: 'select', default: 'normal', options: [{ value: 'sparse', label: 'Sparse (rows >= 16 px)' }, { value: 'normal', label: 'Normal (rows >= 11 px)' }, { value: 'dense', label: 'Dense (rows >= 8 px)' }] },
   { id: 'rowHeight', label: 'Row height', kind: 'select', default: 'fit', options: [{ value: 'fit', label: 'Fit all tips' }, { value: '6', label: '6 px (scroll)' }, { value: '12', label: '12 px (scroll)' }, { value: '24', label: '24 px (scroll)' }] },
   { id: 'axis', label: 'Scale bar / time axis', kind: 'toggle', default: true },
-  { id: 'cpuCanvas', label: 'CPU-backed canvas (willReadFrequently)', kind: 'toggle', default: true, description: 'Headless Chromium has no GPU: an accelerated canvas then runs through SwiftShader and is far slower than CPU raster. On a real GPU try it off.' },
+  { id: 'cpuCanvas', label: 'CPU-backed canvas (willReadFrequently)', kind: 'toggle', default: CPU_DEFAULT, description: 'Forces software (CPU) rasterisation of the canvas. Off = GPU-accelerated canvas, the right choice on a real browser; it is slow only in headless Chromium without a GPU, where it runs through SwiftShader. Default: on when the browser reports navigator.webdriver (automation, the test runner), off otherwise; ?cpu=1 or ?cpu=0 in the URL overrides. Changing it remounts the canvases.' },
+  { id: 'dprCap', label: 'Resolution: device pixel ratio cap', kind: 'select', default: '2', options: [{ value: '1', label: '1 (fastest, soft on retina)' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2 (default)' }, { value: 'native', label: 'Native (3 on some phones)' }], description: 'Canvas backing store is min(devicePixelRatio, cap) times the CSS size. At ratio 2 or 3 the canvas has 4 or 9 times the pixels of ratio 1, which costs raster time on large canvases. Hit-testing and the overlay always use CSS pixels.' },
+  { id: 'radialMax', label: 'Max drawn nodes (radial)', kind: 'select', default: '2000', options: [{ value: '500', label: '500' }, { value: '1000', label: '1,000' }, { value: '2000', label: '2,000 (default)' }, { value: '5000', label: '5,000' }, { value: '20000', label: '20,000' }, { value: 'unlimited', label: 'Unlimited (draw budget only)' }], description: 'Radial layout only. If the visible sector holds more primitives than this, the smallest clades are drawn as fans (summaries) until it fits; zooming in reveals them. A note in the corner says when this happens. Rectangular keeps the draw budget above.' },
+  { id: 'interactionLOD', label: 'Reduce detail while zooming or dragging', kind: 'toggle', default: true, description: 'During wheel, pinch and drag the draw uses a quarter of the budget (at least 500) and a coarser clade threshold, then one full-quality frame follows 120 ms after the last input. Clicks and hovers always use a full-quality frame.' },
   { id: 'tooltip', label: 'Built-in tooltip at the cursor', kind: 'toggle', default: true },
 ];
 

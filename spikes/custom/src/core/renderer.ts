@@ -6,8 +6,8 @@ import { barWidth, cellRect, columnsWidth, compileColumns, COL_GAP, drawColumns,
 import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, drawScaleBar, LabelList, BRANCH_W, type Scene } from './draw.ts';
 import { makeTransform, nodeXY, sectorBBox, viewportEquals, type Area, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
-import { computeLayout, type Layout } from './layout.ts';
-import { cutRadial, cutRect, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams } from './lod.ts';
+import { computeLayout, ensureTrig, type Layout } from './layout.ts';
+import { cutRadial, cutRect, searchCut, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
 import {
   DEFAULT_OPTIONS, FALLBACK_THEME,
   type CladeColour, type Column, type FrameStats, type Hit, type NodeEvent, type RendererCallbacks, type RendererOptions, type TreeData, type TreeTheme, type Viewport,
@@ -20,6 +20,9 @@ const HEAD_H = 24;
 const FOOT_H = 36;
 const MIN_HEAD = 8;
 const MAX_LABEL_NODES = 600;
+const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
+const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
+const HEAVY_PRIMS = 1000;
 
 const SR_ONLY = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0';
 
@@ -39,6 +42,7 @@ export class TreeRenderer {
   private ctx: CanvasRenderingContext2D;
   private topCtx: CanvasRenderingContext2D;
   private ovCtx: CanvasRenderingContext2D;
+  private notice: HTMLDivElement;
   private ro: ResizeObserver | null = null;
 
   // ------------------------------------------------------------- state
@@ -85,7 +89,16 @@ export class TreeRenderer {
   private pool = new Map<number, HTMLElement>();
   private poolMode = '';
   private lastKey = '';
-  readonly stats: FrameStats = { frameMs: 0, cutMs: 0, drawMs: 0, visited: 0, drawn: 0, summaries: 0, tips: 0, labels: 0, minPxUsed: 0, budgetRetries: 0, budgetHit: false, truncated: false, frames: 0 };
+  readonly stats: FrameStats = { frameMs: 0, cutMs: 0, drawMs: 0, visited: 0, drawn: 0, summaries: 0, tips: 0, labels: 0, minPxUsed: 0, budgetRetries: 0, budgetHit: false, truncated: false, frames: 0, budget: 0, forced: 0, summaryTips: 0, mergedTips: 0, reduced: false, scale: 1 };
+  // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced; one full frame follows
+  // `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
+  private interacting = false;
+  private reducedFrame = false;
+  private refineTimer = 0;
+  private minPxHint = 0;
+  private lastFullDrawn = 0;
+  private noticeText = '';
+  private noticeShown = false;
   private msSum = 0;
   private msN = 0;
   private msMax = 0;
@@ -127,7 +140,9 @@ export class TreeRenderer {
     this.live = mk('div', SR_ONLY);
     this.live.setAttribute('aria-live', 'polite');
     this.live.setAttribute('role', 'status');
-    this.root.append(this.canvas, this.top, this.overlay, this.ovWrap, this.srList, this.live);
+    this.notice = mk('div', 'position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;font-size:11px;line-height:16px;pointer-events:none;opacity:.85;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis');
+    this.notice.setAttribute('role', 'status');
+    this.root.append(this.canvas, this.top, this.overlay, this.ovWrap, this.notice, this.srList, this.live);
     host.appendChild(this.root);
     const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
     this.ctx = this.canvas.getContext('2d', cc)!;
@@ -167,6 +182,9 @@ export class TreeRenderer {
     const refit = lengthsChanged || layoutChanged || (p.overview !== undefined && p.overview !== o.overview) || (p.axis !== undefined && p.axis !== o.axis) || (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
     const tipHrefChanged = p.tipHref !== undefined && p.tipHref !== o.tipHref;
     this.opts = { ...o, ...p };
+    if (layoutChanged || lengthsChanged) this.minPxHint = 0;
+    if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
+    if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
@@ -388,8 +406,32 @@ export class TreeRenderer {
   /** Draw synchronously if something changed (used before introspection and by benchmarks). */
   renderNow(): void {
     if (this.destroyed) return;
+    this.settle();
     if (this.dirty) this.render();
     if (this.topDirty) this.drawTop();
+  }
+
+  /** If the last frame was drawn in reduced (interaction) quality, redraw it at full quality now. Hit-testing, locate and
+   *  bounds call this first, so a click always hits what a full-quality frame shows, never the reduced list. */
+  private settle(): void {
+    if (!this.reducedFrame && !this.interacting) return;
+    this.interacting = false;
+    if (this.refineTimer) { clearTimeout(this.refineTimer); this.refineTimer = 0; }
+    if (this.reducedFrame) this.dirty = true;
+  }
+
+  /** Called by every input that moves the view (wheel, drag, pinch, overview, animation steps). */
+  private noteInput(): void {
+    if (!this.opts.interactionLOD) return;
+    this.interacting = true;
+    if (this.refineTimer) clearTimeout(this.refineTimer);
+    this.refineTimer = window.setTimeout(() => {
+      this.refineTimer = 0;
+      if (this.destroyed) return;
+      this.interacting = false;
+      if (this.reducedFrame) this.dirty = true;
+      this.schedule();
+    }, this.opts.refineMs);
   }
 
   /** Force a full redraw n times and return the mean JS time per frame (benchmark helper). */
@@ -410,6 +452,7 @@ export class TreeRenderer {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     if (this.srTimer) clearTimeout(this.srTimer);
+    if (this.refineTimer) clearTimeout(this.refineTimer);
     this.ro?.disconnect();
     this.ro = null;
     (document as Document & { fonts?: FontFaceSet }).fonts?.removeEventListener?.('loadingdone', this.onFonts);
@@ -444,12 +487,12 @@ export class TreeRenderer {
   }
 
   private setSize(w: number, h: number): void {
-    if (w === this.W && h === this.H && (window.devicePixelRatio || 1) === this.dpr) return;
+    if (w === this.W && h === this.H && this.effScale() === this.dpr) return;
     const radialK = this.opts.layout === 'radial' && this.W > 0 ? this.area.aw / (this.view.x1 - this.view.x0) : 0;
     const cx = (this.view.x0 + this.view.x1) / 2, cy = (this.view.y0 + this.view.y1) / 2;
     this.W = w;
     this.H = h;
-    this.dpr = window.devicePixelRatio || 1;
+    this.dpr = this.effScale();
     for (const c of [this.canvas, this.top]) {
       c.width = Math.round(w * this.dpr);
       c.height = Math.round(h * this.dpr);
@@ -561,6 +604,7 @@ export class TreeRenderer {
     const an = this.anim;
     if (!an) return;
     const t = Math.min(1, (now - an.t0) / an.ms);
+    this.noteInput();
     const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const lerp = (p: number, q: number) => p + (q - p) * e;
     // interpolate window centre linearly and size geometrically (feels like a constant-rate zoom)
@@ -596,14 +640,27 @@ export class TreeRenderer {
       if (this.destroyed) return;
       if (this.anim) this.stepAnim(now);
       if (this.dirty) this.render();
-      if (this.pendingHover) this.doHover();
+      if (this.pendingHover && !this.interacting) this.doHover();
       if (this.topDirty) this.drawTop();
       if (this.anim) this.schedule();
     });
   }
 
+  /** Canvas backing pixels per CSS pixel: the device pixel ratio, capped by the dprCap option. */
+  private effScale(): number {
+    const d = window.devicePixelRatio || 1;
+    const cap = this.opts.dprCap;
+    return cap > 0 && cap < d ? cap : d;
+  }
+
   private ensureDpr(): void {
-    if ((window.devicePixelRatio || 1) !== this.dpr) this.setSize(this.W, this.H);
+    if (this.effScale() !== this.dpr) this.setSize(this.W, this.H);
+  }
+
+  private fitCut(rect: boolean, base: number, budget: number, summaries: boolean, useHint: boolean): { res: CutResult; minPx: number; retries: number } {
+    const r = searchCut(rect, this.tree, this.L, this.T, this.classOf, this.list, this.seen, { lod: this.opts.lod, base, budget, summaries, hint: useHint ? this.minPxHint : 0 });
+    if (useHint) this.minPxHint = r.minPx;
+    return r;
   }
 
   private render(): void {
@@ -613,28 +670,28 @@ export class TreeRenderer {
     const { W, H, opts, tree, L } = this;
     const dpr = this.dpr;
     const rect = opts.layout === 'rectangular';
+    if (!rect) ensureTrig(L);
     this.computeArea();
     this.T = makeTransform(opts.layout, W, H, this.view, this.area, tree.tipCount);
     const T = this.T;
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const reduced = this.interacting && opts.interactionLOD;
 
     // ---- cut
     const tc = performance.now();
-    const base = Math.max(1, opts.minCladePx);
-    const budget = opts.lod ? Math.max(500, opts.drawBudget) : 600000;
-    let minPx = base;
-    let retries = 0;
-    let res = null as ReturnType<typeof cutRect> | null;
-    for (;;) {
-      const P: CutParams = { lod: opts.lod, minPx, budget, summaries: opts.showSummaries };
-      res = rect ? cutRect(tree, L, T, P, this.classOf, this.list, this.seen) : cutRadial(tree, L, T, P, this.classOf, this.list, this.seen);
-      if (!res.overflow || !opts.lod || retries >= 7) break;
-      retries++;
-      minPx *= 2;
+    const baseMinPx = Math.max(1, opts.minCladePx);
+    let budget = opts.lod ? Math.max(500, opts.drawBudget) : 600000;
+    if (opts.lod && !rect && Number.isFinite(opts.radialMaxNodes)) budget = Math.max(100, Math.min(budget, opts.radialMaxNodes));
+    let base = baseMinPx;
+    if (reduced) {
+      budget = Math.max(500, Math.floor(budget / 4));
+      if (this.lastFullDrawn > HEAVY_PRIMS) base = baseMinPx * REDUCED_MINPX;
     }
+    const { res, minPx, retries } = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
     const cutMs = performance.now() - tc;
     this.hit.invalidate();
+    if (!reduced) this.lastFullDrawn = this.list.count;
 
     // ---- draw
     const td = performance.now();
@@ -643,6 +700,7 @@ export class TreeRenderer {
     const S: Scene = {
       tree, L, T, list: this.list, theme: this.theme, colours: this.colours, classOf: this.classOf, highlight: this.hl, hlRanks: this.hlRanks,
       hoverNode: this.hoverNode, activeNode: this.activeNode, density: opts.labelDensity, italic: opts.italicLabels, format: opts.formatLabel,
+      scale: dpr, thin: !rect && this.list.count >= THIN_PRIMS,
     };
     ctx.save();
     ctx.beginPath();
@@ -660,7 +718,12 @@ export class TreeRenderer {
     } else if (opts.axis) drawScaleBar(ctx, S);
 
     const drawMs = performance.now() - td;
-    this.updateOverlay();
+    // the DOM overlay (label anchors) and the notice follow full-quality frames only; a reduced frame is replaced within refineMs
+    if (!reduced) {
+      this.updateOverlay();
+      this.updateNotice(!rect && opts.summaryNotice && opts.lod && res.forced > 0, res.forced);
+    }
+    this.reducedFrame = reduced;
     this.updateOverviewBox();
     if (this.ovDirty) this.drawOverview();
     if (this.hoverNode >= 0 || this.activeNode >= 0 || this.topHad) this.topDirty = true;
@@ -668,9 +731,28 @@ export class TreeRenderer {
     const frameMs = performance.now() - t0;
     const st = this.stats;
     st.frameMs = frameMs; st.cutMs = cutMs; st.drawMs = drawMs; st.visited = res.visited; st.drawn = this.list.count; st.summaries = res.summaries; st.tips = res.tips;
-    st.labels = this.labels.count; st.minPxUsed = minPx; st.budgetRetries = retries; st.budgetHit = retries > 0 || res.overflow; st.truncated = res.overflow; st.frames++;
+    st.labels = this.labels.count; st.minPxUsed = minPx; st.budgetRetries = retries; st.budgetHit = minPx > base || res.overflow; st.truncated = res.overflow; st.frames++;
+    st.budget = budget; st.forced = res.forced; st.summaryTips = res.summaryTips; st.mergedTips = res.mergedTips; st.reduced = reduced; st.scale = dpr;
     this.msSum += frameMs; this.msN++; if (frameMs > this.msMax) this.msMax = frameMs;
     this.cb.onFrame?.(st);
+  }
+
+  private updateNotice(show: boolean, n: number): void {
+    const el = this.notice;
+    if (!show) {
+      if (this.noticeShown) { el.style.display = 'none'; this.noticeShown = false; this.noticeText = ''; }
+      return;
+    }
+    const text = `${n.toLocaleString('en')} clade${n === 1 ? '' : 's'} summarised, raise the limit in Library options`;
+    if (text !== this.noticeText) { el.textContent = text; this.noticeText = text; }
+    if (!this.noticeShown) {
+      el.style.display = 'block';
+      el.style.background = `color-mix(in srgb, ${this.theme.background} 85%, transparent)`;
+      el.style.color = this.theme.muted;
+      el.style.border = `1px solid ${this.theme.muted}`;
+      el.style.fontFamily = this.theme.fontFamily;
+      this.noticeShown = true;
+    }
   }
 
   /** Hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
@@ -869,6 +951,7 @@ export class TreeRenderer {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
+    this.noteInput();
     const p = this.local(e);
     const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
     const a = this.area;
@@ -944,6 +1027,7 @@ export class TreeRenderer {
       const wx = v0.x0 + ((pc.mid.x - a.ax) / a.aw) * (v0.x1 - v0.x0), wy = v0.y0 + ((pc.mid.y - a.ay) / a.ah) * (v0.y1 - v0.y0);
       const x0 = wx - ((mid.x - a.ax) / a.aw) * w2, y0 = wy - ((mid.y - a.ay) / a.ah) * h2;
       this.suppressClick = true;
+      this.noteInput();
       this.setViewport({ x0, x1: x0 + w2, y0, y1: y0 + h2 });
       return;
     }
@@ -958,6 +1042,7 @@ export class TreeRenderer {
       if (this.hoverNode >= 0) { this.hoverNode = -1; this.hoverKind = ''; this.topDirty = true; this.cb.onHover?.(null); this.schedule(); }
     }
     if (d.moved) {
+      this.noteInput();
       const a = this.area;
       const w = d.v0.x1 - d.v0.x0, h = d.v0.y1 - d.v0.y0;
       const ddx = (dx / a.aw) * w, ddy = (dy / a.ah) * h;
@@ -1205,7 +1290,7 @@ export class TreeRenderer {
       if (!r.overflow) break;
       minPx *= 2;
     }
-    const S: Scene = { tree: this.tree, L: this.L, T, list: this.ovList, theme: this.theme, colours: this.colours, classOf: this.classOf, highlight: null, hlRanks: new Int32Array(0), hoverNode: -1, activeNode: -1, density: 'sparse', italic: false, format: this.opts.formatLabel };
+    const S: Scene = { tree: this.tree, L: this.L, T, list: this.ovList, theme: this.theme, colours: this.colours, classOf: this.classOf, highlight: null, hlRanks: new Int32Array(0), hoverNode: -1, activeNode: -1, density: 'sparse', italic: false, format: this.opts.formatLabel, scale: this.dpr, thin: false };
     drawBody(ctx, S, 1);
     if (rect && this.hlRanks.length) {
       ctx.fillStyle = this.theme.highlight;
@@ -1238,11 +1323,12 @@ export class TreeRenderer {
     this.ovDrag = true;
     this.ovWrap.setPointerCapture(e.pointerId);
     this.anim = null;
+    this.noteInput();
     this.ovMove(e);
   };
   private onOvMove = (e: PointerEvent) => {
     e.stopPropagation();
-    if (this.ovDrag) this.ovMove(e);
+    if (this.ovDrag) { this.noteInput(); this.ovMove(e); }
   };
   private onOvUp = (e: PointerEvent) => {
     e.stopPropagation();
