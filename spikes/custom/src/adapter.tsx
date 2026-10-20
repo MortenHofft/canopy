@@ -33,6 +33,7 @@ function CustomView(props: ViewProps) {
     () => ({
       lod: features.lod !== false,
       drawBudget: Number(features.budget ?? 20000),
+      minCladePx: Number(features.minCladePx ?? 3),
       showSummaries: features.summaries !== false,
       overview: features.overview !== false,
       labelDensity: (features.density as LabelDensity) ?? 'normal',
@@ -190,6 +191,7 @@ const CPU_DEFAULT: boolean = (() => {
 const features: AdapterFeature[] = [
   { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
   { id: 'frameReadout', label: 'Frame-time readout', kind: 'toggle', default: true, description: 'JS time per frame, time until painted (includes raster) and fps while interacting. Useful for reporting numbers from your own device.' },
+  { id: 'minCladePx', label: 'Smallest clade drawn (px)', kind: 'select', default: '3', options: [{ value: '1', label: '1 px (most detail)' }, { value: '2', label: '2 px' }, { value: '3', label: '3 px (default)' }, { value: '5', label: '5 px' }, { value: '8', label: '8 px' }], description: 'Clades smaller than this on screen collapse into a triangle, fan or slice; a polytomy collapses when its children are closer together than this. The draw budget can only raise it, never lower it.' },
   { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '500', label: '500 primitives' }, { value: '1000', label: '1,000 primitives' }, { value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
   { id: 'summaries', label: 'Show collapsed clades as triangles', kind: 'toggle', default: true },
   { id: 'overview', label: 'Show overview strip', kind: 'toggle', default: true },
