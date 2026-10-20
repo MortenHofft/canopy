@@ -9,11 +9,12 @@ every number. Nothing here is product code; `spikes/custom`, `spikes/shared` and
 
 | File | Content |
 |---|---|
-| `nodes.parquet` | one row per node in preorder (row index = node id): `parent`, `subtree_end`, `leaf_start`, `tip_count`, `len`, `cum_len`, `max_cum`, `depth`, `max_depth`, `occ_sum` (+ `support`, `name` when present). Row groups of N rows. All columns REQUIRED (no nulls) so that hyparquet returns typed arrays |
+| `nodes.parquet` | one row per node in preorder (row index = node id): `parent`, `subtree_end`, `leaf_start`, `tip_count`, `len`, `cum_len`, `max_cum`, `depth`, `max_depth`, `occ_sum` (+ `support`, `name` when present). Row groups of 16,384 rows. All columns REQUIRED (no nulls) so that hyparquet returns typed arrays |
 | `tips.parquet` | one row per tip in rank order: `node`, `tip_label`, `occurrence_count`, `country`. Row group g holds exactly the tips of node row group g |
-| `overview.parquet` | pyramid: one row group per level, deepest level first and **level 0 last** (level 0 + footer = one contiguous tail). Rows carry `node`, all rollups, `row` (layout y) and `sel_level` |
-| `spine.parquet` | the ancestors of the first node of every node row group (root-to-tip paths in one node row group + this file) |
-| `manifest.json` | counts, file sizes and footer sizes, node/tip row-group boundaries as preorder ranges, overview levels, `rg_open` (ancestor ids per row group) |
+| `overview.parquet` | pyramid: one row group per level, deepest level first and **level 0 last** (level 0 + footer = one contiguous tail). Rows carry `node`, all rollups, `row` (layout y, float64) and `sel_level`. Level budgets are ROWS (2,048 / 8,192 / 32,768 / 131,072) |
+| `spine.parquet`, `open.json` | the ancestors of the first node of every node row group (root-to-tip paths from one node row group + these); `open.json` is fetched lazily |
+| `labels.parquet` | tip labels sorted by label with their tip rank (label to rank in a footer + one row group) |
+| `manifest.json` | counts, file sizes and footer sizes, node/tip row-group boundaries as preorder ranges, overview levels (`row_budgets`, `level_rows`, `level_min_tips`, `tail_start`) |
 
 ## Reproduce
 
@@ -30,14 +31,15 @@ python3 -I ../../data/synthetic/generate.py --out $SCR/syn --sizes 100000,100000
 #   OTL: curl the file named in ../../data/real-ladder/fetch.sh into $SCR/otl/cache/opentree16.1/, then
 #   CACHE=$SCR/otl/cache OUT=$SCR/otl/out python3 -I ../../data/real-ladder/scripts/ladder.py $SCR/otl/cache $SCR/otl/out otl-1m-metazoa
 
-SCR=$SCR ./convert/prepare_all.sh                # six trees (+ codec / row-group / page variants of the 1M tree) into $SCR/serve
+SCR=$SCR ./convert/prepare_all.sh                # six trees (+ codec / row-group / page variants of the 1M tree) into $SCR/serve, with verify
+SCR=$SCR ./run-v2.sh                             # the final pass: prepare, overview checks, Node writer, main browser run (run-all.sh was the first pass)
 $SCR/venv/bin/python -I convert/verify.py TREE.nwk $SCR/serve/NAME --cache $SCR/cache    # ground-truth check of every rollup
 SCR=$SCR ./run-sizes.sh                          # size matrices -> results/sizes-*.json
 SERVE=$SCR/serve nice -n 19 node run-browser.mjs --trees yule100k --profiles none,wifi,4g,3g --out results/browser-yule100k.json
 python3 -I report/make_tables.py sizes           # markdown tables
 ```
 
-Tests: `node test/selftest.mjs` (reader against the Range server, uses the committed 57 KB sample in `sample/yule1k`),
+Tests: `node test/selftest.mjs` (reader against the Range server on port 5210, uses the committed 65 KB sample in `sample/yule1k`), `node test/rangefile.test.mjs` (coalescing, mock fetch), `node test/overview_vs_layout.mjs TREE LAYOUT` (every overview row against the renderer's `computeLayout()`),
 `python3 -I test/verify_mutation.py` (tampers with a rollup and checks that `verify.py` fails), `convert/verify.py` on every converted tree.
 
 Node writer (no Python): `node node-writer/convert.mjs TREE.nwk OUT --meta SERVE/NAME/tips.parquet` (after `./build.sh`).

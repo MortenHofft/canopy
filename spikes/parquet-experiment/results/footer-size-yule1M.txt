@@ -1,0 +1,5 @@
+rows/group  groups  footer with stats  footer without stats
+    4096      489      382,729 B      239,799 B   (file 21.81 MB / 21.53 MB)
+    8192      245      195,816 B      124,216 B   (file 21.27 MB / 21.13 MB)
+   16384      123       99,397 B       63,477 B   (file 21.05 MB / 20.99 MB)
+   65536       31       26,057 B       17,005 B   (file 21.01 MB / 20.97 MB)

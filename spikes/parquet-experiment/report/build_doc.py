@@ -43,7 +43,39 @@ def layout_sizes():
         out.append(f"| {t} | {a['newick_gz'] / 1e6:.2f} MB | {a['manifest'] / 1024:.1f} KB | {a['files']['overview'] / 1e6:.2f} MB | {'+'.join(map(str, a['overview_level_rows']))} | {a['overview_tail_bytes'] / 1024:.0f} KB | {a['files']['nodes'] / 1e6:.2f} MB ({a['footers']['nodes'] / 1024:.0f} KB, {a['row_groups']['nodes']}) | {a['files']['tips'] / 1e6:.2f} MB | {a['files']['spine'] / 1024:.0f} KB | {a['files']['labels'] / 1e6:.2f} MB |")
     return "\n".join(out)
 
+_other_cache = {}
+def other_section(prefix):
+    if "all" not in _other_cache:
+        txt = cap(mt.tables_other)
+        parts = re.split(r"(?m)^#### ", txt)
+        _other_cache["all"] = {p.split("\n", 1)[0]: "#### " + p for p in parts if p.strip()}
+    for k, v in _other_cache["all"].items():
+        if k.startswith(prefix):
+            return v
+    return ""
+def other_except(prefixes):
+    other_section("x")
+    return "\n\n".join(v for k, v in _other_cache["all"].items() if not any(k.startswith(p) for p in prefixes))
+
+def tips_saving():
+    d = mt.loadb(); sz = mt.load()
+    out = ["| Tree | TSV with all three columns (gzip) | TSV `occurrence_count` only (gzip) | Parquet: `occurrence_count` for the tips of a 10k-tip clade | ... for ALL tips (the whole column) | Parquet: `tip_label` for the 10k clade | Parquet: all 3 columns for the 10k clade |", "|---|---|---|---|---|---|---|", ]
+    for t in mt.TORDER:
+        P = d.get(t, {}).get("profiles", {}).get("4g")
+        if not P or "tipColumns" not in P: continue
+        tc = P["tipColumns"]; j = sz.get(t)
+        tsv3 = f"{j['tsv_meta']['gzip9'] / 1e6:.2f} MB" if j else "-"
+        tsv1 = f"{j['tsv_occ_only']['gzip9'] / 1e6:.2f} MB" if j else "-"
+        f = lambda k: f"{tc[k]['bytes'] / 1024:,.0f} KB ({tc[k]['requests']} req, {tc[k]['ms']:.0f} ms on 4G)"
+        out.append(f"| {t} | {tsv3} | {tsv1} | {f('occurrence_count')} | {f('_allTips_occ')} | {f('tip_label')} | {f('tip_label+occurrence_count+country')} |")
+    return "\n".join(out)
+
 tokens = {
+    "CROSSINGS": lambda: cap(mt.crossings),
+    "FIRSTVIEW": lambda: other_section("First usable overview"),
+    "CLADES": lambda: other_section("Clade fetch"),
+    "TIPSAVING": lambda: tips_saving() + "\n\n" + other_section("Per-tip columns"),
+    "OTHER": lambda: other_except(["First usable overview", "Clade fetch", "Per-tip columns"]),
     "SIZES": lambda: cap(mt.sizes),
     "BREAKEVEN": lambda: cap(mt.breakeven),
     "OTHER": lambda: cap(mt.tables_other),

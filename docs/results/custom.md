@@ -183,3 +183,119 @@ No GPU: the runner uses `--disable-gpu-rasterization`, so Canvas2D is CPU-raster
 ## Target hardware (open)
 
 Developer laptops are well above the typical gbif.org visitor's device, especially outside the global north. Budget for a device several times slower: test with Chrome DevTools CPU throttling (4x and 6x) and a mid-range phone, and report numbers from the demo's frame-time readout (JS ms, paint ms, fps; feature `frameReadout`). Still **unmeasured**: no real low-end device has been tried. The draw budget (500 to 400,000 primitives) and the radial max are the knobs to tune for it; a default chosen from measured low-end numbers would be better than the current 20,000.
+
+## Radial performance work, 2026-10
+
+Trigger: on a real laptop (real browser, GPU) the deployed demo "starts to struggle far earlier on radial trees" than on rectangular ones, well under 10k tips. Rectangular trees and the clade-summary triangles were fine. Everything below was measured in headless Chromium 141 on a 4-vCPU sandbox **without a GPU**, so no number here is a real-GPU frame rate (see "What could not be measured"). The machine was not idle: a second agent ran jobs on it, load average 3 to 6 during most benchmarks (every row in the raw JSON carries `load1`); the headline figures are therefore the hardware-independent ones (primitives, path segments, draw calls) plus relative CPU-raster times. The older tables above stay as they were measured on 2026-10-14; note that their "JS time per frame" never included raster, even for the CPU-backed canvas (see point 2).
+
+### What was wrong
+
+1. **`cpuCanvas` defaulted to on.** It was added so headless Chromium without a GPU does not run the canvas through SwiftShader (3 to 10 times slower). On a real browser it forced every canvas into CPU raster (`willReadFrequently`), where cost grows with the number of canvas pixels (DPR 2 is 4 times the pixels of DPR 1) and with path complexity.
+2. **The old JS-only numbers hid the real cost.** The report said "for a CPU-backed canvas JS time includes raster". It does not: Chromium records the canvas calls and rasterises after the script returns. Radial yule 10k at fit: 7 ms of JS per frame but 210 ms for JS plus raster (CPU canvas, DPR 1), measured by forcing a flush (`getImageData`) after each frame; the rectangular layout costs 20 ms by the same measure.
+3. **Skia's stroker is the slow path for radial.** A micro-benchmark (6,000 short segments, CPU canvas, DPR 1) took 35 ms in one path at 1.3 px line width and 2.7 ms at 1 device pixel or less (hairline fast path); paths of 32 to 256 segments gave 15 to 18 ms at 1.3 px; filling 1,100 small triangles in one path took 12 ms, in chunks of 16 to 64 about 4.5 ms. Rectangular branches are axis-aligned and do not hit this.
+4. **Radial culling was a bounding-box test per node with four sin/cos each**, and the budget search doubled the threshold, so a 2,000 budget gave 1,215 primitives instead of about 2,000.
+
+### What changed
+
+| # | Change | Where | Kept? |
+|---|---|---|---|
+| 1 | GPU canvas by default for real visitors; CPU canvas when `navigator.webdriver` is true (the runner) or `?cpu=1`; `?cpu=0` forces GPU. Toggle kept in Library options with an honest description | `adapter.tsx` | yes |
+| 2 | `dprCap` option (1, 1.5, 2, native; default 2): backing store is min(devicePixelRatio, cap) times the CSS size; hit-testing, overlay and events stay in CSS px | `renderer.ts`, adapter | yes (effect depends on the device; only the DPR 1 versus 2 rows measure it) |
+| 3 | `radialMaxNodes` cut-off (500 to 20,000, unlimited; default 2,000, radial only): clades below the pixel threshold become fans; the threshold is found by a bracket-and-bisect search (about 5 passes only under pressure, 1 otherwise) that never exceeds the budget and lands within 25% below it; corner notice "N clades summarised, raise the limit in Library options" (counts only clades the normal 3 px threshold would have expanded) | `lod.ts` (`searchCut`), `renderer.ts` | yes |
+| 4 | True culling: radius range and angle range of the window seen from the root, then the sector's bounding box from cached boundary cos/sin. Per-node cos/sin cached in the layout (`COS`, `SIN` per node, `BC`, `BS` per tip boundary; 16 B each, built on first radial use). The cut and draw functions read only the typed-array fields they already used plus these derived arrays | `lod.ts`, `layout.ts` | yes |
+| 5 | Radial drawing: an arc only when it differs from its chord by more than 0.3 px (s^2 > 2.4 r), otherwise a line; far-off long arcs clipped to the visible angles (before, arcs at radius over 30,000 px were drawn as chords); strokes in chunks of 256 segments, fans filled in chunks of 32, per colour class; **hairline (1 device px) branches once the list has 700 or more primitives**; labels: only when the pitch is at least the font size, at most 300, one `setTransform` per label (no save/restore/translate/rotate), font and fill set only on change | `draw.ts` | yes |
+| 6 | Interaction-time degradation: during wheel, pinch, drag, overview drag and animation, a quarter of the budget (min 500), threshold x1.6 when the last full frame had more than 1,000 primitives, no DOM overlay or notice update; one full frame 120 ms after the last input (timer reset by every input). Click, hover, locate, bounds and the a11y list call `settle()` first, so hit-testing only ever sees a full-quality frame. Option `interactionLOD`, default on | `renderer.ts` | yes; the ablation below shows most of the gain comes from 5, this adds most at DPR 2 |
+| 7 | Reusing the previous bitmap during a gesture | | not built: reduced frames already cost about 1.5 ms of JS |
+| 8 | Found while profiling: the cut functions return one shared scratch object that the overview cut overwrote, so `FrameStats` (summaries, tips) described the overview; fixed by copying. Summary hit-test scores the distance outside the fan, so the fan under the pointer beats a neighbour whose 3 px slack reaches the same point (before, 16 of 200 summaries hit themselves, now 200 of 200) | `renderer.ts`, `hit.ts` | yes |
+
+Layers: checked, no change needed. Hover, keyboard cursor and focus draw only on the `top` canvas; the overview is redrawn only when the data changes; 40 pointer moves over the tree caused 0 tree redraws (`scripts/check-radial-ui.mjs`). The tree canvas is redrawn on view change, data change (clades, highlight, columns, theme, options) and resize.
+
+### Method
+
+`bench/radial-perf.mjs` mounts each tree through `window.__spike.mount` (1100 x 640 container), then for the fit view and a 4x zoom (radial: a window a quarter the size centred at 75% of the radius; rectangular: x 0.7 to 0.95, a quarter of the rows) measures: 15 forced frames (JS ms: cut, draw, overlay); 8 frames each followed by a canvas flush (JS + raster; reliable for a CPU-backed canvas, shown for the accelerated canvas only as a relative number); canvas calls per frame by wrapping `CanvasRenderingContext2D` (hardware-independent); and the mean `requestAnimationFrame` interval when every frame is repainted (end to end, vsync limit lifted; meaningless for the accelerated canvas, whose rAF does not wait for the GPU process, so not reported for it). Trees: `data/synthetic` yule, balanced, caterpillar at 1k, 2k, 5k, 10k, 50k, 100k (2k, 5k, 50k generated with `generate.py --sizes`). DPR 1 and 2 by the Playwright device scale factor; CPU canvas by forcing `willReadFrequently` on every 2D context with an init script (identical for both builds), accelerated canvas by forcing it off. "Before" is the build of the committed state before this work (scratch directory), "after" the current build. Raw rows: `spikes/results/custom/bench/radial-perf-<build>-dsf<1|2>-cpu<1|0>.json`.
+
+### Results: radial, before / after
+
+Fit view (each cell before / after). "Accelerated canvas" is GPU raster through SwiftShader here: only the ratio is informative, and not as a prediction for a real GPU.
+
+| tree (radial) | primitives drawn | path segments | draw calls (stroke, fill, text) | JS ms (cut + draw) | JS + raster ms, CPU canvas, DPR 1 | same, DPR 2 | end-to-end frame ms, CPU canvas, DPR 1 | same, DPR 2 | JS + raster ms, accelerated canvas (SwiftShader), DPR 1 |
+|---|---|---|---|---|---|---|---|---|---|
+| yule 1k | 1869 / 1869 | 6085 / 6085 | 6 / 17 | 4.6 / 2.0 | 93 / 6.0 | 107 / 9.0 | 38 / 6.3 | 50 / 20 | 848 / 584 |
+| yule 2k | 2009 / 1591 | 8289 / 6843 | 6 / 33 | 4.6 / 3.2 | 108 / 20 | 190 / 27 | 38 / 12 | 67 / 30 | 791 / 682 |
+| yule 5k | 2237 / 1797 | 9918 / 8109 | 6 / 41 | 5.4 / 2.8 | 127 / 27 | 210 / 48 | 48 / 15 | 89 / 33 | 734 / 684 |
+| yule 10k | 2347 / 1989 | 10645 / 9094 | 6 / 46 | 6.9 / 2.7 | 210 / 39 | 305 / 68 | 70 / 17 | 110 / 37 | 766 / 695 |
+| yule 50k | 2457 / 1951 | 11324 / 9065 | 6 / 47 | 7.3 / 3.4 | 303 / 57 | 492 / 78 | 99 / 22 | 172 / 47 | 936 / 695 |
+| balanced 10k | 2047 / 1567 | 9472 / 7312 | 6 / 39 | 7.2 / 2.1 | 197 / 39 | 259 / 55 | 64 / 15 | 91 / 37 | 698 / 604 |
+| balanced 100k | 2047 / 1023 | 9472 / 4864 | 6 / 26 | 6.9 / 2.4 | 285 / 29 | 373 / 58 | 98 / 16 | 132 / 29 | 614 / 447 |
+| caterpillar 10k | 4690 / 1951 | 13972 / 5503 | 6 / 15 | 7.0 / 7.2 | 111 / 15 | 156 / 32 | 52 / 12 | 65 / 25 | 2685 / 1522 |
+| caterpillar 100k | 5074 / 1969 | 14818 / 3139 | 6 / 11 | 38 / 21 | 165 / 26 | 192 / 34 | 74 / 33 | 99 / 36 | 2314 / 1389 |
+
+4x zoom:
+
+| tree (radial) | primitives drawn | path segments | draw calls (stroke, fill, text) | JS ms (cut + draw) | JS + raster ms, CPU canvas, DPR 1 | same, DPR 2 | end-to-end frame ms, CPU canvas, DPR 1 | same, DPR 2 | JS + raster ms, accelerated canvas (SwiftShader), DPR 1 |
+|---|---|---|---|---|---|---|---|---|---|
+| yule 1k | 242 / 238 | 1118 / 1098 | 5 / 6 | 0.6 / 0.9 | 12 / 11 | 27 / 18 | 14 / 7.3 | 25 / 21 | 783 / 688 |
+| yule 2k | 493 / 480 | 1754 / 1689 | 6 / 8 | 0.4 / 0.4 | 21 / 16 | 35 / 39 | 11 / 15 | 29 / 29 | 799 / 815 |
+| yule 5k | 743 / 737 | 3037 / 3008 | 6 / 15 | 0.7 / 0.8 | 32 / 7.4 | 72 / 12 | 17 / 7.0 | 34 / 21 | 984 / 829 |
+| yule 10k | 1023 / 1007 | 4484 / 4405 | 6 / 22 | 1.3 / 1.2 | 71 / 11 | 103 / 21 | 27 / 10 | 45 / 26 | 1063 / 975 |
+| yule 50k | 1409 / 1386 | 6439 / 6324 | 6 / 32 | 2.1 / 1.7 | 92 / 41 | 174 / 56 | 40 / 17 | 62 / 31 | 1268 / 1216 |
+| balanced 10k | 1048 / 1040 | 4864 / 4824 | 6 / 26 | 1.9 / 1.0 | 102 / 22 | 147 / 37 | 35 / 13 | 62 / 28 | 968 / 890 |
+| balanced 100k | 1359 / 1341 | 6290 / 6200 | 6 / 32 | 2.2 / 1.8 | 108 / 46 | 197 / 78 | 39 / 19 | 76 / 39 | 1222 / 1014 |
+| caterpillar 10k | 7537 / 1992 | 31330 / 6857 | 6 / 17 | 9.8 / 2.7 | 71 / 28 | 129 / 52 | 37 / 20 | 65 / 33 | 2244 / 991 |
+| caterpillar 100k | 9305 / 1930 | 37443 / 5560 | 6 / 15 | 30 / 14 | 139 / 54 | 178 / 65 | 70 / 34 | 83 / 43 | 2536 / 736 |
+
+Rectangular, same measures (CPU canvas, DPR 1, fit): primitives identical at every size (651, 797, 817 for yule 1k, 10k, 100k; 511 balanced; 1,828 to 4,836 caterpillar); JS plus raster 8 to 37 ms before and after, differences within the noise of a loaded machine (the rectangular drawing path was not touched except labels).
+
+Interaction (24 wheel steps in, 24 out, 16 ms apart, then a 40-move drag; real Playwright input; `bench/interaction.mjs`; mean rAF interval in `meanRafMs`, CPU canvas; `before` is the old build, the others the new one, with the `--set` ablation in the tag):
+
+```
+yule_10000 before dsf1 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.4","frames":49,"meanJs":3.15,"maxJs":23,"meanDrawn":876,"reducedFrames":0,"meanRafMs":31.6,"maxRafMs":117,"gestureMs":2867,"afterSettle":{"drawn":2347,"js":7.199999999254942}}
+yule_10000 before dsf1 cpu1 radial {"name":"drag 40 moves","load":"3.2","frames":39,"meanJs":6.76,"maxJs":8,"meanDrawn":2347,"reducedFrames":0,"meanRafMs":54.7,"maxRafMs":67,"gestureMs":3630,"afterSettle":{"drawn":2347,"js":6.3999999994412065}}
+yule_10000 after dsf1 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.4","frames":48,"meanJs":1.49,"maxJs":11.7,"meanDrawn":213,"reducedFrames":48,"meanRafMs":17.7,"maxRafMs":33,"gestureMs":2435,"afterSettle":{"reduced":false,"drawn":1989,"js":2.699999999254942}}
+yule_10000 after dsf1 cpu1 radial {"name":"drag 40 moves","load":"3.4","frames":39,"meanJs":1.46,"maxJs":3.6,"meanDrawn":497,"reducedFrames":39,"meanRafMs":16.7,"maxRafMs":17,"gestureMs":1745,"afterSettle":{"reduced":false,"drawn":1989,"js":2.7000000001862645}}
+yule_50000 before dsf1 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.0","frames":48,"meanJs":4.68,"maxJs":25.7,"meanDrawn":1100,"reducedFrames":0,"meanRafMs":44.1,"maxRafMs":167,"gestureMs":3486,"afterSettle":{"drawn":2457,"js":9.200000000186265}}
+yule_50000 before dsf1 cpu1 radial {"name":"drag 40 moves","load":"3.4","frames":39,"meanJs":8.87,"maxJs":12.9,"meanDrawn":2457,"reducedFrames":0,"meanRafMs":97.4,"maxRafMs":117,"gestureMs":5370,"afterSettle":{"drawn":2457,"js":7.699999999254942}}
+yule_50000 after dsf1 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"4.1","frames":48,"meanJs":1.7,"maxJs":11.7,"meanDrawn":232,"reducedFrames":48,"meanRafMs":18.1,"maxRafMs":50,"gestureMs":2413,"afterSettle":{"reduced":false,"drawn":1951,"js":5.2000000001862645}}
+yule_50000 after dsf1 cpu1 radial {"name":"drag 40 moves","load":"4.1","frames":39,"meanJs":1.48,"maxJs":2.6,"meanDrawn":483,"reducedFrames":39,"meanRafMs":17.1,"maxRafMs":33,"gestureMs":1694,"afterSettle":{"reduced":false,"drawn":1951,"js":4.2000000001862645}}
+after {"interactionLOD":false} dsf1 cpu1 radial {"name":"drag 40 moves","load":"3.2","frames":39,"meanJs":3.65,"maxJs":7.5,"meanDrawn":1951,"reducedFrames":0,"meanRafMs":16.7,"maxRafMs":17,"gestureMs":2031,"afterSettle":{"reduced":false,"drawn":1951,"js":4.099999999627471}}
+after {"interactionLOD":false,"radialMaxNodes":"Infinity"} dsf1 cpu1 radial {"name":"drag 40 moves","load":"3.1","frames":39,"meanJs":2.97,"maxJs":3.9,"meanDrawn":2457,"reducedFrames":0,"meanRafMs":18,"maxRafMs":34,"gestureMs":2206,"afterSettle":{"reduced":false,"drawn":2457,"js":3.400000000372529}}
+yule_50000 after {"interactionLOD":false} dsf2 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.4","frames":47,"meanJs":4.12,"maxJs":14.8,"meanDrawn":1389,"reducedFrames":0,"meanRafMs":26.2,"maxRafMs":50,"gestureMs":2441,"afterSettle":{"reduced":false,"drawn":1951,"js":3.2999999998137355}}
+yule_50000 after {"interactionLOD":false} dsf2 cpu1 radial {"name":"drag 40 moves","load":"3.2","frames":39,"meanJs":3.72,"maxJs":9.7,"meanDrawn":1951,"reducedFrames":0,"meanRafMs":35.5,"maxRafMs":50,"gestureMs":2804,"afterSettle":{"reduced":false,"drawn":1951,"js":3.099999999627471}}
+yule_50000 after {"interactionLOD":true} dsf2 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.1","frames":48,"meanJs":1.78,"maxJs":11,"meanDrawn":430,"reducedFrames":48,"meanRafMs":18.7,"maxRafMs":50,"gestureMs":2009,"afterSettle":{"reduced":false,"drawn":1951,"js":3.3999999994412065}}
+yule_50000 after {"interactionLOD":true} dsf2 cpu1 radial {"name":"drag 40 moves","load":"3.1","frames":39,"meanJs":1.36,"maxJs":1.8,"meanDrawn":483,"reducedFrames":39,"meanRafMs":17.9,"maxRafMs":33,"gestureMs":2270,"afterSettle":{"reduced":false,"drawn":1951,"js":3.2000000001862645}}
+caterpillar_50000 after {"interactionLOD":false} dsf2 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.0","frames":48,"meanJs":13.24,"maxJs":28,"meanDrawn":1870,"reducedFrames":0,"meanRafMs":42.7,"maxRafMs":67,"gestureMs":3189,"afterSettle":{"reduced":false,"drawn":1953,"js":25.700000000186265}}
+caterpillar_50000 after {"interactionLOD":false} dsf2 cpu1 radial {"name":"drag 40 moves","load":"3.3","frames":39,"meanJs":23.32,"maxJs":46.8,"meanDrawn":1954,"reducedFrames":0,"meanRafMs":38,"maxRafMs":83,"gestureMs":3062,"afterSettle":{"reduced":false,"drawn":1953,"js":20.300000000745058}}
+caterpillar_50000 after {"interactionLOD":true} dsf2 cpu1 radial {"name":"wheel zoom in x24 then out x24","load":"3.2","frames":48,"meanJs":15.15,"maxJs":50.2,"meanDrawn":353,"reducedFrames":48,"meanRafMs":29.2,"maxRafMs":83,"gestureMs":2502,"afterSettle":{"reduced":false,"drawn":1953,"js":29.90000000037253}}
+caterpillar_50000 after {"interactionLOD":true} dsf2 cpu1 radial {"name":"drag 40 moves","load":"3.4","frames":39,"meanJs":22.08,"maxJs":29.7,"meanDrawn":427,"reducedFrames":39,"meanRafMs":35.9,"maxRafMs":50,"gestureMs":2956,"afterSettle":{"reduced":false,"drawn":1953,"js":18.600000000558794}}
+```
+
+Reading: at DPR 1, yule 50k radial, a drag went from a 97 ms frame interval (10 fps) to 17 ms (60 fps); with `interactionLOD` off and everything else new it is already 17 ms, so at DPR 1 the cheaper drawing does the work. At DPR 2 the reduced frames matter (35 ms to 18 ms for the same drag). For the 50k caterpillar the cut itself (about 20 ms of JS per frame, a walk over 100k nodes) dominates and nothing helps: see the limits.
+
+Headlines (radial, yule 10k, CPU canvas, fit): primitives 2,347 to 1,989; path segments 10,645 to 9,094; JS 6.9 to 2.7 ms; JS plus raster 210 to 39 ms at DPR 1 and 305 to 68 ms at DPR 2; end-to-end frame 70 to 17 ms. The cut-off itself removes primitives only where the viewport holds more than the budget: yule 1k to 100k sat at 1,900 to 2,500 primitives before, so the gain there is 15 to 20%; balanced 100k halves (2,047 to 1,023) and caterpillars drop 2.5 times (5,074 to 1,969). Most of the raster gain is the line style (hairline) and the path chunking, which cut the work per primitive, not the number of primitives. The cut-off matters more when users raise the limit and for trees with long ladders.
+
+### Regression and tests
+
+* `cd spikes && node runner/run.mjs --candidate custom --trees smoke --port 5206`: run `20261020-101522`, S1 to S15 as before (S3 partial by rule, the rest pass).
+* Ladder up to 190k as the custom run in `spikes/results/FINAL.json` (`--trees smoke,ladder,worst,cols,align,dated --skip-large`): run `20261020-101752`. All of S1 to S15 pass or partial exactly as in the previous custom run (`20261019-122251`): S1 pass on 20 trees up to the 190k GTDB tree, S2, S4 to S15 pass, S3 partial by rule. `FINAL.json` lists the new ids under `custom.runIds` and the old ones under `custom.previousRunIds`.
+* `node --experimental-transform-types spikes/custom/scripts/check-radial-cut.mjs` (plain Node, no browser, about 2 s): on the committed 10k yule tree at fit, two 4x views and a 16x view: drawn <= budget (1,989 of 2,000 at fit); tips drawn + tips in summaries + merged tips = 10,000 at fit (51 + 9,949 + 0); summary tip counts equal a brute-force subtree count; no visible tip is dropped by the cull (checked against the LOD-off list); threshold back at 3 px and nothing forced at 16x; the 16x view visits under 5% of the nodes; 200 of 200 summary hit-tests; budgets 500 to 20,000 never exceeded. Exit code 1 on failure. "Merged tips" are tips of primitives skipped because they land on the same pixel cells as an earlier one (rule C); it is 0 on this tree and asserted to stay under 2%.
+* `node spikes/custom/scripts/check-radial-ui.mjs` (needs the build served on port 5306): hover and click on a summarised clade carry the right tip set and reach React state, colouring a summarised clade, highlight and focus of a tip inside a summary, no tree redraw on hover, reduced frames during a wheel and a full frame after, progressive detail when zooming.
+
+### Defaults chosen
+
+* `cpuCanvas`: on only under automation or `?cpu=1`. The runner keeps its numbers comparable; visitors get the GPU canvas.
+* `dprCap` 2: a DPR 3 phone draws 2.25 times fewer pixels with little visible loss for a line drawing; native stays available.
+* `radialMaxNodes` 2,000: the user's suggestion; measured CPU-canvas cost of a full frame at that size is 17 ms end to end at DPR 1 and 37 ms at DPR 2 for yule 10k; 5,000 and 20,000 cost proportionally more; unlimited falls back to the rectangular draw budget (20,000).
+* `interactionLOD` on, 120 ms refine, quarter budget (min 500), threshold x1.6 only when the last full frame had more than 1,000 primitives (rectangular trees draw 500 to 900, so they are unaffected).
+* Hairline branches from 700 primitives: below that lines stay 1.3 px, so a sparse tree looks as before.
+
+### What could not be measured
+
+A real GPU. The accelerated-canvas column is SwiftShader (CPU emulation of a GPU) and moved little (766 to 695 ms at 10k), which says nothing about a laptop GPU. What should transfer is hardware-independent: fewer primitives where the cut-off acts, 15 to 20% fewer path segments (arc to chord), and fewer pixels with the DPR cap. Hairline strokes are fast in Skia's CPU path (measured) and are expected to help on the GPU path too, but that is **unverified**; the larger number of smaller draw calls (47 instead of 6 for 10k) costs nothing measurable on CPU and is **unverified** on GPU. Not tested: real devices at DPR 3, Safari and Firefox, touch pinch.
+
+### Remaining radial limits
+
+* Caterpillar-like trees: the cut walks every node (about 2 per tip), so radial 100k costs 21 ms of JS per frame, and 1M tips would be as before or worse (the lower cut-off makes the budget search run more passes; the search is skipped above 80,000 visited nodes). A precomputed spine skip pointer or a worker is still the fix.
+* Fans carry no label or tip count on the canvas (hover and click report it); the notice counts only clades forced by the budget.
+* A reduced frame during a gesture shows a coarser tree for up to 120 ms after the last input.
+* Radial columns are still not drawn; hit-testing of connector arcs at huge zoom samples at most 400 segments.
+* The notice text mentions "Library options", which exists only in this demo; a component user turns it off with `summaryNotice: false` or replaces it.

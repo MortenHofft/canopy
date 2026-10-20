@@ -13,13 +13,17 @@
   },
   "custom": {
    "runIds": [
-    "20261019-122251",
-    "20261019-123159"
+    "20261020-101752",
+    "20261020-101522"
    ],
    "exitCode": 0,
    "minutes": 8,
    "order": "one candidate at a time, idle machine, production build",
-   "note1m": "20261019-123159 is S1 on the 1M-tip Yule tree only"
+   "note1m": "previousRunIds[1] (20261019-123159) is S1 on the 1M-tip Yule tree only; not repeated after the radial performance work. 20261020-101752 is the full ladder run (smoke,ladder,worst,cols,align,dated --skip-large) after the radial performance work (docs/results/custom.md, section 'Radial performance work, 2026-10'); 20261020-101522 is the smoke run.",
+   "previousRunIds": [
+    "20261019-122251",
+    "20261019-123159"
+   ]
   },
   "react-bio-viz": {
    "runIds": [

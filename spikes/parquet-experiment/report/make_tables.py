@@ -152,14 +152,22 @@ def tables_other(pattern="browser-main*.json"):
             print(f"| {t} ({p}) | {b[0]['bytes'] / 1e6:.1f} | {_med([x['fetchMs'] for x in b]):.0f} | {_med([x['inflateMs'] for x in b]):.0f} | {_med([x['parseBuildMs'] for x in b]):.0f} | {_med([x['totalMs'] for x in b]):.0f} |")
 
 def variants():
-    names = [("yule1M", "main (zstd, 64k rows, tuned)"), ("yule1M__none", "uncompressed"), ("yule1M__snappy", "snappy"), ("yule1M__plainzstd", "zstd, PLAIN encodings"), ("yule1M__rg16k", "zstd, 16k rows/group"), ("yule1M__rg256k", "zstd, 256k rows/group"), ("yule1M__paged", "zstd, 64k rows + 64 KB pages + page index (useOffsetIndex)")]
+    rows = [("browser-main-v1-64k-nodebudget.json", "yule1M", "zstd, 64k rows/group (first pass; the reference for the rows below)"),
+            ("browser-variant-none.json", "yule1M__none", "uncompressed, 64k"),
+            ("browser-variant-snappy.json", "yule1M__snappy", "snappy, 64k"),
+            ("browser-variant-plainzstd.json", "yule1M__plainzstd", "zstd with PLAIN encodings, 64k"),
+            ("browser-variant-rg256k.json", "yule1M__rg256k", "zstd, 256k rows/group"),
+            ("browser-variant-paged.json", "yule1M__paged", "zstd, 64k rows + 64 KB pages + page index (`useOffsetIndex`)"),
+            ("browser-variant-rg16k.json", "yule1M__rg16k", "zstd, 16k rows/group (first pass)"),
+            ("browser-main.json", "yule1M", "zstd, 16k rows/group (final layout, second pass)")]
     print("| Variant (1M-tip Yule) | nodes.parquet MB | decode ms/100k rows (9 cols) | 4G: overview ms | 4G: 1k clade ms, KB, req | 4G: 10k clade ms, KB, req | 4G: 100k clade ms, MB, req |\n|---|---|---|---|---|---|---|")
-    for key, label in names:
-        f = glob.glob(os.path.join(RES, f"browser-variant-{key.split('__')[1]}.json")) if "__" in key else glob.glob(os.path.join(RES, "browser-main.json"))
-        if not f: continue
-        j = json.load(open(f[0]))["results"].get(key)
+    for fn, key, label in rows:
+        f = os.path.join(RES, fn)
+        if not os.path.exists(f): continue
+        j = json.load(open(f))["results"].get(key)
         if not j: continue
         none, g4 = j["profiles"].get("none"), j["profiles"].get("4g")
+        if not g4: continue
         dec = none["decode"]["nodesAll"]["msPer100k"] if none and "decode" in none else float("nan")
         def cl(tg):
             cs = [c for c in g4["clades"] if c["target"] == tg]
@@ -170,3 +178,27 @@ def variants():
         print(f"| {label} | {j['files']['nodes'] / 1e6:.1f} | {dec:.1f} | {_med([o['ms'] for o in g4['overview']]):.0f} | {cl(1000)} | {cl(10000)} | {cl(100000)} |")
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "other": tables_other()
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "variants": variants()
+
+
+def crossings(pattern="browser-main.json"):
+    """Tips at which overview-first stops being faster: baseline time is fitted as a + b * gzipped MB over the six trees (per profile);
+    overview-first time is the median over the trees (it does not depend on tree size)."""
+    d = loadb(pattern)
+    print("| Profile | baseline fit: fixed s + s per MB of gzipped Newick | first view (overview only): s | tips where the full download takes as long | first view + one 10k-tip clade: s | tips where it takes as long |\n|---|---|---|---|---|---|")
+    gz_per_tip = {t: d[t]["newickGz"] / d[t]["tips"] for t in TORDER if t in d}
+    avg_gz_per_tip = sum(gz_per_tip.values()) / len(gz_per_tip)          # bytes of gzipped Newick per tip, mean of the trees
+    for p in ("wifi", "4g", "3g"):
+        xs, ys, ovs, tots = [], [], [], []
+        for t in TORDER:
+            P = d.get(t, {}).get("profiles", {}).get(p)
+            if not P or not P.get("baseline"): continue
+            xs.append(d[t]["newickGz"] / 1e6); ys.append(med([b["totalMs"] for b in P["baseline"]]) / 1000)
+            ov = med([o["ms"] for o in P["overview"]]) / 1000; ovs.append(ov)
+            cs = [c for c in P["clades"] if c["target"] == 10000] or [c for c in P["clades"] if c["target"] == 1000]
+            tots.append(ov + med([r["withLabels"]["ms"] for c in cs for r in c["reps"]]) / 1000)
+        n = len(xs); mx, my = sum(xs) / n, sum(ys) / n
+        b = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sum((x - mx) ** 2 for x in xs); a = my - b * mx
+        ov, tot = med(ovs), med(tots)
+        def tips(T): return max(0.0, (T - a) / b * 1e6 / avg_gz_per_tip)
+        print(f"| {p} | {a:.2f} s + {b:.2f} s/MB | {ov:.2f} | {tips(ov):,.0f} | {tot:.2f} | {tips(tot):,.0f} |")
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "crossings": crossings(*sys.argv[2:3])
