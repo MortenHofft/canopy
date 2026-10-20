@@ -21,17 +21,22 @@ def verify_summary():
     return "\n".join(rows)
 
 def nodew_table():
-    out = ["| Tree | Writer | Codec | Parse | Arrays | Write | Total | nodes.parquet | tips.parquet | overview | labels.parquet |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    out = ["| Tree | Writer | Codec | Parse | Arrays | Write | Total | nodes | tips | tipmeta | overview | labels |", "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     ls = json.load(open(os.path.join(RES, "layout-sizes.json")))
+    py = {}
+    for line in open(os.path.join(RES, "python-convert-times.txt")):
+        m = re.match(r"(\S+) python total wall s ([\d.]+) write_s ([\d.]+) parse_arrays_s ([\d.]+)", line)
+        if m: py[m.group(1)] = (float(m.group(2)), float(m.group(3)), float(m.group(4)))
     for t in ("yule100k", "yule1M"):
+        a = ls.get(t)
+        if a:
+            p = py.get(t)
+            out.append(f"| {t} | pyarrow 26.0 (Python 3.13, reference) | zstd | | {p[2]:.1f} s (parse + arrays) | {p[1]:.1f} s | {p[0]:.1f} s | {a['files']['nodes'] / 1e6:.2f} MB | {a['files']['tips'] / 1e6:.2f} MB | {a['files']['tipmeta'] / 1e6:.2f} MB | {a['files']['overview'] / 1e6:.2f} MB | {a['files']['labels'] / 1e6:.2f} MB |" if p else f"| {t} | pyarrow | zstd | | | | | {a['files']['nodes'] / 1e6:.2f} MB | | | | |")
         for codec in ("zstd", "snappy"):
             f = os.path.join(RES, f"node-writer-{t}-{codec}.json")
             if not os.path.exists(f): continue
             j = json.load(open(f)); T = j["timings"]; S = j["sizes"]
-            out.append(f"| {t} | hyparquet-writer 0.17.0 (Node) | {codec} | {T['parse_ms'] / 1000:.1f} s | {T['arrays_ms'] / 1000:.1f} s | {T['write_ms'] / 1000:.1f} s | {T['total_ms'] / 1000:.1f} s | {S['nodes'] / 1e6:.2f} MB | {S['tips'] / 1e6:.2f} MB | {S['overview'] / 1e6:.2f} MB | {S['labels'] / 1e6:.2f} MB |")
-        a = ls.get(t)
-        if a:
-            out.append(f"| {t} | pyarrow 26.0 (Python) | zstd | see text | | | | {a['files']['nodes'] / 1e6:.2f} MB | {a['files']['tips'] / 1e6:.2f} MB | {a['files']['overview'] / 1e6:.2f} MB | {a['files']['labels'] / 1e6:.2f} MB |")
+            out.append(f"| {t} | hyparquet-writer 0.17.0 (Node 22.22) | {codec} | {T['parse_ms'] / 1000:.1f} s | {T['arrays_ms'] / 1000:.1f} s | {T['write_ms'] / 1000:.1f} s | {T['total_ms'] / 1000:.1f} s | {S['nodes'] / 1e6:.2f} MB | {S['tips'] / 1e6:.2f} MB | {S['tipmeta'] / 1e6:.2f} MB | {S['overview'] / 1e6:.2f} MB | {S['labels'] / 1e6:.2f} MB |")
     return "\n".join(out)
 
 def layout_sizes():
@@ -71,6 +76,9 @@ def tips_saving():
     return "\n".join(out)
 
 tokens = {
+    "SHORT": lambda: open(os.path.join(HERE, "part-short.md")).read().strip(),
+    "BREAKEVEN_TEXT": lambda: open(os.path.join(HERE, "part-breakeven.md")).read().strip(),
+    "RECOMMENDATION": lambda: open(os.path.join(HERE, "part-recommendation.md")).read().strip(),
     "CROSSINGS": lambda: cap(mt.crossings),
     "FIRSTVIEW": lambda: other_section("First usable overview"),
     "CLADES": lambda: other_section("Clade fetch"),

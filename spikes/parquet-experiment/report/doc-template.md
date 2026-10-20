@@ -6,7 +6,7 @@ Evidence levels follow [../evaluation-framework.md](../evaluation-framework.md):
 
 ## 1. Short answer
 
-SHORT_ANSWER
+{{SHORT}}
 
 ## 2. Components, versions, licences
 
@@ -62,7 +62,7 @@ Sizes of the files of the final layout (zstd, 16,384 rows per group, `tuned` enc
 
 ## 5. File sizes
 
-Whole-tree sizes for the four trees of the brief. Newick gzip is `zlib` level 9 (same as `gzip -9` apart from the header); "Parquet total" is nodes + tips + overview + spine + manifest at 64k rows per group (row-group size changes the total by under 0.5 percent, tables below); `labels.parquet` is not included in the total (it is optional, see section 11). Metadata columns are synthetic (heavy-tailed `occurrence_count`, Zipf `country`).
+Whole-tree sizes for the four trees of the brief. Newick gzip is `zlib` level 9 (same as `gzip -9` apart from the header); "Parquet total" is nodes + tips + tipmeta + overview (all levels) + spine + open + manifest of the final layout (16,384 rows per group); `labels.parquet` is not included in the total (it is optional, see section 11). The detailed matrices after the first table come from the size sweep (`convert/sizes.py`), which wrote labels, node ids and metadata into a single `tips.parquet` (the split into `tips` + `tipmeta` came later and changes the sum by under 1 percent). Metadata columns are synthetic (heavy-tailed `occurrence_count`, Zipf `country`).
 
 {{SIZES}}
 
@@ -87,11 +87,16 @@ How to read these tables: (1) **The Parquet layout is about twice the size of th
 
 {{CLADES}}
 
-hyparquet reads whole column chunks of every row group a range touches, so the cost of a small clade is set by the row-group size, not by the clade. Variants of the 1M-tip Yule tree (first measurement pass, overview budget v1 and 64k rows for all rows except the row-group variants; granularity comparison on the 4G profile; "main" is the 64k tree of the first pass):
+hyparquet reads whole column chunks of every row group a range touches, so the cost of a small clade is set by the row-group size, not by the clade. Variants of the 1M-tip Yule tree on the 4G profile (decode column: cache-hot, unthrottled). Rows without "second pass" come from the first measurement pass (overview budget counting nodes, one `tips.parquet`; the node table, which sets the clade bytes, was built the same way); the three "second pass" rows were measured on the final layout:
 
 {{VARIANTS}}
 
-Reading the table: **16k rows per group cuts the cost of a 1k-tip clade from 777 KB to 196 KB and from 859 ms to 336 ms on 4G, for a 0.5 percent larger file**; 256k rows is much worse for small clades. A page index (64 KB pages, `useOffsetIndex`) reduces bytes further (325 KB for the 1k-tip clade) but adds round trips (6 to 7 requests instead of 2), so it is slower on 4G than 16k row groups and is not worth it. Smaller than 16k rows was not measured (footer size grows with the number of groups: 26 KB at 64k, about 100 KB at 16k for 1M tips, **unverified** beyond that). Uncompressed files are fastest to decode (12.6 ms per 100k rows) but 2.3 times larger, which loses on every throttled profile; snappy decodes in 16.5 ms per 100k rows against 27 for zstd and is 25 percent larger; PLAIN encodings (no delta, no byte-split) are 19 percent larger than `tuned` and decode slower in JS (37 ms per 100k rows) because there is more data to decompress.
+Reading the table:
+
+- **Row-group size is the main knob.** 16k rows per group cuts the cost of a 1k-tip clade from 777 KB to 196 KB and from 856 ms to 337 ms on 4G (file 0.5 percent larger); 8k rows halves it again (98 KB, 238 ms) at the price of a 196 KB footer (99 KB at 16k, 26 KB at 64k, `results/footer-size-yule1M.txt`; without column statistics 124 KB, 63 KB, 17 KB) and a 1 percent larger file; 256k rows is much worse (3.1 MB for a 1k-tip clade). 16k is the default of the final layout; 8k is worth it only if small clades dominate.
+- **Coalescing makes row groups cheap to read in bulk**: a 100k-tip clade is 13 row groups but 2 requests (nodes in one, labels in one), 3.1 MB in 3.0 s on 4G. Without it, 13 sequential-ish round trips would add about 1 s there.
+- **A page index is not worth it.** 64 KB pages with `useOffsetIndex` read 325 KB for the 1k-tip clade (against 777 KB without) but need 6 to 7 requests instead of 2, which is slower on 4G (695 ms) than 16k row groups (337 ms) with no page index.
+- **Codec and encoding**: uncompressed files decode fastest (12.6 ms per 100k node rows) but are 2.3 times larger and 2 to 3 times slower to fetch on every throttled profile; snappy decodes in 16.5 ms against 27 for zstd and is 25 percent larger; PLAIN encodings (no delta, no byte-split) are 19 percent larger than `tuned` and slower to decode in JS (37 ms) because there is more to decompress. zstd with `tuned` encodings wins on every throttled profile.
 
 ### 6.4 Decode cost, path, focus, label lookup, memory
 
@@ -103,8 +108,6 @@ A TSV with `tip_label`, `occurrence_count` and `country_code` has to be download
 
 {{TIPSAVING}}
 
-## 8 onwards
-
 {{TREESOURCE}}
 
 ## 9. Break-even: when does overview-first beat the full download?
@@ -113,7 +116,7 @@ Medians of the two repetitions. "First view" compares the time to the first usab
 
 {{BREAKEVEN}}
 
-BREAKEVEN_TEXT
+{{BREAKEVEN_TEXT}}
 
 {{NODEW_SECTION}}
 
@@ -121,7 +124,7 @@ BREAKEVEN_TEXT
 
 ## 12. Effort to integrate and recommendation
 
-RECOMMENDATION
+{{RECOMMENDATION}}
 
 ## 13. What was not measured (all **unverified**)
 
@@ -137,4 +140,4 @@ RECOMMENDATION
 
 ## 14. Files
 
-All in [spikes/parquet-experiment/](../../spikes/parquet-experiment/): `README.md`, `results/` (raw JSON: `sizes-*.json`, `browser-main.json`, `browser-variant-*.json`, `browser-nodew.json`, `node-writer-*.json`, `layout-sizes.json`, the first-pass `browser-main-v1-64k-nodebudget.json`, `verify-*.txt`, `overview-vs-layout.txt`), `proposal/tree-source.ts`, `sample/yule1k/` (57 KB committed sample layout for tests). Generated Parquet files are not committed.
+All in [spikes/parquet-experiment/](../../spikes/parquet-experiment/): `README.md`, `results/` (raw JSON: `sizes-*.json`, `browser-main.json`, `browser-variant-*.json`, `browser-nodew.json`, `node-writer-*.json`, `layout-sizes.json`, `python-convert-times.txt`, `footer-size-yule1M.txt`, the earlier passes `browser-main-v1-64k-nodebudget.json` and `browser-main-v2a-single-tips-file.json`, `verify-*.txt`, `overview-vs-layout.txt`), `proposal/tree-source.ts`, `sample/yule1k/` (65 KB committed sample layout for tests). Generated Parquet files are not committed.
