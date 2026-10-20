@@ -271,9 +271,11 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = 8;
-  // dedupe cells are anchored at the whole-pixel part of the origin, so a sub-pixel pan moves every primitive by the same
-  // amount relative to the cell grid, i.e. leaves the cut unchanged
-  const cxs = Math.floor(cx), cys = Math.floor(cy);
+  // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
+  // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
+  // frame, so which of two close clades survives does not flicker
+  const fq = Math.pow(2, Math.floor(Math.log2(k))) / k;
+  const ou = Math.floor(((clipL + clipR) / 2 - cx) * fq), ov = Math.floor(((clipT + clipB) / 2 - cy) * fq);
   radialWindow(cx, cy, clipL - PAD, clipT - PAD, clipR + PAD, clipB + PAD);
   const W = radialWindowState;
   const rMin = W.rMin, rMax = W.rMax, all = W.all, lo = W.lo, hi = W.hi, wrap = W.wrap;
@@ -293,7 +295,7 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
         const rq = runXmax * k, rp = X[parent[runFirst]] * k;
         const sa0 = leafStart[runFirst] * da, sa1 = leafEnd[runLast] * da, mid = (sa0 + sa1) / 2, cm = Math.cos(mid), sm = Math.sin(mid);
-        if (seen.add(cell(cxs + rq * cm), cell(cys + rq * sm), cell(cxs + rp * cm), cell(cys + rp * sm) + K_RUN * 8192, Math.min(8191, Math.round((sa1 - sa0) * rq)))) {
+        if (seen.add(cell(rq * cm * fq - ou), cell(rq * sm * fq - ov), cell(rp * cm * fq - ou), cell(rp * sm * fq - ov) + K_RUN * 8192, Math.min(8191, Math.round((sa1 - sa0) * rq)))) {
           if (out.count >= budget) { overflow = true; break; }
           out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
           summaries++;
@@ -363,7 +365,7 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
       let e = 0;
       if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * da * ri));
       else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(arc));
-      emit = seen.add(cell(cxs + ri * ca), cell(cys + ri * sa), cell(cxs + rp * ca), cell(cys + rp * sa) + kind * 8192, e);
+      emit = seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) { overflow = true; break; }

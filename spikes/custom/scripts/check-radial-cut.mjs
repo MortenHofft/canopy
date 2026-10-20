@@ -17,6 +17,8 @@
 //      drawn as runs of small siblings plus its large children as their own entries, in radial and rectangular layout: a bounded
 //      number of primitives, threshold not raised, no tip covered twice, tips add up at the fit view, a click in a run reports
 //      exactly the run's tip range
+//  11. zooming in smoothly changes few entries per step: on the real OTL 91k tree, radial, a 2% zoom step changes at most 8% of
+//      the draw list (it was about 13% when the pixel-cell dedupe grid moved with the scale; about 5% is the natural change)
 //   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
 //      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
 // Exit code 1 on any failure.
@@ -339,6 +341,33 @@ if (fs.existsSync(otlFile)) {
   }
   panCheck('polytomy', poly, Lp, Np);
   void SLICE_MIN_CHILDREN;
+}
+// 11 zoom churn: the entries of the draw list that appear or disappear per 2% zoom step
+if (fs.existsSync(otlFile)) {
+  const otl2 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
+  const Lz = computeLayout(otl2, true);
+  ensureTrig(Lz);
+  const Nz = otl2.tipCount;
+  for (const b of [500, 2000]) {
+    let changed = 0, size = 0, steps = 0;
+    for (const [r, deg] of [[0.75, 200], [0.9, 20], [0.6, 120], [0.85, 300]]) {
+      const a = (deg * Math.PI) / 180, px = r * Math.cos(a), py = r * Math.sin(a);
+      let prev = null, hint = 0;
+      for (let z = 2; z <= 30; z *= 1.02) {
+        const w = W / kfit / z, h = H / kfit / z;
+        const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz);
+        const { minPx } = searchCut(false, otl2, Lz, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+        hint = minPx;
+        const cur = new Set();
+        for (let e = 0; e < list.count; e++) cur.add(list.node[e] * 8 + list.kind[e]);
+        if (prev) { let d = 0; for (const x of cur) if (!prev.has(x)) d++; for (const x of prev) if (!cur.has(x)) d++; changed += d; size += cur.size; steps++; }
+        prev = cur;
+      }
+    }
+    const frac = changed / size;
+    console.log(`zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (${(changed / steps).toFixed(1)} of ${(size / steps).toFixed(0)})`);
+    ok(frac <= 0.08, `zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (limit 8%)`);
+  }
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);
