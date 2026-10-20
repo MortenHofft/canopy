@@ -10496,6 +10496,371 @@
       }
      ],
      "loadEnd": "2.97"
+    },
+    "3g": {
+     "profile": {
+      "mbps": 1.6,
+      "latency": 400
+     },
+     "loadStart": "2.97",
+     "overview": [
+      {
+       "ms": 1714.2999999998137,
+       "manifestMs": 1207.7999999998137,
+       "overviewMs": 506.5,
+       "rows": 2048,
+       "requests": 2,
+       "bytes": 28068,
+       "typedBytes": 122880,
+       "heapDelta": 1178618,
+       "manifestBytes": 2642,
+       "serverLog": [
+        {
+         "url": "/otl1.49M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2644,
+         "fresh": true
+        },
+        {
+         "url": "/otl1.49M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=540658-566081",
+         "bytes": 25424,
+         "fresh": false
+        }
+       ],
+       "wallMs": 1721
+      },
+      {
+       "ms": 1724,
+       "manifestMs": 1209.7000000001863,
+       "overviewMs": 514.2999999998137,
+       "rows": 2048,
+       "requests": 2,
+       "bytes": 28068,
+       "typedBytes": 122880,
+       "heapDelta": 1895334,
+       "manifestBytes": 2642,
+       "serverLog": [
+        {
+         "url": "/otl1.49M/manifest.json",
+         "method": "GET",
+         "range": null,
+         "bytes": 2644,
+         "fresh": true
+        },
+        {
+         "url": "/otl1.49M/overview.parquet",
+         "method": "GET",
+         "range": "bytes=540658-566081",
+         "bytes": 25424,
+         "fresh": false
+        }
+       ],
+       "wallMs": 1733
+      }
+     ],
+     "footers": {
+      "ms": 1294.5,
+      "requests": 2,
+      "bytes": 120692
+     },
+     "levels": [
+      {
+       "level": 1,
+       "ms": 499.5,
+       "rows": 8195,
+       "typedBytes": 491700,
+       "requests": 1,
+       "bytes": 29743
+      },
+      {
+       "level": 2,
+       "ms": 1043.0999999996275,
+       "rows": 32805,
+       "typedBytes": 1968300,
+       "requests": 1,
+       "bytes": 125238
+      },
+      {
+       "level": 3,
+       "ms": 2355.7000000001863,
+       "rows": 131297,
+       "typedBytes": 7877820,
+       "requests": 1,
+       "bytes": 385673
+      }
+     ],
+     "clades": [
+      {
+       "target": 1000,
+       "node": 648624,
+       "tips": 1000,
+       "nodeRows": 1082,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 493.80000000074506,
+          "requests": 1,
+          "bytes": 19290,
+          "nodeRows": 1082,
+          "tips": 1000,
+          "typedBytes": 38952,
+          "labels": 0,
+          "heapDelta": 1132307
+         },
+         "withLabels": {
+          "ms": 1276.4000000003725,
+          "requests": 2,
+          "bytes": 173102,
+          "nodeRows": 1082,
+          "tips": 1000,
+          "typedBytes": 38952,
+          "labels": 1000,
+          "heapDelta": 2578777
+         }
+        }
+       ]
+      },
+      {
+       "target": 1000,
+       "node": 902782,
+       "tips": 999,
+       "nodeRows": 1128,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 493.79999999981374,
+          "requests": 1,
+          "bytes": 24488,
+          "nodeRows": 1128,
+          "tips": 999,
+          "typedBytes": 40608,
+          "labels": 0,
+          "heapDelta": -26815696
+         },
+         "withLabels": {
+          "ms": 1208.5,
+          "requests": 2,
+          "bytes": 170820,
+          "nodeRows": 1128,
+          "tips": 999,
+          "typedBytes": 40608,
+          "labels": 999,
+          "heapDelta": 2423991
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 66583,
+       "tips": 10018,
+       "nodeRows": 14874,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 655,
+          "requests": 1,
+          "bytes": 51917,
+          "nodeRows": 14874,
+          "tips": 10018,
+          "typedBytes": 535464,
+          "labels": 0,
+          "heapDelta": -843189
+         },
+         "withLabels": {
+          "ms": 1284.7999999998137,
+          "requests": 2,
+          "bytes": 175894,
+          "nodeRows": 14874,
+          "tips": 10018,
+          "typedBytes": 535464,
+          "labels": 10018,
+          "heapDelta": -621734
+         }
+        }
+       ]
+      },
+      {
+       "target": 10000,
+       "node": 1132450,
+       "tips": 9982,
+       "nodeRows": 10330,
+       "reps": [
+        {
+         "nodesOnly": {
+          "ms": 500.1000000005588,
+          "requests": 1,
+          "bytes": 18568,
+          "nodeRows": 10330,
+          "tips": 9982,
+          "typedBytes": 371880,
+          "labels": 0,
+          "heapDelta": -13835055
+         },
+         "withLabels": {
+          "ms": 1292.5999999996275,
+          "requests": 2,
+          "bytes": 171342,
+          "nodeRows": 10330,
+          "tips": 9982,
+          "typedBytes": 371880,
+          "labels": 9982,
+          "heapDelta": 4137750
+         }
+        }
+       ]
+      }
+     ],
+     "memory": {
+      "heapDelta": 4012896,
+      "typedBytes": 494760,
+      "labels": 9982
+     },
+     "memoryClade": {
+      "target": 10000,
+      "tips": 9982
+     },
+     "paths": [
+      {
+       "ms": 1599,
+       "depth": 35,
+       "requests": 4,
+       "bytes": 82783
+      },
+      {
+       "ms": 1151.8999999994412,
+       "depth": 24,
+       "requests": 3,
+       "bytes": 83330
+      },
+      {
+       "ms": 1187.7000000001863,
+       "depth": 55,
+       "requests": 3,
+       "bytes": 79458
+      }
+     ],
+     "labelLookup": [
+      {
+       "ms": 2088,
+       "ok": true,
+       "requests": 2,
+       "bytes": 247187
+      },
+      {
+       "ms": 2045.800000000745,
+       "ok": true,
+       "requests": 2,
+       "bytes": 247113
+      },
+      {
+       "ms": 1987.9000000003725,
+       "ok": true,
+       "requests": 2,
+       "bytes": 248394
+      }
+     ],
+     "focus": [
+      {
+       "ms": 5490.9000000003725,
+       "depth": 35,
+       "cladeTips": 1716,
+       "cladeRows": 1890,
+       "level": 3,
+       "overviewRows": 131297,
+       "requests": 6,
+       "bytes": 676660
+      },
+      {
+       "ms": 4877.200000000186,
+       "depth": 24,
+       "cladeTips": 3330,
+       "cladeRows": 4275,
+       "level": 3,
+       "overviewRows": 131297,
+       "requests": 6,
+       "bytes": 683937
+      },
+      {
+       "ms": 4928,
+       "depth": 55,
+       "cladeTips": 4066,
+       "cladeRows": 4292,
+       "level": 3,
+       "overviewRows": 131297,
+       "requests": 6,
+       "bytes": 672859
+      }
+     ],
+     "tipColumns": {
+      "occurrence_count": {
+       "ms": 901.8999999994412,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 10018,
+       "requests": 2,
+       "bytes": 31004
+      },
+      "occurrence_count+country": {
+       "ms": 491.29999999981374,
+       "columns": [
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10018,
+       "requests": 1,
+       "bytes": 18902
+      },
+      "tip_label": {
+       "ms": 1009.7999999998137,
+       "columns": [
+        "tip_label"
+       ],
+       "rows": 10018,
+       "requests": 1,
+       "bytes": 123977
+      },
+      "tip_label+occurrence_count+country": {
+       "ms": 1091.7000000001863,
+       "columns": [
+        "tip_label",
+        "occurrence_count",
+        "country"
+       ],
+       "rows": 10018,
+       "requests": 2,
+       "bytes": 142879
+      },
+      "_allTips_occ": {
+       "ms": 13504,
+       "columns": [
+        "occurrence_count"
+       ],
+       "rows": 1490245,
+       "requests": 1,
+       "bytes": 2612728
+      }
+     },
+     "baseline": [
+      {
+       "bytes": 14987041,
+       "rawChars": 53118618,
+       "fetchMs": 76141.90000000037,
+       "inflateMs": 596.0999999996275,
+       "parseBuildMs": 1105.5,
+       "totalMs": 77843.5,
+       "nodes": 1717413,
+       "tips": 1490245,
+       "typedBytes": 109005760,
+       "heapAfter": 139188658,
+       "heapDelta": 137747078
+      }
+     ],
+     "loadEnd": "0.62"
     }
    }
   }

@@ -102,13 +102,13 @@ def tables_other(pattern="browser-main*.json"):
         if not P or "decode" not in P: continue
         x = P["decode"]; print(f"| {t} | {x['nodesAll']['msPer100k']:.1f} | {x['nodesTwoCols']['msPer100k']:.1f} | {x['tipsLabels']['msPer100k']:.1f} | {x['tipsOcc']['msPer100k']:.1f} |")
     print("\n#### First usable overview: pieces (ms, median of the repetitions)\n")
-    print("| Tree | Profile | manifest | overview tail | total | requests | bytes | overview typed arrays KB |\n|---|---|---|---|---|---|---|---|")
+    print("| Tree | Profile | manifest | overview tail | total | requests | bytes | overview typed arrays KB | afterwards: footers of nodes + tips (2 parallel requests) |\n|---|---|---|---|---|---|---|---|---|")
     for t in TORDER:
         for p in PORDER:
             P = d.get(t, {}).get("profiles", {}).get(p)
             if not P: continue
             o = P["overview"]
-            print(f"| {t} | {p} | {_med([x['manifestMs'] for x in o]):.0f} | {_med([x['overviewMs'] for x in o]):.0f} | {_med([x['ms'] for x in o]):.0f} | {o[0]['requests']} | {o[0]['bytes']:,} | {o[0]['typedBytes'] / 1024:.0f} |")
+            print(f"| {t} | {p} | {_med([x['manifestMs'] for x in o]):.0f} | {_med([x['overviewMs'] for x in o]):.0f} | {_med([x['ms'] for x in o]):.0f} | {o[0]['requests']} | {o[0]['bytes']:,} | {o[0]['typedBytes'] / 1024:.0f} | {P['footers']['ms']:.0f} ms, {P['footers']['bytes'] / 1024:.0f} KB |")
     print("\n#### Clade fetch: nodes only / nodes + labels (median of repetitions and of the two clades; ms, requests, KB)\n")
     print("| Tree | Profile | target tips | nodes rows | nodes only | nodes + labels |\n|---|---|---|---|---|---|")
     for t in TORDER:

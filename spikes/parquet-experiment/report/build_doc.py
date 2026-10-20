@@ -41,11 +41,11 @@ def nodew_table():
 
 def layout_sizes():
     ls = json.load(open(os.path.join(RES, "layout-sizes.json")))
-    out = ["| Tree | Newick gzip | manifest.json | overview.parquet (all levels) | overview level rows | overview tail (level 0 + footer) | nodes.parquet (footer, row groups) | tips.parquet | spine | labels.parquet |", "|---|---|---|---|---|---|---|---|---|---|"]
+    out = ["| Tree | Newick gzip | manifest.json | overview.parquet (all levels) | overview level rows | overview tail (level 0 + footer) | nodes.parquet (footer, row groups) | tips.parquet (node, label) | tipmeta.parquet | spine + open.json | labels.parquet |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for t in mt.TORDER:
         a = ls.get(t)
         if not a: continue
-        out.append(f"| {t} | {a['newick_gz'] / 1e6:.2f} MB | {a['manifest'] / 1024:.1f} KB | {a['files']['overview'] / 1e6:.2f} MB | {'+'.join(map(str, a['overview_level_rows']))} | {a['overview_tail_bytes'] / 1024:.0f} KB | {a['files']['nodes'] / 1e6:.2f} MB ({a['footers']['nodes'] / 1024:.0f} KB, {a['row_groups']['nodes']}) | {a['files']['tips'] / 1e6:.2f} MB | {a['files']['spine'] / 1024:.0f} KB | {a['files']['labels'] / 1e6:.2f} MB |")
+        out.append(f"| {t} | {a['newick_gz'] / 1e6:.2f} MB | {a['manifest'] / 1024:.1f} KB | {a['files']['overview'] / 1e6:.2f} MB | {'+'.join(map(str, a['overview_level_rows']))} | {a['overview_tail_bytes'] / 1024:.0f} KB | {a['files']['nodes'] / 1e6:.2f} MB ({a['footers']['nodes'] / 1024:.0f} KB, {a['row_groups']['nodes']}) | {a['files']['tips'] / 1e6:.2f} MB | {a['files']['tipmeta'] / 1e6:.2f} MB | {(a['files']['spine'] + a['files'].get('open', 0)) / 1024:.0f} KB | {a['files']['labels'] / 1e6:.2f} MB |")
     return "\n".join(out)
 
 _other_cache = {}
@@ -86,7 +86,6 @@ tokens = {
     "OTHER": lambda: other_except(["First usable overview", "Clade fetch", "Per-tip columns"]),
     "SIZES": lambda: cap(mt.sizes),
     "BREAKEVEN": lambda: cap(mt.breakeven),
-    "OTHER": lambda: cap(mt.tables_other),
     "VARIANTS": lambda: cap(mt.variants),
     "NODEW_TABLE": nodew_table,
     "LAYOUT_SIZES": layout_sizes,
