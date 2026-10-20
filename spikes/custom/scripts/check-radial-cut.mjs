@@ -19,6 +19,8 @@
 //      exactly the run's tip range
 //  11. zooming in smoothly changes few entries per step: on the real OTL 91k tree, radial, a 2% zoom step changes at most 8% of
 //      the draw list (it was about 13% when the pixel-cell dedupe grid moved with the scale; about 5% is the natural change)
+//  12. the collapse threshold is stable while zooming in: along a smooth 3% zoom path on the real OTL 91k tree (radial, budgets
+//      500 and 2,000) it rises at most once (the old bisecting search made it rise 11 times in 111 steps at budget 500)
 //   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
 //      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
 // Exit code 1 on any failure.
@@ -367,6 +369,27 @@ if (fs.existsSync(otlFile)) {
     const frac = changed / size;
     console.log(`zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (${(changed / steps).toFixed(1)} of ${(size / steps).toFixed(0)})`);
     ok(frac <= 0.08, `zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (limit 8%)`);
+  }
+}
+// 12 threshold stability along a zoom path
+if (fs.existsSync(otlFile)) {
+  const otl3 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
+  const L3 = computeLayout(otl3, true);
+  ensureTrig(L3);
+  const N3 = otl3.tipCount;
+  for (const b of [500, 2000]) {
+    const a = (200 * Math.PI) / 180, px = 0.75 * Math.cos(a), py = 0.75 * Math.sin(a);
+    let hint = 0, prevM = 0, rises = 0, steps = 0, maxM = 0;
+    for (let z = 1.5; z <= 40; z *= 1.03) {
+      const w = W / kfit / z, h = H / kfit / z;
+      const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3);
+      const { minPx } = searchCut(false, otl3, L3, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+      hint = minPx;
+      if (prevM && minPx > prevM * 1.001) rises++;
+      prevM = minPx; maxM = Math.max(maxM, minPx); steps++;
+    }
+    console.log(`threshold along a zoom path, OTL 91k radial, budget ${b}: ${steps} steps, rises ${rises}, max ${maxM.toFixed(2)} px`);
+    ok(rises <= 1, `threshold along a zoom path, OTL 91k radial, budget ${b}: the threshold rose ${rises} times while zooming in (limit 1)`);
   }
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');

@@ -382,6 +382,9 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   return res;
 }
 
+const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
+const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
+
 export interface SearchOpts {
   lod: boolean;
   base: number; // collapse threshold without budget pressure (px)
@@ -402,27 +405,26 @@ export function searchCut(rect: boolean, tree: TreeSnapshot, L: Layout, T: Trans
     const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
     return rect ? cutRect(tree, L, T, P, classOf, list, seen) : cutRadial(tree, L, T, P, classOf, list, seen);
   };
-  let m = o.hint > base ? Math.max(base, o.hint / 1.3) : base;
+  // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
+  // when the next level down also fits with room to spare. The number of primitives is not monotone in the threshold (the
+  // pixel-cell dedupe), so a search for "the smallest threshold that fits" jumped between frames at nearly the same zoom.
+  const lvl = (n: number): number => base * Math.pow(LEVEL_STEP, n);
+  let n = o.hint > base ? Math.round(Math.log(o.hint / base) / Math.log(LEVEL_STEP)) : 0;
+  let m = lvl(n);
   let res = run(m);
   let passes = 1;
-  if (o.lod && (res.overflow || m > base) && res.visited < 80000) {
-    let hi = res.overflow ? -1 : m; // smallest threshold known to fit
-    let lo = res.overflow ? m : -1; // largest threshold known to overflow
-    while (passes < 40 && (hi < 0 || lo < 0) && !(hi >= 0 && hi <= base)) {
-      m = hi >= 0 ? Math.max(base, hi / 1.3) : lo * 1.3;
-      const r = run(m);
-      passes++;
-      if (r.overflow) lo = m;
-      else { hi = m; res = r; }
+  if (o.lod && res.visited < 80000) {
+    if (res.overflow) {
+      while (res.overflow && passes < 60) { n++; m = lvl(n); res = run(m); passes++; }
+    } else {
+      while (n > 0 && passes < 60) {
+        const r = run(lvl(n - 1));
+        passes++;
+        if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
+        n--; m = lvl(n); res = r;
+      }
+      if (lastM !== m) { res = run(m); passes++; }
     }
-    for (let k = 0; k < 3 && lo > 0 && hi > 0 && hi / lo > 1.04; k++) {
-      m = Math.sqrt(lo * hi);
-      const r = run(m);
-      passes++;
-      if (r.overflow) lo = m;
-      else { hi = m; res = r; }
-    }
-    if (hi > 0) { if (lastM !== hi) res = run(hi); m = hi; passes++; }
   } else if (res.overflow && o.lod) {
     // very expensive walks (caterpillar-like): no search, just double until it fits
     while (res.overflow && passes < 24) { m *= 2; res = run(m); passes++; }
