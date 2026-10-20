@@ -11,6 +11,7 @@ spikes/
     types.ts             the interfaces below
     newick.ts            iterative, quote-aware Newick parser (no recursion) -> TreeModel
     tree.ts              TreeModel: typed arrays, preorder ids, subtree ranges, descendant tips, depth, cumulative length
+    ops.ts               user-applied operations returning a new TreeModel: reroot, midpoint root, ladderise, rotate, collapse, prune, subtree
     data.ts              fetch + load trees and metadata from /data/... (served by the Vite plugin in vite.base.mjs)
     trees.json           catalogue of test trees (id, path under data/, expected tips, group, hasLengths)
     metrics.ts           timing marks, rAF frame sampler, heap reading
