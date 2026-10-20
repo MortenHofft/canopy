@@ -156,10 +156,48 @@ class UiStore {
   }
 }
 
-/** ?tree=<id>&layout=&bl=0|1&cols=0|1&dark=0|1 (embed=1 is preserved) so a configuration can be linked to. */
+// Library options survive a refresh: they are written to the URL as f.<id>=<value> (only when different from the
+// default) and to localStorage per candidate; the URL wins on load, then localStorage, then the default. Automated runs
+// (navigator.webdriver) and ?embed=1 never read or write localStorage, so measurements stay comparable; ?defaults=1
+// ignores the stored values for that load.
+let featureDefaults: FeatureValues = {};
+let featureStoreKey: string | null = null;
+
+function parseFeature(f: AdapterFeature, raw: unknown): boolean | string | undefined {
+  if (f.kind === 'toggle') return raw === true || raw === 'true' || raw === '1' ? true : raw === false || raw === 'false' || raw === '0' ? false : undefined;
+  const v = String(raw);
+  return (f.options ?? []).some((o) => o.value === v) ? v : undefined;
+}
+
+function storeAllowed(q: URLSearchParams): boolean {
+  return !navigator.webdriver && q.get('embed') !== '1';
+}
+
+function readFeatures(adapter: CandidateAdapter, q: URLSearchParams): FeatureValues {
+  const features: FeatureValues = {};
+  let stored: Record<string, unknown> = {};
+  if (storeAllowed(q) && q.get('defaults') !== '1') {
+    try { stored = JSON.parse(localStorage.getItem(featureStoreKey ?? '') ?? '{}') ?? {}; } catch { stored = {}; }
+  }
+  for (const f of adapter.features ?? []) {
+    const fromUrl = q.has('f.' + f.id) ? parseFeature(f, q.get('f.' + f.id)) : undefined;
+    const fromStore = f.id in stored ? parseFeature(f, stored[f.id]) : undefined;
+    features[f.id] = fromUrl ?? fromStore ?? f.default;
+  }
+  return features;
+}
+
+/** ?tree=<id>&layout=&bl=0|1&cols=0|1&dark=0|1&f.<option>=<value> (embed=1 is preserved) so a configuration can be linked to. */
 function syncUrl(u: Ui) {
   try {
     const q = new URLSearchParams(window.location.search);
+    for (const [id, v] of Object.entries(u.features)) {
+      if (v === featureDefaults[id]) q.delete('f.' + id);
+      else q.set('f.' + id, String(v));
+    }
+    if (featureStoreKey && storeAllowed(q)) {
+      try { localStorage.setItem(featureStoreKey, JSON.stringify(u.features)); } catch { /* storage blocked */ }
+    }
     if (u.treeId && u.phase !== 'idle') q.set('tree', u.treeId);
     q.set('layout', u.layout);
     q.set('bl', u.bl ? '1' : '0');
@@ -1116,8 +1154,10 @@ export function mountShell(adapter: CandidateAdapter, rootEl: HTMLElement = docu
   const metrics = installMetrics();
   const q = new URLSearchParams(window.location.search);
   const qTree = q.get('tree');
-  const features: FeatureValues = {};
-  for (const f of adapter.features ?? []) features[f.id] = f.default;
+  featureDefaults = {};
+  for (const f of adapter.features ?? []) featureDefaults[f.id] = f.default;
+  featureStoreKey = `gbif-phylo:features:${adapter.candidate.name}`;
+  const features = readFeatures(adapter, q);
   const ui = new UiStore({
     treeId: qTree && catalogue.some((t) => t.id === qTree) ? qTree : 'syn-yule-1000',
     shape: 'all',
