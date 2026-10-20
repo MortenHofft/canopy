@@ -96,3 +96,7 @@ Companion generation (200 and 1,000 tip files) is under 0.1 s each. The whole 1M
 * Synthetic trees do not have real polytomy placement, real taxonomy (the genera are invented and a genus does not correspond to a clade in non-Yule shapes) or real branch-length distributions. Use them for scale and shape stress, not for visual realism.
 * The birth-death tree stops at the first moment n lineages are extant and then adds one waiting time, a simple approximation to conditioning on n extant tips.
 * Mixed and caterpillar shapes are our construction, not an estimate of how real GBIF trees look. The 200,000-tip caterpillar named in the research notes is not a fixed rung; `--sizes 200000 --shapes caterpillar` makes it (about 1 s) and 100,000 / 1,000,000 bracket it.
+
+## Polytomy demo (hand-made, not part of the generator's grid)
+
+`newick/polytomy_demo_17000.nwk.gz` (49 KB, CC0, deterministic) is written by `make_polytomy.py` (`python3 -I make_polytomy.py`): two balanced 2,000-tip clades plus a star of 10,000 tips with equal child lengths and a star of 3,000 tips with varied child lengths (0.2 to 2.2). It exercises very wide nodes in the level-of-detail cut (issue 13). In the custom demo it is `?tree=syn-polytomy-17000&layout=radial`: zoom in on a star until its tips are a few pixels apart and it turns into one slice. It is not in `manifest.json`.
