@@ -166,6 +166,12 @@ if (fs.existsSync(path.join(resDir, 'FINAL.json'))) {
 }
 
 console.log(`\nSite built in ${path.relative(root, outDir)}: ${candidates.length} candidates${failed.length ? `, FAILED: ${failed.join(', ')}` : ''}.`);
+if (failed.length && !args.includes('--lenient')) {
+  // A comparison site with a silently missing demo is misleading, so a failed candidate fails the whole build
+  // (use --lenient to publish the rest anyway).
+  console.error(`Build failed for: ${failed.join(', ')}. Refusing to publish a partial site (pass --lenient to override).`);
+  process.exit(1);
+}
 if (!fs.existsSync(path.join(outDir, 'index.html'))) {
   console.error('No hub page was produced; refusing to publish an empty site.');
   process.exit(1);

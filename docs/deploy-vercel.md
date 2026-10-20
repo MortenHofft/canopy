@@ -38,6 +38,12 @@ npx --yes serve site-dist            # or any static server; serve supports the 
 
 `vercel dev` is not needed.
 
+## Branch previews, failed builds and the Node version
+
+- **Failed candidate builds now fail the deployment** instead of silently dropping that demo (`--lenient` publishes the rest). A red preview therefore means a demo does not build on that commit.
+- **Work-in-progress branches.** Vercel builds every pushed branch as a preview. The research branch is committed to often and can be broken between commits. To build only `main`, set Project Settings, Git, **Ignored Build Step** to: `[ "$VERCEL_GIT_COMMIT_REF" = "main" ] && exit 1 || exit 0` (exit 0 skips the build, exit 1 builds).
+- **Node version.** `package.json` has `"engines": {"node": "22.x"}`, which overrides the Project Settings value; the build log warns about it when the setting says 24.x. The spikes were built and tested with Node 22 only. Either set the project's Node.js version to 22.x to silence the warning, or relax `engines` to `>=22` once you have tried a build on 24.
+
 ## Why every app is built with an absolute base path
 
 `vercel.json` sets `trailingSlash: false`, so `/custom/` is redirected to `/custom`. A page built with a relative base (`./assets/...`) then loads its scripts from `/assets/...` at the site root, which does not exist, and shows a blank white page. `scripts/build-site.mjs` therefore builds each demo with `--base=/<name>/` and the hub with `--base=/`. If you add a candidate, no change is needed; just do not hard-code a relative base in its Vite config command.
