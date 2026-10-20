@@ -116,6 +116,10 @@ ok = tp.metadata.num_row_groups == nrg.num_row_groups and all(
     tp.metadata.row_group(g).num_rows == man["rg_tip_start"][g + 1] - man["rg_tip_start"][g] for g in range(nrg.num_row_groups)) and all(
     pref[man["rg_node_start"][g]] == man["rg_tip_start"][g] for g in range(nrg.num_row_groups))
 check("tips row groups aligned with node row groups", ok)
+lp = os.path.join(A.dir, "labels.parquet")
+if os.path.exists(lp):
+    lt = pq.read_table(lp); ll = lt.column("label").to_pylist(); lr = lt.column("rank").to_numpy()
+    check("labels.parquet sorted by label and rank maps back to the tip label", ll == sorted(ll) and all(a["tip_label"][r] == l for l, r in zip(ll, lr)) and sorted(lr.tolist()) == list(range(man["tips"])))
 # 3. overview
 ov = pq.ParquetFile(os.path.join(A.dir, "overview.parquet"))
 levels = ov.metadata.num_row_groups

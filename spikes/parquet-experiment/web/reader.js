@@ -235,27 +235,69 @@ export class ParquetTreeSource {
   async getTips(r0, r1, columns = ['tip_label']) {
     return this._read('tips', columns, r0, r1);
   }
-  /** Ancestors of `node` (root first, node last) with their rollups: reads the node's row group (parent column only)
-   *  plus the spine file (ancestors that lie before the row group). One extra request for the spine, cached. */
+  /** Ancestors of `node` (root first, node last) with their rollups: reads the node's row group (parent, subtree_end, tip_count only)
+   *  plus the spine file (ancestors that lie before the row group). The spine is one extra request, cached for the session.
+   *  Returns { node, subtree_end, tip_count } arrays along the path. */
   async getPath(node) {
     const man = this.man, b = man.rg_node_start;
     let g = 0;
     while (b[g + 1] <= node) g++;
     const lo = b[g], hi = b[g + 1];
-    const cols = await this._read('nodes', ['parent', 'subtree_end'], lo, hi);
-    const chain = [];
+    const cols = await this._read('nodes', ['parent', 'subtree_end', 'tip_count'], lo, hi);
+    const inGroup = [];
     let i = node;
-    while (i >= lo) { chain.push(i); if (i === 0) break; i = cols.parent[i - lo]; }
-    // ancestors before the group, from the spine
+    while (i >= lo) { inGroup.push(i); if (i === 0) break; i = cols.parent[i - lo]; }
+    const out = { node: [], subtree_end: [], tip_count: [] };
     if (lo > 0 && man.rg_open[g].length) {
       if (!this._spine) this._spine = this._read('spine', undefined, 0, man.spine_nodes.length);
       const sp = await this._spine;
       const idx = new Map(man.spine_nodes.map((n, k) => [n, k]));
-      for (const a of man.rg_open[g].slice().reverse()) {
-        // an open ancestor is on the path iff it contains `node` (preorder range)
-        if (sp.subtree_end[idx.get(a)] > node) chain.push(a);
+      for (const a of man.rg_open[g]) { // root first; an open ancestor is on the path iff its range contains `node`
+        const k = idx.get(a);
+        if (sp.subtree_end[k] > node) { out.node.push(a); out.subtree_end.push(sp.subtree_end[k]); out.tip_count.push(sp.tip_count[k]); }
       }
     }
-    return chain.reverse();
+    for (let k = inGroup.length - 1; k >= 0; k--) { const j = inGroup[k]; out.node.push(j); out.subtree_end.push(cols.subtree_end[j - lo]); out.tip_count.push(cols.tip_count[j - lo]); }
+    return out;
+  }
+
+  /** Tip rank of a label via labels.parquet (tip labels sorted by label, 16k rows per row group, with min/max statistics):
+   *  footer (1 request) + the one row group whose [min, max] contains the label (1 request). -1 when absent. */
+  async tipRankOf(label) {
+    const md = await this._meta('labels');
+    let start = 0, hit = -1, rows = 0;
+    for (let g = 0; g < md.row_groups.length; g++) {
+      const rg = md.row_groups[g], st = rg.columns[0].meta_data.statistics;
+      const mn = st?.min_value ?? st?.min, mx = st?.max_value ?? st?.max;
+      rows = Number(rg.num_rows);
+      if (mn !== undefined && label >= mn && label <= mx) { hit = g; break; }
+      start += rows;
+    }
+    if (hit < 0) return -1;
+    const cols = await this._read('labels', undefined, start, start + rows);
+    let lo = 0, hi = rows - 1;
+    while (lo <= hi) {
+      const m = (lo + hi) >> 1, v = cols.label[m];
+      if (v === label) return cols.rank[m];
+      if (v < label) lo = m + 1; else hi = m - 1;
+    }
+    return -1;
+  }
+
+  /** "Focus a tip" (occurrence page): everything needed to draw the tip in context without loading the tree.
+   *  1. path root -> tip (<= 3 requests); 2. the smallest ancestor A with >= minTips tips: its whole clade (one range read);
+   *  3. the first overview level whose expanded clades are all >= ... i.e. complete for every ancestor above A. Returns what was loaded. */
+  async focusTip(node, minTips = 1000) {
+    const p = await this.getPath(node);
+    const lmAll = this.man.overview.level_min_tips || [];
+    if (lmAll.length) minTips = Math.max(minTips, lmAll[lmAll.length - 1]); // the deepest overview level must cover every ancestor above A
+    let k = p.node.length - 1;
+    while (k > 0 && p.tip_count[k] < minTips) k--;
+    const A = { node: p.node[k], end: p.subtree_end[k], tips: p.tip_count[k] };
+    const lm = this.man.overview.level_min_tips || [];
+    let level = 0;
+    while (level < lm.length - 1 && lm[level] > A.tips) level++;
+    const [clade, ov] = await Promise.all([this.getRange(A.node, A.end), this.getOverview(level)]);
+    return { path: p, clade: A, level, cladeRows: A.end - A.node, overviewRows: ov.node.length };
   }
 }

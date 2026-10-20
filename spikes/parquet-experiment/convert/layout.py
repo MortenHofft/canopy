@@ -159,6 +159,19 @@ def write_all(a, outdir, cfg, only=None):
         rg_tip_start = None
     if only == "nodes+tips":
         return sizes, None
+    # ---------------- label index: tip labels sorted by label with their tip rank (label -> rank in 1 footer + 1 row group)
+    labs = a["tip_label"]
+    order = np.array(sorted(range(len(labs)), key=labs.__getitem__), dtype=np.int64)  # code point order == UTF-8 byte order
+    li = required(pa.table({"label": pa.array(labs[order].tolist(), pa.string()), "rank": pa.array(order.astype(np.int32), pa.int32())}))
+    lo = writer_opts(cfg, set(li.column_names))
+    lo["use_dictionary"] = False
+    lo.pop("column_encoding", None)
+    path = os.path.join(outdir, "labels.parquet")
+    wr = pq.ParquetWriter(path, li.schema, **lo)
+    for s_ in range(0, len(order), 16384):
+        wr.write_table(li.slice(s_, 16384), row_group_size=16384)
+    wr.close()
+    sizes["labels"] = os.path.getsize(path)
     # ---------------- overview
     sel, rows = select_overview(a)
     ov_cfg = dict(cfg, rollups=True, f64=cfg["f64"])
@@ -206,9 +219,11 @@ def write_all(a, outdir, cfg, only=None):
         "rg_node_start": rg_node_start + [n], "rg_tip_start": rg_tip_start,
         "overview": {"budgets": budgets_for(int((a["subtree_end"] != np.arange(1, n + 1)).sum())), "level_rows": lvl_rows},
         "rg_open": open_ids, "spine_nodes": [int(x) for x in uniq],
-        "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet"},
+        "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet", "labels": "labels.parquet"},
         "notes": "len is raw (NaN when missing); cum_len/max_cum clamp negative or missing lengths to 0; occ_sum is SYNTHETIC test metadata",
     }
+    tcn = a["tip_count"]
+    manifest["overview"]["level_min_tips"] = [int(tcn[np.flatnonzero(sel == L)].min()) if (sel == L).any() else 0 for L in range(len(lvl_rows))]  # smallest clade expanded at each level
     manifest["overview"]["tail_start"] = int(ov_tail_start)   # [tail_start, EOF) = level 0 rows + footer
     manifest["overview"]["file_order"] = "deepest level first, level 0 last"
     fi = {}

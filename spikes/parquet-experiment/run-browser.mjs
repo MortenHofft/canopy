@@ -54,7 +54,7 @@ try {
       const popts = A['offset-index'] === 'yes' ? { useOffsetIndex: true } : {};
       // ---- A. overview first (fresh page each rep)
       P.overview = [];
-      for (let k = 0; k < reps; k++) {
+      for (let k = 0; k < (pname === '3g' ? 2 : reps); k++) {
         const { ctx, page } = await newPage();
         await sreset();
         const t0 = Date.now();
@@ -62,7 +62,7 @@ try {
         r.serverLog = (await slog()).map((x) => ({ url: x.url, range: x.range, bytes: x.bytes, fresh: x.fresh }));
         r.wallMs = Date.now() - t0;
         P.overview.push(r);
-        if (k < reps - 1) await ctx.close(); else P._page = { ctx, page };
+        if (k < (pname === '3g' ? 2 : reps) - 1) await ctx.close(); else P._page = { ctx, page };
       }
       const { ctx, page } = P._page; delete P._page;
       // ---- footers, deeper levels
@@ -74,17 +74,25 @@ try {
       // ---- B. clades
       P.clades = [];
       for (const c of clades.clades) {
+        if (pname === '3g' && c.target > 10000) continue; // 100k-tip clades cost minutes on slow 3G; extrapolate from bytes
         const rr = [];
-        for (let k = 0; k < reps; k++) {
+        for (let k = 0; k < (pname === '3g' ? 1 : reps); k++) {
           const a = await page.evaluate(([n, e, ls, t]) => PQ.M.fetchClade(n, e, ls, t, false, undefined), [c.node, c.end, c.leaf_start, c.tips]);
           const b = await page.evaluate(([n, e, ls, t]) => PQ.M.fetchClade(n, e, ls, t, true, undefined), [c.node, c.end, c.leaf_start, c.tips]);
           rr.push({ nodesOnly: a, withLabels: b });
         }
         P.clades.push({ target: c.target, node: c.node, tips: c.tips, nodeRows: c.nodes, reps: rr });
       }
+      const big = clades.clades.filter((c) => c.target <= (pname === '3g' ? 10000 : 100000)).at(-1);
+      P.memory = await page.evaluate((c) => PQ.M.memoryHeld(c), big ?? null);
+      P.memoryClade = big ? { target: big.target, tips: big.tips } : null;
       // ---- path to a tip
       P.paths = [];
-      for (const tn of clades.tip_nodes.slice(0, 3)) P.paths.push(await page.evaluate((n) => PQ.M.path(n).then((r) => ({ ms: r.ms, depth: r.depth, requests: r.requests, bytes: r.bytes })), tn));
+      for (const tn of clades.tip_nodes.slice(0, 3)) P.paths.push(await page.evaluate((n) => PQ.M.path(n), tn));
+      P.labelLookup = [];
+      for (const r of clades.tip_ranks.slice(0, 3)) P.labelLookup.push(await page.evaluate((rk) => PQ.M.tipRank(rk), r));
+      P.focus = [];
+      for (const tn of clades.tip_nodes.slice(0, 3)) P.focus.push(await page.evaluate((n) => PQ.M.focusTip(n, 1000), tn));
       // ---- tip metadata columns: visible tips of the 10k clade (or 1k)
       const c10 = clades.clades.find((c) => c.target === 10000) ?? clades.clades[0];
       if (c10) {

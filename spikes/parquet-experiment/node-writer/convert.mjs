@@ -147,6 +147,14 @@ export async function convert(treeFile, outDir, opts) {
   const sidx = Int32Array.from(uniq);
   const scd = colsFor(a, sidx, o, true); scd.unshift({ name: 'node', data: sidx, type: 'INT32', nullable: false });
   const spBuf = writeFile(path.join(outDir, 'spine.parquet'), [scd], opts.codec);
+  // label index: labels sorted by label with their rank, 16k rows per row group
+  const ord = Array.from({ length: tree.tipCount }, (_, r) => r).sort((x, y) => (tree.tipLabels[x] < tree.tipLabels[y] ? -1 : tree.tipLabels[x] > tree.tipLabels[y] ? 1 : 0));
+  const labGroups = [];
+  for (let s0 = 0; s0 < ord.length; s0 += 16384) {
+    const part = ord.slice(s0, s0 + 16384);
+    labGroups.push([{ name: 'label', data: part.map((r) => tree.tipLabels[r]), type: 'STRING', nullable: false }, { name: 'rank', data: Int32Array.from(part), type: 'INT32', nullable: false }]);
+  }
+  const labBuf = writeFile(path.join(outDir, 'labels.parquet'), labGroups, opts.codec);
   T.write_ms = performance.now() - t0;
   const meta2 = (buf) => parquetMetadata(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
   const info = (buf, file) => { const m = meta2(buf); return { file, bytes: buf.byteLength, footer: new DataView(buf.buffer, buf.byteOffset + buf.byteLength - 8, 4).getUint32(0, true) + 8, row_groups: m.row_groups.length }; };
@@ -156,14 +164,14 @@ export async function convert(treeFile, outDir, opts) {
   const manifest = {
     version: 1, nodes: n, tips: tree.tipCount, has_lengths: a.hasLen, has_support: false, has_names: false, max_depth: a.maxDepth[0], max_cum: a.maxCum[0], root_occ_sum: Number(a.occSum[0]),
     float: 'f32', codec: opts.codec, rg_rows: rg, rg_node_start: starts, rg_tip_start: tipStart,
-    overview: { budgets, level_rows: levelRows, tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
+    overview: { budgets, level_rows: levelRows, level_min_tips: budgets.map((_, L) => { let m = Infinity; for (let i = 0; i < n; i++) if (sel[i] === L && a.tipCount[i] < m) m = a.tipCount[i]; return m === Infinity ? 0 : m; }), tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
     rg_open: openIds, spine_nodes: uniq,
-    files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet') },
+    files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet'), labels: info(labBuf, 'labels.parquet') },
     notes: 'written by hyparquet-writer (node-writer/convert.mjs)',
   };
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest));
   T.total_ms = T.parse_ms + T.arrays_ms + T.write_ms;
-  return { timings: T, sizes: { nodes: nodesBuf.byteLength, tips: tipsBuf.byteLength, overview: ovBuf.byteLength, spine: spBuf.byteLength, manifest: JSON.stringify(manifest).length } };
+  return { timings: T, sizes: { nodes: nodesBuf.byteLength, tips: tipsBuf.byteLength, overview: ovBuf.byteLength, spine: spBuf.byteLength, labels: labBuf.byteLength, manifest: JSON.stringify(manifest).length } };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

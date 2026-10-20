@@ -1,0 +1,55 @@
+# Parquet over HTTP range requests for large trees (experiment)
+
+Question: can a tree of up to millions of tips be stored as Parquet and read in the browser with HTTP range requests, so that a viewer
+loads a small overview first and fetches clades on demand? Results, tables and the recommendation are in
+[../../docs/results/parquet-experiment.md](../../docs/results/parquet-experiment.md). This folder holds everything needed to reproduce
+every number. Nothing here is product code; `spikes/custom`, `spikes/shared` and `spikes/runner` are used read-only.
+
+## Layout of the files this experiment writes (v1)
+
+| File | Content |
+|---|---|
+| `nodes.parquet` | one row per node in preorder (row index = node id): `parent`, `subtree_end`, `leaf_start`, `tip_count`, `len`, `cum_len`, `max_cum`, `depth`, `max_depth`, `occ_sum` (+ `support`, `name` when present). Row groups of N rows. All columns REQUIRED (no nulls) so that hyparquet returns typed arrays |
+| `tips.parquet` | one row per tip in rank order: `node`, `tip_label`, `occurrence_count`, `country`. Row group g holds exactly the tips of node row group g |
+| `overview.parquet` | pyramid: one row group per level, deepest level first and **level 0 last** (level 0 + footer = one contiguous tail). Rows carry `node`, all rollups, `row` (layout y) and `sel_level` |
+| `spine.parquet` | the ancestors of the first node of every node row group (root-to-tip paths in one node row group + this file) |
+| `manifest.json` | counts, file sizes and footer sizes, node/tip row-group boundaries as preorder ranges, overview levels, `rg_open` (ancestor ids per row group) |
+
+## Reproduce
+
+Needs Python 3 with numpy + pyarrow (scratch venv), Node 22 (zstd in `node:zlib` for the Node writer), the Chromium in `/opt/pw-browsers`.
+
+```
+SCR=/some/scratch                                # all generated data lives here, nothing generated is committed
+python3 -m venv $SCR/venv && $SCR/venv/bin/pip install pyarrow numpy
+npm install --ignore-scripts                     # exact pins in package.json (hyparquet 1.31.5, hyparquet-compressors 1.1.2, hyparquet-writer 0.17.0, esbuild)
+./build.sh                                       # bundles web/reader.js + harness into web/dist/ (ignored)
+
+# inputs: synthetic Yule trees and the OTL 1.49M tree are generated / fetched into $SCR (see ../../data/README.md)
+python3 -I ../../data/synthetic/generate.py --out $SCR/syn --sizes 100000,1000000 --shapes yule
+#   OTL: curl the file named in ../../data/real-ladder/fetch.sh into $SCR/otl/cache/opentree16.1/, then
+#   CACHE=$SCR/otl/cache OUT=$SCR/otl/out python3 -I ../../data/real-ladder/scripts/ladder.py $SCR/otl/cache $SCR/otl/out otl-1m-metazoa
+
+SCR=$SCR ./convert/prepare_all.sh                # six trees (+ codec / row-group / page variants of the 1M tree) into $SCR/serve
+$SCR/venv/bin/python -I convert/verify.py TREE.nwk $SCR/serve/NAME --cache $SCR/cache    # ground-truth check of every rollup
+SCR=$SCR ./run-sizes.sh                          # size matrices -> results/sizes-*.json
+SERVE=$SCR/serve nice -n 19 node run-browser.mjs --trees yule100k --profiles none,wifi,4g,3g --out results/browser-yule100k.json
+python3 -I report/make_tables.py sizes           # markdown tables
+```
+
+Tests: `node test/selftest.mjs` (reader against the Range server, uses the committed 57 KB sample in `sample/yule1k`),
+`python3 -I test/verify_mutation.py` (tampers with a rollup and checks that `verify.py` fails), `convert/verify.py` on every converted tree.
+
+Node writer (no Python): `node node-writer/convert.mjs TREE.nwk OUT --meta SERVE/NAME/tips.parquet` (after `./build.sh`).
+
+## Files
+
+- `convert/` Python reference converter (`treearrays.py` parse + rollups, `layout.py` Parquet layout, `convert.py` CLI, `verify.py`, `sizes.py`, `pick_clades.py`, `prepare_all.sh`).
+- `node-writer/` the same layout written with hyparquet-writer.
+- `web/reader.js` the reader (`ParquetTreeSource`, `RangeFile`); `web/measure.js`, `web/baseline.ts`, `web/harness.html` the in-page measurement code.
+- `server.mjs` static server with Range, added latency per request, shared bandwidth bucket, request log; `run-browser.mjs` the Playwright harness.
+- `proposal/tree-source.ts` the type-checked `TreeSource` proposal (also pasted in the results document).
+- `results/` raw JSON of every run (`sizes-*.json`, `browser-*.json`, `node-writer-*.json`) and `verify-*.txt`.
+
+Network model (server.mjs): every response waits `latency` ms before the first byte; every new TCP connection costs `2 x latency` once; all
+response bytes (plus 400 B of header) share one token bucket of `mbps`. Not modelled: slow start, loss, HTTP/2 multiplexing, CDN misses.

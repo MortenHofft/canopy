@@ -37,12 +37,17 @@ try {
   const par = full0.parent, se = full0.subtree_end;
   let allPath = true;
   for (const t of [n - 1, Math.floor(n / 2), Math.floor(n * 0.77), 5]) {
-    const p = await src.getPath(t);
+    const pp = await src.getPath(t); const p = pp.node;
     const chain = []; for (let i = t; ; i = par[i]) { chain.push(i); if (i === 0) break; }
     chain.reverse();
     if (JSON.stringify(p) !== JSON.stringify(chain)) allPath = false;
   }
   ok('getPath equals parent chain (4 nodes)', allPath);
+  const ft = await src.focusTip(n - 5, 50);
+  ok('focusTip returns a path ending at the tip, a clade >= 50 tips and a covering overview level', ft.path.node.at(-1) === n - 5 && ft.clade.tips >= 50 && ft.level >= 0, JSON.stringify({ depth: ft.path.node.length, clade: ft.clade, level: ft.level }));
+  const tl = await src.getTips(0, src.man.tips, ['tip_label']);
+  let rk = true; for (const r of [0, 17, Math.floor(src.man.tips / 2), src.man.tips - 1]) rk = rk && (await src.tipRankOf(tl.tip_label[r])) === r;
+  ok('tipRankOf(label) returns the rank (4 tips) and -1 for an absent label', rk && (await src.tipRankOf('zzz_absent_label')) === -1);
   // overview deeper level
   const ov1 = await src.getOverview(1);
   ok('overview level 1 includes level 0 rows', ov1.node.length >= ov.node.length && ov1.node[0] === ov.node[0]);

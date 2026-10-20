@@ -71,7 +71,25 @@ export async function path(node) {
   const src = window.__src; dropData(src);
   const a = snap(src.stats); const t0 = performance.now();
   const p = await src.getPath(node);
-  return { ms: performance.now() - t0, depth: p.length, ...diff(a, snap(src.stats)), path: p };
+  return { ms: performance.now() - t0, depth: p.node.length, ...diff(a, snap(src.stats)) };
+}
+
+/** label -> rank lookup (cold): footer + one row group of labels.parquet. */
+export async function tipRank(rank) {
+  const src = window.__src;
+  const label = (await src.getTips(rank, rank + 1, ['tip_label'])).tip_label[0];
+  dropData(src); src.meta.labels = null;
+  const a = snap(src.stats); const t0 = performance.now();
+  const r = await src.tipRankOf(label);
+  return { ms: performance.now() - t0, ok: r === rank, ...diff(a, snap(src.stats)) };
+}
+
+/** Occurrence-page case: focus a tip = path + smallest ancestor clade with >= minTips tips + the overview level that covers its ancestors. */
+export async function focusTip(node, minTips) {
+  const src = window.__src; dropData(src);
+  const a = snap(src.stats); const t0 = performance.now();
+  const r = await src.focusTip(node, minTips);
+  return { ms: performance.now() - t0, depth: r.path.node.length, cladeTips: r.clade.tips, cladeRows: r.cladeRows, level: r.level, overviewRows: r.overviewRows, ...diff(a, snap(src.stats)) };
 }
 
 /** Tip metadata: occurrence_count for tip ranks [r0, r1) vs all of the row groups, to show column selection. */
@@ -92,3 +110,19 @@ export async function fullParquet() {
 }
 
 export function heapNow() { return heap(); }
+
+/** JS heap and typed-array bytes held after loading overview level 0 (+ optionally one clade with labels), after a forced GC. */
+export async function memoryHeld(cl) {
+  const src = window.__src; dropData(src);
+  gc(); const h0 = heap();
+  const ov = await src.getOverview(0);
+  window.__held = { ov };
+  if (cl) {
+    const [nd, tp] = await Promise.all([src.getRange(cl.node, cl.end), src.getTips(cl.leaf_start, cl.leaf_start + cl.tips, ['tip_label'])]);
+    window.__held.nd = nd; window.__held.tp = tp;
+  }
+  dropData(src);           // transport cache gone; what remains is what a viewer would keep
+  gc(); const h1 = heap();
+  const typed = typedBytes(ov) + (window.__held.nd ? typedBytes(window.__held.nd) : 0);
+  return { heapDelta: h1 - h0, typedBytes: typed, labels: window.__held.tp ? window.__held.tp.tip_label.length : 0 };
+}
