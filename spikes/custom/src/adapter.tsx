@@ -49,7 +49,9 @@ function CustomView(props: ViewProps) {
   );
 
   const evt = (e: TreeNodeEvent, hover: boolean) => {
-    const type = e.isTip ? (hover ? 'tipHover' : 'tipClick') : hover ? 'nodeHover' : e.kind === 'branch' ? 'branchClick' : 'nodeClick';
+    // a run of small siblings is not a clade: the shell colours and links by nodeId (the whole parent), so a click on a run is
+    // reported as a hover (exact tipIds, no selection or colouring) until the shell can act on a tip range (issue 13)
+    const type = e.isTip ? (hover ? 'tipHover' : 'tipClick') : hover || e.run ? 'nodeHover' : e.kind === 'branch' ? 'branchClick' : 'nodeClick';
     emit({
       type,
       nodeId: e.nodeId,
@@ -58,7 +60,7 @@ function CustomView(props: ViewProps) {
       // the descendant set is the leaf-contiguous range of the shared TreeModel (preorder layout), O(1) to find and
       // a slice to materialise; reported as adapter-derived because the data model is ours, not a library payload
       source: 'adapter-derived',
-      libraryPayload: { kind: e.kind, via: e.via, tipRange: e.tipRange, tipCount: e.tipCount },
+      libraryPayload: { kind: e.kind, via: e.via, tipRange: e.tipRange, tipCount: e.tipCount, run: e.run },
     });
   };
 

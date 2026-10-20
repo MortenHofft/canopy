@@ -154,8 +154,9 @@ export const DEFAULT_OPTIONS: RendererOptions = {
 
 export type HitKind = 'tip' | 'node' | 'summary' | 'branch';
 export interface Hit {
-  node: number;
+  node: number; // a run: the parent of its members
   kind: HitKind;
+  run?: { first: number; last: number }; // a run of small siblings drawn as one slice: first and last member (node indices)
 }
 
 export interface NodeEvent {
@@ -168,6 +169,9 @@ export interface NodeEvent {
   clientX: number;
   clientY: number;
   via: 'pointer' | 'keyboard';
+  /** Set for a run of small siblings drawn as one slice (kind 'summary'): `node` is then their parent, but the tip range is only
+   *  the run's, [tipStart, tipEnd), and these are what it holds: clades (with two or more tips) and single tips. */
+  run?: { clades: number; single: number };
 }
 
 export interface RendererCallbacks {

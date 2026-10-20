@@ -94,6 +94,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     for (let e = 0; e < list.count; e++) {
       if (nCls > 1 && list.cls[e] !== cls) continue;
       any = true;
+      if (list.last[e] >= 0) continue; // a run has no branch of its own (its members' branches lie inside the slice)
       const i = list.node[e];
       const kind = list.kind[e];
       const sx = T.ox + X[i] * T.kx;
@@ -116,11 +117,12 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       any = true;
       const i = list.node[e];
-      const sx = T.ox + X[i] * T.kx, sy = T.oy + ROW[i] * T.ky;
-      let y0 = T.oy + leafStart[i] * T.ky, y1 = T.oy + leafEnd[i] * T.ky;
+      const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
+      const sx = T.ox + X[lm >= 0 ? parent[i] : i] * T.kx, sy = T.oy + ROW[i] * T.ky;
+      let y0 = T.oy + leafStart[i] * T.ky, y1 = T.oy + leafEnd[lm >= 0 ? lm : i] * T.ky;
       if (y1 - y0 < 1.5) { const m = (y0 + y1) / 2; y0 = m - 0.75; y1 = m + 0.75; }
-      const xm = Math.max(sx + 2, T.ox + XMAX[i] * T.kx);
-      if (isSlice(tree, i)) { ctx.rect(sx, y0, xm - sx, y1 - y0); continue; } // polytomy of tips: a band, not a triangle
+      const xm = Math.max(sx + 2, T.ox + (lm >= 0 ? list.xmax[e] : XMAX[i]) * T.kx);
+      if (lm >= 0 || isSlice(tree, i)) { ctx.rect(sx, y0, xm - sx, y1 - y0); continue; } // polytomy of tips: a band, not a triangle
       ctx.moveTo(sx, sy);
       ctx.lineTo(xm, y0);
       ctx.lineTo(xm, y1);
@@ -154,6 +156,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
     let segs = 0;
     for (let e = 0; e < list.count; e++) {
       if (nCls > 1 && list.cls[e] !== cls) continue;
+      if (list.last[e] >= 0) continue; // run: no branch of its own
       const i = list.node[e];
       const ca = COS[i], sa = SIN[i];
       const r = X[i] * k;
@@ -197,11 +200,12 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
     for (let e = 0; e < list.count; e++) {
       if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       const i = list.node[e];
-      let a0 = leafStart[i] * da, a1 = leafEnd[i] * da;
-      const r0 = X[i] * k;
-      const r1 = Math.max(r0 + 2, XMAX[i] * k);
+      const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
+      let a0 = leafStart[i] * da, a1 = leafEnd[lm >= 0 ? lm : i] * da;
+      const r0 = X[lm >= 0 ? parent[i] : i] * k;
+      const r1 = Math.max(r0 + 2, (lm >= 0 ? list.xmax[e] : XMAX[i]) * k);
       if ((a1 - a0) * r1 < 1.5) { const m = (a0 + a1) / 2, h = 0.75 / r1; a0 = m - h; a1 = m + h; } // keep slivers visible
-      if (isSlice(tree, i)) {
+      if (lm >= 0 || isSlice(tree, i)) {
         // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
         const len0 = (a1 - a0) * r1;
         ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));

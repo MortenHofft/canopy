@@ -80,6 +80,7 @@ export class TreeRenderer {
   private labels = new LabelList();
   private hoverNode = -1;
   private hoverKind: Hit['kind'] | '' = '';
+  private hoverRun = -1; // first member of the hovered run of small siblings, -1 for none (hoverNode is then their parent)
   private activeNode = -1;
   private focusWithin = false;
   private anim: Anim | null = null;
@@ -863,7 +864,7 @@ export class TreeRenderer {
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const S = { T: this.T, L: this.L } as Scene;
-    if (this.hoverNode >= 0 && this.hoverNode !== this.activeNode) drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
+    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode) drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
     if (this.activeNode >= 0 && (this.focusWithin || this.activeNode >= 0)) {
       drawRing(c, S, this.activeNode, 10, this.theme.highlight, 2.5);
       const p = { x: 0, y: 0 };
@@ -998,8 +999,14 @@ export class TreeRenderer {
     return -1;
   }
 
-  private mkEvent(node: number, kind: Hit['kind'], via: 'pointer' | 'keyboard', cx: number, cy: number): NodeEvent {
+  private mkEvent(node: number, kind: Hit['kind'], via: 'pointer' | 'keyboard', cx: number, cy: number, run?: Hit['run']): NodeEvent {
     const t = this.tree;
+    if (run) {
+      // a run of small siblings: reported under its parent, with only ITS tips (the members are adjacent, so one range)
+      let clades = 0, single = 0;
+      for (let j = run.first; j <= run.last; j = t.subtreeEnd[j]) if (t.childCount[j] === 0) single++; else clades++;
+      return { node: t.globalId === null ? node : t.globalId[node], isTip: false, tipId: null, kind, tipStart: t.leafStart[run.first], tipEnd: t.leafEnd[run.last], clientX: cx, clientY: cy, via, run: { clades, single } };
+    }
     const isTip = t.childCount[node] === 0;
     return { node: t.globalId === null ? node : t.globalId[node], isTip, tipId: isTip ? t.labels[node] ?? null : null, kind, tipStart: t.leafStart[node], tipEnd: t.leafEnd[node], clientX: cx, clientY: cy, via };
   }
@@ -1013,12 +1020,14 @@ export class TreeRenderer {
     const h = this.queryHit(p.x, p.y);
     const node = h ? h.node : -1;
     const r = this.root.getBoundingClientRect();
-    if (node === this.hoverNode && (h?.kind ?? '') === this.hoverKind) return;
+    const run = h?.run ? h.run.first : -1;
+    if (node === this.hoverNode && (h?.kind ?? '') === this.hoverKind && run === this.hoverRun) return;
     this.hoverNode = node;
+    this.hoverRun = run;
     this.hoverKind = h ? h.kind : '';
     this.root.style.cursor = h ? 'pointer' : 'grab';
     this.topDirty = true;
-    this.cb.onHover?.(h ? this.mkEvent(h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y) : null);
+    this.cb.onHover?.(h ? this.mkEvent(h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y, h.run) : null);
   }
 
   // ================================================================= events
@@ -1166,7 +1175,7 @@ export class TreeRenderer {
           this.activeNode = -1;
           this.topDirty = true;
           this.schedule();
-          this.cb.onClick?.(this.mkEvent(h.node, h.kind, 'pointer', e.clientX, e.clientY));
+          this.cb.onClick?.(this.mkEvent(h.node, h.kind, 'pointer', e.clientX, e.clientY, h.run));
         }
       }
     }
