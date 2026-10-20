@@ -1,4 +1,7 @@
 import './hub.css';
+import { showBuildInfo } from '../../shared/build-info.ts';
+
+void showBuildInfo(document.getElementById('build-info'));
 
 const REPO = 'https://github.com/MortenHofft/gbif-phylo';
 const blob = (p: string) => `${REPO}/blob/main/${p}`;

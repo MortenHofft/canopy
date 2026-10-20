@@ -1,4 +1,7 @@
 import './compare.css';
+import { showBuildInfo } from '../../shared/build-info.ts';
+
+void showBuildInfo(document.getElementById('build-info'));
 import { catalogue, loadTree, loadColumns } from '../../shared/data.ts';
 import { parseNewick } from '../../shared/newick.ts';
 import type { TreeModel } from '../../shared/tree.ts';

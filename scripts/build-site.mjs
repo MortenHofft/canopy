@@ -15,7 +15,7 @@
 // Used by Vercel (see vercel.json) and runnable locally. Candidates are built independently so their
 // dependency trees never clash; a candidate that fails to build is skipped and reported, not fatal.
 
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -166,6 +166,20 @@ if (fs.existsSync(path.join(resDir, 'FINAL.json'))) {
   console.log(`   results: ${Object.keys(out.candidates).length} candidates from FINAL.json`);
 }
 
+// which build this is (shown in the footers): Vercel's git variables when deployed, git itself otherwise
+{
+  const git = (args) => { try { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim(); } catch { return ''; } };
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA || git(['rev-parse', 'HEAD']) || 'unknown';
+  const info = {
+    sha,
+    ref: process.env.VERCEL_GIT_COMMIT_REF || git(['rev-parse', '--abbrev-ref', 'HEAD']),
+    env: process.env.VERCEL_ENV || (process.env.VERCEL ? 'vercel' : 'local build'),
+    builtAt: new Date().toISOString(),
+    dirty: !process.env.VERCEL_GIT_COMMIT_SHA && git(['status', '--porcelain', '--untracked-files=no']) !== '',
+  };
+  fs.writeFileSync(path.join(outDir, 'version.json'), JSON.stringify(info));
+  console.log(`\nBuild info: ${info.sha.slice(0, 7)} on ${info.ref} (${info.env})`);
+}
 console.log(`\nSite built in ${path.relative(root, outDir)}: ${candidates.length} candidates${failed.length ? `, FAILED: ${failed.join(', ')}` : ''}.`);
 if (failed.length && !args.includes('--lenient')) {
   // A comparison site with a silently missing demo is misleading, so a failed candidate fails the whole build
