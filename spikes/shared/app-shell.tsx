@@ -19,6 +19,7 @@ import { parseNewick } from './newick.ts';
 import type { TreeModel } from './tree.ts';
 import { catalogue, getEntry, loadColumns, loadTree, DATA_BASE } from './data.ts';
 import { gbifTheme } from './gbif-theme.ts';
+import { showBuildInfo } from './build-info.ts';
 import type { LoadedColumns } from './data.ts';
 import { installMetrics, nextPaint, readHeap } from './metrics.ts';
 import type { SpikeMetricsApi } from './metrics.ts';
@@ -1000,6 +1001,7 @@ function Shell({ shared, c0, c1, embed }: { shared: Shared; c0: InstanceControll
       <footer className="app-footer">
         <div className="app-footer-inner">
           <p className="app-footer-lead">A prototype. Under development. Frame rates measured here are without a GPU.</p>
+          <p id="build-info" className="build-info" ref={(el) => { if (el && !el.dataset.filled) { el.dataset.filled = '1'; void showBuildInfo(el); } }}>Build: …</p>
           <p>
             Test trees come from the repository's data folder and carry their own licences. Data mediated by GBIF must be cited:{' '}
             <a href="https://www.gbif.org/citation-guidelines">GBIF citation guidelines</a>.
