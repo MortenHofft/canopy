@@ -3,10 +3,11 @@
   "tips": 189801,
   "nodes": 379601,
   "newick_gz": 2407485,
-  "manifest": 1322,
+  "manifest": 1404,
   "files": {
    "nodes": 5472632,
-   "tips": 1348392,
+   "tips": 1003493,
+   "tipmeta": 345506,
    "overview": 733277,
    "spine": 18622,
    "labels": 1056856,
@@ -14,7 +15,8 @@
   },
   "footers": {
    "nodes": 25506,
-   "tips": 9368,
+   "tips": 5097,
+   "tipmeta": 4874,
    "overview": 4674,
    "spine": 2314,
    "labels": 2719
@@ -22,6 +24,7 @@
   "row_groups": {
    "nodes": 24,
    "tips": 24,
+   "tipmeta": 24,
    "overview": 3,
    "spine": 1,
    "labels": 12
@@ -42,10 +45,11 @@
   "tips": 1490245,
   "nodes": 1717413,
   "newick_gz": 14987041,
-  "manifest": 2559,
+  "manifest": 2644,
   "files": {
    "nodes": 7601059,
-   "tips": 18329173,
+   "tips": 15688760,
+   "tipmeta": 2642557,
    "overview": 566082,
    "spine": 22782,
    "labels": 20762175,
@@ -53,7 +57,8 @@
   },
   "footers": {
    "nodes": 95464,
-   "tips": 43675,
+   "tips": 25228,
+   "tipmeta": 20587,
    "overview": 5260,
    "spine": 2135,
    "labels": 20945
@@ -61,6 +66,7 @@
   "row_groups": {
    "nodes": 105,
    "tips": 105,
+   "tipmeta": 105,
    "overview": 4,
    "spine": 1,
    "labels": 91
@@ -83,10 +89,11 @@
   "tips": 90938,
   "nodes": 138646,
   "newick_gz": 1203023,
-  "manifest": 1079,
+  "manifest": 1160,
   "files": {
    "nodes": 1098278,
-   "tips": 1235647,
+   "tips": 1072237,
+   "tipmeta": 163767,
    "overview": 56648,
    "spine": 6094,
    "labels": 1305214,
@@ -94,7 +101,8 @@
   },
   "footers": {
    "nodes": 9196,
-   "tips": 4273,
+   "tips": 2535,
+   "tipmeta": 2091,
    "overview": 3269,
    "spine": 2126,
    "labels": 1734
@@ -102,6 +110,7 @@
   "row_groups": {
    "nodes": 9,
    "tips": 9,
+   "tipmeta": 9,
    "overview": 2,
    "spine": 1,
    "labels": 6
@@ -120,10 +129,11 @@
   "tips": 100000,
   "nodes": 199999,
   "newick_gz": 1462440,
-  "manifest": 1140,
+  "manifest": 1222,
   "files": {
    "nodes": 2104524,
-   "tips": 808096,
+   "tips": 625932,
+   "tipmeta": 182599,
    "overview": 179209,
    "spine": 8566,
    "labels": 831975,
@@ -131,7 +141,8 @@
   },
   "footers": {
    "nodes": 11399,
-   "tips": 5331,
+   "tips": 2952,
+   "tipmeta": 2810,
    "overview": 3331,
    "spine": 2153,
    "labels": 1768
@@ -139,6 +150,7 @@
   "row_groups": {
    "nodes": 13,
    "tips": 13,
+   "tipmeta": 13,
    "overview": 2,
    "spine": 1,
    "labels": 7
@@ -157,10 +169,11 @@
   "tips": 10000,
   "nodes": 19999,
   "newick_gz": 149065,
-  "manifest": 977,
+  "manifest": 1055,
   "files": {
    "nodes": 213149,
-   "tips": 82333,
+   "tips": 63364,
+   "tipmeta": 19199,
    "overview": 41056,
    "spine": 3310,
    "labels": 81778,
@@ -168,7 +181,8 @@
   },
   "footers": {
    "nodes": 2646,
-   "tips": 1295,
+   "tips": 767,
+   "tipmeta": 754,
    "overview": 2325,
    "spine": 2136,
    "labels": 567
@@ -176,6 +190,7 @@
   "row_groups": {
    "nodes": 2,
    "tips": 2,
+   "tipmeta": 2,
    "overview": 1,
    "spine": 1,
    "labels": 1
@@ -192,10 +207,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 2801,
+  "manifest": 2886,
   "files": {
    "nodes": 21054594,
-   "tips": 8056363,
+   "tips": 6241649,
+   "tipmeta": 1817063,
    "overview": 2706680,
    "spine": 52569,
    "labels": 8604187,
@@ -203,7 +219,8 @@
   },
   "footers": {
    "nodes": 99397,
-   "tips": 46519,
+   "tips": 25307,
+   "tipmeta": 23557,
    "overview": 5441,
    "spine": 2169,
    "labels": 12983
@@ -211,6 +228,7 @@
   "row_groups": {
    "nodes": 123,
    "tips": 123,
+   "tipmeta": 123,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -233,10 +251,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1481,
+  "manifest": 1563,
   "files": {
    "nodes": 49017116,
-   "tips": 29702916,
+   "tips": 24641807,
+   "tipmeta": 5061903,
    "overview": 5714373,
    "spine": 27618,
    "labels": 28223849,
@@ -244,7 +263,8 @@
   },
   "footers": {
    "nodes": 26124,
-   "tips": 12316,
+   "tips": 6728,
+   "tipmeta": 6378,
    "overview": 5453,
    "spine": 2160,
    "labels": 13000
@@ -252,6 +272,7 @@
   "row_groups": {
    "nodes": 31,
    "tips": 31,
+   "tipmeta": 31,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -274,10 +295,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1479,
+  "manifest": 1561,
   "files": {
    "nodes": 21010221,
-   "tips": 8060290,
+   "tips": 6323773,
+   "tipmeta": 1737185,
    "overview": 2727350,
    "spine": 18566,
    "labels": 8790999,
@@ -285,7 +307,8 @@
   },
   "footers": {
    "nodes": 30458,
-   "tips": 14099,
+   "tips": 7646,
+   "tipmeta": 7198,
    "overview": 6197,
    "spine": 2303,
    "labels": 14841
@@ -293,6 +316,7 @@
   "row_groups": {
    "nodes": 31,
    "tips": 31,
+   "tipmeta": 31,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -315,10 +339,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1480,
+  "manifest": 1561,
   "files": {
    "nodes": 24965824,
-   "tips": 10231158,
+   "tips": 8497465,
+   "tipmeta": 1734414,
    "overview": 3511009,
    "spine": 20244,
    "labels": 8604187,
@@ -326,7 +351,8 @@
   },
   "footers": {
    "nodes": 26061,
-   "tips": 12337,
+   "tips": 6724,
+   "tipmeta": 6330,
    "overview": 5455,
    "spine": 2160,
    "labels": 12983
@@ -334,6 +360,7 @@
   "row_groups": {
    "nodes": 31,
    "tips": 31,
+   "tipmeta": 31,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -356,10 +383,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1146,
+  "manifest": 1228,
   "files": {
    "nodes": 20982284,
-   "tips": 7796668,
+   "tips": 6084117,
+   "tipmeta": 1712889,
    "overview": 2706680,
    "spine": 7560,
    "labels": 8604187,
@@ -367,7 +395,8 @@
   },
   "footers": {
    "nodes": 7571,
-   "tips": 3615,
+   "tips": 2028,
+   "tipmeta": 1921,
    "overview": 5441,
    "spine": 2152,
    "labels": 12983
@@ -375,6 +404,7 @@
   "row_groups": {
    "nodes": 8,
    "tips": 8,
+   "tipmeta": 8,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -397,10 +427,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1479,
+  "manifest": 1561,
   "files": {
    "nodes": 21010698,
-   "tips": 7829196,
+   "tips": 6095534,
+   "tipmeta": 1734414,
    "overview": 2706680,
    "spine": 18350,
    "labels": 8604187,
@@ -408,7 +439,8 @@
   },
   "footers": {
    "nodes": 26057,
-   "tips": 12298,
+   "tips": 6716,
+   "tipmeta": 6330,
    "overview": 5441,
    "spine": 2159,
    "labels": 12983
@@ -416,6 +448,7 @@
   "row_groups": {
    "nodes": 31,
    "tips": 31,
+   "tipmeta": 31,
    "overview": 4,
    "spine": 1,
    "labels": 62
@@ -479,10 +512,11 @@
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 1483,
+  "manifest": 1564,
   "files": {
    "nodes": 26121637,
-   "tips": 12128310,
+   "tips": 9490413,
+   "tipmeta": 2638667,
    "overview": 3350218,
    "spine": 21235,
    "labels": 12030079,
@@ -490,7 +524,8 @@
   },
   "footers": {
    "nodes": 26088,
-   "tips": 12310,
+   "tips": 6722,
+   "tipmeta": 6354,
    "overview": 5446,
    "spine": 2160,
    "labels": 12989
@@ -498,6 +533,7 @@
   "row_groups": {
    "nodes": 31,
    "tips": 31,
+   "tipmeta": 31,
    "overview": 4,
    "spine": 1,
    "labels": 62
