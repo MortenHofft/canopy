@@ -90,7 +90,29 @@ function CustomView(props: ViewProps) {
     };
   });
 
-  return (
+  // Frame-time readout (feature 'frameReadout'): JS = cut + draw of the last frame; paint = from the start of that
+  // frame to just after the browser has painted it (rAF + 0 ms timeout), which includes raster and compositing;
+  // fps = rate over the last second while frames are being drawn. Written straight to the DOM, no React render.
+  const readoutRef = useRef<HTMLDivElement>(null);
+  const meter = useRef({ times: [] as number[], paint: 0, js: 0, drawn: 0, last: 0 });
+  const onFrame = (st: { frameMs: number; drawn: number }) => {
+    const m = meter.current;
+    const end = performance.now();
+    m.js = st.frameMs; m.drawn = st.drawn;
+    const start = end - st.frameMs;
+    m.times.push(end);
+    while (m.times.length && end - m.times[0] > 1000) m.times.shift();
+    requestAnimationFrame(() => setTimeout(() => {
+      m.paint = performance.now() - start;
+      const el = readoutRef.current;
+      if (!el) return;
+      const active = performance.now() - m.times[m.times.length - 1] < 1000;
+      const fps = m.times.length > 1 ? ((m.times.length - 1) * 1000) / (m.times[m.times.length - 1] - m.times[0]) : 0;
+      el.textContent = `JS ${m.js.toFixed(1)} ms · paint ${m.paint.toFixed(0)} ms${active && fps ? ` · ${fps.toFixed(0)} fps` : ''} · ${m.drawn.toLocaleString()} drawn`;
+    }, 0));
+  };
+
+  const view = (
     <TreeView
       ref={ref}
       tree={tree}
@@ -109,6 +131,7 @@ function CustomView(props: ViewProps) {
       onTipClick={(e) => evt(e, false)}
       onNodeClick={(e) => evt(e, false)}
       onHover={(e) => e && evt(e, true)}
+      onFrame={features.frameReadout === false ? undefined : onFrame}
       onReady={({ layoutMs }) =>
         props.onReady({
           parseMs: 0,
@@ -117,6 +140,13 @@ function CustomView(props: ViewProps) {
         })
       }
     />
+  );
+  if (features.frameReadout === false) return view;
+  return (
+    <div style={{ position: 'relative', width: size.width, height: size.height }}>
+      {view}
+      <div ref={readoutRef} aria-hidden="true" style={{ position: 'absolute', right: 8, bottom: 8, zIndex: 6, padding: '2px 8px', borderRadius: 6, font: '11px/1.5 ui-monospace, monospace', background: 'rgba(15,23,42,.72)', color: '#fff', pointerEvents: 'none' }}>frame time: move or zoom</div>
+    </div>
   );
 }
 
@@ -159,6 +189,7 @@ const CPU_DEFAULT: boolean = (() => {
 
 const features: AdapterFeature[] = [
   { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
+  { id: 'frameReadout', label: 'Frame-time readout', kind: 'toggle', default: true, description: 'JS time per frame, time until painted (includes raster) and fps while interacting. Useful for reporting numbers from your own device.' },
   { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '500', label: '500 primitives' }, { value: '1000', label: '1,000 primitives' }, { value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
   { id: 'summaries', label: 'Show collapsed clades as triangles', kind: 'toggle', default: true },
   { id: 'overview', label: 'Show overview strip', kind: 'toggle', default: true },

@@ -111,7 +111,25 @@ export async function fullParquet() {
 
 export function heapNow() { return heap(); }
 
-/** JS heap and typed-array bytes held after loading overview level 0 (+ optionally one clade with labels), after a forced GC. */
+/** What a viewer keeps after loading overview level 0 (+ one clade with labels): JS heap after a forced GC, in a FRESH page, and the
+ *  typed-array bytes (typed arrays are mostly outside the JS heap, so both are reported). The transport cache is dropped first. */
+export async function memoryFresh(base, cl, opts = {}) {
+  gc(); const h0 = heap();
+  const src = await ParquetTreeSource.open(base, opts);
+  const ov = await src.getOverview(0);
+  const held = { ov };
+  if (cl) {
+    const [nd, tp] = await Promise.all([src.getRange(cl.node, cl.end), src.getTips(cl.leaf_start, cl.leaf_start + cl.tips, ['tip_label'])]);
+    held.nd = nd; held.tp = tp;
+  }
+  for (const f of Object.values(src.files)) { f.blocks = []; f.whole = null; }
+  window.__held = held;
+  gc(); const h1 = heap();
+  const typed = typedBytes(ov) + (held.nd ? typedBytes(held.nd) : 0);
+  return { heapDelta: h1 - h0, typedBytes: typed, labels: held.tp ? held.tp.tip_label.length : 0 };
+}
+
+/** (older, noisier variant kept for the first measurement pass) */
 export async function memoryHeld(cl) {
   const src = window.__src; dropData(src);
   gc(); const h0 = heap();
@@ -121,8 +139,7 @@ export async function memoryHeld(cl) {
     const [nd, tp] = await Promise.all([src.getRange(cl.node, cl.end), src.getTips(cl.leaf_start, cl.leaf_start + cl.tips, ['tip_label'])]);
     window.__held.nd = nd; window.__held.tp = tp;
   }
-  dropData(src);           // transport cache gone; what remains is what a viewer would keep
+  dropData(src);
   gc(); const h1 = heap();
-  const typed = typedBytes(ov) + (window.__held.nd ? typedBytes(window.__held.nd) : 0);
-  return { heapDelta: h1 - h0, typedBytes: typed, labels: window.__held.tp ? window.__held.tp.tip_label.length : 0 };
+  return { heapDelta: h1 - h0, typedBytes: typedBytes(ov) + (window.__held.nd ? typedBytes(window.__held.nd) : 0), labels: window.__held.tp ? window.__held.tp.tip_label.length : 0 };
 }

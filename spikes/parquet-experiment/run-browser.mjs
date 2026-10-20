@@ -59,7 +59,7 @@ try {
         await sreset();
         const t0 = Date.now();
         const r = await page.evaluate(([b, o]) => PQ.M.overviewFirst(b, o), [base, popts]);
-        r.serverLog = (await slog()).map((x) => ({ url: x.url, range: x.range, bytes: x.bytes, fresh: x.fresh }));
+        r.serverLog = (await slog()).map((x) => ({ url: x.url, method: x.method ?? "GET", range: x.range, bytes: x.bytes, fresh: x.fresh }));
         r.wallMs = Date.now() - t0;
         P.overview.push(r);
         if (k < (pname === '3g' ? 2 : reps) - 1) await ctx.close(); else P._page = { ctx, page };
@@ -84,7 +84,7 @@ try {
         P.clades.push({ target: c.target, node: c.node, tips: c.tips, nodeRows: c.nodes, reps: rr });
       }
       const big = clades.clades.filter((c) => c.target <= (pname === '3g' ? 10000 : 100000)).at(-1);
-      P.memory = await page.evaluate((c) => PQ.M.memoryHeld(c), big ?? null);
+      { const { ctx: c3, page: p3 } = await newPage(); P.memory = await p3.evaluate(([b, c, o]) => PQ.M.memoryFresh(b, c, o), [base, big ?? null, popts]); await c3.close(); }
       P.memoryClade = big ? { target: big.target, tips: big.tips } : null;
       // ---- path to a tip
       P.paths = [];

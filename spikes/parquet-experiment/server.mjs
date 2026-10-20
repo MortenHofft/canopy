@@ -60,7 +60,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Expose-Headers', 'content-range, content-length, etag');
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+  if (req.method === 'OPTIONS') { log.push({ url: u.pathname, method: 'OPTIONS', range: req.headers['access-control-request-headers'] ?? null, status: 204, bytes: 0 }); res.writeHead(204); return res.end(); }  // a logged OPTIONS = the browser sent a CORS preflight
   if (u.pathname === '/__cfg') {
     if (u.searchParams.has('latency')) cfg.latency = +u.searchParams.get('latency');
     if (u.searchParams.has('mbps')) cfg.mbps = +u.searchParams.get('mbps');

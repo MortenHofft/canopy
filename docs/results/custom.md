@@ -178,3 +178,7 @@ Notes for gbif.org: node ids are `n<preorder index>` (stable for one parsed tree
 ## Caveats
 
 No GPU: the runner uses `--disable-gpu-rasterization`, so Canvas2D is CPU-rasterised (the adapter also turns on `willReadFrequently`, see above); absolute frame rates are pessimistic and the machine was loaded by five other agents' Chromiums (load average 10 to 17 on 4 cores). Numbers marked M were measured in this one environment on 2026-10-14; none were taken on a real laptop with a GPU. The JS-time-per-frame numbers do not include raster and compositing.
+
+## Target hardware (open)
+
+Developer laptops are well above the typical gbif.org visitor's device, especially outside the global north. Budget for a device several times slower: test with Chrome DevTools CPU throttling (4x and 6x) and a mid-range phone, and report numbers from the demo's frame-time readout (JS ms, paint ms, fps; feature `frameReadout`). Still **unmeasured**: no real low-end device has been tried. The draw budget (500 to 400,000 primitives) and the radial max are the knobs to tune for it; a default chosen from measured low-end numbers would be better than the current 20,000.

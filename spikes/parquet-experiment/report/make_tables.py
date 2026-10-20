@@ -68,8 +68,8 @@ def s(ms): return f"{ms / 1000:.2f}"
 def kb(b): return f"{b / 1024:,.0f}"
 def breakeven(pattern="browser-main*.json"):
     d = loadb(pattern)
-    print("| Tree | Tips | Profile | Overview-first: s (bytes KB, requests) | Full gz Newick: s (download + inflate + parse) (MB) | Overview wins by | 10k-tip clade: s (KB, requests) | 1k clade: s (KB) | 100k clade: s (MB) | zooms of 10k clades before the lead is gone |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
+    print("| Tree | Tips | Profile | Overview-first: s (KB, requests) | Full gz Newick: s (MB) | First view: overview wins by | Overview + one 10k-tip clade (with labels): s | ... wins by | Clade fetches (10k tips each) until the lead is gone |")
+    print("|---|---|---|---|---|---|---|---|---|")
     for t in TORDER:
         if t not in d: continue
         for p in PORDER:
@@ -81,11 +81,11 @@ def breakeven(pattern="browser-main*.json"):
             def clade(target):
                 cs = [c for c in P["clades"] if c["target"] == target]
                 if not cs: return None
-                ms = med([r["withLabels"]["ms"] for c in cs for r in c["reps"]]); by = med([r["withLabels"]["bytes"] for c in cs for r in c["reps"]]); rq = med([r["withLabels"]["requests"] for c in cs for r in c["reps"]])
-                return ms, by, rq
-            c1, c10, c100 = clade(1000), clade(10000), clade(100000)
-            n_star = (bl - ov) / c10[0] if c10 and bl == bl else None
-            print(f"| {t} | {d[t]['tips']:,} | {p} | {s(ov)} ({kb(ob)}, {orq}) | {s(bl)} ({bb / 1e6:.1f}) | {bl / ov:.1f}x | " + (f"{s(c10[0])} ({kb(c10[1])}, {c10[2]:.0f})" if c10 else "-") + " | " + (f"{s(c1[0])} ({kb(c1[1])})" if c1 else "-") + " | " + (f"{s(c100[0])} ({c100[1] / 1e6:.1f})" if c100 else "-") + f" | {n_star:.0f} |" if n_star is not None else f"| {t} | {d[t]['tips']:,} | {p} | {s(ov)} | - | - | - | - | - | - |")
+                return med([r["withLabels"]["ms"] for c in cs for r in c["reps"]])
+            c10 = clade(10000) or clade(1000)
+            tot = ov + c10 if c10 else None
+            nstar = f"{(bl - ov) / c10:.0f}" if c10 else "-"
+            print(f"| {t} | {d[t]['tips']:,} | {p} | {s(ov)} ({kb(ob)}, {orq}) | {s(bl)} ({bb / 1e6:.1f}) | {bl / ov:.1f}x | " + (f"{s(tot)} | {bl / tot:.1f}x | " if tot else "- | - | ") + f"{nstar} |")
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "breakeven":
     breakeven(*sys.argv[2:3])
 

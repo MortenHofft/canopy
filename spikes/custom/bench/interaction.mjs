@@ -1,5 +1,5 @@
 // Frame cost during a wheel/drag gesture, before/after the interaction-time degradation (2026-10).
-//   node bench/interaction.mjs --port 5306 --tag after --tree file.nwk --layout radial --dsf 1 --cpu 1
+//   node bench/interaction.mjs --port 5306 --tag after --tree file.nwk --layout radial --dsf 1 --cpu 1 [--set '{"interactionLOD":false}']  (ablation)
 // Drives real wheel events (24 steps, 16 ms apart) and drag moves; records every frame through onFrame-equivalent polling of
 // getStats().frames (JS ms, primitives, reduced flag) and the rAF intervals; then waits for the refine frame.
 import fs from 'node:fs';
@@ -21,6 +21,7 @@ const page = await ctx.newPage();
 await page.goto(`http://127.0.0.1:${port}/`);
 await page.waitForFunction(() => window.__spike);
 await page.evaluate(async ({ text, layout }) => { await window.__spike.mount({ treeId: 'syn-yule-1000', newick: text, layout, branchLengths: true, size: { width: 1100, height: 640 } }); }, { text, layout });
+if (args.set) await page.evaluate((o) => { const v = JSON.parse(o, (k, x) => (x === 'Infinity' ? Infinity : x)); window.__customTree.handle().renderer().setOptions(v); }, args.set);
 const box = await page.evaluate(() => { const r = window.__customTree.handle().renderer().root.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
 // record frames: wrap render through getStats polling at rAF
 await page.evaluate(() => {
