@@ -17,6 +17,26 @@ export interface Layout {
   XMAX: Float32Array; // largest X in the subtree (clade extent for collapsing and culling)
   LAST: Int32Array; // last child, -1 for tips
   layoutMs: number;
+  /** cos and sin of the node's radial angle (ROW * 2*pi/tips); built on first use by ensureTrig() (radial layout only) */
+  COS: Float64Array | null;
+  SIN: Float64Array | null;
+}
+
+/** Cache cos/sin of every node's radial angle (the angle does not depend on the zoom or on branch lengths), so the cut,
+ *  the drawing and the hit index never call Math.cos/sin per node. 16 bytes per node, only paid when radial is used. */
+export function ensureTrig(L: Layout): void {
+  if (L.COS) return;
+  const n = L.n;
+  const da = (2 * Math.PI) / Math.max(1, L.tips);
+  const C = new Float64Array(n), S = new Float64Array(n);
+  const ROW = L.ROW;
+  for (let i = 0; i < n; i++) {
+    const a = ROW[i] * da;
+    C[i] = Math.cos(a);
+    S[i] = Math.sin(a);
+  }
+  L.COS = C;
+  L.SIN = S;
 }
 
 export function computeLayout(tree: TreeData, branchLengths: boolean): Layout {
@@ -59,5 +79,5 @@ export function computeLayout(tree: TreeData, branchLengths: boolean): Layout {
     const p = parent[i];
     if (XMAX[i] > XMAX[p]) XMAX[p] = XMAX[i];
   }
-  return { n, tips: tree.tipCount, usedLengths, maxLen, ultrametric, X, ROW, XMAX, LAST, layoutMs: performance.now() - t0 };
+  return { n, tips: tree.tipCount, usedLengths, maxLen, ultrametric, X, ROW, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null };
 }

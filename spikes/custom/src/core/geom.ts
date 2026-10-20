@@ -64,10 +64,15 @@ export function nodeXY(T: Transform, L: Layout, i: number, out: { x: number; y: 
     out.x = T.ox + L.X[i] * T.kx;
     out.y = T.oy + L.ROW[i] * T.ky;
   } else {
-    const a = L.ROW[i] * T.da;
     const r = L.X[i] * T.k;
-    out.x = T.cx + r * Math.cos(a);
-    out.y = T.cy + r * Math.sin(a);
+    if (L.COS) {
+      out.x = T.cx + r * L.COS[i];
+      out.y = T.cy + r * L.SIN![i];
+    } else {
+      const a = L.ROW[i] * T.da;
+      out.x = T.cx + r * Math.cos(a);
+      out.y = T.cy + r * Math.sin(a);
+    }
   }
 }
 

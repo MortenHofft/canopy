@@ -90,6 +90,18 @@ export interface RendererOptions {
   ariaLabel: string;
   /** Create the 2D contexts with willReadFrequently (CPU-backed canvas). Read at construction only. */
   softwareCanvas: boolean;
+  /** Cap on the canvas backing-store pixel ratio (device pixels per CSS pixel): the canvas is min(devicePixelRatio, dprCap)
+   *  times the CSS size. Infinity = native. Hit-testing, overlay and events always use CSS pixels. */
+  dprCap: number;
+  /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
+   *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
+  radialMaxNodes: number;
+  /** While the user wheels, pinches or drags, draw with a quarter of the budget (min 500) and a coarser collapse threshold,
+   *  then refine once after `refineMs` without input. Hit-testing always settles to a full-quality frame first. */
+  interactionLOD: boolean;
+  refineMs: number;
+  /** Small notice in the canvas corner when the radial cut-off is summarising clades the normal threshold would show. */
+  summaryNotice: boolean;
 }
 
 export const DEFAULT_OPTIONS: RendererOptions = {
@@ -108,6 +120,11 @@ export const DEFAULT_OPTIONS: RendererOptions = {
   tipHref: null,
   ariaLabel: 'Phylogenetic tree',
   softwareCanvas: false,
+  dprCap: 2,
+  radialMaxNodes: 2000,
+  interactionLOD: true,
+  refineMs: 120,
+  summaryNotice: true,
 };
 
 export type HitKind = 'tip' | 'node' | 'summary' | 'branch';
@@ -147,4 +164,10 @@ export interface FrameStats {
   budgetHit: boolean;
   truncated: boolean; // even the highest threshold overflowed (list was cut)
   frames: number; // total frames rendered so far
+  budget: number; // primitive budget in force for this frame (radial: the cut-off; reduced while interacting)
+  forced: number; // summary fans that the normal threshold would have expanded (clades summarised because of the budget)
+  summaryTips: number; // tips inside the drawn summaries
+  mergedTips: number; // tips of primitives not emitted because they land on the same pixel cells as an earlier one
+  reduced: boolean; // this frame was drawn in reduced (interaction) quality
+  scale: number; // canvas backing pixels per CSS pixel (after the dprCap)
 }

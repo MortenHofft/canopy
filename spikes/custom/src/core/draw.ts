@@ -2,8 +2,8 @@
 // allocates per node. Strokes are batched into one path per colour class.
 
 import { nodeXY, type Transform } from './geom.ts';
-import type { Layout } from './layout.ts';
-import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP } from './lod.ts';
+import { ensureTrig, type Layout } from './layout.ts';
+import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, radialWindow, radialWindowState } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LabelDensity, TreeData, TreeTheme } from './types.ts';
 
@@ -22,6 +22,8 @@ export interface Scene {
   density: LabelDensity;
   italic: boolean;
   format: (id: string) => string;
+  scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
+  thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
 }
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
@@ -46,6 +48,9 @@ export class LabelList {
 }
 
 export const LABEL_MIN_PX: Record<LabelDensity, number> = { sparse: 16, normal: 11, dense: 8 };
+export const RADIAL_LABEL_CAP = 300;
+const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
+const FILL_CHUNK = 32; // fans per fill() call, same reason
 export const BRANCH_W = 1.3;
 export const CLADE_W = 2;
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
@@ -73,8 +78,8 @@ const clampY = (y: number, H: number) => (y < -64 ? -64 : y > H + 64 ? H + 64 : 
 
 /** Branches and collapsed clades. */
 export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
+  if (S.T.kind === 'radial') return drawBodyRadial(ctx, S, lineW);
   const { tree, L, T, list, colours, theme } = S;
-  const rect = T.kind === 'rectangular';
   const { X, ROW, XMAX, LAST } = L;
   const { parent, firstChild, leafStart, leafEnd } = tree;
   const nCls = colours.length;
@@ -87,33 +92,16 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     ctx.beginPath();
     let any = false;
     for (let e = 0; e < list.count; e++) {
-      if (list.cls[e] !== cls) continue;
+      if (nCls > 1 && list.cls[e] !== cls) continue;
       any = true;
       const i = list.node[e];
       const kind = list.kind[e];
-      if (rect) {
-        const sx = T.ox + X[i] * T.kx;
-        const sy = T.oy + ROW[i] * T.ky;
-        if (i > 0) { const sxp = T.ox + X[parent[i]] * T.kx; ctx.moveTo(sxp, sy); ctx.lineTo(sx, sy); }
-        if (kind === K_NODE) {
-          ctx.moveTo(sx, clampY(T.oy + ROW[firstChild[i]] * T.ky, T.H));
-          ctx.lineTo(sx, clampY(T.oy + ROW[LAST[i]] * T.ky, T.H));
-        }
-      } else {
-        const a = ROW[i] * T.da;
-        const ca = Math.cos(a), sa = Math.sin(a);
-        const r = X[i] * T.k;
-        if (i > 0) {
-          const rp = X[parent[i]] * T.k;
-          ctx.moveTo(T.cx + rp * ca, T.cy + rp * sa);
-          ctx.lineTo(T.cx + r * ca, T.cy + r * sa);
-        }
-        if (kind === K_NODE) {
-          const a0 = ROW[firstChild[i]] * T.da, a1 = ROW[LAST[i]] * T.da;
-          ctx.moveTo(T.cx + r * Math.cos(a0), T.cy + r * Math.sin(a0));
-          if ((a1 - a0) * r < 2 || r > 3e4) ctx.lineTo(T.cx + r * Math.cos(a1), T.cy + r * Math.sin(a1));
-          else ctx.arc(T.cx, T.cy, r, a0, a1);
-        }
+      const sx = T.ox + X[i] * T.kx;
+      const sy = T.oy + ROW[i] * T.ky;
+      if (i > 0) { const sxp = T.ox + X[parent[i]] * T.kx; ctx.moveTo(sxp, sy); ctx.lineTo(sx, sy); }
+      if (kind === K_NODE) {
+        ctx.moveTo(sx, clampY(T.oy + ROW[firstChild[i]] * T.ky, T.H));
+        ctx.lineTo(sx, clampY(T.oy + ROW[LAST[i]] * T.ky, T.H));
       }
     }
     if (any) ctx.stroke();
@@ -125,30 +113,102 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     ctx.beginPath();
     let any = false;
     for (let e = 0; e < list.count; e++) {
-      if (list.kind[e] !== K_SUMMARY || list.cls[e] !== cls) continue;
+      if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       any = true;
       const i = list.node[e];
-      if (rect) {
-        const sx = T.ox + X[i] * T.kx, sy = T.oy + ROW[i] * T.ky;
-        let y0 = T.oy + leafStart[i] * T.ky, y1 = T.oy + leafEnd[i] * T.ky;
-        if (y1 - y0 < 1.5) { const m = (y0 + y1) / 2; y0 = m - 0.75; y1 = m + 0.75; }
-        const xm = Math.max(sx + 2, T.ox + XMAX[i] * T.kx);
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(xm, y0);
-        ctx.lineTo(xm, y1);
-        ctx.closePath();
-      } else {
-        const a0 = leafStart[i] * T.da, a1 = leafEnd[i] * T.da;
-        const r0 = X[i] * T.k;
-        const r1 = Math.max(r0 + 2, XMAX[i] * T.k);
-        const a = ROW[i] * T.da;
-        ctx.moveTo(T.cx + r0 * Math.cos(a), T.cy + r0 * Math.sin(a));
-        ctx.lineTo(T.cx + r1 * Math.cos(a0), T.cy + r1 * Math.sin(a0));
-        ctx.lineTo(T.cx + r1 * Math.cos(a1), T.cy + r1 * Math.sin(a1));
-        ctx.closePath();
-      }
+      const sx = T.ox + X[i] * T.kx, sy = T.oy + ROW[i] * T.ky;
+      let y0 = T.oy + leafStart[i] * T.ky, y1 = T.oy + leafEnd[i] * T.ky;
+      if (y1 - y0 < 1.5) { const m = (y0 + y1) / 2; y0 = m - 0.75; y1 = m + 0.75; }
+      const xm = Math.max(sx + 2, T.ox + XMAX[i] * T.kx);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(xm, y0);
+      ctx.lineTo(xm, y1);
+      ctx.closePath();
     }
     if (any) ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Radial branches: one stroke() per colour class and 256 segments, connector arcs only where the arc differs from its
+ *  chord by more than about 0.3 px (sagitta s^2/8r), long arcs of far-off clades clipped to the visible angles, summaries
+ *  as filled fans. No trigonometry per node (cached cos/sin of the node angles). */
+function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
+  const { tree, L, T, list, colours, theme } = S;
+  ensureTrig(L);
+  const COS = L.COS!, SIN = L.SIN!;
+  const { X, ROW, XMAX, LAST } = L;
+  const { parent, firstChild, leafStart, leafEnd } = tree;
+  const { cx, cy, k, da } = T;
+  const nCls = colours.length;
+  radialWindow(cx, cy, T.clipL - 8, T.clipT - 8, T.clipR + 8, T.clipB + 8);
+  const W = radialWindowState;
+  const inv = 1 / S.scale;
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'bevel';
+  for (let cls = 0; cls < nCls; cls++) {
+    ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
+    ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, CLADE_W);
+    ctx.beginPath();
+    let segs = 0;
+    for (let e = 0; e < list.count; e++) {
+      if (nCls > 1 && list.cls[e] !== cls) continue;
+      const i = list.node[e];
+      const ca = COS[i], sa = SIN[i];
+      const r = X[i] * k;
+      if (i > 0) {
+        const rp = X[parent[i]] * k;
+        ctx.moveTo(cx + rp * ca, cy + rp * sa);
+        ctx.lineTo(cx + r * ca, cy + r * sa);
+        segs++;
+      }
+      if (list.kind[e] === K_NODE) {
+        const fc = firstChild[i], lc = LAST[i];
+        const span = (ROW[lc] - ROW[fc]) * da;
+        const len = span * r;
+        ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
+        if (len * len <= 2.4 * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
+        else {
+          let a0 = ROW[fc] * da, a1 = ROW[lc] * da;
+          if (!W.all && r > 2e4) {
+            // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
+            if (W.wrap) {
+              if (a1 >= W.lo) { ctx.moveTo(cx + r * Math.cos(Math.max(a0, W.lo)), cy + r * Math.sin(Math.max(a0, W.lo))); ctx.arc(cx, cy, r, Math.max(a0, W.lo), a1); segs++; }
+              if (a0 <= W.hi) { ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0)); ctx.arc(cx, cy, r, a0, Math.min(a1, W.hi)); segs++; }
+            } else {
+              a0 = Math.max(a0, W.lo); a1 = Math.min(a1, W.hi);
+              if (a1 > a0) { ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0)); ctx.arc(cx, cy, r, a0, a1); }
+            }
+          } else ctx.arc(cx, cy, r, a0, a1);
+        }
+        segs++;
+      }
+      if (segs >= STROKE_CHUNK) { ctx.stroke(); ctx.beginPath(); segs = 0; }
+    }
+    if (segs) ctx.stroke();
+  }
+  // collapsed clades: fans (apex at the node, outer edge at the clade's radius, arc only when it is visibly curved)
+  ctx.globalAlpha = 0.6;
+  for (let cls = 0; cls < nCls; cls++) {
+    ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
+    ctx.beginPath();
+    let n = 0;
+    for (let e = 0; e < list.count; e++) {
+      if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
+      const i = list.node[e];
+      let a0 = leafStart[i] * da, a1 = leafEnd[i] * da;
+      const r0 = X[i] * k;
+      const r1 = Math.max(r0 + 2, XMAX[i] * k);
+      if ((a1 - a0) * r1 < 1.5) { const m = (a0 + a1) / 2, h = 0.75 / r1; a0 = m - h; a1 = m + h; } // keep slivers visible
+      ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
+      ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+      const len = (a1 - a0) * r1;
+      if (len * len > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1);
+      else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+      ctx.closePath();
+      if (++n >= FILL_CHUNK) { ctx.fill(); ctx.beginPath(); n = 0; }
+    }
+    if (n) ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
