@@ -44,6 +44,11 @@ def _table(a, idx, cfg, extra=None):
     return cols
 
 
+def required(tbl, optional=("name",)):
+    """REQUIRED (non-nullable) fields: hyparquet then returns typed arrays instead of arrays with null checks."""
+    return tbl.cast(pa.schema([f.with_nullable(f.name in optional) for f in tbl.schema]))
+
+
 def _names(a, idx):
     return pa.array(a["name"][idx].tolist(), pa.string())
 
@@ -54,7 +59,15 @@ def writer_opts(cfg, cols):
     o = dict(compression=codec, write_statistics=True, data_page_version="2.0")
     if codec == "ZSTD":
         o["compression_level"] = cfg.get("zstd_level", 3)
-    if cfg["enc"] == "tuned":
+    if cfg.get("page_kb"):          # small data pages + page index: lets a reader fetch single pages of a row group
+        o["data_page_size"] = cfg["page_kb"] * 1024
+        o["write_page_index"] = True
+    if cfg["enc"] == "plain":      # PLAIN everywhere except dictionary for low-cardinality strings
+        o["use_dictionary"] = [c for c in ("country", "name") if c in cols]
+    elif cfg["enc"] == "bss":      # PLAIN integers, BYTE_STREAM_SPLIT floats
+        o["use_dictionary"] = [c for c in ("country", "name") if c in cols]
+        o["column_encoding"] = {c: "BYTE_STREAM_SPLIT" for c in ("len", "cum_len", "max_cum", "support") if c in cols}
+    elif cfg["enc"] == "tuned":
         delta = [c for c in ("parent", "subtree_end", "leaf_start", "tip_count", "depth", "max_depth", "node") if c in cols]
         bss = [c for c in ("len", "cum_len", "max_cum", "support") if c in cols]
         dic = [c for c in ("country", "name") if c in cols]
@@ -112,7 +125,7 @@ def write_all(a, outdir, cfg, only=None):
     has_names = any(x is not None for x in a["name"])
     if has_names:
         cols["name"] = _names(a, idx)
-    tbl = pa.table(cols)
+    tbl = required(pa.table(cols))
     wr = pq.ParquetWriter(path, tbl.schema, **writer_opts(cfg, set(tbl.column_names)))
     for s, e in zip(bounds[:-1], bounds[1:]):
         wr.write_table(tbl.slice(s, e - s), row_group_size=e - s)
@@ -126,10 +139,10 @@ def write_all(a, outdir, cfg, only=None):
               "tip_label": pa.array(a["tip_label"].tolist(), pa.string()),
               "occurrence_count": pa.array(a["occ"], pa.int32()),
               "country": pa.array(a["country"].tolist(), pa.string())}
-        tt = pa.table(tc)
+        tt = required(pa.table(tc))
         tcfg = dict(cfg)
         o = writer_opts(tcfg, set(tt.column_names))
-        if cfg["enc"] == "default":
+        if cfg["enc"] in ("default", "plain", "bss"):
             o["use_dictionary"] = ["country"] + (["tip_label"] if cfg.get("label_dict") else [])
         else:
             o["use_dictionary"] = ["country"] + (["tip_label"] if cfg.get("label_dict") else [])
@@ -152,19 +165,21 @@ def write_all(a, outdir, cfg, only=None):
     for r in rows:
         c = _table(a, r, ov_cfg, extra={"node": pa.array(r.astype(np.int32), pa.int32())})
         c["sel_level"] = pa.array(sel[r], pa.uint8())
-        parts.append(pa.table(c))
+        parts.append(required(pa.table(c)))
         lvl_rows.append(int(len(r)))
     path = os.path.join(outdir, "overview.parquet")
     wr = pq.ParquetWriter(path, parts[0].schema, **writer_opts(cfg, set(parts[0].column_names)))
-    for p_ in parts:
+    for p_ in reversed(parts):          # deepest level first, level 0 LAST: level 0 + footer are one contiguous tail
         wr.write_table(p_, row_group_size=len(p_))
     wr.close()
     sizes["overview"] = os.path.getsize(path)
     sizes["overview_levels"] = []
-    # per level compressed bytes from the file metadata
+    # per level compressed bytes from the file metadata (file order is reversed: deepest level first)
     md = pq.ParquetFile(path).metadata
     for g in range(md.num_row_groups):
-        sizes["overview_levels"].append({"rows": md.row_group(g).num_rows, "bytes": md.row_group(g).total_byte_size and sum(md.row_group(g).column(k).total_compressed_size for k in range(md.num_columns))})
+        sizes["overview_levels"].append({"level": md.num_row_groups - 1 - g, "rows": md.row_group(g).num_rows, "bytes": sum(md.row_group(g).column(k).total_compressed_size for k in range(md.num_columns))})
+    last = md.row_group(md.num_row_groups - 1)
+    ov_tail_start = min((c.dictionary_page_offset or c.data_page_offset) for c in (last.column(k) for k in range(md.num_columns)))
     # ---------------- spine: ancestors of the first node of each node row group
     par = a["parent"]
     open_ids = []
@@ -178,7 +193,7 @@ def write_all(a, outdir, cfg, only=None):
     uniq = np.array(sorted({x for c in open_ids for x in c}), dtype=np.int64)
     if len(uniq):
         c = _table(a, uniq, dict(cfg, rollups=True), extra={"node": pa.array(uniq.astype(np.int32), pa.int32())})
-        sp = pa.table(c)
+        sp = required(pa.table(c))
         path = os.path.join(outdir, "spine.parquet")
         pq.write_table(sp, path, **writer_opts(cfg, set(sp.column_names)), row_group_size=len(uniq))
         sizes["spine"] = os.path.getsize(path)
@@ -192,6 +207,15 @@ def write_all(a, outdir, cfg, only=None):
         "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet"},
         "notes": "len is raw (NaN when missing); cum_len/max_cum clamp negative or missing lengths to 0; occ_sum is SYNTHETIC test metadata",
     }
+    manifest["overview"]["tail_start"] = int(ov_tail_start)   # [tail_start, EOF) = level 0 rows + footer
+    manifest["overview"]["file_order"] = "deepest level first, level 0 last"
+    fi = {}
+    for k, fn in manifest["files"].items():
+        fp = os.path.join(outdir, fn)
+        if os.path.exists(fp):
+            m = pq.ParquetFile(fp).metadata
+            fi[k] = {"file": fn, "bytes": os.path.getsize(fp), "footer": m.serialized_size + 8, "row_groups": m.num_row_groups}
+    manifest["files"] = fi
     with open(os.path.join(outdir, "manifest.json"), "w") as f:
         json.dump(manifest, f, separators=(",", ":"))
     sizes["manifest"] = os.path.getsize(os.path.join(outdir, "manifest.json"))

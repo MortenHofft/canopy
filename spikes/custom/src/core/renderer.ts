@@ -688,7 +688,9 @@ export class TreeRenderer {
       budget = Math.max(500, Math.floor(budget / 4));
       if (this.lastFullDrawn > HEAVY_PRIMS) base = baseMinPx * REDUCED_MINPX;
     }
-    const { res, minPx, retries } = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
+    const cutRes = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
+    const { minPx, retries } = cutRes;
+    const res = { ...cutRes.res }; // the cut functions return a shared scratch object; the overview cut below would overwrite it
     const cutMs = performance.now() - tc;
     this.hit.invalidate();
     if (!reduced) this.lastFullDrawn = this.list.count;

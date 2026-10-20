@@ -42,8 +42,9 @@ for codec in ("none", "snappy", "zstd"):
         for f64 in (False, True):
             for cs in COLSETS:
                 run("tuned", codec, rg, f64, cs)
-for codec in ("none", "snappy", "zstd"):
-    run("default", codec, 65536, False, "rollups+occ")
+for enc in ("default", "plain", "bss"):
+    for codec in ("none", "snappy", "zstd"):
+        run(enc, codec, 65536, False, "rollups+occ")
 res["parquet"] = rows
 
 # headline layout incl. overview + spine

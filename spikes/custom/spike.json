@@ -25,5 +25,47 @@
       "canvas text cannot use CSS (letter-spacing, text-rendering tokens): only font family, size, weight and style are applied"
     ],
     "notes": "Own renderer, so everything is controllable, which says little about third-party libraries. Colours are resolved from tokens once per theme change and handed to the canvas; changing a token at runtime needs a new theme object (the demo does this on the dark switch)."
-  }
+  },
+  "notes": "Radial performance work (2026-10): GPU canvas by default for real visitors (CPU canvas only under navigator.webdriver or ?cpu=1), canvas resolution cap (default 2), radial draw cut-off (default 2,000 primitives, small clades become fans, notice in the corner), cheaper radial drawing (hairline branches when dense, chord instead of arc when the difference is under 0.3 px, strokes and fills in chunks, one setTransform per label), reduced detail while wheeling or dragging with a full frame 120 ms after the last input. See docs/results/custom.md, section 'Radial performance work, 2026-10'.",
+  "options": [
+    {
+      "id": "cpuCanvas",
+      "default": "on under navigator.webdriver or ?cpu=1, otherwise off",
+      "description": "CPU-backed canvas (willReadFrequently). Real browsers use the GPU canvas by default."
+    },
+    {
+      "id": "dprCap",
+      "default": "2",
+      "choices": [
+        "1",
+        "1.5",
+        "2",
+        "native"
+      ],
+      "description": "Canvas backing-store pixel ratio cap."
+    },
+    {
+      "id": "radialMax",
+      "default": "2000",
+      "choices": [
+        "500",
+        "1000",
+        "2000",
+        "5000",
+        "20000",
+        "unlimited"
+      ],
+      "description": "Max drawn primitives (radial only); clades below the pixel threshold are summarised as fans to fit."
+    },
+    {
+      "id": "interactionLOD",
+      "default": "on",
+      "description": "Quarter budget and coarser threshold during wheel, pinch and drag; refine 120 ms after the last input."
+    },
+    {
+      "id": "lod, budget, summaries, overview, density, rowHeight, axis, tooltip",
+      "default": "as before",
+      "description": "Unchanged library options."
+    }
+  ]
 }

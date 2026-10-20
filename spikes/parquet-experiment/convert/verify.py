@@ -109,7 +109,7 @@ check("tips row groups aligned with node row groups", ok)
 ov = pq.ParquetFile(os.path.join(A.dir, "overview.parquet"))
 levels = ov.metadata.num_row_groups
 for L in range(levels):
-    t = ov.read_row_groups(list(range(L + 1)))
+    t = ov.read_row_groups([levels - 1 - l for l in range(L + 1)])
     node = t.column("node").to_numpy().astype(np.int64)
     sel = t.column("sel_level").to_numpy()
     expanded = sel <= L

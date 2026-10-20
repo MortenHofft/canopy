@@ -159,7 +159,7 @@ const CPU_DEFAULT: boolean = (() => {
 
 const features: AdapterFeature[] = [
   { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
-  { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
+  { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '500', label: '500 primitives' }, { value: '1000', label: '1,000 primitives' }, { value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
   { id: 'summaries', label: 'Show collapsed clades as triangles', kind: 'toggle', default: true },
   { id: 'overview', label: 'Show overview strip', kind: 'toggle', default: true },
   { id: 'density', label: 'Label density', kind: 'select', default: 'normal', options: [{ value: 'sparse', label: 'Sparse (rows >= 16 px)' }, { value: 'normal', label: 'Normal (rows >= 11 px)' }, { value: 'dense', label: 'Dense (rows >= 8 px)' }] },
