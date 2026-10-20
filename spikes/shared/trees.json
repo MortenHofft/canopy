@@ -447,6 +447,34 @@
    ],
    "licence": "CC0-1.0 (hand-made edge case, data/rich/edge-cases/README.md)",
    "treeIndex": 1
+  },
+  {
+   "id": "otl-1m",
+   "label": "Open Tree of Life, Metazoa (1.49M tips)",
+   "path": "real-ladder/fetched/otl-1m-metazoa.nwk.gz",
+   "format": "newick",
+   "tips": 1490245,
+   "hasLengths": false,
+   "groups": [
+    "huge",
+    "real"
+   ],
+   "licence": "CC0-1.0 qualified (Open Tree of Life, see data/real-ladder/manifest.json)",
+   "optional": true
+  },
+  {
+   "id": "otl-2m",
+   "label": "Open Tree of Life, whole synthetic tree (2.39M tips)",
+   "path": "real-ladder/fetched/otl-2m-full.nwk.gz",
+   "format": "newick",
+   "tips": 2385875,
+   "hasLengths": false,
+   "groups": [
+    "huge",
+    "real"
+   ],
+   "licence": "CC0-1.0 qualified (Open Tree of Life, see data/real-ladder/manifest.json)",
+   "optional": true
   }
  ]
 }
