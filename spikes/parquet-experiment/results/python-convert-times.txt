@@ -1,0 +1,2 @@
+yule100k python total wall s 1.1 write_s 0.29 parse_arrays_s 0.58
+yule1M python total wall s 10.0 write_s 3.21 parse_arrays_s 6.53

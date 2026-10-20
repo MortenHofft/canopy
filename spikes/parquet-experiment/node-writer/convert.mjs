@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Newick -> the same Parquet layout as convert/layout.py, with hyparquet-writer only (no Python, no pyarrow).
-//   node node-writer/convert.mjs TREE.nwk[.gz] OUTDIR --meta SOMEDIR/tips.parquet [--rg 65536] [--codec zstd|snappy|none] [--enc tuned|plain]
-// --meta reads occurrence_count / country from a tips.parquet written by the Python converter so that both converters
+//   node node-writer/convert.mjs TREE.nwk[.gz] OUTDIR --meta SOMEDIR/tipmeta.parquet [--rg 65536] [--codec zstd|snappy|none] [--enc tuned|plain]
+// --meta reads occurrence_count / country from a tipmeta.parquet written by the Python converter so that both converters
 // carry IDENTICAL data (verify.py then applies unchanged). zstd compression uses node:zlib (Node >= 22.15), snappy is the
 // writer's built-in JS snappy; neither needs an extra dependency.
 // Bundle first: ./build.sh (esbuild turns shared/newick.ts into node-writer/dist/newick.mjs).
@@ -77,7 +77,7 @@ export async function convert(treeFile, outDir, opts) {
   const tree = parseNewick(text);
   text = null;
   T.parse_ms = performance.now() - t0; t0 = performance.now();
-  // metadata from the Python-written tips.parquet
+  // metadata from the Python-written tipmeta.parquet
   const mfile = await asyncBufferFromFile(opts.meta);
   const md = parquetMetadata(await mfile.slice(0, mfile.byteLength));
   const meta = {};
@@ -99,7 +99,7 @@ export async function convert(treeFile, outDir, opts) {
   const nodesBuf = writeFile(path.join(outDir, 'nodes.parquet'), nodeGroups, opts.codec);
   // tips aligned to node row groups
   const tipStart = starts.map((s) => (s === n ? tree.tipCount : tree.leafStart[s]));
-  const tipGroups = [];
+  const tipGroups = [], metaGroups = [];
   for (let g = 0; g < starts.length - 1; g++) {
     const r0 = tipStart[g], r1 = tipStart[g + 1];
     const node = new Int32Array(r1 - r0), occc = new Int32Array(r1 - r0), lab = new Array(r1 - r0), cty = new Array(r1 - r0);
@@ -107,11 +107,14 @@ export async function convert(treeFile, outDir, opts) {
     tipGroups.push([
       { name: 'node', data: node, type: 'INT32', nullable: false, ...(o.tuned ? { encoding: 'DELTA_BINARY_PACKED' } : {}) },
       { name: 'tip_label', data: lab, type: 'STRING', nullable: false },
+    ]);
+    metaGroups.push([
       { name: 'occurrence_count', data: occc, type: 'INT32', nullable: false, ...(o.tuned ? { encoding: 'DELTA_BINARY_PACKED' } : {}) },
       { name: 'country', data: cty, type: 'STRING', nullable: false },
     ]);
   }
   const tipsBuf = writeFile(path.join(outDir, 'tips.parquet'), tipGroups, opts.codec);
+  const metaBuf = writeFile(path.join(outDir, 'tipmeta.parquet'), metaGroups, opts.codec);
   // overview pyramid
   const cand = []; for (let i = 0; i < n; i++) if (a.subtreeEnd[i] !== i + 1) cand.push(i);
   const keys = new Float64Array(cand.length);
@@ -179,14 +182,14 @@ export async function convert(treeFile, outDir, opts) {
     version: 1, nodes: n, tips: tree.tipCount, has_lengths: a.hasLen, has_support: false, has_names: false, max_depth: a.maxDepth[0], max_cum: a.maxCum[0], root_occ_sum: Number(a.occSum[0]),
     float: 'f32', codec: opts.codec, rg_rows: rg, rg_node_start: starts, rg_tip_start: tipStart,
     overview: { row_budgets: budgets, level_rows: levelRows, level_min_tips: budgets.map((_, L) => { let m = Infinity; for (let i = 0; i < n; i++) if (sel[i] === L && a.tipCount[i] < m) m = a.tipCount[i]; return m === Infinity ? 0 : m; }), tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
-    files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet'), labels: info(labBuf, 'labels.parquet') },
+    files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), tipmeta: info(metaBuf, 'tipmeta.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet'), labels: info(labBuf, 'labels.parquet') },
     notes: 'written by hyparquet-writer (node-writer/convert.mjs)',
   };
   fs.writeFileSync(path.join(outDir, 'open.json'), JSON.stringify({ rg_open: openIds, spine_nodes: uniq }));
   manifest.files.open = { file: 'open.json', bytes: fs.statSync(path.join(outDir, 'open.json')).size };
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest));
   T.total_ms = T.parse_ms + T.arrays_ms + T.write_ms;
-  return { timings: T, sizes: { nodes: nodesBuf.byteLength, tips: tipsBuf.byteLength, overview: ovBuf.byteLength, spine: spBuf.byteLength, labels: labBuf.byteLength, manifest: JSON.stringify(manifest).length } };
+  return { timings: T, sizes: { nodes: nodesBuf.byteLength, tips: tipsBuf.byteLength, tipmeta: metaBuf.byteLength, overview: ovBuf.byteLength, spine: spBuf.byteLength, labels: labBuf.byteLength, manifest: JSON.stringify(manifest).length } };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

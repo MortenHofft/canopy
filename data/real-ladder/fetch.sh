@@ -39,7 +39,7 @@ esac; done
 # ladder.py derives only rungs whose source file exists; pass ids explicitly to limit work
 IDS=()
 for s in "${SRC[@]}"; do case "$s" in
-  otl)  IDS+=(otl-0200-canidae otl-1k-testudines otl-10k-amphibia otl-100k-vertebrata otl-1m-metazoa otl-1k-vertebrata-random otl-10k-vertebrata-random) ;;
+  otl)  IDS+=(otl-0200-canidae otl-1k-testudines otl-10k-amphibia otl-100k-vertebrata otl-1m-metazoa otl-2m-full otl-1k-vertebrata-random otl-10k-vertebrata-random) ;;
   gtdb) IDS+=(gtdb-0200-iainarchaeia gtdb-1k-nitrososphaeria gtdb-10k-archaea gtdb-100k-bacteria-random gtdb-190k-bacteria) ;;
   fish) IDS+=(fish-0200-random fish-1k-random fish-12k-timetree fish-12k-raxml) ;;
 esac; done

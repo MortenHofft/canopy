@@ -2,7 +2,8 @@
 
 Layout v1 (see docs/results/parquet-experiment.md):
   nodes.parquet     one row per node in PREORDER (row index = node id). Row groups of `rg` rows.
-  tips.parquet      one row per tip in preorder rank; row groups aligned to the node row groups (the tips of node group g).
+  tips.parquet      one row per tip in preorder rank: node, tip_label. tipmeta.parquet: occurrence_count, country, ... (same row groups, aligned to the
+                    node row groups: the tips of node group g).
   overview.parquet  pyramid: one row group per level; rows carry their own node id and all rollups.
   spine.parquet     the ancestors of the first node of every node row group (cheap root->tip paths).
   manifest.json     counts, row-group boundaries as preorder ranges, overview levels, file sizes.
@@ -160,24 +161,27 @@ def write_all(a, outdir, cfg, only=None):
     if cfg.get("tips", True):
         lp = np.concatenate(([0], np.cumsum(a["subtree_end"] == np.arange(1, n + 1))))  # tips among nodes < i
         rg_tip_start = [int(lp[s]) for s in rg_node_start] + [ntips]
-        tc = {"node": pa.array(a["node_of_tip"], pa.int32()),
-              "tip_label": pa.array(a["tip_label"].tolist(), pa.string()),
-              "occurrence_count": pa.array(a["occ"], pa.int32()),
-              "country": pa.array(a["country"].tolist(), pa.string())}
-        tt = required(pa.table(tc))
-        tcfg = dict(cfg)
-        o = writer_opts(tcfg, set(tt.column_names))
-        if cfg["enc"] in ("default", "plain", "bss"):
-            o["use_dictionary"] = ["country"] + (["tip_label"] if cfg.get("label_dict") else [])
-        else:
-            o["use_dictionary"] = ["country"] + (["tip_label"] if cfg.get("label_dict") else [])
-            o["column_encoding"] = {"node": "DELTA_BINARY_PACKED"}
-        path = os.path.join(outdir, "tips.parquet")
-        wr = pq.ParquetWriter(path, tt.schema, **o)
-        for s, e in zip(rg_tip_start[:-1], rg_tip_start[1:]):
-            wr.write_table(tt.slice(s, e - s), row_group_size=max(1, e - s))
-        wr.close()
-        sizes["tips"] = os.path.getsize(path)
+        # two files with the SAME row groups: labels (+ node id) and per-tip metadata. A metadata read must not be coalesced across
+        # the label chunks (a 64 KB gap tolerance would pull every label in), so they live in different files.
+        files = {
+            "tips": {"node": pa.array(a["node_of_tip"], pa.int32()), "tip_label": pa.array(a["tip_label"].tolist(), pa.string())},
+            "tipmeta": {"occurrence_count": pa.array(a["occ"], pa.int32()), "country": pa.array(a["country"].tolist(), pa.string())},
+        }
+        for fname, tc in files.items():
+            tt = required(pa.table(tc))
+            o = writer_opts(dict(cfg), set(tt.column_names))
+            dic = [c for c in ("country",) if c in tc] + (["tip_label"] if cfg.get("label_dict") and "tip_label" in tc else [])
+            o["use_dictionary"] = dic
+            if cfg["enc"] in ("tuned",):
+                o["column_encoding"] = {c: "DELTA_BINARY_PACKED" for c in ("node",) if c in tc}
+            else:
+                o.pop("column_encoding", None)
+            path = os.path.join(outdir, fname + ".parquet")
+            wr = pq.ParquetWriter(path, tt.schema, **o)
+            for s_, e_ in zip(rg_tip_start[:-1], rg_tip_start[1:]):
+                wr.write_table(tt.slice(s_, e_ - s_), row_group_size=max(1, e_ - s_))
+            wr.close()
+            sizes[fname] = os.path.getsize(path)
     else:
         rg_tip_start = None
     if only == "nodes+tips":
@@ -241,7 +245,7 @@ def write_all(a, outdir, cfg, only=None):
         "float": "f64" if cfg["f64"] else "f32", "codec": cfg["codec"], "rg_rows": rg,
         "rg_node_start": rg_node_start + [n], "rg_tip_start": rg_tip_start,
         "overview": {"row_budgets": kept_budgets, "level_rows": lvl_rows},
-        "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet", "labels": "labels.parquet"},
+        "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "tipmeta": "tipmeta.parquet", "overview": "overview.parquet", "spine": "spine.parquet", "labels": "labels.parquet"},
         "notes": "len is raw (NaN when missing); cum_len/max_cum clamp negative or missing lengths to 0; occ_sum is SYNTHETIC test metadata",
     }
     tcn = a["tip_count"]

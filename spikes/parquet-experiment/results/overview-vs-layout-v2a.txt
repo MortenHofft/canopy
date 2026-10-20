@@ -1,0 +1,6 @@
+PASS overview rows=147366 (levels 2047+6907+27665+110747) mode=phylogram mismatches=0 worst |dX|=3.81e-8 |dXMAX|=6.59e-8 |dROW|=0.00e+0
+PASS overview rows=131297 (levels 2048+6147+24610+98492) mode=cladogram mismatches=0 worst |dX|=0.00e+0 |dXMAX|=0.00e+0 |dROW|=0.00e+0
+PASS overview rows=8274 (levels 2048+6226) mode=cladogram mismatches=0 worst |dX|=0.00e+0 |dXMAX|=0.00e+0 |dROW|=0.00e+0
+PASS overview rows=34884 (levels 2047+6480+26357) mode=phylogram mismatches=0 worst |dX|=3.36e-8 |dXMAX|=6.21e-8 |dROW|=0.00e+0
+PASS overview rows=8974 (levels 2047+6927) mode=phylogram mismatches=0 worst |dX|=3.81e-8 |dXMAX|=5.00e-8 |dROW|=0.00e+0
+PASS overview rows=2047 (levels 2047) mode=phylogram mismatches=0 worst |dX|=3.81e-8 |dXMAX|=3.96e-8 |dROW|=0.00e+0

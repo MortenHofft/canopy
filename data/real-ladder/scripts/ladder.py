@@ -33,6 +33,7 @@ RUNGS = [
     ("otl-10k-amphibia", "otl", "clade", "Amphibia_ott544595", None),
     ("otl-100k-vertebrata", "otl", "clade", "Vertebrata_ott801601", None),
     ("otl-1m-metazoa", "otl", "clade", "Metazoa_ott691846", None),
+    ("otl-2m-full", "otl", "whole", None, None),
     ("otl-1k-vertebrata-random", "otl", "sample", "Vertebrata_ott801601", 1000),
     ("otl-10k-vertebrata-random", "otl", "sample", "Vertebrata_ott801601", 10000),
     ("gtdb-0200-iainarchaeia", "gtdb-ar53", "clade", "'99.0:p__Iainarchaeota; c__Iainarchaeia'", None),

@@ -104,16 +104,17 @@ if "tip_count" in cols:
         check("overview.row == layout ROW (midpoint of first/last child), float64", okr)
         np.save(os.path.join(os.environ.get("TMPDIR", "/tmp"), "verify_rowc.npy"), rowc) if os.environ.get("KEEP_ROWC") else None
     if "occ_sum" in cols:
-        tt = pq.read_table(os.path.join(A.dir, "tips.parquet"), columns=["occurrence_count"]).column(0).to_numpy().astype(np.int64)
+        tt = pq.read_table(os.path.join(A.dir, "tipmeta.parquet"), columns=["occurrence_count"]).column(0).to_numpy().astype(np.int64)
         op = np.concatenate(([0], np.cumsum(tt)))
-        check("independent occ_sum (from tips.parquet via prefix sums)", np.array_equal(op[pref[end]] - op[pref[:N]], col("occ_sum")))
+        check("independent occ_sum (from tipmeta.parquet via prefix sums)", np.array_equal(op[pref[end]] - op[pref[:N]], col("occ_sum")))
 # tips
 tp = pq.ParquetFile(os.path.join(A.dir, "tips.parquet"))
 tn = tp.read(columns=["node", "tip_label"])
 check("tips.node == positions of tips", np.array_equal(tn.column("node").to_numpy(), np.flatnonzero(tip)))
 check("tips.label == Newick labels", tn.column("tip_label").to_pylist() == a["tip_label"].tolist())
 nrg = pq.ParquetFile(os.path.join(A.dir, "nodes.parquet")).metadata
-ok = tp.metadata.num_row_groups == nrg.num_row_groups and all(
+tm = pq.ParquetFile(os.path.join(A.dir, "tipmeta.parquet"))
+ok = tm.metadata.num_row_groups == nrg.num_row_groups and all(tm.metadata.row_group(g).num_rows == man["rg_tip_start"][g + 1] - man["rg_tip_start"][g] for g in range(nrg.num_row_groups)) and tp.metadata.num_row_groups == nrg.num_row_groups and all(
     tp.metadata.row_group(g).num_rows == man["rg_tip_start"][g + 1] - man["rg_tip_start"][g] for g in range(nrg.num_row_groups)) and all(
     pref[man["rg_node_start"][g]] == man["rg_tip_start"][g] for g in range(nrg.num_row_groups))
 check("tips row groups aligned with node row groups", ok)

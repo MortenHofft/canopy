@@ -17,7 +17,7 @@ PASS independent max_depth (sparse table)
 PASS independent max_cum (sparse table over cum_len)
 PASS max_cum/root == renderer XMAX (float32 tolerance 1e-6)
 PASS overview.row == layout ROW (midpoint of first/last child), float64
-PASS independent occ_sum (from tips.parquet via prefix sums)
+PASS independent occ_sum (from tipmeta.parquet via prefix sums)
 PASS tips.node == positions of tips
 PASS tips.label == Newick labels
 PASS tips row groups aligned with node row groups

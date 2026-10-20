@@ -41,12 +41,12 @@ for (const layout of layouts) {
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForFunction(() => window.__spike);
   const res = await page.evaluate(
-    async ({ text, layout }) => {
+    async ({ text, layout, treeId }) => {
       const t0 = performance.now();
-      const r = await window.__spike.mount({ treeId: 'bench', newick: text, layout, branchLengths: true, size: { width: 1100, height: 640 } });
+      const r = await window.__spike.mount({ treeId, newick: text, layout, branchLengths: true, size: { width: 1100, height: 640 } });
       return { mount: r, wallMs: performance.now() - t0 };
     },
-    { text, layout },
+    { text, layout, treeId: args.treeid || 'otl-91k' },
   );
   out.tips = res.mount.tips;
   const run = { layout, parseMs: res.mount.parseMs, sharedParseMs: res.mount.sharedParseMs, firstRenderMs: res.mount.firstRenderMs, wallMs: res.wallMs, views: {} };

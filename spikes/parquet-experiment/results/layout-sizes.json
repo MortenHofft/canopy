@@ -434,6 +434,47 @@
   ],
   "overview_tail_bytes": 60562
  },
+ "yule1M__rg8k": {
+  "tips": 1000000,
+  "nodes": 1999999,
+  "newick_gz": 14539671,
+  "manifest": 4550,
+  "files": {
+   "nodes": 21266345,
+   "tips": 8256292,
+   "overview": 2706680,
+   "spine": 89423,
+   "labels": 8604187,
+   "open": 71607
+  },
+  "footers": {
+   "nodes": 195816,
+   "tips": 91096,
+   "overview": 5441,
+   "spine": 2175,
+   "labels": 12983
+  },
+  "row_groups": {
+   "nodes": 245,
+   "tips": 245,
+   "overview": 4,
+   "spine": 1,
+   "labels": 62
+  },
+  "overview_level_rows": [
+   2047,
+   6907,
+   27665,
+   110747
+  ],
+  "overview_level_min_tips": [
+   1976,
+   485,
+   121,
+   30
+  ],
+  "overview_tail_bytes": 60562
+ },
  "yule1M__snappy": {
   "tips": 1000000,
   "nodes": 1999999,

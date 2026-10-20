@@ -14,14 +14,16 @@ def find(j, **kw):
         if all(r.get(k) == v for k, v in kw.items()): return r
 def sizes():
     d = load(); names = [n for n in ORDER if n in d]
-    print("### Whole-tree size (MB, f32, 64k row groups, `tuned` encodings, zstd, rollups + occ_sum)\n")
-    print("| Tree | Tips | Newick raw | Newick gzip -9 | Newick brotli | Parquet nodes | Parquet tips (label, node, occ, country) | overview+spine+manifest | Parquet total | total / gzip Newick | flat binary zstd (cols) + labels zstd |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|")
+    ls = json.load(open(os.path.join(RES, "layout-sizes.json")))
+    print("### Whole-tree size (MB; zstd, 16,384 rows per group, f32, `tuned` encodings, rollups + occ_sum)\n")
+    print("| Tree | Tips | Newick raw | Newick gzip -9 | Newick brotli | Parquet nodes | Parquet tips + tipmeta (node, label; occurrence_count, country) | overview + spine + open + manifest | Parquet total | total / gzip Newick | labels.parquet (optional) | flat binary zstd (cols) + labels zstd |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for n in names:
-        j = d[n]; h = j["headline_zstd_64k"]; z = find(j, enc="tuned", codec="zstd", rg=65536, float="f32", cols="rollups+occ")
+        j = d[n]; z = find(j, enc="tuned", codec="zstd", rg=16384, float="f32", cols="rollups+occ"); a = ls[n]
         fl = [x for x in j["flat"] if x["float"] == "f32" and x["cols"] == "rollups+occ"][0]
-        tot = z["nodes"] + z["tips"] + h["overview"] + h.get("spine", 0) + h["manifest"]
-        print(f"| {n} | {j['tips']:,} | {mb(j['newick_raw'])} | {mb(j['newick_gzip9'])} | {mb(j['newick_brotli'])} | {mb(z['nodes'])} | {mb(z['tips'])} | {mb(h['overview'] + h.get('spine', 0) + h['manifest'])} | {mb(tot)} | {tot / j['newick_gzip9']:.2f}x | {mb(fl['zstd3'])} + {mb(j['flat_labels']['zstd3'])} |")
+        extra = a["files"]["overview"] + a["files"]["spine"] + a["files"].get("open", 0) + a["manifest"]
+        tot = z["nodes"] + a["files"]["tips"] + a["files"].get("tipmeta", 0) + extra
+        print(f"| {n} | {j['tips']:,} | {mb(j['newick_raw'])} | {mb(j['newick_gzip9'])} | {mb(j['newick_brotli'])} | {mb(z['nodes'])} | {mb(a['files']['tips'] + a['files'].get('tipmeta', 0))} | {mb(extra)} | {mb(tot)} | {tot / j['newick_gzip9']:.2f}x | {mb(a['files']['labels'])} | {mb(fl['zstd3'])} + {mb(j['flat_labels']['zstd3'])} |")
     for n in names:
         j = d[n]
         print(f"\n### {n}: nodes.parquet bytes (MB) by codec, row group, float width, column set (`tuned` encodings)\n")
@@ -36,7 +38,7 @@ def sizes():
                 r = find(j, enc="tuned", codec=codec, rg=rg, float="f32", cols="rollups+occ")
                 g = mb(r["nodes_gzip"]) if r and "nodes_gzip" in r else "-"
                 print(f"| {codec} | {rg // 1024}k | " + " | ".join(cells) + f" | {g} |")
-        print(f"\n{n}: encoding profiles (64k, f32, rollups+occ; nodes MB / tips MB)\n")
+        print(f"\n{n}: encoding profiles (64k, f32, rollups+occ; nodes MB / tips.parquet MB, the sweep wrote labels, node id and metadata in ONE tips file)\n")
         print("| encoding | none | snappy | zstd |\n|---|---|---|---|")
         for enc in ("default", "plain", "bss", "tuned"):
             row = []
@@ -159,7 +161,9 @@ def variants():
             ("browser-variant-rg256k.json", "yule1M__rg256k", "zstd, 256k rows/group"),
             ("browser-variant-paged.json", "yule1M__paged", "zstd, 64k rows + 64 KB pages + page index (`useOffsetIndex`)"),
             ("browser-variant-rg16k.json", "yule1M__rg16k", "zstd, 16k rows/group (first pass)"),
-            ("browser-main.json", "yule1M", "zstd, 16k rows/group (final layout, second pass)")]
+            ("browser-variant-rg64k.json", "yule1M__rg64k", "**second pass, final layout:** zstd, 64k rows/group"),
+            ("browser-main.json", "yule1M", "**second pass, final layout:** zstd, 16k rows/group (the layout used for all main tables)"),
+            ("browser-variant-rg8k.json", "yule1M__rg8k", "**second pass, final layout:** zstd, 8k rows/group")]
     print("| Variant (1M-tip Yule) | nodes.parquet MB | decode ms/100k rows (9 cols) | 4G: overview ms | 4G: 1k clade ms, KB, req | 4G: 10k clade ms, KB, req | 4G: 100k clade ms, MB, req |\n|---|---|---|---|---|---|---|")
     for fn, key, label in rows:
         f = os.path.join(RES, fn)

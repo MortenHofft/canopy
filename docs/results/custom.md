@@ -299,3 +299,14 @@ A real GPU. The accelerated-canvas column is SwiftShader (CPU emulation of a GPU
 * A reduced frame during a gesture shows a coarser tree for up to 120 ms after the last input.
 * Radial columns are still not drawn; hit-testing of connector arcs at huge zoom samples at most 400 segments.
 * The notice text mentions "Library options", which exists only in this demo; a component user turns it off with `summaryNotice: false` or replaces it.
+
+## Stress test: whole Open Tree of Life synthetic tree (2.39M tips)
+
+Source: OTL synthesis opentree16.1, the full `labelled_supertree_simplified_ottnames.tre` (86.4 MB, sha256 verified; CC0 with the OTL caveat in data/real-ladder/README.md). 2,385,875 tips, 339,807 internal nodes (very polytomous), no branch lengths. Fetched with `data/real-ladder/fetch.sh otl` as rung `otl-2m-full` (23 MB gzipped, git-ignored). Measured with `spikes/custom/bench/bench.mjs` (raw: `spikes/results/custom/bench/otl-2m-full.json`), headless Chromium, no GPU, CPU-canvas flags; JS time only, raster not included. Single run, 5 frames per view, machine shared with the Parquet agent.
+
+| Layout | Shared parse | Layout | First render | Frame JS at fit | Drawn at fit (triangles) | Heap |
+|---|---|---|---|---|---|---|
+| Rectangular | 1.10 s | 160 ms | 387 ms | 21.9 ms (cut 8.9, draw 12.9) | 2,581 (1,595) | 569 MB |
+| Radial | 1.17 s | 137 ms | 604 ms | 36.8 ms (cut 35.7, 5 budget retries) | 1,940 (1,250) | 647 MB |
+
+Zoomed in (3% and 0.03% windows) frames cost under 1 ms in both layouts. What this shows: it works at 2.4M tips; the costs are the one-off parse (about 1.1 s, belongs in a worker), the heap (about 0.6 GB, a real concern on phones and low-end devices; this is where a TreeSource backed by Parquet or a tiled model would help), and the whole-tree fit view in radial (budget search, 37 ms). Download is 23 MB gzipped (86 MB raw). Not measured: raster, a real GPU, a real device.

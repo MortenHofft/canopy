@@ -1,5 +1,5 @@
 {
- "when": "2026-10-20T10:19:33.876Z",
+ "when": "2026-10-20T10:41:07.539Z",
  "chromium": "141.0.7390.37",
  "machine": "4 vCPU, Intel(R) Xeon(R) Processor @ 2.10GHz",
  "node": "v22.22.0",
@@ -10,11 +10,12 @@
    "tips": 100000,
    "nodes": 199999,
    "files": {
-    "nodes": 2037768,
-    "tips": 835112,
+    "nodes": 2121228,
+    "tips": 853310,
     "overview": 193945,
-    "spine": 3474,
-    "labels": 830852
+    "spine": 7332,
+    "labels": 830852,
+    "open": 3088
    },
    "newickGz": 1462440,
    "profiles": {
@@ -23,78 +24,78 @@
       "mbps": 0,
       "latency": 0
      },
-     "loadStart": "2.47",
+     "loadStart": "0.28",
      "overview": [
       {
-       "ms": 51.90000000037253,
-       "manifestMs": 17.600000000558794,
-       "overviewMs": 34.299999999813735,
-       "rows": 2049,
+       "ms": 29.200000000186265,
+       "manifestMs": 6.3999999994412065,
+       "overviewMs": 22.800000000745058,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 53799,
-       "typedBytes": 114744,
-       "heapDelta": 1174498,
-       "manifestBytes": 1888,
+       "bytes": 52976,
+       "typedBytes": 114632,
+       "heapDelta": 1885738,
+       "manifestBytes": 1070,
        "serverLog": [
         {
          "url": "/yule100k/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 1888,
+         "bytes": 1070,
          "fresh": true
         },
         {
          "url": "/yule100k/overview.parquet",
          "method": "GET",
-         "range": "bytes=142034-193944",
-         "bytes": 51911,
+         "range": "bytes=142039-193944",
+         "bytes": 51906,
          "fresh": false
         }
        ],
-       "wallMs": 60
+       "wallMs": 39
       },
       {
-       "ms": 31.200000000186265,
-       "manifestMs": 4.2000000001862645,
-       "overviewMs": 27,
-       "rows": 2049,
+       "ms": 30.100000000558794,
+       "manifestMs": 4.300000000745058,
+       "overviewMs": 25.799999999813735,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 53799,
-       "typedBytes": 114744,
-       "heapDelta": 1182562,
-       "manifestBytes": 1888,
+       "bytes": 52976,
+       "typedBytes": 114632,
+       "heapDelta": 1938110,
+       "manifestBytes": 1070,
        "serverLog": [
         {
          "url": "/yule100k/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 1888,
+         "bytes": 1070,
          "fresh": true
         },
         {
          "url": "/yule100k/overview.parquet",
          "method": "GET",
-         "range": "bytes=142034-193944",
-         "bytes": 51911,
+         "range": "bytes=142039-193944",
+         "bytes": 51906,
          "fresh": false
         }
        ],
-       "wallMs": 40
+       "wallMs": 36
       }
      ],
      "footers": {
-      "ms": 10.799999999813735,
+      "ms": 6.7999999998137355,
       "requests": 2,
-      "bytes": 4386
+      "bytes": 13450
      },
      "levels": [
       {
        "level": 1,
-       "ms": 20.700000000186265,
-       "rows": 8976,
-       "typedBytes": 502656,
+       "ms": 21.59999999962747,
+       "rows": 8974,
+       "typedBytes": 502544,
        "requests": 1,
-       "bytes": 142030
+       "bytes": 142035
       }
      ],
      "clades": [
@@ -106,46 +107,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 28.100000000558794,
+          "ms": 13.699999999254942,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 150595,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 0,
-          "heapDelta": 3266326
+          "heapDelta": 1530804
          },
          "withLabels": {
-          "ms": 71.30000000074506,
+          "ms": 30.700000000186265,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 198982,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 1007,
-          "heapDelta": 60640
+          "heapDelta": -1379638
          }
         },
         {
          "nodesOnly": {
-          "ms": 21.299999999813735,
+          "ms": 7.7000000001862645,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 150595,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 0,
-          "heapDelta": 5449933
+          "heapDelta": 1510036
          },
          "withLabels": {
-          "ms": 56.90000000037253,
+          "ms": 16.5,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 198982,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 1007,
-          "heapDelta": 9143103
+          "heapDelta": 2437768
          }
         }
        ]
@@ -158,46 +159,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 19.5,
+          "ms": 13.5,
           "requests": 1,
-          "bytes": 589977,
+          "bytes": 151596,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 0,
-          "heapDelta": 5440215
+          "heapDelta": 1541959
          },
          "withLabels": {
-          "ms": 58.299999999813735,
+          "ms": 26,
           "requests": 2,
-          "bytes": 779743,
+          "bytes": 199885,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 1002,
-          "heapDelta": -7086078
+          "heapDelta": -4400437
          }
         },
         {
          "nodesOnly": {
-          "ms": 26.200000000186265,
+          "ms": 11.099999999627471,
           "requests": 1,
-          "bytes": 589977,
+          "bytes": 151596,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 0,
-          "heapDelta": 5438459
+          "heapDelta": 1562947
          },
          "withLabels": {
-          "ms": 58.299999999813735,
+          "ms": 18.09999999962747,
           "requests": 2,
-          "bytes": 779743,
+          "bytes": 199885,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 1002,
-          "heapDelta": -1168993
+          "heapDelta": 2403581
          }
         }
        ]
@@ -210,46 +211,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 26.299999999813735,
+          "ms": 20.399999999441206,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 324200,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 0,
-          "heapDelta": 6095529
+          "heapDelta": 3603131
          },
          "withLabels": {
-          "ms": 47.39999999944121,
+          "ms": 31.59999999962747,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 442196,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 9864,
-          "heapDelta": 9705720
+          "heapDelta": -3253174
          }
         },
         {
          "nodesOnly": {
-          "ms": 26.200000000186265,
+          "ms": 18,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 324200,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 0,
-          "heapDelta": 6086601
+          "heapDelta": 3592215
          },
          "withLabels": {
-          "ms": 51.700000000186265,
+          "ms": 25.5,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 442196,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 9864,
-          "heapDelta": 9647740
+          "heapDelta": -3552653
          }
         }
        ]
@@ -262,54 +263,54 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 24,
+          "ms": 13,
           "requests": 1,
-          "bytes": 591050,
+          "bytes": 322937,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 0,
-          "heapDelta": -22622605
+          "heapDelta": 3611576
          },
          "withLabels": {
-          "ms": 68.3999999994412,
+          "ms": 43.09999999962747,
           "requests": 2,
-          "bytes": 780678,
+          "bytes": 440874,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 10123,
-          "heapDelta": 10982503
+          "heapDelta": -2124887
          }
         },
         {
          "nodesOnly": {
-          "ms": 20.600000000558794,
+          "ms": 15.199999999254942,
           "requests": 1,
-          "bytes": 591050,
+          "bytes": 322937,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 0,
-          "heapDelta": 6099601
+          "heapDelta": 3617268
          },
          "withLabels": {
-          "ms": 50.39999999944121,
+          "ms": 27.200000000186265,
           "requests": 2,
-          "bytes": 780678,
+          "bytes": 440874,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 10123,
-          "heapDelta": 9639994
+          "heapDelta": -2915933
          }
         }
        ]
       }
      ],
      "memory": {
-      "heapDelta": 8357878,
-      "typedBytes": 843564,
+      "heapDelta": 5165956,
+      "typedBytes": 843452,
       "labels": 10123
      },
      "memoryClade": {
@@ -318,39 +319,39 @@
      },
      "paths": [
       {
-       "ms": 19.399999999441206,
+       "ms": 13.599999999627471,
        "depth": 21,
        "requests": 4,
-       "bytes": 188103
+       "bytes": 115827
       },
       {
-       "ms": 14.799999999813735,
+       "ms": 12,
        "depth": 26,
        "requests": 3,
-       "bytes": 187112
+       "bytes": 115200
       },
       {
-       "ms": 10.099999999627471,
+       "ms": 8.900000000372529,
        "depth": 21,
-       "requests": 2,
-       "bytes": 184355
+       "requests": 3,
+       "bytes": 114946
       }
      ],
      "labelLookup": [
       {
-       "ms": 93.70000000018626,
+       "ms": 25.600000000558794,
        "ok": true,
        "requests": 2,
        "bytes": 136922
       },
       {
-       "ms": 8.5,
+       "ms": 10.400000000372529,
        "ok": true,
        "requests": 2,
        "bytes": 15619
       },
       {
-       "ms": 18.09999999962747,
+       "ms": 22.799999999813735,
        "ok": true,
        "requests": 2,
        "bytes": 136922
@@ -358,67 +359,67 @@
      ],
      "focus": [
       {
-       "ms": 38.39999999944121,
+       "ms": 20,
        "depth": 21,
        "cladeTips": 1473,
        "cladeRows": 2945,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 829000
+       "bytes": 317762
       },
       {
-       "ms": 30.199999999254942,
+       "ms": 18.899999999441206,
        "depth": 26,
        "cladeTips": 1018,
        "cladeRows": 2035,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 829000
+       "bytes": 318702
       },
       {
-       "ms": 30.799999999813735,
+       "ms": 27.40000000037253,
        "depth": 21,
        "cladeTips": 2802,
        "cladeRows": 5603,
        "level": 0,
-       "overviewRows": 2049,
-       "requests": 4,
-       "bytes": 829368
+       "overviewRows": 2047,
+       "requests": 5,
+       "bytes": 491668
       }
      ],
      "tipColumns": {
       "occurrence_count": {
-       "ms": 4.599999999627471,
+       "ms": 3.2999999998137355,
        "columns": [
         "occurrence_count"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 49479
+       "bytes": 81687
       },
       "occurrence_count+country": {
-       "ms": 7.7999999998137355,
+       "ms": 5.7999999998137355,
        "columns": [
         "occurrence_count",
         "country"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 73685
+       "bytes": 88266
       },
       "tip_label": {
-       "ms": 32.40000000037253,
+       "ms": 21,
        "columns": [
         "tip_label"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 189744
+       "bytes": 117996
       },
       "tip_label+occurrence_count+country": {
-       "ms": 37.299999999813735,
+       "ms": 16,
        "columns": [
         "tip_label",
         "occurrence_count",
@@ -426,124 +427,124 @@
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 263429
+       "bytes": 136853
       },
       "_allTips_occ": {
-       "ms": 10.599999999627471,
+       "ms": 10.399999999441206,
        "columns": [
         "occurrence_count"
        ],
        "rows": 100000,
-       "requests": 3,
-       "bytes": 185657
+       "requests": 1,
+       "bytes": 796437
       }
      },
      "decode": {
       "nodesAll": {
        "rows": 199999,
-       "ms": 50.10000000055879,
-       "msPer100k": 25.05012525090565
+       "ms": 47.89999999944121,
+       "msPer100k": 23.950119750319356
       },
       "nodesTwoCols": {
        "rows": 199999,
-       "ms": 9.099999999627471,
-       "msPer100k": 4.550022749927485
+       "ms": 12.599999999627471,
+       "msPer100k": 6.300031499971235
       },
       "tipsLabels": {
        "rows": 100000,
-       "ms": 58.40000000037253,
-       "msPer100k": 58.40000000037253
+       "ms": 54.40000000037253,
+       "msPer100k": 54.40000000037253
       },
       "tipsOcc": {
        "rows": 100000,
-       "ms": 2.2999999998137355,
-       "msPer100k": 2.2999999998137355
+       "ms": 2.8999999994412065,
+       "msPer100k": 2.8999999994412065
       }
      },
      "fullParquet": {
-      "ms": 174.09999999962747,
-      "requests": 8,
-      "bytes": 2385918
+      "ms": 163.79999999981374,
+      "requests": 2,
+      "bytes": 2949587
      },
-     "loadEnd": "2.43"
+     "loadEnd": "0.28"
     },
     "wifi": {
      "profile": {
       "mbps": 30,
       "latency": 20
      },
-     "loadStart": "2.43",
+     "loadStart": "0.28",
      "overview": [
       {
-       "ms": 122.3999999994412,
-       "manifestMs": 65.09999999962747,
-       "overviewMs": 57.299999999813735,
-       "rows": 2049,
+       "ms": 119.20000000018626,
+       "manifestMs": 66,
+       "overviewMs": 53.200000000186265,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 53799,
-       "typedBytes": 114744,
-       "heapDelta": 1256610,
-       "manifestBytes": 1888,
+       "bytes": 52976,
+       "typedBytes": 114632,
+       "heapDelta": 2127490,
+       "manifestBytes": 1070,
        "serverLog": [
         {
          "url": "/yule100k/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 1888,
+         "bytes": 1070,
          "fresh": true
         },
         {
          "url": "/yule100k/overview.parquet",
          "method": "GET",
-         "range": "bytes=142034-193944",
-         "bytes": 51911,
+         "range": "bytes=142039-193944",
+         "bytes": 51906,
          "fresh": false
         }
        ],
-       "wallMs": 128
+       "wallMs": 125
       },
       {
-       "ms": 124.6000000005588,
-       "manifestMs": 68,
-       "overviewMs": 56.60000000055879,
-       "rows": 2049,
+       "ms": 127.90000000037253,
+       "manifestMs": 65.6000000005588,
+       "overviewMs": 62.299999999813735,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 53799,
-       "typedBytes": 114744,
-       "heapDelta": 1262690,
-       "manifestBytes": 1888,
+       "bytes": 52976,
+       "typedBytes": 114632,
+       "heapDelta": 1317910,
+       "manifestBytes": 1070,
        "serverLog": [
         {
          "url": "/yule100k/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 1888,
+         "bytes": 1070,
          "fresh": true
         },
         {
          "url": "/yule100k/overview.parquet",
          "method": "GET",
-         "range": "bytes=142034-193944",
-         "bytes": 51911,
+         "range": "bytes=142039-193944",
+         "bytes": 51906,
          "fresh": false
         }
        ],
-       "wallMs": 129
+       "wallMs": 132
       }
      ],
      "footers": {
-      "ms": 65.59999999962747,
+      "ms": 65.1000000005588,
       "requests": 2,
-      "bytes": 4386
+      "bytes": 13450
      },
      "levels": [
       {
        "level": 1,
-       "ms": 79.40000000037253,
-       "rows": 8976,
-       "typedBytes": 502656,
+       "ms": 72.09999999962747,
+       "rows": 8974,
+       "typedBytes": 502544,
        "requests": 1,
-       "bytes": 142030
+       "bytes": 142035
       }
      ],
      "clades": [
@@ -555,46 +556,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 203.90000000037253,
+          "ms": 66,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 150595,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 0,
-          "heapDelta": 3288770
+          "heapDelta": 1573108
          },
          "withLabels": {
-          "ms": 249.20000000018626,
+          "ms": 83.69999999925494,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 198982,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 1007,
-          "heapDelta": 4868283
+          "heapDelta": -1434006
          }
         },
         {
          "nodesOnly": {
-          "ms": 195.3999999994412,
+          "ms": 68.40000000037253,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 150595,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 0,
-          "heapDelta": 5449921
+          "heapDelta": 1510060
          },
          "withLabels": {
-          "ms": 246.69999999925494,
+          "ms": 84.29999999981374,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 198982,
           "nodeRows": 2013,
           "tips": 1007,
           "typedBytes": 72468,
           "labels": 1007,
-          "heapDelta": 9065171
+          "heapDelta": 2437712
          }
         }
        ]
@@ -607,46 +608,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 199.69999999925494,
+          "ms": 70.40000000037253,
           "requests": 1,
-          "bytes": 589977,
+          "bytes": 151596,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 0,
-          "heapDelta": 5440147
+          "heapDelta": 1564471
          },
          "withLabels": {
-          "ms": 251.79999999981374,
+          "ms": 82,
           "requests": 2,
-          "bytes": 779743,
+          "bytes": 199885,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 1002,
-          "heapDelta": -8265541
+          "heapDelta": -4414661
          }
         },
         {
          "nodesOnly": {
-          "ms": 194,
+          "ms": 67,
           "requests": 1,
-          "bytes": 589977,
+          "bytes": 151596,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 0,
-          "heapDelta": 5438487
+          "heapDelta": 1562747
          },
          "withLabels": {
-          "ms": 243.3999999994412,
+          "ms": 79,
           "requests": 2,
-          "bytes": 779743,
+          "bytes": 199885,
           "nodeRows": 2003,
           "tips": 1002,
           "typedBytes": 72108,
           "labels": 1002,
-          "heapDelta": -4366409
+          "heapDelta": 2403569
          }
         }
        ]
@@ -659,46 +660,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 195.5,
+          "ms": 122.1000000005588,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 324200,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 0,
-          "heapDelta": 6095529
+          "heapDelta": 3647455
          },
          "withLabels": {
-          "ms": 251.29999999981374,
+          "ms": 146.79999999981374,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 442196,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 9864,
-          "heapDelta": 9735120
+          "heapDelta": -3330982
          }
         },
         {
          "nodesOnly": {
-          "ms": 200.6000000005588,
+          "ms": 119.59999999962747,
           "requests": 1,
-          "bytes": 593102,
+          "bytes": 324200,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 0,
-          "heapDelta": -33347873
+          "heapDelta": 3592215
          },
          "withLabels": {
-          "ms": 246.5,
+          "ms": 149.40000000037253,
           "requests": 2,
-          "bytes": 782846,
+          "bytes": 442196,
           "nodeRows": 19727,
           "tips": 9864,
           "typedBytes": 710172,
           "labels": 9864,
-          "heapDelta": 10958187
+          "heapDelta": -3581813
          }
         }
        ]
@@ -711,54 +712,54 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 198.79999999981374,
+          "ms": 115.90000000037253,
           "requests": 1,
-          "bytes": 591050,
+          "bytes": 322937,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 0,
-          "heapDelta": 6099641
+          "heapDelta": 3611588
          },
          "withLabels": {
-          "ms": 249.5,
+          "ms": 150.20000000018626,
           "requests": 2,
-          "bytes": 780678,
+          "bytes": 440874,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 10123,
-          "heapDelta": -3910563
+          "heapDelta": -2095503
          }
         },
         {
          "nodesOnly": {
-          "ms": 195.5,
+          "ms": 118.29999999981374,
           "requests": 1,
-          "bytes": 591050,
+          "bytes": 322937,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 0,
-          "heapDelta": 6099601
+          "heapDelta": 3617520
          },
          "withLabels": {
-          "ms": 249.29999999981374,
+          "ms": 149.8999999994412,
           "requests": 2,
-          "bytes": 780678,
+          "bytes": 440874,
           "nodeRows": 20245,
           "tips": 10123,
           "typedBytes": 728820,
           "labels": 10123,
-          "heapDelta": 9716082
+          "heapDelta": -2911677
          }
         }
        ]
       }
      ],
      "memory": {
-      "heapDelta": 8365026,
-      "typedBytes": 843564,
+      "heapDelta": 2644729,
+      "typedBytes": 843452,
       "labels": 10123
      },
      "memoryClade": {
@@ -767,39 +768,39 @@
      },
      "paths": [
       {
-       "ms": 123.5,
+       "ms": 107.29999999981374,
        "depth": 21,
        "requests": 4,
-       "bytes": 188103
+       "bytes": 115827
       },
       {
-       "ms": 95.69999999925494,
+       "ms": 82.5,
        "depth": 26,
        "requests": 3,
-       "bytes": 187112
+       "bytes": 115200
       },
       {
-       "ms": 74.09999999962747,
+       "ms": 77.6000000005588,
        "depth": 21,
-       "requests": 2,
-       "bytes": 184355
+       "requests": 3,
+       "bytes": 114946
       }
      ],
      "labelLookup": [
       {
-       "ms": 141,
+       "ms": 124.70000000018626,
        "ok": true,
        "requests": 2,
        "bytes": 136922
       },
       {
-       "ms": 58.59999999962747,
+       "ms": 51.40000000037253,
        "ok": true,
        "requests": 2,
        "bytes": 15619
       },
       {
-       "ms": 97.70000000018626,
+       "ms": 105.6000000005588,
        "ok": true,
        "requests": 2,
        "bytes": 136922
@@ -807,67 +808,67 @@
      ],
      "focus": [
       {
-       "ms": 306.5,
+       "ms": 167.5,
        "depth": 21,
        "cladeTips": 1473,
        "cladeRows": 2945,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 829000
+       "bytes": 317762
       },
       {
-       "ms": 315.5,
+       "ms": 159.79999999981374,
        "depth": 26,
        "cladeTips": 1018,
        "cladeRows": 2035,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 829000
+       "bytes": 318702
       },
       {
-       "ms": 287.40000000037253,
+       "ms": 204.70000000018626,
        "depth": 21,
        "cladeTips": 2802,
        "cladeRows": 5603,
        "level": 0,
-       "overviewRows": 2049,
-       "requests": 4,
-       "bytes": 829368
+       "overviewRows": 2047,
+       "requests": 5,
+       "bytes": 491668
       }
      ],
      "tipColumns": {
       "occurrence_count": {
-       "ms": 37.700000000186265,
+       "ms": 41.200000000186265,
        "columns": [
         "occurrence_count"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 49479
+       "bytes": 81687
       },
       "occurrence_count+country": {
-       "ms": 45.80000000074506,
+       "ms": 49,
        "columns": [
         "occurrence_count",
         "country"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 73685
+       "bytes": 88266
       },
       "tip_label": {
-       "ms": 123.1000000005588,
+       "ms": 73.09999999962747,
        "columns": [
         "tip_label"
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 189744
+       "bytes": 117996
       },
       "tip_label+occurrence_count+country": {
-       "ms": 128.90000000037253,
+       "ms": 75.79999999981374,
        "columns": [
         "tip_label",
         "occurrence_count",
@@ -875,19 +876,19 @@
        ],
        "rows": 9864,
        "requests": 1,
-       "bytes": 263429
+       "bytes": 136853
       },
       "_allTips_occ": {
-       "ms": 95.29999999981374,
+       "ms": 238.1000000005588,
        "columns": [
         "occurrence_count"
        ],
        "rows": 100000,
-       "requests": 3,
-       "bytes": 185657
+       "requests": 1,
+       "bytes": 796437
       }
      },
-     "loadEnd": "2.72"
+     "loadEnd": "0.25"
     }
    }
   },
@@ -895,11 +896,12 @@
    "tips": 1000000,
    "nodes": 1999999,
    "files": {
-    "nodes": 20356068,
-    "tips": 8325425,
-    "overview": 2923582,
-    "spine": 17821,
-    "labels": 8596624
+    "nodes": 21198216,
+    "tips": 8514156,
+    "overview": 2918962,
+    "spine": 55102,
+    "labels": 8596624,
+    "open": 37656
    },
    "newickGz": 14539671,
    "profiles": {
@@ -908,94 +910,94 @@
       "mbps": 0,
       "latency": 0
      },
-     "loadStart": "2.72",
+     "loadStart": "0.25",
      "overview": [
       {
-       "ms": 38.80000000074506,
-       "manifestMs": 5.2000000001862645,
-       "overviewMs": 33.60000000055879,
-       "rows": 2049,
+       "ms": 30.90000000037253,
+       "manifestMs": 3.900000000372529,
+       "overviewMs": 27,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 74145,
-       "typedBytes": 114744,
-       "heapDelta": 1419572,
-       "manifestBytes": 11356,
+       "bytes": 65375,
+       "typedBytes": 114632,
+       "heapDelta": 1366213,
+       "manifestBytes": 2733,
        "serverLog": [
         {
          "url": "/yule1M/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 11356,
+         "bytes": 2733,
          "fresh": true
         },
         {
          "url": "/yule1M/overview.parquet",
          "method": "GET",
-         "range": "bytes=2860793-2923581",
-         "bytes": 62789,
+         "range": "bytes=2856320-2918961",
+         "bytes": 62642,
          "fresh": false
         }
        ],
-       "wallMs": 45
+       "wallMs": 36
       },
       {
-       "ms": 28.100000000558794,
-       "manifestMs": 7.2999999998137355,
-       "overviewMs": 20.800000000745058,
-       "rows": 2049,
+       "ms": 24.09999999962747,
+       "manifestMs": 3.599999999627471,
+       "overviewMs": 20.5,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 74145,
-       "typedBytes": 114744,
-       "heapDelta": 1342388,
-       "manifestBytes": 11356,
+       "bytes": 65375,
+       "typedBytes": 114632,
+       "heapDelta": 2294409,
+       "manifestBytes": 2733,
        "serverLog": [
         {
          "url": "/yule1M/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 11356,
+         "bytes": 2733,
          "fresh": true
         },
         {
          "url": "/yule1M/overview.parquet",
          "method": "GET",
-         "range": "bytes=2860793-2923581",
-         "bytes": 62789,
+         "range": "bytes=2856320-2918961",
+         "bytes": 62642,
          "fresh": false
         }
        ],
-       "wallMs": 46
+       "wallMs": 29
       }
      ],
      "footers": {
-      "ms": 13.700000000186265,
+      "ms": 18.299999999813735,
       "requests": 2,
-      "bytes": 32523
+      "bytes": 126780
      },
      "levels": [
       {
        "level": 1,
-       "ms": 22,
-       "rows": 8958,
-       "typedBytes": 501648,
+       "ms": 17.90000000037253,
+       "rows": 8954,
+       "typedBytes": 501424,
        "requests": 1,
-       "bytes": 168711
+       "bytes": 168844
       },
       {
        "level": 2,
-       "ms": 52.59999999962747,
-       "rows": 36624,
-       "typedBytes": 2050944,
+       "ms": 47.09999999962747,
+       "rows": 36619,
+       "typedBytes": 2050664,
        "requests": 1,
-       "bytes": 606236
+       "bytes": 614874
       },
       {
        "level": 3,
-       "ms": 191.8999999994412,
-       "rows": 147371,
-       "typedBytes": 8252776,
+       "ms": 142.20000000018626,
+       "rows": 147366,
+       "typedBytes": 8252496,
        "requests": 1,
-       "bytes": 2085842
+       "bytes": 2072598
       }
      ],
      "clades": [
@@ -1007,46 +1009,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 43.799999999813735,
+          "ms": 9.400000000372529,
           "requests": 1,
-          "bytes": 590941,
+          "bytes": 153001,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 0,
-          "heapDelta": 5462988
+          "heapDelta": 1536735
          },
          "withLabels": {
-          "ms": 76.29999999981374,
+          "ms": 16.90000000037253,
           "requests": 2,
-          "bytes": 780572,
+          "bytes": 201421,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 999,
-          "heapDelta": 10365034
+          "heapDelta": 2769765
          }
         },
         {
          "nodesOnly": {
-          "ms": 40.5,
+          "ms": 7.7999999998137355,
           "requests": 1,
-          "bytes": 590941,
+          "bytes": 153001,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 0,
-          "heapDelta": -32997376
+          "heapDelta": 1527309
          },
          "withLabels": {
-          "ms": 64,
+          "ms": 15.599999999627471,
           "requests": 2,
-          "bytes": 780572,
+          "bytes": 201421,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 999,
-          "heapDelta": 10270318
+          "heapDelta": 2416917
          }
         }
        ]
@@ -1059,46 +1061,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 23.799999999813735,
+          "ms": 8.400000000372529,
           "requests": 1,
-          "bytes": 590087,
+          "bytes": 151429,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 0,
-          "heapDelta": 5437738
+          "heapDelta": -24143861
          },
          "withLabels": {
-          "ms": 60.799999999813735,
+          "ms": 18.199999999254942,
           "requests": 2,
-          "bytes": 779745,
+          "bytes": 199690,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 1000,
-          "heapDelta": 7689164
+          "heapDelta": 2757951
          }
         },
         {
          "nodesOnly": {
-          "ms": 28.59999999962747,
+          "ms": 9.100000000558794,
           "requests": 1,
-          "bytes": 590087,
+          "bytes": 151429,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 0,
-          "heapDelta": -10285290
+          "heapDelta": 1504281
          },
          "withLabels": {
-          "ms": 51.09999999962747,
+          "ms": 17.90000000037253,
           "requests": 2,
-          "bytes": 779745,
+          "bytes": 199690,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 1000,
-          "heapDelta": 8951531
+          "heapDelta": 2407359
          }
         }
        ]
@@ -1111,46 +1113,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 38.40000000037253,
-          "requests": 2,
-          "bytes": 1187338,
+          "ms": 23.799999999813735,
+          "requests": 1,
+          "bytes": 501405,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 0,
-          "heapDelta": 11473969
+          "heapDelta": 5061865
          },
          "withLabels": {
-          "ms": 119.3999999994412,
-          "requests": 4,
-          "bytes": 1565759,
+          "ms": 46.10000000055879,
+          "requests": 2,
+          "bytes": 688194,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 10026,
-          "heapDelta": -15148862
+          "heapDelta": 8805786
          }
         },
         {
          "nodesOnly": {
-          "ms": 42.80000000074506,
-          "requests": 2,
-          "bytes": 1187338,
+          "ms": 20.600000000558794,
+          "requests": 1,
+          "bytes": 501405,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 0,
-          "heapDelta": 989502
+          "heapDelta": -10113945
          },
          "withLabels": {
-          "ms": 76.5,
-          "requests": 4,
-          "bytes": 1565759,
+          "ms": 43,
+          "requests": 2,
+          "bytes": 688194,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 10026,
-          "heapDelta": 18511880
+          "heapDelta": 7826174
          }
         }
        ]
@@ -1163,46 +1165,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 29.299999999813735,
+          "ms": 13.799999999813735,
           "requests": 1,
-          "bytes": 592608,
+          "bytes": 326143,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 0,
-          "heapDelta": 6112903
+          "heapDelta": 3607082
          },
          "withLabels": {
-          "ms": 51.799999999813735,
+          "ms": 27,
           "requests": 2,
-          "bytes": 782053,
+          "bytes": 443974,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 9983,
-          "heapDelta": 10963303
+          "heapDelta": 6134141
          }
         },
         {
          "nodesOnly": {
-          "ms": 19,
+          "ms": 11.799999999813735,
           "requests": 1,
-          "bytes": 592608,
+          "bytes": 326143,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 0,
-          "heapDelta": 6102619
+          "heapDelta": -12747056
          },
          "withLabels": {
-          "ms": 57.200000000186265,
+          "ms": 22,
           "requests": 2,
-          "bytes": 782053,
+          "bytes": 443974,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 9983,
-          "heapDelta": -35964546
+          "heapDelta": 5441881
          }
         }
        ]
@@ -1215,46 +1217,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 79.09999999962747,
-          "requests": 4,
-          "bytes": 2369880,
+          "ms": 74.5,
+          "requests": 1,
+          "bytes": 2232536,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 0,
-          "heapDelta": 28477262
+          "heapDelta": 25794078
          },
          "withLabels": {
-          "ms": 228.6000000005588,
-          "requests": 8,
-          "bytes": 3126586,
+          "ms": 225.30000000074506,
+          "requests": 2,
+          "bytes": 3112424,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 97196,
-          "heapDelta": -3898059
+          "heapDelta": 860255
          }
         },
         {
          "nodesOnly": {
-          "ms": 93,
-          "requests": 4,
-          "bytes": 2369880,
+          "ms": 83.1000000005588,
+          "requests": 1,
+          "bytes": 2232536,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 0,
-          "heapDelta": 14781508
+          "heapDelta": 25766098
          },
          "withLabels": {
-          "ms": 225.70000000018626,
-          "requests": 8,
-          "bytes": 3126586,
+          "ms": 242.79999999981374,
+          "requests": 2,
+          "bytes": 3112424,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 97196,
-          "heapDelta": 42817498
+          "heapDelta": -40395659
          }
         }
        ]
@@ -1267,54 +1269,54 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 174.90000000037253,
-          "requests": 5,
-          "bytes": 2684120,
+          "ms": 70.20000000018626,
+          "requests": 1,
+          "bytes": 2400844,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 0,
-          "heapDelta": -77885546
+          "heapDelta": 22307953
          },
          "withLabels": {
-          "ms": 219.6000000005588,
-          "requests": 10,
-          "bytes": 3541073,
+          "ms": 235.79999999981374,
+          "requests": 2,
+          "bytes": 3352280,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 104601,
-          "heapDelta": 54009885
+          "heapDelta": -30629379
          }
         },
         {
          "nodesOnly": {
-          "ms": 90.09999999962747,
-          "requests": 5,
-          "bytes": 2684120,
+          "ms": 71.3999999994412,
+          "requests": 1,
+          "bytes": 2400844,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 0,
-          "heapDelta": 31868864
+          "heapDelta": 27731148
          },
          "withLabels": {
-          "ms": 211.30000000074506,
-          "requests": 10,
-          "bytes": 3541073,
+          "ms": 271.6000000005588,
+          "requests": 2,
+          "bytes": 3352280,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 104601,
-          "heapDelta": -18044459
+          "heapDelta": -27742608
          }
         }
        ]
       }
      ],
      "memory": {
-      "heapDelta": 36442922,
-      "typedBytes": 7645980,
+      "heapDelta": 35829596,
+      "typedBytes": 7645868,
       "labels": 104601
      },
      "memoryClade": {
@@ -1323,39 +1325,39 @@
      },
      "paths": [
       {
-       "ms": 99,
+       "ms": 59.40000000037253,
        "depth": 21,
        "requests": 4,
-       "bytes": 201744
+       "bytes": 199071
       },
       {
-       "ms": 15.899999999441206,
+       "ms": 8.699999999254942,
        "depth": 33,
        "requests": 3,
-       "bytes": 200617
+       "bytes": 197392
       },
       {
-       "ms": 21.799999999813735,
+       "ms": 9.399999999441206,
        "depth": 33,
        "requests": 3,
-       "bytes": 200934
+       "bytes": 197225
       }
      ],
      "labelLookup": [
       {
-       "ms": 30.90000000037253,
+       "ms": 25,
        "ok": true,
        "requests": 2,
        "bytes": 150884
       },
       {
-       "ms": 30.799999999813735,
+       "ms": 15.5,
        "ok": true,
        "requests": 2,
        "bytes": 150884
       },
       {
-       "ms": 64.5,
+       "ms": 17.09999999962747,
        "ok": true,
        "requests": 2,
        "bytes": 150759
@@ -1363,67 +1365,67 @@
      ],
      "focus": [
       {
-       "ms": 41.59999999962747,
+       "ms": 17.899999999441206,
        "depth": 21,
        "cladeTips": 2291,
        "cladeRows": 4581,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 854412
+       "bytes": 413430
       },
       {
-       "ms": 39.200000000186265,
+       "ms": 29.299999999813735,
        "depth": 33,
        "cladeTips": 1085,
        "cladeRows": 2169,
        "level": 1,
-       "overviewRows": 8958,
+       "overviewRows": 8954,
        "requests": 6,
-       "bytes": 1020570
+       "bytes": 580006
       },
       {
-       "ms": 54.39999999944121,
+       "ms": 23.799999999813735,
        "depth": 33,
        "cladeTips": 1181,
        "cladeRows": 2361,
        "level": 1,
-       "overviewRows": 8958,
+       "overviewRows": 8954,
        "requests": 6,
-       "bytes": 1023209
+       "bytes": 580161
       }
      ],
      "tipColumns": {
       "occurrence_count": {
-       "ms": 7.900000000372529,
+       "ms": 3.599999999627471,
        "columns": [
         "occurrence_count"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 97972
+       "requests": 1,
+       "bytes": 150287
       },
       "occurrence_count+country": {
-       "ms": 10.799999999813735,
+       "ms": 6.7000000001862645,
        "columns": [
         "occurrence_count",
         "country"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 146264
+       "requests": 1,
+       "bytes": 156830
       },
       "tip_label": {
-       "ms": 112.79999999981374,
+       "ms": 27.09999999962747,
        "columns": [
         "tip_label"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 378421
+       "requests": 1,
+       "bytes": 186789
       },
       "tip_label+occurrence_count+country": {
-       "ms": 60.700000000186265,
+       "ms": 20.200000000186265,
        "columns": [
         "tip_label",
         "occurrence_count",
@@ -1431,140 +1433,140 @@
        ],
        "rows": 10026,
        "requests": 1,
-       "bytes": 534262
+       "bytes": 205328
       },
       "_allTips_occ": {
-       "ms": 80.90000000037253,
+       "ms": 77.20000000018626,
        "columns": [
         "occurrence_count"
        ],
        "rows": 1000000,
-       "requests": 31,
-       "bytes": 1502524
+       "requests": 1,
+       "bytes": 8423235
       }
      },
      "decode": {
       "nodesAll": {
        "rows": 200000,
-       "ms": 53.39999999944121,
-       "msPer100k": 26.699999999720603
+       "ms": 47.59999999962747,
+       "msPer100k": 23.799999999813735
       },
       "nodesTwoCols": {
        "rows": 200000,
-       "ms": 9.5,
-       "msPer100k": 4.75
+       "ms": 8.899999999441206,
+       "msPer100k": 4.449999999720603
       },
       "tipsLabels": {
        "rows": 100000,
-       "ms": 79.5,
-       "msPer100k": 79.5
+       "ms": 64.1000000005588,
+       "msPer100k": 64.1000000005588
       },
       "tipsOcc": {
        "rows": 100000,
-       "ms": 2.6000000005587935,
-       "msPer100k": 2.6000000005587935
+       "ms": 2.099999999627471,
+       "msPer100k": 2.099999999627471
       }
      },
      "fullParquet": {
-      "ms": 2021.1000000005588,
-      "requests": 62,
-      "bytes": 23845952
+      "ms": 1931.4000000003725,
+      "requests": 2,
+      "bytes": 29579604
      },
-     "loadEnd": "3.16"
+     "loadEnd": "0.80"
     },
     "wifi": {
      "profile": {
       "mbps": 30,
       "latency": 20
      },
-     "loadStart": "3.16",
+     "loadStart": "0.80",
      "overview": [
       {
-       "ms": 124.90000000037253,
-       "manifestMs": 68.20000000018626,
-       "overviewMs": 56.700000000186265,
-       "rows": 2049,
+       "ms": 117,
+       "manifestMs": 64.5,
+       "overviewMs": 52.5,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 74145,
-       "typedBytes": 114744,
-       "heapDelta": 2768336,
-       "manifestBytes": 11356,
+       "bytes": 65375,
+       "typedBytes": 114632,
+       "heapDelta": 2048713,
+       "manifestBytes": 2733,
        "serverLog": [
         {
          "url": "/yule1M/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 11356,
+         "bytes": 2733,
          "fresh": true
         },
         {
          "url": "/yule1M/overview.parquet",
          "method": "GET",
-         "range": "bytes=2860793-2923581",
-         "bytes": 62789,
+         "range": "bytes=2856320-2918961",
+         "bytes": 62642,
          "fresh": false
         }
        ],
-       "wallMs": 129
+       "wallMs": 121
       },
       {
-       "ms": 130.6000000005588,
-       "manifestMs": 66.20000000018626,
-       "overviewMs": 64.40000000037253,
-       "rows": 2049,
+       "ms": 122.19999999925494,
+       "manifestMs": 65.69999999925494,
+       "overviewMs": 56.5,
+       "rows": 2047,
        "requests": 2,
-       "bytes": 74145,
-       "typedBytes": 114744,
-       "heapDelta": 2046244,
-       "manifestBytes": 11356,
+       "bytes": 65375,
+       "typedBytes": 114632,
+       "heapDelta": 1361985,
+       "manifestBytes": 2733,
        "serverLog": [
         {
          "url": "/yule1M/manifest.json",
          "method": "GET",
          "range": null,
-         "bytes": 11356,
+         "bytes": 2733,
          "fresh": true
         },
         {
          "url": "/yule1M/overview.parquet",
          "method": "GET",
-         "range": "bytes=2860793-2923581",
-         "bytes": 62789,
+         "range": "bytes=2856320-2918961",
+         "bytes": 62642,
          "fresh": false
         }
        ],
-       "wallMs": 135
+       "wallMs": 127
       }
      ],
      "footers": {
-      "ms": 74.70000000018626,
+      "ms": 77,
       "requests": 2,
-      "bytes": 32523
+      "bytes": 126780
      },
      "levels": [
       {
        "level": 1,
-       "ms": 78.90000000037253,
-       "rows": 8958,
-       "typedBytes": 501648,
+       "ms": 80.79999999981374,
+       "rows": 8954,
+       "typedBytes": 501424,
        "requests": 1,
-       "bytes": 168711
+       "bytes": 168844
       },
       {
        "level": 2,
-       "ms": 219.6000000005588,
-       "rows": 36624,
-       "typedBytes": 2050944,
+       "ms": 221.1000000005588,
+       "rows": 36619,
+       "typedBytes": 2050664,
        "requests": 1,
-       "bytes": 606236
+       "bytes": 614874
       },
       {
        "level": 3,
-       "ms": 724.1000000005588,
-       "rows": 147371,
-       "typedBytes": 8252776,
+       "ms": 732.5999999996275,
+       "rows": 147366,
+       "typedBytes": 8252496,
        "requests": 1,
-       "bytes": 2085842
+       "bytes": 2072598
       }
      ],
      "clades": [
@@ -1576,46 +1578,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 196.59999999962747,
+          "ms": 68.59999999962747,
           "requests": 1,
-          "bytes": 590941,
+          "bytes": 153001,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 0,
-          "heapDelta": 5462548
+          "heapDelta": 1536687
          },
          "withLabels": {
-          "ms": 268.5,
+          "ms": 81.79999999981374,
           "requests": 2,
-          "bytes": 780572,
+          "bytes": 201421,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 999,
-          "heapDelta": -29948643
+          "heapDelta": 2801245
          }
         },
         {
          "nodesOnly": {
-          "ms": 195.5,
+          "ms": 67.29999999981374,
           "requests": 1,
-          "bytes": 590941,
+          "bytes": 153001,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 0,
-          "heapDelta": 5498325
+          "heapDelta": -21280093
          },
          "withLabels": {
-          "ms": 244.70000000018626,
+          "ms": 80.20000000018626,
           "requests": 2,
-          "bytes": 780572,
+          "bytes": 201421,
           "nodeRows": 1997,
           "tips": 999,
           "typedBytes": 71892,
           "labels": 999,
-          "heapDelta": -10368746
+          "heapDelta": 2416893
          }
         }
        ]
@@ -1628,46 +1630,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 197.20000000018626,
+          "ms": 66.20000000018626,
           "requests": 1,
-          "bytes": 590087,
+          "bytes": 151429,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 0,
-          "heapDelta": 5471757
+          "heapDelta": 1504457
          },
          "withLabels": {
-          "ms": 245.79999999981374,
+          "ms": 78.1000000005588,
           "requests": 2,
-          "bytes": 779745,
+          "bytes": 199690,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 1000,
-          "heapDelta": 10283892
+          "heapDelta": 2739799
          }
         },
         {
          "nodesOnly": {
-          "ms": 193.29999999981374,
+          "ms": 66.59999999962747,
           "requests": 1,
-          "bytes": 590087,
+          "bytes": 151429,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 0,
-          "heapDelta": 5437550
+          "heapDelta": 1504313
          },
          "withLabels": {
-          "ms": 246.79999999981374,
+          "ms": 78.5,
           "requests": 2,
-          "bytes": 779745,
+          "bytes": 199690,
           "nodeRows": 1999,
           "tips": 1000,
           "typedBytes": 71964,
           "labels": 1000,
-          "heapDelta": 8955227
+          "heapDelta": 2407347
          }
         }
        ]
@@ -1680,46 +1682,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 355.1000000005588,
-          "requests": 2,
-          "bytes": 1187338,
+          "ms": 166.8999999994412,
+          "requests": 1,
+          "bytes": 501405,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 0,
-          "heapDelta": 11473921
+          "heapDelta": 5061877
          },
          "withLabels": {
-          "ms": 455,
-          "requests": 4,
-          "bytes": 1565759,
+          "ms": 225.40000000037253,
+          "requests": 2,
+          "bytes": 688194,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 10026,
-          "heapDelta": -25655018
+          "heapDelta": -26743813
          }
         },
         {
          "nodesOnly": {
-          "ms": 355.8999999994412,
-          "requests": 2,
-          "bytes": 1187338,
+          "ms": 164.5,
+          "requests": 1,
+          "bytes": 501405,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 0,
-          "heapDelta": 11475120
+          "heapDelta": 5071768
          },
          "withLabels": {
-          "ms": 458,
-          "requests": 4,
-          "bytes": 1565759,
+          "ms": 214.5,
+          "requests": 2,
+          "bytes": 688194,
           "nodeRows": 20051,
           "tips": 10026,
           "typedBytes": 721836,
           "labels": 10026,
-          "heapDelta": -15017879
+          "heapDelta": 7859726
          }
         }
        ]
@@ -1732,46 +1734,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 198,
+          "ms": 116.09999999962747,
           "requests": 1,
-          "bytes": 592608,
+          "bytes": 326143,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 0,
-          "heapDelta": 6097686
+          "heapDelta": 3606506
          },
          "withLabels": {
-          "ms": 283.40000000037253,
+          "ms": 147.80000000074506,
           "requests": 2,
-          "bytes": 782053,
+          "bytes": 443974,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 9983,
-          "heapDelta": -12982962
+          "heapDelta": -7140624
          }
         },
         {
          "nodesOnly": {
-          "ms": 197.30000000074506,
+          "ms": 117.29999999981374,
           "requests": 1,
-          "bytes": 592608,
+          "bytes": 326143,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 0,
-          "heapDelta": 6103074
+          "heapDelta": 3601526
          },
          "withLabels": {
-          "ms": 245.69999999925494,
+          "ms": 146.5,
           "requests": 2,
-          "bytes": 782053,
+          "bytes": 443974,
           "nodeRows": 19965,
           "tips": 9983,
           "typedBytes": 718740,
           "labels": 9983,
-          "heapDelta": 9823942
+          "heapDelta": 5441937
          }
         }
        ]
@@ -1784,46 +1786,46 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 675.7999999998137,
-          "requests": 4,
-          "bytes": 2369880,
+          "ms": 698.3999999994412,
+          "requests": 1,
+          "bytes": 2232536,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 0,
-          "heapDelta": 28511094
+          "heapDelta": 25786942
          },
          "withLabels": {
-          "ms": 890.4000000003725,
-          "requests": 8,
-          "bytes": 3126586,
+          "ms": 938,
+          "requests": 2,
+          "bytes": 3112424,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 97196,
-          "heapDelta": -7733196
+          "heapDelta": -16965253
          }
         },
         {
          "nodesOnly": {
-          "ms": 698.7000000001863,
-          "requests": 4,
-          "bytes": 2369880,
+          "ms": 699.9000000003725,
+          "requests": 1,
+          "bytes": 2232536,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 0,
-          "heapDelta": -8203397
+          "heapDelta": 25764785
          },
          "withLabels": {
-          "ms": 883.1000000005588,
-          "requests": 8,
-          "bytes": 3126586,
+          "ms": 926.0999999996275,
+          "requests": 2,
+          "bytes": 3112424,
           "nodeRows": 194391,
           "tips": 97196,
           "typedBytes": 6998076,
           "labels": 97196,
-          "heapDelta": -3630406
+          "heapDelta": -20121845
          }
         }
        ]
@@ -1836,54 +1838,54 @@
        "reps": [
         {
          "nodesOnly": {
-          "ms": 772.5,
-          "requests": 5,
-          "bytes": 2684120,
+          "ms": 723.2999999998137,
+          "requests": 1,
+          "bytes": 2400844,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 0,
-          "heapDelta": 32072415
+          "heapDelta": 27731863
          },
          "withLabels": {
-          "ms": 989.2999999998137,
-          "requests": 10,
-          "bytes": 3541073,
+          "ms": 975.0999999996275,
+          "requests": 2,
+          "bytes": 3352280,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 104601,
-          "heapDelta": -27967575
+          "heapDelta": -26628864
          }
         },
         {
          "nodesOnly": {
-          "ms": 775.4000000003725,
-          "requests": 5,
-          "bytes": 2684120,
+          "ms": 745.6000000005588,
+          "requests": 1,
+          "bytes": 2400844,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 0,
-          "heapDelta": 31870415
+          "heapDelta": 18149896
          },
          "withLabels": {
-          "ms": 993.0999999996275,
-          "requests": 10,
-          "bytes": 3541073,
+          "ms": 974.5999999996275,
+          "requests": 2,
+          "bytes": 3352280,
           "nodeRows": 209201,
           "tips": 104601,
           "typedBytes": 7531236,
           "labels": 104601,
-          "heapDelta": -38416674
+          "heapDelta": -15318986
          }
         }
        ]
       }
      ],
      "memory": {
-      "heapDelta": 38569518,
-      "typedBytes": 7645980,
+      "heapDelta": 34677680,
+      "typedBytes": 7645868,
       "labels": 104601
      },
      "memoryClade": {
@@ -1892,39 +1894,39 @@
      },
      "paths": [
       {
-       "ms": 126.20000000018626,
+       "ms": 123.8999999994412,
        "depth": 21,
        "requests": 4,
-       "bytes": 201744
+       "bytes": 199071
       },
       {
-       "ms": 100.20000000018626,
+       "ms": 100.29999999981374,
        "depth": 33,
        "requests": 3,
-       "bytes": 200617
+       "bytes": 197392
       },
       {
-       "ms": 100.40000000037253,
+       "ms": 98.29999999981374,
        "depth": 33,
        "requests": 3,
-       "bytes": 200934
+       "bytes": 197225
       }
      ],
      "labelLookup": [
       {
-       "ms": 104.3999999994412,
+       "ms": 141.80000000074506,
        "ok": true,
        "requests": 2,
        "bytes": 150884
       },
       {
-       "ms": 173.3999999994412,
+       "ms": 94.20000000018626,
        "ok": true,
        "requests": 2,
        "bytes": 150884
       },
       {
-       "ms": 109.8999999994412,
+       "ms": 97.79999999981374,
        "ok": true,
        "requests": 2,
        "bytes": 150759
@@ -1932,67 +1934,67 @@
      ],
      "focus": [
       {
-       "ms": 316.79999999981374,
+       "ms": 185.19999999925494,
        "depth": 21,
        "cladeTips": 2291,
        "cladeRows": 4581,
        "level": 0,
-       "overviewRows": 2049,
+       "overviewRows": 2047,
        "requests": 5,
-       "bytes": 854412
+       "bytes": 413430
       },
       {
-       "ms": 361.09999999962747,
+       "ms": 232.70000000018626,
        "depth": 33,
        "cladeTips": 1085,
        "cladeRows": 2169,
        "level": 1,
-       "overviewRows": 8958,
+       "overviewRows": 8954,
        "requests": 6,
-       "bytes": 1020570
+       "bytes": 580006
       },
       {
-       "ms": 368,
+       "ms": 229.29999999981374,
        "depth": 33,
        "cladeTips": 1181,
        "cladeRows": 2361,
        "level": 1,
-       "overviewRows": 8958,
+       "overviewRows": 8954,
        "requests": 6,
-       "bytes": 1023209
+       "bytes": 580161
       }
      ],
      "tipColumns": {
       "occurrence_count": {
-       "ms": 61.700000000186265,
+       "ms": 63.299999999813735,
        "columns": [
         "occurrence_count"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 97972
+       "requests": 1,
+       "bytes": 150287
       },
       "occurrence_count+country": {
-       "ms": 66.20000000018626,
+       "ms": 65.6000000005588,
        "columns": [
         "occurrence_count",
         "country"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 146264
+       "requests": 1,
+       "bytes": 156830
       },
       "tip_label": {
-       "ms": 199.79999999981374,
+       "ms": 100.8999999994412,
        "columns": [
         "tip_label"
        ],
        "rows": 10026,
-       "requests": 2,
-       "bytes": 378421
+       "requests": 1,
+       "bytes": 186789
       },
       "tip_label+occurrence_count+country": {
-       "ms": 215.30000000074506,
+       "ms": 93.5,
        "columns": [
         "tip_label",
         "occurrence_count",
@@ -2000,19 +2002,19 @@
        ],
        "rows": 10026,
        "requests": 1,
-       "bytes": 534262
+       "bytes": 205328
       },
       "_allTips_occ": {
-       "ms": 694.9000000003725,
+       "ms": 2310.7000000001863,
        "columns": [
         "occurrence_count"
        ],
        "rows": 1000000,
-       "requests": 31,
-       "bytes": 1502524
+       "requests": 1,
+       "bytes": 8423235
       }
      },
-     "loadEnd": "3.71"
+     "loadEnd": "0.77"
     }
    }
   }

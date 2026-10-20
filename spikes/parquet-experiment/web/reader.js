@@ -231,9 +231,12 @@ export class ParquetTreeSource {
     const cols = columns.filter((c) => c !== 'name' || this.man.has_names);
     return this._read('nodes', cols, lo, hi);
   }
-  /** Tip rows (rank range) with chosen columns of tips.parquet: node, tip_label, occurrence_count, country. */
+  /** Tip rows (rank range): `node`, `tip_label` from tips.parquet; occurrence_count, country, ... from tipmeta.parquet (separate files, same row groups). */
   async getTips(r0, r1, columns = ['tip_label']) {
-    return this._read('tips', columns, r0, r1);
+    const inTips = columns.filter((c) => c === 'tip_label' || c === 'node');
+    const inMeta = columns.filter((c) => !(c === 'tip_label' || c === 'node'));
+    const parts = await Promise.all([inTips.length ? this._read('tips', inTips, r0, r1) : {}, inMeta.length ? this._read('tipmeta', inMeta, r0, r1) : {}]);
+    return Object.assign({}, ...parts);
   }
   /** Ancestors of `node` (root first, node last) with their rollups: reads the node's row group (parent, subtree_end, tip_count only)
    *  plus the spine file (ancestors that lie before the row group). The spine is one extra request, cached for the session.
