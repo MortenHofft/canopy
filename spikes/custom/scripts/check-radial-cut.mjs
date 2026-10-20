@@ -11,6 +11,8 @@
 //   5. zooming in reveals detail: at 16x the collapse threshold is back at the base value and no summary is forced
 //   6. hit-testing: a point inside a drawn summary hits that summary (kind 'summary') with the right tip range
 //   7. a deep zoom visits a small part of the tree (the cull is a sector test, not a bounding box of the whole tree)
+//   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
+//      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
 // Exit code 1 on any failure.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -143,6 +145,38 @@ for (const b of [500, 1000, 2000, 5000, 20000]) {
   const { res } = searchCut(false, tree, L, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
   console.log(`budget ${b}: drawn ${list.count}${res.overflow ? ' TRUNCATED' : ''}`);
   ok(!res.overflow && list.count <= b, `budget ${b}: drawn ${list.count}`);
+}
+// 8 pan stability: the dedupe cells must not depend on the sub-pixel position of the tree. Run on the synthetic tree and on the
+// committed real OTL 91k tree (the Yule tree alone did not expose the bug).
+function panCheck(label, tr, Lr, Nr) {
+  const summarySet = (l) => { const set = new Set(); for (let e = 0; e < l.count; e++) if (l.kind[e] === K_SUMMARY) set.add(l.node[e]); return set; };
+  const rectView = (dx, dy) => { const x0 = -0.03, x1 = 1.03, y0 = -1, y1 = Nr + 1; const kx = W / (x1 - x0), ky = H / (y1 - y0); return { x0: x0 + dx / kx, x1: x1 + dx / kx, y0: y0 + dy / ky, y1: y1 + dy / ky }; };
+  const radialView = (dx, dy) => ({ x0: fitView.x0 + dx / kfit, x1: fitView.x1 + dx / kfit, y0: fitView.y0 + dy / kfit, y1: fitView.y1 + dy / kfit });
+  for (const [kind, rect, mk] of [['radial', false, radialView], ['rectangular', true, rectView]]) {
+    for (const b of [500, 2000]) {
+      let ref = null, worst = 0;
+      for (const [dx, dy] of [[0, 0], [0.1, 0], [0.37, 0.61], [0.5, 0.5], [0.9, 0.2], [1.5, 0.3], [4.25, 2.75], [9.3, 0]]) {
+        const T = makeTransform(kind, W, H, mk(dx, dy), area, Nr);
+        searchCut(rect, tr, Lr, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+        const cur = summarySet(list);
+        if (!ref) { ref = cur; continue; }
+        let d = 0;
+        for (const x of cur) if (!ref.has(x)) d++;
+        for (const x of ref) if (!cur.has(x)) d++;
+        worst = Math.max(worst, d);
+      }
+      console.log(`pan stability ${label} ${kind}, budget ${b}: ${ref.size} summaries, worst difference over sub-pixel pans ${worst}`);
+      ok(worst === 0, `pan stability ${label} ${kind}, budget ${b}: the set of collapsed clades changed by up to ${worst} under a sub-pixel pan`);
+    }
+  }
+}
+panCheck('synthetic', tree, L, N);
+const otlFile = path.join(root, 'data/real-ladder/trees/otl-100k-vertebrata.nwk.gz');
+if (fs.existsSync(otlFile)) {
+  const otl = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
+  const Lo = computeLayout(otl, true);
+  ensureTrig(Lo);
+  panCheck('OTL 91k', otl, Lo, otl.tipCount);
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

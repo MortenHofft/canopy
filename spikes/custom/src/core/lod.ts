@@ -118,6 +118,9 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
   const { ox, oy, kx, ky, clipL, clipR, clipT, clipB } = T;
   const { lod, minPx, budget } = P;
   const PAD = 8;
+  // dedupe cells are anchored at the whole-pixel part of the origin (see cutRadial): panning by a fraction of a pixel
+  // does not change the cut
+  const oxs = Math.floor(ox), oys = Math.floor(oy);
   out.count = 0;
   seen.reset();
   let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
@@ -145,10 +148,10 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
     let emit = true;
     if (lod) {
       let d: number, e: number;
-      if (kind === K_NODE) { d = cell(oy + ROW[firstChild[i]] * ky); e = cell(oy + ROW[LAST[i]] * ky); }
-      else if (kind === K_SUMMARY) { d = cell(yTop) + 8192 * 0; e = cell(yBot); }
-      else { d = cell(sy); e = d; }
-      emit = seen.add(cell(sxp), cell(sx), cell(sy), d + kind * 8192, e);
+      if (kind === K_NODE) { d = cell(oys + ROW[firstChild[i]] * ky); e = cell(oys + ROW[LAST[i]] * ky); }
+      else if (kind === K_SUMMARY) { d = cell(oys + leafStart[i] * ky); e = cell(oys + leafEnd[i] * ky); }
+      else { d = cell(oys + ROW[i] * ky); e = d; }
+      emit = seen.add(cell(oxs + (i > 0 ? X[p] : X[i]) * kx), cell(oxs + X[i] * kx), cell(oys + ROW[i] * ky), d + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) { overflow = true; break; }
@@ -204,6 +207,9 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = 8;
+  // dedupe cells are anchored at the whole-pixel part of the origin, so a sub-pixel pan moves every primitive by the same
+  // amount relative to the cell grid, i.e. leaves the cut unchanged
+  const cxs = Math.floor(cx), cys = Math.floor(cy);
   radialWindow(cx, cy, clipL - PAD, clipT - PAD, clipR + PAD, clipB + PAD);
   const W = radialWindowState;
   const rMin = W.rMin, rMax = W.rMax, all = W.all, lo = W.lo, hi = W.hi, wrap = W.wrap;
@@ -253,7 +259,7 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
       let e = 0;
       if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * da * ri));
       else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(arc));
-      emit = seen.add(cell(sx), cell(sy), cell(cx + rp * ca), cell(cy + rp * sa) + kind * 8192, e);
+      emit = seen.add(cell(cxs + ri * ca), cell(cys + ri * sa), cell(cxs + rp * ca), cell(cys + rp * sa) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) { overflow = true; break; }
