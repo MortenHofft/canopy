@@ -27,6 +27,14 @@ export const K_TIP = 1;
 export const K_SUMMARY = 2; // collapsed clade drawn as a triangle
 export const K_STUB = 3; // collapsed or cut clade drawn as its branch only
 
+/** A collapsed clade whose children are all tips (a polytomy of at least this many) is drawn as a slice: the band from the
+ *  node's depth to the longest tip over the clade's angles (radial) or rows (rectangular), not as a fan or triangle. */
+export const SLICE_MIN_CHILDREN = 16;
+export function isSlice(tree: TreeSnapshot, i: number): boolean {
+  const c = tree.childCount[i];
+  return c >= SLICE_MIN_CHILDREN && tree.leafEnd[i] - tree.leafStart[i] === c && (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0);
+}
+
 export class DrawList {
   node = new Int32Array(8192);
   kind = new Uint8Array(8192);
@@ -251,7 +259,8 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
     else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB;
-    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
+    // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
+    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else { kind = K_NODE; descend = true; }
     let emit = true;
     if (lod) {
@@ -267,7 +276,7 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base))) forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))) forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];

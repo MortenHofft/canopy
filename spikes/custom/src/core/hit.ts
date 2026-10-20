@@ -5,7 +5,7 @@
 
 import type { Layout } from './layout.ts';
 import type { Transform } from './geom.ts';
-import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP } from './lod.ts';
+import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import type { Hit, TreeSnapshot } from './types.ts';
 
 export const MARKER_PX = 12; // internal node markers are drawn (and hittable) when the clade is at least this tall
@@ -186,11 +186,12 @@ export class HitIndex {
               if (mx < x - 2 || mx > xm + 2) continue;
               const ym = Math.max(y1, y0 + 2);
               const yt = ym - Math.max(y1 - y0, 2);
+              if (isSlice(tree, i)) { if (my < yt - 2 || my > ym + 2) continue; d = 0; } else {
               // triangle apex (x, y), base at xm from yt to ym (with 2 px slack)
               const f = xm > x ? (mx - x) / (xm - x) : 1;
               const lo = y + (yt - y) * f - 2, hi = y + (ym - y) * f + 2;
               if (my < lo || my > hi) continue;
-              d = 0;
+              d = 0; }
             } else if (type === T_STUB) {
               const px = T.ox + L.X[tree.parent[i]] * T.kx;
               const dy = Math.abs(my - y);

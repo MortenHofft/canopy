@@ -11,6 +11,8 @@
 //   5. zooming in reveals detail: at 16x the collapse threshold is back at the base value and no summary is forced
 //   6. hit-testing: a point inside a drawn summary hits that summary (kind 'summary') with the right tip range
 //   7. a deep zoom visits a small part of the tree (the cull is a sector test, not a bounding box of the whole tree)
+//   9. a polytomy of thousands of tips (issue 13) is drawn as one slice and does not push the collapse threshold up: at a zoom
+//      where its children are about a pixel apart, no child is drawn individually, nothing is forced, and a click on it hits it
 //   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
 //      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
 // Exit code 1 on any failure.
@@ -29,7 +31,7 @@ const BUDGET = Number(args.budget || 2000);
 const { parseNewick } = await import(path.join(root, 'spikes/shared/newick.ts'));
 const { computeLayout, ensureTrig } = await import(path.join(root, 'spikes/custom/src/core/layout.ts'));
 const { makeTransform } = await import(path.join(root, 'spikes/custom/src/core/geom.ts'));
-const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY } = await import(path.join(root, 'spikes/custom/src/core/lod.ts'));
+const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY, isSlice } = await import(path.join(root, 'spikes/custom/src/core/lod.ts'));
 const { HitIndex } = await import(path.join(root, 'spikes/custom/src/core/hit.ts'));
 
 // ---- the tree: committed 10k file when TIPS is 10000, otherwise generated with the repo's generator
@@ -177,6 +179,47 @@ if (fs.existsSync(otlFile)) {
   const Lo = computeLayout(otl, true);
   ensureTrig(Lo);
   panCheck('OTL 91k', otl, Lo, otl.tipCount);
+}
+// 9 a star of 10,000 tips next to two balanced 1,000-tip clades
+{
+  const bal = (n, p) => (n === 1 ? `${p}:1` : `(${bal(n >> 1, p + 'l')},${bal(n - (n >> 1), p + 'r')}):1`);
+  const STAR = 10000;
+  const star = Array.from({ length: STAR }, (_, j) => `s${j}:1`).join(',');
+  const st = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${star}):10);`);
+  const Ls = computeLayout(st, true);
+  ensureTrig(Ls);
+  const Ns = st.tipCount;
+  const starNode = (() => { for (let i = 0; i < st.nodeCount; i++) if (st.childCount[i] === STAR) return i; return -1; })();
+  ok(starNode >= 0 && isSlice(st, starNode), 'star: the polytomy node is not recognised as a slice');
+  const mid = st.tipNode[st.leafStart[starNode] + STAR / 2];
+  const rr = Ls.X[mid], aa = Ls.ROW[mid] * ((2 * Math.PI) / Ns);
+  for (const b of [500, 2000]) {
+    for (const z of [3, 8, 20]) {
+      const vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
+      const T = makeTransform('radial', W, H, vp, area, Ns);
+      const { res, minPx } = searchCut(false, st, Ls, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+      let kids = 0, sliceDrawn = 0, other = 0;
+      for (let e = 0; e < list.count; e++) {
+        const i = list.node[e];
+        if (st.parent[i] === starNode) kids++;
+        else if (i === starNode && list.kind[e] === K_SUMMARY) sliceDrawn++;
+        else other++;
+      }
+      const dense = ((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k < 3; // children closer than the 3 px base threshold
+      console.log(`star ${STAR}, budget ${b}, zoom ${z}x: tip pitch ${(((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k).toFixed(2)} px, children drawn ${kids}, slice ${sliceDrawn}, other primitives ${other}, minPx ${minPx.toFixed(2)}, forced ${res.forced}`);
+      if (dense) {
+        ok(kids === 0, `star ${b} ${z}x: ${kids} children of the polytomy drawn individually`);
+        ok(res.forced === 0 && minPx <= 3 + 1e-9, `star ${b} ${z}x: the threshold was raised to ${minPx.toFixed(2)} (forced ${res.forced}) because of the polytomy`);
+        ok(sliceDrawn === 1, `star ${b} ${z}x: the polytomy was not drawn as one slice (${sliceDrawn})`);
+        const hit = new HitIndex(st, Ls);
+        hit.build(list, T);
+        const rc = Ls.XMAX[starNode] * T.k - 3; // just inside the outer edge, which is at the centre of the view
+        const x = T.cx + rc * Math.cos(aa), y = T.cy + rc * Math.sin(aa);
+        const h = hit.query(x, y, T);
+        ok(h && h.kind === 'summary' && h.node === starNode, `star ${b} ${z}x: click inside the slice returned ${JSON.stringify(h)}`);
+      }
+    }
+  }
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);
