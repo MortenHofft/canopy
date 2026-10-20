@@ -20,12 +20,14 @@ PASS tips.node == positions of tips
 PASS tips.label == Newick labels
 PASS tips row groups aligned with node row groups
 PASS labels.parquet sorted by label and rank maps back to the tip label
-PASS overview level 0: rows (63670) equal node-table rows
-PASS overview level 0: 62646 stub/tip rows tile the 1490245 tips exactly once
-PASS overview level 1: rows (231449) equal node-table rows
-PASS overview level 1: 226691 stub/tip rows tile the 1490245 tips exactly once
-PASS overview level 2: rows (728797) equal node-table rows
-PASS overview level 2: 707573 stub/tip rows tile the 1490245 tips exactly once
+PASS overview level 0: rows (2048) equal node-table rows
+PASS overview level 0: 1859 stub/tip rows tile the 1490245 tips exactly once
+PASS overview level 1: rows (8195) equal node-table rows
+PASS overview level 1: 7979 stub/tip rows tile the 1490245 tips exactly once
+PASS overview level 2: rows (32805) equal node-table rows
+PASS overview level 2: 32453 stub/tip rows tile the 1490245 tips exactly once
+PASS overview level 3: rows (131297) equal node-table rows
+PASS overview level 3: 128919 stub/tip rows tile the 1490245 tips exactly once
 PASS path root->tip from one node row group + rg_open (2000 random tips)
 
 ALL PASS

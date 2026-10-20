@@ -8,7 +8,7 @@ import treearrays, layout
 
 ap = argparse.ArgumentParser()
 ap.add_argument("tree"); ap.add_argument("out")
-ap.add_argument("--rg", type=int, default=65536)
+ap.add_argument("--rg", type=int, default=16384, help="rows per node row group (16k: measured best for clade fetches, section 6.3)")
 ap.add_argument("--codec", default="zstd")
 ap.add_argument("--f64", action="store_true")
 ap.add_argument("--no-rollups", action="store_true")

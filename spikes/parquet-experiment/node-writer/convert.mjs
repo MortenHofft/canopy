@@ -120,17 +120,24 @@ export async function convert(treeFile, outDir, opts) {
   keys.sort(); // ascending: iterate from the end for tip_count desc, index asc
   const order = new Int32Array(cand.length);
   for (let k = 0; k < cand.length; k++) order[k] = SH - 1 - (keys[cand.length - 1 - k] % SH);
-  const budgets = budgetsFor(n);
+  const budgets = budgetsFor(n).slice();
   const nchild = new Int32Array(n); for (let i = 1; i < n; i++) nchild[a.parent[i]]++;
-  const cum = new Float64Array(order.length); { let c = 1; for (let k = 0; k < order.length; k++) { c += nchild[order[k]]; cum[k] = c; } }
-  const sel = new Uint8Array(n).fill(255);
-  let prev = 0;
-  budgets.forEach((B, L) => {
-    let k = 0; while (k < cum.length && cum[k] <= B) k++;   // rows of the cut after expanding the first k nodes
-    k = Math.max(k, prev, 1);
-    for (let q = prev; q < k; q++) sel[order[q]] = L;
-    prev = k;
-  });
+  const sel = new Uint8Array(n).fill(255), expanded = new Uint8Array(n);
+  let rowsNow = 1, Lc = 0; const kept = [];
+  for (const B of budgets) {
+    let added = 0;
+    for (let q = 0; q < order.length; q++) {
+      const i = order[q];
+      if (expanded[i]) continue;
+      if (i !== 0 && !expanded[a.parent[i]]) continue;
+      if (i !== 0 && rowsNow + nchild[i] > B) continue;
+      expanded[i] = 1; sel[i] = Lc; added++; rowsNow += nchild[i];
+      if (rowsNow >= B) break;
+    }
+    if (!added) continue;
+    Lc++; kept.push(B);
+  }
+  budgets.length = 0; budgets.push(...kept);
   const levelRows = [], levelGroups = [];
   for (let L = 0; L < budgets.length; L++) {
     const isNew = new Uint8Array(n);
@@ -172,10 +179,11 @@ export async function convert(treeFile, outDir, opts) {
     version: 1, nodes: n, tips: tree.tipCount, has_lengths: a.hasLen, has_support: false, has_names: false, max_depth: a.maxDepth[0], max_cum: a.maxCum[0], root_occ_sum: Number(a.occSum[0]),
     float: 'f32', codec: opts.codec, rg_rows: rg, rg_node_start: starts, rg_tip_start: tipStart,
     overview: { row_budgets: budgets, level_rows: levelRows, level_min_tips: budgets.map((_, L) => { let m = Infinity; for (let i = 0; i < n; i++) if (sel[i] === L && a.tipCount[i] < m) m = a.tipCount[i]; return m === Infinity ? 0 : m; }), tail_start: tailStart, file_order: 'deepest level first, level 0 last' },
-    rg_open: openIds, spine_nodes: uniq,
     files: { nodes: info(nodesBuf, 'nodes.parquet'), tips: info(tipsBuf, 'tips.parquet'), overview: info(ovBuf, 'overview.parquet'), spine: info(spBuf, 'spine.parquet'), labels: info(labBuf, 'labels.parquet') },
     notes: 'written by hyparquet-writer (node-writer/convert.mjs)',
   };
+  fs.writeFileSync(path.join(outDir, 'open.json'), JSON.stringify({ rg_open: openIds, spine_nodes: uniq }));
+  manifest.files.open = { file: 'open.json', bytes: fs.statSync(path.join(outDir, 'open.json')).size };
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest));
   T.total_ms = T.parse_ms + T.arrays_ms + T.write_ms;
   return { timings: T, sizes: { nodes: nodesBuf.byteLength, tips: tipsBuf.byteLength, overview: ovBuf.byteLength, spine: spBuf.byteLength, labels: labBuf.byteLength, manifest: JSON.stringify(manifest).length } };

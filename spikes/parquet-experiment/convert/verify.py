@@ -16,6 +16,7 @@ import treearrays
 ap = argparse.ArgumentParser(); ap.add_argument("tree"); ap.add_argument("dir"); ap.add_argument("--cache"); A = ap.parse_args()
 a = treearrays.load_arrays(A.tree, A.cache)
 man = json.load(open(os.path.join(A.dir, "manifest.json")))
+man.update(json.load(open(os.path.join(A.dir, "open.json"))))
 n = man["nodes"]
 f32 = man["float"] == "f32"
 fails = []

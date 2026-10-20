@@ -9,7 +9,7 @@ for t in "${@:-yule100k yule1M}"; do
   out="$SCR/nodew/$t"; rm -rf "$out"
   for codec in zstd snappy; do
     d="$out"; [ "$codec" = snappy ] && d="$out-snappy"
-    nice -n 19 node --max-old-space-size=8000 "$HERE/convert.mjs" "${SRC[$t]}" "$d" --meta "$SCR/serve/$t/tips.parquet" --codec "$codec" > "$ROOT/results/node-writer-$t-$codec.json"
+    nice -n 19 node --max-old-space-size=8000 "$HERE/convert.mjs" "${SRC[$t]}" "$d" --meta "$SCR/serve/$t/tips.parquet" --codec "$codec" --rg 16384 > "$ROOT/results/node-writer-$t-$codec.json"
     cat "$ROOT/results/node-writer-$t-$codec.json" | tr -d '\n ' ; echo
   done
   nice -n 19 "$PY" -I "$ROOT/convert/verify.py" "${SRC[$t]}" "$out" --cache "$SCR/cache" > "$ROOT/results/verify-nodew-$t.txt" 2>&1 && tail -1 "$ROOT/results/verify-nodew-$t.txt" || tail -3 "$ROOT/results/verify-nodew-$t.txt"

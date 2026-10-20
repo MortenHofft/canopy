@@ -31,4 +31,4 @@ The spike in [docs/spike-plan.md](docs/spike-plan.md) is done (results in docs/r
 
 ## Code
 
-Only data scripts so far (pure Python 3 standard library, iterative, no recursion; run with `python3 -I`). There is no viewer code yet. When it is added, document build and test commands here.
+Only data scripts so far (pure Python 3 standard library, iterative, no recursion; run with `python3 -I`). The custom candidate (`spikes/custom`, TypeScript) has: `npm run build` / `npm run typecheck`; `node --experimental-transform-types scripts/check-radial-cut.mjs` (core regression, no browser); `node scripts/check-radial-ui.mjs` (needs the build on port 5306); `bench/radial-perf.mjs` and `bench/interaction.mjs` (before/after benchmarks, see docs/results/custom.md).

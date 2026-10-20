@@ -1,16 +1,16 @@
 {
  "timings": {
-  "parse_ms": 136.535277,
-  "arrays_ms": 167.26546300000004,
-  "write_ms": 934.2970789999999,
-  "total_ms": 1238.097819
+  "parse_ms": 116.723393,
+  "arrays_ms": 103.027669,
+  "write_ms": 821.2557740000001,
+  "total_ms": 1041.006836
  },
  "sizes": {
-  "nodes": 2037768,
-  "tips": 835112,
+  "nodes": 2121228,
+  "tips": 853310,
   "overview": 193945,
-  "spine": 3474,
+  "spine": 7332,
   "labels": 830852,
-  "manifest": 1888
+  "manifest": 1070
  }
 }

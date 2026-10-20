@@ -35,7 +35,7 @@ export async function overviewLevel(level) {
 
 function dropData(src) {
   for (const f of Object.values(src.files)) { f.blocks = []; f.whole = null; }
-  src.ovCache.clear(); src._ovPrimed = null; src._spine = null;
+  src.ovCache.clear(); src._ovPrimed = null; src._spine = null; src._open = null;
 }
 
 /** Fetch one clade: node rows [node, subtree_end) for the numeric columns, and optionally its tip labels, from a cold byte cache. */

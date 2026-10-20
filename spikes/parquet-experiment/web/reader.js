@@ -243,22 +243,31 @@ export class ParquetTreeSource {
     let g = 0;
     while (b[g + 1] <= node) g++;
     const lo = b[g], hi = b[g + 1];
-    const cols = await this._read('nodes', ['parent', 'subtree_end', 'tip_count'], lo, hi);
+    const [cols, open] = await Promise.all([this._read('nodes', ['parent', 'subtree_end', 'tip_count'], lo, hi), this._openJson()]);
     const inGroup = [];
     let i = node;
     while (i >= lo) { inGroup.push(i); if (i === 0) break; i = cols.parent[i - lo]; }
     const out = { node: [], subtree_end: [], tip_count: [] };
-    if (lo > 0 && man.rg_open[g].length) {
-      if (!this._spine) this._spine = this._read('spine', undefined, 0, man.spine_nodes.length);
+    if (lo > 0 && open.rg_open[g].length) {
+      if (!this._spine) this._spine = this._read('spine', undefined, 0, open.spine_nodes.length);
       const sp = await this._spine;
-      const idx = new Map(man.spine_nodes.map((n, k) => [n, k]));
-      for (const a of man.rg_open[g]) { // root first; an open ancestor is on the path iff its range contains `node`
+      const idx = open.idx ?? (open.idx = new Map(open.spine_nodes.map((n, k) => [n, k])));
+      for (const a of open.rg_open[g]) { // root first; an open ancestor is on the path iff its range contains `node`
         const k = idx.get(a);
         if (sp.subtree_end[k] > node) { out.node.push(a); out.subtree_end.push(sp.subtree_end[k]); out.tip_count.push(sp.tip_count[k]); }
       }
     }
     for (let k = inGroup.length - 1; k >= 0; k--) { const j = inGroup[k]; out.node.push(j); out.subtree_end.push(cols.subtree_end[j - lo]); out.tip_count.push(cols.tip_count[j - lo]); }
     return out;
+  }
+
+  /** open.json (rg_open + spine_nodes) is fetched on first use, not with the manifest; one plain GET. */
+  _openJson() {
+    if (!this._open) {
+      this.stats.requests++; this.stats.log.push(['open.json', 0, 0]);
+      this._open = (this.opts.fetch)(`${this.base}/${this.man.files.open.file}`).then((r) => r.text()).then((t) => { this.stats.bytes += t.length; return JSON.parse(t); });
+    }
+    return this._open;
   }
 
   /** Tip rank of a label via labels.parquet (tip labels sorted by label, 16k rows per row group, with min/max statistics):

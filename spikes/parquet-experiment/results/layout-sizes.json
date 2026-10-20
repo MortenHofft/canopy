@@ -3,30 +3,30 @@
   "tips": 189801,
   "nodes": 379601,
   "newick_gz": 2407485,
-  "manifest": 3391,
+  "manifest": 11100,
   "files": {
-   "nodes": 5452117,
-   "tips": 1299204,
-   "overview": 734272,
-   "spine": 7783,
+   "nodes": 5472632,
+   "tips": 1348392,
+   "overview": 733277,
+   "spine": 18622,
    "labels": 1056856
   },
   "footers": {
-   "nodes": 7363,
-   "tips": 2802,
+   "nodes": 25506,
+   "tips": 9368,
    "overview": 4674,
-   "spine": 2308,
+   "spine": 2314,
    "labels": 2719
   },
   "row_groups": {
-   "nodes": 6,
-   "tips": 6,
+   "nodes": 24,
+   "tips": 24,
    "overview": 3,
    "spine": 1,
    "labels": 12
   },
   "overview_level_rows": [
-   2049,
+   2047,
    6480,
    26357
   ],
@@ -35,7 +35,7 @@
    165,
    33
   ],
-  "overview_tail_bytes": 56954
+  "overview_tail_bytes": 56726
  },
  "otl1.49M": {
   "tips": 1490245,
@@ -79,135 +79,138 @@
   "tips": 90938,
   "nodes": 138646,
   "newick_gz": 1203023,
-  "manifest": 1522,
+  "manifest": 3954,
   "files": {
-   "nodes": 1098401,
-   "tips": 1223964,
-   "overview": 197290,
-   "spine": 3848,
+   "nodes": 1098278,
+   "tips": 1235647,
+   "overview": 55754,
+   "spine": 6094,
    "labels": 1305214
   },
   "footers": {
-   "nodes": 3894,
-   "tips": 1830,
-   "overview": 3315,
-   "spine": 2111,
+   "nodes": 9196,
+   "tips": 4273,
+   "overview": 3265,
+   "spine": 2126,
    "labels": 1734
   },
   "row_groups": {
-   "nodes": 3,
-   "tips": 3,
+   "nodes": 9,
+   "tips": 9,
    "overview": 2,
    "spine": 1,
    "labels": 6
   },
   "overview_level_rows": [
-   10524,
-   22643
+   1965,
+   6240
   ],
   "overview_level_min_tips": [
-   249,
-   42
+   2149,
+   308
   ],
-  "overview_tail_bytes": 63029
+  "overview_tail_bytes": 16362
  },
  "yule100k": {
   "tips": 100000,
   "nodes": 199999,
   "newick_gz": 1462440,
-  "manifest": 1957,
+  "manifest": 4186,
   "files": {
-   "nodes": 2104932,
-   "tips": 786351,
-   "overview": 179192,
-   "spine": 4907,
+   "nodes": 2104524,
+   "tips": 808096,
+   "overview": 179209,
+   "spine": 8566,
    "labels": 831975
   },
   "footers": {
-   "nodes": 4270,
-   "tips": 2047,
+   "nodes": 11399,
+   "tips": 5331,
    "overview": 3331,
-   "spine": 2152,
+   "spine": 2153,
    "labels": 1768
   },
   "row_groups": {
-   "nodes": 4,
-   "tips": 4,
+   "nodes": 13,
+   "tips": 13,
    "overview": 2,
    "spine": 1,
    "labels": 7
   },
   "overview_level_rows": [
-   2049,
+   2047,
    6927
   ],
   "overview_level_min_tips": [
    197,
    48
   ],
-  "overview_tail_bytes": 50024
+  "overview_tail_bytes": 50033
  },
  "yule10k": {
   "tips": 10000,
   "nodes": 19999,
   "newick_gz": 149065,
-  "manifest": 878,
+  "manifest": 1102,
   "files": {
-   "nodes": 211156,
-   "tips": 80515,
-   "overview": 40712,
+   "nodes": 213149,
+   "tips": 82333,
+   "overview": 41056,
+   "spine": 3310,
    "labels": 81778
   },
   "footers": {
-   "nodes": 1879,
-   "tips": 939,
+   "nodes": 2646,
+   "tips": 1295,
    "overview": 2325,
+   "spine": 2136,
    "labels": 567
   },
   "row_groups": {
-   "nodes": 1,
-   "tips": 1,
+   "nodes": 2,
+   "tips": 2,
    "overview": 1,
+   "spine": 1,
    "labels": 1
   },
   "overview_level_rows": [
-   2049
+   2047
   ],
   "overview_level_min_tips": [
    19
   ],
-  "overview_tail_bytes": 40708
+  "overview_tail_bytes": 41052
  },
  "yule1M": {
   "tips": 1000000,
   "nodes": 1999999,
   "newick_gz": 14539671,
-  "manifest": 11424,
+  "manifest": 40414,
   "files": {
-   "nodes": 21010698,
-   "tips": 7829196,
-   "overview": 2709162,
-   "spine": 18350,
+   "nodes": 21054594,
+   "tips": 8056363,
+   "overview": 2706680,
+   "spine": 52569,
    "labels": 8604187
   },
   "footers": {
-   "nodes": 26057,
-   "tips": 12298,
+   "nodes": 99397,
+   "tips": 46519,
    "overview": 5441,
-   "spine": 2159,
+   "spine": 2169,
    "labels": 12983
   },
   "row_groups": {
-   "nodes": 31,
-   "tips": 31,
+   "nodes": 123,
+   "tips": 123,
    "overview": 4,
    "spine": 1,
    "labels": 62
   },
   "overview_level_rows": [
-   2049,
-   6909,
-   27666,
+   2047,
+   6907,
+   27665,
    110747
   ],
   "overview_level_min_tips": [
@@ -216,7 +219,7 @@
    121,
    30
   ],
-  "overview_tail_bytes": 60708
+  "overview_tail_bytes": 60562
  },
  "yule1M__none": {
   "tips": 1000000,

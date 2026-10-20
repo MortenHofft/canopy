@@ -18,12 +18,12 @@ conv() { # name srcname extra-args...
   nice -n 19 "$PY" -I "$HERE/convert.py" "${SRC[$src]}" "$SRV/$name" --cache "$SCR/cache" "$@" > "$SRV/$name.convert.log"
 }
 for t in yule10k otl91k yule100k gtdb190k yule1M otl1.49M; do
-  conv "$t" "$t" --rg 65536 --codec zstd --enc tuned
+  conv "$t" "$t" --rg 16384 --codec zstd --enc tuned
   nice -n 19 "$PY" -I "$HERE/pick_clades.py" "${SRC[$t]}" "$SRV/$t/clades.json" "$SCR/cache"
   if [[ "${SRC[$t]}" == *.gz ]]; then zcat "${SRC[$t]}" | nice -n 19 gzip -9 -n > "$SRV/$t/tree.nwk.gz"; else nice -n 19 gzip -9 -n -c "${SRC[$t]}" > "$SRV/$t/tree.nwk.gz"; fi
 done
 # variants of the 1M tree for the browser decode / granularity comparison
-for v in "snappy:--codec snappy --enc tuned" "none:--codec none --enc tuned" "rg16k:--codec zstd --enc tuned --rg 16384" "rg256k:--codec zstd --enc tuned --rg 262144" "plainzstd:--codec zstd --enc plain" "paged:--codec zstd --enc tuned --page-kb 64"; do
+for v in "snappy:--codec snappy --enc tuned --rg 65536" "none:--codec none --enc tuned --rg 65536" "rg64k:--codec zstd --enc tuned --rg 65536" "rg256k:--codec zstd --enc tuned --rg 262144" "plainzstd:--codec zstd --enc plain --rg 65536" "paged:--codec zstd --enc tuned --rg 65536 --page-kb 64"; do
   name="yule1M__${v%%:*}"; args="${v#*:}"
   conv "$name" yule1M $args
   cp "$SRV/yule1M/clades.json" "$SRV/$name/clades.json"; ln -sf "$SRV/yule1M/tree.nwk.gz" "$SRV/$name/tree.nwk.gz"

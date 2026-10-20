@@ -82,24 +82,41 @@ def writer_opts(cfg, cols):
 
 def select_overview(a, budgets=None):
     """Return (sel_level, rows_by_level). sel_level[i] = pyramid level at which internal node i becomes expanded (255 never).
-    Selection = internal nodes by tip_count descending (ties: lower preorder first), which is ancestor-closed, taken while the rows
+    Greedy: internal nodes by tip_count descending (ties: lower preorder first); a node is expanded when its parent already is and the rows
     of the level (1 + total children of the expanded nodes = expanded nodes + child stubs) stay within the level's row budget.
-    Counting rows, not nodes, matters for polytomies (Open Tree has nodes with thousands of children)."""
+    A node with too many children (Open Tree has polytomies of thousands) is skipped for this level and stays a stub, together with
+    everything below it, so every level is ancestor-closed and contains the previous one."""
     n = len(a["parent"])
     tc = a["tip_count"]
     internal = a["subtree_end"] != np.arange(1, n + 1)
     cand = np.flatnonzero(internal)
     budgets = budgets or budgets_for(n)
-    order = cand[np.lexsort((cand, -tc[cand].astype(np.int64)))]
-    nchild = np.bincount(a["parent"][1:], minlength=n)
-    cum = 1 + np.cumsum(nchild[order])            # rows of the cut after expanding the first k nodes of `order`
+    order = cand[np.lexsort((cand, -tc[cand].astype(np.int64)))].tolist()
+    nch = np.bincount(a["parent"][1:], minlength=n).tolist()
+    parent = a["parent"].tolist()
     sel = np.full(n, 255, dtype=np.uint8)
-    prev = 0
-    for L, B in enumerate(budgets):
-        k = int(np.searchsorted(cum, B, side="right"))
-        k = max(k, prev, 1)                        # the root is always expanded
-        sel[order[prev:k]] = L
-        prev = k
+    expanded = bytearray(n)
+    rows_now = 1                                   # the root row
+    L = 0
+    kept = []
+    for B in budgets:
+        added = []
+        for i in order:
+            if expanded[i]:
+                continue
+            if i != 0 and not expanded[parent[i]]:
+                continue                           # parent not expanded (blocked or later): descendants wait, closure is preserved
+            if rows_now + nch[i] > B and i != 0:
+                continue                           # polytomy that does not fit this level: it stays a stub (a later, larger level may take it)
+            expanded[i] = 1; added.append(i); rows_now += nch[i]
+            if rows_now >= B:
+                break
+        if not added:
+            continue                               # nothing new fits: skip the level
+        sel[added] = L
+        L += 1
+        kept.append(B)
+    budgets = kept
     par = a["parent"]
     rows = []
     for L in range(len(budgets)):
@@ -112,7 +129,7 @@ def select_overview(a, budgets=None):
         r = np.union1d(new_sel, stubs)
         # nodes selected at L are also children of a node selected earlier; they are in new_sel already
         rows.append(r.astype(np.int64))
-    return sel, rows
+    return sel, rows, budgets
 
 
 def write_all(a, outdir, cfg, only=None):
@@ -179,7 +196,7 @@ def write_all(a, outdir, cfg, only=None):
     wr.close()
     sizes["labels"] = os.path.getsize(path)
     # ---------------- overview
-    sel, rows = select_overview(a)
+    sel, rows, kept_budgets = select_overview(a)
     ov_cfg = dict(cfg, rollups=True, f64=cfg["f64"])
     parts = []
     lvl_rows = []
@@ -223,12 +240,13 @@ def write_all(a, outdir, cfg, only=None):
         "has_names": has_names, "max_depth": int(a["max_depth"][0]), "max_cum": float(a["max_cum"][0]), "root_occ_sum": int(a["occ_sum"][0]),
         "float": "f64" if cfg["f64"] else "f32", "codec": cfg["codec"], "rg_rows": rg,
         "rg_node_start": rg_node_start + [n], "rg_tip_start": rg_tip_start,
-        "overview": {"row_budgets": budgets_for(n), "level_rows": lvl_rows},
-        "rg_open": open_ids, "spine_nodes": [int(x) for x in uniq],
+        "overview": {"row_budgets": kept_budgets, "level_rows": lvl_rows},
         "files": {"nodes": "nodes.parquet", "tips": "tips.parquet", "overview": "overview.parquet", "spine": "spine.parquet", "labels": "labels.parquet"},
         "notes": "len is raw (NaN when missing); cum_len/max_cum clamp negative or missing lengths to 0; occ_sum is SYNTHETIC test metadata",
     }
     tcn = a["tip_count"]
+    with open(os.path.join(outdir, "open.json"), "w") as f:   # lazily fetched by getPath(): keeps manifest.json (first request) small
+        json.dump({"rg_open": open_ids, "spine_nodes": [int(x) for x in uniq]}, f, separators=(",", ":"))
     manifest["overview"]["level_min_tips"] = [int(tcn[np.flatnonzero(sel == L)].min()) if (sel == L).any() else 0 for L in range(len(lvl_rows))]  # smallest clade expanded at each level
     manifest["overview"]["tail_start"] = int(ov_tail_start)   # [tail_start, EOF) = level 0 rows + footer
     manifest["overview"]["file_order"] = "deepest level first, level 0 last"
@@ -238,6 +256,7 @@ def write_all(a, outdir, cfg, only=None):
         if os.path.exists(fp):
             m = pq.ParquetFile(fp).metadata
             fi[k] = {"file": fn, "bytes": os.path.getsize(fp), "footer": m.serialized_size + 8, "row_groups": m.num_row_groups}
+    fi["open"] = {"file": "open.json", "bytes": os.path.getsize(os.path.join(outdir, "open.json"))}
     manifest["files"] = fi
     with open(os.path.join(outdir, "manifest.json"), "w") as f:
         json.dump(manifest, f, separators=(",", ":"))
