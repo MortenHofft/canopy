@@ -777,7 +777,7 @@ export class TreeRenderer {
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC);
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle, alignRowGap: opts.alignRowGap });
       if (opts.axis) drawAxis(ctx, S, this.view.x0, this.view.x1);
     } else if (opts.axis) drawScaleBar(ctx, S);
 
