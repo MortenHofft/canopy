@@ -1,8 +1,9 @@
 name: lib
 
-# Typecheck, lint, format check, unit tests, build and package checks of every workspace, and, as a separate job, the browser check
-# (the test page in tests/browser, built and served by vite preview, driven by Playwright). The viewer's regression test reads
-# data/synthetic and the committed OTL 91k tree, and the tree-ops and io tests read trees under data/, so data/ triggers the jobs too.
+# Typecheck, lint, format check, unit tests, build and package checks of every workspace, and, as a separate job, the browser checks
+# (the test page in tests/browser and the two examples, each built and served by vite preview, driven by Playwright). The viewer's
+# regression test reads data/synthetic and the committed OTL 91k tree, and the tree-ops and io tests read trees under data/, so data/
+# triggers the jobs too.
 on:
   push:
     paths:
@@ -45,7 +46,7 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm run check:packages
-      - run: npm run build -w examples/react
+      - run: npm run build -w examples/react -w examples/vanilla
 
   # Slower and needing a browser, so a separate job: lint and unit failures are reported without waiting for it.
   test-browser:

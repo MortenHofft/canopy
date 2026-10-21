@@ -41,6 +41,7 @@ export class BaseControl implements Control {
     if (opts.className) this.element.classList.add(...opts.className.split(/\s+/).filter(Boolean));
     this.position = opts.position ?? 'top-left';
     this.target = opts.target ?? null;
+    if (this.target) this.element.classList.add('phylo-control--external');
   }
 
   setViewer(viewer: TreeViewer | null): void {

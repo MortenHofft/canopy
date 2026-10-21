@@ -1,6 +1,9 @@
-// `npm run test:browser`: build the production bundle, serve it with `vite preview` on a free port, wait until THAT server is up, run the
-// browser check (scripts/check-radial-ui.mjs) against it, stop the server and exit with the check's exit code.
-//   node scripts/test-browser.mjs [--port 5326] [--no-build]
+// `npm run test:browser`: for each page, build it, serve it with `vite preview` on a free port, wait until THAT server is up, run its
+// browser check against it and stop the server; exit with the first failing check's exit code (0 when all pass). The pages:
+//   test      this workspace's test page            scripts/check-radial-ui.mjs
+//   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
+//   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
+//   node scripts/test-browser.mjs [--only test,vanilla,react] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -50,19 +53,20 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 }
 
 /** Run a node script with inherited output; resolves to its exit code (1 when killed by a signal). */
-function run(args) {
+function run(args, cwd = pkg) {
   return new Promise((resolve) => {
-    running = spawn(process.execPath, args, { cwd: pkg, stdio: 'inherit' });
+    running = spawn(process.execPath, args, { cwd, stdio: 'inherit' });
     running.on('error', () => resolve(1));
     running.on('exit', (code) => resolve(code ?? 1));
   });
 }
 
 /** Start `vite preview` and resolve once it has printed its Local: line for `port` and answers; reject when it exits first or is too slow. */
-function startPreview(port, ms) {
+function startPreview(port, ms, cwd) {
+  serverExited = false;
   return new Promise((resolve, reject) => {
     server = spawn(process.execPath, [vite, 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
-      cwd: pkg,
+      cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let log = '';
@@ -95,21 +99,43 @@ function startPreview(port, ms) {
   });
 }
 
-let code = 1;
-try {
-  if (!flag('no-build')) {
-    console.log('> vite build');
-    const b = await run([vite, 'build']);
-    if (b !== 0) process.exit(b);
+const repo = path.resolve(pkg, '../..');
+const SUITES = [
+  { name: 'test', dir: pkg, check: 'check-radial-ui.mjs', args: (port) => ['--port', String(port)] },
+  {
+    name: 'vanilla',
+    dir: path.join(repo, 'examples/vanilla'),
+    check: 'check-vanilla-example.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
+  { name: 'react', dir: path.join(repo, 'examples/react'), check: 'check-node-menu.mjs', args: (port) => ['--url', `http://127.0.0.1:${port}/`] },
+];
+const only = opt('only')?.split(',');
+
+let code = 0;
+for (const s of SUITES) {
+  if (only && !only.includes(s.name)) continue;
+  try {
+    console.log(`\n== ${s.name}: ${path.relative(repo, s.dir)}`);
+    if (!flag('no-build')) {
+      console.log('> vite build');
+      const b = await run([vite, 'build'], s.dir);
+      if (b !== 0) {
+        code ||= b;
+        continue;
+      }
+    }
+    const port = await freePort();
+    console.log(`> vite preview on 127.0.0.1:${port}`);
+    await startPreview(port, 30000, s.dir);
+    console.log(`> ${s.check}`);
+    const c = await run([path.join(here, s.check), ...s.args(port)]);
+    code ||= c;
+  } catch (e) {
+    console.error(String(e?.message ?? e));
+    code ||= 1;
+  } finally {
+    stop();
   }
-  const port = Number(opt('port') || (await freePort()));
-  console.log(`> vite preview on 127.0.0.1:${port}`);
-  await startPreview(port, 30000);
-  console.log('> check-radial-ui.mjs');
-  code = await run([path.join(here, 'check-radial-ui.mjs'), '--port', String(port)]);
-} catch (e) {
-  console.error(String(e?.message ?? e));
-} finally {
-  stop();
 }
 process.exit(code);

@@ -79,6 +79,11 @@
   color: var(--phylo-highlight, #4c9b45);
 }
 
+/* a bar outside the viewer (a control with a target) lies in a row, as in a toolbar */
+.phylo-control--external.phylo-bar {
+  flex-direction: row;
+}
+
 .phylo-bar {
   display: flex;
   flex-direction: column;

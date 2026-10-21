@@ -9,7 +9,8 @@
     "packages/tree-ops",
     "packages/viewer",
     "packages/react",
-    "examples/*",
+    "examples/react",
+    "examples/vanilla",
     "tests/browser"
   ],
   "scripts": {

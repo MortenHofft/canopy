@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@gbif-phylo/viewer without a framework</title>
+  </head>
+  <body>
+    <header class="bar">
+      <strong>@gbif-phylo/viewer</strong>
+      <span class="muted">no framework: controls, events, a custom popup and a custom column</span>
+      <span class="spacer"></span>
+      <label><input type="checkbox" id="show-controls" checked /> Controls</label>
+      <label><input type="checkbox" id="dark" /> Dark</label>
+      <span id="layout-slot"></span>
+    </header>
+    <main>
+      <div id="tree" class="tree"></div>
+      <aside>
+        <h2>Events</h2>
+        <ol id="log" aria-live="polite"></ol>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
