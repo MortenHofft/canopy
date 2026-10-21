@@ -73,7 +73,10 @@ for (const name of fs.readdirSync(spikes).sort()) {
   console.log(`\n=== candidate: ${name}`);
   if (!installAndBuild(dir, `/${name}/`)) { console.warn(`!! ${name}: build failed, skipped`); failed.push(name); continue; }
   copyDir(path.join(dir, 'dist'), path.join(outDir, name));
+  const meta = readJson(path.join(dir, 'spike.json'), {});
   // optional standalone demo page (a `build:demo` script building into dist-demo/, outside the measured dist/), published at /name/demo
+  // and linked from the candidate's card on the hub
+  let demoPage = null;
   if (pkg.scripts['build:demo']) {
     fs.rmSync(path.join(dir, 'dist-demo'), { recursive: true, force: true });
     const demoHtml = path.join(dir, 'dist-demo', 'demo.html');
@@ -84,8 +87,8 @@ for (const name of fs.readdirSync(spikes).sort()) {
     }
     fs.renameSync(demoHtml, path.join(dir, 'dist-demo', 'index.html'));
     copyDir(path.join(dir, 'dist-demo'), path.join(outDir, name, 'demo'));
+    demoPage = { label: meta.demoLabel ?? 'Standalone demo', path: `/${name}/demo` };
   }
-  const meta = readJson(path.join(dir, 'spike.json'), {});
   candidates.push({
     name,
     title: meta.title ?? name,
@@ -96,6 +99,7 @@ for (const name of fs.readdirSync(spikes).sort()) {
     repo: meta.repo ?? '',
     rendering: meta.rendering ?? '',
     path: `/${name}/`,
+    ...(demoPage && { demoPage }),
   });
 }
 fs.writeFileSync(path.join(outDir, 'candidates.json'), JSON.stringify(candidates, null, 2));
