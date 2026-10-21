@@ -23,6 +23,9 @@
 //      500 and 2,000) it rises at most once (the old bisecting search made it rise 11 times in 111 steps at budget 500)
 //   8. panning by a fraction of a pixel does not change the cut: with the whole tree in view the set of collapsed clades is
 //      identical at every sub-pixel offset, in radial and rectangular layout, at budgets 500 and 2,000 (issue 1)
+// Sections 8 (its OTL part), 11 and 12 read the real OTL 91k tree (data/real-ladder/trees/otl-100k-vertebrata.nwk.gz, committed, 1.2 MB, so CI
+// runs them too). If the file is missing (a sparse checkout, a moved data directory) they are skipped with a visible "OTL sections skipped
+// (file absent)" line instead of silently, and the run then covers the 10k Yule tree only.
 // Exit code 1 on any failure.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -252,12 +255,18 @@ function panCheck(label, tr, Lr, Nr) {
 }
 panCheck('synthetic', tree, L, N);
 const otlFile = path.join(root, 'data/real-ladder/trees/otl-100k-vertebrata.nwk.gz');
+const skippedOtl = [];
+/** Record (and print) that a section that needs the git-ignored OTL tree did not run. */
+const skipOtl = (what) => {
+  skippedOtl.push(what);
+  console.log(`  SKIP ${what}: OTL sections skipped (file absent: ${path.relative(root, otlFile)})`);
+};
 if (fs.existsSync(otlFile)) {
   const otl = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const Lo = computeLayout(otl, true);
   ensureTrig(Lo);
   panCheck('OTL 91k', otl, Lo, otl.tipCount);
-}
+} else skipOtl('8 sub-pixel pan on the OTL 91k tree');
 // 9 a star of 10,000 tips next to two balanced 1,000-tip clades
 {
   const bal = (n, p) => (n === 1 ? `${p}:1` : `(${bal(n >> 1, p + 'l')},${bal(n - (n >> 1), p + 'r')}):1`);
@@ -535,7 +544,7 @@ if (fs.existsSync(otlFile)) {
     );
     ok(frac <= 0.08, `zoom churn OTL 91k radial, budget ${b}: ${(100 * frac).toFixed(1)}% of the entries change per 2% zoom step (limit 8%)`);
   }
-}
+} else skipOtl('11 zoom churn on the OTL 91k tree');
 // 12 threshold stability along a zoom path
 if (fs.existsSync(otlFile)) {
   const otl3 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
@@ -565,6 +574,10 @@ if (fs.existsSync(otlFile)) {
     console.log(`threshold along a zoom path, OTL 91k radial, budget ${b}: ${steps} steps, rises ${rises}, max ${maxM.toFixed(2)} px`);
     ok(rises <= 1, `threshold along a zoom path, OTL 91k radial, budget ${b}: the threshold rose ${rises} times while zooming in (limit 1)`);
   }
-}
+} else skipOtl('12 threshold stability on the OTL 91k tree');
+if (skippedOtl.length)
+  console.log(
+    `OTL sections skipped (file absent): ${skippedOtl.length} of 3 (${skippedOtl.map((x) => x.split(' ')[0]).join(', ')}); the 10k Yule tree alone was checked`,
+  );
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

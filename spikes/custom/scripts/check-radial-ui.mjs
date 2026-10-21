@@ -3,6 +3,12 @@
 // Checks on a 10,000-tip Yule tree, radial: hover and click on a summarised clade (event carries the clade's tip count), clade colouring
 // of a summarised clade, highlight and focus of a tip inside a summary, no tree redraw on hover, reduced frames during a wheel gesture
 // and one full frame after it, a click right after a wheel hits what a full-quality frame shows, and progressive detail when zooming.
+// Then the renderer driven directly (its class is reached through window.__customTree): a double-click on a clade with a source whose node ids are
+// not its rows zooms to the same viewport as zoomToNode(id), aligned columns through the renderer, tipHref link mode, a set of setOptions
+// combinations, setters that must not redraw on equal input, two simultaneous instances (window.__spike and __spike2), and mount / unmount cycles
+// that leave the DOM as they found it, with no page error.
+// `npm run test:browser` (scripts/test-browser.mjs) builds, serves and runs this. Chromium: $CHROMIUM_PATH, else the sandbox copy when it exists,
+// else the browser Playwright installed (npx playwright-core install chromium).
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
@@ -22,8 +28,10 @@ const ok = (c, m) => {
   if (!c) failures++;
 };
 
+const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const executablePath = process.env.CHROMIUM_PATH || (fs.existsSync(SANDBOX_CHROMIUM) ? SANDBOX_CHROMIUM : undefined); // undefined: Playwright's own
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath,
   headless: true,
   args: ['--no-sandbox', '--disable-gpu-rasterization'],
 });
@@ -211,6 +219,406 @@ if (where) {
   const c2 = ev.filter((e) => e.type === 'tipClick' || e.type === 'nodeClick').pop();
   ok(!!c2, `click right after wheel input produced an event (${c2?.type} ${c2?.nodeId})`);
 }
+
+// ================================================================ the renderer driven directly
+// A second renderer of the same class on the tree of the mounted one, in fixed-size hosts that sit above the demo page (so real mouse events
+// reach them). `mk(opts, source)` is defined once in the page; every section below uses it.
+await page.evaluate(() => {
+  const r0 = window.__customTree.handle().renderer();
+  const R = r0.constructor;
+  const base = r0.tree;
+  const OFF = 100000;
+  const hosts = [];
+  window.__t = {
+    R,
+    base,
+    OFF,
+    /** A source whose node ids are row + OFF, as a partial source's ids are not its rows. */
+    wrapped() {
+      const snap = {
+        ...base,
+        globalId: Int32Array.from({ length: base.nodeCount }, (_, i) => i + OFF),
+        toLocal: (g) => (g - OFF >= 0 && g - OFF < base.nodeCount ? g - OFF : -1),
+      };
+      return {
+        nodeCount: base.nodeCount,
+        tipCount: base.tipCount,
+        hasLengths: base.hasLengths,
+        version: 0,
+        subscribe: () => () => undefined,
+        snapshot: () => snap,
+        ensureClade: async () => undefined,
+        tipLabels: async (a, b) => base.tipLabels.slice(a, b),
+        destroy() {},
+      };
+    },
+    mk(opts = {}, source = base, { left = 10, top = 10, w = 700, h = 420, visible = true } = {}) {
+      const host = document.createElement('div');
+      host.style.cssText = `position:fixed;left:${left}px;top:${top}px;width:${w}px;height:${h}px;z-index:${visible ? 99999 : 1};background:#fff;${visible ? '' : 'visibility:hidden;'}`;
+      document.body.appendChild(host);
+      const r = new R(host, source, {}, { layout: 'rectangular', softwareCanvas: true, ...opts });
+      hosts.push({ host, r });
+      return r;
+    },
+    /** An internal node with minTips..maxTips tips that has an internal child of at least childMin tips: [parent, child]. */
+    clade(minTips = 150, maxTips = 400, childMin = 40) {
+      for (let i = 1; i < base.nodeCount; i++) {
+        const n = base.leafEnd[i] - base.leafStart[i];
+        if (n < minTips || n > maxTips) continue;
+        let best = -1;
+        for (let c = base.firstChild[i]; c >= 0; c = base.nextSibling[c])
+          if (base.childCount[c] > 0 && (best < 0 || base.leafEnd[c] - base.leafStart[c] > base.leafEnd[best] - base.leafStart[best])) best = c;
+        if (childMin === 0 || (best >= 0 && base.leafEnd[best] - base.leafStart[best] >= childMin)) return [i, best];
+      }
+      return null;
+    },
+    cleanup() {
+      for (const { host, r } of hosts.splice(0)) {
+        r.destroy();
+        host.remove();
+      }
+    },
+  };
+});
+const near = (a, b, eps = 1e-9) => ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(a[k] - b[k]) <= eps * Math.max(1, Math.abs(a[k]), Math.abs(b[k])));
+const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2)}..${v.y1.toFixed(2)}`;
+
+// ---- double-click on a clade with a source whose ids are not its rows (id = row + 100000) zooms like zoomToNode(id), also like the in-memory tree
+{
+  const prep = await page.evaluate(() => {
+    const t = window.__t;
+    const cl = t.clade();
+    if (!cl) return null;
+    const [P, C] = cl;
+    const W = t.mk({}, t.wrapped(), { left: 10, top: 10 });
+    const Win = t.mk({}, t.wrapped(), { left: 10, top: 10, visible: false });
+    const U = t.mk({}, t.base, { left: 10, top: 10, visible: false });
+    W.zoomToNode(P + t.OFF, false);
+    Win.zoomToNode(P + t.OFF, false);
+    U.zoomToNode(P, false);
+    W.renderNow();
+    const pos = W.locateNode(C + t.OFF);
+    Win.zoomToNode(C + t.OFF, false); // what the double-click must end at
+    U.zoomToNode(C, false);
+    window.__t.W = W;
+    return {
+      pos,
+      start: W.getViewport(),
+      expected: Win.getViewport(),
+      unwrapped: U.getViewport(),
+      fit: (U.fit(false), U.getViewport()),
+      tips: t.base.leafEnd[C] - t.base.leafStart[C],
+    };
+  });
+  ok(!!prep && !!prep.pos, `dblclick: found a clade of ${prep?.tips} tips with its marker in view`);
+  if (prep && prep.pos) {
+    ok(near(prep.expected, prep.unwrapped), `zoomToNode(id) on a source with shifted ids = zoomToNode on the tree (${fmtV(prep.expected)})`);
+    ok(!near(prep.start, prep.expected), 'the clade viewport differs from the parent viewport');
+    await page.mouse.dblclick(prep.pos.x, prep.pos.y);
+    await sleep(450);
+    const got = await page.evaluate(() => window.__t.W.getViewport());
+    ok(near(got, prep.expected, 1e-6), `dblclick on the clade with shifted ids: viewport ${fmtV(got)}, zoomToNode(id) ${fmtV(prep.expected)}`);
+    // empty space: fit. The bottom left corner of the host holds nothing.
+    await page.mouse.dblclick(10 + 4, 10 + 420 - 4);
+    await sleep(450);
+    const fitted = await page.evaluate(() => window.__t.W.getViewport());
+    ok(near(fitted, prep.fit, 1e-6), `dblclick on empty space fits: ${fmtV(fitted)} (fit ${fmtV(prep.fit)})`);
+  }
+  await page.evaluate(() => window.__t.cleanup());
+}
+
+// ---- columns through the renderer: bar, text, alignment cells, the pixels of a bar, and no redraw for an unchanged column list
+{
+  const res = await page.evaluate(async () => {
+    const t = window.__t;
+    const [P] = t.clade(14, 24, 0); // ~20 rows of ~18 px
+    const r = t.mk({});
+    const tips = [];
+    for (let k = t.base.leafStart[P]; k < t.base.leafEnd[P]; k++) tips.push(t.base.tipLabels[k]);
+    const bars = {},
+      txt = {},
+      aln = {};
+    tips.forEach((l, i) => {
+      if (i % 5 !== 4) bars[l] = i % 7 === 0 ? 1000 : 5 + i;
+      txt[l] = 'name ' + i;
+      aln[l] = 'ACDEFGHIKLMNPQRSTVWY'.slice(i % 5) + 'AC--GT';
+    });
+    const cols = [
+      { id: 'bar', kind: 'bar', header: 'Count', width: 90, values: bars },
+      { id: 'txt', kind: 'text', header: 'Name', width: 90, values: txt },
+      { id: 'aln', kind: 'alignment', header: 'Seq', width: 90, values: aln },
+    ];
+    const out = {};
+    r.zoomToNode(P, false);
+    r.setColumns(cols);
+    r.renderNow();
+    const rank = (i) => t.base.leafStart[P] + i;
+    out.cell0 = r.columnCell('bar', rank(0));
+    out.cellMissing = r.columnCell('bar', rank(4)); // i = 4: no bar value
+    out.cellTxt = r.columnCell('txt', rank(1));
+    out.cellAln = r.columnCell('aln', rank(2));
+    out.cellNone = r.columnCell('nope', rank(0));
+    out.cellOut = r.columnCell('bar', t.base.leafEnd[P] + 50);
+    // pixels: the bar of tip 0 (value 1000 = the maximum, full width) against the empty background to its right
+    const rect = r.root.getBoundingClientRect();
+    const dpr = r.canvas.width / r.size.width;
+    const px = (x, y) => [...r.ctx.getImageData(Math.round((x - rect.left) * dpr), Math.round((y - rect.top) * dpr), 1, 1).data.slice(0, 3)];
+    out.barPixel = px(out.cell0.x + out.cell0.width / 2, out.cell0.y + out.cell0.height / 2);
+    out.bgPixel = px(out.cell0.x + 91, out.cell0.y + out.cell0.height / 2);
+    // equal input: no redraw
+    r.renderNow();
+    await new Promise((res) => setTimeout(res, 150));
+    const f0 = r.getStats().frames;
+    r.setColumns(cols.slice());
+    r.setColumns(cols.map((c) => ({ ...c })));
+    await new Promise((res) => setTimeout(res, 150));
+    out.framesAfterSame = r.getStats().frames - f0;
+    r.setColumns([{ ...cols[0], header: 'Renamed' }, cols[1], cols[2]]);
+    await new Promise((res) => setTimeout(res, 150));
+    out.framesAfterRename = r.getStats().frames - f0;
+    r.setColumns([]);
+    r.renderNow();
+    out.cellAfterRemoval = r.columnCell('bar', rank(0));
+    return out;
+  });
+  const inBox = (c, w) => c && c.width > 0 && c.height > 0 && c.width <= w + 0.5;
+  ok(inBox(res.cell0, 90) && res.cell0.width > 80, `bar cell of the largest value fills the column: ${JSON.stringify(res.cell0)}`);
+  ok(res.cellMissing === null, 'a tip without a value has no bar cell');
+  ok(inBox(res.cellTxt, 90) && inBox(res.cellAln, 90) && res.cellTxt.x !== res.cell0.x, 'text and alignment cells sit in their own columns');
+  ok(res.cellNone === null && res.cellOut === null, 'unknown column id and a tip out of view give no cell');
+  ok(res.barPixel.join() !== res.bgPixel.join(), `the bar is painted: pixel ${res.barPixel} inside, ${res.bgPixel} beside it`);
+  ok(res.framesAfterSame === 0, `setColumns with an equal list draws no frame (${res.framesAfterSame})`);
+  ok(res.framesAfterRename >= 1, `a changed header redraws (${res.framesAfterRename} frames)`);
+  ok(res.cellAfterRemoval === null, 'removing the columns removes their cells');
+  await page.evaluate(() => window.__t.cleanup());
+}
+
+// ---- tipHref: tip labels are real links, switch off and on again
+{
+  const res = await page.evaluate(async () => {
+    const t = window.__t;
+    const [P] = t.clade(14, 24, 0);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const r = t.mk({ tipHref: (id) => 'https://example.org/tip/' + encodeURIComponent(id) });
+    r.zoomToNode(P, false);
+    r.renderNow();
+    await sleep(100);
+    const q = (sel) => [...r.root.querySelectorAll(sel)];
+    const out = { anchors: q('a[data-tip-id]').length };
+    const a = q('a[data-tip-id]')[0];
+    out.href = a?.getAttribute('href');
+    out.id = a?.dataset.tipId;
+    out.target = a?.target;
+    out.rel = a?.rel;
+    r.setOptions({ tipHref: null });
+    r.renderNow();
+    await sleep(100);
+    out.anchorsOff = q('a[data-tip-id]').length;
+    out.items = q('[role=treeitem][data-tip-id]').length;
+    r.setOptions({ tipHref: (id) => '#' + id });
+    r.renderNow();
+    await sleep(100);
+    out.anchorsOn = q('a[data-tip-id]').length;
+    out.itemsOn = q('[role=treeitem][data-tip-id]').length;
+    out.hash = q('a[data-tip-id]')[0]?.getAttribute('href') === '#' + q('a[data-tip-id]')[0]?.dataset.tipId;
+    return out;
+  });
+  ok(res.anchors > 5, `tipHref: ${res.anchors} label links in view`);
+  ok(
+    res.href === 'https://example.org/tip/' + encodeURIComponent(res.id) && res.target === '_blank' && /noopener/.test(res.rel),
+    `link of ${res.id}: ${res.href} (${res.target}, ${res.rel})`,
+  );
+  ok(res.anchorsOff === 0 && res.items > 5, `tipHref off: no links, ${res.items} treeitems`);
+  ok(res.anchorsOn > 5 && res.itemsOn === 0 && res.hash, `tipHref on again: ${res.anchorsOn} links, new function used`);
+  await page.evaluate(() => window.__t.cleanup());
+}
+
+// ---- setOptions combinations and setters that must not redraw
+{
+  const res = await page.evaluate(async () => {
+    const t = window.__t;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const r = t.mk({});
+    const out = { errors: [], steps: [] };
+    const step = (name, patch, check) => {
+      try {
+        r.setOptions(patch);
+        r.renderNow();
+        const s = r.getStats();
+        const v = r.getViewport();
+        const rec = {
+          name,
+          drawn: s.drawn,
+          summaries: s.summaries,
+          budget: s.budget,
+          finite: [v.x0, v.x1, v.y0, v.y1].every(Number.isFinite) && v.x1 > v.x0 && v.y1 > v.y0,
+          layout: r.options.layout,
+          rows: v.y1 - v.y0,
+          areaH: r.area?.ah,
+        };
+        rec.extra = check ? check(rec, s, v) : true;
+        out.steps.push(rec);
+      } catch (e) {
+        out.errors.push(name + ': ' + e.message);
+      }
+    };
+    step('radial + cladogram', { layout: 'radial', branchLengths: false });
+    step('rectangular + phylogram', { layout: 'rectangular', branchLengths: true });
+    step(
+      'lod off: every node is drawn, whatever the budget',
+      { lod: false, drawBudget: 500 },
+      (rec) => rec.drawn === t.base.nodeCount && rec.summaries === 0,
+    );
+    step('lod on, budget 20000', { lod: true, drawBudget: 20000 });
+    step('no summaries', { showSummaries: false }, (rec) => rec.summaries === 0);
+    step('summaries back', { showSummaries: true }, (rec) => rec.summaries > 0);
+    step('no overview, no axis', { overview: false, axis: false });
+    step('row height 20 px', { rowHeight: 20 }, (rec) => Math.abs(rec.rows - r.size.height / 20) < 8);
+    step('row height back to fit', { rowHeight: null }, (_rec, _s, v) => Math.abs(v.y1 - v.y0 - t.base.tipCount) < t.base.tipCount * 0.2);
+    step('dense labels, minCladePx 6', { labelDensity: 'dense', minCladePx: 6 });
+    step('radial, radialMaxNodes 300', { layout: 'radial', radialMaxNodes: 300 }, (rec) => rec.drawn <= 300);
+    step('radial, interaction LOD off, dprCap 1', { interactionLOD: false, dprCap: 1 });
+    step('alignStyle blocks', { alignStyle: 'blocks', alignRowGap: 2 });
+    step('back to rectangular', { layout: 'rectangular' });
+    // equal input does not redraw (settle first: a pending refine frame is not what is measured)
+    r.renderNow();
+    await sleep(200);
+    const f0 = r.getStats().frames;
+    r.setOptions({ layout: 'rectangular', branchLengths: true });
+    r.setOptions({});
+    r.setTheme({ ...r.theme, categorical: r.theme.categorical.slice() });
+    r.setHighlighted([]);
+    r.setHighlighted([t.base.tipLabels[3]]);
+    await sleep(200);
+    const f1 = r.getStats().frames;
+    r.setHighlighted([t.base.tipLabels[3]]);
+    r.setClades([]);
+    await sleep(200);
+    out.framesEqualInput = r.getStats().frames - f1;
+    out.framesFirstHighlight = f1 - f0;
+    return out;
+  });
+  ok(res.errors.length === 0, `setOptions combinations: no exception ${res.errors.join('; ')}`);
+  for (const st of res.steps)
+    ok(
+      st.drawn > 0 && st.finite && st.extra,
+      `setOptions ${st.name}: ${st.layout}, drawn ${st.drawn}, summaries ${st.summaries}${st.extra ? '' : ' (CHECK FAILED)'}`,
+    );
+  ok(res.framesEqualInput === 0, `equal highlight / clades after a settled frame: ${res.framesEqualInput} redraws`);
+  ok(
+    res.framesFirstHighlight <= 1,
+    `equal options / theme / empty highlight caused at most the one redraw of the first highlight (${res.framesFirstHighlight})`,
+  );
+  await page.evaluate(() => window.__t.cleanup());
+}
+
+// ================================================================ mount / unmount, two instances
+const counts = () =>
+  page.evaluate(() => ({
+    treeviews: document.querySelectorAll('[data-treeview]').length,
+    canvases: document.querySelectorAll('canvas').length,
+    nodes: document.getElementsByTagName('*').length,
+  }));
+const mountOpts = (layout, size) => ({ treeId: 'syn-yule-10000', newick: text, layout, branchLengths: true, size });
+{
+  const first = await page.evaluate(() => {
+    const r = window.__customTree.handle().renderer();
+    window.__keep = r;
+    return { frames: r.getStats().frames };
+  });
+  const mounted = await counts();
+  await page.evaluate(() => window.__spike.unmount());
+  const empty = await counts();
+  const gone = await page.evaluate(() => ({
+    destroyed: window.__keep.destroyed,
+    connected: window.__keep.root.isConnected,
+    hook: typeof window.__customTree,
+  }));
+  ok(
+    first.frames > 0 && mounted.treeviews === 1 && empty.treeviews === 0,
+    `unmount removes the tree view (${mounted.treeviews} -> ${empty.treeviews})`,
+  );
+  ok(
+    empty.canvases < mounted.canvases && gone.destroyed === true && gone.connected === false && gone.hook === 'undefined',
+    `unmount destroys the renderer and its canvases (${mounted.canvases} -> ${empty.canvases} canvases, destroyed ${gone.destroyed}, hook ${gone.hook})`,
+  );
+  // cycles, back to back (what a strict-mode double mount does to the DOM) and a mount over a mount
+  for (let k = 0; k < 4; k++) {
+    await page.evaluate(
+      async (o) => {
+        await window.__spike.mount(o);
+        await window.__spike.unmount();
+      },
+      mountOpts(k % 2 ? 'radial' : 'rectangular', { width: 800, height: 500 }),
+    );
+  }
+  const afterCycles = await counts();
+  ok(
+    afterCycles.treeviews === 0 && afterCycles.canvases === empty.canvases && Math.abs(afterCycles.nodes - empty.nodes) <= 4,
+    `4 mount / unmount cycles leave the DOM as it was: ${JSON.stringify(empty)} -> ${JSON.stringify(afterCycles)}`,
+  );
+  await page.evaluate(
+    async (o) => {
+      await window.__spike.mount(o);
+      await window.__spike.mount(o);
+    },
+    mountOpts('rectangular', { width: 800, height: 500 }),
+  );
+  const twice = await counts();
+  ok(
+    twice.treeviews === 1 && twice.canvases === mounted.canvases,
+    `a mount over a mount keeps one tree view (${twice.treeviews} views, ${twice.canvases} canvases, one instance had ${mounted.canvases})`,
+  );
+
+  // two instances at once, independent
+  await page.evaluate((o) => window.__spike.mount(o), mountOpts('radial', { width: 640, height: 420 }));
+  await page.evaluate((o) => window.__spike2.mount(o), mountOpts('rectangular', { width: 640, height: 420 }));
+  const two = await counts();
+  ok(two.treeviews === 2, `two instances: ${two.treeviews} tree views`);
+  const at = (api) => page.evaluate((a) => window[a].locate({ kind: 'node', id: 'n1' }), api);
+  const before0 = await at('__spike'),
+    before1 = await at('__spike2');
+  const views = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-treeview]')].map((e) => {
+      const r = e.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    }),
+  );
+  const f0 = (await stats()).frames;
+  const v1 = views[1];
+  await page.mouse.move(v1.x + v1.w * 0.4, v1.y + v1.h * 0.5);
+  for (let j = 0; j < 6; j++) {
+    await page.mouse.wheel(0, -120);
+    await sleep(16);
+  }
+  await sleep(350);
+  const after0 = await at('__spike'),
+    after1 = await at('__spike2');
+  ok(
+    JSON.stringify(before0) === JSON.stringify(after0) && before0 !== null,
+    `zooming instance 2 leaves instance 1 where it was (${JSON.stringify(before0)})`,
+  );
+  ok(JSON.stringify(before1) !== JSON.stringify(after1), `instance 2 did zoom (${JSON.stringify(before1)} -> ${JSON.stringify(after1)})`);
+  ok((await stats()).frames === f0, 'no frame was drawn in instance 1 meanwhile');
+  const ev0 = await page.evaluate(async () => (await window.__spike.getEvents()).length);
+  await page.mouse.click(v1.x + v1.w * 0.4, v1.y + v1.h * 0.5);
+  await sleep(150);
+  const ev = await page.evaluate(async () => [(await window.__spike.getEvents()).length, (await window.__spike2.getEvents()).length]);
+  ok(ev[0] === ev0, `a click in instance 2 emits no event in instance 1 (${ev0} -> ${ev[0]}; instance 2 has ${ev[1]})`);
+  await page.evaluate(() => window.__spike2.unmount());
+  const one = await counts();
+  await page.mouse.move(views[0].x + views[0].w * 0.5, views[0].y + views[0].h * 0.5);
+  await page.mouse.wheel(0, -120);
+  await sleep(300);
+  ok(
+    one.treeviews === 1 && (await stats()).frames > f0,
+    `unmounting instance 2 leaves instance 1 alive and drawing (${one.treeviews} view, frames ${f0} -> ${(await stats()).frames})`,
+  );
+  await page.evaluate(() => window.__spike.unmount());
+  const end = await counts();
+  ok(end.treeviews === 0 && end.canvases === empty.canvases, `both unmounted: ${JSON.stringify(end)}`);
+}
+
 await browser.close();
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);
