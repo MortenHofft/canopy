@@ -30,7 +30,8 @@ export function rotate(t: TreeInput, node: number): OpResult {
   checkNode(t, node);
   const d = draftOf(t);
   const kids: number[] = [];
-  for (let c = t.firstChild[node]; c >= 0; c = t.nextSibling[c]) kids.unshift(c);
+  for (let c = t.firstChild[node]; c >= 0; c = t.nextSibling[c]) kids.push(c);
+  kids.reverse();
   if (kids.length < 2) return identity(t);
   d.firstChild[node] = kids[0];
   for (let k = 0; k < kids.length; k++) d.nextSibling[kids[k]] = k + 1 < kids.length ? kids[k + 1] : -1;

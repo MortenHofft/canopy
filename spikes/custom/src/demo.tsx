@@ -47,7 +47,9 @@ function App() {
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
 
-  /** Run a tree operation on the current tree; carry clade colours over through the node map. */
+  /** Run a tree operation on the current tree. A clade colour stands for a set of tips, so it is carried over by tips, not by
+   *  node: after a reroot the node that held the colour may now hold the complementary tips. It is kept on the MRCA of its
+   *  surviving tips if those still form exactly a clade, and dropped (and reported) otherwise. */
   const apply = (name: string, op: (t: TreeModel) => ops.OpResult) => {
     let r: ops.OpResult;
     const t0 = performance.now();
@@ -60,11 +62,20 @@ function App() {
     if (!r.changed) return setLast(`${name}: nothing to change`);
     const next = new TreeModel(r.tree);
     const ms = performance.now() - t0;
-    const m = (id: string) => r.map[Number(id.slice(1))] ?? -1;
-    setClades((cs) => cs.flatMap((c) => (m(c.nodeId) >= 0 ? [{ ...c, nodeId: 'n' + m(c.nodeId) }] : [])));
+    let dropped = 0;
+    const kept = clades.flatMap((c) => {
+      const k = Number(c.nodeId.slice(1));
+      const tips: number[] = [];
+      for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) { const v = r.map[tree.tipNode[rk]]; if (v >= 0) tips.push(v); }
+      const m = tips.length ? next.mrcaOf(tips) : -1;
+      if (m >= 0 && next.tipCountOf(m) === tips.length) return [{ ...c, nodeId: 'n' + m }];
+      dropped++;
+      return [];
+    });
+    setClades(kept);
     setVp(undefined); // the new tree is fitted when its renderer mounts
     setHistory((h) => [...h, next]);
-    setLast(`${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)`);
+    setLast(`${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${dropped ? ` · ${dropped} colour${dropped > 1 ? 's' : ''} removed: no longer a clade` : ''}`);
   };
   const back = (to: number) => {
     setHistory((h) => h.slice(0, to));

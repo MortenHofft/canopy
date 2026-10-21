@@ -15,12 +15,12 @@ viewer (draws, reports clicks)          page (integration)                     t
 
 | Function | User-facing name | What it does |
 |---|---|---|
-| `reroot(t, node, {at})` | Reroot here | New root on the edge above `node`, at fraction `at` (default 0.5) from the node. The path to the old root is reversed. The old root is removed if it is left with one child |
-| `midpointRoot(t)` | Midpoint root | Root halfway along the longest tip-to-tip path (two O(n) passes). Needs lengths. An ultrametric tree comes back unchanged |
+| `reroot(t, node, {at})` | Reroot here | New root on the edge above `node`, at fraction `at` (default 0.5) from the node; `at` 0 roots at the node itself (if internal), 1 at its parent. The path to the old root is reversed. The old root is removed if it is left with one child; a one-child chain above it is dropped |
+| `midpointRoot(t)` | Midpoint root | Root halfway along the longest tip-to-tip path (two O(n) passes). Needs lengths. A midpoint on a node roots at that node. An ultrametric tree comes back unchanged |
 | `rotate(t, node)` | Rotate | Reverse the order of a node's children ("swap", "flip"). Display only |
 | `ladderise(t, {order})` | Ladderise / sort clades | Children by tip count, `increasing` (smaller first, FigTree's term) or `decreasing`. Display only |
 | `collapseBySupport(t, x)`, `collapseShortBranches(t, x)` | Collapse weak branches | Contract internal edges with support (or length) below `x` into polytomies. The contracted length is dropped |
-| `prune(t, keepTipRank)` | Remove tip / clade, keep selection | Keep a subset of tips; nodes left with one child are removed and their lengths summed |
+| `prune(t, keepTipRank)` | Remove tip / clade, keep selection | Keep a subset of tips; nodes the pruning leaves with one child are removed and their lengths summed. One-child nodes already in the input (Open Tree monotypic taxa) are kept |
 | `subtree(t, node)` | Show only this clade | The clade as its own tree |
 
 The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate, Increasing/Decreasing node order; iTOL uses Re-root here, Rotate and Collapse (from memory, **unverified**). "Flip" and "swap" both mean rotate.
@@ -41,7 +41,7 @@ The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate
 ## Run
 
 ```
-npm test                                  # 13 tests; needs Node >= 22.18 (runs the .ts sources directly)
+npm test                                  # 19 tests; needs Node >= 22.18 (runs the .ts sources directly)
 npm run bench -- file.nwk[.gz] ...        # median times per operation; big synthetic trees: `make large` in data/synthetic
 ../../spikes/custom/node_modules/.bin/tsc -p tsconfig.json   # typecheck (no TypeScript dependency of its own)
 ```
@@ -52,6 +52,6 @@ Results and numbers: [../../docs/results/tree-ops.md](../../docs/results/tree-op
 
 ## Why our own and not a library
 
-Checked on 2026-10-20 ([../../docs/research/tree-ops-libraries.md](../../docs/research/tree-ops-libraries.md)). No permissively licensed JS or Rust library has edge reroot with supports moved, threshold collapse and prune-to-set together. The ones that do are GPL, LGPL or CeCILL (gotree, TreeSwift, the Rust `phylotree`, `newick`/`sorbus` and `light_phylogeny` crates). Several JS ones recurse, or are quadratic: phylocanvas.gl's midpoint compares all pairs of leaves, and PhyloJS sorts with a tip walk inside the comparator. The closest match, patristic (CDC, Apache-2.0, typed arrays), lacks four of the operations and would add a second tree model. Rust via WebAssembly offers nothing permissive that has these operations, and would add a copy across the boundary for an operation that already takes under 1 s at 1M tips.
+Checked on 2026-10-20 ([../../docs/research/tree-ops-libraries.md](../../docs/research/tree-ops-libraries.md)). No permissively licensed JS or Rust library has edge reroot with supports moved, threshold collapse and prune-to-set together. The ones that do are GPL, LGPL or CeCILL (gotree, TreeSwift, the Rust `phylotree`, `newick`/`sorbus` and `light_phylogeny` crates). Several JS ones recurse, or are quadratic: phylocanvas.gl's midpoint compares all pairs of leaves, and PhyloJS sorts with a tip walk inside the comparator. The closest match, patristic (CDC, Apache-2.0, typed arrays), lacks four of the operations and would add a second tree model. Rust via WebAssembly offers nothing permissive that has these operations, and would add a copy across the boundary for an operation that already takes about a second at 1M tips (about as long as parsing the file).
 
 Worth borrowing: TreeSwift and gotree as **external oracles** (run outside this repo, because they are GPL) to cross-check results on the test trees, and patristic's deep-tree test pattern (adopted).

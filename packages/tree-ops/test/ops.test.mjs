@@ -20,16 +20,19 @@ const tip = (t, l) => t.tipIndex(l);
 const nwk = (t) => toNewick(t);
 
 /** Structural invariants of TreeModel (same as shared/tree.ts promises). */
-function checkModel(t) {
-  let tips = 0;
+/** Structural invariants; `maxUnary` = one-child nodes allowed (the input's own; operations must not create new ones). */
+function checkModel(t, maxUnary = 0) {
+  let tips = 0, unary = 0;
   for (let i = 0; i < t.nodeCount; i++) {
     if (i > 0) assert.ok(t.parent[i] < i && t.parent[i] >= 0, `parent of ${i}`);
     assert.ok(t.subtreeEnd[i] > i && t.subtreeEnd[i] <= t.nodeCount);
     if (t.childCount[i] === 0) { assert.equal(t.leafStart[i], tips); tips++; }
-    if (i > 0) assert.notEqual(t.childCount[i], 1, `unary node ${i}`);
+    if (t.childCount[i] === 1) unary++;
   }
+  assert.ok(unary <= maxUnary, `${unary} one-child nodes, at most ${maxUnary} expected`);
   assert.equal(tips, t.tipCount);
 }
+const unaryCount = (t) => { let u = 0; for (let i = 0; i < t.nodeCount; i++) if (t.childCount[i] === 1) u++; return u; };
 
 /** Tip-to-tip distance, missing lengths as 0. */
 function dist(t, a, b) {
@@ -214,4 +217,94 @@ test('deep tree: a 100k-tip caterpillar (depth 100k) reroots, midpoint-roots, la
   assert.ok(Math.abs(m.info.diameter - N) < 1e-6); // t0 to t(N-1): N-2 internal edges plus the two tip edges
   assert.equal(ladderise(t).tree.tipCount, N);
   assert.equal(prune(t, (k) => k % 3 === 0).tree.tipCount, Math.ceil(N / 3));
+});
+
+
+test('unary root edge: rerooting drops the one-child chain above the old root instead of turning it into tips', () => {
+  const ids = (t, l) => (t.tipIndex(l) >= 0 ? t.tipIndex(l) : t.labels.indexOf(l));
+  const cases = [
+    ['((A:1,B:1)X:1)Y;', 'X', 0.5, null], // the root already sits on X's edge
+    ['(((A,B)X,C)Z)Y;', 'A', 0.5, '(A,(B,C)X);'],
+    ['(((A,B)X,C)Z)Y;', 'C', 0.5, '(C,(A,B)X);'],
+    ['((((A,B)X,C)Z)W)Y;', 'A', 0.5, '(A,(B,C)X);'],
+    ['(((A,B)X,C)Z)Y;', 'X', 1, null], // rooting at Z, the root below a one-child chain
+    ['(((A,B)X,C)Z)Y;', 'X', 0, '(A,B,C)X;'],
+  ];
+  for (const [text, at, f, want] of cases) {
+    const t = parseNewick(text);
+    const r = reroot(t, ids(t, at), { at: f });
+    if (want === null) assert.equal(r.changed, false, `${text} at ${at}`);
+    else assert.equal(nwk(r.tree), want, `${text} at ${at}`);
+  }
+});
+
+test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 keeps tips, splits and distances, adds no one-child node', () => {
+  for (let trial = 0; trial < 30; trial++) {
+    // random binary tree, then one-child nodes inserted above random nodes (sometimes above the root)
+    const nTips = 3 + Math.floor(rnd() * 12);
+    let parts = Array.from({ length: nTips }, (_, i) => `T${i}:${(1 + Math.floor(rnd() * 9)) / 4}`);
+    let k = 0;
+    while (parts.length > 1) {
+      const a = parts.splice(Math.floor(rnd() * parts.length), 1)[0];
+      const b = parts.splice(Math.floor(rnd() * parts.length), 1)[0];
+      let c = `(${a},${b})N${k++}:${(1 + Math.floor(rnd() * 9)) / 4}`;
+      if (rnd() < 0.3) c = `(${c})U${k++}:${(1 + Math.floor(rnd() * 9)) / 4}`;
+      parts.push(c);
+    }
+    let text = parts[0].replace(/:[\d.]+$/, '');
+    if (rnd() < 0.5) text = `(${text}:1)Top`;
+    const t = parseNewick(text + ';');
+    const before = splits(t);
+    const labels = t.tipLabels.slice().sort();
+    for (let v = 1; v < t.nodeCount; v++) {
+      for (const f of [0, 0.5, 1]) {
+        const { tree, map, changed } = reroot(t, v, { at: f });
+        if (!changed) continue;
+        checkModel(tree, unaryCount(t));
+        assert.deepEqual(tree.tipLabels.slice().sort(), labels, `${text} reroot ${v} at ${f}`);
+        assert.deepEqual(splits(tree), before, `${text} reroot ${v} at ${f}`);
+        const a = t.tipNode[0], b = t.tipNode[t.tipCount - 1];
+        assert.ok(Math.abs(dist(t, a, b) - dist(tree, map[a], map[b])) < 1e-9);
+      }
+    }
+    checkModel(midpointRoot(t).tree, unaryCount(t));
+  }
+});
+
+test('midpoint exactly on a node roots at that node (no zero-length edge)', () => {
+  const t = parseNewick('((A:1,B:1):1,(C:3,D:1):1);'); // C to A = 6, the midpoint is the (C,D) node
+  assert.equal(nwk(midpointRoot(t).tree), '(C:3,D:1,(A:1,B:1):2);');
+});
+
+test('prune keeps one-child nodes that were in the input (Open Tree monotypic taxa)', () => {
+  const t = parseNewick('((A,(B)Bgenus)Fam,C)R;');
+  assert.equal(nwk(prune(t, (r) => t.tipLabels[r] !== 'C').tree), '(A,(B)Bgenus)Fam;');
+  const o = readTree('real-ladder/trees/otl-0200-canidae.nwk.gz');
+  assert.ok(unaryCount(o) > 0);
+  const drop = 5; // remove one tip: only nodes on its path can change
+  const { tree, map } = prune(o, (r) => r !== drop);
+  checkModel(tree, unaryCount(o));
+  // every one-child node of the input whose subtree still has tips is still there, with its name
+  for (let i = 0; i < o.nodeCount; i++) {
+    if (o.childCount[i] !== 1) continue;
+    const alive = o.leafEnd[i] - o.leafStart[i] > (o.leafStart[i] <= drop && drop < o.leafEnd[i] ? 1 : 0);
+    if (alive) { assert.ok(map[i] >= 0, `unary node ${i} (${o.labels[i]}) kept`); assert.equal(tree.labels[map[i]], o.labels[i]); }
+  }
+});
+
+test('changed is false when there is nothing to do', () => {
+  const t = parseNewick('((A:1,B:1)95:1,C:1);');
+  assert.equal(prune(t, () => true).changed, false);
+  assert.equal(subtree(t, 0).changed, false);
+  assert.equal(rotate(t, t.tipIndex('A')).changed, false);
+  assert.equal(reroot(t, 1, { at: 1 }).changed, false); // rooting at the current root
+});
+
+test('rotate on a wide polytomy is linear (200k children)', () => {
+  const t = parseNewick('(' + Array.from({ length: 200000 }, (_, i) => 't' + i).join(',') + ');');
+  const t0 = performance.now();
+  const r = rotate(t, 0);
+  const ms = performance.now() - t0;
+  assert.equal(r.tree.tipLabels[0], 't199999');
+  assert.ok(ms < 1500, `rotate took ${ms.toFixed(0)} ms`); // was about 4 s with Array.unshift
 });

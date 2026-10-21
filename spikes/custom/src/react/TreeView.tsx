@@ -111,6 +111,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   const [tip, setTip] = useState<{ ev: TreeNodeEvent; x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ ev: TreeNodeEvent; items: NodeMenuItem[]; x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuOpen = useRef(false); // read by the renderer callbacks, which are created once
+  menuOpen.current = menu !== null;
+  const refocus = useRef(false); // set while a menu action runs; read when the action remounts the renderer
 
   const toEvent = (e: NodeEvent): TreeNodeEvent => {
     return {
@@ -158,7 +161,10 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
           const b = wrapRef.current.getBoundingClientRect();
           setTip({ ev, x: ev.clientX - b.left, y: ev.clientY - b.top });
         },
-        onViewportChange: (v) => latest.current.onViewportChange?.(v),
+        onViewportChange: (v) => {
+          if (menuOpen.current) setMenu(null); // the menu is anchored to a point of the old view
+          latest.current.onViewportChange?.(v);
+        },
         onFrame: (s) => latest.current.onFrame?.(s),
       },
       { ...o, layout: latest.current.layout ?? 'rectangular', branchLengths: latest.current.branchLengths ?? true, tipHref: latest.current.tipHref ?? null },
@@ -166,6 +172,8 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     );
     rendRef.current = r;
     setGen((g) => g + 1);
+    // a menu action that replaced the tree removed the focused canvas with the old renderer: give focus to the new one
+    if (refocus.current) { refocus.current = false; r.root.focus(); }
     let ready = 0;
     ready = requestAnimationFrame(() => {
       ready = requestAnimationFrame(() => latest.current.onReady?.({ layoutMs: r.layout.layoutMs, tips: source.tipCount }));
@@ -220,8 +228,6 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   }), [source]);
 
   // node menu: focus the first item on open; close on Escape, outside pointer, or after an action (focus back to the canvas)
-  const menuOpen = useRef(false);
-  menuOpen.current = menu !== null;
   const closeMenu = (refocus: boolean) => {
     setMenu(null);
     if (refocus) rendRef.current?.root.focus();
@@ -267,9 +273,10 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
           aria-label={menu.ev.isTip ? `Actions for tip ${menu.ev.tipId ?? ''}` : `Actions for clade of ${menu.ev.tipCount} tips`}
           data-treeview-menu=""
           onKeyDown={onMenuKey}
+          onBlur={(e) => { if (!menuRef.current?.contains(e.relatedTarget as Node | null)) setMenu(null); }}
           style={{ position: 'absolute', left: Math.max(4, Math.min(menu.x + 6, (wrapRef.current?.clientWidth ?? 0) - 244)), top: Math.max(4, Math.min(menu.y + 6, (wrapRef.current?.clientHeight ?? 0) - 40 - 44 * menu.items.length)), zIndex: 7, width: 240, boxSizing: 'border-box', padding: 4, borderRadius: 6, background: theme?.background ?? FALLBACK_THEME.background, color: theme?.foreground ?? FALLBACK_THEME.foreground, border: `1px solid ${theme?.muted ?? FALLBACK_THEME.muted}`, boxShadow: '0 4px 16px rgba(0,0,0,.18)', fontFamily: theme?.fontFamily ?? FALLBACK_THEME.fontFamily, fontSize: 13 }}
         >
-          <div style={{ padding: '4px 8px 6px', fontWeight: 600, fontStyle: menu.ev.isTip ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div aria-hidden="true" style={{ padding: '4px 8px 6px', fontWeight: 600, fontStyle: menu.ev.isTip ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {menu.ev.isTip ? (options.formatLabel ?? ((s: string) => s.replace(/_/g, ' ')))(menu.ev.tipId ?? '') : nodeLabel(menu.ev.node) || `Clade, ${menu.ev.tipCount.toLocaleString('en')} tips`}
           </div>
           {menu.items.map((it) => (
@@ -280,7 +287,12 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
               disabled={it.disabled}
               title={it.hint}
               data-action={it.id}
-              onClick={() => { closeMenu(true); it.onSelect(); }}
+              onClick={() => {
+                refocus.current = true;
+                closeMenu(true);
+                it.onSelect();
+                requestAnimationFrame(() => { refocus.current = false; }); // the remount, if any, happened in this task
+              }}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', border: 0, borderRadius: 4, background: 'transparent', color: 'inherit', font: 'inherit', cursor: it.disabled ? 'default' : 'pointer', opacity: it.disabled ? 0.45 : 1 }}
               onMouseEnter={(e) => { if (!it.disabled) e.currentTarget.style.background = theme?.dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.05)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
