@@ -6,7 +6,8 @@
 // Escape closes it and returns focus to the canvas; Tab out, an outside click and zooming close it; reroot, rotate, remove
 // and ladderise change the tip order as expected and focus is on the new canvas afterwards; a clade colour that is no longer
 // a clade after a reroot is removed and reported, and undo restores it; a menu near the bottom edge stays inside the pane; reset
-// restores the tree as published.
+// restores the tree as published; a clade click highlights nothing; collapse by support is a view (a lower threshold or
+// unticking brings branches back, colours survive); midpoint on a dated tree says the root already is the midpoint.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
 const require = createRequire(path.join(root, 'spikes/runner/package.json'));
 const { chromium } = require('playwright-core');
+const { PNG } = require('pngjs');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
 const port = Number(args.port || 5306);
 const url = args.url || `http://127.0.0.1:${port}/demo.html`;
@@ -155,6 +157,62 @@ await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Reset' }).click();
 await page.waitForTimeout(400);
 ok((await order()) === 'ABCDEF' && /tree as published/.test(await status()), `reset: ${await order()}`);
+
+// a clade click highlights nothing (it used to highlight the clade's first five tips: a green band across the pane on their rows);
+// a tip click highlights that tip. Read at the pane's left edge on tip E's row, where only the band can paint.
+const bandAt = async (id) => {
+  const p = await dot(id);
+  const pb = await pane.boundingBox();
+  const png = PNG.sync.read(await page.screenshot({ clip: { x: pb.x + 4, y: Math.round(p.y), width: 1, height: 1 } }));
+  return png.data[0] !== png.data[1] || png.data[1] !== png.data[2]; // not grey or white: tinted
+};
+ok(!(await bandAt('E')), 'nothing highlighted before');
+await openOn(await cladeOf('E', 'F'));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+ok(!(await bandAt('E')), 'a clade click highlights no tips');
+await page.mouse.click((await dot('E')).x, (await dot('E')).y);
+await page.waitForTimeout(200);
+ok(await bandAt('E'), 'a tip click highlights that tip');
+await page.keyboard.press('Escape');
+
+// collapse by support is a view: a colour on the collapsed clade survives, a lower threshold or unticking brings the branch back
+await openOn(await cladeOf('A', 'B'));
+// reset restores the colours from before the first change, so (A,B) may be coloured already
+if ((await items()).includes('Colour this clade')) await act('colour');
+else await page.keyboard.press('Escape');
+const collapseBox = page.getByRole('checkbox');
+const threshold = page.getByRole('spinbutton', { name: 'Minimum support' });
+await threshold.fill('70');
+await collapseBox.check();
+await page.waitForTimeout(500);
+const label = () => page.locator('label', { has: collapseBox }).innerText();
+ok(/1 collapsed/.test(await label()) && /1 coloured clades/.test(await status()), `collapse < 70: ${await label()} · ${await status()}`);
+let restored = true;
+try {
+  await cladeOf('A', 'B');
+  restored = true;
+} catch {
+  restored = false;
+}
+ok(!restored, 'the 0.95-support clade (A,B) is collapsed into the root');
+await threshold.fill('0.5');
+await page.waitForTimeout(500);
+ok(!/collapsed/.test(await label()), `threshold 0.5: nothing collapsed (${await label()})`);
+await threshold.fill('70');
+await page.waitForTimeout(300);
+await collapseBox.uncheck();
+await page.waitForTimeout(500);
+await openOn(await cladeOf('A', 'B'));
+ok(/Remove colour/.test((await items()).join('|')) && /1 coloured clades/.test(await status()), 'unticked: (A,B) is back, still coloured');
+await page.keyboard.press('Escape');
+
+// midpoint on a dated (ultrametric) tree: the root already is the midpoint, and the status says so
+await page.goto(`${url}?tree=rich-fish-carangaria-135&cpu=1`);
+await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
+await page.getByRole('button', { name: 'Midpoint root' }).click();
+await page.waitForTimeout(300);
+ok(/root already is the midpoint/.test(await status()), `midpoint on a dated tree: ${await status()}`);
 
 await browser.close();
 console.log(failures ? `\n${failures} FAILED` : '\nOK');

@@ -30,6 +30,7 @@ function App() {
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
   const [last, setLast] = useState('click a tip or a clade for its actions');
   const [minSupport, setMinSupport] = useState(70);
+  const [collapseOn, setCollapseOn] = useState(false);
   // Runs once: `params` is rebuilt on every render but only read here for the initial tree name.
   useEffect(() => {
     void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([{ tree: parseNewick(t.newick), clades: [] }]));
@@ -49,7 +50,31 @@ function App() {
     }),
     [g],
   );
-  const hasSupport = useMemo(() => !!tree && tree.support.some((s) => !Number.isNaN(s)), [tree]);
+  // support range, shown next to the threshold because files use different scales (0.95 versus 95)
+  const supportRange = useMemo(() => {
+    if (!tree) return null;
+    let lo = Infinity,
+      hi = -Infinity;
+    for (const s of tree.support) {
+      if (Number.isNaN(s)) continue;
+      lo = Math.min(lo, s);
+      hi = Math.max(hi, s);
+    }
+    return lo <= hi ? { lo, hi } : null;
+  }, [tree]);
+  const hasSupport = supportRange !== null;
+  // Collapse by support is a VIEW of the current tree, not a step in its history: the tree shown is recomputed from `tree` whenever
+  // the threshold changes, so a lower threshold brings collapsed branches back. Clade colours and menu actions stay in `tree`'s node
+  // ids; `toTree` maps a node of the view back to `tree`, `toView` the other way (-1: collapsed away, its colour reappears with it).
+  const view = useMemo(() => {
+    if (!tree || !collapseOn || !hasSupport) return null;
+    const r = ops.collapseBySupport(tree, minSupport);
+    if (!r.changed) return null;
+    const shown = new TreeModel(r.tree);
+    const toTree = new Int32Array(shown.nodeCount);
+    for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;
+    return { tree: shown, toView: r.map, toTree, collapsed: tree.nodeCount - shown.nodeCount };
+  }, [tree, collapseOn, hasSupport, minSupport]);
   const colouredTips = useMemo(() => {
     let n = 0;
     if (!tree) return { keep: new Uint8Array(0), n };
@@ -81,7 +106,14 @@ function App() {
       setLast(`${name}: ${(err as Error).message}`);
       return;
     }
-    if (!r.changed) return setLast(`${name}: nothing to change`);
+    if (!r.changed) {
+      const info = (r as Partial<ReturnType<typeof ops.midpointRoot>>).info;
+      return setLast(
+        info
+          ? `${name}: nothing to change, the root already is the midpoint of the longest tip-to-tip path (${tree.labels[info.tips[0]]} to ${tree.labels[info.tips[1]]}, ${info.diameter.toPrecision(4)})`
+          : `${name}: nothing to change`,
+      );
+    }
     const next = new TreeModel(r.tree);
     const ms = performance.now() - t0;
     let dropped = 0;
@@ -118,9 +150,10 @@ function App() {
   // per-node actions: what the node menu offers for the clicked tip or clade
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] => {
     if (e.run) return []; // a run of small siblings is not one node
-    const v = e.node;
+    const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its collapsed view
+    const nodeId = 'n' + v;
     const what = e.isTip ? 'tip' : 'clade';
-    const coloured = clades.some((c) => c.nodeId === e.nodeId);
+    const coloured = clades.some((c) => c.nodeId === nodeId);
     const items: NodeMenuItem[] = [];
     if (!e.isTip)
       items.push({
@@ -152,17 +185,26 @@ function App() {
       disabled: v === 0 || e.tipCount >= tree.tipCount - 1,
       onSelect: () => apply(`remove ${what}`, (t) => ops.prune(t, (r) => r < t.leafStart[v] || r >= t.leafEnd[v])),
     });
-    if (!e.isTip) items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(e.nodeId) });
+    if (!e.isTip) items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(nodeId) });
     return items;
   };
   const onClick = (e: TreeNodeEvent) => {
-    setHl(e.isTip ? [] : e.tipIds().slice(0, 5));
+    // a clicked tip is highlighted; a clicked clade is not (it was: its first five tips, which read as if the click had selected
+    // them). Colouring a clade is the menu's job.
+    setHl(e.isTip && e.tipId ? [e.tipId] : []);
     setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipRange.join(', ')})`);
   };
 
+  const shown = view?.tree ?? tree;
+  const shownClades = view
+    ? clades.flatMap((c) => {
+        const k = view.toView[Number(c.nodeId.slice(1))];
+        return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
+      })
+    : clades;
   const common = {
-    tree,
-    clades,
+    tree: shown,
+    clades: shownClades,
     highlighted: hl,
     theme,
     viewport: vp,
@@ -207,25 +249,43 @@ function App() {
         >
           Ladderise ↓
         </button>
-        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center' }}>
-          <button
-            className={btn}
+        <label
+          style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center' }}
+          title={
+            hasSupport
+              ? 'Show branches with support below the value collapsed into polytomies. A view only: change or clear it to get them back.'
+              : 'this tree has no support values'
+          }
+        >
+          <input
+            type="checkbox"
+            checked={collapseOn && hasSupport}
             disabled={!hasSupport}
-            title={hasSupport ? 'Collapse branches with support below the value into polytomies' : 'this tree has no support values'}
-            onClick={() => apply(`collapse support < ${minSupport}`, (t) => ops.collapseBySupport(t, minSupport))}
-          >
-            Collapse support &lt;
-          </button>
+            onChange={(e) => {
+              setCollapseOn(e.target.checked);
+              setVp(undefined);
+            }}
+          />
+          Collapse support &lt;
           <input
             type="number"
             aria-label="Minimum support"
             value={minSupport}
             min={0}
-            step={1}
-            onChange={(e) => setMinSupport(Number(e.target.value))}
-            style={{ width: 64, font: 'inherit', padding: '4px 6px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-md)' }}
+            step={supportRange && supportRange.hi <= 1 ? 0.05 : 1}
+            disabled={!hasSupport}
+            onChange={(e) => {
+              setMinSupport(Number(e.target.value));
+              setVp(undefined);
+            }}
+            style={{ width: 72, font: 'inherit', padding: '4px 6px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-md)' }}
           />
-        </span>
+          {supportRange && (
+            <span style={{ color: 'var(--fg3)', fontSize: 'var(--text-sm)' }}>
+              {view ? `${view.collapsed.toLocaleString('en')} collapsed · ` : ''}support {supportRange.lo}–{supportRange.hi}
+            </span>
+          )}
+        </label>
         <button
           className={btn}
           disabled={colouredTips.n < 2}
