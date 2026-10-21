@@ -82,6 +82,25 @@ export const FALLBACK_THEME: TreeTheme = {
   categorical: ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8'],
 };
 
+/** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
+export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
+  if (a === b) return true;
+  if (
+    a.dark !== b.dark ||
+    a.background !== b.background ||
+    a.foreground !== b.foreground ||
+    a.muted !== b.muted ||
+    a.branch !== b.branch ||
+    a.highlight !== b.highlight ||
+    a.summary !== b.summary ||
+    a.fontFamily !== b.fontFamily ||
+    a.categorical.length !== b.categorical.length
+  )
+    return false;
+  for (let i = 0; i < a.categorical.length; i++) if (a.categorical[i] !== b.categorical[i]) return false;
+  return true;
+}
+
 export interface CladeColour {
   node: number; // node index
   colour: string;
@@ -93,7 +112,10 @@ export interface Column {
   kind: ColumnKind;
   header: string;
   width: number; // CSS px
-  values: Record<string, number | string>; // by tip label
+  /** By tip label. Compared BY REFERENCE when the columns are set again (a deep compare of millions of entries costs as much as
+   *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
+   *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
+  values: Record<string, number | string>;
 }
 
 export type LabelDensity = 'sparse' | 'normal' | 'dense';
@@ -110,6 +132,11 @@ export interface RendererOptions {
   axis: boolean; // scale bar / time axis
   italicLabels: boolean;
   minCladePx: number; // collapse clades smaller than this many pixels (either direction)
+  /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
+   *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
+  alignStyle: 'residues' | 'blocks';
+  /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep at least a quarter of the row free. */
+  alignRowGap: number;
   formatLabel: (tipId: string) => string;
   tipHref: ((tipId: string) => string) | null;
   ariaLabel: string;
@@ -141,6 +168,8 @@ export const DEFAULT_OPTIONS: RendererOptions = {
   axis: true,
   italicLabels: true,
   minCladePx: 3,
+  alignStyle: 'residues',
+  alignRowGap: 0,
   formatLabel: (s) => s.replace(/_/g, ' '),
   tipHref: null,
   ariaLabel: 'Phylogenetic tree',

@@ -15,12 +15,22 @@ const { chromium } = require('playwright-core');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
 const port = Number(args.port || 5306);
 let failures = 0;
-const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) failures++; };
+const ok = (c, m) => {
+  console.log((c ? '  ok   ' : '  FAIL ') + m);
+  if (!c) failures++;
+};
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', headless: true, args: ['--no-sandbox'] });
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  headless: true,
+  args: ['--no-sandbox'],
+});
 const page = await browser.newPage({ viewport: { width: 1400, height: 850 } });
 page.setDefaultTimeout(8000);
-page.on('pageerror', (e) => { console.log('PAGEERR', e.message); failures++; });
+page.on('pageerror', (e) => {
+  console.log('PAGEERR', e.message);
+  failures++;
+});
 await page.goto(`http://127.0.0.1:${port}/demo.html?tree=edge-internal-support&cpu=1`);
 await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
 await page.waitForTimeout(800);
@@ -29,14 +39,32 @@ const pane = page.locator('.card').first();
 const status = () => page.locator('p[aria-live]').innerText();
 const menuOpen = async () => (await page.locator('[role=menu]').count()) > 0;
 const items = async () => (await page.locator('[role=menuitem]').allInnerTexts()).map((s) => s.split('\n')[0]);
-const order = async () => (await pane.locator('a[data-tip-id]').evaluateAll((as) => as.map((a) => [a.dataset.tipId, a.getBoundingClientRect().top]))).sort((a, b) => a[1] - b[1]).map((x) => x[0]).join('');
-const dot = async (id) => { const b = await pane.locator(`a[data-tip-id="${id}"]`).boundingBox(); return { x: b.x - 5, y: b.y + b.height / 2 }; };
-const canvasFocused = () => page.evaluate(() => { const a = document.activeElement; return !!a && a.tagName === 'DIV' && a.tabIndex === 0 && !!a.querySelector('canvas'); });
-const openOn = async (p) => { await page.mouse.click(p.x, p.y); await page.waitForSelector('[role=menu]'); };
-const act = async (id) => { await page.locator(`[data-action=${id}]`).click(); await page.waitForTimeout(500); };
+const order = async () =>
+  (await pane.locator('a[data-tip-id]').evaluateAll((as) => as.map((a) => [a.dataset.tipId, a.getBoundingClientRect().top])))
+    .sort((a, b) => a[1] - b[1])
+    .map((x) => x[0])
+    .join('');
+const dot = async (id) => {
+  const b = await pane.locator(`a[data-tip-id="${id}"]`).boundingBox();
+  return { x: b.x - 5, y: b.y + b.height / 2 };
+};
+const canvasFocused = () =>
+  page.evaluate(() => {
+    const a = document.activeElement;
+    return !!a && a.tagName === 'DIV' && a.tabIndex === 0 && !!a.querySelector('canvas');
+  });
+const openOn = async (p) => {
+  await page.mouse.click(p.x, p.y);
+  await page.waitForSelector('[role=menu]');
+};
+const act = async (id) => {
+  await page.locator(`[data-action=${id}]`).click();
+  await page.waitForTimeout(500);
+};
 /** A point on the clade joining two sibling tips: walk left along the row between them until the tooltip names a 2-tip clade. */
 const cladeOf = async (a, b) => {
-  const p = await dot(a), q = await dot(b);
+  const p = await dot(a),
+    q = await dot(b);
   const y = (p.y + q.y) / 2;
   for (let x = Math.max(p.x, q.x) - 6; x > 30; x -= 3) {
     await page.mouse.move(x, y);
@@ -60,7 +88,10 @@ ok(await canvasFocused(), 'focus is on the new canvas after the action');
 // clade menu, keyboard
 const ef = await cladeOf('E', 'F');
 await openOn(ef);
-ok((await items()).join('|') === 'Rotate|Reroot here|Show only this clade|Remove this clade|Colour this clade', `clade menu: ${(await items()).join(' | ')}`);
+ok(
+  (await items()).join('|') === 'Rotate|Reroot here|Show only this clade|Remove this clade|Colour this clade',
+  `clade menu: ${(await items()).join(' | ')}`,
+);
 await page.keyboard.press('ArrowDown');
 ok(/^Reroot here/.test(await page.evaluate(() => document.activeElement?.textContent ?? '')), 'ArrowDown moves to the next item');
 await page.keyboard.press('Escape');
