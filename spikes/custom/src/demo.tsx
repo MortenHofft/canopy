@@ -19,6 +19,23 @@ import * as ops from '../../../packages/tree-ops/src/index.ts';
 import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent } from './react/TreeView.tsx';
 import type { Viewport } from './core/types.ts';
 
+/** Where a clade colour goes after an operation. A colour stands for a set of tips: those of clade `k` of `tree` that survive in
+ *  `next` (through `map`). Returns the fewest whole clades of `next` that hold exactly that set: one node when the set is still a
+ *  clade, several when an operation split it (rerooting inside a coloured clade puts its tips on both sides of the new root), none
+ *  when all its tips were pruned. Linear in `next`: count the set's tips per subtree, keep the full nodes whose parent is not full. */
+function cover(tree: TreeModel, next: TreeModel, map: Int32Array, k: number): number[] {
+  const inSet = new Int32Array(next.nodeCount);
+  for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) {
+    const v = map[tree.tipNode[rk]];
+    if (v >= 0) inSet[v] = 1;
+  }
+  for (let i = next.nodeCount - 1; i > 0; i--) inSet[next.parent[i]] += inSet[i];
+  const full = (i: number) => inSet[i] > 0 && inSet[i] === next.tipCountOf(i);
+  const out: number[] = [];
+  for (let i = 0; i < next.nodeCount; i++) if (full(i) && (i === 0 || !full(next.parent[i]))) out.push(i);
+  return out;
+}
+
 function App() {
   const params = new URLSearchParams(location.search);
   // [as published, ...each action's result]; `clades` is the colouring the entry had when the next action was applied, so undo
@@ -95,8 +112,8 @@ function App() {
   const palette = g.categorical;
 
   /** Run a tree operation on the current tree. A clade colour stands for a set of tips, so it is carried over by tips, not by
-   *  node: after a reroot the node that held the colour may now hold the complementary tips. It is kept on the MRCA of its
-   *  surviving tips if those still form exactly a clade, and dropped (and reported) otherwise. */
+   *  node (after a reroot the node that held the colour may now hold the complementary tips): it goes to the clade those tips
+   *  form, or, when the operation split them, to the fewest clades that hold exactly them (reported in the status line). */
   const apply = (name: string, op: (t: TreeModel) => ops.OpResult) => {
     let r: ops.OpResult;
     const t0 = performance.now();
@@ -116,24 +133,17 @@ function App() {
     }
     const next = new TreeModel(r.tree);
     const ms = performance.now() - t0;
-    let dropped = 0;
+    let split = 0;
     const kept = clades.flatMap((c) => {
-      const k = Number(c.nodeId.slice(1));
-      const tips: number[] = [];
-      for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) {
-        const v = r.map[tree.tipNode[rk]];
-        if (v >= 0) tips.push(v);
-      }
-      const m = tips.length ? next.mrcaOf(tips) : -1;
-      if (m >= 0 && next.tipCountOf(m) === tips.length) return [{ ...c, nodeId: 'n' + m }];
-      dropped++;
-      return [];
+      const pieces = cover(tree, next, r.map, Number(c.nodeId.slice(1)));
+      if (pieces.length > 1) split++;
+      return pieces.map((m) => ({ ...c, nodeId: 'n' + m }));
     });
     setClades(kept);
     setVp(undefined); // the new tree is fitted when its renderer mounts
     setHistory((h) => [...h.slice(0, -1), { tree, clades }, { tree: next, clades: kept }]);
     setLast(
-      `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${dropped ? ` · ${dropped} colour${dropped > 1 ? 's' : ''} removed: no longer a clade` : ''}`,
+      `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${split ? ` · ${split} colour${split > 1 ? 's' : ''} split: ${split > 1 ? 'their tips are' : 'its tips are'} no longer one clade` : ''}`,
     );
   };
   const back = (to: number) => {
@@ -185,7 +195,9 @@ function App() {
       disabled: v === 0 || e.tipCount >= tree.tipCount - 1,
       onSelect: () => apply(`remove ${what}`, (t) => ops.prune(t, (r) => r < t.leafStart[v] || r >= t.leafEnd[v])),
     });
-    if (!e.isTip) items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(nodeId) });
+    // tips are coloured only as pieces of a split colour (see cover), so they offer only its removal
+    if (!e.isTip || coloured)
+      items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(nodeId) });
     return items;
   };
   const onClick = (e: TreeNodeEvent) => {

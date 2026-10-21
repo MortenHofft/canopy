@@ -5,7 +5,7 @@
 // On the 6-tip edge-case tree: the menu opens on a tip and on a clade with the expected actions and takes focus; arrows move,
 // Escape closes it and returns focus to the canvas; Tab out, an outside click and zooming close it; reroot, rotate, remove
 // and ladderise change the tip order as expected and focus is on the new canvas afterwards; a clade colour that is no longer
-// a clade after a reroot is removed and reported, and undo restores it; a menu near the bottom edge stays inside the pane; reset
+// a clade after a reroot (rerooted inside it) is split over the fewest clades that hold its tips, and undo restores it; a menu near the bottom edge stays inside the pane; reset
 // restores the tree as published; a clade click highlights nothing; collapse by support is a view (a lower threshold or
 // unticking brings branches back, colours survive); midpoint on a dated tree says the root already is the midpoint.
 import { createRequire } from 'node:module';
@@ -128,7 +128,8 @@ await page.getByRole('button', { name: 'Ladderise ↑' }).click();
 await page.waitForTimeout(400);
 ok(/ladderise/.test(await status()), `ladderise: ${await order()}`);
 
-// colours follow tips: colour (A,B), reroot on A, the colour is dropped (A alone is now the other side of the root)
+// colours follow tips: colour (A,B), reroot on A (inside it): A and B end up on both sides of the new root, so the colour is kept on
+// the fewest whole clades that hold exactly A and B (here the two tips)
 await page.getByRole('button', { name: 'Reset' }).click();
 await page.waitForTimeout(400);
 await openOn(await cladeOf('A', 'B'));
@@ -139,7 +140,12 @@ await act('reroot');
 ok(/1 coloured clades/.test(await status()), `reroot on C keeps the (A,B) colour: ${await status()}`);
 await openOn(await dot('A'));
 await act('reroot');
-ok(/0 coloured clades/.test(await status()) && /colour removed: no longer a clade/.test(await status()), `reroot on A drops it: ${await status()}`);
+ok(/2 coloured clades/.test(await status()) && /colour split/.test(await status()), `reroot on A splits it: ${await status()}`);
+for (const tip of ['A', 'B']) {
+  await openOn(await dot(tip));
+  ok((await items()).includes('Remove colour'), `${tip} keeps the colour (its menu offers Remove colour)`);
+  await page.keyboard.press('Escape');
+}
 await page.getByRole('button', { name: 'Undo' }).click();
 await page.waitForTimeout(400);
 ok(/1 coloured clades/.test(await status()), `undo restores the colour: ${await status()}`);
