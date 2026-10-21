@@ -21,7 +21,7 @@ export const ARC_SAGITTA_K = 2.4;
  *  connector spans millions of px; the visible part is identical). */
 export const CLAMP_Y_PAD_PX = 64;
 
-// ---- view limits (TreeRenderer.clampView)
+// ---- view limits (TreeViewer.clampView)
 
 /** Rectangular: widest x window, in tree widths (the tree spans x 0..1, so zooming out leaves up to 60% empty). */
 export const RECT_MAX_VIEW_W = 1.6;
@@ -46,7 +46,7 @@ export const RADIAL_MIN_ZOOM = 0.4;
 /** Radial: the view centre stays within this many radii of the root. */
 export const RADIAL_PAN_LIMIT = 1.3;
 
-// ---- navigation targets (TreeRenderer.focusTip, zoomToNode)
+// ---- navigation targets (TreeViewer.focusTip, zoomToNode)
 
 /** focusTip, rectangular: row height (px) is kept between these two when a tip is brought into view. */
 export const FOCUS_TIP_MIN_ROW_PX = 26;

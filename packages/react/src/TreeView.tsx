@@ -1,45 +1,30 @@
-// <TreeView>: the React layer over the renderer core. Props are the whole state (clades, highlighted tips,
+// <TreeView>: the React layer over @gbif-phylo/viewer. Props are the whole state (clades, highlighted tips,
 // columns, layout, lengths, theme, optional controlled viewport); callbacks report interaction. No globals:
-// every instance owns its renderer, which is created in a layout effect and destroyed on unmount (rAF
+// every instance owns its viewer, which is created in a layout effect and destroyed on unmount (rAF
 // cancelled, observers and listeners removed, canvases released).
 
 import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
-  TreeRenderer,
+  TreeViewer,
   InMemorySource,
   type TreeSource,
   DEFAULT_OPTIONS,
-  FALLBACK_THEME,
   themeEquals,
+  FALLBACK_THEME,
   type Column,
   type FrameStats,
-  type HitKind,
   type LayoutKind,
-  type NodeEvent,
-  type RendererOptions,
+  type TreeEvent,
+  type ViewerOptions,
   type TreeData,
   type TreeTheme,
   type Viewport,
 } from '@gbif-phylo/viewer';
 
-export interface TreeNodeEvent {
-  nodeId: string; // 'n<preorder index>', the id scheme of the shared TreeModel
-  node: number;
-  isTip: boolean;
-  kind: HitKind; // what was hit: a tip, an internal node marker, a collapsed clade or a branch
-  tipId: string | null; // the tip's label when isTip
-  tipCount: number;
-  tipRange: [number, number]; // descendant tips are the leaf-rank range [start, end): O(1), no traversal
-  tipIds(): string[]; // the descendant tip labels (a slice; allocated on demand); only the loaded ones with a partial source
-  tipLabels(): Promise<string[]>; // the same through the source, also for clades whose labels are not loaded
-  via: 'pointer' | 'keyboard';
-  clientX: number;
-  clientY: number;
-  /** A run of small siblings drawn as one slice: `node` is their parent, kind is 'summary' and tipRange / tipCount / tipIds()
-   *  are ONLY the run's tips. Absent for every other target. */
-  run?: { clades: number; single: number };
-}
+/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): node id as 'n<preorder index>' and number, tip or not, what was hit, the
+ *  descendant tips as the rank range [tipStart, tipEnd) with `tipIds()` / `tipLabels()`, pointer position, and `preventDefault()`. */
+export type TreeNodeEvent = TreeEvent;
 
 export interface TreeViewHandle {
   fit(): void;
@@ -51,9 +36,9 @@ export interface TreeViewHandle {
   locateNode(nodeId: string): { x: number; y: number } | null;
   nodeBounds(nodeId: string): { x: number; y: number; width: number; height: number } | null;
   columnCell(colId: string, tipId: string): { x: number; y: number; width: number; height: number } | null;
-  getStats(): ReturnType<TreeRenderer['getStats']>;
-  benchmark(n: number): ReturnType<TreeRenderer['benchmark']>;
-  renderer(): TreeRenderer | null;
+  getStats(): ReturnType<TreeViewer['getStats']>;
+  benchmark(n: number): ReturnType<TreeViewer['benchmark']>;
+  renderer(): TreeViewer | null;
 }
 
 /** One entry of the node menu. The view only shows the list and calls onSelect; what an action does (and whether it changes
@@ -105,7 +90,7 @@ export interface TreeViewProps {
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
-  options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
+  options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
   /** Actions for the clicked tip or clade, shown as a menu at the click (keyboard: Enter on the cursor opens it, arrows move,
    *  Escape closes, Tab out closes). Return null or [] for no menu. Called after onTipClick / onNodeClick. */
@@ -143,10 +128,10 @@ function useRenderer(
   hostRef: React.RefObject<HTMLElement>,
   source: TreeSource,
   softwareCanvas: boolean | undefined,
-  make: (host: HTMLElement) => [TreeRenderer, () => void],
-): { renderer: TreeRenderer | null; rendererRef: React.MutableRefObject<TreeRenderer | null> } {
-  const [renderer, setRenderer] = useState<TreeRenderer | null>(null);
-  const rendererRef = useRef<TreeRenderer | null>(null);
+  make: (host: HTMLElement) => [TreeViewer, () => void],
+): { renderer: TreeViewer | null; rendererRef: React.MutableRefObject<TreeViewer | null> } {
+  const [renderer, setRenderer] = useState<TreeViewer | null>(null);
+  const rendererRef = useRef<TreeViewer | null>(null);
   const makeRef = useRef(make);
   useLayoutEffect(() => {
     makeRef.current = make; // declared before the create effect below, so that one sees this render's closure
@@ -167,7 +152,7 @@ function useRenderer(
 
 /** The renderer if it is the live one. The effects below close over the renderer of the render they were created in; on a `source` change (or a
  *  strict-mode remount) the create effect's cleanup has already destroyed that instance when they run, so each one acts only on a live instance. */
-function liveRenderer(r: TreeRenderer | null, ref: React.RefObject<TreeRenderer | null>): TreeRenderer | null {
+function liveRenderer(r: TreeViewer | null, ref: React.RefObject<TreeViewer | null>): TreeViewer | null {
   return r !== null && r === ref.current ? r : null;
 }
 
@@ -204,63 +189,40 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   // run when a value in it changed (the renderer's setters also ignore unchanged values, belt and braces).
   const options = useShallowStable(props.options ?? EMPTY);
   // the whole option set, defaults included: an option removed from `options` (or set to undefined) goes back to its default
-  const rendererOptions = useMemo<RendererOptions>(
+  const rendererOptions = useMemo<ViewerOptions>(
     () => ({ ...DEFAULT_OPTIONS, ...stripUndefined(options), layout, branchLengths, tipHref }),
     [options, layout, branchLengths, tipHref],
   );
-  const fullTheme = useStable<TreeTheme>({ ...FALLBACK_THEME, ...stripUndefined(props.theme ?? {}) }, themeEquals);
-
-  const toEvent = (e: NodeEvent): TreeNodeEvent => {
-    return {
-      nodeId: 'n' + e.node,
-      node: e.node,
-      isTip: e.isTip,
-      kind: e.kind,
-      tipId: e.tipId,
-      tipCount: e.tipEnd - e.tipStart,
-      tipRange: [e.tipStart, e.tipEnd],
-      tipIds: () => source.snapshot().tipLabels.slice(e.tipStart, e.tipEnd),
-      tipLabels: () => source.tipLabels(e.tipStart, e.tipEnd),
-      via: e.via,
-      clientX: e.clientX,
-      clientY: e.clientY,
-      run: e.run,
-    };
-  };
+  // the overrides only: the viewer puts them over its fallback theme
+  const themeOverrides = useStable<Partial<TreeTheme>>(stripUndefined(props.theme ?? {}), (a, b) =>
+    themeEquals({ ...FALLBACK_THEME, ...a }, { ...FALLBACK_THEME, ...b }),
+  );
+  const fullTheme = useMemo<TreeTheme>(() => ({ ...FALLBACK_THEME, ...themeOverrides }), [themeOverrides]);
 
   const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, source, options.softwareCanvas, (host) => {
-    const r = new TreeRenderer(
-      host,
-      source,
-      {
-        onClick: (e) => {
-          const ev = toEvent(e);
-          const p = latest.current;
-          if (ev.isTip) p.onTipClick?.(ev);
-          else p.onNodeClick?.(ev);
-          const items = p.nodeMenu?.(ev);
-          if (items?.length && wrapRef.current) {
-            const b = wrapRef.current.getBoundingClientRect();
-            setTip(null);
-            setMenu({ ev, items, x: ev.clientX - b.left, y: ev.clientY - b.top });
-          } else setMenu(null);
-        },
-        onHover: (e) => {
-          const ev = e ? toEvent(e) : null;
-          latest.current.onHover?.(ev);
-          if (menuOpen.current || !ev || !wrapRef.current) return setTip(null);
-          const b = wrapRef.current.getBoundingClientRect();
-          setTip({ ev, x: ev.clientX - b.left, y: ev.clientY - b.top });
-        },
-        onViewportChange: (v) => {
-          if (menuOpen.current) setMenu(null); // the menu is anchored to a point of the old view
-          latest.current.onViewportChange?.(v);
-        },
-        onFrame: (s) => latest.current.onFrame?.(s),
-      },
-      rendererOptions,
-      fullTheme,
-    );
+    const r = new TreeViewer({ target: host, source, options: rendererOptions, theme: themeOverrides });
+    r.on('click', (ev) => {
+      const p = latest.current;
+      if (ev.isTip) p.onTipClick?.(ev);
+      else p.onNodeClick?.(ev);
+      const items = p.nodeMenu?.(ev);
+      if (items?.length && wrapRef.current) {
+        const b = wrapRef.current.getBoundingClientRect();
+        setTip(null);
+        setMenu({ ev, items, x: ev.clientX - b.left, y: ev.clientY - b.top });
+      } else setMenu(null);
+    });
+    r.on('hover', (ev) => {
+      latest.current.onHover?.(ev);
+      if (menuOpen.current || !ev || !wrapRef.current) return setTip(null);
+      const b = wrapRef.current.getBoundingClientRect();
+      setTip({ ev, x: ev.clientX - b.left, y: ev.clientY - b.top });
+    });
+    r.on('viewchange', (v) => {
+      if (menuOpen.current) setMenu(null); // the menu is anchored to a point of the old view
+      latest.current.onViewportChange?.(v);
+    });
+    r.on('frame', (s) => latest.current.onFrame?.(s));
     // a menu action that replaced the tree removed the focused canvas with the old renderer: give focus to the new one
     if (refocus.current) {
       refocus.current = false;
@@ -283,8 +245,8 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   // ---- props -> renderer. Each effect re-runs when the renderer is (re)created or its input changed; the renderer's setters are no-ops
   // for an input equal to the current one, so none of them needs more than its own value in the dependency list.
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setTheme(fullTheme);
-  }, [R, rendRef, fullTheme]);
+    liveRenderer(R, rendRef)?.setTheme(themeOverrides);
+  }, [R, rendRef, themeOverrides]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setOptions(rendererOptions);
   }, [R, rendRef, rendererOptions]);

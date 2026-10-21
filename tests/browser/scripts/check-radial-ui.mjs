@@ -270,7 +270,7 @@ await page.evaluate(() => {
       const host = document.createElement('div');
       host.style.cssText = `position:fixed;left:${left}px;top:${top}px;width:${w}px;height:${h}px;z-index:${visible ? 99999 : 1};background:#fff;${visible ? '' : 'visibility:hidden;'}`;
       document.body.appendChild(host);
-      const r = new R(host, source, {}, { layout: 'rectangular', softwareCanvas: true, ...opts });
+      const r = new R({ target: host, source, options: { layout: 'rectangular', softwareCanvas: true, ...opts } });
       hosts.push({ host, r });
       return r;
     },

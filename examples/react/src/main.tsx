@@ -313,7 +313,7 @@ function App() {
     // a clicked tip is highlighted; a clicked clade is not (it was: its first five tips, which read as if the click had selected
     // them). Colouring a clade is the menu's job.
     setHl(e.isTip && e.tipId ? [e.tipId] : []);
-    setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipRange.join(', ')})`);
+    setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipStart}, ${e.tipEnd})`);
   };
 
   const shown = view?.tree ?? tree;

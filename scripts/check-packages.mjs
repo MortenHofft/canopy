@@ -56,8 +56,8 @@ const SCENARIOS = [
     forbid: ['packages/tree-ops/dist/rooting.js', 'packages/tree-ops/dist/collapse.js', 'packages/tree-ops/dist/subset.js'],
   },
   {
-    name: 'viewer: TreeRenderer',
-    code: `import { TreeRenderer } from '@gbif-phylo/viewer'; console.log(TreeRenderer);`,
+    name: 'viewer: TreeViewer',
+    code: `import { TreeViewer } from '@gbif-phylo/viewer'; console.log(TreeViewer);`,
     forbid: ['node_modules/react', 'packages/io/'],
   },
   {

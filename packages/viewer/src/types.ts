@@ -1,6 +1,5 @@
-// Public types of the renderer core. No React, no imports from the harness: `TreeData` is the structural
-// subset of shared/tree.ts `TreeModel` that the core reads, so the core could be lifted into its own package
-// with any tree model that has preorder ids and leaf-contiguous subtree ranges.
+// Public types of the viewer core. No React: `TreeData` is the structural subset of @gbif-phylo/io's `TreeModel` that the core
+// reads, so any tree model with preorder ids and leaf-contiguous subtree ranges can be shown.
 
 export interface TreeData {
   readonly nodeCount: number;
@@ -101,6 +100,13 @@ export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
   return true;
 }
 
+/** A copy of `o` without its undefined values, so spreading it over defaults never puts an undefined in. */
+export function stripUndefined<T extends object>(o: T): Partial<T> {
+  const r: Partial<T> = {};
+  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] !== undefined) r[k] = o[k];
+  return r;
+}
+
 export interface CladeColour {
   node: number; // node index
   colour: string;
@@ -120,7 +126,7 @@ export interface Column {
 
 export type LabelDensity = 'sparse' | 'normal' | 'dense';
 
-export interface RendererOptions {
+export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
@@ -156,7 +162,7 @@ export interface RendererOptions {
   summaryNotice: boolean;
 }
 
-export const DEFAULT_OPTIONS: RendererOptions = {
+export const DEFAULT_OPTIONS: ViewerOptions = {
   layout: 'rectangular',
   branchLengths: true,
   lod: true,
@@ -201,13 +207,6 @@ export interface NodeEvent {
   /** Set for a run of small siblings drawn as one slice (kind 'summary'): `node` is then their parent, but the tip range is only
    *  the run's, [tipStart, tipEnd), and these are what it holds: clades (with two or more tips) and single tips. */
   run?: { clades: number; single: number };
-}
-
-export interface RendererCallbacks {
-  onClick?(e: NodeEvent): void;
-  onHover?(e: NodeEvent | null): void;
-  onViewportChange?(v: Viewport): void;
-  onFrame?(s: FrameStats): void;
 }
 
 export interface FrameStats {

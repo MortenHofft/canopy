@@ -1,6 +1,7 @@
-// TreeRenderer: the facade of the renderer. It owns the DOM skeleton (canvas, transient canvas, the pieces below), the canvas contexts,
+// TreeViewer: the facade of the viewer. It owns the DOM skeleton (canvas, transient canvas, the pieces below), the canvas contexts,
 // the render loop (requestAnimationFrame on demand: a frame is drawn only when something changed), the frame itself (cut, draw, stats),
-// the source sync, hit-testing and hover, the corner notice and the public API. No React in here: a React component only forwards props.
+// the source sync, hit-testing and hover, the corner notice, the events and the public API. No framework in here: the React component
+// only forwards props.
 //
 // Everything else lives in a module with one job, wired together here:
 //   view-state.ts     the viewport: area, fit, limits, zoom, target windows, animation (pure arithmetic, no DOM)
@@ -15,6 +16,7 @@
 import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
+import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
 import {
   drawAxis,
   drawBody,
@@ -34,7 +36,7 @@ import { InputController, type InputHost } from './input.ts';
 import { computeLayout, ensureTrig, type Layout } from './layout.ts';
 import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
-import { makeNodeEvent } from './node-event.ts';
+import { makeNodeEvent, toTreeEvent } from './node-event.ts';
 import { LabelOverlay } from './overlay.ts';
 import { Overview, type OverviewHost } from './overview.ts';
 import { projectionFor, type LayoutProjection } from './projection.ts';
@@ -42,13 +44,14 @@ import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
   FALLBACK_THEME,
+  stripUndefined,
   themeEquals,
   type CladeColour,
   type Column,
   type FrameStats,
   type Hit,
-  type RendererCallbacks,
-  type RendererOptions,
+  type NodeEvent,
+  type ViewerOptions,
   type TreeData,
   type TreeSnapshot,
   type TreeTheme,
@@ -60,7 +63,22 @@ const THIN_PRIMS = 700; // radial: from this many primitives on, branches are on
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
 
-export class TreeRenderer {
+/** What `new TreeViewer(...)` takes. One of `tree` and `source` is needed; `source` wins. */
+export interface TreeViewerInit {
+  /** The element the viewer fills: it appends its root there and follows its size (ResizeObserver). Give it a size. */
+  target: HTMLElement;
+  /** A tree in memory (wrapped in an `InMemorySource`) ... */
+  tree?: TreeData;
+  /** ... or a source that loads parts of a tree on demand. */
+  source?: TreeSource;
+  /** Over `DEFAULT_OPTIONS`; all but `softwareCanvas` can be changed later with `setOptions`. */
+  options?: Partial<ViewerOptions>;
+  /** Over `FALLBACK_THEME`; see `setTheme`. */
+  theme?: Partial<TreeTheme>;
+  columns?: Column[];
+}
+
+export class TreeViewer {
   // ------------------------------------------------------------- DOM
   readonly root: HTMLDivElement;
   private canvas: HTMLCanvasElement;
@@ -74,9 +92,11 @@ export class TreeRenderer {
   private input: InputController;
 
   // ------------------------------------------------------------- state
-  private opts: RendererOptions;
+  private opts: ViewerOptions;
   private theme: TreeTheme;
-  private cb: RendererCallbacks;
+  private themeOverrides: Partial<TreeTheme> = {};
+  private events = new Emitter();
+  private readyEmitted = false;
   private layouts = new Map<boolean, Layout>();
   private L: Layout;
   private W = 0;
@@ -152,13 +172,13 @@ export class TreeRenderer {
   private srcVersion: number;
   private unsubscribe: () => void;
 
-  constructor(
-    private host: HTMLElement,
-    tree: TreeData | TreeSource,
-    cb: RendererCallbacks = {},
-    opts: Partial<RendererOptions> = {},
-    theme: TreeTheme = FALLBACK_THEME,
-  ) {
+  private host: HTMLElement;
+
+  constructor(init: TreeViewerInit) {
+    const tree = init.source ?? init.tree;
+    if (!tree) throw new TypeError('TreeViewer: `tree` or `source` is required');
+    if (!init.target) throw new TypeError('TreeViewer: `target` is required');
+    this.host = init.target;
     this.source = isTreeSource(tree) ? tree : new InMemorySource(tree);
     this.srcVersion = this.source.version;
     this.tree = this.source.snapshot();
@@ -166,9 +186,9 @@ export class TreeRenderer {
       this.syncSource();
       this.invalidate();
     });
-    this.opts = { ...DEFAULT_OPTIONS, ...opts };
-    this.theme = theme;
-    this.cb = cb;
+    this.opts = { ...DEFAULT_OPTIONS, ...stripUndefined(init.options ?? {}) };
+    this.themeOverrides = { ...stripUndefined(init.theme ?? {}) };
+    this.theme = { ...FALLBACK_THEME, ...this.themeOverrides };
     this.L = this.layoutFor(this.opts.branchLengths);
     this.hit = new HitIndex();
     this.detail = new DetailLoader(this.source, () => this.invalidate());
@@ -200,7 +220,7 @@ export class TreeRenderer {
     );
     this.notice.setAttribute('role', 'status');
     this.root.append(this.canvas, this.top, this.overlay.layer, this.ov.wrap, this.notice, this.overlay.srList, this.overlay.live);
-    host.appendChild(this.root);
+    this.host.appendChild(this.root);
     const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
     this.ctx = this.canvas.getContext('2d', cc)!;
     this.topCtx = this.top.getContext('2d', { willReadFrequently: this.opts.softwareCanvas })!;
@@ -213,6 +233,7 @@ export class TreeRenderer {
     });
     this.ro.observe(this.host);
     this.measure();
+    if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns).columns;
     this.fit(false);
     this.invalidate();
     // web fonts arrive after the first frame
@@ -319,7 +340,7 @@ export class TreeRenderer {
           this.activeNode = -1;
           this.topDirty = true;
           this.schedule();
-          this.cb.onClick?.(makeNodeEvent(this.tree, h.node, h.kind, 'pointer', clientX, clientY, h.run));
+          this.emitNode('click', makeNodeEvent(this.tree, h.node, h.kind, 'pointer', clientX, clientY, h.run));
         },
         hover: (p) => {
           this.pendingHover = p;
@@ -335,7 +356,7 @@ export class TreeRenderer {
           const tree = this.tree; // after renderNow: it may have picked up a new snapshot
           this.proj.nodeXY(node, p);
           const r = this.root.getBoundingClientRect();
-          this.cb.onClick?.(makeNodeEvent(tree, node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
+          this.emitNode('click', makeNodeEvent(tree, node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
         },
       },
     );
@@ -366,6 +387,7 @@ export class TreeRenderer {
     this.vs.resetLabelReserve();
     this.ov.dirty = true;
     this.minPxHint = 0;
+    this.events.emit('sourcechange', { version: v });
   }
 
   /** Row of the snapshot for a node id of the public API (preorder id of the full tree), -1 when that node is not loaded. */
@@ -375,10 +397,57 @@ export class TreeRenderer {
 
   // ================================================================= public API
 
+  // ---- events
+
+  /** Listen to an event; returns the function that removes the listener. See `ViewerEventMap` for the events and `ListenOptions`
+   *  for default actions. */
+  on<K extends ViewerEventType>(type: K, listener: Listener<K>, opts?: ListenOptions): () => void {
+    return this.events.on(type, listener, opts);
+  }
+  once<K extends ViewerEventType>(type: K, listener: Listener<K>, opts?: ListenOptions): () => void {
+    return this.events.on(type, listener, { ...opts, once: true });
+  }
+  off<K extends ViewerEventType>(type: K, listener: Listener<K>): void {
+    this.events.off(type, listener);
+  }
+
+  private emitNode(type: 'click' | 'hover', e: NodeEvent | null): void {
+    if (!this.events.has(type)) return;
+    this.events.emit(type, e ? toTreeEvent(e, this.source) : (null as never));
+  }
+
+  // ---- state
+
+  /** The element the viewer appended to its target; it holds the canvases, labels, controls and overlays. */
+  get element(): HTMLDivElement {
+    return this.root;
+  }
+  /** The tree source the viewer reads (an `InMemorySource` around a `tree` passed in). */
+  getSource(): TreeSource {
+    return this.source;
+  }
+  /** The rows currently loaded (for an in-memory tree: the whole tree). Replaced, not mutated, when a partial source loads more. */
+  getTree(): TreeSnapshot {
+    return this.tree;
+  }
+  /** Node id (preorder id of the full tree) of the tip with this label, or -1 when there is none or it is not loaded. */
+  tipNode(tipId: string): number {
+    const row = this.tree.tipIndex(tipId);
+    if (row < 0) return -1;
+    return this.tree.globalId === null ? row : this.tree.globalId[row];
+  }
+  /** The theme in force: `FALLBACK_THEME` with the overrides of `setTheme` on top. */
+  getTheme(): Readonly<TreeTheme> {
+    return this.theme;
+  }
+  isDestroyed(): boolean {
+    return this.destroyed;
+  }
+
   get layout(): Layout {
     return this.L;
   }
-  get options(): Readonly<RendererOptions> {
+  get options(): Readonly<ViewerOptions> {
     return this.opts;
   }
   get size(): { width: number; height: number } {
@@ -387,17 +456,18 @@ export class TreeRenderer {
 
   /** Apply options. Keys that are undefined or `Object.is`-equal to the current value (functions by identity) are ignored, and a call
    *  that changes nothing returns without invalidating, so a caller may pass its whole option set on every render. */
-  setOptions(patch: Partial<RendererOptions>): void {
+  setOptions(patch: Partial<ViewerOptions>): void {
     const o = this.opts;
-    const p: Partial<RendererOptions> = {};
+    const p: Partial<ViewerOptions> = {};
     let any = false;
-    for (const k of Object.keys(patch) as (keyof RendererOptions)[]) {
+    for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) {
       const v = patch[k];
       if (v === undefined || Object.is(v, o[k])) continue;
       (p as Record<string, unknown>)[k] = v;
       any = true;
     }
     if (!any) return;
+    const changed = Object.keys(p) as (keyof ViewerOptions)[];
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit =
@@ -425,15 +495,24 @@ export class TreeRenderer {
     }
     this.ov.dirty = true;
     this.invalidate();
+    this.events.emit('optionschange', { options: this.opts, changed });
   }
 
-  /** No-op when every field equals the current theme (`categorical` element-wise): a theme rebuilt per render costs nothing. */
-  setTheme(t: TreeTheme): void {
-    if (themeEquals(t, this.theme)) return;
-    this.theme = t;
+  /** Set the theme overrides: these fields over `FALLBACK_THEME` (a field left out, or undefined, is the fallback value; the overrides
+   *  of an earlier call are replaced, not merged). No-op when the resulting theme equals the current one (`categorical` element-wise),
+   *  so a theme rebuilt per render costs nothing. */
+  setTheme(t: Partial<TreeTheme>): void {
+    this.themeOverrides = { ...stripUndefined(t) };
+    this.applyTheme({ ...FALLBACK_THEME, ...this.themeOverrides });
+  }
+
+  private applyTheme(next: TreeTheme): void {
+    if (themeEquals(next, this.theme)) return;
+    this.theme = next;
     this.ov.dirty = true;
     this.overlay.clear();
     this.invalidate(true);
+    this.events.emit('themechange', this.theme);
   }
 
   setClades(clades: CladeColour[]): void {
@@ -718,6 +797,8 @@ export class TreeRenderer {
 
   destroy(): void {
     if (this.destroyed) return;
+    this.events.emit('destroy', undefined);
+    this.events.clear();
     this.destroyed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
@@ -761,6 +842,7 @@ export class TreeRenderer {
   private setSize(w: number, h: number): void {
     if (w === this.W && h === this.H && this.effScale() === this.dpr) return;
     const keep = this.vs.beforeResize();
+    const resized = w !== this.W || h !== this.H;
     this.W = w;
     this.H = h;
     this.dpr = this.effScale();
@@ -772,6 +854,7 @@ export class TreeRenderer {
     this.ov.dirty = true;
     this.hit.invalidate();
     this.invalidate();
+    if (resized) this.events.emit('resize', { width: w, height: h });
   }
 
   // ================================================================= view changes
@@ -787,7 +870,7 @@ export class TreeRenderer {
     const view = this.vs.view;
     if (this.lastEmitted && viewportEquals(this.lastEmitted, view, 1e-12)) return;
     this.lastEmitted = { ...view };
-    this.cb.onViewportChange?.({ ...view });
+    if (this.events.has('viewchange')) this.events.emit('viewchange', { ...view });
   }
 
   // ================================================================= frame loop
@@ -944,7 +1027,11 @@ export class TreeRenderer {
     this.msSum += frameMs;
     this.msN++;
     if (frameMs > this.msMax) this.msMax = frameMs;
-    this.cb.onFrame?.(st);
+    this.events.emit('frame', st);
+    if (!this.readyEmitted) {
+      this.readyEmitted = true;
+      this.events.emit('ready', { layoutMs: this.L.layoutMs, tips: this.source.tipCount });
+    }
   }
 
   private updateNotice(show: boolean, n: number): void {
@@ -1050,7 +1137,7 @@ export class TreeRenderer {
     this.hoverKind = h ? h.kind : '';
     this.root.style.cursor = h ? 'pointer' : 'grab';
     this.topDirty = true;
-    this.cb.onHover?.(h ? makeNodeEvent(this.tree, h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y, h.run) : null);
+    this.emitNode('hover', h ? makeNodeEvent(this.tree, h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y, h.run) : null);
   }
 
   /** Clear the hover (the pointer left, or a drag started). */
@@ -1064,7 +1151,7 @@ export class TreeRenderer {
     if (this.hoverNode >= 0) {
       this.clearHover();
       this.topDirty = true;
-      this.cb.onHover?.(null);
+      this.emitNode('hover', null);
       this.schedule();
     }
   }

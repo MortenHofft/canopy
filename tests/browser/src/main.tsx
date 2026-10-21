@@ -83,7 +83,7 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
       isTip: e.isTip,
       tipIds: e.isTip ? [e.tipId as string] : e.tipIds(),
       source: 'adapter-derived',
-      libraryPayload: { kind: e.kind, via: e.via, tipRange: e.tipRange, tipCount: e.tipCount, run: e.run },
+      libraryPayload: { kind: e.kind, via: e.via, tipRange: [e.tipStart, e.tipEnd], tipCount: e.tipCount, run: e.run },
     };
     events.current.push(ev);
     setS((p) => ({ ...p, last: ev }));
