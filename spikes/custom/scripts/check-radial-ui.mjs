@@ -442,6 +442,29 @@ const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2
   await page.evaluate(() => window.__t.cleanup());
 }
 
+// ---- formatLabel: the accessible label elements follow it, not only the canvas text
+{
+  const res = await page.evaluate(async () => {
+    const t = window.__t;
+    const [P] = t.clade(14, 24, 0);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const r = t.mk({});
+    r.zoomToNode(P, false);
+    r.renderNow();
+    await sleep(100);
+    const el = () => r.root.querySelector('[data-tip-id]');
+    const id = el()?.dataset.tipId;
+    const before = el()?.textContent;
+    r.setOptions({ formatLabel: (s) => s.toUpperCase() });
+    r.renderNow();
+    await sleep(100);
+    return { id, before, after: el()?.textContent, again: el()?.dataset.tipId };
+  });
+  ok(res.before === res.id.replace(/_/g, ' '), `label element of ${res.id} reads "${res.before}"`);
+  ok(res.after === res.id.toUpperCase() && res.again === res.id, `after formatLabel -> upper case: "${res.after}"`);
+  await page.evaluate(() => window.__t.cleanup());
+}
+
 // ---- setOptions combinations and setters that must not redraw
 {
   const res = await page.evaluate(async () => {

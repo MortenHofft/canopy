@@ -403,7 +403,8 @@ export class TreeRenderer {
       (p.overview !== undefined && p.overview !== o.overview) ||
       (p.axis !== undefined && p.axis !== o.axis) ||
       (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
-    const tipHrefChanged = p.tipHref !== undefined && p.tipHref !== o.tipHref;
+    // the pooled label elements take their text (formatLabel) and link (tipHref) when they are created, so a change of either rebuilds them
+    const labelsChanged = (p.tipHref !== undefined && p.tipHref !== o.tipHref) || (p.formatLabel !== undefined && p.formatLabel !== o.formatLabel);
     this.opts = { ...o, ...p };
     if (layoutChanged || lengthsChanged) this.minPxHint = 0;
     if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
@@ -414,7 +415,7 @@ export class TreeRenderer {
       this.rebuildProj();
       this.hit.invalidate();
     }
-    if (tipHrefChanged) this.overlay.clear();
+    if (labelsChanged) this.overlay.clear();
     if (refit) {
       this.activeNode = -1;
       if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined) this.fit(false);
