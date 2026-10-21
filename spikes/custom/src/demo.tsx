@@ -1,6 +1,7 @@
-// Dev-only page (not part of the production build): <TreeView> used the way a gbif.org page would use it, without
-// the harness shell. Two instances share ONE controlled viewport (pan or zoom either one and the other follows),
-// and the callbacks write into plain React state. Open /demo.html in `npm run dev`.
+// Standalone page: <TreeView> used the way a gbif.org page would use it, without the harness shell. Two instances share ONE
+// controlled viewport (pan or zoom either one and the other follows), and the callbacks write into plain React state. Open
+// /demo.html in `npm run dev`; `npm run build:demo` builds it into dist-demo/ (not dist/, so not part of the measured bundle) and
+// scripts/build-site.mjs publishes it at /custom/demo.
 //
 // Tree operations come from packages/tree-ops (no rendering in there) and this page is the only place the two meet:
 // clicking a tip or clade opens <TreeView>'s node menu with per-node actions (rotate, reroot here, ...), the toolbar holds

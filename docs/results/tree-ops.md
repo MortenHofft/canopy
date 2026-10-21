@@ -83,7 +83,7 @@ The operations work on an in-memory `TreeModel` only. A `ParquetSource` (src/par
 
 - **Where the result lives:** an operation produces a view state, not a new published tree. A shareable URL needs the operations encoded (for example `reroot=<tip label>` or `<MRCA of two tip labels>`, which survive renumbering, plus `ladderise=inc`) and replayed on load. Not built.
 - **Wording in the UI:** after a reroot, say so clearly ("rooted by you on …, not as published") with a reset next to it.
-- **Comparison site:** the operations are on the dev page `demo.html` only. The harness shell (`app-shell.tsx`) has no slot for actions that replace the tree, so the deployed comparison site does not show them yet.
+- **Comparison site:** the harness shell (`app-shell.tsx`) has no slot for actions that replace the tree, so the candidate pages (`/custom?...`) do not show the operations. The standalone demo page with them is published separately at `/custom/demo` (for example `/custom/demo?tree=syn-yule-1000`); `scripts/build-site.mjs` builds it with `npm run build:demo` into `dist-demo/`, outside the `dist/` the runner measures as the bundle.
 - **Cross-check against an independent implementation:** run TreeSwift or gotree (GPL, so outside this repo) on the test trees and compare splits and lengths after reroot, midpoint, collapse and prune.
 - **Worker:** move the operations into a Worker. The model is typed arrays plus a label array, so it can be transferred without copying the arrays.
 

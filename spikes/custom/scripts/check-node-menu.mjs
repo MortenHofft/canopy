@@ -1,6 +1,7 @@
 // Browser check of the node menu and the tree operations on the dev page (demo.html is dev-only, so it needs the dev server:
 // npm run dev, which serves on port 5306).
-//   node spikes/custom/scripts/check-node-menu.mjs [--port 5306]
+//   node spikes/custom/scripts/check-node-menu.mjs [--port 5306] [--url <page URL, default http://127.0.0.1:<port>/demo.html>]
+// --url also runs it against a built site, e.g. --url https://<deployment>/custom/demo (scripts/build-site.mjs publishes the demo there).
 // On the 6-tip edge-case tree: the menu opens on a tip and on a clade with the expected actions and takes focus; arrows move,
 // Escape closes it and returns focus to the canvas; Tab out, an outside click and zooming close it; reroot, rotate, remove
 // and ladderise change the tip order as expected and focus is on the new canvas afterwards; a clade colour that is no longer
@@ -15,6 +16,7 @@ const require = createRequire(path.join(root, 'spikes/runner/package.json'));
 const { chromium } = require('playwright-core');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
 const port = Number(args.port || 5306);
+const url = args.url || `http://127.0.0.1:${port}/demo.html`;
 let failures = 0;
 const ok = (c, m) => {
   console.log((c ? '  ok   ' : '  FAIL ') + m);
@@ -32,7 +34,7 @@ page.on('pageerror', (e) => {
   console.log('PAGEERR', e.message);
   failures++;
 });
-await page.goto(`http://127.0.0.1:${port}/demo.html?tree=edge-internal-support&cpu=1`);
+await page.goto(`${url}?tree=edge-internal-support&cpu=1`);
 await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
 await page.waitForTimeout(800);
 
