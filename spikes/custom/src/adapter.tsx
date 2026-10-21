@@ -2,7 +2,7 @@
 // ./core (no React) and ./react/TreeView.tsx; this file only maps harness props to <TreeView> props, turns
 // its callbacks into harness events and answers the introspection calls.
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { AdapterFeature, CandidateAdapter, CapabilityReport, ThemeSpec, ViewHandle, ViewProps } from '../../shared/types.ts';
 import { gbifDarkTheme, gbifTheme } from '../../shared/gbif-theme.ts';
 import { TreeView, type TreeNodeEvent, type TreeViewHandle } from './react/TreeView.tsx';
@@ -476,6 +476,3 @@ export const adapter: CandidateAdapter = {
   View: CustomView,
   features,
 };
-
-void React;
-void useEffect;

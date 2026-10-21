@@ -5,7 +5,7 @@
 
 import type { Layout } from './layout.ts';
 import type { Transform } from './geom.ts';
-import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
+import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import type { Hit, TreeSnapshot } from './types.ts';
 
 export const MARKER_PX = 12; // internal node markers are drawn (and hittable) when the clade is at least this tall
@@ -355,5 +355,3 @@ function distSeg(px: number, py: number, x0: number, y0: number, x1: number, y1:
   const t = l2 > 0 ? Math.max(0, Math.min(1, ((px - x0) * dx + (py - y0) * dy) / l2)) : 0;
   return Math.hypot(px - (x0 + t * dx), py - (y0 + t * dy));
 }
-
-export { K_STUB };

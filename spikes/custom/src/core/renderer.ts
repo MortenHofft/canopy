@@ -2,12 +2,36 @@
 // the render loop (requestAnimationFrame on demand: a frame is drawn only when something changed) and the
 // pointer / wheel / keyboard controller. No React in here: a React component only forwards props to it.
 
-import { barWidth, cellRect, columnsWidth, compileColumns, COL_GAP, drawColumns, layoutColumns, type CompiledColumn } from './columns.ts';
+import {
+  ANIMATION_MS,
+  DRAG_START_PX,
+  FOCUS_TIP_MAX_ROW_PX,
+  FOCUS_TIP_MIN_ROW_PX,
+  FOCUS_TIP_RADIAL_PITCH_PX,
+  OVERSCROLL_FRAC,
+  OVERSCROLL_KEEP_FRAC,
+  OVERVIEW_WORLD_HALF,
+  OVERVIEW_WORLD_SPAN,
+  PINCH_MIN_AXIS_PX,
+  RADIAL_FIT_MARGIN_PX,
+  RADIAL_FIT_MIN_R_PX,
+  RADIAL_MAX_ZOOM,
+  RADIAL_MIN_ZOOM,
+  RADIAL_PAN_LIMIT,
+  RECT_MAX_VIEW_H_FACTOR,
+  RECT_MAX_VIEW_W,
+  RECT_MAX_ZOOM_X,
+  RECT_MAX_ZOOM_Y,
+  SR_LIST_CAP,
+  WHEEL_ZOOM_RATE,
+  ZOOM_NODE_RADIAL_PAD,
+} from './constants.ts';
+import { cellRect, columnsWidth, compileColumns, COL_GAP, drawColumns, layoutColumns, type CompiledColumn } from './columns.ts';
 import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, drawScaleBar, LabelList, BRANCH_W, type Scene } from './draw.ts';
 import { makeTransform, nodeXY, sectorBBox, viewportEquals, type Area, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { computeLayout, ensureTrig, type Layout } from './layout.ts';
-import { cutRadial, cutRect, searchCut, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
+import { cutRadial, cutRect, searchCut, DrawList, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
@@ -97,7 +121,6 @@ export class TreeRenderer {
   private hoverKind: Hit['kind'] | '' = '';
   private hoverRun = -1; // first member of the hovered run of small siblings, -1 for none (hoverNode is then their parent)
   private activeNode = -1;
-  private focusWithin = false;
   private anim: Anim | null = null;
   private raf = 0;
   private dirty = true;
@@ -377,7 +400,7 @@ export class TreeRenderer {
     if (viewportEquals(v, this.view)) return;
     this.view = this.clampView({ ...v });
     this.fitted = false;
-    this.afterViewChange(false);
+    this.afterViewChange();
   }
 
   /** Fit the whole tree (and the columns) into the container. */
@@ -389,7 +412,7 @@ export class TreeRenderer {
       this.anim = null;
       this.view = f;
       this.fitted = true;
-      this.afterViewChange(false);
+      this.afterViewChange();
     }
   }
 
@@ -404,7 +427,7 @@ export class TreeRenderer {
     let nv: Viewport;
     if (this.opts.layout === 'rectangular') {
       const kyNow = a.ah / (v.y1 - v.y0);
-      const ky = Math.min(400, Math.max(kyNow, 26));
+      const ky = Math.min(FOCUS_TIP_MAX_ROW_PX, Math.max(kyNow, FOCUS_TIP_MIN_ROW_PX));
       const h = a.ah / ky;
       const row = this.L.ROW[node];
       let { x0, x1 } = v;
@@ -416,8 +439,7 @@ export class TreeRenderer {
       }
       nv = { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     } else {
-      const targetPitch = 24;
-      const k = Math.max(a.aw / (v.x1 - v.x0), (targetPitch * this.tree.tipCount) / (2 * Math.PI));
+      const k = Math.max(a.aw / (v.x1 - v.x0), (FOCUS_TIP_RADIAL_PITCH_PX * this.tree.tipCount) / (2 * Math.PI));
       const ang = this.L.ROW[node] * ((2 * Math.PI) / this.tree.tipCount);
       const px = this.L.X[node] * Math.cos(ang),
         py = this.L.X[node] * Math.sin(ang);
@@ -448,7 +470,7 @@ export class TreeRenderer {
       sectorBBox(0, 0, this.L.X[node], this.L.XMAX[node], ls * ((2 * Math.PI) / this.tree.tipCount), le * ((2 * Math.PI) / this.tree.tipCount), bb);
       const cx = (bb[0] + bb[2]) / 2,
         cy = (bb[1] + bb[3]) / 2;
-      const half = Math.max((bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2, 1e-4) * 1.15;
+      const half = Math.max((bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2, 1e-4) * ZOOM_NODE_RADIAL_PAD;
       const k = Math.min(a.aw, a.ah) / 2 / half;
       nv = { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
     }
@@ -718,7 +740,7 @@ export class TreeRenderer {
       const rows = this.opts.rowHeight ? a.ah / this.opts.rowHeight : this.tree.tipCount;
       return { x0: 0, x1: 1, y0: 0, y1: Math.max(1, rows) };
     }
-    const k = Math.max(20, Math.min(this.W, this.H) / 2 - 28);
+    const k = Math.max(RADIAL_FIT_MIN_R_PX, Math.min(this.W, this.H) / 2 - RADIAL_FIT_MARGIN_PX);
     return { x0: -a.aw / 2 / k, x1: a.aw / 2 / k, y0: -a.ah / 2 / k, y1: a.ah / 2 / k };
   }
 
@@ -728,37 +750,36 @@ export class TreeRenderer {
     const a = this.area;
     if (this.opts.layout === 'rectangular') {
       const N = this.tree.tipCount;
-      const wmax = 1.6,
-        wmin = a.aw / 5e6;
+      const wmax = RECT_MAX_VIEW_W,
+        wmin = a.aw / RECT_MAX_ZOOM_X;
       let w = v.x1 - v.x0;
       w = Math.min(wmax, Math.max(wmin, w));
-      const hmax = Math.max(N * 1.6, a.ah / 4),
-        hmin = a.ah / 500;
+      const hmax = Math.max(N * RECT_MAX_VIEW_H_FACTOR, a.ah / 4),
+        hmin = a.ah / RECT_MAX_ZOOM_Y;
       let h = v.y1 - v.y0;
       h = Math.min(hmax, Math.max(hmin, h));
       let x0 = v.x0,
         y0 = v.y0;
       // zoomed out beyond the tree: keep the whole tree inside the window; zoomed in: allow 15% overscroll
-      x0 = w >= 0.999 ? Math.min(0, Math.max(1 - w, x0)) : Math.min(1 - 0.85 * w, Math.max(-0.15 * w, x0));
-      y0 = h >= N * 0.999 ? Math.min(0, Math.max(N - h, y0)) : Math.min(N - 0.85 * h, Math.max(-0.15 * h, y0));
+      x0 = w >= 0.999 ? Math.min(0, Math.max(1 - w, x0)) : Math.min(1 - OVERSCROLL_KEEP_FRAC * w, Math.max(-OVERSCROLL_FRAC * w, x0));
+      y0 = h >= N * 0.999 ? Math.min(0, Math.max(N - h, y0)) : Math.min(N - OVERSCROLL_KEEP_FRAC * h, Math.max(-OVERSCROLL_FRAC * h, y0));
       return { x0, x1: x0 + w, y0, y1: y0 + h };
     }
-    const kfit = Math.max(20, Math.min(this.W, this.H) / 2 - 28);
+    const kfit = Math.max(RADIAL_FIT_MIN_R_PX, Math.min(this.W, this.H) / 2 - RADIAL_FIT_MARGIN_PX);
     let k = a.aw / (v.x1 - v.x0);
-    k = Math.min(kfit * 20000, Math.max(kfit * 0.4, k));
+    k = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
       cy = (v.y0 + v.y1) / 2;
-    cx = Math.max(-1.3, Math.min(1.3, cx));
-    cy = Math.max(-1.3, Math.min(1.3, cy));
+    cx = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cx));
+    cy = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cy));
     return { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
   }
 
-  private afterViewChange(emit = true): void {
+  private afterViewChange(): void {
     this.hit.invalidate();
     this.invalidate();
     this.scheduleSr();
-    if (emit) this.emitViewport();
-    else this.emitViewport();
+    this.emitViewport();
   }
 
   private lastEmitted: Viewport | null = null;
@@ -770,7 +791,7 @@ export class TreeRenderer {
 
   private animateTo(v: Viewport, isFit = false): void {
     const to = isFit ? v : this.clampView({ ...v });
-    this.anim = { from: { ...this.view }, to, t0: performance.now(), ms: 220 };
+    this.anim = { from: { ...this.view }, to, t0: performance.now(), ms: ANIMATION_MS };
     this.fitted = false;
     if (isFit) this.fitAfterAnim = true;
     this.schedule();
@@ -1054,7 +1075,7 @@ export class TreeRenderer {
     const S = { T: this.T, L: this.L } as Scene;
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode)
       drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
-    if (this.activeNode >= 0 && (this.focusWithin || this.activeNode >= 0)) {
+    if (this.activeNode >= 0) {
       drawRing(c, S, this.activeNode, 10, this.theme.highlight, 2.5);
       const p = { x: 0, y: 0 };
       nodeXY(this.T, this.L, this.activeNode, p);
@@ -1157,7 +1178,7 @@ export class TreeRenderer {
     for (let e = 0; e < list.count; e++) {
       if (list.kind[e] !== K_TIP) continue;
       total++;
-      if (items.length < 60) {
+      if (items.length < SR_LIST_CAP) {
         const li = document.createElement('li');
         li.textContent = opts.formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '');
         items.push(li);
@@ -1303,12 +1324,12 @@ export class TreeRenderer {
         this.setViewport({ ...this.view, x0: this.view.x0 + dx, x1: this.view.x1 + dx });
         return;
       }
-      const f = Math.exp(-d * 0.0015);
+      const f = Math.exp(-d * WHEEL_ZOOM_RATE);
       if (e.altKey) this.zoomBy(f, f, p.x, p.y);
       else if (horizontal) this.zoomBy(f, 1, p.x, p.y);
       else this.zoomBy(1, f, p.x, p.y);
     } else {
-      const f = Math.exp(-(e.deltaY || e.deltaX) * unit * 0.0015);
+      const f = Math.exp(-(e.deltaY || e.deltaX) * unit * WHEEL_ZOOM_RATE);
       this.zoomBy(f, f, p.x, p.y);
     }
   };
@@ -1358,8 +1379,8 @@ export class TreeRenderer {
       const pc = this.pinch;
       const dist = Math.hypot(dx, dy),
         dist0 = Math.hypot(pc.dx, pc.dy);
-      const fx = pc.dx >= 30 ? Math.max(0.2, Math.min(5, dx / pc.dx)) : dist0 > 0 ? dist / dist0 : 1;
-      const fy = pc.dy >= 30 ? Math.max(0.2, Math.min(5, dy / pc.dy)) : dist0 > 0 ? dist / dist0 : 1;
+      const fx = pc.dx >= PINCH_MIN_AXIS_PX ? Math.max(0.2, Math.min(5, dx / pc.dx)) : dist0 > 0 ? dist / dist0 : 1;
+      const fy = pc.dy >= PINCH_MIN_AXIS_PX ? Math.max(0.2, Math.min(5, dy / pc.dy)) : dist0 > 0 ? dist / dist0 : 1;
       const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
       const a = this.area;
       const v0 = pc.v0;
@@ -1382,7 +1403,7 @@ export class TreeRenderer {
     const p = this.local(e);
     const dx = p.x - d.sx,
       dy = p.y - d.sy;
-    if (!d.moved && Math.hypot(dx, dy) > 3) {
+    if (!d.moved && Math.hypot(dx, dy) > DRAG_START_PX) {
       d.moved = true;
       this.suppressClick = true;
       this.root.style.cursor = 'grabbing';
@@ -1469,7 +1490,6 @@ export class TreeRenderer {
   };
 
   private onFocusIn = (e: FocusEvent) => {
-    this.focusWithin = true;
     const t = e.target as HTMLElement;
     if (t !== this.root) t.style.outline = `2px solid ${this.theme.highlight}`;
     else this.root.style.boxShadow = `inset 0 0 0 2px ${this.theme.highlight}`;
@@ -1480,7 +1500,6 @@ export class TreeRenderer {
     const t = e.target as HTMLElement;
     if (t !== this.root) t.style.outline = '';
     else this.root.style.boxShadow = '';
-    if (!this.root.contains(e.relatedTarget as Node | null)) this.focusWithin = false;
     this.topDirty = true;
     this.schedule();
   };
@@ -1605,7 +1624,7 @@ export class TreeRenderer {
       }
       case '+':
       case '=':
-        this.zoomBy(e.shiftKey ? 1 : 1, 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2);
+        this.zoomBy(1, 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2);
         e.preventDefault();
         return;
       case '-':
@@ -1667,7 +1686,7 @@ export class TreeRenderer {
       b.width = Math.max(4, x1 - x0) + 'px';
       b.height = Math.max(3, y1 - y0) + 'px';
     } else {
-      const s2 = g.w / 2.3; // world [-1.15, 1.15] -> strip
+      const s2 = g.w / OVERVIEW_WORLD_SPAN; // world [-OVERVIEW_WORLD_HALF, OVERVIEW_WORLD_HALF] -> strip
       const toX = (x: number) => g.w / 2 + x * s2,
         toY = (y: number) => g.h / 2 + y * s2;
       const x0 = Math.max(0, toX(v.x0)),
@@ -1701,7 +1720,9 @@ export class TreeRenderer {
     const area: Area = rect
       ? { ax: 2, ay: 0, aw: g.w - 4, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h }
       : { ax: 0, ay: 0, aw: g.w, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h };
-    const vp: Viewport = rect ? { x0: 0, x1: 1, y0: 0, y1: N } : { x0: -1.15, x1: 1.15, y0: -1.15, y1: 1.15 };
+    const vp: Viewport = rect
+      ? { x0: 0, x1: 1, y0: 0, y1: N }
+      : { x0: -OVERVIEW_WORLD_HALF, x1: OVERVIEW_WORLD_HALF, y0: -OVERVIEW_WORLD_HALF, y1: OVERVIEW_WORLD_HALF };
     const T = makeTransform(this.opts.layout, g.w, g.h, vp, area, N);
     const P: CutParams = { lod: true, minPx: 2.5, budget: 6000, summaries: true };
     let minPx = 2.5;
@@ -1754,7 +1775,7 @@ export class TreeRenderer {
       // keep the x window when it already spans the whole tree
       if (w >= 0.999) cx = (v.x0 + v.x1) / 2;
     } else {
-      const s2 = g.w / 2.3;
+      const s2 = g.w / OVERVIEW_WORLD_SPAN;
       cx = (px - g.w / 2) / s2;
       cy = (py - g.h / 2) / s2;
     }
@@ -1781,5 +1802,3 @@ export class TreeRenderer {
     if (this.ovWrap.hasPointerCapture(e.pointerId)) this.ovWrap.releasePointerCapture(e.pointerId);
   };
 }
-
-export { K_NODE, K_STUB, K_SUMMARY, barWidth };

@@ -1,9 +1,10 @@
 // Canvas2D drawing of one frame's draw list. Everything here reads typed arrays and the draw list; nothing
 // allocates per node. Strokes are batched into one path per colour class.
 
+import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
 import { nodeXY, type Transform } from './geom.ts';
 import { ensureTrig, type Layout } from './layout.ts';
-import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice, radialWindow, radialWindowState } from './lod.ts';
+import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice, radialWindow, radialWindowState } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LabelDensity, TreeSnapshot, TreeTheme } from './types.ts';
 
@@ -92,7 +93,7 @@ export function textWidth(ctx: CanvasRenderingContext2D, text: string, font: str
   return w;
 }
 
-const clampY = (y: number, H: number) => (y < -64 ? -64 : y > H + 64 ? H + 64 : y);
+const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
 
 /** Branches and collapsed clades. */
 export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
@@ -205,11 +206,11 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
         const span = (ROW[lc] - ROW[fc]) * da;
         const len = span * r;
         ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
-        if (len * len <= 2.4 * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
+        if (len * len <= ARC_SAGITTA_K * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
         else {
           let a0 = ROW[fc] * da,
             a1 = ROW[lc] * da;
-          if (!W.all && r > 2e4) {
+          if (!W.all && r > RADIAL_FAR_ARC_R) {
             // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
             if (W.wrap) {
               if (a1 >= W.lo) {
@@ -267,11 +268,11 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
         const len0 = (a1 - a0) * r1;
         ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
         ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-        if (len0 * len0 > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1);
+        if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
         else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
         ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
         const len1 = (a1 - a0) * r0;
-        if (len1 * len1 > 2.4 * r0 && r0 < 2e4) ctx.arc(cx, cy, r0, a1, a0, true);
+        if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
         ctx.closePath();
         if (++n >= FILL_CHUNK) {
           ctx.fill();
@@ -283,7 +284,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
       ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
       const len = (a1 - a0) * r1;
-      if (len * len > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1);
+      if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
       else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
       ctx.closePath();
       if (++n >= FILL_CHUNK) {
@@ -473,7 +474,7 @@ const fmtTick = (v: number, step: number) => {
 export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x1v: number): void {
   const { L, T, theme } = S;
   if (T.kind !== 'rectangular' || !L.usedLengths) return;
-  const { ax, aw, ay, ah } = T.area;
+  const { ax, ay, ah } = T.area;
   const y = ay + ah + 2;
   const maxLen = L.maxLen;
   const dated = L.ultrametric;
@@ -522,7 +523,6 @@ export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x
   ctx.textAlign = 'left';
   ctx.fillText(dated ? 'time before tips (tree units)' : 'distance from root (tree units)', Math.max(ax, 4), y + 16);
   ctx.restore();
-  void aw;
 }
 
 /** Radial: a scale bar of a round length at the bottom left. */
@@ -551,5 +551,3 @@ export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
   ctx.fillText(fmtTick(step, step), x, y - 5);
   ctx.restore();
 }
-
-export { K_STUB };
