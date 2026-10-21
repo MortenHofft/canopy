@@ -3,8 +3,9 @@
 //   test      this workspace's test page            scripts/check-radial-ui.mjs
 //   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
+//   reactree  examples/reactree (a Reactree look-alike) scripts/check-reactree.mjs
 //   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
-//   node scripts/test-browser.mjs [--only test,vanilla,react,no-build] [--no-build]
+//   node scripts/test-browser.mjs [--only test,vanilla,react,reactree,no-build] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -110,6 +111,12 @@ const SUITES = [
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
   { name: 'react', dir: path.join(repo, 'examples/react'), check: 'check-node-menu.mjs', args: (port) => ['--url', `http://127.0.0.1:${port}/`] },
+  {
+    name: 'reactree',
+    dir: path.join(repo, 'examples/reactree'),
+    check: 'check-reactree.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
   // no Vite: the packages' own build (dist/browser), and the check serves the repository as static files
   { name: 'no-build', dir: path.join(repo, 'examples/no-build'), check: 'check-no-build.mjs', static: true },
 ];

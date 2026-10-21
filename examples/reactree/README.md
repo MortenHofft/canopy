@@ -1,0 +1,75 @@
+# Example: a Reactree look-alike
+
+[Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3) rebuilt on `@gbif-phylo`, as a test of the library's public API: the same
+two toolbar rows, icons, buttons, palette, search panel, inspector and export menu, with the drawing, the events and the edits coming from
+`<TreeView>`, a control of our own and `@gbif-phylo/tree-ops`. Nothing in the packages was changed for it.
+
+```
+npm run dev -w examples/reactree    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
+```
+
+The browser check is `tests/browser/scripts/check-reactree.mjs` (50 checks, all pass in headless Chromium, 2026-10-21). It drives every
+control and reads the result back from the viewer.
+
+| File | What |
+|---|---|
+| [`src/Reactree.tsx`](src/Reactree.tsx) | the component: toolbars, modes, panels, `<TreeView>` |
+| [`src/node-labels.ts`](src/node-labels.ts) | `NodeLabels`, a `BaseControl` that writes support values or branch lengths next to the nodes |
+| [`src/reactree.css`](src/reactree.css) | Reactree's look as `--rt-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
+| [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
+| [`src/trees.ts`](src/trees.ts) | trees from `data/`, two with the alignment they were inferred from |
+
+## What maps to what
+
+| Reactree | Here |
+|---|---|
+| Width, Height (Size in circular) | `setViewport` on the handle's `renderer()`: the window is the fitted one divided by the scale |
+| Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
+| Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
+| Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
+| Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one |
+| Export | PNG from the viewer's canvas (labels are drawn on it); Newick with `toNewick` from `@gbif-phylo/io` |
+| Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
+| Fit | `fit()` |
+| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot` and `rotate` (Swap of two siblings is `rotate` of their binary parent) |
+| Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
+| Color mode, 12 swatches, Erase, Clear all | the `clades` prop; colours are carried to the new tree after an edit by their tips |
+| Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "N taxa") and the `collapsed` prop |
+| Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
+| Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
+| Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
+| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) |
+| Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
+| Resize handle | the pane's height; the viewer follows its container |
+
+## What could not be matched, and what testing found
+
+Found in the library while building this (unchanged here; each is a candidate for a fix or a documented limit):
+
+- **A transparent background smears.** With `--phylo-background: transparent` every frame is drawn over the last one: the frame starts with
+  `fillRect` in the background colour and never clears the canvas (`packages/viewer/src/viewer.ts`, the draw step). So Reactree's dotted
+  grid can only show around the plot, not under it; the pane keeps a solid background.
+- **`addControl` sets `pointer-events: auto` on every control's element** (`viewer.ts`, `addControl`), which is not in the API reference. A
+  control that covers the whole tree (as `NodeLabels`) swallows every click unless it sets `pointer-events: none` again in `attach`.
+- **No node or branch labels.** Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
+  frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
+  branch.
+- **No aligned tip labels with leader lines.** The Align button is shown disabled.
+- **No vector export.** The viewer draws on a canvas, so SVG and PDF are disabled; PNG is the current view at the canvas resolution.
+- **Search can highlight, not dim.** Reactree dims the tips that do not match; the viewer has highlighting only.
+- **Alignment colours are a constant table** in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
+  them. Nucleotides use the amino-acid scheme, so A and C share a colour.
+- **Nested clade colours: the later entry wins** (as documented); Reactree lets the innermost colour win, so the example sorts the clades
+  largest first.
+
+Differences that follow from the design, not defects:
+
+- Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
+  135-tip tree at the fitted view has none until you zoom in or raise Height.
+- Swap inside a polytomy is refused with a message: tree-ops has `rotate` (reverse the children) but no general reorder.
+- Collapsing a clade of a dated tree makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
+  expanded (the same known limit as `examples/react`).
+- Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
+  component.
+- Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from
+  CSS custom properties.

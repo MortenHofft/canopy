@@ -11,6 +11,7 @@
     "packages/react",
     "examples/react",
     "examples/vanilla",
+    "examples/reactree",
     "tests/browser"
   ],
   "scripts": {
