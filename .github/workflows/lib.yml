@@ -2,8 +2,8 @@ name: lib
 
 # Typecheck, lint, format check, unit tests, build and package checks of every workspace, and, as a separate job, the browser checks
 # (the test page in tests/browser and the three examples, each built and served, by vite preview or for the no-build page as static
-# files, and driven by Playwright). The viewer's regression test reads data/synthetic and the committed OTL 91k tree, and the tree-ops and io tests read trees under data/, so data/
-# triggers the jobs too.
+# files, and driven by Playwright). The viewer's regression test reads data/synthetic and the committed OTL 91k tree, and the tree-ops
+# and io tests read trees under data/, so data/ triggers the jobs too.
 on:
   push:
     paths:
