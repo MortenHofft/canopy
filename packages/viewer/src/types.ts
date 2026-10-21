@@ -108,8 +108,10 @@ export function stripUndefined<T extends object>(o: T): Partial<T> {
 }
 
 export interface CladeColour {
-  node: number; // node index
+  node: number; // node id (preorder id of the full tree)
   colour: string;
+  /** Name for a legend; without it the legend uses the node's own name, or 'Clade of N tips'. */
+  label?: string;
 }
 
 export type ColumnKind = 'bar' | 'text' | 'alignment';
@@ -132,7 +134,6 @@ export interface ViewerOptions {
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
-  overview: boolean; // overview strip with viewport rectangle
   labelDensity: LabelDensity;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
   axis: boolean; // scale bar / time axis
@@ -168,7 +169,6 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   lod: true,
   drawBudget: 20000,
   showSummaries: true,
-  overview: true,
   labelDensity: 'normal',
   rowHeight: null,
   axis: true,

@@ -58,7 +58,17 @@ const SCENARIOS = [
   {
     name: 'viewer: TreeViewer',
     code: `import { TreeViewer } from '@gbif-phylo/viewer'; console.log(TreeViewer);`,
-    forbid: ['node_modules/react', 'packages/io/'],
+    forbid: ['node_modules/react', 'packages/io/', 'packages/viewer/dist/controls/', 'packages/viewer/dist/overview.js'],
+  },
+  {
+    name: 'viewer: TreeViewer + Zoom',
+    code: `import { TreeViewer, Zoom } from '@gbif-phylo/viewer'; console.log(TreeViewer, Zoom);`,
+    forbid: ['packages/viewer/dist/overview.js', 'controls/search.js', 'controls/legend.js', 'controls/defaults.js'],
+  },
+  {
+    name: 'viewer: TreeViewer + defaultControls',
+    code: `import { TreeViewer, defaultControls } from '@gbif-phylo/viewer'; console.log(TreeViewer, defaultControls);`,
+    forbid: [],
   },
   {
     name: 'react: TreeView',

@@ -5,7 +5,7 @@
 //
 // No per-frame allocation: `frame` hands out the viewer's own stats object, and an event with no listeners costs one map lookup.
 
-import type { FrameStats, NodeEvent, TreeTheme, Viewport, ViewerOptions } from './types.ts';
+import type { CladeColour, FrameStats, NodeEvent, TreeTheme, Viewport, ViewerOptions } from './types.ts';
 
 /** A node event as listeners receive it: `NodeEvent` plus ids and helpers of the public API, and the default-action switch. */
 export interface TreeEvent extends NodeEvent {
@@ -36,6 +36,10 @@ export interface ViewerEventMap {
   themechange: TreeTheme;
   /** The container was resized (CSS px). */
   resize: { width: number; height: number };
+  /** After `setClades` changed the clade colours: the list in force. */
+  cladeschange: readonly CladeColour[];
+  /** After `setHighlighted` changed the highlighted tips: their labels. */
+  highlightchange: readonly string[];
   /** The rows of a partial tree source changed (a clade was loaded or dropped). */
   sourcechange: { version: number };
   /** The first frame was drawn. */

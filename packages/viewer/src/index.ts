@@ -8,3 +8,5 @@ export { cut, searchCut, newCutResult, DrawList, Seen, type CutParams, type CutR
 export { projectionFor, RectProjection, RadialProjection, type LayoutProjection } from './projection.ts';
 export { HitIndex } from './hit.ts';
 export { InMemorySource, isTreeSource, type TreeSource, type EnsureOptions } from './source.ts';
+export { BaseControl, makeButton, type Control, type ControlOptions, type ControlPosition } from './control.ts';
+export * from './controls/index.ts';

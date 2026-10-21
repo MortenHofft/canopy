@@ -509,7 +509,7 @@ const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2
     step('lod on, budget 20000', { lod: true, drawBudget: 20000 });
     step('no summaries', { showSummaries: false }, (rec) => rec.summaries === 0);
     step('summaries back', { showSummaries: true }, (rec) => rec.summaries > 0);
-    step('no overview, no axis', { overview: false, axis: false });
+    step('no axis', { axis: false });
     step('row height 20 px', { rowHeight: 20 }, (rec) => Math.abs(rec.rows - r.size.height / 20) < 8);
     step('row height back to fit', { rowHeight: null }, (_rec, _s, v) => Math.abs(v.y1 - v.y0 - t.base.tipCount) < t.base.tipCount * 0.2);
     step('dense labels, minCladePx 6', { labelDensity: 'dense', minCladePx: 6 });

@@ -184,9 +184,9 @@ test('a press takes over a running animation and starts listening on the window;
   t.input.destroy();
 });
 
-test('a press on the overview strip ([data-ov]) is not ours', () => {
+test('a press on the viewer UI (controls, overview, popups: [data-phylo-ui]) is not ours', () => {
   const s = setup();
-  s.handlers.pointerdown(ptr({ target: { closest: (sel) => (sel === '[data-ov]' ? {} : null) } }));
+  s.handlers.pointerdown(ptr({ target: { closest: (sel) => (sel === '[data-phylo-ui]' ? {} : null) } }));
   assert.deepEqual(s.take(), []);
   assert.deepEqual(bound(), []);
 });

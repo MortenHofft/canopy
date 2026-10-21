@@ -8,6 +8,8 @@ import { stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
+  defaultControls,
+  type Control,
   type TreeSource,
   DEFAULT_OPTIONS,
   themeEquals,
@@ -71,6 +73,8 @@ export interface CladeProp {
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
+ *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
+ *    them once (`useMemo` / `useState`), not inline: `defaultControls()` in render makes new controls every time.
  *  - `tree` / `source`: a new one re-creates the renderer (and so resets the view).
  *  - callbacks are read at call time and never trigger anything.
  */
@@ -90,7 +94,9 @@ export interface TreeViewProps {
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
-  options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
+  options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
+  /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default `defaultControls()` (zoom and fit), [] for none. */
+  controls?: Control[]; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
   /** Actions for the clicked tip or clade, shown as a menu at the click (keyboard: Enter on the cursor opens it, arrows move,
    *  Escape closes, Tab out closes). Return null or [] for no menu. Called after onTipClick / onNodeClick. */
@@ -265,6 +271,14 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
+  const [ownControls] = useState(() => defaultControls());
+  const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));
+  useLayoutEffect(() => {
+    const r = liveRenderer(R, rendRef);
+    if (!r) return;
+    for (const c of r.getControls()) if (!controls.includes(c)) r.removeControl(c);
+    for (const c of controls) r.addControl(c);
+  }, [R, rendRef, controls]);
   const [vx0, vx1, vy0, vy1] = [viewport?.x0, viewport?.x1, viewport?.y0, viewport?.y1]; // compared by value: a new object with the same numbers is no change
   useLayoutEffect(() => {
     if (vx0 !== undefined && vx1 !== undefined && vy0 !== undefined && vy1 !== undefined)

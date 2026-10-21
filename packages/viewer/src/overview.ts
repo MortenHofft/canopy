@@ -1,7 +1,7 @@
 // Overview: the whole tree in a corner (a strip right of the plot for the rectangular layout, a disc bottom left for the radial one)
 // with the current window drawn on it as a box, and pointer handling that moves the window by pressing or dragging on it. It owns its
-// DOM (wrap, canvas, box), its own small draw list and its dirty flag; the renderer sets `dirty` when the tree, colours, highlights or
-// theme change and calls updateBox() after every frame and draw() when dirty.
+// DOM (canvas and box inside the wrap it is given), its own small draw list and its dirty flag. The overview control
+// (controls/overview.ts) sets `dirty` when the viewer's scene changed and calls updateBox() after every frame and draw() when dirty.
 //
 // The geometry (where the strip is, where the window box sits, which window a pointer position means) is pure functions of the layout
 // kind and the numbers involved, exported for test/overview.test.mjs. What this module does NOT do: change the view itself (it asks the
@@ -111,8 +111,10 @@ export class Overview {
   constructor(
     private host: OverviewHost,
     softwareCanvas: boolean,
+    wrap: HTMLDivElement = document.createElement('div'),
   ) {
-    this.wrap = mk('div', 'position:absolute;overflow:hidden;cursor:pointer;touch-action:none;border-radius:3px;display:none');
+    this.wrap = wrap;
+    wrap.style.cssText = 'position:absolute;overflow:hidden;cursor:pointer;touch-action:none;pointer-events:auto;display:none';
     this.wrap.setAttribute('aria-hidden', 'true');
     this.canvas = mk('canvas', 'position:absolute;left:0;top:0;width:100%;height:100%');
     this.box = mk('div', 'position:absolute;box-sizing:border-box;pointer-events:none');
@@ -223,10 +225,17 @@ export class Overview {
     }
   }
 
-  /** Release the canvas backing store (the renderer is destroyed). */
+  /** Release the canvas backing store and the wrap's content and listeners (the control was removed). */
   release(): void {
     this.canvas.width = 0;
     this.canvas.height = 0;
+    this.canvas.remove();
+    this.box.remove();
+    this.wrap.style.display = 'none';
+    this.wrap.removeEventListener('pointerdown', this.onDown);
+    this.wrap.removeEventListener('pointermove', this.onMove);
+    this.wrap.removeEventListener('pointerup', this.onUp);
+    this.wrap.removeEventListener('pointercancel', this.onUp);
   }
 
   private move(e: PointerEvent): void {

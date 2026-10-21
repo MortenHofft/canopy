@@ -13,6 +13,7 @@
 // What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop, and
 // the focus-ring styling, because it needs the theme.
 
+import type { Control, ControlPosition } from './control.ts';
 import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
@@ -38,7 +39,7 @@ import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
 import { LabelOverlay } from './overlay.ts';
-import { Overview, type OverviewHost } from './overview.ts';
+import type { OverviewHost } from './overview.ts';
 import { projectionFor, type LayoutProjection } from './projection.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
@@ -76,7 +77,30 @@ export interface TreeViewerInit {
   /** Over `FALLBACK_THEME`; see `setTheme`. */
   theme?: Partial<TreeTheme>;
   columns?: Column[];
+  /** Controls to add, in this order (none by default; `defaultControls()` gives the usual set). */
+  controls?: Control[];
 }
+
+/** For built-in controls that draw from the viewer's own state (the overview): not a stable API, may change in any release. */
+export interface ViewerInternals {
+  /** What the overview reads (live getters) and asks for. */
+  readonly overviewHost: OverviewHost;
+  /** Bumped whenever the tree, colours, highlights, theme, size or layout changed: a picture drawn from them is stale. */
+  sceneVersion(): number;
+  /** Reserve (or free) the overview strip right of the rectangular plot; refits while the view is still fitted. */
+  reserveOverview(on: boolean): void;
+}
+
+const INTERNALS = new WeakMap<TreeViewer, ViewerInternals>();
+
+/** @internal See `ViewerInternals`. */
+export function viewerInternals(v: TreeViewer): ViewerInternals {
+  const i = INTERNALS.get(v);
+  if (!i) throw new Error('not a live TreeViewer');
+  return i;
+}
+
+const CORNERS: Exclude<ControlPosition, 'custom'>[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
 export class TreeViewer {
   // ------------------------------------------------------------- DOM
@@ -88,8 +112,13 @@ export class TreeViewer {
   private notice: HTMLDivElement;
   private ro: ResizeObserver | null = null;
   private overlay: LabelOverlay;
-  private ov: Overview;
   private input: InputController;
+  /** The control layer over the canvas (data-phylo-ui: the input controller ignores events from inside it) and its corner boxes. */
+  private uiLayer: HTMLDivElement;
+  private corners = new Map<ControlPosition, HTMLDivElement>();
+  private controls: Control[] = [];
+  private sceneVersion = 0;
+  private overviewReserved = false;
 
   // ------------------------------------------------------------- state
   private opts: ViewerOptions;
@@ -213,13 +242,16 @@ export class TreeViewer {
       this.renderNow();
       this.overlay.updateList(this.list, this.tree, this.opts.formatLabel);
     });
-    this.ov = new Overview(this.overviewHost(), this.opts.softwareCanvas);
     this.notice = mk(
       'div',
       'position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;font-size:11px;line-height:16px;pointer-events:none;opacity:.85;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis',
     );
     this.notice.setAttribute('role', 'status');
-    this.root.append(this.canvas, this.top, this.overlay.layer, this.ov.wrap, this.notice, this.overlay.srList, this.overlay.live);
+    this.uiLayer = mk('div', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none');
+    this.uiLayer.className = 'phylo-ui';
+    this.uiLayer.dataset.phyloUi = '';
+    this.root.append(this.canvas, this.top, this.overlay.layer, this.notice, this.uiLayer, this.overlay.srList, this.overlay.live);
+    this.root.classList.add('phylo-viewer');
     this.host.appendChild(this.root);
     const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
     this.ctx = this.canvas.getContext('2d', cc)!;
@@ -234,7 +266,18 @@ export class TreeViewer {
     this.ro.observe(this.host);
     this.measure();
     if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns).columns;
+    INTERNALS.set(this, {
+      overviewHost: this.overviewHost(),
+      sceneVersion: () => this.sceneVersion,
+      reserveOverview: (on) => {
+        if (on === this.overviewReserved) return;
+        this.overviewReserved = on;
+        if (this.vs.fitted) this.fit(false);
+        this.invalidate();
+      },
+    });
     this.fit(false);
+    for (const c of init.controls ?? []) this.addControl(c);
     this.invalidate();
     // web fonts arrive after the first frame
     const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
@@ -253,7 +296,7 @@ export class TreeViewer {
     return live<ViewEnv>(
       {
         layout: () => this.opts.layout,
-        overview: () => this.opts.overview,
+        overview: () => this.overviewReserved,
         axis: () => this.opts.axis,
         rowHeight: () => this.opts.rowHeight,
         W: () => this.W,
@@ -287,7 +330,7 @@ export class TreeViewer {
     return live<OverviewHost>(
       {
         layout: () => this.opts.layout,
-        enabled: () => this.opts.overview,
+        enabled: () => this.overviewReserved,
         W: () => this.W,
         H: () => this.H,
         dpr: () => this.dpr,
@@ -385,7 +428,7 @@ export class TreeViewer {
     this.activeNode = -1;
     this.clearHover();
     this.vs.resetLabelReserve();
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.minPxHint = 0;
     this.events.emit('sourcechange', { version: v });
   }
@@ -414,6 +457,51 @@ export class TreeViewer {
   private emitNode(type: 'click' | 'hover', e: NodeEvent | null): void {
     if (!this.events.has(type)) return;
     this.events.emit(type, e ? toTreeEvent(e, this.source) : (null as never));
+  }
+
+  // ---- controls
+
+  /** Add a control: its element goes to its corner of the control layer (or to its `target`), then `setViewer(this)` is called.
+   *  Adding a control twice does nothing. */
+  addControl(control: Control): void {
+    if (this.destroyed || this.controls.includes(control)) return;
+    const box = control.target ?? this.cornerBox(control.position ?? 'top-left');
+    if (control.target) control.element.dataset.phyloUi = '';
+    else control.element.style.pointerEvents = 'auto'; // the layer itself lets events through to the tree
+    box.appendChild(control.element);
+    this.controls.push(control);
+    control.setViewer(this);
+  }
+
+  /** Remove a control: `setViewer(null)`, then its element is taken out of the page. */
+  removeControl(control: Control): void {
+    const k = this.controls.indexOf(control);
+    if (k < 0) return;
+    this.controls.splice(k, 1);
+    control.setViewer(null);
+    control.element.remove();
+  }
+
+  getControls(): readonly Control[] {
+    return this.controls.slice();
+  }
+
+  private cornerBox(pos: ControlPosition): HTMLElement {
+    if (pos === 'custom') return this.uiLayer;
+    let box = this.corners.get(pos);
+    if (!box) {
+      const [v, h] = pos.split('-');
+      // flex column, pointer events only on the controls themselves; the stylesheet adds the gaps
+      box = mk('div', `position:absolute;${v}:0;${h}:0;display:flex;flex-direction:column;align-items:${h === 'left' ? 'flex-start' : 'flex-end'}`);
+      box.className = `phylo-controls phylo-controls--${pos}`;
+      // keep the boxes in a fixed DOM order (reading order: top left, top right, bottom left, bottom right)
+      const after = CORNERS.slice(CORNERS.indexOf(pos as (typeof CORNERS)[number]) + 1)
+        .map((c) => this.corners.get(c))
+        .find((b) => b);
+      this.uiLayer.insertBefore(box, after ?? null);
+      this.corners.set(pos, box);
+    }
+    return box;
   }
 
   // ---- state
@@ -471,11 +559,7 @@ export class TreeViewer {
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit =
-      lengthsChanged ||
-      layoutChanged ||
-      (p.overview !== undefined && p.overview !== o.overview) ||
-      (p.axis !== undefined && p.axis !== o.axis) ||
-      (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
+      lengthsChanged || layoutChanged || (p.axis !== undefined && p.axis !== o.axis) || (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
     // the pooled label elements take their text (formatLabel) and link (tipHref) when they are created, so a change of either rebuilds them
     const labelsChanged = (p.tipHref !== undefined && p.tipHref !== o.tipHref) || (p.formatLabel !== undefined && p.formatLabel !== o.formatLabel);
     this.opts = { ...o, ...p };
@@ -493,7 +577,7 @@ export class TreeViewer {
       this.activeNode = -1;
       if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined) this.fit(false);
     }
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.invalidate();
     this.events.emit('optionschange', { options: this.opts, changed });
   }
@@ -509,20 +593,27 @@ export class TreeViewer {
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
     this.theme = next;
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.overlay.clear();
     this.invalidate(true);
     this.events.emit('themechange', this.theme);
   }
 
+  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`; later entries win
+   *  where clades nest. No-op for the same entries in the same order. */
   setClades(clades: CladeColour[]): void {
-    const key = clades.map((c) => c.node + ':' + c.colour).join('|');
+    const key = clades.map((c) => c.node + ':' + c.colour + ':' + (c.label ?? '')).join('|');
     if (key === this.cladeKey) return;
     this.cladeKey = key;
-    this.clades = clades;
+    this.clades = clades.map((c) => ({ ...c }));
     this.applyClades();
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.invalidate();
+    this.events.emit('cladeschange', this.getClades());
+  }
+
+  getClades(): CladeColour[] {
+    return this.clades.map((c) => ({ ...c }));
   }
 
   /** Colour classes per row from the clade list (node ids of the full tree). Clades that are not part of the snapshot are skipped. */
@@ -556,7 +647,7 @@ export class TreeViewer {
     if (nodes.length === last.length && nodes.every((n, i) => n === last[i])) return;
     this.collapsedNodes = nodes.slice();
     this.applyCollapsed();
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.invalidate();
   }
 
@@ -590,8 +681,14 @@ export class TreeViewer {
       this.hl = new Uint8Array(N);
       for (const r of uniq) this.hl[r] = 1;
     } else this.hl = null;
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.invalidate();
+    this.events.emit('highlightchange', this.hlIds.slice());
+  }
+
+  /** The tip labels last passed to `setHighlighted` (unknown ones included). */
+  getHighlighted(): string[] {
+    return this.hlIds.slice();
   }
 
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
@@ -798,8 +895,10 @@ export class TreeViewer {
   destroy(): void {
     if (this.destroyed) return;
     this.events.emit('destroy', undefined);
+    this.destroyed = true; // from here on isDestroyed() is true, so controls do not act on the viewer while they are removed
+    for (const c of this.controls.slice().reverse()) this.removeControl(c);
     this.events.clear();
-    this.destroyed = true;
+    INTERNALS.delete(this);
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.overlay.destroy();
@@ -814,7 +913,6 @@ export class TreeViewer {
       c.width = 0;
       c.height = 0;
     }
-    this.ov.release();
     this.columns = [];
     this.layouts.clear();
     this.unsubscribe();
@@ -851,7 +949,7 @@ export class TreeViewer {
       c.height = Math.round(h * this.dpr);
     }
     this.vs.afterResize(keep);
-    this.ov.dirty = true;
+    this.sceneVersion++;
     this.hit.invalidate();
     this.invalidate();
     if (resized) this.events.emit('resize', { width: w, height: h });
@@ -999,8 +1097,6 @@ export class TreeViewer {
     }
     this.reducedFrame = reduced;
     if (!reduced && tree.stub !== null) this.detail.request(tree, this.list, T, L, rect, vs.fitted, this.srcVersion);
-    this.ov.updateBox();
-    if (this.ov.dirty) this.ov.draw();
     if (this.hoverNode >= 0 || this.activeNode >= 0 || this.topHad) this.topDirty = true;
 
     const frameMs = performance.now() - t0;
@@ -1178,6 +1274,7 @@ export class TreeViewer {
 
   private onFocusIn = (e: FocusEvent) => {
     const t = e.target as HTMLElement;
+    if (t !== this.root && t.closest('[data-phylo-ui]')) return; // controls and popups style their own focus
     if (t !== this.root) t.style.outline = `2px solid ${this.theme.highlight}`;
     else this.root.style.boxShadow = `inset 0 0 0 2px ${this.theme.highlight}`;
     this.topDirty = true;
@@ -1185,6 +1282,7 @@ export class TreeViewer {
   };
   private onFocusOut = (e: FocusEvent) => {
     const t = e.target as HTMLElement;
+    if (t !== this.root && t.closest('[data-phylo-ui]')) return;
     if (t !== this.root) t.style.outline = '';
     else this.root.style.boxShadow = '';
     this.topDirty = true;

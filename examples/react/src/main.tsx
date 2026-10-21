@@ -15,7 +15,7 @@ import { loadTree } from './trees.ts';
 import { TreeModel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent } from '@gbif-phylo/react';
-import type { Viewport } from '@gbif-phylo/viewer';
+import { defaultControls, type Viewport } from '@gbif-phylo/viewer';
 
 /** What happens to a clade colour whose tips an operation splits (rerooting inside the clade puts its tips on both sides of the new
  *  root, so they are no longer one clade): 'remove' it, or keep it on the 'node' that was coloured, which now holds other tips. */
@@ -152,6 +152,9 @@ function App() {
     for (let i = lo; i < hi; i++) if (hit[i] === 0 && hit[tree.parent[i]] > 0 && tree.childCount[i] > 0 && !covered[i]) out.push(i);
     return out;
   }, [tree, colouredTips, collapsed, focus]);
+
+  // the left view gets the overview, search and legend on top of zoom and fit; the right one the default controls (zoom and fit)
+  const leftControls = useMemo(() => defaultControls({ overview: true, search: { highlight: true }, legend: true }), []);
 
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
@@ -460,10 +463,10 @@ function App() {
       </p>
       <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
-          <TreeView {...common} branchLengths />
+          <TreeView {...common} branchLengths controls={leftControls} />
         </div>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
-          <TreeView {...common} branchLengths={false} options={{ overview: false }} />
+          <TreeView {...common} branchLengths={false} />
         </div>
       </div>
     </div>

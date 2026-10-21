@@ -34,6 +34,7 @@ interface PaneState {
   last: TestEvent | null;
   mountId: number;
 }
+const NO_CONTROLS: never[] = []; // the checks click at computed positions; no buttons in the way
 const EMPTY: PaneState = { tree: null, opts: null, clades: [], highlighted: [], focus: undefined, last: null, mountId: 0 };
 
 /** CPU canvas under automation: headless Chromium has no GPU, and an accelerated canvas there runs 3 to 10 times slower. ?cpu=1|0 overrides. */
@@ -181,6 +182,7 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
             width={o.size.width}
             height={o.size.height}
             options={{ softwareCanvas: CPU, ariaLabel: `Phylogenetic tree, ${s.tree.tipCount} tips` }}
+            controls={NO_CONTROLS}
             onTipClick={(ev) => emit(ev, false)}
             onNodeClick={(ev) => emit(ev, false)}
             onHover={(ev) => ev && emit(ev, true)}

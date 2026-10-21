@@ -4,8 +4,8 @@
 //
 // It does NOT own what the gestures act on: the view, the cursor node, hover and the frame loop stay in the renderer and are reached
 // through the host. The interaction-LOD timer (noteInput) is the renderer's too: it is tied to the frame state (reduced frames, refine
-// timer), so the controller only says "the user is moving the view" before it moves it. The overview strip has its own pointer
-// handling (overview.ts); the focus ring styling is the renderer's (it knows the theme).
+// timer), so the controller only says "the user is moving the view" before it moves it. Events from inside the viewer's UI (controls,
+// popups; marked data-phylo-ui) are left to them; the focus ring styling is the viewer's (it knows the theme).
 
 import { DRAG_START_PX, PINCH_MIN_AXIS_PX, WHEEL_ZOOM_RATE } from './constants.ts';
 import type { Area } from './geom.ts';
@@ -120,6 +120,7 @@ export class InputController {
   // ------------------------------------------------------------- wheel
 
   private onWheel = (e: WheelEvent) => {
+    if (fromUi(e)) return;
     e.preventDefault();
     const h = this.host;
     h.noteInput();
@@ -148,7 +149,7 @@ export class InputController {
   // ------------------------------------------------------------- pointer
 
   private onPointerDown = (e: PointerEvent) => {
-    if ((e.target as Element).closest?.('[data-ov]')) return;
+    if (fromUi(e)) return;
     const h = this.host;
     this.pointers.set(e.pointerId, this.local(e));
     h.cancelAnim();
@@ -235,6 +236,7 @@ export class InputController {
 
   private onPointerMove = (e: PointerEvent) => {
     if (e.pointerType === 'touch' || this.drag?.moved || this.pinch) return;
+    if (fromUi(e)) return this.host.hover(null);
     this.host.hover(this.local(e));
   };
 
@@ -252,6 +254,7 @@ export class InputController {
   };
 
   private onDbl = (e: MouseEvent) => {
+    if (fromUi(e)) return;
     const h = this.host;
     const p = this.local(e);
     const hit = h.pick(p.x, p.y);
@@ -262,7 +265,7 @@ export class InputController {
   // ------------------------------------------------------------- keyboard
 
   private onKey = (e: KeyboardEvent) => {
-    if (e.altKey || e.metaKey) return;
+    if (e.altKey || e.metaKey || fromUi(e)) return;
     const h = this.host;
     const tree = h.tree;
     let node = h.activeNode >= 0 ? h.activeNode : defaultActiveNode(tree, h.layout, h.view);
@@ -295,4 +298,9 @@ export class InputController {
         e.preventDefault();
     }
   };
+}
+
+/** The event comes from the viewer's UI (controls, popups: anything inside an element marked data-phylo-ui), not from the tree. */
+function fromUi(e: Event): boolean {
+  return !!(e.target as Element | null)?.closest?.('[data-phylo-ui]');
 }
