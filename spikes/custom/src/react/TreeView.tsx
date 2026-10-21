@@ -353,7 +353,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     [source, rendRef],
   );
 
-  // node menu: focus the first item on open; close on Escape, Tab out, outside pointer, a viewport change, or after an action
+  // node menu: keyboard-opened, focus the first item; close on Escape, Tab out, outside pointer, a viewport change, or after an action
   const closeMenu = (refocusCanvas: boolean) => {
     setMenu(null);
     if (refocusCanvas) rendRef.current?.root.focus();
@@ -367,12 +367,22 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   }, [menu]);
   useEffect(() => {
     if (!menu) return;
-    menuRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+    // Focus goes into the menu only when it was opened from the keyboard. A tap opens it on pointerup, and the browser's compatibility
+    // mousedown that follows focuses the canvas: had the first item been focused, that blur would close the menu before the tap ends.
+    if (menu.ev.via === 'keyboard') menuRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
     const down = (e: PointerEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) setMenu(null);
     };
+    // Escape closes it also while focus is on the canvas (pointer-opened menu); inside the menu onMenuKey handles it
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenu(null);
+    };
     window.addEventListener('pointerdown', down, true);
-    return () => window.removeEventListener('pointerdown', down, true);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('keydown', key);
+    };
   }, [menu]);
   const onMenuKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {

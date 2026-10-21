@@ -85,7 +85,7 @@ ok((await order()) === 'ABCDEF', `loaded: ${await order()}`);
 // tip menu
 await openOn(await dot('C'));
 ok((await items()).join('|') === 'Reroot here|Remove this tip', `tip menu: ${(await items()).join(' | ')}`);
-ok(/Reroot here/.test(await page.evaluate(() => document.activeElement?.textContent ?? '')), 'focus moves to the first item');
+ok(await canvasFocused(), 'a pointer-opened menu leaves focus on the canvas (a tap would otherwise close it, see TreeView)');
 await act('reroot');
 ok((await order()) === 'CDABEF' && /reroot/.test(await status()), `reroot on C: ${await order()}`);
 ok(await canvasFocused(), 'focus is on the new canvas after the action');
@@ -94,11 +94,22 @@ ok(await canvasFocused(), 'focus is on the new canvas after the action');
 const ef = await cladeOf('E', 'F');
 await openOn(ef);
 ok((await items()).join('|') === 'Rotate|Reroot here|Show only this clade|Collapse|Colour this clade', `clade menu: ${(await items()).join(' | ')}`);
+await page.keyboard.press('Escape');
+ok(!(await menuOpen()), 'Escape closes a pointer-opened menu');
+// from the keyboard: Enter on the canvas opens the menu of the keyboard cursor's node, with focus on its first item
+const focusedText = () =>
+  page.evaluate(() => (document.activeElement?.getAttribute('role') === 'menuitem' ? document.activeElement.textContent : null));
+await page.keyboard.press('Enter');
+await page.waitForSelector('[role=menu]');
+const first = await focusedText();
+ok(first !== null, `a keyboard-opened menu focuses its first item (${first})`);
 await page.keyboard.press('ArrowDown');
-ok(/^Reroot here/.test(await page.evaluate(() => document.activeElement?.textContent ?? '')), 'ArrowDown moves to the next item');
+const second = await focusedText();
+ok(second !== null && second !== first, `ArrowDown moves to the next item (${second})`);
 await page.keyboard.press('Escape');
 ok(!(await menuOpen()) && (await canvasFocused()), 'Escape closes and returns focus to the canvas');
-await openOn(ef);
+await page.keyboard.press('Enter');
+await page.waitForSelector('[role=menu]');
 await page.keyboard.press('Shift+Tab');
 await page.keyboard.press('Shift+Tab');
 ok(!(await menuOpen()), 'Tab out of the menu closes it');
@@ -282,6 +293,25 @@ ok((await order()) === 'CD', `back: ${await order()}`);
   await act('back');
 }
 ok((await order()) === 'ABCDEF' && !(await backBtn.isEnabled()), `back to the whole tree: ${await order()}`);
+
+// touch: a tap opens the menu and a tap on an item runs it (the browser's compatibility mousedown after a tap used to close the menu)
+{
+  const tctx = await browser.newContext({ viewport: { width: 412, height: 860 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const tp = await tctx.newPage();
+  tp.setDefaultTimeout(8000);
+  await tp.goto(`${url}?tree=edge-internal-support&cpu=1`);
+  await tp.waitForSelector('[role=toolbar]', { timeout: 60000 });
+  await tp.waitForTimeout(800);
+  const lb = await tp.locator('.card').first().locator('a[data-tip-id="C"]').boundingBox();
+  await tp.touchscreen.tap(lb.x - 5, lb.y + lb.height / 2);
+  await tp.waitForTimeout(400);
+  ok((await tp.locator('[role=menu]').count()) === 1, 'touch: a tap on a tip opens the menu');
+  const it = await tp.locator('[data-action=reroot]').boundingBox();
+  await tp.touchscreen.tap(it.x + 20, it.y + it.height / 2);
+  await tp.waitForTimeout(500);
+  ok(/reroot/.test(await tp.locator('p[aria-live]').innerText()), 'touch: a tap on Reroot here reroots');
+  await tctx.close();
+}
 
 // midpoint on a dated (ultrametric) tree: the root already is the midpoint, and the status says so
 await page.goto(`${url}?tree=rich-fish-carangaria-135&cpu=1`);
