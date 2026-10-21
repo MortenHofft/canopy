@@ -72,8 +72,6 @@ export const LABEL_MIN_PX: Record<LabelDensity, number> = { sparse: 16, normal: 
 export const RADIAL_LABEL_CAP = 300;
 const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
 const FILL_CHUNK = 32; // fans per fill() call, same reason
-export const BRANCH_W = 1.3;
-export const CLADE_W = 2;
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const COLLAPSED_W = 14; // length of the triangle of a collapsed-clade tip, along the branch direction (CSS px)
 const COLLAPSED_MIN_PX = 3; // below this row pitch the triangle is not drawn (the branch alone shows the tip)
@@ -121,7 +119,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
   for (let cls = 0; cls < nCls; cls++) {
     const col = cls === 0 ? theme.branch : colours[cls];
     ctx.strokeStyle = col;
-    ctx.lineWidth = cls === 0 ? lineW : Math.max(lineW, CLADE_W);
+    ctx.lineWidth = cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
     ctx.beginPath();
     let any = false;
     for (let e = 0; e < list.count; e++) {
@@ -144,7 +142,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     if (any) ctx.stroke();
   }
   // collapsed clades: triangle from the node to the clade's extent
-  ctx.globalAlpha = 0.6;
+  ctx.globalAlpha = theme.summaryOpacity;
   for (let cls = 0; cls < nCls; cls++) {
     ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
     ctx.beginPath();
@@ -198,7 +196,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
   ctx.lineJoin = 'bevel';
   for (let cls = 0; cls < nCls; cls++) {
     ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
-    ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, CLADE_W);
+    ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
     ctx.beginPath();
     let segs = 0;
     for (let e = 0; e < list.count; e++) {
@@ -256,7 +254,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
     if (segs) ctx.stroke();
   }
   // collapsed clades: fans (apex at the node, outer edge at the clade's radius, arc only when it is visibly curved)
-  ctx.globalAlpha = 0.6;
+  ctx.globalAlpha = theme.summaryOpacity;
   for (let cls = 0; cls < nCls; cls++) {
     ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
     ctx.beginPath();
@@ -317,9 +315,10 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const p: Pt = { x: 0, y: 0 };
   const tipPx = proj.tipPitch;
   const dots = tipPx >= TIP_DOT_PX;
-  const rTip = Math.min(3.2, Math.max(1.5, tipPx * 0.25));
+  const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
+  const m = theme.nodeMarkerSize;
   // internal markers: small filled squares (cheap), only for clades big enough to click
-  ctx.globalAlpha = 0.85;
+  ctx.globalAlpha = theme.markerOpacity;
   for (let cls = 0; cls < colours.length; cls++) {
     ctx.fillStyle = cls === 0 ? theme.branch : colours[cls];
     ctx.beginPath();
@@ -337,7 +336,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       } else if (kind === K_NODE) {
         if (proj.cladeSize(i) < MARKER_PX) continue;
         proj.nodeXY(i, p);
-        ctx.rect(p.x - 2, p.y - 2, 4, 4);
+        ctx.rect(p.x - m / 2, p.y - m / 2, m, m);
         any = true;
       }
     }
@@ -399,7 +398,7 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
     if (rect) {
       const y = T.oy + r * T.ky;
       if (y + T.ky < T.clipT || y > T.clipB) continue;
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = theme.highlightOpacity;
       ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
       ctx.globalAlpha = 1;
       proj.nodeXY(node, p);
@@ -410,7 +409,7 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
       proj.nodeXY(node, p);
       if (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20) continue;
       const a = proj.tip(node);
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = theme.highlightOpacity;
       ctx.lineWidth = Math.max(3, T.da * L.X[node] * T.k);
       ctx.beginPath();
       ctx.moveTo(T.cx, T.cy);
@@ -448,7 +447,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const pitch = proj.tipPitch;
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
-  const size = Math.max(8, Math.min(13, Math.round(pitch * 0.78)));
+  const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
   const fontN = `${S.italic ? 'italic ' : ''}${size}px ${theme.fontFamily}`;
   const fontH = `${S.italic ? 'italic ' : ''}600 ${size}px ${theme.fontFamily}`;
   ctx.textBaseline = 'middle';
@@ -531,7 +530,7 @@ export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x
   const maxLen = L.maxLen;
   const dated = L.ultrametric;
   ctx.save();
-  ctx.font = `10px ${theme.fontFamily}`;
+  ctx.font = `${theme.axisFontSize}px ${theme.fontFamily}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
   ctx.strokeStyle = theme.muted;
@@ -591,7 +590,7 @@ export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
   ctx.strokeStyle = theme.muted;
   ctx.fillStyle = theme.muted;
   ctx.lineWidth = 1.5;
-  ctx.font = `10px ${theme.fontFamily}`;
+  ctx.font = `${theme.axisFontSize}px ${theme.fontFamily}`;
   ctx.textBaseline = 'bottom';
   ctx.beginPath();
   ctx.moveTo(x, y - 3);

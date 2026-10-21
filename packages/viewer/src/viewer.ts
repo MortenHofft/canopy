@@ -18,19 +18,7 @@ import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
-import {
-  drawAxis,
-  drawBody,
-  drawHighlights,
-  drawLabels,
-  drawMarkers,
-  drawRing,
-  drawScaleBar,
-  LabelList,
-  TextMeasurer,
-  BRANCH_W,
-  type Scene,
-} from './draw.ts';
+import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, drawScaleBar, LabelList, TextMeasurer, type Scene } from './draw.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { InputController, type InputHost } from './input.ts';
@@ -58,6 +46,7 @@ import {
   type TreeTheme,
   type Viewport,
 } from './types.ts';
+import { THEME_CSS_VARS, themeFromCss } from './theme.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
@@ -74,7 +63,7 @@ export interface TreeViewerInit {
   source?: TreeSource;
   /** Over `DEFAULT_OPTIONS`; all but `softwareCanvas` can be changed later with `setOptions`. */
   options?: Partial<ViewerOptions>;
-  /** Over `FALLBACK_THEME`; see `setTheme`. */
+  /** Over the CSS custom properties and `FALLBACK_THEME`; see `setTheme`. */
   theme?: Partial<TreeTheme>;
   columns?: Column[];
   /** Controls to add, in this order (none by default; `defaultControls()` gives the usual set). */
@@ -124,6 +113,8 @@ export class TreeViewer {
   private opts: ViewerOptions;
   private theme: TreeTheme;
   private themeOverrides: Partial<TreeTheme> = {};
+  private cssTheme: Partial<TreeTheme> = {};
+  private schemeQuery: MediaQueryList | null = null;
   private events = new Emitter();
   private readyEmitted = false;
   private layouts = new Map<boolean, Layout>();
@@ -244,14 +235,23 @@ export class TreeViewer {
     });
     this.notice = mk(
       'div',
-      'position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;font-size:11px;line-height:16px;pointer-events:none;opacity:.85;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis',
+      'position:absolute;left:8px;top:6px;pointer-events:none;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis',
     );
+    this.notice.className = 'phylo-notice';
     this.notice.setAttribute('role', 'status');
     this.uiLayer = mk('div', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none');
     this.uiLayer.className = 'phylo-ui';
     this.uiLayer.dataset.phyloUi = '';
     this.root.append(this.canvas, this.top, this.overlay.layer, this.notice, this.uiLayer, this.overlay.srList, this.overlay.live);
     this.root.classList.add('phylo-viewer');
+    // the theme from CSS custom properties of the target (and its ancestors); re-read when the colour scheme preference changes
+    this.cssTheme = themeFromCss(this.host);
+    this.theme = { ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides };
+    this.syncCssVars();
+    if (typeof matchMedia === 'function') {
+      this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
+      this.schemeQuery.addEventListener?.('change', this.onScheme);
+    }
     this.host.appendChild(this.root);
     const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
     this.ctx = this.canvas.getContext('2d', cc)!;
@@ -526,7 +526,7 @@ export class TreeViewer {
     if (row < 0) return -1;
     return this.tree.globalId === null ? row : this.tree.globalId[row];
   }
-  /** The theme in force: `FALLBACK_THEME` with the overrides of `setTheme` on top. */
+  /** The theme in force: `FALLBACK_THEME`, then the CSS custom properties (see theme.ts), then the overrides of `setTheme`. */
   getTheme(): Readonly<TreeTheme> {
     return this.theme;
   }
@@ -584,17 +584,37 @@ export class TreeViewer {
     this.events.emit('optionschange', { options: this.opts, changed });
   }
 
-  /** Set the theme overrides: these fields over `FALLBACK_THEME` (a field left out, or undefined, is the fallback value; the overrides
-   *  of an earlier call are replaced, not merged). No-op when the resulting theme equals the current one (`categorical` element-wise),
+  /** Set the theme overrides: these fields over the theme read from CSS custom properties, over `FALLBACK_THEME` (a field left out,
+   *  or undefined, is the CSS or fallback value; the overrides of an earlier call are replaced, not merged). No-op when the resulting theme equals the current one (`categorical` element-wise),
    *  so a theme rebuilt per render costs nothing. */
   setTheme(t: Partial<TreeTheme>): void {
     this.themeOverrides = { ...stripUndefined(t) };
-    this.applyTheme({ ...FALLBACK_THEME, ...this.themeOverrides });
+    this.applyTheme({ ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides });
+  }
+
+  /** Read the theme's CSS custom properties again (after a stylesheet or class change that the viewer cannot see). The viewer does
+   *  this itself when it is created and when the colour scheme preference changes. */
+  refreshTheme(): void {
+    if (this.destroyed) return;
+    this.cssTheme = themeFromCss(this.host);
+    this.applyTheme({ ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides });
+  }
+
+  private onScheme = () => this.refreshTheme();
+
+  /** Put the theme in force on the root as custom properties, so the DOM inside it (controls, popups) matches the canvas also when the
+   *  theme came from `setTheme` rather than CSS. The viewer reads CSS from its target, never from its root, so this cannot feed back. */
+  private syncCssVars(): void {
+    const s = this.root.style;
+    const t = this.theme;
+    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily'] as const)
+      s.setProperty(THEME_CSS_VARS[k], t[k]);
   }
 
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
     this.theme = next;
+    this.syncCssVars();
     this.sceneVersion++;
     this.overlay.clear();
     this.invalidate(true);
@@ -921,6 +941,7 @@ export class TreeViewer {
     this.ro?.disconnect();
     this.ro = null;
     (document as Document & { fonts?: FontFaceSet }).fonts?.removeEventListener?.('loadingdone', this.onFonts);
+    this.schemeQuery?.removeEventListener?.('change', this.onScheme);
     this.input.destroy();
     this.root.remove();
     // release the backing stores
@@ -1094,7 +1115,7 @@ export class TreeViewer {
     ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
     ctx.clip();
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
-    drawBody(ctx, S, BRANCH_W);
+    drawBody(ctx, S, this.theme.branchWidth);
     drawMarkers(ctx, S);
     drawLabels(ctx, S, this.labels);
     ctx.restore();
@@ -1162,10 +1183,6 @@ export class TreeViewer {
     }
     if (!this.noticeShown) {
       el.style.display = 'block';
-      el.style.background = `color-mix(in srgb, ${this.theme.background} 85%, transparent)`;
-      el.style.color = this.theme.muted;
-      el.style.border = `1px solid ${this.theme.muted}`;
-      el.style.fontFamily = this.theme.fontFamily;
       this.noticeShown = true;
     }
   }

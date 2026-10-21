@@ -3,13 +3,16 @@
  * The tree itself is drawn on a canvas; its colours come from the same custom properties (read by the viewer, see themeFromCss).
  *
  * Theme it by setting the --phylo-* custom properties on any ancestor (:root, a page section, the viewer's target). Every rule
- * reads them with a fallback, so nothing here needs to be overridden and a property set higher up always wins.
+ * reads them with a fallback, so nothing here needs to be overridden and a property set higher up always wins. The viewer also writes
+ * the colours and font of its theme in force on its root element, so a theme set from JavaScript (setTheme) reaches these rules too.
  *
  *   colours     --phylo-background  --phylo-foreground  --phylo-muted  --phylo-highlight  --phylo-surface  --phylo-surface-hover
- *               --phylo-border
+ *               --phylo-border   (canvas only: --phylo-branch  --phylo-summary  --phylo-categorical)
  *   type        --phylo-font-family  --phylo-font-size
  *   shape       --phylo-radius  --phylo-control-radius  --phylo-control-size  --phylo-shadow  --phylo-popup-shadow  --phylo-gap
  *   motion      --phylo-transition
+ *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
+ *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dark
  *
  * Class names: .phylo-viewer (the root), .phylo-controls--<corner>, .phylo-control and .phylo-<name> per control, .phylo-button,
  * .phylo-bar (a group of buttons), .phylo-tooltip, .phylo-node-menu, .phylo-legend, .phylo-search, .phylo-overview, .phylo-notice.
@@ -63,7 +66,7 @@
 }
 
 .phylo-button:hover {
-  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+  background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));
 }
 
 .phylo-button:focus-visible {
@@ -81,7 +84,7 @@
   flex-direction: column;
   padding: 2px;
   background: var(--phylo-surface, var(--phylo-background, #ffffff));
-  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
 }
@@ -95,7 +98,7 @@
   max-width: 260px;
   background: var(--phylo-surface, var(--phylo-background, #ffffff));
   color: var(--phylo-foreground, #162d3d);
-  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-popup-shadow, 0 4px 16px rgba(0, 0, 0, 0.18));
 }
@@ -144,7 +147,7 @@
 
 .phylo-node-menu__item:hover:not(:disabled),
 .phylo-node-menu__item:focus-visible {
-  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+  background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));
   outline: none;
 }
 
@@ -167,7 +170,7 @@
   align-items: center;
   width: 220px;
   background: var(--phylo-surface, var(--phylo-background, #ffffff));
-  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
 }
@@ -206,7 +209,7 @@
   overflow: auto;
   list-style: none;
   background: var(--phylo-surface, var(--phylo-background, #ffffff));
-  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-popup-shadow, 0 4px 16px rgba(0, 0, 0, 0.18));
 }
@@ -223,7 +226,7 @@
 
 .phylo-search__option:hover,
 .phylo-search__option[aria-selected='true'] {
-  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+  background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));
 }
 
 /* ---- legend */
@@ -234,7 +237,7 @@
   overflow: auto;
   padding: 6px 8px;
   background: var(--phylo-surface, var(--phylo-background, #ffffff));
-  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
 }
@@ -301,7 +304,14 @@ button.phylo-legend__label:hover {
 /* ---- the corner notice of the radial layout */
 
 .phylo-notice {
-  font-family: var(--phylo-font-family, system-ui, sans-serif);
+  padding: 2px 8px;
+  border: 1px solid var(--phylo-muted, #6b7c8a);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--phylo-background, #ffffff) 85%, transparent);
+  color: var(--phylo-muted, #6b7c8a);
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.85;
 }
 
 @media (prefers-reduced-motion: reduce) {

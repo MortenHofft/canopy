@@ -14,7 +14,8 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./viewer.css": "./css/viewer.css"
+    "./viewer.css": "./css/viewer.css",
+    "./gbif.css": "./css/gbif.css"
   },
   "files": [
     "dist",

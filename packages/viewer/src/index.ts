@@ -11,3 +11,4 @@ export { InMemorySource, isTreeSource, type TreeSource, type EnsureOptions } fro
 export { BaseControl, makeButton, type Control, type ControlOptions, type ControlPosition } from './control.ts';
 export * from './controls/index.ts';
 export * from './overlays/index.ts';
+export { themeFromCss, THEME_CSS_VARS } from './theme.ts';

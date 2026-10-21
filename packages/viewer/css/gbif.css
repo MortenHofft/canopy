@@ -1,0 +1,22 @@
+/*
+ * @gbif-phylo/viewer: GBIF look. Load after viewer.css. Maps the GBIF design tokens to the viewer's --phylo-* properties; where a page
+ * has the GBIF token stylesheet, its values are used (var(--color-primary) and so on), otherwise the GBIF values below.
+ */
+
+:root {
+  --phylo-background: var(--bg1, #ffffff);
+  --phylo-foreground: var(--fg1, #211f1f);
+  --phylo-muted: var(--fg3, #767171);
+  --phylo-branch: var(--fg2, #524d4d);
+  --phylo-highlight: var(--color-primary, #4c9b45);
+  --phylo-summary: var(--slate-400, #94a3b8);
+  --phylo-categorical: var(--purple-100, #684393), var(--periwinkle-100, #6985bd), var(--fuchsia-100, #d0628d), var(--peach-100, #ebac7c),
+    var(--lightblue-100, #20b4e9), var(--yellow-100, #f0be48), var(--green-100, #4c9b45);
+  --phylo-font-family: var(--font-body, 'Rubik', system-ui, sans-serif);
+  --phylo-surface: var(--bg1, #ffffff);
+  --phylo-border: var(--border-default, #d8d5d5);
+  --phylo-radius: var(--radius-lg, 6px);
+  --phylo-control-radius: var(--radius-md, 4px);
+  --phylo-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06));
+  --phylo-popup-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06));
+}

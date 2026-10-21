@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@gbif-phylo/viewer/viewer.css';
+import '@gbif-phylo/viewer/gbif.css';
 import './gbif-tokens.css';
 import { gbifTheme } from './gbif-theme.ts';
 import { loadTree } from './trees.ts';
@@ -57,20 +58,9 @@ function App() {
     void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([{ tree: t, clades: [], collapsed: [], focus: ops.NO_FOCUS }]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // the viewers take their look from @gbif-phylo/viewer/gbif.css (CSS custom properties); the palette for clade colours comes from the
+  // same GBIF tokens
   const g = useMemo(() => gbifTheme(), []);
-  const theme = useMemo(
-    () => ({
-      background: g.bg1,
-      foreground: g.fg1,
-      muted: g.fg3,
-      branch: g.fg2,
-      highlight: g.primary,
-      summary: g.slate400,
-      fontFamily: g.fontBody,
-      categorical: g.categorical,
-    }),
-    [g],
-  );
   // support range, shown next to the threshold because files use different scales (0.95 versus 95)
   const supportRange = useMemo(() => {
     if (!tree) return null;
@@ -332,7 +322,6 @@ function App() {
     clades: shownClades,
     highlighted: hl,
     collapsed: view?.collapsedIds,
-    theme,
     viewport: vp,
     onViewportChange: setVp,
     onNodeClick: onClick,

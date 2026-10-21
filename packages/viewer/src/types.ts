@@ -57,7 +57,10 @@ export interface Viewport {
   y1: number;
 }
 
+/** The canvas theme: colours, font and the sizes and opacities of what is drawn. Every field can be set as a CSS custom property
+ *  (`--phylo-<field name in kebab case>`, see THEME_CSS_VARS in theme.ts), with `setTheme`, or both (setTheme wins). */
 export interface TreeTheme {
+  /** Dark background: chooses lighter hover and summary shades where the theme gives none. Derived from `background` when read from CSS. */
   dark: boolean;
   background: string;
   foreground: string; // labels, axis text
@@ -66,7 +69,22 @@ export interface TreeTheme {
   highlight: string; // selection, highlight bands, focus ring
   summary: string; // fill of collapsed clades without own colour
   fontFamily: string;
+  /** Colours for categories (clade colours picked by an app, column bars use the second). */
   categorical: string[];
+  /** Branch line width, CSS px. */
+  branchWidth: number;
+  /** Line width of branches in a coloured clade (at least branchWidth). */
+  cladeBranchWidth: number;
+  /** Largest radius of a tip dot (it shrinks with the row height), CSS px. */
+  tipRadius: number;
+  /** Side of the square marker on internal nodes big enough to click, CSS px. */
+  nodeMarkerSize: number;
+  summaryOpacity: number; // collapsed clades (triangles, fans, bands)
+  markerOpacity: number; // tip dots and node markers
+  highlightOpacity: number; // the band behind a highlighted tip
+  /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
+  labelSize: number;
+  axisFontSize: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -79,23 +97,25 @@ export const FALLBACK_THEME: TreeTheme = {
   summary: '#9aa7b3',
   fontFamily: 'system-ui, sans-serif',
   categorical: ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8'],
+  branchWidth: 1.3,
+  cladeBranchWidth: 2,
+  tipRadius: 3.2,
+  nodeMarkerSize: 4,
+  summaryOpacity: 0.6,
+  markerOpacity: 0.85,
+  highlightOpacity: 0.16,
+  labelSize: 13,
+  axisFontSize: 10,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
 export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
   if (a === b) return true;
-  if (
-    a.dark !== b.dark ||
-    a.background !== b.background ||
-    a.foreground !== b.foreground ||
-    a.muted !== b.muted ||
-    a.branch !== b.branch ||
-    a.highlight !== b.highlight ||
-    a.summary !== b.summary ||
-    a.fontFamily !== b.fontFamily ||
-    a.categorical.length !== b.categorical.length
-  )
-    return false;
+  for (const k of Object.keys(FALLBACK_THEME) as (keyof TreeTheme)[]) {
+    if (k === 'categorical') continue;
+    if (a[k] !== b[k]) return false;
+  }
+  if (a.categorical.length !== b.categorical.length) return false;
   for (let i = 0; i < a.categorical.length; i++) if (a.categorical[i] !== b.categorical[i]) return false;
   return true;
 }
