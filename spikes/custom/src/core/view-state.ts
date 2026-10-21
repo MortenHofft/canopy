@@ -2,7 +2,7 @@
 // (clampView), zoom about a point, the target windows of focusTip / zoomToNode / keyboard-cursor scrolling, and the animation between
 // two windows. It owns `view`, `fitted`, `area` and the running animation.
 //
-// It does NOT touch the DOM, the canvas, the clock source other than performance.now() in animateTo, or the renderer: what it needs of
+// It does NOT touch the DOM, the canvas or the renderer, and its only impure call is performance.now() in animateTo: what it needs of
 // the world is read through a ViewEnv (container size, options, tree, layout, columns), and every change is reported through
 // ViewEvents. So it imports in Node and test/view-state.test.mjs covers clamp, fit, zoom and the targets numerically.
 
@@ -97,6 +97,7 @@ export class ViewState {
   /** Stop an animation where it is (a press or the overview takes over). */
   cancelAnim(): void {
     this.anim = null;
+    this.fitAfterAnim = false; // a cancelled fit animation must not make a later one end fitted
   }
 
   // ------------------------------------------------------------- area
@@ -210,7 +211,7 @@ export class ViewState {
   setViewport(v: Viewport, animate = false): void {
     if (!(v.x1 > v.x0 && v.y1 > v.y0)) return;
     if (animate) return this.animateTo(v);
-    this.anim = null;
+    this.cancelAnim();
     if (viewportEquals(v, this.view)) return;
     this.view = this.clampView({ ...v });
     this.fitted = false;
@@ -223,7 +224,7 @@ export class ViewState {
     const f = this.fitViewport();
     if (animate) this.animateTo(f, true);
     else {
-      this.anim = null;
+      this.cancelAnim();
       this.view = f;
       this.fitted = true;
       this.ev.changed(false);
@@ -348,7 +349,7 @@ export class ViewState {
     const to = isFit ? v : this.clampView({ ...v });
     this.anim = { from: { ...this.view }, to, t0: performance.now(), ms: ANIMATION_MS };
     this.fitted = false;
-    if (isFit) this.fitAfterAnim = true;
+    this.fitAfterAnim = isFit;
     this.ev.needFrame();
   }
 

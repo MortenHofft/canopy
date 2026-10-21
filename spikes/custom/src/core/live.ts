@@ -5,7 +5,7 @@
 type Methods<H> = { [K in keyof H as H[K] extends (...args: never[]) => unknown ? K : never]: H[K] };
 type Props<H> = { [K in keyof H as H[K] extends (...args: never[]) => unknown ? never : K]: () => H[K] };
 
-export function live<H extends object>(props: Props<H>, methods: Methods<H> = {} as Methods<H>): H {
+export function live<H extends object>(props: Props<H>, methods: Methods<H>): H {
   const o = { ...methods } as H;
   for (const k of Object.keys(props) as Array<keyof Props<H> & string>)
     Object.defineProperty(o, k, { get: props[k] as () => unknown, enumerable: true });

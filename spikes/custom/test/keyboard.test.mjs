@@ -12,7 +12,6 @@ const { makeNodeEvent } = await import(path.join(root, 'spikes/custom/src/core/n
 
 // preorder: 0 root, 1 AB, 2 A, 3 B, 4 CDE, 5 C, 6 DE, 7 D, 8 E, 9 F; tip ranks A0 B1 C2 D3 E4 F5
 const t = new InMemorySource(parseNewick('((A:1,B:2)AB:1,(C:1,(D:2,E:3)DE:1)CDE:2,F:4)root;')).snapshot();
-const id = (label) => t.tipNode[t.tipIndex(label) >= 0 ? t.tipRank[t.tipIndex(label)] : -1];
 const tip = (label) => t.tipIndex(label);
 const step = (node, key, rows = 3) => navigate(t, node, key, rows);
 
@@ -22,7 +21,6 @@ test('Down / Up walk the tips in tree order and stop at the ends', () => {
   assert.equal(step(tip('F'), 'ArrowDown'), tip('F'), 'clamped at the last tip');
   assert.equal(step(tip('C'), 'ArrowUp'), tip('B'));
   assert.equal(step(tip('A'), 'ArrowUp'), tip('A'), 'clamped at the first tip');
-  assert.ok(id('A') >= 0);
 });
 
 test('Down from a clade skips its tips, Up goes to the tip before it', () => {
@@ -80,7 +78,7 @@ test('makeNodeEvent: a tip, a clade, and a run of siblings', () => {
   assert.equal(c.isTip, false);
   assert.equal(c.tipId, null);
   assert.deepEqual([c.tipStart, c.tipEnd], [3, 5]);
-  // the root's children C, DE, F are adjacent siblings 5, 6, 9? no: run over C (5) .. DE (6)
+  // a run of the adjacent siblings C and DE
   const run = makeNodeEvent(t, t.parent[tip('C')], 'summary', 'pointer', 0, 0, { first: tip('C'), last: de });
   assert.equal(run.isTip, false);
   assert.deepEqual([run.tipStart, run.tipEnd], [2, 5]);

@@ -43,9 +43,8 @@ function setup(hit) {
   return { handlers, calls };
 }
 
-test('double-click on a clade zooms to the hit row, not to the global id of a partial snapshot', () => {
+test("double-click on a clade passes the hit row through unconverted (the id conversion is the facade's, covered by the browser check)", () => {
   const de = full.parent[full.tipIndex('D')];
-  assert.notEqual(partial.toLocal(de), de, 'the row is not a valid public id here: passing it on would pick another node');
   const { handlers, calls } = setup({ node: de, kind: 'node' });
   handlers.dblclick({ clientX: 5, clientY: 5 });
   assert.deepEqual(calls, [['zoomToRow', de, true]]);

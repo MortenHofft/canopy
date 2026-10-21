@@ -59,7 +59,6 @@ test('area: rectangular leaves room for overview, columns, head and foot; radial
   assert.equal(a.ah, 600 - 24 - 36, 'axis foot (the layout has branch lengths)');
   const { vs } = make({ layout: 'radial' });
   assert.deepEqual(vs.area, { ax: 0, ay: 0, aw: 800, ah: 600, clipL: 0, clipT: 0, clipR: 800, clipB: 600 });
-  assert.deepEqual(vs.area, { ax: 0, ay: 0, aw: 800, ah: 600, clipL: 0, clipT: 0, clipR: 800, clipB: 600 });
 });
 
 test('area: placeColumns gets the clip edge plus the gap', () => {
@@ -230,9 +229,61 @@ test('resize: a fitted view follows the container, a zoomed radial view keeps it
   near((vs.view.y0 + vs.view.y1) / 2, 0.3375, 1e-9);
 });
 
-test('labelReserve: from the longest tip label, capped, reset on request', () => {
+test('labelReserve: from the longest tip label, floor 70, cap 190, partial trees assume a binomial, measured again after a reset', () => {
+  const named = (label) => new InMemorySource(parseNewick(`(${label}:1,b:1);`)).snapshot();
+  const { vs, env } = make();
+  assert.equal(vs.labelReserve(), 70, 'short labels: the floor (3 chars would be 33 px)');
+  env.tree = named('x'.repeat(20));
+  assert.equal(vs.labelReserve(), 70, 'cached until reset');
+  vs.resetLabelReserve();
+  near(vs.labelReserve(), 20 * 6.3 + 14, 1e-12);
+  env.tree = named('x'.repeat(60));
+  vs.resetLabelReserve();
+  assert.equal(vs.labelReserve(), 190, 'capped');
+  env.tree = { ...named('a'), stub: new Uint8Array(3) };
+  vs.resetLabelReserve();
+  near(vs.labelReserve(), Math.min(190, 28 * 6.3 + 14), 1e-12); // labels are not loaded: 28 chars assumed
+});
+
+test('clampView, rectangular: the zoomed-out test is w >= 0.999 / h >= 0.999 N, and the tallest window is 1.6 N rows', () => {
+  const { vs } = make({ H: 200 }); // a short container, so that ah / 4 (46) is below 1.6 N (96)
+  const hmax = Math.max(60 * K.RECT_MAX_VIEW_H_FACTOR, vs.area.ah / 4);
+  const tall = vs.clampView({ x0: 0, x1: 1, y0: 0, y1: 1000 });
+  near(tall.y1 - tall.y0, hmax, 1e-12);
+  // just under / over the threshold, window pushed left / up: only the zoomed-out branch keeps the whole tree inside
+  assert.equal(vs.clampView({ x0: -0.3, x1: -0.3 + 0.9995, y0: 0, y1: 60 }).x0, 0, 'w = 0.9995: zoomed out');
+  near(vs.clampView({ x0: -0.3, x1: -0.3 + 0.998, y0: 0, y1: 60 }).x0, -K.OVERSCROLL_FRAC * 0.998, 1e-12);
+  assert.equal(vs.clampView({ x0: 0, x1: 1, y0: -5, y1: 54.95 }).y0, 0, 'h = 59.95: zoomed out');
+  assert.equal(vs.clampView({ x0: 0, x1: 1, y0: -5, y1: 54.9 }).y0, -5, 'h = 59.9: zoomed in, overscroll allowed');
+});
+
+test('visibleViewport, rectangular: a tip within min(12% of the window, 3 rows) of the edge scrolls', () => {
   const { vs } = make();
-  assert.equal(vs.labelReserve(), Math.max(70, Math.min(190, 3 * 6.3 + 14)), 'longest label t59 has 3 chars');
+  const row = (rank) => tree.tipNode[rank];
+  vs.view = { x0: 0, x1: 1, y0: 20, y1: 60 }; // 40 rows: margin 3
+  assert.equal(vs.visibleViewport(row(23)), null, 'row 23.5 is outside the 3-row margin');
+  const up = vs.visibleViewport(row(22));
+  near(up.y0, 22.5 - 3, 1e-12);
+  assert.equal(vs.visibleViewport(row(56)), null, 'row 56.5 is outside the margin at the bottom');
+  near(vs.visibleViewport(row(57)).y1, 57.5 + 3, 1e-12);
+  vs.view = { x0: 0, x1: 1, y0: 20, y1: 30 }; // 10 rows: margin 1.2
+  assert.equal(vs.visibleViewport(row(21)), null);
+  near(vs.visibleViewport(row(20)).y0, 20.5 - 1.2, 1e-12);
+});
+
+test('visibleViewport, radial: a node within 30 px of the container edge scrolls', () => {
+  const { vs } = make({ layout: 'radial' });
+  const tip = tree.tipNode[20];
+  const ang = L.ROW[tip] * ((2 * Math.PI) / tree.tipCount);
+  const wx = L.X[tip] * Math.cos(ang),
+    wy = L.X[tip] * Math.sin(ang);
+  const k = 100;
+  // a window of 800 x 600 px at scale k that puts the node at screen x = sx, y = 300
+  const at = (sx) => ({ x0: wx - sx / k, x1: wx - sx / k + 800 / k, y0: wy - 300 / k, y1: wy - 300 / k + 600 / k });
+  vs.view = at(800 - 31);
+  assert.equal(vs.visibleViewport(tip), null, '31 px from the right edge: in view');
+  vs.view = at(800 - 29);
+  assert.notEqual(vs.visibleViewport(tip), null, '29 px from the right edge: scrolled to the centre');
 });
 
 test('animation: setViewport(animate) asks for a frame, steps report as steps, ends on the clamped target; fit(true) ends fitted', () => {
@@ -261,4 +312,18 @@ test('animation: setViewport(animate) asks for a frame, steps report as steps, e
   assert.equal(vs.animating, false);
   vs.stepAnim(performance.now() + 1000);
   assert.equal(log.changed.length, 3, 'stepAnim without an animation does nothing');
+});
+
+test('a cancelled or superseded fit animation does not make a later animation end fitted', () => {
+  for (const interrupt of ['cancelAnim', 'animateOther', 'jump']) {
+    const { vs } = make();
+    const target = { x0: 0.2, x1: 0.4, y0: 10, y1: 20 };
+    vs.fit(true);
+    if (interrupt === 'cancelAnim') vs.cancelAnim();
+    if (interrupt === 'jump') vs.setViewport({ x0: 0.1, x1: 0.5, y0: 5, y1: 25 });
+    vs.setViewport(target, true);
+    vs.stepAnim(performance.now() + K.ANIMATION_MS + 10);
+    assert.equal(vs.animating, false);
+    assert.equal(vs.fitted, false, interrupt);
+  }
 });

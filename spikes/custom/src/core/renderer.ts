@@ -325,10 +325,10 @@ export class TreeRenderer {
         dropHover: () => this.dropHover(),
         setActive: (node) => this.setActive(node),
         activate: (node) => {
-          const tree = this.tree;
           if (this.activeNode < 0) this.activeNode = node;
           const p = { x: 0, y: 0 };
           this.renderNow();
+          const tree = this.tree; // after renderNow: it may have picked up a new snapshot
           this.proj.nodeXY(node, p);
           const r = this.root.getBoundingClientRect();
           this.cb.onClick?.(makeNodeEvent(tree, node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
@@ -357,7 +357,7 @@ export class TreeRenderer {
     this.hit = new HitIndex();
     this.applyClades();
     this.activeNode = -1;
-    this.hoverNode = -1;
+    this.clearHover();
     this.vs.resetLabelReserve();
     this.ov.dirty = true;
     this.minPxHint = 0;
@@ -1002,11 +1002,15 @@ export class TreeRenderer {
   }
 
   /** Clear the hover (the pointer left, or a drag started). */
+  private clearHover(): void {
+    this.hoverNode = -1;
+    this.hoverKind = '';
+    this.hoverRun = -1;
+  }
+
   private dropHover(): void {
     if (this.hoverNode >= 0) {
-      this.hoverNode = -1;
-      this.hoverKind = '';
-      this.hoverRun = -1;
+      this.clearHover();
       this.topDirty = true;
       this.cb.onHover?.(null);
       this.schedule();
