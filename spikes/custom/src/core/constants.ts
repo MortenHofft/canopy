@@ -58,6 +58,11 @@ export const ZOOM_NODE_RADIAL_PAD = 1.15;
 
 // ---- overview strip (the whole tree in a corner, with the current window as a box)
 
+/** Rectangular overview: strip width (px); the plot area leaves this room (plus 8 px) right of the clip rectangle. */
+export const OVERVIEW_STRIP_W_PX = 56;
+/** Radial overview: side of the square disc (px). */
+export const OVERVIEW_DISC_PX = 104;
+
 /** Radial overview: the world square shown is [-OVERVIEW_WORLD_HALF, OVERVIEW_WORLD_HALF] on both axes (the unit circle plus a margin). */
 export const OVERVIEW_WORLD_HALF = 1.15;
 /** Width of that square in world units (2 * OVERVIEW_WORLD_HALF); the overview scale is strip px / this. */
