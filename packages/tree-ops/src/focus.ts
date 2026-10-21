@@ -62,7 +62,7 @@ export function remapFocus(f: Focus, keep: (node: number) => number): Focus {
   for (const v of f.stack) {
     const m = v < 0 ? -1 : keep(v);
     if (v >= 0 && m < 0) continue;
-    if (stack[stack.length - 1] !== m) stack.push(m);
+    if (stack[stack.length - 1] !== m && !(stack.length === 0 && m === -1)) stack.push(m); // a leading 'whole tree' is the start: no back step
   }
   return { stack };
 }

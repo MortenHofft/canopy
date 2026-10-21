@@ -290,9 +290,21 @@ ok((await order()) === 'CD', `back: ${await order()}`);
   }
   await openOn(hitRoot);
   ok((await items()).slice(0, 2).join('|') === 'Up one level|Back', `menu of the shown root: ${(await items()).join(' | ')}`);
+  ok(await page.locator('[data-action=collapse]').isDisabled(), 'Collapse is disabled on the root of the clade shown');
   await act('back');
 }
 ok((await order()) === 'ABCDEF' && !(await backBtn.isEnabled()), `back to the whole tree: ${await order()}`);
+
+// a collapsed clade stays collapsed when collapse by support would contract its node: (A,B) has support 0.95, below 70
+await openOn(await cladeOf('A', 'B'));
+await act('collapse');
+await page.getByRole('spinbutton', { name: 'Minimum support' }).fill('70');
+await page.getByRole('checkbox').check();
+await page.waitForTimeout(500);
+ok((await labels()).includes('A and 1 more'), `collapsed (A,B) kept under collapse support < 70: ${(await labels()).join(', ')}`);
+await page.getByRole('checkbox').uncheck();
+await page.getByRole('button', { name: 'Expand all' }).click();
+await page.waitForTimeout(400);
 
 // touch: a tap opens the menu and a tap on an item runs it (the browser's compatibility mousedown after a tap used to close the menu)
 {

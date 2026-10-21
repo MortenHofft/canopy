@@ -80,14 +80,14 @@ for (const name of fs.readdirSync(spikes).sort()) {
   if (pkg.scripts['build:demo']) {
     fs.rmSync(path.join(dir, 'dist-demo'), { recursive: true, force: true });
     const demoHtml = path.join(dir, 'dist-demo', 'demo.html');
+    // optional: a failed demo build is reported and its link left out, but does not fail the site or drop the candidate
     if (!run('npm', ['run', 'build:demo', '--', `--base=/${name}/demo/`], dir) || !fs.existsSync(demoHtml)) {
-      console.warn(`!! ${name}: demo build failed, skipped`);
-      failed.push(name);
-      continue;
+      console.warn(`!! ${name}: demo build failed; published without its demo page`);
+    } else {
+      fs.renameSync(demoHtml, path.join(dir, 'dist-demo', 'index.html'));
+      copyDir(path.join(dir, 'dist-demo'), path.join(outDir, name, 'demo'));
+      demoPage = { label: meta.demoLabel ?? 'Standalone demo', path: `/${name}/demo` };
     }
-    fs.renameSync(demoHtml, path.join(dir, 'dist-demo', 'index.html'));
-    copyDir(path.join(dir, 'dist-demo'), path.join(outDir, name, 'demo'));
-    demoPage = { label: meta.demoLabel ?? 'Standalone demo', path: `/${name}/demo` };
   }
   candidates.push({
     name,

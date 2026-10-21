@@ -367,6 +367,9 @@ test('collapseClades: a clade becomes one tip that stands for it; nested and rep
   assert.equal(nwk(r.tree), "('Fam (3 tips)':1,(D:1,'E and 1 more':1):1);");
   assert.equal(collapseClades(t, [t.tipIndex('A')]).changed, false); // a tip is already one leaf
   assert.equal(collapseClades(t, []).changed, false);
+  assert.equal(collapseClades(t, [0]).changed, false); // the root is not collapsed (a one-node tree)
+  const u = parseNewick('(((,),),);'); // unlabelled tips
+  assert.equal(nwk(collapseClades(u, [u.mrcaOf([2, 3])]).tree), "(('2 tips',),);");
   assert.equal(nwk(collapseClades(t, [ab], (v, n) => `clade${v}x${n}`).tree), '((clade2x2:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
 });
 
@@ -395,4 +398,6 @@ test('focus: show a clade alone, up one level, back', () => {
   // remap after an operation: a view that is gone is dropped, so back skips it
   const g = { stack: [id('ab'), id('abc')] };
   assert.deepEqual(ops.remapFocus(g, (v) => (v === id('ab') ? -1 : v + 100)).stack, [id('abc') + 100]);
+  // a stack that comes down to 'whole tree' alone is empty: nothing to go back to
+  assert.deepEqual(ops.remapFocus({ stack: [id('ab'), -1] }, () => -1).stack, []);
 });

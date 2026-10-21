@@ -116,17 +116,23 @@ function App() {
       return true;
     };
     step(ops.showFocus(tree, focus));
-    let supportCollapsed = 0;
-    if (collapseOn && hasSupport) {
-      const before = acc.shown.nodeCount;
-      if (step(ops.collapseBySupport(acc.shown, minSupport))) supportCollapsed = before - acc.shown.nodeCount;
-    }
+    // collapsed clades before collapse by support: a collapsed clade is then a tip, which the support collapse never removes (the
+    // other way round, a collapsed node with low support was contracted first and its triangle lost)
     const toShown = (v: number) => (acc.toView ? acc.toView[v] : v);
     const inShown = collapsed.map(toShown).filter((v) => v > 0); // the shown root is not collapsed
     let collapsedTips: number[] = [];
     if (inShown.length) {
       const r = ops.collapseClades(acc.shown, inShown);
       if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
+    }
+    let supportCollapsed = 0;
+    if (collapseOn && hasSupport) {
+      const before = acc.shown.nodeCount;
+      const r = ops.collapseBySupport(acc.shown, minSupport);
+      if (step(r)) {
+        supportCollapsed = before - acc.shown.nodeCount;
+        collapsedTips = collapsedTips.map((v) => r.map[v]); // tips are kept
+      }
     }
     const { shown, toView } = acc;
     if (!toView) return null;
@@ -150,15 +156,20 @@ function App() {
     return { keep, n };
   }, [tree, clades]);
   // the largest clades (of two or more tips) without a coloured tip, for 'Collapse uncoloured'; none while nothing is coloured
+  // only inside the clade shown, and not those already collapsed or inside a collapsed clade (so the count is what a click adds)
   const uncolouredClades = useMemo(() => {
     if (!tree || colouredTips.n === 0) return [];
     const hit = new Int32Array(tree.nodeCount);
     for (let r = 0; r < tree.tipCount; r++) if (colouredTips.keep[r]) hit[tree.tipNode[r]] = 1;
     for (let i = tree.nodeCount - 1; i > 0; i--) hit[tree.parent[i]] += hit[i];
+    const covered = new Uint8Array(tree.nodeCount); // collapsed, or inside a collapsed clade
+    for (const c of collapsed) covered.fill(1, c, tree.subtreeEnd[c]);
+    const f = ops.focusedNode(focus);
+    const [lo, hi] = f < 0 ? [1, tree.nodeCount] : [f + 1, tree.subtreeEnd[f]];
     const out: number[] = [];
-    for (let i = 1; i < tree.nodeCount; i++) if (hit[i] === 0 && hit[tree.parent[i]] > 0 && tree.childCount[i] > 0) out.push(i);
+    for (let i = lo; i < hi; i++) if (hit[i] === 0 && hit[tree.parent[i]] > 0 && tree.childCount[i] > 0 && !covered[i]) out.push(i);
     return out;
-  }, [tree, colouredTips]);
+  }, [tree, colouredTips, collapsed, focus]);
 
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
@@ -300,7 +311,7 @@ function App() {
         id: 'collapse',
         label: 'Collapse',
         hint: `show its ${tips.toLocaleString('en')} tips as one triangle`,
-        disabled: v === 0,
+        disabled: e.node === 0, // the root of what is shown (the whole tree, or the clade shown alone) is not collapsed
         onSelect: () => setCollapsed((cs) => [...cs, v]),
       });
     if (isTip)

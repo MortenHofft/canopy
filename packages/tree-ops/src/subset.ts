@@ -72,7 +72,7 @@ export function collapseClades(t: TreeInput, nodes: Iterable<number>, label?: (n
   let any = false;
   for (const v of nodes) {
     checkNode(t, v);
-    if (t.childCount[v] === 0) continue; // a tip is already a single leaf
+    if (v === 0 || t.childCount[v] === 0) continue; // a tip is already a single leaf; the root would leave a one-node tree
     const tips = t.leafEnd[v] - t.leafStart[v];
     d.firstChild[v] = -1; // the builder treats it as a tip; its subtree is no longer reached
     d.support[v] = NaN;
@@ -85,5 +85,6 @@ export function collapseClades(t: TreeInput, nodes: Iterable<number>, label?: (n
 function defaultCollapsedLabel(t: TreeInput, v: number, tips: number): string {
   const name = splitInternalLabel(t.labels[v]).name;
   if (name) return `${name} (${tips} tips)`;
-  return `${t.labels[t.tipNode[t.leafStart[v]]]} and ${tips - 1} more`;
+  const first = t.labels[t.tipNode[t.leafStart[v]]];
+  return first ? `${first} and ${tips - 1} more` : `${tips} tips`;
 }
