@@ -492,7 +492,9 @@ export class TreeViewer {
     if (!box) {
       const [v, h] = pos.split('-');
       // flex column, pointer events only on the controls themselves; the stylesheet adds the gaps
-      box = mk('div', `position:absolute;${v}:0;${h}:0;display:flex;flex-direction:column;align-items:${h === 'left' ? 'flex-start' : 'flex-end'}`);
+      // the right corners keep clear of a strip along the right edge (the overview sets --phylo-inset-right while it shows one)
+      const side = h === 'right' ? 'right:var(--phylo-inset-right,0px)' : 'left:0';
+      box = mk('div', `position:absolute;${v}:0;${side};display:flex;flex-direction:column;align-items:${h === 'left' ? 'flex-start' : 'flex-end'}`);
       box.className = `phylo-controls phylo-controls--${pos}`;
       // keep the boxes in a fixed DOM order (reading order: top left, top right, bottom left, bottom right)
       const after = CORNERS.slice(CORNERS.indexOf(pos as (typeof CORNERS)[number]) + 1)
@@ -753,6 +755,19 @@ export class TreeViewer {
     if (p.x < this.T.clipL + m || p.y < this.T.clipT + m || p.x > this.T.clipR - m || p.y > this.T.clipB - m) return null;
     const r = this.root.getBoundingClientRect();
     return { x: r.left + p.x, y: r.top + p.y };
+  }
+
+  /** Where node `id` is under the current view, in px relative to the viewer element, without drawing a frame (so it is cheap enough
+   *  for a `frame` or `viewchange` listener); null when the node is not loaded, there is no frame yet, or it lies outside the plot area.
+   *  Unlike `locateNode`, an internal node hidden inside a collapsed summary still gets its position. */
+  nodePosition(id: number): { x: number; y: number } | null {
+    const i = this.rowOf(id);
+    if (i < 0 || !this.T || !this.proj) return null;
+    const p = { x: 0, y: 0 };
+    this.proj.nodeXY(i, p);
+    const T = this.T;
+    if (p.x < T.clipL - 0.5 || p.y < T.clipT - 0.5 || p.x > T.clipR + 0.5 || p.y > T.clipB + 0.5) return null;
+    return p;
   }
 
   /** Drawn extent of the clade below node i (client px), clipped to the plot area; null when not visible. */

@@ -9,6 +9,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@gbif-phylo/viewer/viewer.css';
 import './gbif-tokens.css';
 import { gbifTheme } from './gbif-theme.ts';
 import { loadTree } from './trees.ts';

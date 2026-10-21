@@ -5,6 +5,7 @@
 
 import React, { useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@gbif-phylo/viewer/viewer.css';
 import { flushSync } from 'react-dom';
 import { parseNewick, type TreeModel } from '@gbif-phylo/io';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';

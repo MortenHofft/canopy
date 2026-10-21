@@ -13,11 +13,13 @@
       "@gbif-phylo/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./viewer.css": "./css/viewer.css"
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

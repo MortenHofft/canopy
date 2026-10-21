@@ -1,0 +1,311 @@
+/*
+ * @gbif-phylo/viewer: styles of the viewer's DOM (controls, tooltip, node menu, legend, search, overview, notice, focus).
+ * The tree itself is drawn on a canvas; its colours come from the same custom properties (read by the viewer, see themeFromCss).
+ *
+ * Theme it by setting the --phylo-* custom properties on any ancestor (:root, a page section, the viewer's target). Every rule
+ * reads them with a fallback, so nothing here needs to be overridden and a property set higher up always wins.
+ *
+ *   colours     --phylo-background  --phylo-foreground  --phylo-muted  --phylo-highlight  --phylo-surface  --phylo-surface-hover
+ *               --phylo-border
+ *   type        --phylo-font-family  --phylo-font-size
+ *   shape       --phylo-radius  --phylo-control-radius  --phylo-control-size  --phylo-shadow  --phylo-popup-shadow  --phylo-gap
+ *   motion      --phylo-transition
+ *
+ * Class names: .phylo-viewer (the root), .phylo-controls--<corner>, .phylo-control and .phylo-<name> per control, .phylo-button,
+ * .phylo-bar (a group of buttons), .phylo-tooltip, .phylo-node-menu, .phylo-legend, .phylo-search, .phylo-overview, .phylo-notice.
+ */
+
+.phylo-viewer {
+  font-family: var(--phylo-font-family, system-ui, sans-serif);
+  font-size: var(--phylo-font-size, 13px);
+  color: var(--phylo-foreground, #162d3d);
+  background: var(--phylo-background, #ffffff);
+}
+
+.phylo-viewer:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--phylo-highlight, #4c9b45);
+}
+
+/* ---- corners: controls stack with a gap, inset from the edges */
+
+.phylo-controls {
+  gap: var(--phylo-gap, 8px);
+  padding: var(--phylo-gap, 8px);
+  max-width: calc(100% - 2 * var(--phylo-gap, 8px));
+  box-sizing: border-box;
+}
+
+.phylo-control {
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--phylo-foreground, #162d3d);
+}
+
+/* ---- buttons: square icon buttons; .phylo-bar joins them into one box */
+
+.phylo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: var(--phylo-control-size, 30px);
+  height: var(--phylo-control-size, 30px);
+  padding: 0 6px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--phylo-control-radius, 4px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color var(--phylo-transition, 120ms) ease;
+}
+
+.phylo-button:hover {
+  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+}
+
+.phylo-button:focus-visible {
+  outline: 2px solid var(--phylo-highlight, #4c9b45);
+  outline-offset: -2px;
+}
+
+.phylo-button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--phylo-highlight, #4c9b45) 16%, transparent);
+  color: var(--phylo-highlight, #4c9b45);
+}
+
+.phylo-bar {
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border-radius: var(--phylo-radius, 6px);
+  box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
+}
+
+/* ---- popups: tooltip and node menu */
+
+.phylo-tooltip,
+.phylo-node-menu {
+  z-index: 5;
+  box-sizing: border-box;
+  max-width: 260px;
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  color: var(--phylo-foreground, #162d3d);
+  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border-radius: var(--phylo-radius, 6px);
+  box-shadow: var(--phylo-popup-shadow, 0 4px 16px rgba(0, 0, 0, 0.18));
+}
+
+.phylo-tooltip {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.phylo-tooltip__title {
+  font-weight: 600;
+}
+
+.phylo-tooltip__title--tip,
+.phylo-node-menu__title--tip {
+  font-style: italic;
+}
+
+.phylo-node-menu {
+  z-index: 7;
+  width: 240px;
+  padding: 4px;
+}
+
+.phylo-node-menu__title {
+  padding: 4px 8px 6px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phylo-node-menu__item {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--phylo-control-radius, 4px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.phylo-node-menu__item:hover:not(:disabled),
+.phylo-node-menu__item:focus-visible {
+  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+  outline: none;
+}
+
+.phylo-node-menu__item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.phylo-node-menu__hint {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ---- search */
+
+.phylo-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 220px;
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border-radius: var(--phylo-radius, 6px);
+  box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
+}
+
+.phylo-search:focus-within {
+  border-color: var(--phylo-highlight, #4c9b45);
+}
+
+.phylo-search__icon {
+  display: inline-flex;
+  padding: 0 4px 0 8px;
+  color: var(--phylo-muted, #6b7c8a);
+}
+
+.phylo-search__input {
+  flex: 1;
+  min-width: 0;
+  height: var(--phylo-control-size, 30px);
+  padding: 0 8px 0 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.phylo-search__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  list-style: none;
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border-radius: var(--phylo-radius, 6px);
+  box-shadow: var(--phylo-popup-shadow, 0 4px 16px rgba(0, 0, 0, 0.18));
+}
+
+.phylo-search__option {
+  padding: 5px 8px;
+  border-radius: var(--phylo-control-radius, 4px);
+  font-style: italic;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phylo-search__option:hover,
+.phylo-search__option[aria-selected='true'] {
+  background: var(--phylo-surface-hover, rgba(22, 45, 61, 0.07));
+}
+
+/* ---- legend */
+
+.phylo-legend {
+  max-width: 240px;
+  max-height: 40%;
+  overflow: auto;
+  padding: 6px 8px;
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  border: 1px solid var(--phylo-border, rgba(22, 45, 61, 0.16));
+  border-radius: var(--phylo-radius, 6px);
+  box-shadow: var(--phylo-shadow, 0 1px 3px rgba(0, 0, 0, 0.12));
+}
+
+.phylo-legend[hidden] {
+  display: none;
+}
+
+.phylo-legend__title {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--phylo-muted, #6b7c8a);
+}
+
+.phylo-legend__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phylo-legend__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.phylo-legend__swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.phylo-legend__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.phylo-legend__label {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.phylo-legend__label:hover {
+  text-decoration: underline;
+}
+
+/* ---- overview */
+
+.phylo-overview {
+  border-radius: var(--phylo-control-radius, 4px);
+}
+
+/* ---- the corner notice of the radial layout */
+
+.phylo-notice {
+  font-family: var(--phylo-font-family, system-ui, sans-serif);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phylo-button {
+    transition: none;
+  }
+}

@@ -69,6 +69,11 @@ export class FakeElement {
     return k in this.attrs;
   }
   appendChild(c) {
+    if (typeof c === 'string') {
+      const t = new FakeElement('#text');
+      t._text = c;
+      c = t;
+    }
     c.remove();
     c.parentNode = this;
     this.children.push(c);
@@ -136,6 +141,8 @@ export class FakeElement {
     globalThis.document.activeElement = this;
   }
   matches(sel) {
+    const not = /^(\w+):not\(\[(\w+)\]\)$/.exec(sel);
+    if (not) return this.tagName === not[1].toUpperCase() && !this[not[2]] && !(not[2] in this.attrs);
     if (sel.startsWith('.')) return this.classList.contains(sel.slice(1));
     const a = /^\[([\w-]+)\]$/.exec(sel);
     if (a) {

@@ -3,6 +3,7 @@
 // the viewer's own cut machinery, so it uses the viewer's internals (`viewerInternals`), not only the public API.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
+import { OVERVIEW_STRIP_W_PX } from '../constants.ts';
 import { Overview } from '../overview.ts';
 import { viewerInternals, type TreeViewer } from '../viewer.ts';
 
@@ -21,8 +22,12 @@ export class OverviewControl extends BaseControl {
     this.ov = ov;
     this.version = -1;
     i.reserveOverview(true);
+    let inset = '';
     this.listen(
       v.on('frame', () => {
+        // the strip of the rectangular layout takes the right edge: move the right-hand controls left of it
+        const want = v.options.layout === 'rectangular' ? `${OVERVIEW_STRIP_W_PX + 8}px` : '0px';
+        if (want !== inset) v.element.style.setProperty('--phylo-inset-right', (inset = want));
         ov.updateBox();
         const k = i.sceneVersion();
         if (k !== this.version) {
@@ -36,6 +41,7 @@ export class OverviewControl extends BaseControl {
   }
 
   protected detach(): void {
+    this.viewer?.element.style.removeProperty('--phylo-inset-right');
     this.ov?.release();
     this.ov = null;
   }

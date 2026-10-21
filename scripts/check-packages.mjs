@@ -1,6 +1,6 @@
 // Package checks, run after `npm run build`:
 //  1. publint on every published package (errors and warnings fail; suggestions are printed);
-//  2. `npm pack --dry-run`: the tarball holds dist/ (JS, declarations, maps), src/, README and LICENSE, and nothing else of note;
+//  2. `npm pack --dry-run`: the tarball holds dist/ (JS, declarations, maps), src/, css/ (viewer), README and LICENSE, nothing else;
 //  3. tree shaking: small apps importing one thing are bundled with esbuild from dist/ (the way a consumer's bundler sees the packages)
 //     and the modules that must NOT end up in them are asserted absent; minified and gzipped sizes are printed.
 //   node scripts/check-packages.mjs [--json out.json]
@@ -38,10 +38,10 @@ for (const name of PACKAGES) {
   ok(fs.readFileSync(path.join(dir, 'LICENSE'), 'utf8') === licence, 'LICENSE is the repository licence');
   const [packed] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: dir, encoding: 'utf8' }));
   const files = packed.files.map((f) => f.path);
-  const unexpected = files.filter((f) => !/^(dist\/|src\/|README\.md$|LICENSE$|package\.json$)/.test(f));
+  const unexpected = files.filter((f) => !/^(dist\/|src\/|css\/|README\.md$|LICENSE$|package\.json$)/.test(f));
   ok(
     unexpected.length === 0,
-    `tarball holds only dist/, src/, README, LICENSE, package.json${unexpected.length ? ': also ' + unexpected.join(', ') : ''}`,
+    `tarball holds only dist/, src/, css/, README, LICENSE, package.json${unexpected.length ? ': also ' + unexpected.join(', ') : ''}`,
   );
   ok(files.includes('dist/index.d.ts') && files.some((f) => f.endsWith('.js.map')), 'tarball has declarations and source maps');
   console.log(`  ${files.length} files, ${(packed.size / 1024).toFixed(1)} kB packed, ${(packed.unpackedSize / 1024).toFixed(1)} kB unpacked`);
@@ -58,7 +58,13 @@ const SCENARIOS = [
   {
     name: 'viewer: TreeViewer',
     code: `import { TreeViewer } from '@gbif-phylo/viewer'; console.log(TreeViewer);`,
-    forbid: ['node_modules/react', 'packages/io/', 'packages/viewer/dist/controls/', 'packages/viewer/dist/overview.js'],
+    forbid: [
+      'node_modules/react',
+      'packages/io/',
+      'packages/viewer/dist/controls/',
+      'packages/viewer/dist/overlays/',
+      'packages/viewer/dist/overview.js',
+    ],
   },
   {
     name: 'viewer: TreeViewer + Zoom',
