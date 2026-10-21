@@ -31,10 +31,10 @@ Pure functions on typed arrays with preorder ids. Each returns a **new** tree pl
 | `ladderise(t, {order})` | Sort children by tip count, `increasing` (default, smaller clades on top, as FigTree) or `decreasing` | Display only |
 | `rotate(t, node)` | Reverse the children of one node | Display only |
 | `collapseBySupport(t, x)`, `collapseShortBranches(t, x)` | Contract internal edges with support < x (or length < x) into polytomies | The contracted edge's length is dropped, as ape `di2multi` and ETE `delete` do (**unverified** for ETE's default; from memory). Nodes without support are kept. Support scales differ between files (0.95 versus 95); the threshold is taken as given |
-| `prune(t, keepTipRank)` | Keep a subset of tips | Nodes the pruning leaves with one child are removed with lengths summed; one-child nodes already in the input (named monotypic taxa in Open Tree trees: 6,194 in otl-100k-vertebrata, per the review) are kept. Edges above the new root are dropped |
+| `prune(t, keepTipRank)` | Keep a subset of tips | Nodes the pruning leaves with one child are removed with lengths summed; the new root is the MRCA of the kept tips and everything above it is dropped, one-child nodes included; below it, one-child nodes already in the input (named monotypic taxa in Open Tree trees: 6,194 in otl-100k-vertebrata, per the review) are kept |
 | `subtree(t, node)` | A clade as its own tree | |
 
-Tests (19, all passing, `npm test` in `packages/tree-ops`): exact Newick for small cases, and invariants on real trees. A randomised sweep builds trees with one-child nodes (also above the root) and reroots on every node at 0, 0.5 and 1, checking tips, splits and distances and that no one-child node is created. Pruning an Open Tree tree keeps every input one-child node that still has tips below it. After any reroot, all tip-to-tip distances and the set of unrooted splits are unchanged. After midpoint rooting, the two farthest tips are on different sides of the root and the deepest tip on each side is at most half the diameter. Pruning keeps the distances between kept tips. A sweep reroots the edge-case trees (polytomies, missing lengths, trifurcating root, quoted labels) on every node. A 100k-deep caterpillar (pattern from patristic's deep test) goes through reroot, midpoint, ladderise and prune.
+Tests (21, all passing, `npm test` in `packages/tree-ops`, also run in CI by the `check` job of `custom-renderer.yml`, with a typecheck of the package on its own): exact Newick for small cases, and invariants on real trees. A randomised sweep builds trees with one-child nodes (also above the root) and numeric supports, and reroots on every node at 0, 0.5 and 1, checking tips, splits, distances, that every split keeps its support value and that no one-child node is created. Pruning an Open Tree tree keeps every input one-child node that still has tips below it. After any reroot, all tip-to-tip distances and the set of unrooted splits are unchanged. After midpoint rooting, the two farthest tips are on different sides of the root and the deepest tip on each side is at most half the diameter. Pruning keeps the distances between kept tips. A sweep reroots the edge-case trees (polytomies, missing lengths, trifurcating root, quoted labels) on every node. A 100k-deep caterpillar (pattern from patristic's deep test) goes through reroot, midpoint, ladderise and prune.
 
 ## Cost (measured, M)
 
@@ -99,3 +99,13 @@ A code review of the branch found these, all fixed with regression tests (packag
 6. A midpoint exactly on a node rooted next to it on a zero-length edge; now at the node.
 7. `changed` was true for prune-all and `subtree(root)`.
 8. Docs: a wrong claim that Node and Chromium share a V8 version, an unreproducible browser test (now a committed script), and the O(n) claim (true again after 3).
+
+A second review on the pull request (#15) found, also fixed:
+
+1. Prune could leave a one-child root and an edge above the MRCA of the kept tips; everything above the MRCA is now dropped, as reroot does.
+2. Ladderise reported `changed` on an already ladderised tree.
+3. CI did not run the package's tests or typecheck it; the `check` job now does, and the package and the trees its tests read are in the workflow's paths.
+4. Demo: undo and reset dropped every clade colour; each history entry now keeps its colours.
+5. The node menu's position used an estimated height; it is now measured.
+6. The package asked for Node 22.18; 22.7 (as the custom spike) is enough.
+7. Collapse at a binary root judges each of its two edges separately; documented in the package README.

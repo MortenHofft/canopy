@@ -32,6 +32,22 @@ function checkModel(t, maxUnary = 0) {
   assert.ok(unary <= maxUnary, `${unary} one-child nodes, at most ${maxUnary} expected`);
   assert.equal(tips, t.tipCount);
 }
+/** Support value per unrooted split (as in splits()); the two edges below a binary root are one unrooted edge, and when they carry
+ *  different supports the split is AMBIGUOUS (no single right answer after rerooting). One-child nodes repeat their child's split. */
+const AMBIGUOUS = Symbol('ambiguous');
+function splitSupports(t) {
+  const first = t.tipLabels.slice().sort()[0];
+  const out = new Map();
+  for (let i = 1; i < t.nodeCount; i++) {
+    if (t.childCount[i] === 0 || Number.isNaN(t.support[i])) continue;
+    const inside = t.descendantTips(i);
+    const side = inside.includes(first) ? t.tipLabels.filter((l) => !inside.includes(l)) : inside;
+    if (side.length < 2 || side.length > t.tipCount - 2) continue;
+    const key = side.sort().join(',');
+    out.set(key, out.has(key) && out.get(key) !== t.support[i] ? AMBIGUOUS : t.support[i]);
+  }
+  return out;
+}
 const unaryCount = (t) => { let u = 0; for (let i = 0; i < t.nodeCount; i++) if (t.childCount[i] === 1) u++; return u; };
 
 /** Tip-to-tip distance, missing lengths as 0. */
@@ -247,7 +263,8 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
     while (parts.length > 1) {
       const a = parts.splice(Math.floor(rnd() * parts.length), 1)[0];
       const b = parts.splice(Math.floor(rnd() * parts.length), 1)[0];
-      let c = `(${a},${b})N${k++}:${(1 + Math.floor(rnd() * 9)) / 4}`;
+      const sup = rnd() < 0.7 ? `${Math.floor(rnd() * 101)}:` : '';
+      let c = `(${a},${b})'${sup}N${k++}':${(1 + Math.floor(rnd() * 9)) / 4}`;
       if (rnd() < 0.3) c = `(${c})U${k++}:${(1 + Math.floor(rnd() * 9)) / 4}`;
       parts.push(c);
     }
@@ -255,6 +272,7 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
     if (rnd() < 0.5) text = `(${text}:1)Top`;
     const t = parseNewick(text + ';');
     const before = splits(t);
+    const supBefore = splitSupports(t);
     const labels = t.tipLabels.slice().sort();
     for (let v = 1; v < t.nodeCount; v++) {
       for (const f of [0, 0.5, 1]) {
@@ -263,6 +281,8 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
         checkModel(tree, unaryCount(t));
         assert.deepEqual(tree.tipLabels.slice().sort(), labels, `${text} reroot ${v} at ${f}`);
         assert.deepEqual(splits(tree), before, `${text} reroot ${v} at ${f}`);
+        // every split keeps its support (supports move with their edges)
+        for (const [sp, val] of splitSupports(tree)) if (supBefore.get(sp) !== AMBIGUOUS) assert.equal(val, supBefore.get(sp), `${text} reroot ${v} at ${f}: split ${sp}`);
         const a = t.tipNode[0], b = t.tipNode[t.tipCount - 1];
         assert.ok(Math.abs(dist(t, a, b) - dist(tree, map[a], map[b])) < 1e-9);
       }
@@ -307,4 +327,16 @@ test('rotate on a wide polytomy is linear (200k children)', () => {
   const ms = performance.now() - t0;
   assert.equal(r.tree.tipLabels[0], 't199999');
   assert.ok(ms < 1500, `rotate took ${ms.toFixed(0)} ms`); // was about 4 s with Array.unshift
+});
+
+test('prune drops everything above the MRCA of the kept tips, one-child nodes included', () => {
+  const t = parseNewick('((((a:1,b:1)AB:1)Mono:1,c:1)R0:1,d:1)root;');
+  assert.equal(nwk(prune(t, (r) => ['a', 'b'].includes(t.tipLabels[r])).tree), '(a:1,b:1)AB;');
+  assert.equal(nwk(prune(t, (r) => t.tipLabels[r] !== 'd').tree), '(((a:1,b:1)AB:1)Mono:1,c:1)R0;'); // Mono is below the MRCA: kept
+});
+
+test('ladderise on an already ladderised tree changes nothing', () => {
+  const t = parseNewick('(A:1,(B:1,C:1)X:1);');
+  assert.equal(ladderise(t).changed, false);
+  assert.equal(ladderise(t, { order: 'decreasing' }).changed, true);
 });

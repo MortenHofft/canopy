@@ -341,6 +341,13 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     setMenu(null);
     if (refocusCanvas) rendRef.current?.root.focus();
   };
+  // keep the menu inside the container: measured before paint, so items with a hint (taller) are clamped exactly
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    const wrap = wrapRef.current;
+    if (!menu || !el || !wrap) return;
+    el.style.top = `${Math.max(4, Math.min(menu.y + 6, wrap.clientHeight - el.offsetHeight - 4))}px`;
+  }, [menu]);
   useEffect(() => {
     if (!menu) return;
     menuRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
@@ -431,7 +438,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
           style={{
             position: 'absolute',
             left: Math.max(4, Math.min(menu.x + 6, (wrapRef.current?.clientWidth ?? 0) - 244)),
-            top: Math.max(4, Math.min(menu.y + 6, (wrapRef.current?.clientHeight ?? 0) - 40 - 44 * menu.items.length)),
+            top: menu.y + 6, // clamped to the container once its height is known (layout effect above)
             zIndex: 7,
             width: 240,
             boxSizing: 'border-box',

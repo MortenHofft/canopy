@@ -4,7 +4,8 @@
 // On the 6-tip edge-case tree: the menu opens on a tip and on a clade with the expected actions and takes focus; arrows move,
 // Escape closes it and returns focus to the canvas; Tab out, an outside click and zooming close it; reroot, rotate, remove
 // and ladderise change the tip order as expected and focus is on the new canvas afterwards; a clade colour that is no longer
-// a clade after a reroot is removed and reported; reset restores the tree as published.
+// a clade after a reroot is removed and reported, and undo restores it; a menu near the bottom edge stays inside the pane; reset
+// restores the tree as published.
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -135,6 +136,19 @@ ok(/1 coloured clades/.test(await status()), `reroot on C keeps the (A,B) colour
 await openOn(await dot('A'));
 await act('reroot');
 ok(/0 coloured clades/.test(await status()) && /colour removed: no longer a clade/.test(await status()), `reroot on A drops it: ${await status()}`);
+await page.getByRole('button', { name: 'Undo' }).click();
+await page.waitForTimeout(400);
+ok(/1 coloured clades/.test(await status()), `undo restores the colour: ${await status()}`);
+
+// a menu opened near the bottom edge stays inside the pane (clamped to its measured height)
+await openOn(await cladeOf('E', 'F'));
+const mb = await page.locator('[role=menu]').boundingBox();
+const pb2 = await pane.boundingBox();
+ok(
+  mb.y + mb.height <= pb2.y + pb2.height && mb.y >= pb2.y,
+  `menu inside the pane (menu ${Math.round(mb.y)}..${Math.round(mb.y + mb.height)}, pane ${Math.round(pb2.y)}..${Math.round(pb2.y + pb2.height)})`,
+);
+await page.keyboard.press('Escape');
 
 await page.getByRole('button', { name: 'Reset' }).click();
 await page.waitForTimeout(400);

@@ -19,8 +19,8 @@ viewer (draws, reports clicks)          page (integration)                     t
 | `midpointRoot(t)` | Midpoint root | Root halfway along the longest tip-to-tip path (two O(n) passes). Needs lengths. A midpoint on a node roots at that node. An ultrametric tree comes back unchanged |
 | `rotate(t, node)` | Rotate | Reverse the order of a node's children ("swap", "flip"). Display only |
 | `ladderise(t, {order})` | Ladderise / sort clades | Children by tip count, `increasing` (smaller first, FigTree's term) or `decreasing`. Display only |
-| `collapseBySupport(t, x)`, `collapseShortBranches(t, x)` | Collapse weak branches | Contract internal edges with support (or length) below `x` into polytomies. The contracted length is dropped |
-| `prune(t, keepTipRank)` | Remove tip / clade, keep selection | Keep a subset of tips; nodes the pruning leaves with one child are removed and their lengths summed. One-child nodes already in the input (Open Tree monotypic taxa) are kept |
+| `collapseBySupport(t, x)`, `collapseShortBranches(t, x)` | Collapse weak branches | Contract internal edges with support (or length) below `x` into polytomies. The contracted length is dropped. The two edges below a binary root are one unrooted edge, but each is judged by its own value, so one can collapse while the other stays (`((A,B)90,(C,D)60)` at 70 gives `((A,B)90,C,D)`): right for the rooted view shown, not for the unrooted tree. Support scales differ between files (0.95 versus 95); the threshold is taken as given |
+| `prune(t, keepTipRank)` | Remove tip / clade, keep selection | Keep a subset of tips; nodes the pruning leaves with one child are removed and their lengths summed. The new root is the MRCA of the kept tips (everything above it goes, one-child nodes included); below it, one-child nodes already in the input (Open Tree monotypic taxa) are kept |
 | `subtree(t, node)` | Show only this clade | The clade as its own tree |
 
 The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate, Increasing/Decreasing node order; iTOL uses Re-root here, Rotate and Collapse (from memory, **unverified**). "Flip" and "swap" both mean rotate.
@@ -41,7 +41,7 @@ The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate
 ## Run
 
 ```
-npm test                                  # 19 tests; needs Node >= 22.18 (runs the .ts sources directly)
+npm test                                  # 21 tests; needs Node >= 22.7 (--experimental-transform-types runs the .ts sources directly)
 npm run bench -- file.nwk[.gz] ...        # median times per operation; big synthetic trees: `make large` in data/synthetic
 ../../spikes/custom/node_modules/.bin/tsc -p tsconfig.json   # typecheck (no TypeScript dependency of its own)
 ```

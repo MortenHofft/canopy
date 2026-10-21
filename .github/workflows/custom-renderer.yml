@@ -2,7 +2,9 @@ name: custom-renderer
 
 # Typecheck, lint, format check, unit tests and build of the custom tree renderer (spikes/custom), and, as a separate job, its browser check
 # (production build served by vite preview, driven by Playwright). The harness files in spikes/shared are compiled into it, the Parquet reader is
-# typechecked through it and the regression test reads data/synthetic and the OTL 91k tree, so those trigger the jobs as well.
+# typechecked through it and the regression test reads data/synthetic and the OTL 91k tree, so those trigger the jobs as well. The demo page
+# imports packages/tree-ops (tree operations), so the check job also runs that package's tests and typechecks it on its own (ES2022 lib,
+# no DOM), with the trees its tests read in the paths.
 on:
   push:
     paths:
@@ -13,6 +15,11 @@ on:
       - 'data/real-ladder/trees/otl-100k-vertebrata.nwk.gz'
       - 'spikes/runner/package.json'
       - 'spikes/package-lock.json'
+      - 'packages/tree-ops/**'
+      - 'data/real-ladder/trees/gtdb-0200-iainarchaeia.nwk.gz'
+      - 'data/real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz'
+      - 'data/real-ladder/trees/otl-0200-canidae.nwk.gz'
+      - 'data/rich/edge-cases/**'
       - '.github/workflows/custom-renderer.yml'
   pull_request:
     paths:
@@ -23,6 +30,11 @@ on:
       - 'data/real-ladder/trees/otl-100k-vertebrata.nwk.gz'
       - 'spikes/runner/package.json'
       - 'spikes/package-lock.json'
+      - 'packages/tree-ops/**'
+      - 'data/real-ladder/trees/gtdb-0200-iainarchaeia.nwk.gz'
+      - 'data/real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz'
+      - 'data/real-ladder/trees/otl-0200-canidae.nwk.gz'
+      - 'data/rich/edge-cases/**'
       - '.github/workflows/custom-renderer.yml'
 
 permissions:
@@ -44,6 +56,11 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - name: tree-ops tests
+        run: npm test
+        working-directory: packages/tree-ops
+      - name: tree-ops typecheck (TypeScript from spikes/custom)
+        run: npx tsc -p ../../packages/tree-ops/tsconfig.json
 
   # Slower and needing a browser, so a separate job: lint and unit failures are reported without waiting for it.
   test-browser:

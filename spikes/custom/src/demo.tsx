@@ -20,8 +20,10 @@ import type { Viewport } from './core/types.ts';
 
 function App() {
   const params = new URLSearchParams(location.search);
-  const [history, setHistory] = useState<TreeModel[]>([]); // [as published, ...each action's result]
-  const tree = history[history.length - 1] ?? null;
+  // [as published, ...each action's result]; `clades` is the colouring the entry had when the next action was applied, so undo
+  // restores it exactly
+  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[] }[]>([]);
+  const tree = history[history.length - 1]?.tree ?? null;
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [hl, setHl] = useState<string[]>([]);
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
@@ -29,7 +31,7 @@ function App() {
   const [minSupport, setMinSupport] = useState(70);
   // Runs once: `params` is rebuilt on every render but only read here for the initial tree name.
   useEffect(() => {
-    void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([parseNewick(t.newick)]));
+    void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([{ tree: parseNewick(t.newick), clades: [] }]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const g = useMemo(() => gbifTheme(), []);
@@ -96,14 +98,14 @@ function App() {
     });
     setClades(kept);
     setVp(undefined); // the new tree is fitted when its renderer mounts
-    setHistory((h) => [...h, next]);
+    setHistory((h) => [...h.slice(0, -1), { tree, clades }, { tree: next, clades: kept }]);
     setLast(
       `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${dropped ? ` · ${dropped} colour${dropped > 1 ? 's' : ''} removed: no longer a clade` : ''}`,
     );
   };
   const back = (to: number) => {
     setHistory((h) => h.slice(0, to));
-    setClades([]);
+    setClades(history[to - 1].clades);
     setVp(undefined);
     setLast(to === 1 ? 'reset to the tree as published' : 'undone');
   };

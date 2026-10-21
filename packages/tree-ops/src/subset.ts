@@ -5,8 +5,9 @@ import type { OpResult, TreeInput } from './types.ts';
 
 /**
  * Keep only the tips for which `keep(rank)` is true and the nodes that join them. Nodes the pruning leaves with one child are
- * removed and their edges merged, and edges above the new root are dropped. Nodes that already had one child (named monotypic
- * taxa in Open Tree of Life trees) are kept while anything below them is. Throws if no tip is kept.
+ * removed and their edges merged. The new root is the MRCA of the kept tips: everything above it is dropped, one-child nodes
+ * included (as reroot treats a one-child chain at the top as the root's own edge). Below it, nodes that already had one child
+ * (named monotypic taxa in Open Tree of Life trees) are kept. Throws if no tip is kept.
  */
 export function prune(t: TreeInput, keep: (tipRank: number) => boolean): OpResult {
   const n = t.nodeCount;
@@ -25,7 +26,7 @@ export function prune(t: TreeInput, keep: (tipRank: number) => boolean): OpResul
     if (!has) continue;
     const up = i === 0 ? -1 : anc[t.parent[i]];
     const l = i === 0 ? NaN : addLen(acc[t.parent[i]], t.length[i]);
-    const kept = t.childCount[i] === 0 || kids[i] >= 2 || t.childCount[i] === 1;
+    const kept = t.childCount[i] === 0 || kids[i] >= 2 || (t.childCount[i] === 1 && up >= 0);
     if (kept) {
       keptNodes++;
       d.parent[i] = up;
