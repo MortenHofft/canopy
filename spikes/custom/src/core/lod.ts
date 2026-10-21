@@ -594,9 +594,10 @@ export interface SearchOpts {
 }
 
 /** Run the cut, raising the collapse threshold until the draw list fits the budget, and no further than needed. Without
- *  budget pressure that is one pass. Under pressure: start at the previous full frame's threshold (relaxed by 1.3x), step
- *  by 1.3x down or up until a fit and an overflow bracket the answer, bisect the bracket (3 steps, geometric), and make
- *  sure the list left behind is the one for the smallest threshold that fits. Passes that overflow stop at the budget. */
+ *  budget pressure that is one pass. Under pressure the threshold moves on the fixed ladder base * LEVEL_STEP^n, starting
+ *  from the previous full frame's rung (`hint`): up one rung per overflowing pass, down one rung only while the lower rung
+ *  also fits with LEVEL_DOWN_FILL of the budget to spare (sticky, so nearly equal zooms do not flip rungs). The list left
+ *  behind is the one for the rung returned. Passes that overflow stop at the budget. */
 export function searchCut(
   proj: LayoutProjection,
   classOf: Uint8Array | null,
