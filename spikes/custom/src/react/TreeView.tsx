@@ -96,6 +96,9 @@ export interface TreeViewProps {
   branchLengths?: boolean;
   clades?: CladeProp[];
   highlighted?: string[];
+  /** Node ids of tips that stand for collapsed clades (the page replaced each clade by one tip, e.g. with tree-ops' collapseClades):
+   *  drawn as a triangle instead of a dot, with the label moved past it. */
+  collapsed?: string[];
   columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
@@ -168,7 +171,18 @@ function liveRenderer(r: TreeRenderer | null, ref: React.RefObject<TreeRenderer 
 }
 
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(props, ref) {
-  const { layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, tipHref = null, focus, tooltip = true } = props;
+  const {
+    layout = 'rectangular',
+    branchLengths = true,
+    clades,
+    highlighted,
+    collapsed,
+    columns,
+    viewport,
+    tipHref = null,
+    focus,
+    tooltip = true,
+  } = props;
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -282,6 +296,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
   }, [R, rendRef, highlighted]);
+  useLayoutEffect(() => {
+    liveRenderer(R, rendRef)?.setCollapsed((collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0));
+  }, [R, rendRef, source, collapsed]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);

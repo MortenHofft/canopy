@@ -40,11 +40,13 @@ function moveColour(tree: TreeModel, next: TreeModel, map: Int32Array, k: number
 
 function App() {
   const params = new URLSearchParams(location.search);
-  // [as published, ...each action's result]; `clades` is the colouring the entry had when the next action was applied, so undo
-  // restores it exactly
-  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[] }[]>([]);
+  // [as published, ...each action's result]; `clades` and `collapsed` are what the entry had when the next action was applied, so
+  // undo restores them exactly
+  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[]; collapsed: number[]; focus: ops.Focus }[]>([]);
   const tree = history[history.length - 1]?.tree ?? null;
   const [clades, setClades] = useState<CladeProp[]>([]);
+  const [collapsed, setCollapsed] = useState<number[]>([]); // clades shown collapsed (node ids of `tree`), a view like collapse by support
+  const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with back and up (tree-ops' focus)
   const [hl, setHl] = useState<string[]>([]);
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
   const [last, setLast] = useState('click a tip or a clade for its actions');
@@ -53,7 +55,9 @@ function App() {
   const [splitColour, setSplitColour] = useState<SplitColour>('remove');
   // Runs once: `params` is rebuilt on every render but only read here for the initial tree name.
   useEffect(() => {
-    void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([{ tree: parseNewick(t.newick), clades: [] }]));
+    void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) =>
+      setHistory([{ tree: parseNewick(t.newick), clades: [], collapsed: [], focus: ops.NO_FOCUS }]),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const g = useMemo(() => gbifTheme(), []);
@@ -83,18 +87,39 @@ function App() {
     return lo <= hi ? { lo, hi } : null;
   }, [tree]);
   const hasSupport = supportRange !== null;
-  // Collapse by support is a VIEW of the current tree, not a step in its history: the tree shown is recomputed from `tree` whenever
-  // the threshold changes, so a lower threshold brings collapsed branches back. Clade colours and menu actions stay in `tree`'s node
-  // ids; `toTree` maps a node of the view back to `tree`, `toView` the other way (-1: collapsed away, its colour reappears with it).
+  // What is shown is a VIEW of the current tree, not a step in its history: collapse by support (recomputed when the threshold
+  // changes, so a lower one brings branches back), then the collapsed clades (each replaced by one tip, drawn as a triangle;
+  // expanding brings it back). Colours, collapsed clades and menu actions stay in `tree`'s node ids; `toView` maps a node of
+  // `tree` to the view (-1: hidden), `toTree` the other way; `collapsedTips` are the view's tips that stand for collapsed clades.
   const view = useMemo(() => {
-    if (!tree || !collapseOn || !hasSupport) return null;
-    const r = ops.collapseBySupport(tree, minSupport);
-    if (!r.changed) return null;
-    const shown = new TreeModel(r.tree);
+    if (!tree) return null;
+    const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
+    const step = (r: ops.OpResult) => {
+      if (!r.changed) return false;
+      const first = acc.toView;
+      acc.toView = first ? first.map((v) => (v >= 0 ? r.map[v] : -1)) : r.map;
+      acc.shown = new TreeModel(r.tree);
+      return true;
+    };
+    step(ops.showFocus(tree, focus));
+    let supportCollapsed = 0;
+    if (collapseOn && hasSupport) {
+      const before = acc.shown.nodeCount;
+      if (step(ops.collapseBySupport(acc.shown, minSupport))) supportCollapsed = before - acc.shown.nodeCount;
+    }
+    const toShown = (v: number) => (acc.toView ? acc.toView[v] : v);
+    const inShown = collapsed.map(toShown).filter((v) => v > 0); // the shown root is not collapsed
+    let collapsedTips: number[] = [];
+    if (inShown.length) {
+      const r = ops.collapseClades(acc.shown, inShown);
+      if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
+    }
+    const { shown, toView } = acc;
+    if (!toView) return null;
     const toTree = new Int32Array(shown.nodeCount);
-    for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;
-    return { tree: shown, toView: r.map, toTree, collapsed: tree.nodeCount - shown.nodeCount };
-  }, [tree, collapseOn, hasSupport, minSupport]);
+    for (let i = 0; i < toView.length; i++) if (toView[i] >= 0) toTree[toView[i]] = i;
+    return { tree: shown, toView, toTree, supportCollapsed, collapsedIds: collapsedTips.map((n) => 'n' + n) };
+  }, [tree, focus, collapseOn, hasSupport, minSupport, collapsed]);
   const colouredTips = useMemo(() => {
     let n = 0;
     if (!tree) return { keep: new Uint8Array(0), n };
@@ -110,6 +135,16 @@ function App() {
     }
     return { keep, n };
   }, [tree, clades]);
+  // the largest clades (of two or more tips) without a coloured tip, for 'Collapse uncoloured'; none while nothing is coloured
+  const uncolouredClades = useMemo(() => {
+    if (!tree || colouredTips.n === 0) return [];
+    const hit = new Int32Array(tree.nodeCount);
+    for (let r = 0; r < tree.tipCount; r++) if (colouredTips.keep[r]) hit[tree.tipNode[r]] = 1;
+    for (let i = tree.nodeCount - 1; i > 0; i--) hit[tree.parent[i]] += hit[i];
+    const out: number[] = [];
+    for (let i = 1; i < tree.nodeCount; i++) if (hit[i] === 0 && hit[tree.parent[i]] > 0 && tree.childCount[i] > 0) out.push(i);
+    return out;
+  }, [tree, colouredTips]);
 
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
@@ -146,9 +181,25 @@ function App() {
       else if (split) notes.push('a colour was removed: its tips are no longer one clade');
       return node >= 0 ? [{ ...c, nodeId: 'n' + node }] : [];
     });
+    // collapsed clades follow their tips the same way; one the operation split is expanded
+    const keptCollapsed = collapsed.flatMap((k) => {
+      const m = moveColour(tree, next, r.map, k, 'remove').node;
+      return m >= 0 && next.childCount[m] > 0 ? [m] : [];
+    });
+    // so does the focus (a focused clade the operation split is left: back skips it)
+    const keptFocus = ops.remapFocus(focus, (k) => {
+      const m = moveColour(tree, next, r.map, k, 'remove').node;
+      return m > 0 && next.childCount[m] > 0 ? m : -1;
+    });
     setClades(kept);
+    setCollapsed(keptCollapsed);
+    setFocus(keptFocus);
     setVp(undefined); // the new tree is fitted when its renderer mounts
-    setHistory((h) => [...h.slice(0, -1), { tree, clades }, { tree: next, clades: kept }]);
+    setHistory((h) => [
+      ...h.slice(0, -1),
+      { tree, clades, collapsed, focus },
+      { tree: next, clades: kept, collapsed: keptCollapsed, focus: keptFocus },
+    ]);
     setLast(
       `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${notes.map((n) => ` · ${n}`).join('')}`,
     );
@@ -156,8 +207,28 @@ function App() {
   const back = (to: number) => {
     setHistory((h) => h.slice(0, to));
     setClades(history[to - 1].clades);
+    setCollapsed(history[to - 1].collapsed);
+    setFocus(history[to - 1].focus);
     setVp(undefined);
     setLast(to === 1 ? 'reset to the tree as published' : 'undone');
+  };
+  // focus (show only a clade): a navigation, so not in the undo history; Back and Up one level come from tree-ops' focus
+  const navigate = (f: ops.Focus, msg: string) => {
+    setFocus(f);
+    setVp(undefined);
+    setLast(msg);
+  };
+  const focusMsg = (f: ops.Focus) => {
+    const v = ops.focusedNode(f);
+    return v < 0 ? 'showing the whole tree' : `showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`;
+  };
+  const goUp = () => {
+    const f = ops.focusUp(tree, focus);
+    navigate(f, focusMsg(f));
+  };
+  const goBack = () => {
+    const f = ops.focusBack(focus);
+    navigate(f, focusMsg(f));
   };
   const toggleColour = (nodeId: string) =>
     setClades((cs) =>
@@ -167,11 +238,26 @@ function App() {
   // per-node actions: what the node menu offers for the clicked tip or clade
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] => {
     if (e.run) return []; // a run of small siblings is not one node
-    const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its collapsed view
+    const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its view
     const nodeId = 'n' + v;
-    const what = e.isTip ? 'tip' : 'clade';
+    const isCollapsed = e.isTip && tree.childCount[v] > 0; // a tip of the view that stands for a collapsed clade
+    const isTip = e.isTip && !isCollapsed;
+    const what = isTip ? 'tip' : 'clade';
+    const tips = tree.tipCountOf(v);
     const coloured = clades.some((c) => c.nodeId === nodeId);
     const items: NodeMenuItem[] = [];
+    // the root of a focused clade (the shown tree's root) leads out of it
+    if (e.node === 0 && ops.canGoUp(focus)) {
+      items.push({ id: 'up', label: 'Up one level', hint: 'show the clade that contains this one', onSelect: () => goUp() });
+      items.push({ id: 'back', label: 'Back', hint: 'to the view before', onSelect: () => goBack() });
+    }
+    if (isCollapsed)
+      items.push({
+        id: 'expand',
+        label: 'Expand',
+        hint: `show its ${tips.toLocaleString('en')} tips again`,
+        onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)),
+      });
     if (!e.isTip)
       items.push({
         id: 'rotate',
@@ -187,23 +273,32 @@ function App() {
       disabled: v === 0,
       onSelect: () => apply('reroot', (t) => ops.reroot(t, v)),
     });
-    if (!e.isTip)
+    if (!isTip)
       items.push({
         id: 'subtree',
         label: 'Show only this clade',
-        hint: `${e.tipCount.toLocaleString('en')} tips`,
-        disabled: v === 0,
-        onSelect: () => apply('show only this clade', (t) => ops.subtree(t, v)),
+        hint: `${tips.toLocaleString('en')} tips; Back or Up one level return`,
+        disabled: e.node === 0, // already the clade shown
+        onSelect: () => navigate(ops.focusOn(tree, focus, v), `showing only a clade of ${tips.toLocaleString('en')} tips`),
       });
-    items.push({
-      id: 'remove',
-      label: `Remove this ${what}`,
-      hint: e.isTip ? 'prune the tip' : `prune its ${e.tipCount.toLocaleString('en')} tips`,
-      disabled: v === 0 || e.tipCount >= tree.tipCount - 1,
-      onSelect: () => apply(`remove ${what}`, (t) => ops.prune(t, (r) => r < t.leafStart[v] || r >= t.leafEnd[v])),
-    });
+    if (!e.isTip)
+      items.push({
+        id: 'collapse',
+        label: 'Collapse',
+        hint: `show its ${tips.toLocaleString('en')} tips as one triangle`,
+        disabled: v === 0,
+        onSelect: () => setCollapsed((cs) => [...cs, v]),
+      });
+    if (isTip)
+      items.push({
+        id: 'remove',
+        label: 'Remove this tip',
+        hint: 'prune the tip',
+        disabled: tree.tipCount <= 2,
+        onSelect: () => apply('remove tip', (t) => ops.prune(t, (r) => r !== t.tipRank[v])),
+      });
     // a tip is coloured only when a kept colour's node became a tip (rule 'node' after a prune), so it offers only removal
-    if (!e.isTip || coloured)
+    if (!isTip || coloured)
       items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(nodeId) });
     return items;
   };
@@ -225,6 +320,7 @@ function App() {
     tree: shown,
     clades: shownClades,
     highlighted: hl,
+    collapsed: view?.collapsedIds,
     theme,
     viewport: vp,
     onViewportChange: setVp,
@@ -250,6 +346,17 @@ function App() {
         aria-label="Whole-tree actions"
         style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}
       >
+        <button
+          className="btn btn-outline"
+          disabled={!ops.canGoBack(focus)}
+          title="Back to the view before (Show only this clade / Up one level)"
+          onClick={goBack}
+        >
+          ← Back
+        </button>
+        <button className="btn btn-outline" disabled={!ops.canGoUp(focus)} title="Show the clade that contains the one shown" onClick={goUp}>
+          ↑ Up one level
+        </button>
         <button
           className={btn}
           disabled={!tree.hasLengths}
@@ -301,7 +408,7 @@ function App() {
           />
           {supportRange && (
             <span style={{ color: 'var(--fg3)', fontSize: 'var(--text-sm)' }}>
-              {view ? `${view.collapsed.toLocaleString('en')} collapsed · ` : ''}support {supportRange.lo}–{supportRange.hi}
+              {view?.supportCollapsed ? `${view.supportCollapsed.toLocaleString('en')} collapsed · ` : ''}support {supportRange.lo}–{supportRange.hi}
             </span>
           )}
         </label>
@@ -322,11 +429,14 @@ function App() {
         </label>
         <button
           className={btn}
-          disabled={colouredTips.n < 2}
-          title="Keep only the tips of the coloured clades"
-          onClick={() => apply('keep coloured', (t) => ops.prune(t, (r) => colouredTips.keep[r] === 1))}
+          disabled={uncolouredClades.length === 0}
+          title="Collapse every largest clade that has no coloured tips into a triangle"
+          onClick={() => setCollapsed((cs) => [...new Set([...cs, ...uncolouredClades])])}
         >
-          Keep coloured ({colouredTips.n.toLocaleString('en')})
+          Collapse uncoloured ({uncolouredClades.length.toLocaleString('en')})
+        </button>
+        <button className={btn} disabled={collapsed.length === 0} onClick={() => setCollapsed([])}>
+          Expand all
         </button>
         <button className="btn btn-outline" disabled={history.length < 2} onClick={() => back(history.length - 1)}>
           Undo

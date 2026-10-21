@@ -14,6 +14,7 @@ export interface Scene {
   colours: string[]; // colour by class; class 0 = default branch colour
   classOf: Uint8Array | null;
   highlight: Uint8Array | null; // by tip rank
+  collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
   hoverNode: number;
   activeNode: number;
@@ -34,11 +35,12 @@ export class LabelList {
   h = new Float32Array(512);
   ang = new Float32Array(512); // radial: rotation in rad (0 for rectangular)
   flip = new Uint8Array(512);
+  gap = new Float32Array(512); // distance from the tip to the text (8 px, more past a collapsed-clade triangle)
   count = 0;
   clear(): void {
     this.count = 0;
   }
-  add(rank: number, x: number, y: number, w: number, h: number, ang: number, flip: number): void {
+  add(rank: number, x: number, y: number, w: number, h: number, ang: number, flip: number, gap = 8): void {
     if (this.count === this.rank.length) {
       const g = <A extends Float32Array | Int32Array | Uint8Array>(a: A): A => {
         const b = new (a.constructor as new (n: number) => A)(a.length * 2);
@@ -52,6 +54,7 @@ export class LabelList {
       this.h = g(this.h);
       this.ang = g(this.ang);
       this.flip = g(this.flip);
+      this.gap = g(this.gap);
     }
     const c = this.count++;
     this.rank[c] = rank;
@@ -61,6 +64,7 @@ export class LabelList {
     this.h[c] = h;
     this.ang[c] = ang;
     this.flip[c] = flip;
+    this.gap[c] = gap;
   }
 }
 
@@ -71,6 +75,8 @@ const FILL_CHUNK = 32; // fans per fill() call, same reason
 export const BRANCH_W = 1.3;
 export const CLADE_W = 2;
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
+const COLLAPSED_W = 14; // length of the triangle of a collapsed-clade tip, along the branch direction (CSS px)
+const COLLAPSED_MIN_PX = 3; // below this row pitch the triangle is not drawn (the branch alone shows the tip)
 
 /** Text widths by font and text. One per renderer, so renderers with different fonts do not clear each other's entries; bounded by
  *  clearing when the font family changes or the table passes MAX entries (checked when the font changes). */
@@ -323,7 +329,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       const kind = list.kind[e];
       const i = list.node[e];
       if (kind === K_TIP) {
-        if (!dots) continue;
+        if (!dots || (S.collapsed && S.collapsed[proj.tree.tipRank[i]])) continue;
         proj.nodeXY(i, p);
         ctx.moveTo(p.x + rTip, p.y);
         ctx.arc(p.x, p.y, rTip, 0, 6.2832);
@@ -338,6 +344,44 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
     if (any) ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (S.collapsed) drawCollapsedTips(ctx, S);
+}
+
+/** Collapsed-clade tips: a triangle with its apex at the tip, opening along the branch (outwards in radial), filled with the summary
+ *  colour and outlined in the branch or clade colour. Few per frame (one per collapsed clade in view), so drawn one by one. */
+function drawCollapsedTips(ctx: CanvasRenderingContext2D, S: Scene): void {
+  const { proj, list, theme, colours, classOf } = S;
+  const marks = S.collapsed!;
+  const pitch = proj.tipPitch;
+  if (pitch < COLLAPSED_MIN_PX) return;
+  const half = Math.min(8, Math.max(2.5, pitch * 0.4));
+  const rect = proj.kind === 'rectangular';
+  const { L } = proj;
+  const p: Pt = { x: 0, y: 0 };
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  for (let e = 0; e < list.count; e++) {
+    if (list.kind[e] !== K_TIP) continue;
+    const i = list.node[e];
+    if (!marks[proj.tree.tipRank[i]]) continue;
+    proj.nodeXY(i, p);
+    const c = rect ? 1 : L.COS![i],
+      sn = rect ? 0 : L.SIN![i]; // direction away from the root
+    const bx = p.x + c * COLLAPSED_W,
+      by = p.y + sn * COLLAPSED_W;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(bx - sn * half, by + c * half);
+    ctx.lineTo(bx + sn * half, by - c * half);
+    ctx.closePath();
+    const cl = classOf ? classOf[i] : 0;
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = cl ? colours[cl] : theme.summary;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = cl ? colours[cl] : theme.branch;
+    ctx.stroke();
+  }
 }
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {
@@ -441,10 +485,11 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.fillStyle = fill;
       lastFill = fill;
     }
+    const gap = S.collapsed && S.collapsed[r] ? 8 + COLLAPSED_W : 8; // past the triangle of a collapsed clade
     if (rect) {
-      const x = p.x + 8;
+      const x = p.x + gap;
       ctx.fillText(text, x, p.y + 0.5);
-      labels.add(r, x, p.y, w, size + 2, 0, 0);
+      labels.add(r, x, p.y, w, size + 2, 0, 0, gap);
     } else {
       const left = L.COS![i] < 0;
       const c = left ? -L.COS![i] : L.COS![i],
@@ -455,9 +500,9 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
         ctx.textAlign = al;
         lastAlign = al;
       }
-      ctx.fillText(text, left ? -8 : 8, 0.5);
+      ctx.fillText(text, left ? -gap : gap, 0.5);
       const a = proj.tip(i);
-      labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0);
+      labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0, gap);
     }
   }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);

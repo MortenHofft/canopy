@@ -1,6 +1,7 @@
-// Subsets: prune to a set of tips, take one clade as its own tree.
+// Subsets: prune to a set of tips, take one clade as its own tree, collapse clades into single tips.
 
 import { addLen, checkNode, draftOf, identity, linkChildren, result } from './draft.ts';
+import { splitInternalLabel } from './labels.ts';
 import type { OpResult, TreeInput } from './types.ts';
 
 /**
@@ -57,4 +58,32 @@ export function subtree(t: TreeInput, node: number): OpResult {
   d.parent[node] = -1;
   // a subtree is a contiguous preorder range: nodes outside it are simply not reached by the builder
   return result(t, d);
+}
+
+/**
+ * Collapse clades into single tips: each listed internal node becomes a tip that stands for its clade (its descendants are removed,
+ * its edge length kept). A viewer draws such tips as collapsed clades; with the input kept, expanding is collapsing fewer. Nodes
+ * inside another listed clade are covered by it. The new tip's label is `label(node, tips)`, by default the clade's name with its
+ * tip count, or its first tip and how many more ('Gezophiium_megaborealis and 7 more'), which is unique among disjoint clades.
+ * `map` sends each collapsed node to its tip and its descendants to -1. O(n).
+ */
+export function collapseClades(t: TreeInput, nodes: Iterable<number>, label?: (node: number, tips: number) => string): OpResult {
+  const d = draftOf(t);
+  let any = false;
+  for (const v of nodes) {
+    checkNode(t, v);
+    if (t.childCount[v] === 0) continue; // a tip is already a single leaf
+    const tips = t.leafEnd[v] - t.leafStart[v];
+    d.firstChild[v] = -1; // the builder treats it as a tip; its subtree is no longer reached
+    d.support[v] = NaN;
+    d.label[v] = label ? label(v, tips) : defaultCollapsedLabel(t, v, tips);
+    any = true;
+  }
+  return any ? result(t, d) : identity(t);
+}
+
+function defaultCollapsedLabel(t: TreeInput, v: number, tips: number): string {
+  const name = splitInternalLabel(t.labels[v]).name;
+  if (name) return `${name} (${tips} tips)`;
+  return `${t.labels[t.tipNode[t.leafStart[v]]]} and ${tips - 1} more`;
 }

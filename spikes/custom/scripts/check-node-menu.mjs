@@ -93,10 +93,7 @@ ok(await canvasFocused(), 'focus is on the new canvas after the action');
 // clade menu, keyboard
 const ef = await cladeOf('E', 'F');
 await openOn(ef);
-ok(
-  (await items()).join('|') === 'Rotate|Reroot here|Show only this clade|Remove this clade|Colour this clade',
-  `clade menu: ${(await items()).join(' | ')}`,
-);
+ok((await items()).join('|') === 'Rotate|Reroot here|Show only this clade|Collapse|Colour this clade', `clade menu: ${(await items()).join(' | ')}`);
 await page.keyboard.press('ArrowDown');
 ok(/^Reroot here/.test(await page.evaluate(() => document.activeElement?.textContent ?? '')), 'ArrowDown moves to the next item');
 await page.keyboard.press('Escape');
@@ -219,6 +216,72 @@ await page.waitForTimeout(500);
 await openOn(await cladeOf('A', 'B'));
 ok(/Remove colour/.test((await items()).join('|')) && /1 coloured clades/.test(await status()), 'unticked: (A,B) is back, still coloured');
 await page.keyboard.press('Escape');
+
+// collapse a clade: it becomes one tip drawn as a triangle, labelled with the clade's name and size ('node_EF (2 tips)'; an unnamed
+// clade gets its first tip and how many more); its menu offers Expand, which brings E and F back
+if (await page.getByRole('button', { name: 'Reset' }).isEnabled()) {
+  await page.getByRole('button', { name: 'Reset' }).click();
+  await page.waitForTimeout(400);
+}
+await openOn(await cladeOf('E', 'F'));
+await act('collapse');
+const labels = () => pane.locator('a[data-tip-id]').evaluateAll((as) => as.map((a) => a.dataset.tipId));
+ok((await labels()).includes('node_EF (2 tips)') && !(await labels()).includes('F'), `collapse (E,F): ${(await labels()).join(', ')}`);
+{
+  // a collapsed tip's label is 8 + 14 px past the tip (dot() assumes 8), so the triangle's middle is 15 px left of the label
+  const lb = await pane.locator('a[data-tip-id="node_EF (2 tips)"]').boundingBox();
+  const clip = { x: Math.round(lb.x - 15), y: Math.round(lb.y + lb.height / 2), width: 1, height: 1 };
+  const px = PNG.sync.read(await page.screenshot({ clip })).data;
+  ok(px[0] < 245 && px[1] < 245, `the triangle is drawn at the collapsed tip (pixel ${px[0]},${px[1]},${px[2]})`);
+}
+await openOn(await dot('node_EF (2 tips)'));
+ok((await items())[0] === 'Expand', `collapsed tip menu: ${(await items()).join(' | ')}`);
+await act('expand');
+ok((await labels()).includes('E') && (await labels()).includes('F'), 'expand brings E and F back');
+
+// collapse uncoloured: with (A,B) coloured, (C,D) and (E,F) are collapsed; expand all undoes it
+await openOn(await cladeOf('A', 'B'));
+if ((await items()).includes('Colour this clade')) await act('colour');
+else await page.keyboard.press('Escape');
+await page.getByRole('button', { name: /Collapse uncoloured/ }).click();
+await page.waitForTimeout(400);
+ok((await labels()).sort().join(',') === 'A,B,C and 1 more,node_EF (2 tips)', `collapse uncoloured: ${(await labels()).join(', ')}`);
+await page.getByRole('button', { name: 'Expand all' }).click();
+await page.waitForTimeout(400);
+ok((await order()) === 'ABCDEF', `expand all: ${await order()}`);
+
+// show only a clade, then back and up one level (also from the menu of the clade's root)
+await openOn(await cladeOf('C', 'D'));
+await act('subtree');
+ok((await order()) === 'CD' && /showing only a clade of 2 tips/.test(await status()), `show only (C,D): ${await order()}`);
+ok(!/change/.test(await status()), 'showing a clade is not a change in the undo history');
+const backBtn = page.getByRole('button', { name: '← Back' });
+const upBtn = page.getByRole('button', { name: '↑ Up one level' });
+await upBtn.click();
+await page.waitForTimeout(400);
+ok((await order()) === 'ABCDEF' && /whole tree/.test(await status()), `up one level from (C,D): ${await order()}`);
+await backBtn.click();
+await page.waitForTimeout(400);
+ok((await order()) === 'CD', `back: ${await order()}`);
+{
+  // the root of the shown clade offers Up one level and Back
+  const cb = await dot('C'),
+    db = await dot('D');
+  let hitRoot = null;
+  for (let x = Math.min(cb.x, db.x) - 6; x > (await pane.boundingBox()).x + 4; x -= 3) {
+    await page.mouse.move(x, (cb.y + db.y) / 2);
+    await page.waitForTimeout(30);
+    const tt = page.locator('[role=tooltip]');
+    if ((await tt.count()) && /Clade, 2 tips/.test(await tt.first().innerText())) {
+      hitRoot = { x, y: (cb.y + db.y) / 2 };
+      break;
+    }
+  }
+  await openOn(hitRoot);
+  ok((await items()).slice(0, 2).join('|') === 'Up one level|Back', `menu of the shown root: ${(await items()).join(' | ')}`);
+  await act('back');
+}
+ok((await order()) === 'ABCDEF' && !(await backBtn.isEnabled()), `back to the whole tree: ${await order()}`);
 
 // midpoint on a dated (ultrametric) tree: the root already is the midpoint, and the status says so
 await page.goto(`${url}?tree=rich-fish-carangaria-135&cpu=1`);

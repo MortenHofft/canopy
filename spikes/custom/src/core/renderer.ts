@@ -94,6 +94,8 @@ export class TreeRenderer {
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
   private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
+  private collapsedNodes: number[] = []; // node ids of the last setCollapsed
+  private collapsedRank: Uint8Array | null = null; // by tip rank: 1 = the tip stands for a collapsed clade
   private list = new DrawList();
   private seen = new Seen();
   private hit: HitIndex;
@@ -358,6 +360,7 @@ export class TreeRenderer {
     this.rebuildProj();
     this.hit = new HitIndex();
     this.applyClades();
+    this.applyCollapsed();
     this.activeNode = -1;
     this.clearHover();
     this.vs.resetLabelReserve();
@@ -464,6 +467,30 @@ export class TreeRenderer {
     }
     this.classOf = cls;
     this.colours = colours;
+  }
+
+  /** Tips (node ids) that stand for collapsed clades, drawn as a triangle instead of a dot with the label moved past it. Collapsing
+   *  itself happens in the data (the page replaces the clade by one tip, e.g. with tree-ops' collapseClades); this only marks such
+   *  tips. Ids that are not tips are ignored. No-op for the same ids in the same order. */
+  setCollapsed(nodes: number[]): void {
+    const last = this.collapsedNodes;
+    if (nodes.length === last.length && nodes.every((n, i) => n === last[i])) return;
+    this.collapsedNodes = nodes.slice();
+    this.applyCollapsed();
+    this.ov.dirty = true;
+    this.invalidate();
+  }
+
+  private applyCollapsed(): void {
+    const t = this.tree;
+    let marks: Uint8Array | null = null;
+    for (const n of this.collapsedNodes) {
+      const r = this.rowOf(n);
+      if (r < 0 || t.childCount[r] !== 0) continue;
+      marks ??= new Uint8Array(t.tipCount);
+      marks[t.tipRank[r]] = 1;
+    }
+    this.collapsedRank = marks;
   }
 
   /** No-op when the ids equal (element-wise, in order) the last ones passed; the array is copied, so mutating it later cannot hide a change. */
@@ -856,6 +883,7 @@ export class TreeRenderer {
       classOf: this.classOf,
       highlight: this.hl,
       hlRanks: this.hlRanks,
+      collapsed: this.collapsedRank,
       hoverNode: this.hoverNode,
       activeNode: this.activeNode,
       density: opts.labelDensity,
@@ -985,8 +1013,9 @@ export class TreeRenderer {
     const L = this.labels;
     if (this.T.kind === 'rectangular') {
       for (let k = 0; k < L.count; k++) {
-        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2)
-          return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
+        // from 2 px before the text, or from the tip when a collapsed-clade triangle sits between them
+        const from = L.gap[k] > 8 ? L.x[k] - L.gap[k] : L.x[k] - 2;
+        if (x >= from && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2) return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
       }
     }
     return this.hit.query(x, y, this.proj);

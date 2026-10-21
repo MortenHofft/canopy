@@ -14,6 +14,7 @@ import { TreeModel } from '../../../spikes/shared/tree.ts';
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const wrap = (fn) => (...a) => { const r = fn(...a); return { ...r, tree: r.changed ? new TreeModel(r.tree) : r.tree }; };
 const reroot = wrap(ops.reroot), midpointRoot = wrap(ops.midpointRoot), ladderise = wrap(ops.ladderise), rotate = wrap(ops.rotate);
+const collapseClades = wrap(ops.collapseClades);
 const collapseBySupport = wrap(ops.collapseBySupport), collapseShortBranches = wrap(ops.collapseShortBranches), prune = wrap(ops.prune), subtree = wrap(ops.subtree);
 const readTree = (p) => parseNewick(zlib.gunzipSync(fs.readFileSync(path.join(DATA, p))).toString('utf8'));
 const tip = (t, l) => t.tipIndex(l);
@@ -352,4 +353,46 @@ test('midpoint: within 1e-6 of the diameter counts as on a node (lengths rounded
   // longest path A-C = 4.1, midpoint 2.05 from A: 0.05 below the root on the (A,B) side
   const [ab, cd] = r.tree.children(0);
   assert.ok(Math.abs(r.tree.length[ab] - 0.95) < 1e-12 && Math.abs(r.tree.length[cd] - 1.05) < 1e-12, nwk(r.tree));
+});
+
+test('collapseClades: a clade becomes one tip that stands for it; nested and repeated nodes are covered', () => {
+  const t = parseNewick('(((A:1,B:1)95:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
+  const ab = t.mrcaOf(['A', 'B']), fam = t.mrcaOf(['A', 'C']), ef = t.mrcaOf(['E', 'F']);
+  let r = collapseClades(t, [ab]);
+  assert.equal(nwk(r.tree), "(('A and 1 more':2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);");
+  checkModel(r.tree);
+  assert.equal(r.tree.childCount[r.map[ab]], 0); // the collapsed node is the new tip
+  assert.equal(r.map[t.tipIndex('A')], -1);
+  r = collapseClades(t, [ab, fam, ef]); // ab is inside fam: covered by it
+  assert.equal(nwk(r.tree), "('Fam (3 tips)':1,(D:1,'E and 1 more':1):1);");
+  assert.equal(collapseClades(t, [t.tipIndex('A')]).changed, false); // a tip is already one leaf
+  assert.equal(collapseClades(t, []).changed, false);
+  assert.equal(nwk(collapseClades(t, [ab], (v, n) => `clade${v}x${n}`).tree), '((clade2x2:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
+});
+
+test('focus: show a clade alone, up one level, back', () => {
+  const t = parseNewick('((((A,B)ab,C)abc,D)abcd,(E,F)ef);');
+  const id = (l) => t.labels.indexOf(l);
+  let f = ops.NO_FOCUS;
+  assert.equal(ops.canGoBack(f), false);
+  assert.equal(ops.canGoUp(f), false);
+  assert.equal(ops.showFocus(t, f).changed, false); // the whole tree
+  f = ops.focusOn(t, f, id('ab'));
+  assert.equal(nwk(new TreeModel(ops.showFocus(t, f).tree)), '(A,B)ab;');
+  f = ops.focusUp(t, f);
+  assert.equal(ops.focusedNode(f), id('abc'));
+  f = ops.focusUp(t, f);
+  f = ops.focusUp(t, f); // abcd's parent is the root: the whole tree
+  assert.equal(ops.focusedNode(f), -1);
+  assert.equal(ops.canGoUp(f), false);
+  f = ops.focusBack(f);
+  assert.equal(ops.focusedNode(f), id('abcd'));
+  f = ops.focusBack(ops.focusBack(ops.focusBack(f)));
+  assert.equal(ops.focusedNode(f), -1);
+  assert.equal(ops.canGoBack(f), false);
+  assert.equal(ops.focusOn(t, f, 0), f); // the root and tips are not focused on
+  assert.equal(ops.focusOn(t, f, t.tipIndex('A')), f);
+  // remap after an operation: a view that is gone is dropped, so back skips it
+  const g = { stack: [id('ab'), id('abc')] };
+  assert.deepEqual(ops.remapFocus(g, (v) => (v === id('ab') ? -1 : v + 100)).stack, [id('abc') + 100]);
 });
