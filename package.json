@@ -19,15 +19,18 @@
     "format:check": "prettier --check .",
     "test": "npm test --workspaces --if-present",
     "build": "npm run build -w packages/io -w packages/tree-ops -w packages/viewer -w packages/react",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "check:packages": "node scripts/check-packages.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "esbuild": "0.21.5",
     "eslint": "9.39.5",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.13.0",
     "prettier": "3.9.10",
+    "publint": "0.3.25",
     "typescript": "5.9.3",
     "typescript-eslint": "8.72.0"
   },
