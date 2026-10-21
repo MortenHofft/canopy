@@ -19,32 +19,82 @@ function App() {
   const [last, setLast] = useState('click a triangle or a tip');
   const [tick, setTick] = useState(0);
   const ref = useRef<TreeViewHandle>(null);
+  // Reopens when `url` changes; `params` is rebuilt on every render and only read for the level here.
   useEffect(() => {
     const t0 = performance.now();
-    ParquetSource.open(url, { level: Number(params.get('level') ?? 0) }).then((s) => {
-      setSrc(s);
-      (window as unknown as Record<string, unknown>).__pq = { source: s, handle: () => ref.current, openMs: performance.now() - t0, events: [] };
-      s.subscribe(() => setTick((k) => k + 1));
-    }, (e) => setErr(String(e)));
+    ParquetSource.open(url, { level: Number(params.get('level') ?? 0) }).then(
+      (s) => {
+        setSrc(s);
+        (window as unknown as Record<string, unknown>).__pq = { source: s, handle: () => ref.current, openMs: performance.now() - t0, events: [] };
+        s.subscribe(() => setTick((k) => k + 1));
+      },
+      (e) => setErr(String(e)),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
   const g = useMemo(() => gbifTheme(), []);
-  const theme = useMemo(() => ({ background: g.bg1, foreground: g.fg1, muted: g.fg3, branch: g.fg2, highlight: g.primary, summary: g.slate400, fontFamily: g.fontBody, categorical: g.categorical }), [g]);
-  if (err) return <p style={{ padding: 16, color: 'var(--color-danger)' }}>Could not open {url}: {err}</p>;
+  const theme = useMemo(
+    () => ({
+      background: g.bg1,
+      foreground: g.fg1,
+      muted: g.fg3,
+      branch: g.fg2,
+      highlight: g.primary,
+      summary: g.slate400,
+      fontFamily: g.fontBody,
+      categorical: g.categorical,
+    }),
+    [g],
+  );
+  if (err)
+    return (
+      <p style={{ padding: 16, color: 'var(--color-danger)' }}>
+        Could not open {url}: {err}
+      </p>
+    );
   if (!src) return <p style={{ padding: 16 }}>loading the overview…</p>;
   const st = src.stats;
   const onNode = (e: TreeNodeEvent) => {
-    ((window as unknown as { __pq: { events: unknown[] } }).__pq.events).push({ node: e.node, kind: e.kind, tipRange: e.tipRange, tipCount: e.tipCount });
+    (window as unknown as { __pq: { events: unknown[] } }).__pq.events.push({
+      node: e.node,
+      kind: e.kind,
+      tipRange: e.tipRange,
+      tipCount: e.tipCount,
+    });
     setLast(`${e.kind} ${e.nodeId}: ${e.tipCount.toLocaleString('en')} tips, range [${e.tipRange.join(', ')}); loading labels…`);
     // only the first three labels: the range itself is the answer for a big clade, labels are a separate read of tips.parquet
-    void src.tipLabels(e.tipRange[0], Math.min(e.tipRange[1], e.tipRange[0] + 3)).then((l) => setLast(`${e.kind} ${e.nodeId}: ${e.tipCount.toLocaleString('en')} tips, range [${e.tipRange.join(', ')}), first labels: ${l.join(', ')}`));
+    void src
+      .tipLabels(e.tipRange[0], Math.min(e.tipRange[1], e.tipRange[0] + 3))
+      .then((l) =>
+        setLast(`${e.kind} ${e.nodeId}: ${e.tipCount.toLocaleString('en')} tips, range [${e.tipRange.join(', ')}), first labels: ${l.join(', ')}`),
+      );
   };
   return (
-    <div style={{ font: '14px var(--font-body)', padding: 12, color: 'var(--fg1)', background: 'var(--bg-surface)', minHeight: '100vh', boxSizing: 'border-box' }} data-tick={tick}>
+    <div
+      style={{
+        font: '14px var(--font-body)',
+        padding: 12,
+        color: 'var(--fg1)',
+        background: 'var(--bg-surface)',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+      data-tick={tick}
+    >
       <p style={{ margin: '0 0 8px' }} data-testid="status">
-        {src.tipCount.toLocaleString('en')} tips · {st.requests} requests, {(st.bytes / 1024).toFixed(0)} KB · {st.rows.toLocaleString('en')} rows ({st.stubs.toLocaleString('en')} stubs), {st.loadedClades} clades loaded, overview level {st.overviewLevel} · {last}
+        {src.tipCount.toLocaleString('en')} tips · {st.requests} requests, {(st.bytes / 1024).toFixed(0)} KB · {st.rows.toLocaleString('en')} rows (
+        {st.stubs.toLocaleString('en')} stubs), {st.loadedClades} clades loaded, overview level {st.overviewLevel} · {last}
       </p>
       <div className="card" style={{ height: 'calc(100vh - 70px)', background: 'var(--bg1)' }}>
-        <TreeView ref={ref} source={src} layout={layout} branchLengths={false} theme={theme} onNodeClick={onNode} onTipClick={(e) => setLast(`tip ${e.tipId ?? e.node}`)} />
+        <TreeView
+          ref={ref}
+          source={src}
+          layout={layout}
+          branchLengths={false}
+          theme={theme}
+          onNodeClick={onNode}
+          onTipClick={(e) => setLast(`tip ${e.tipId ?? e.node}`)}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 // TreeModel: a rooted tree on typed arrays. Nodes are numbered in preorder (children in file order),
 // so node id 'n<k>' means preorder index k and the root is n0. Every query is iterative.
 //
-// Invariants (checked by shared/test/tree.test.mjs):
+// Invariants (checked by shared/test/parser.test.mjs, 'structural invariants on a real tree'):
 //  * parent[i] < i for i > 0; the subtree of i is exactly the index range [i, subtreeEnd[i]).
 //  * Tips are ranked in preorder (= file order). The tips below node i are the contiguous rank range
 //    [leafStart[i], leafEnd[i]) so descendant tips are an O(size) slice, never a traversal.

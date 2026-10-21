@@ -31,7 +31,8 @@ export function ensureTrig(L: Layout): void {
   if (L.COS) return;
   const n = L.n;
   const da = (2 * Math.PI) / Math.max(1, L.tips);
-  const C = new Float64Array(n), S = new Float64Array(n);
+  const C = new Float64Array(n),
+    S = new Float64Array(n);
   const ROW = L.ROW;
   for (let i = 0; i < n; i++) {
     const a = ROW[i] * da;
@@ -39,8 +40,12 @@ export function ensureTrig(L: Layout): void {
     S[i] = Math.sin(a);
   }
   const T = L.tips;
-  const BC = new Float64Array(T + 1), BS = new Float64Array(T + 1);
-  for (let k = 0; k <= T; k++) { BC[k] = Math.cos(k * da); BS[k] = Math.sin(k * da); }
+  const BC = new Float64Array(T + 1),
+    BS = new Float64Array(T + 1);
+  for (let k = 0; k <= T; k++) {
+    BC[k] = Math.cos(k * da);
+    BS[k] = Math.sin(k * da);
+  }
   L.COS = C;
   L.SIN = S;
   L.BC = BC;
@@ -51,8 +56,10 @@ export function ensureTrig(L: Layout): void {
  *  pass over descendants is needed and a stub gets the same numbers the full tree would give it (checked by
  *  parquet-experiment/test/overview_vs_layout.mjs). */
 function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number): Layout {
-  const n = tree.nodeCount, R = tree.rollup!;
-  const X = new Float64Array(n), XMAX = new Float32Array(n);
+  const n = tree.nodeCount,
+    R = tree.rollup!;
+  const X = new Float64Array(n),
+    XMAX = new Float32Array(n);
   const maxLen = R.maxCum[0]; // the root's rollup is the largest distance of the FULL tree, whatever is loaded
   const usedLengths = branchLengths && tree.hasLengths && maxLen > 0;
   let ultrametric = false;
@@ -64,7 +71,7 @@ function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number
       XMAX[i] = R.maxCum[i] * inv;
       if (tree.childCount[i] === 0 && X[i] < lo) lo = X[i];
     }
-    ultrametric = Number.isFinite(lo) && (1 - lo) <= 1e-3;
+    ultrametric = Number.isFinite(lo) && 1 - lo <= 1e-3;
   } else {
     const H = R.maxDepth[0] || 1;
     for (let i = 0; i < n; i++) {
@@ -74,7 +81,22 @@ function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number
   }
   const LAST = new Int32Array(n).fill(-1);
   for (let i = 1; i < n; i++) LAST[tree.parent[i]] = i; // a stub has no rows below it, so its LAST stays -1
-  return { n, tips: tree.tipCount, usedLengths, maxLen: usedLengths ? maxLen : 1, ultrametric, X, ROW: R.row, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null, BC: null, BS: null };
+  return {
+    n,
+    tips: tree.tipCount,
+    usedLengths,
+    maxLen: usedLengths ? maxLen : 1,
+    ultrametric,
+    X,
+    ROW: R.row,
+    XMAX,
+    LAST,
+    layoutMs: performance.now() - t0,
+    COS: null,
+    SIN: null,
+    BC: null,
+    BS: null,
+  };
 }
 
 export function computeLayout(tree: TreeSnapshot, branchLengths: boolean): Layout {
@@ -118,5 +140,20 @@ export function computeLayout(tree: TreeSnapshot, branchLengths: boolean): Layou
     const p = parent[i];
     if (XMAX[i] > XMAX[p]) XMAX[p] = XMAX[i];
   }
-  return { n, tips: tree.tipCount, usedLengths, maxLen, ultrametric, X, ROW, XMAX, LAST, layoutMs: performance.now() - t0, COS: null, SIN: null, BC: null, BS: null };
+  return {
+    n,
+    tips: tree.tipCount,
+    usedLengths,
+    maxLen,
+    ultrametric,
+    X,
+    ROW,
+    XMAX,
+    LAST,
+    layoutMs: performance.now() - t0,
+    COS: null,
+    SIN: null,
+    BC: null,
+    BS: null,
+  };
 }

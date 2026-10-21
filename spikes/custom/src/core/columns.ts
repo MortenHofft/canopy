@@ -33,11 +33,14 @@ RESIDUE.G = '#f09048';
 RESIDUE.P = '#c0c000';
 for (const c of 'HY') RESIDUE[c] = '#15a4a4';
 RESIDUE.U = '#15c015';
+Object.freeze(RESIDUE); // a constant table: nothing writes to it after this
 
 function residueTable(): Uint32Array {
   const t = new Uint32Array(256);
   const parse = (hex: string) => {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    const r = parseInt(hex.slice(1, 3), 16),
+      g = parseInt(hex.slice(3, 5), 16),
+      b = parseInt(hex.slice(5, 7), 16);
     return (255 << 24) | (b << 16) | (g << 8) | r; // ABGR for a little-endian Uint32 view of ImageData
   };
   for (let c = 0; c < 256; c++) {
@@ -47,54 +50,86 @@ function residueTable(): Uint32Array {
   return t;
 }
 
-export function compileColumns(tree: TreeSnapshot, cols: Column[]): CompiledColumn[] {
+/** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap). */
+export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn {
   const N = tree.tipCount;
-  return cols.map((spec) => {
-    const has = new Uint8Array(N);
-    let num: Float64Array | null = null;
-    let txt: (string | undefined)[] | null = null;
-    let max = 0;
-    let seqLen = 0;
-    let bitmap: HTMLCanvasElement | null = null;
-    if (spec.kind === 'bar') {
-      num = new Float64Array(N).fill(NaN);
-      for (let r = 0; r < N; r++) {
-        const v = spec.values[tree.tipLabels[r]];
-        if (v === undefined) continue;
-        const x = Number(v);
-        if (x === x) { num[r] = x; has[r] = 1; if (x > max) max = x; }
-      }
-    } else {
-      txt = new Array(N);
-      for (let r = 0; r < N; r++) {
-        const v = spec.values[tree.tipLabels[r]];
-        if (v === undefined) continue;
-        const s = String(v);
-        txt[r] = s;
+  const has = new Uint8Array(N);
+  let num: Float64Array | null = null;
+  let txt: (string | undefined)[] | null = null;
+  let max = 0;
+  let seqLen = 0;
+  let bitmap: HTMLCanvasElement | null = null;
+  if (spec.kind === 'bar') {
+    num = new Float64Array(N).fill(NaN);
+    for (let r = 0; r < N; r++) {
+      const v = spec.values[tree.tipLabels[r]];
+      if (v === undefined) continue;
+      const x = Number(v);
+      if (!Number.isNaN(x)) {
+        num[r] = x;
         has[r] = 1;
-        if (s.length > seqLen) seqLen = s.length;
-      }
-      if (spec.kind === 'alignment' && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
-        bitmap = document.createElement('canvas');
-        bitmap.width = seqLen;
-        bitmap.height = N;
-        const ctx = bitmap.getContext('2d');
-        if (ctx) {
-          const img = ctx.createImageData(seqLen, N);
-          const px = new Uint32Array(img.data.buffer);
-          const tab = residueTable();
-          for (let r = 0; r < N; r++) {
-            const s = txt[r];
-            if (s === undefined) continue;
-            const o = r * seqLen;
-            for (let j = 0; j < s.length; j++) px[o + j] = tab[s.charCodeAt(j) & 255];
-          }
-          ctx.putImageData(img, 0, 0);
-        } else bitmap = null;
+        if (x > max) max = x;
       }
     }
-    return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
+  } else {
+    txt = new Array(N);
+    for (let r = 0; r < N; r++) {
+      const v = spec.values[tree.tipLabels[r]];
+      if (v === undefined) continue;
+      const s = String(v);
+      txt[r] = s;
+      has[r] = 1;
+      if (s.length > seqLen) seqLen = s.length;
+    }
+    if (spec.kind === 'alignment' && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
+      bitmap = document.createElement('canvas');
+      bitmap.width = seqLen;
+      bitmap.height = N;
+      const ctx = bitmap.getContext('2d');
+      if (ctx) {
+        const img = ctx.createImageData(seqLen, N);
+        const px = new Uint32Array(img.data.buffer);
+        const tab = residueTable();
+        for (let r = 0; r < N; r++) {
+          const s = txt[r];
+          if (s === undefined) continue;
+          const o = r * seqLen;
+          for (let j = 0; j < s.length; j++) px[o + j] = tab[s.charCodeAt(j) & 255];
+        }
+        ctx.putImageData(img, 0, 0);
+      } else bitmap = null;
+    }
+  }
+  return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
+}
+
+/** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
+ *  possibly millions of entries, and a deep compare would cost as much as recompiling. Replace the object to change the data. The same
+ *  Column object (`a === b`) is taken as unchanged without looking at it, so Column objects must be replaced, never mutated in place. */
+export function columnSpecEquals(a: Column, b: Column): boolean {
+  return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && a.values === b.values);
+}
+
+/** The new compiled list for `cols`, reusing what `old` already holds: a column with an identical spec (by `columnSpecEquals`) is kept as is,
+ *  one whose data is the same (same kind and `values` reference) but whose header or width changed keeps its arrays and bitmap under the
+ *  new spec, and only the rest is compiled. Ids must be unique: a second column with an id already used in the list is compiled afresh on
+ *  every call (a compiled column carries its own screen position, so it cannot be shared) and `same` is then never true. `same` is true when the result equals `old` entry for entry, so the caller can stop there. */
+export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: Column[]): { columns: CompiledColumn[]; same: boolean } {
+  const byId = new Map<string, CompiledColumn>(); // a duplicate id is a caller error; the second one is compiled afresh, never shares a compiled object
+  for (const c of old) byId.set(c.spec.id, c);
+  let same = cols.length === old.length;
+  const columns = cols.map((spec, i) => {
+    const prev = byId.get(spec.id);
+    byId.delete(spec.id);
+    if (prev && columnSpecEquals(prev.spec, spec)) {
+      if (old[i] !== prev) same = false;
+      return prev;
+    }
+    same = false;
+    if (prev && prev.spec.kind === spec.kind && prev.spec.values === spec.values) return { ...prev, spec };
+    return compileColumn(tree, spec);
   });
+  return { columns, same };
 }
 
 export function columnsWidth(cols: { spec: { width: number } }[]): number {
@@ -136,18 +171,31 @@ function runsOf(c: CompiledColumn, r: number): Int32Array {
     const ch = j < s.length ? s.charCodeAt(j) : 45;
     const gap = ch === 45 || ch === 46;
     if (!gap && start < 0) start = j;
-    else if (gap && start >= 0) { out.push(start, j); start = -1; }
+    else if (gap && start >= 0) {
+      out.push(start, j);
+      start = -1;
+    }
   }
   v = Int32Array.from(out);
   c.runs[r] = v;
   return v;
 }
 
-export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeSnapshot, T: Transform, theme: TreeTheme, headY: number, barColour: string, opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 }): void {
+export function drawColumns(
+  ctx: CanvasRenderingContext2D,
+  cols: CompiledColumn[],
+  tree: TreeSnapshot,
+  T: Transform,
+  theme: TreeTheme,
+  headY: number,
+  barColour: string,
+  opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 },
+): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
   const { oy, ky, area } = T;
-  const top = area.ay, bottom = area.ay + area.ah;
+  const top = area.ay,
+    bottom = area.ay + area.ah;
   const r0 = Math.max(0, Math.floor((top - oy) / ky));
   const r1 = Math.min(N - 1, Math.ceil((bottom - oy) / ky));
   ctx.save();
@@ -186,7 +234,8 @@ export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[
         const runs = runsOf(c, r);
         const y = oy + r * ky + inset / 2;
         for (let k = 0; k < runs.length; k += 2) {
-          const x0 = c.x + runs[k] * cw, bw = Math.max(1, (runs[k + 1] - runs[k]) * cw);
+          const x0 = c.x + runs[k] * cw,
+            bw = Math.max(1, (runs[k + 1] - runs[k]) * cw);
           if (canRound) ctx.roundRect(x0, y, bw, bh, Math.min(rr, bw / 2));
           else ctx.rect(x0, y, bw, bh);
         }
@@ -203,12 +252,17 @@ export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[
     } else if (ky < 1.5) {
       // bin rows per pixel row; mean value for bars, presence for the others
       const H = Math.ceil(bottom - top) + 2;
-      const sum = new Float64Array(H), cnt = new Float64Array(H), any = new Uint8Array(H);
+      const sum = new Float64Array(H),
+        cnt = new Float64Array(H),
+        any = new Uint8Array(H);
       for (let r = r0; r <= r1; r++) {
         const p = Math.floor(oy + r * ky - top);
         if (p < 0 || p >= H || !c.has[r]) continue;
         any[p] = 1;
-        if (c.num) { sum[p] += c.num[r]; cnt[p]++; }
+        if (c.num) {
+          sum[p] += c.num[r];
+          cnt[p]++;
+        }
       }
       ctx.fillStyle = barColour;
       if (c.spec.kind !== 'bar') ctx.globalAlpha = 0.45;

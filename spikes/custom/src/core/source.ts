@@ -39,12 +39,26 @@ export function isTreeSource(x: TreeData | TreeSource): x is TreeSource {
 /** TreeData -> TreeSnapshot without copying: the typed arrays are shared, the three extra fields are null. */
 function snapshotOf(t: TreeData): TreeSnapshot {
   return {
-    nodeCount: t.nodeCount, tipCount: t.tipCount, parent: t.parent, firstChild: t.firstChild, nextSibling: t.nextSibling, childCount: t.childCount,
-    subtreeEnd: t.subtreeEnd, length: t.length, leafStart: t.leafStart, leafEnd: t.leafEnd, tipNode: t.tipNode, tipRank: t.tipRank,
-    tipLabels: t.tipLabels, labels: t.labels, hasLengths: t.hasLengths,
+    nodeCount: t.nodeCount,
+    tipCount: t.tipCount,
+    parent: t.parent,
+    firstChild: t.firstChild,
+    nextSibling: t.nextSibling,
+    childCount: t.childCount,
+    subtreeEnd: t.subtreeEnd,
+    length: t.length,
+    leafStart: t.leafStart,
+    leafEnd: t.leafEnd,
+    tipNode: t.tipNode,
+    tipRank: t.tipRank,
+    tipLabels: t.tipLabels,
+    labels: t.labels,
+    hasLengths: t.hasLengths,
     heights: () => t.heights(),
     tipIndex: (label) => t.tipIndex(label),
-    stub: null, globalId: null, rollup: null,
+    stub: null,
+    globalId: null,
+    rollup: null,
     toLocal: (g) => (g >= 0 && g < t.nodeCount ? g : -1),
   };
 }
@@ -53,13 +67,31 @@ function snapshotOf(t: TreeData): TreeSnapshot {
 export class InMemorySource implements TreeSource {
   readonly version = 0;
   private readonly snap: TreeSnapshot;
-  constructor(tree: TreeData) { this.snap = snapshotOf(tree); }
-  get nodeCount(): number { return this.snap.nodeCount; }
-  get tipCount(): number { return this.snap.tipCount; }
-  get hasLengths(): boolean { return this.snap.hasLengths; }
-  subscribe(): () => void { return () => undefined; }
-  snapshot(): TreeSnapshot { return this.snap; }
-  ensureClade(): Promise<void> { return Promise.resolve(); }
-  tipLabels(r0: number, r1: number): Promise<string[]> { return Promise.resolve(this.snap.tipLabels.slice(r0, r1)); }
-  destroy(): void { /* nothing to release */ }
+  constructor(tree: TreeData) {
+    this.snap = snapshotOf(tree);
+  }
+  get nodeCount(): number {
+    return this.snap.nodeCount;
+  }
+  get tipCount(): number {
+    return this.snap.tipCount;
+  }
+  get hasLengths(): boolean {
+    return this.snap.hasLengths;
+  }
+  subscribe(): () => void {
+    return () => undefined;
+  }
+  snapshot(): TreeSnapshot {
+    return this.snap;
+  }
+  ensureClade(): Promise<void> {
+    return Promise.resolve();
+  }
+  tipLabels(r0: number, r1: number): Promise<string[]> {
+    return Promise.resolve(this.snap.tipLabels.slice(r0, r1));
+  }
+  destroy(): void {
+    /* nothing to release */
+  }
 }

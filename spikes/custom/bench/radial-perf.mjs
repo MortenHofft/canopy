@@ -18,7 +18,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, '../../runner/package.json'));
 const { chromium } = require('playwright-core');
 
-const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]] : a), []));
+const args = Object.fromEntries(
+  process.argv
+    .slice(2)
+    .reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]] : a), []),
+);
 const port = Number(args.port || 5306);
 const dsf = Number(args.dsf || 1);
 const cpu = String(args.cpu ?? '1') === '1';
@@ -34,7 +38,16 @@ const tag = args.tag || 'run';
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   headless: true,
-  args: ['--no-sandbox', '--enable-precise-memory-info', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--js-flags=--expose-gc', '--disable-gpu-rasterization', '--disable-frame-rate-limit'],
+  args: [
+    '--no-sandbox',
+    '--enable-precise-memory-info',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--ignore-gpu-blocklist',
+    '--js-flags=--expose-gc',
+    '--disable-gpu-rasterization',
+    '--disable-frame-rate-limit',
+  ],
 });
 import os from 'node:os';
 const out = { tag, dsf, cpu, port, cutoff, date: new Date().toISOString(), rows: [] };
@@ -68,7 +81,10 @@ const files = [];
 for (const shape of shapes) for (const size of sizes) files.push({ shape, size, file: path.join(dir, 'newick', `${shape}_${size}.nwk`) });
 
 for (const f of files) {
-  if (!fs.existsSync(f.file)) { console.log('missing', f.file); continue; }
+  if (!fs.existsSync(f.file)) {
+    console.log('missing', f.file);
+    continue;
+  }
   const text = fs.readFileSync(f.file, 'utf8');
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 900 }, deviceScaleFactor: dsf });
   await ctx.addInitScript(INIT);
@@ -81,7 +97,13 @@ for (const f of files) {
     const res = await page.evaluate(
       async ({ text, layout }) => {
         const t0 = performance.now();
-        const r = await window.__spike.mount({ treeId: 'syn-yule-1000', newick: text, layout, branchLengths: true, size: { width: 1100, height: 640 } });
+        const r = await window.__spike.mount({
+          treeId: 'syn-yule-1000',
+          newick: text,
+          layout,
+          branchLengths: true,
+          size: { width: 1100, height: 640 },
+        });
         return { tips: r.tips, firstRenderMs: r.firstRenderMs, wallMs: performance.now() - t0 };
       },
       { text, layout },
@@ -91,12 +113,19 @@ for (const f of files) {
         async ({ view, frames, e2e, cutoff, layout }) => {
           const h = window.__customTree.handle();
           const rd = h.renderer();
-          if (cutoff && rd.setOptions && 'radialMaxNodes' in rd.options) rd.setOptions({ radialMaxNodes: cutoff === 'unlimited' ? Infinity : Number(cutoff) });
+          if (cutoff && rd.setOptions && 'radialMaxNodes' in rd.options)
+            rd.setOptions({ radialMaxNodes: cutoff === 'unlimited' ? Infinity : Number(cutoff) });
           rd.fit(false);
           const f = rd.getViewport();
           if (view === 'z4') {
-            if (layout === 'radial') { const w = (f.x1 - f.x0) / 4, hh = (f.y1 - f.y0) / 4; rd.setViewport({ x0: 0.75 - w / 2, x1: 0.75 + w / 2, y0: -hh / 2, y1: hh / 2 }); }
-            else { const N = f.y1; rd.setViewport({ x0: 0.7, x1: 0.95, y0: N * 0.375, y1: N * 0.625 }); }
+            if (layout === 'radial') {
+              const w = (f.x1 - f.x0) / 4,
+                hh = (f.y1 - f.y0) / 4;
+              rd.setViewport({ x0: 0.75 - w / 2, x1: 0.75 + w / 2, y0: -hh / 2, y1: hh / 2 });
+            } else {
+              const N = f.y1;
+              rd.setViewport({ x0: 0.7, x1: 0.95, y0: N * 0.375, y1: N * 0.625 });
+            }
           }
           rd.renderNow();
           rd.benchmark(3); // warm up (JIT, font cache)
@@ -104,32 +133,45 @@ for (const f of files) {
           const s = rd.getStats();
           // JS + raster for a CPU-backed canvas: force the pending canvas work to complete after every frame
           let flush = null;
-          { const c2 = rd.ctx; const t0 = performance.now(); const nf = 8; for (let q = 0; q < nf; q++) { rd.benchmark(1); c2.getImageData(0, 0, 1, 1); } flush = (performance.now() - t0) / nf; }
+          {
+            const c2 = rd.ctx;
+            const t0 = performance.now();
+            const nf = 8;
+            for (let q = 0; q < nf; q++) {
+              rd.benchmark(1);
+              c2.getImageData(0, 0, 1, 1);
+            }
+            flush = (performance.now() - t0) / nf;
+          }
           // counting pass
-          window.__cnt.install(); window.__cnt.reset();
+          window.__cnt.install();
+          window.__cnt.reset();
           rd.benchmark(3);
-          const c = window.__cnt.read(); window.__cnt.uninstall();
+          const c = window.__cnt.read();
+          window.__cnt.uninstall();
           for (const k in c) c[k] = +(c[k] / 3).toFixed(1);
           // end-to-end: repaint every rAF with a 1 px alternating pan (so contents change), mean interval
           let e = null;
           if (e2e) {
             e = await new Promise((resolve) => {
-              const iv = [], js = [];
-              let last = 0, n = 0;
+              const iv = [],
+                js = [];
+              let last = 0,
+                n = 0;
               const v0 = rd.getViewport();
               const dx = (v0.x1 - v0.x0) / 1100;
               const loop = (t) => {
                 if (last) iv.push(t - last);
                 last = t;
                 const t0 = performance.now();
-                const v = rd.getViewport();
                 rd.setViewport({ x0: v0.x0 + (n % 2) * dx, x1: v0.x1 + (n % 2) * dx, y0: v0.y0, y1: v0.y1 });
                 rd.renderNow(true);
                 js.push(performance.now() - t0);
                 n++;
                 if (n < 50 && t < (iv.length ? 0 : 1e12) + 1e12) requestAnimationFrame(loop);
                 else {
-                  const a = iv.slice(8), j = js.slice(8);
+                  const a = iv.slice(8),
+                    j = js.slice(8);
                   const mean = (x) => x.reduce((p, q) => p + q, 0) / Math.max(1, x.length);
                   const srt = a.slice().sort((p, q) => p - q);
                   resolve({ intervalMs: mean(a), p95IntervalMs: srt[Math.floor(srt.length * 0.95)], jsMs: mean(j) });
@@ -139,14 +181,45 @@ for (const f of files) {
             });
           }
           rd.setViewport(f);
-          return { frameMs: b.meanMs, cutMs: b.cutMs, drawMs: b.drawMs, maxMs: b.maxMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, retries: s.budgetRetries, truncated: s.truncated, calls: c, e2e: e, flushMs: flush, kx: s.kx };
+          return {
+            frameMs: b.meanMs,
+            cutMs: b.cutMs,
+            drawMs: b.drawMs,
+            maxMs: b.maxMs,
+            drawn: s.drawn,
+            summaries: s.summaries,
+            tipsDrawn: s.tips,
+            labels: s.labels,
+            visited: s.visited,
+            minPxUsed: s.minPxUsed,
+            retries: s.budgetRetries,
+            truncated: s.truncated,
+            calls: c,
+            e2e: e,
+            flushMs: flush,
+            kx: s.kx,
+          };
         },
         { view, frames, e2e, cutoff, layout },
       );
-      const row = { load1: os.loadavg()[0], tag, shape: f.shape, size: Number(f.size), layout, view, dsf, cpu, tips: res.tips, firstRenderMs: res.firstRenderMs, ...m };
+      const row = {
+        load1: os.loadavg()[0],
+        tag,
+        shape: f.shape,
+        size: Number(f.size),
+        layout,
+        view,
+        dsf,
+        cpu,
+        tips: res.tips,
+        firstRenderMs: res.firstRenderMs,
+        ...m,
+      };
       out.rows.push(row);
       const segs = ['moveTo', 'lineTo', 'arc', 'rect'].reduce((p, k) => p + (m.calls[k] || 0), 0);
-      console.log(`load ${os.loadavg()[0].toFixed(1)} ${tag} dsf${dsf} cpu${+cpu} ${f.shape}-${f.size} ${layout} ${view}: drawn ${m.drawn} (sum ${m.summaries}) js ${m.frameMs.toFixed(1)} (cut ${m.cutMs.toFixed(1)} draw ${m.drawMs.toFixed(1)}) segs ${segs} strokes ${m.calls.stroke || 0} fills ${m.calls.fill || 0} text ${m.calls.fillText || 0} flush ${m.flushMs.toFixed(1)} e2e ${m.e2e ? m.e2e.intervalMs.toFixed(1) : '-'} minPx ${m.minPxUsed.toFixed(1)}`);
+      console.log(
+        `load ${os.loadavg()[0].toFixed(1)} ${tag} dsf${dsf} cpu${+cpu} ${f.shape}-${f.size} ${layout} ${view}: drawn ${m.drawn} (sum ${m.summaries}) js ${m.frameMs.toFixed(1)} (cut ${m.cutMs.toFixed(1)} draw ${m.drawMs.toFixed(1)}) segs ${segs} strokes ${m.calls.stroke || 0} fills ${m.calls.fill || 0} text ${m.calls.fillText || 0} flush ${m.flushMs.toFixed(1)} e2e ${m.e2e ? m.e2e.intervalMs.toFixed(1) : '-'} minPx ${m.minPxUsed.toFixed(1)}`,
+      );
     }
   }
   await ctx.close();
