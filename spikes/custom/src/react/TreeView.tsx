@@ -8,6 +8,7 @@ import { TreeRenderer } from '../core/renderer.ts';
 import { InMemorySource, type TreeSource } from '../core/source.ts';
 import { stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
+  DEFAULT_OPTIONS,
   FALLBACK_THEME,
   themeEquals,
   type Column,
@@ -68,7 +69,8 @@ export interface CladeProp {
  *  - `highlighted`: compared element-wise with the last array applied. A new array with the same ids costs one O(n) compare.
  *  - `clades`: compared by content (node id and colour, in order).
  *  - `columns`: each column is compared by `id`, `kind`, `header`, `width` and `values` BY REFERENCE (a deep compare of a dictionary
- *    with millions of entries costs as much as recompiling). Only columns that changed are compiled again; if the data object
+ *    with millions of entries costs as much as recompiling). Column objects are compared by reference first, so replace them too
+ *    rather than mutating one in place. Only columns that changed are compiled again; if the data object
  *    is unchanged and only the header or width changed, the compiled data is kept. Pass the same `values` object while the data
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
@@ -89,7 +91,7 @@ export interface TreeViewProps {
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
-  options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; undefined fields keep the default
+  options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
   width?: number | string;
   height?: number | string;
@@ -146,6 +148,12 @@ function useRenderer(
   return { renderer, rendererRef };
 }
 
+/** The renderer if it is the live one. The effects below close over the renderer of the render they were created in; on a `source` change (or a
+ *  strict-mode remount) the create effect's cleanup has already destroyed that instance when they run, so each one acts only on a live instance. */
+function liveRenderer(r: TreeRenderer | null, ref: React.RefObject<TreeRenderer | null>): TreeRenderer | null {
+  return r !== null && r === ref.current ? r : null;
+}
+
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(props, ref) {
   const { layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, tipHref = null, focus, tooltip = true } = props;
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
@@ -160,8 +168,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   // Identity-stable inputs: an inline `options` / `theme` object is a new object on every parent render, but the effects below only
   // run when a value in it changed (the renderer's setters also ignore unchanged values, belt and braces).
   const options = useShallowStable(props.options ?? EMPTY);
-  const rendererOptions = useMemo(
-    () => stripUndefined({ ...options, layout, branchLengths, tipHref }) as Partial<RendererOptions>,
+  // the whole option set, defaults included: an option removed from `options` (or set to undefined) goes back to its default
+  const rendererOptions = useMemo<RendererOptions>(
+    () => ({ ...DEFAULT_OPTIONS, ...stripUndefined(options), layout, branchLengths, tipHref }),
     [options, layout, branchLengths, tipHref],
   );
   const fullTheme = useStable<TreeTheme>({ ...FALLBACK_THEME, ...stripUndefined(props.theme ?? {}) }, themeEquals);
@@ -224,31 +233,36 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   // ---- props -> renderer. Each effect re-runs when the renderer is (re)created or its input changed; the renderer's setters are no-ops
   // for an input equal to the current one, so none of them needs more than its own value in the dependency list.
   useLayoutEffect(() => {
-    R?.setTheme(fullTheme);
-  }, [R, fullTheme]);
+    liveRenderer(R, rendRef)?.setTheme(fullTheme);
+  }, [R, rendRef, fullTheme]);
   useLayoutEffect(() => {
-    R?.setOptions(rendererOptions);
-  }, [R, rendererOptions]);
+    liveRenderer(R, rendRef)?.setOptions(rendererOptions);
+  }, [R, rendRef, rendererOptions]);
+  // `source` is in the dependency list of the next two only because their bodies read it; the new renderer's first run is triggered by `R`
   useLayoutEffect(() => {
-    R?.setClades((clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0));
-  }, [R, source, clades]);
+    liveRenderer(R, rendRef)?.setClades(
+      (clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0),
+    );
+  }, [R, rendRef, source, clades]);
   useLayoutEffect(() => {
-    R?.setHighlighted(highlighted ?? EMPTY_IDS);
-  }, [R, highlighted]);
+    liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
+  }, [R, rendRef, highlighted]);
   useLayoutEffect(() => {
-    R?.setColumns(columns ?? EMPTY_COLUMNS);
-  }, [R, columns]);
+    liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
+  }, [R, rendRef, columns]);
   const [vx0, vx1, vy0, vy1] = [viewport?.x0, viewport?.x1, viewport?.y0, viewport?.y1]; // compared by value: a new object with the same numbers is no change
   useLayoutEffect(() => {
-    if (vx0 !== undefined && vx1 !== undefined && vy0 !== undefined && vy1 !== undefined) R?.setViewport({ x0: vx0, x1: vx1, y0: vy0, y1: vy1 });
-  }, [R, vx0, vx1, vy0, vy1]);
+    if (vx0 !== undefined && vx1 !== undefined && vy0 !== undefined && vy1 !== undefined)
+      liveRenderer(R, rendRef)?.setViewport({ x0: vx0, x1: vx1, y0: vy0, y1: vy1 });
+  }, [R, rendRef, vx0, vx1, vy0, vy1]);
   const focusSeq = focus?.seq;
   useLayoutEffect(() => {
     const f = latest.current.focus; // acts when `seq` changes, not when only the tip id does
-    if (!f) return;
+    const r = liveRenderer(R, rendRef);
+    if (!f || !r) return;
     const n = source.snapshot().tipIndex(f.tipId);
-    if (n >= 0) R?.focusTip(source.snapshot().tipRank[n]);
-  }, [R, source, focusSeq]);
+    if (n >= 0) r.focusTip(source.snapshot().tipRank[n]);
+  }, [R, rendRef, source, focusSeq]);
 
   useImperativeHandle(
     ref,

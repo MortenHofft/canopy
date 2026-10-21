@@ -113,7 +113,8 @@ export interface Column {
   header: string;
   width: number; // CSS px
   /** By tip label. Compared BY REFERENCE when the columns are set again (a deep compare of millions of entries costs as much as
-   *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. */
+   *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
+   *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
   values: Record<string, number | string>;
 }
 

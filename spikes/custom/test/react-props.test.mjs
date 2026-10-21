@@ -22,6 +22,11 @@ test('shallowEqualOwn: same own values by Object.is, functions by identity', () 
   assert.ok(shallowEqualOwn({ n: NaN }, { n: NaN }), 'Object.is: NaN equals NaN');
   assert.ok(!shallowEqualOwn({ o: {} }, { o: {} }), 'nested objects by reference');
   assert.ok(shallowEqualOwn({ n: Infinity }, { n: Infinity }));
+  // own keys only: an inherited property or an undefined value under another name is not a match
+  assert.ok(!shallowEqualOwn({ a: 1, b: undefined }, { a: 1, c: 1 }), 'b: undefined vs c: 1');
+  assert.ok(!shallowEqualOwn({ a: 1, b: undefined }, { a: 1, c: undefined }), 'same count, b missing on the other side');
+  assert.ok(!shallowEqualOwn({ a: 1 }, Object.create({ a: 1 })), 'inherited a is not an own key');
+  assert.ok(!shallowEqualOwn(Object.assign(Object.create({ b: 2 }), { a: 1 }), { a: 1, b: 2 }), 'a prototype key does not stand in for an own one');
 });
 
 test('stripUndefined drops only undefined values and does not mutate', () => {
@@ -82,6 +87,20 @@ test('updateColumns: identical list is the same, changed columns only are recomp
   assert.equal(wider.columns[0].spec.width, 80);
   assert.equal(wider.columns[1], first.columns[1]);
 
+  // new data and a new width together: recompiled under the new spec
+  const both = updateColumns(tree, first.columns, [colSpec('one', { a: 7 }, { width: 80 }), colSpec('two', v2)]);
+  assert.notEqual(both.columns[0], first.columns[0]);
+  assert.notEqual(both.columns[0].num, first.columns[0].num);
+  assert.equal(both.columns[0].max, 7);
+  assert.equal(both.columns[0].spec.width, 80);
+
+  // same `values` object but another kind: the data is of the other kind, so it is compiled afresh (no reuse of the bar arrays)
+  const kind = updateColumns(tree, first.columns, [colSpec('one', v1, { kind: 'text' }), colSpec('two', v2)]);
+  assert.notEqual(kind.columns[0], first.columns[0]);
+  assert.equal(kind.columns[0].num, null);
+  assert.deepEqual(kind.columns[0].txt.slice(0, 2), ['1', '2']);
+  assert.equal(kind.columns[0].spec.kind, 'text');
+
   // reorder, removal, addition
   assert.ok(!updateColumns(tree, first.columns, [colSpec('two', v2), colSpec('one', v1)]).same);
   assert.deepEqual(updateColumns(tree, first.columns, [colSpec('two', v2)]).columns, [first.columns[1]]);
@@ -94,4 +113,6 @@ test('updateColumns: a duplicate id never shares one compiled object', () => {
   const first = updateColumns(tree, [], [colSpec('d', v)]);
   const dup = updateColumns(tree, first.columns, [colSpec('d', v), colSpec('d', v)]);
   assert.notEqual(dup.columns[0], dup.columns[1]);
+  assert.ok(!dup.same);
+  assert.ok(!updateColumns(tree, dup.columns, [colSpec('d', v), colSpec('d', v)]).same, 'documented: never "same" with a duplicate id');
 });

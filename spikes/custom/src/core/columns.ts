@@ -104,14 +104,16 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
 }
 
 /** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
- *  possibly millions of entries, and a deep compare would cost as much as recompiling. Replace the object to change the data. */
+ *  possibly millions of entries, and a deep compare would cost as much as recompiling. Replace the object to change the data. The same
+ *  Column object (`a === b`) is taken as unchanged without looking at it, so Column objects must be replaced, never mutated in place. */
 export function columnSpecEquals(a: Column, b: Column): boolean {
   return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && a.values === b.values);
 }
 
 /** The new compiled list for `cols`, reusing what `old` already holds: a column with an identical spec (by `columnSpecEquals`) is kept as is,
  *  one whose data is the same (same kind and `values` reference) but whose header or width changed keeps its arrays and bitmap under the
- *  new spec, and only the rest is compiled. `same` is true when the result equals `old` entry for entry, so the caller can stop there. */
+ *  new spec, and only the rest is compiled. Ids must be unique: a second column with an id already used in the list is compiled afresh on
+ *  every call (a compiled column carries its own screen position, so it cannot be shared) and `same` is then never true. `same` is true when the result equals `old` entry for entry, so the caller can stop there. */
 export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: Column[]): { columns: CompiledColumn[]; same: boolean } {
   const byId = new Map<string, CompiledColumn>(); // a duplicate id is a caller error; the second one is compiled afresh, never shares a compiled object
   for (const c of old) byId.set(c.spec.id, c);
