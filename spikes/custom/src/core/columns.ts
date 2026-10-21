@@ -37,7 +37,9 @@ RESIDUE.U = '#15c015';
 function residueTable(): Uint32Array {
   const t = new Uint32Array(256);
   const parse = (hex: string) => {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    const r = parseInt(hex.slice(1, 3), 16),
+      g = parseInt(hex.slice(3, 5), 16),
+      b = parseInt(hex.slice(5, 7), 16);
     return (255 << 24) | (b << 16) | (g << 8) | r; // ABGR for a little-endian Uint32 view of ImageData
   };
   for (let c = 0; c < 256; c++) {
@@ -62,7 +64,11 @@ export function compileColumns(tree: TreeSnapshot, cols: Column[]): CompiledColu
         const v = spec.values[tree.tipLabels[r]];
         if (v === undefined) continue;
         const x = Number(v);
-        if (x === x) { num[r] = x; has[r] = 1; if (x > max) max = x; }
+        if (!Number.isNaN(x)) {
+          num[r] = x;
+          has[r] = 1;
+          if (x > max) max = x;
+        }
       }
     } else {
       txt = new Array(N);
@@ -136,18 +142,31 @@ function runsOf(c: CompiledColumn, r: number): Int32Array {
     const ch = j < s.length ? s.charCodeAt(j) : 45;
     const gap = ch === 45 || ch === 46;
     if (!gap && start < 0) start = j;
-    else if (gap && start >= 0) { out.push(start, j); start = -1; }
+    else if (gap && start >= 0) {
+      out.push(start, j);
+      start = -1;
+    }
   }
   v = Int32Array.from(out);
   c.runs[r] = v;
   return v;
 }
 
-export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[], tree: TreeSnapshot, T: Transform, theme: TreeTheme, headY: number, barColour: string, opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 }): void {
+export function drawColumns(
+  ctx: CanvasRenderingContext2D,
+  cols: CompiledColumn[],
+  tree: TreeSnapshot,
+  T: Transform,
+  theme: TreeTheme,
+  headY: number,
+  barColour: string,
+  opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 },
+): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
   const { oy, ky, area } = T;
-  const top = area.ay, bottom = area.ay + area.ah;
+  const top = area.ay,
+    bottom = area.ay + area.ah;
   const r0 = Math.max(0, Math.floor((top - oy) / ky));
   const r1 = Math.min(N - 1, Math.ceil((bottom - oy) / ky));
   ctx.save();
@@ -186,7 +205,8 @@ export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[
         const runs = runsOf(c, r);
         const y = oy + r * ky + inset / 2;
         for (let k = 0; k < runs.length; k += 2) {
-          const x0 = c.x + runs[k] * cw, bw = Math.max(1, (runs[k + 1] - runs[k]) * cw);
+          const x0 = c.x + runs[k] * cw,
+            bw = Math.max(1, (runs[k + 1] - runs[k]) * cw);
           if (canRound) ctx.roundRect(x0, y, bw, bh, Math.min(rr, bw / 2));
           else ctx.rect(x0, y, bw, bh);
         }
@@ -203,12 +223,17 @@ export function drawColumns(ctx: CanvasRenderingContext2D, cols: CompiledColumn[
     } else if (ky < 1.5) {
       // bin rows per pixel row; mean value for bars, presence for the others
       const H = Math.ceil(bottom - top) + 2;
-      const sum = new Float64Array(H), cnt = new Float64Array(H), any = new Uint8Array(H);
+      const sum = new Float64Array(H),
+        cnt = new Float64Array(H),
+        any = new Uint8Array(H);
       for (let r = r0; r <= r1; r++) {
         const p = Math.floor(oy + r * ky - top);
         if (p < 0 || p >= H || !c.has[r]) continue;
         any[p] = 1;
-        if (c.num) { sum[p] += c.num[r]; cnt[p]++; }
+        if (c.num) {
+          sum[p] += c.num[r];
+          cnt[p]++;
+        }
       }
       ctx.fillStyle = barColour;
       if (c.spec.kind !== 'bar') ctx.globalAlpha = 0.45;

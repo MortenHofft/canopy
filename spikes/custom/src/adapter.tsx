@@ -68,21 +68,46 @@ function CustomView(props: ViewProps) {
 
   useLayoutEffect(() => {
     const h = (): TreeViewHandle | null => ref.current;
-    const idOf = (t: { kind: 'tip' | 'node'; id: string }): string | null => (t.kind === 'tip' ? tree.tipNodeId(t.id) : tree.isNodeId(t.id) ? t.id : null);
+    const idOf = (t: { kind: 'tip' | 'node'; id: string }): string | null =>
+      t.kind === 'tip' ? tree.tipNodeId(t.id) : tree.isNodeId(t.id) ? t.id : null;
     const handle: ViewHandle = {
       locate: (t) => {
         const id = idOf(t);
-        return id ? h()?.locateNode(id) ?? null : null;
+        return id ? (h()?.locateNode(id) ?? null) : null;
       },
       bounds: (t) => {
         const id = idOf(t);
-        return id ? h()?.nodeBounds(id) ?? null : null;
+        return id ? (h()?.nodeBounds(id) ?? null) : null;
       },
       locateCell: (colId, tipId) => h()?.columnCell(colId, tipId) ?? null,
       custom: (): Record<string, number> => {
         const s = h()?.getStats();
         if (!s) return {};
-        return { layoutMs: s.layoutMs, frameMs: s.frameMs, cutMs: s.cutMs, drawMs: s.drawMs, avgFrameMs: s.avgFrameMs, drawn: s.drawn, summaries: s.summaries, tipsDrawn: s.tips, labels: s.labels, visited: s.visited, minPxUsed: s.minPxUsed, budgetRetries: s.budgetRetries, budgetHit: s.budgetHit ? 1 : 0, frames: s.frames, hitBuildMs: s.hitBuildMs, kx: s.kx, ky: s.ky, budget: s.budget, forced: s.forced, summaryTips: s.summaryTips, mergedTips: s.mergedTips, reduced: s.reduced ? 1 : 0, scale: s.scale };
+        return {
+          layoutMs: s.layoutMs,
+          frameMs: s.frameMs,
+          cutMs: s.cutMs,
+          drawMs: s.drawMs,
+          avgFrameMs: s.avgFrameMs,
+          drawn: s.drawn,
+          summaries: s.summaries,
+          tipsDrawn: s.tips,
+          labels: s.labels,
+          visited: s.visited,
+          minPxUsed: s.minPxUsed,
+          budgetRetries: s.budgetRetries,
+          budgetHit: s.budgetHit ? 1 : 0,
+          frames: s.frames,
+          hitBuildMs: s.hitBuildMs,
+          kx: s.kx,
+          ky: s.ky,
+          budget: s.budget,
+          forced: s.forced,
+          summaryTips: s.summaryTips,
+          mergedTips: s.mergedTips,
+          reduced: s.reduced ? 1 : 0,
+          scale: s.scale,
+        };
       },
     };
     props.handleRef.current = handle;
@@ -103,26 +128,29 @@ function CustomView(props: ViewProps) {
   const onFrame = (st: FrameStats) => {
     const m = meter.current;
     const end = performance.now();
-    m.js = st.frameMs; m.drawn = st.drawn;
+    m.js = st.frameMs;
+    m.drawn = st.drawn;
     const start = end - st.frameMs;
     m.times.push(end);
     while (m.times.length && end - m.times[0] > 1000) m.times.shift();
-    requestAnimationFrame(() => setTimeout(() => {
-      m.paint = performance.now() - start;
-      const el = readoutRef.current;
-      if (!el) return;
-      const active = performance.now() - m.times[m.times.length - 1] < 1000;
-      const fps = m.times.length > 1 ? ((m.times.length - 1) * 1000) / (m.times[m.times.length - 1] - m.times[0]) : 0;
-      let text = `JS ${m.js.toFixed(1)} ms · paint ${m.paint.toFixed(0)} ms${active && fps ? ` · ${fps.toFixed(0)} fps` : ''} · ${m.drawn.toLocaleString()} drawn`;
-      if (features.debugInfo === true) {
-        // for bug reports: what the cut did and where the view is (zoom k in px per layout unit, viewport in layout units)
-        const v = ref.current?.getViewport();
-        const k = ref.current?.getStats()?.kx ?? 0;
-        text += `\nthreshold ${st.minPxUsed.toFixed(2)} px · budget ${st.budget} · passes ${st.budgetRetries + 1} · forced ${st.forced} · visited ${st.visited} · collapsed ${st.summaries}`;
-        text += `\n${layout} · k ${k.toFixed(2)} px/unit · view x ${v ? v.x0.toFixed(4) : '?'}..${v ? v.x1.toFixed(4) : '?'} y ${v ? v.y0.toFixed(4) : '?'}..${v ? v.y1.toFixed(4) : '?'} · canvas ${size.width}x${size.height} css px, scale ${st.scale}`;
-      }
-      el.textContent = text;
-    }, 0));
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        m.paint = performance.now() - start;
+        const el = readoutRef.current;
+        if (!el) return;
+        const active = performance.now() - m.times[m.times.length - 1] < 1000;
+        const fps = m.times.length > 1 ? ((m.times.length - 1) * 1000) / (m.times[m.times.length - 1] - m.times[0]) : 0;
+        let text = `JS ${m.js.toFixed(1)} ms · paint ${m.paint.toFixed(0)} ms${active && fps ? ` · ${fps.toFixed(0)} fps` : ''} · ${m.drawn.toLocaleString()} drawn`;
+        if (features.debugInfo === true) {
+          // for bug reports: what the cut did and where the view is (zoom k in px per layout unit, viewport in layout units)
+          const v = ref.current?.getViewport();
+          const k = ref.current?.getStats()?.kx ?? 0;
+          text += `\nthreshold ${st.minPxUsed.toFixed(2)} px · budget ${st.budget} · passes ${st.budgetRetries + 1} · forced ${st.forced} · visited ${st.visited} · collapsed ${st.summaries}`;
+          text += `\n${layout} · k ${k.toFixed(2)} px/unit · view x ${v ? v.x0.toFixed(4) : '?'}..${v ? v.x1.toFixed(4) : '?'} y ${v ? v.y0.toFixed(4) : '?'}..${v ? v.y1.toFixed(4) : '?'} · canvas ${size.width}x${size.height} css px, scale ${st.scale}`;
+        }
+        el.textContent = text;
+      }, 0),
+    );
   };
 
   const view = (
@@ -158,33 +186,115 @@ function CustomView(props: ViewProps) {
   return (
     <div style={{ position: 'relative', width: size.width, height: size.height }}>
       {view}
-      <div ref={readoutRef} aria-hidden="true" style={{ position: 'absolute', right: 8, bottom: 8, zIndex: 6, padding: '2px 8px', borderRadius: 6, font: '11px/1.5 ui-monospace, monospace', whiteSpace: 'pre', textAlign: 'right', background: 'rgba(15,23,42,.72)', color: '#fff', pointerEvents: 'none' }}>frame time: move or zoom</div>
+      <div
+        ref={readoutRef}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          right: 8,
+          bottom: 8,
+          zIndex: 6,
+          padding: '2px 8px',
+          borderRadius: 6,
+          font: '11px/1.5 ui-monospace, monospace',
+          whiteSpace: 'pre',
+          textAlign: 'right',
+          background: 'rgba(15,23,42,.72)',
+          color: '#fff',
+          pointerEvents: 'none',
+        }}
+      >
+        frame time: move or zoom
+      </div>
     </div>
   );
 }
 
 const capabilities: CapabilityReport = {
-  tipClick: { level: 'yes', how: 'pointer hit-test against the frame draw list through a uniform-grid spatial index (tip dot, or the label text box); also Enter on the keyboard cursor' },
-  internalNodeClick: { level: 'yes', how: 'internal node markers (clades >= 7 px) and collapsed clade triangles are hit-tested; clicking a collapsed clade reports the clade root' },
-  branchClick: { level: 'yes', how: 'distance to the branch segment (4 px slop): the horizontal branch above a node or the vertical connector of the clade; reported as branchClick with the clade below' },
-  hover: { level: 'yes', how: 'pointer move is hit-tested once per animation frame; tipHover/nodeHover are emitted when the target changes; built-in tooltip near the cursor and a ring on a separate canvas' },
-  descendantTipsInPayload: { level: 'yes', how: 'every event carries the descendant tips as the leaf-contiguous range of the preorder TreeModel (O(1) range lookup, then a slice); reported as source=adapter-derived because the data model is our own, not a library payload' },
-  cladeColouring: { level: 'yes', how: 'colour classes per node index from React state (nested clades: later wins); branches, collapsed triangles, markers and tip labels take the class colour; one canvas redraw, no re-layout' },
-  highlightTip: { level: 'yes', how: 'translucent row band across tree and columns, ring on the tip, bold primary-coloured label, ticks in the overview strip' },
-  focusTip: { level: 'yes', how: 'rows set to at least 26 px and the tip centred; the x window moves only if the tip is outside it. Instant when requested through props; animated (220 ms) from the imperative handle' },
-  tipAsLink: { level: 'yes', how: 'real <a href data-tip-id target=_blank rel=noopener> elements positioned over the canvas text for the rows that have labels (visible rows only, <= 600 DOM nodes), keyboard focusable; rows too small for labels have no anchor (a visually hidden list of the tips in view stands in for them)' },
-  customColumns: { level: 'yes', how: 'bar (log scale), text and alignment columns drawn on the canvas, pinned to the right edge, windowed to visible rows with header; below 1 px per row bars are binned per pixel row (mean)' },
-  alignmentColumn: { level: 'yes', how: 'whole alignment rasterised once into an offscreen bitmap (1 px per residue), only visible rows are blitted; > 8M residues falls back to runs for visible rows' },
-  radialLayout: { level: 'yes', how: 'angle from tip rank, radius from root distance, same layout arrays as rectangular; LOD, culling (sector bounding boxes), hit-testing, labels, overview all work in radial; columns are not drawn in radial' },
-  branchLengthToggle: { level: 'yes', how: 'phylogram (cumulative length, negative and missing lengths count as 0) versus cladogram (tips aligned); layout recomputed in O(n) and cached for both' },
-  scaleBar: { level: 'yes', how: 'distance axis with round ticks for phylograms (rectangular), a time-before-tips axis with gridlines when the tree is ultrametric (dated), a round-length scale bar in radial' },
-  darkTheme: { level: 'yes', how: 'gbifDarkTheme() values (derived from tokens; GBIF defines no dark set) passed as the renderer theme; canvases redraw' },
-  cssTokens: { level: 'yes', how: 'theme object resolved from gbifTheme() (canvas cannot read CSS variables); runner tokens background, foreground, branch, highlight, fontFamily override' },
-  multipleInstances: { level: 'yes', how: 'no module state except a text-width cache keyed by font; each instance owns its renderer, DOM and canvases' },
-  cleanUnmount: { level: 'yes', how: 'destroy(): rAF cancelled, ResizeObserver disconnected, window pointer and font listeners removed, canvases resized to 0, DOM removed' },
-  controlledState: { level: 'yes', how: 'clades, highlighted tips, columns, layout, lengths, theme, tip links and an optional viewport are props; viewport changes come back through onViewportChange (once per frame)' },
-  zoomToFit: { level: 'yes', how: 'fits on mount and on layout/length/column changes while the view has not been touched; fit() from the handle, key 0 and double click on empty space; wheel zoom-out stops at 1.6x the tree' },
-  overviewOrMinimap: { level: 'yes', how: 'overview strip (rectangular, aligned with the rows) or a small disc (radial) drawn once from the LOD cut at fit, with a draggable viewport rectangle; click or drag to move' },
+  tipClick: {
+    level: 'yes',
+    how: 'pointer hit-test against the frame draw list through a uniform-grid spatial index (tip dot, or the label text box); also Enter on the keyboard cursor',
+  },
+  internalNodeClick: {
+    level: 'yes',
+    how: 'internal node markers (clades >= 7 px) and collapsed clade triangles are hit-tested; clicking a collapsed clade reports the clade root',
+  },
+  branchClick: {
+    level: 'yes',
+    how: 'distance to the branch segment (4 px slop): the horizontal branch above a node or the vertical connector of the clade; reported as branchClick with the clade below',
+  },
+  hover: {
+    level: 'yes',
+    how: 'pointer move is hit-tested once per animation frame; tipHover/nodeHover are emitted when the target changes; built-in tooltip near the cursor and a ring on a separate canvas',
+  },
+  descendantTipsInPayload: {
+    level: 'yes',
+    how: 'every event carries the descendant tips as the leaf-contiguous range of the preorder TreeModel (O(1) range lookup, then a slice); reported as source=adapter-derived because the data model is our own, not a library payload',
+  },
+  cladeColouring: {
+    level: 'yes',
+    how: 'colour classes per node index from React state (nested clades: later wins); branches, collapsed triangles, markers and tip labels take the class colour; one canvas redraw, no re-layout',
+  },
+  highlightTip: {
+    level: 'yes',
+    how: 'translucent row band across tree and columns, ring on the tip, bold primary-coloured label, ticks in the overview strip',
+  },
+  focusTip: {
+    level: 'yes',
+    how: 'rows set to at least 26 px and the tip centred; the x window moves only if the tip is outside it. Instant when requested through props; animated (220 ms) from the imperative handle',
+  },
+  tipAsLink: {
+    level: 'yes',
+    how: 'real <a href data-tip-id target=_blank rel=noopener> elements positioned over the canvas text for the rows that have labels (visible rows only, <= 600 DOM nodes), keyboard focusable; rows too small for labels have no anchor (a visually hidden list of the tips in view stands in for them)',
+  },
+  customColumns: {
+    level: 'yes',
+    how: 'bar (log scale), text and alignment columns drawn on the canvas, pinned to the right edge, windowed to visible rows with header; below 1 px per row bars are binned per pixel row (mean)',
+  },
+  alignmentColumn: {
+    level: 'yes',
+    how: 'whole alignment rasterised once into an offscreen bitmap (1 px per residue), only visible rows are blitted; > 8M residues falls back to runs for visible rows',
+  },
+  radialLayout: {
+    level: 'yes',
+    how: 'angle from tip rank, radius from root distance, same layout arrays as rectangular; LOD, culling (sector bounding boxes), hit-testing, labels, overview all work in radial; columns are not drawn in radial',
+  },
+  branchLengthToggle: {
+    level: 'yes',
+    how: 'phylogram (cumulative length, negative and missing lengths count as 0) versus cladogram (tips aligned); layout recomputed in O(n) and cached for both',
+  },
+  scaleBar: {
+    level: 'yes',
+    how: 'distance axis with round ticks for phylograms (rectangular), a time-before-tips axis with gridlines when the tree is ultrametric (dated), a round-length scale bar in radial',
+  },
+  darkTheme: {
+    level: 'yes',
+    how: 'gbifDarkTheme() values (derived from tokens; GBIF defines no dark set) passed as the renderer theme; canvases redraw',
+  },
+  cssTokens: {
+    level: 'yes',
+    how: 'theme object resolved from gbifTheme() (canvas cannot read CSS variables); runner tokens background, foreground, branch, highlight, fontFamily override',
+  },
+  multipleInstances: {
+    level: 'yes',
+    how: 'no module state except a text-width cache keyed by font; each instance owns its renderer, DOM and canvases',
+  },
+  cleanUnmount: {
+    level: 'yes',
+    how: 'destroy(): rAF cancelled, ResizeObserver disconnected, window pointer and font listeners removed, canvases resized to 0, DOM removed',
+  },
+  controlledState: {
+    level: 'yes',
+    how: 'clades, highlighted tips, columns, layout, lengths, theme, tip links and an optional viewport are props; viewport changes come back through onViewportChange (once per frame)',
+  },
+  zoomToFit: {
+    level: 'yes',
+    how: 'fits on mount and on layout/length/column changes while the view has not been touched; fit() from the handle, key 0 and double click on empty space; wheel zoom-out stops at 1.6x the tree',
+  },
+  overviewOrMinimap: {
+    level: 'yes',
+    how: 'overview strip (rectangular, aligned with the rows) or a small disc (radial) drawn once from the LOD cut at fit, with a draggable viewport rectangle; click or drag to move',
+  },
 };
 
 /** CPU canvas default: automation (navigator.webdriver, the runner) keeps the CPU canvas because headless Chromium has no GPU and
@@ -201,27 +311,167 @@ const CPU_DEFAULT: boolean = (() => {
 })();
 
 const features: AdapterFeature[] = [
-  { id: 'lod', label: 'Level of detail (collapse small clades, cull)', kind: 'toggle', default: true, description: 'Off draws every visible node (can be very slow above about 50k tips).' },
-  { id: 'frameReadout', label: 'Frame-time readout', kind: 'toggle', default: true, description: 'JS time per frame, time until painted (includes raster) and fps while interacting. Useful for reporting numbers from your own device.' },
-  { id: 'minCladePx', label: 'Smallest clade drawn (px)', kind: 'select', default: '3', options: [{ value: '1', label: '1 px (most detail)' }, { value: '2', label: '2 px' }, { value: '3', label: '3 px (default)' }, { value: '5', label: '5 px' }, { value: '8', label: '8 px' }], description: 'Clades smaller than this on screen collapse into a triangle, fan or slice; a polytomy collapses when its children are closer together than this. The draw budget can only raise it, never lower it.' },
-  { id: 'debugInfo', label: 'Debug info in the readout', kind: 'toggle', default: false, description: 'Adds the collapse threshold, budget passes, zoom (px per unit), viewport and canvas size to the frame-time readout, to paste into a bug report.' },
-  { id: 'alignStyle', label: 'Alignment style', kind: 'select', default: 'residues', options: [{ value: 'residues', label: 'Residues (coloured cells)' }, { value: 'blocks', label: 'Blocks (ETE style: gaps as lines)' }], description: 'Blocks draw each stretch without gaps as a grey block and the gaps as a thin line, so coverage is easy to read when many columns share a few pixels. Needs rows at least 1.5 px tall.' },
-  { id: 'alignRowGap', label: 'Alignment row gap (px)', kind: 'select', default: '0', options: [{ value: '0', label: '0 px' }, { value: '1', label: '1 px' }, { value: '2', label: '2 px' }, { value: '3', label: '3 px' }], description: 'Empty space between neighbouring sequences in alignment columns (rows at least 4 px tall).' },
-  { id: 'budget', label: 'Draw budget per frame', kind: 'select', default: '20000', options: [{ value: '500', label: '500 primitives' }, { value: '1000', label: '1,000 primitives' }, { value: '2000', label: '2,000 primitives' }, { value: '20000', label: '20,000 primitives' }, { value: '100000', label: '100,000 primitives' }, { value: '400000', label: '400,000 primitives' }], description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.' },
+  {
+    id: 'lod',
+    label: 'Level of detail (collapse small clades, cull)',
+    kind: 'toggle',
+    default: true,
+    description: 'Off draws every visible node (can be very slow above about 50k tips).',
+  },
+  {
+    id: 'frameReadout',
+    label: 'Frame-time readout',
+    kind: 'toggle',
+    default: true,
+    description:
+      'JS time per frame, time until painted (includes raster) and fps while interacting. Useful for reporting numbers from your own device.',
+  },
+  {
+    id: 'minCladePx',
+    label: 'Smallest clade drawn (px)',
+    kind: 'select',
+    default: '3',
+    options: [
+      { value: '1', label: '1 px (most detail)' },
+      { value: '2', label: '2 px' },
+      { value: '3', label: '3 px (default)' },
+      { value: '5', label: '5 px' },
+      { value: '8', label: '8 px' },
+    ],
+    description:
+      'Clades smaller than this on screen collapse into a triangle, fan or slice; a polytomy collapses when its children are closer together than this. The draw budget can only raise it, never lower it.',
+  },
+  {
+    id: 'debugInfo',
+    label: 'Debug info in the readout',
+    kind: 'toggle',
+    default: false,
+    description:
+      'Adds the collapse threshold, budget passes, zoom (px per unit), viewport and canvas size to the frame-time readout, to paste into a bug report.',
+  },
+  {
+    id: 'alignStyle',
+    label: 'Alignment style',
+    kind: 'select',
+    default: 'residues',
+    options: [
+      { value: 'residues', label: 'Residues (coloured cells)' },
+      { value: 'blocks', label: 'Blocks (ETE style: gaps as lines)' },
+    ],
+    description:
+      'Blocks draw each stretch without gaps as a grey block and the gaps as a thin line, so coverage is easy to read when many columns share a few pixels. Needs rows at least 1.5 px tall.',
+  },
+  {
+    id: 'alignRowGap',
+    label: 'Alignment row gap (px)',
+    kind: 'select',
+    default: '0',
+    options: [
+      { value: '0', label: '0 px' },
+      { value: '1', label: '1 px' },
+      { value: '2', label: '2 px' },
+      { value: '3', label: '3 px' },
+    ],
+    description: 'Empty space between neighbouring sequences in alignment columns (rows at least 4 px tall).',
+  },
+  {
+    id: 'budget',
+    label: 'Draw budget per frame',
+    kind: 'select',
+    default: '20000',
+    options: [
+      { value: '500', label: '500 primitives' },
+      { value: '1000', label: '1,000 primitives' },
+      { value: '2000', label: '2,000 primitives' },
+      { value: '20000', label: '20,000 primitives' },
+      { value: '100000', label: '100,000 primitives' },
+      { value: '400000', label: '400,000 primitives' },
+    ],
+    description: 'If the cut exceeds it, the collapse threshold is doubled until it fits.',
+  },
   { id: 'summaries', label: 'Show collapsed clades as triangles', kind: 'toggle', default: true },
   { id: 'overview', label: 'Show overview strip', kind: 'toggle', default: true },
-  { id: 'density', label: 'Label density', kind: 'select', default: 'normal', options: [{ value: 'sparse', label: 'Sparse (rows >= 16 px)' }, { value: 'normal', label: 'Normal (rows >= 11 px)' }, { value: 'dense', label: 'Dense (rows >= 8 px)' }] },
-  { id: 'rowHeight', label: 'Row height', kind: 'select', default: 'fit', options: [{ value: 'fit', label: 'Fit all tips' }, { value: '6', label: '6 px (scroll)' }, { value: '12', label: '12 px (scroll)' }, { value: '24', label: '24 px (scroll)' }] },
+  {
+    id: 'density',
+    label: 'Label density',
+    kind: 'select',
+    default: 'normal',
+    options: [
+      { value: 'sparse', label: 'Sparse (rows >= 16 px)' },
+      { value: 'normal', label: 'Normal (rows >= 11 px)' },
+      { value: 'dense', label: 'Dense (rows >= 8 px)' },
+    ],
+  },
+  {
+    id: 'rowHeight',
+    label: 'Row height',
+    kind: 'select',
+    default: 'fit',
+    options: [
+      { value: 'fit', label: 'Fit all tips' },
+      { value: '6', label: '6 px (scroll)' },
+      { value: '12', label: '12 px (scroll)' },
+      { value: '24', label: '24 px (scroll)' },
+    ],
+  },
   { id: 'axis', label: 'Scale bar / time axis', kind: 'toggle', default: true },
-  { id: 'cpuCanvas', label: 'CPU-backed canvas (willReadFrequently)', kind: 'toggle', default: CPU_DEFAULT, description: 'Forces software (CPU) rasterisation of the canvas. Off = GPU-accelerated canvas, the right choice on a real browser; it is slow only in headless Chromium without a GPU, where it runs through SwiftShader. Default: on when the browser reports navigator.webdriver (automation, the test runner), off otherwise; ?cpu=1 or ?cpu=0 in the URL overrides. Changing it remounts the canvases.' },
-  { id: 'dprCap', label: 'Resolution: device pixel ratio cap', kind: 'select', default: '2', options: [{ value: '1', label: '1 (fastest, soft on retina)' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2 (default)' }, { value: 'native', label: 'Native (3 on some phones)' }], description: 'Canvas backing store is min(devicePixelRatio, cap) times the CSS size. At ratio 2 or 3 the canvas has 4 or 9 times the pixels of ratio 1, which costs raster time on large canvases. Hit-testing and the overlay always use CSS pixels.' },
-  { id: 'radialMax', label: 'Max drawn nodes (radial)', kind: 'select', default: '2000', options: [{ value: '500', label: '500' }, { value: '1000', label: '1,000' }, { value: '2000', label: '2,000 (default)' }, { value: '5000', label: '5,000' }, { value: '20000', label: '20,000' }, { value: 'unlimited', label: 'Unlimited (draw budget only)' }], description: 'Radial layout only. If the visible sector holds more primitives than this, the smallest clades are drawn as fans (summaries) until it fits; zooming in reveals them. A note in the corner says when this happens. Rectangular keeps the draw budget above.' },
-  { id: 'interactionLOD', label: 'Reduce detail while zooming or dragging', kind: 'toggle', default: true, description: 'During wheel, pinch and drag the draw uses a quarter of the budget (at least 500) and a coarser clade threshold, then one full-quality frame follows 120 ms after the last input. Clicks and hovers always use a full-quality frame.' },
+  {
+    id: 'cpuCanvas',
+    label: 'CPU-backed canvas (willReadFrequently)',
+    kind: 'toggle',
+    default: CPU_DEFAULT,
+    description:
+      'Forces software (CPU) rasterisation of the canvas. Off = GPU-accelerated canvas, the right choice on a real browser; it is slow only in headless Chromium without a GPU, where it runs through SwiftShader. Default: on when the browser reports navigator.webdriver (automation, the test runner), off otherwise; ?cpu=1 or ?cpu=0 in the URL overrides. Changing it remounts the canvases.',
+  },
+  {
+    id: 'dprCap',
+    label: 'Resolution: device pixel ratio cap',
+    kind: 'select',
+    default: '2',
+    options: [
+      { value: '1', label: '1 (fastest, soft on retina)' },
+      { value: '1.5', label: '1.5' },
+      { value: '2', label: '2 (default)' },
+      { value: 'native', label: 'Native (3 on some phones)' },
+    ],
+    description:
+      'Canvas backing store is min(devicePixelRatio, cap) times the CSS size. At ratio 2 or 3 the canvas has 4 or 9 times the pixels of ratio 1, which costs raster time on large canvases. Hit-testing and the overlay always use CSS pixels.',
+  },
+  {
+    id: 'radialMax',
+    label: 'Max drawn nodes (radial)',
+    kind: 'select',
+    default: '2000',
+    options: [
+      { value: '500', label: '500' },
+      { value: '1000', label: '1,000' },
+      { value: '2000', label: '2,000 (default)' },
+      { value: '5000', label: '5,000' },
+      { value: '20000', label: '20,000' },
+      { value: 'unlimited', label: 'Unlimited (draw budget only)' },
+    ],
+    description:
+      'Radial layout only. If the visible sector holds more primitives than this, the smallest clades are drawn as fans (summaries) until it fits; zooming in reveals them. A note in the corner says when this happens. Rectangular keeps the draw budget above.',
+  },
+  {
+    id: 'interactionLOD',
+    label: 'Reduce detail while zooming or dragging',
+    kind: 'toggle',
+    default: true,
+    description:
+      'During wheel, pinch and drag the draw uses a quarter of the budget (at least 500) and a coarser clade threshold, then one full-quality frame follows 120 ms after the last input. Clicks and hovers always use a full-quality frame.',
+  },
   { id: 'tooltip', label: 'Built-in tooltip at the cursor', kind: 'toggle', default: true },
 ];
 
 export const adapter: CandidateAdapter = {
-  candidate: { name: 'custom', version: '0.1.0', license: 'Apache-2.0', notes: 'Own typed-array model + Canvas2D renderer with viewport level of detail; no tree or rendering library. Core in src/core (no React), component in src/react.' },
+  candidate: {
+    name: 'custom',
+    version: '0.1.0',
+    license: 'Apache-2.0',
+    notes:
+      'Own typed-array model + Canvas2D renderer with viewport level of detail; no tree or rendering library. Core in src/core (no React), component in src/react.',
+  },
   capabilities,
   View: CustomView,
   features,

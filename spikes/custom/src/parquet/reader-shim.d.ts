@@ -1,8 +1,17 @@
 // Types for the Parquet reader of the experiment (spikes/parquet-experiment/web/reader.js, plain JS), only what ParquetSource uses.
 declare module '*/parquet-experiment/web/reader.js' {
-  export interface ReaderStats { requests: number; bytes: number; useful: number; log: Array<[string, number, number]> }
+  export interface ReaderStats {
+    requests: number;
+    bytes: number;
+    useful: number;
+    log: Array<[string, number, number]>;
+  }
   export interface Manifest {
-    nodes: number; tips: number; has_lengths: boolean; max_depth: number; max_cum: number;
+    nodes: number;
+    tips: number;
+    has_lengths: boolean;
+    max_depth: number;
+    max_cum: number;
     overview: { level_rows: number[]; row_budgets: number[]; tail_start: number };
     rg_node_start: number[];
   }

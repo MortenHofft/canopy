@@ -10,8 +10,19 @@ import { computeLayout, ensureTrig, type Layout } from './layout.ts';
 import { cutRadial, cutRect, searchCut, DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
-  DEFAULT_OPTIONS, FALLBACK_THEME,
-  type CladeColour, type Column, type FrameStats, type Hit, type NodeEvent, type RendererCallbacks, type RendererOptions, type TreeData, type TreeSnapshot, type TreeTheme, type Viewport,
+  DEFAULT_OPTIONS,
+  FALLBACK_THEME,
+  type CladeColour,
+  type Column,
+  type FrameStats,
+  type Hit,
+  type NodeEvent,
+  type RendererCallbacks,
+  type RendererOptions,
+  type TreeData,
+  type TreeSnapshot,
+  type TreeTheme,
+  type Viewport,
 } from './types.ts';
 
 const OV_W = 56; // overview strip width (rectangular)
@@ -20,7 +31,6 @@ const LABEL_W = 190; // cap of the room right of the tips for labels (rectangula
 const HEAD_H = 24;
 const FOOT_H = 36;
 const MIN_HEAD = 8;
-const MAX_LABEL_NODES = 600;
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
@@ -31,7 +41,12 @@ const DETAIL_INFLIGHT = 4; // clade requests in flight at once, below the browse
 
 const SR_ONLY = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0';
 
-interface Anim { from: Viewport; to: Viewport; t0: number; ms: number }
+interface Anim {
+  from: Viewport;
+  to: Viewport;
+  t0: number;
+  ms: number;
+}
 
 export class TreeRenderer {
   // ------------------------------------------------------------- DOM
@@ -99,7 +114,27 @@ export class TreeRenderer {
   private pool = new Map<number, HTMLElement>();
   private poolMode = '';
   private lastKey = '';
-  readonly stats: FrameStats = { frameMs: 0, cutMs: 0, drawMs: 0, visited: 0, drawn: 0, summaries: 0, tips: 0, labels: 0, minPxUsed: 0, budgetRetries: 0, budgetHit: false, truncated: false, frames: 0, budget: 0, forced: 0, summaryTips: 0, mergedTips: 0, reduced: false, scale: 1 };
+  readonly stats: FrameStats = {
+    frameMs: 0,
+    cutMs: 0,
+    drawMs: 0,
+    visited: 0,
+    drawn: 0,
+    summaries: 0,
+    tips: 0,
+    labels: 0,
+    minPxUsed: 0,
+    budgetRetries: 0,
+    budgetHit: false,
+    truncated: false,
+    frames: 0,
+    budget: 0,
+    forced: 0,
+    summaryTips: 0,
+    mergedTips: 0,
+    reduced: false,
+    scale: 1,
+  };
   // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced; one full frame follows
   // `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
   private interacting = false;
@@ -121,11 +156,20 @@ export class TreeRenderer {
   private srcVersion: number;
   private unsubscribe: () => void;
 
-  constructor(private host: HTMLElement, tree: TreeData | TreeSource, cb: RendererCallbacks = {}, opts: Partial<RendererOptions> = {}, theme: TreeTheme = FALLBACK_THEME) {
+  constructor(
+    private host: HTMLElement,
+    tree: TreeData | TreeSource,
+    cb: RendererCallbacks = {},
+    opts: Partial<RendererOptions> = {},
+    theme: TreeTheme = FALLBACK_THEME,
+  ) {
     this.source = isTreeSource(tree) ? tree : new InMemorySource(tree);
     this.srcVersion = this.source.version;
     this.tree = this.source.snapshot();
-    this.unsubscribe = this.source.subscribe(() => { this.syncSource(); this.invalidate(); });
+    this.unsubscribe = this.source.subscribe(() => {
+      this.syncSource();
+      this.invalidate();
+    });
     this.opts = { ...DEFAULT_OPTIONS, ...opts };
     this.theme = theme;
     this.cb = cb;
@@ -138,7 +182,10 @@ export class TreeRenderer {
       return el;
     };
     const fill = 'position:absolute;left:0;top:0;width:100%;height:100%;';
-    this.root = mk('div', 'position:relative;width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;outline:none;cursor:grab');
+    this.root = mk(
+      'div',
+      'position:relative;width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;outline:none;cursor:grab',
+    );
     this.root.tabIndex = 0;
     this.root.setAttribute('role', 'tree');
     this.root.setAttribute('aria-label', this.opts.ariaLabel);
@@ -161,7 +208,10 @@ export class TreeRenderer {
     this.live = mk('div', SR_ONLY);
     this.live.setAttribute('aria-live', 'polite');
     this.live.setAttribute('role', 'status');
-    this.notice = mk('div', 'position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;font-size:11px;line-height:16px;pointer-events:none;opacity:.85;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis');
+    this.notice = mk(
+      'div',
+      'position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;font-size:11px;line-height:16px;pointer-events:none;opacity:.85;display:none;white-space:nowrap;max-width:calc(100% - 16px);overflow:hidden;text-overflow:ellipsis',
+    );
     this.notice.setAttribute('role', 'status');
     this.root.append(this.canvas, this.top, this.overlay, this.ovWrap, this.notice, this.srList, this.live);
     host.appendChild(this.root);
@@ -224,7 +274,12 @@ export class TreeRenderer {
     const o = this.opts;
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
-    const refit = lengthsChanged || layoutChanged || (p.overview !== undefined && p.overview !== o.overview) || (p.axis !== undefined && p.axis !== o.axis) || (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
+    const refit =
+      lengthsChanged ||
+      layoutChanged ||
+      (p.overview !== undefined && p.overview !== o.overview) ||
+      (p.axis !== undefined && p.axis !== o.axis) ||
+      (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
     const tipHrefChanged = p.tipHref !== undefined && p.tipHref !== o.tipHref;
     this.opts = { ...o, ...p };
     if (layoutChanged || lengthsChanged) this.minPxHint = 0;
@@ -275,7 +330,9 @@ export class TreeRenderer {
       const r = this.rowOf(c.node);
       if (r < 0) continue;
       let k = colours.indexOf(c.colour);
-      if (k < 0) { k = Math.min(255, colours.push(c.colour) - 1); }
+      if (k < 0) {
+        k = Math.min(255, colours.push(c.colour) - 1);
+      }
       cls.fill(k, r, this.tree.subtreeEnd[r]);
     }
     this.classOf = cls;
@@ -303,7 +360,7 @@ export class TreeRenderer {
   setColumns(cols: Column[]): void {
     const hadW = columnsWidth(this.columns);
     this.columns = compileColumns(this.tree, cols);
-    const changed = columnsWidth(this.columns) !== hadW || (this.columns.length > 0) !== (hadW > 0);
+    const changed = columnsWidth(this.columns) !== hadW || this.columns.length > 0 !== hadW > 0;
     if (changed && this.fitted) this.fit(false);
     this.hit.invalidate();
     this.invalidate();
@@ -353,13 +410,17 @@ export class TreeRenderer {
       let { x0, x1 } = v;
       const w = x1 - x0;
       const xt = this.L.X[node];
-      if (xt < x0 || xt > x1) { x0 = xt - w / 2; x1 = x0 + w; }
+      if (xt < x0 || xt > x1) {
+        x0 = xt - w / 2;
+        x1 = x0 + w;
+      }
       nv = { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     } else {
       const targetPitch = 24;
       const k = Math.max(a.aw / (v.x1 - v.x0), (targetPitch * this.tree.tipCount) / (2 * Math.PI));
       const ang = this.L.ROW[node] * ((2 * Math.PI) / this.tree.tipCount);
-      const px = this.L.X[node] * Math.cos(ang), py = this.L.X[node] * Math.sin(ang);
+      const px = this.L.X[node] * Math.cos(ang),
+        py = this.L.X[node] * Math.sin(ang);
       nv = { x0: px - a.aw / 2 / k, x1: px + a.aw / 2 / k, y0: py - a.ah / 2 / k, y1: py + a.ah / 2 / k };
     }
     this.setViewport(nv, animate);
@@ -370,7 +431,8 @@ export class TreeRenderer {
     if (node < 0) return;
     this.computeArea();
     const a = this.area;
-    const ls = this.tree.leafStart[node], le = this.tree.leafEnd[node];
+    const ls = this.tree.leafStart[node],
+      le = this.tree.leafEnd[node];
     let nv: Viewport;
     if (this.opts.layout === 'rectangular') {
       const rows = Math.max(le - ls, 6);
@@ -384,7 +446,8 @@ export class TreeRenderer {
     } else {
       const bb = new Float64Array(4);
       sectorBBox(0, 0, this.L.X[node], this.L.XMAX[node], ls * ((2 * Math.PI) / this.tree.tipCount), le * ((2 * Math.PI) / this.tree.tipCount), bb);
-      const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+      const cx = (bb[0] + bb[2]) / 2,
+        cy = (bb[1] + bb[3]) / 2;
       const half = Math.max((bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2, 1e-4) * 1.15;
       const k = Math.min(a.aw, a.ah) / 2 / half;
       nv = { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
@@ -419,7 +482,10 @@ export class TreeRenderer {
     if (isTip) {
       const p = { x: 0, y: 0 };
       nodeXY(T, this.L, i, p);
-      x0 = p.x - 5; x1 = p.x + 5; y0 = p.y - 5; y1 = p.y + 5;
+      x0 = p.x - 5;
+      x1 = p.x + 5;
+      y0 = p.y - 5;
+      y1 = p.y + 5;
     } else if (T.kind === 'rectangular') {
       x0 = T.ox + this.L.X[i] * T.kx;
       x1 = T.ox + this.L.XMAX[i] * T.kx;
@@ -428,9 +494,15 @@ export class TreeRenderer {
     } else {
       const bb = new Float64Array(4);
       sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, this.tree.leafStart[i] * T.da, this.tree.leafEnd[i] * T.da, bb);
-      x0 = bb[0]; y0 = bb[1]; x1 = bb[2]; y1 = bb[3];
+      x0 = bb[0];
+      y0 = bb[1];
+      x1 = bb[2];
+      y1 = bb[3];
     }
-    x0 = Math.max(T.clipL, x0); y0 = Math.max(T.clipT, y0); x1 = Math.min(T.clipR, x1); y1 = Math.min(T.clipB, y1);
+    x0 = Math.max(T.clipL, x0);
+    y0 = Math.max(T.clipT, y0);
+    x1 = Math.min(T.clipR, x1);
+    y1 = Math.min(T.clipB, y1);
     if (x1 - x0 < 1 || y1 - y0 < 1) return null;
     const r = this.root.getBoundingClientRect();
     return { x: r.left + x0, y: r.top + y0, width: x1 - x0, height: y1 - y0 };
@@ -453,11 +525,34 @@ export class TreeRenderer {
     return this.queryHit(x, y);
   }
 
-  getStats(): FrameStats & { layoutMs: number; hitBuildMs: number; avgFrameMs: number; maxFrameMs: number; listLength: number; hitItems: number; hitEntries: number; kx: number; ky: number } {
-    return { ...this.stats, layoutMs: this.L.layoutMs, hitBuildMs: this.hit.builtMs, avgFrameMs: this.msN ? this.msSum / this.msN : 0, maxFrameMs: this.msMax, listLength: this.list.count, hitItems: this.hit.items, hitEntries: this.hit.entries, kx: this.T?.kx ?? 0, ky: this.T?.ky ?? 0 };
+  getStats(): FrameStats & {
+    layoutMs: number;
+    hitBuildMs: number;
+    avgFrameMs: number;
+    maxFrameMs: number;
+    listLength: number;
+    hitItems: number;
+    hitEntries: number;
+    kx: number;
+    ky: number;
+  } {
+    return {
+      ...this.stats,
+      layoutMs: this.L.layoutMs,
+      hitBuildMs: this.hit.builtMs,
+      avgFrameMs: this.msN ? this.msSum / this.msN : 0,
+      maxFrameMs: this.msMax,
+      listLength: this.list.count,
+      hitItems: this.hit.items,
+      hitEntries: this.hit.entries,
+      kx: this.T?.kx ?? 0,
+      ky: this.T?.ky ?? 0,
+    };
   }
   resetFrameTimes(): void {
-    this.msSum = 0; this.msN = 0; this.msMax = 0;
+    this.msSum = 0;
+    this.msN = 0;
+    this.msMax = 0;
   }
 
   /** Draw synchronously if something changed (used before introspection and by benchmarks). */
@@ -473,7 +568,10 @@ export class TreeRenderer {
   private settle(): void {
     if (!this.reducedFrame && !this.interacting) return;
     this.interacting = false;
-    if (this.refineTimer) { clearTimeout(this.refineTimer); this.refineTimer = 0; }
+    if (this.refineTimer) {
+      clearTimeout(this.refineTimer);
+      this.refineTimer = 0;
+    }
     if (this.reducedFrame) this.dirty = true;
   }
 
@@ -493,12 +591,19 @@ export class TreeRenderer {
 
   /** Force a full redraw n times and return the mean JS time per frame (benchmark helper). */
   benchmark(n: number): { meanMs: number; minMs: number; maxMs: number; cutMs: number; drawMs: number } {
-    let sum = 0, min = Infinity, max = 0, cut = 0, draw = 0;
+    let sum = 0,
+      min = Infinity,
+      max = 0,
+      cut = 0,
+      draw = 0;
     for (let k = 0; k < n; k++) {
       this.dirty = true;
       this.render();
-      sum += this.stats.frameMs; cut += this.stats.cutMs; draw += this.stats.drawMs;
-      min = Math.min(min, this.stats.frameMs); max = Math.max(max, this.stats.frameMs);
+      sum += this.stats.frameMs;
+      cut += this.stats.cutMs;
+      draw += this.stats.drawMs;
+      min = Math.min(min, this.stats.frameMs);
+      max = Math.max(max, this.stats.frameMs);
     }
     return { meanMs: sum / n, minMs: min, maxMs: max, cutMs: cut / n, drawMs: draw / n };
   }
@@ -520,7 +625,10 @@ export class TreeRenderer {
     }
     this.root.remove();
     // release the backing stores
-    for (const c of [this.canvas, this.top, this.ovCanvas]) { c.width = 0; c.height = 0; }
+    for (const c of [this.canvas, this.top, this.ovCanvas]) {
+      c.width = 0;
+      c.height = 0;
+    }
     this.pool.clear();
     this.columns = [];
     this.layouts.clear();
@@ -542,14 +650,16 @@ export class TreeRenderer {
   }
 
   private measure(): void {
-    const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight);
+    const w = Math.max(1, this.host.clientWidth),
+      h = Math.max(1, this.host.clientHeight);
     this.setSize(w, h);
   }
 
   private setSize(w: number, h: number): void {
     if (w === this.W && h === this.H && this.effScale() === this.dpr) return;
     const radialK = this.opts.layout === 'radial' && this.W > 0 ? this.area.aw / (this.view.x1 - this.view.x0) : 0;
-    const cx = (this.view.x0 + this.view.x1) / 2, cy = (this.view.y0 + this.view.y1) / 2;
+    const cx = (this.view.x0 + this.view.x1) / 2,
+      cy = (this.view.y0 + this.view.y1) / 2;
     this.W = w;
     this.H = h;
     this.dpr = this.effScale();
@@ -569,7 +679,8 @@ export class TreeRenderer {
   }
 
   private computeArea(): Area {
-    const W = this.W, H = this.H;
+    const W = this.W,
+      H = this.H;
     if (this.opts.layout === 'radial') {
       this.area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
     } else {
@@ -593,7 +704,8 @@ export class TreeRenderer {
     if (this.maxChars < 0) {
       let m = 0;
       const t = this.tree.tipLabels;
-      if (this.tree.stub) m = 28; // partial tree: labels are not loaded, assume a typical binomial
+      if (this.tree.stub)
+        m = 28; // partial tree: labels are not loaded, assume a typical binomial
       else for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
       this.maxChars = m;
     }
@@ -616,13 +728,16 @@ export class TreeRenderer {
     const a = this.area;
     if (this.opts.layout === 'rectangular') {
       const N = this.tree.tipCount;
-      const wmax = 1.6, wmin = a.aw / 5e6;
+      const wmax = 1.6,
+        wmin = a.aw / 5e6;
       let w = v.x1 - v.x0;
       w = Math.min(wmax, Math.max(wmin, w));
-      const hmax = Math.max(N * 1.6, a.ah / 4), hmin = a.ah / 500;
+      const hmax = Math.max(N * 1.6, a.ah / 4),
+        hmin = a.ah / 500;
       let h = v.y1 - v.y0;
       h = Math.min(hmax, Math.max(hmin, h));
-      let x0 = v.x0, y0 = v.y0;
+      let x0 = v.x0,
+        y0 = v.y0;
       // zoomed out beyond the tree: keep the whole tree inside the window; zoomed in: allow 15% overscroll
       x0 = w >= 0.999 ? Math.min(0, Math.max(1 - w, x0)) : Math.min(1 - 0.85 * w, Math.max(-0.15 * w, x0));
       y0 = h >= N * 0.999 ? Math.min(0, Math.max(N - h, y0)) : Math.min(N - 0.85 * h, Math.max(-0.15 * h, y0));
@@ -631,7 +746,8 @@ export class TreeRenderer {
     const kfit = Math.max(20, Math.min(this.W, this.H) / 2 - 28);
     let k = a.aw / (v.x1 - v.x0);
     k = Math.min(kfit * 20000, Math.max(kfit * 0.4, k));
-    let cx = (v.x0 + v.x1) / 2, cy = (v.y0 + v.y1) / 2;
+    let cx = (v.x0 + v.x1) / 2,
+      cy = (v.y0 + v.y1) / 2;
     cx = Math.max(-1.3, Math.min(1.3, cx));
     cy = Math.max(-1.3, Math.min(1.3, cy));
     return { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
@@ -669,14 +785,22 @@ export class TreeRenderer {
     const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const lerp = (p: number, q: number) => p + (q - p) * e;
     // interpolate window centre linearly and size geometrically (feels like a constant-rate zoom)
-    const wf = an.from.x1 - an.from.x0, wt = an.to.x1 - an.to.x0, hf = an.from.y1 - an.from.y0, ht = an.to.y1 - an.to.y0;
-    const w = wf * Math.pow(wt / wf, e), h = hf * Math.pow(ht / hf, e);
-    const cx = lerp((an.from.x0 + an.from.x1) / 2, (an.to.x0 + an.to.x1) / 2), cy = lerp((an.from.y0 + an.from.y1) / 2, (an.to.y0 + an.to.y1) / 2);
+    const wf = an.from.x1 - an.from.x0,
+      wt = an.to.x1 - an.to.x0,
+      hf = an.from.y1 - an.from.y0,
+      ht = an.to.y1 - an.to.y0;
+    const w = wf * Math.pow(wt / wf, e),
+      h = hf * Math.pow(ht / hf, e);
+    const cx = lerp((an.from.x0 + an.from.x1) / 2, (an.to.x0 + an.to.x1) / 2),
+      cy = lerp((an.from.y0 + an.from.y1) / 2, (an.to.y0 + an.to.y1) / 2);
     this.view = { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 };
     if (t >= 1) {
       this.view = { ...an.to };
       this.anim = null;
-      if (this.fitAfterAnim) { this.fitted = true; this.fitAfterAnim = false; }
+      if (this.fitAfterAnim) {
+        this.fitted = true;
+        this.fitAfterAnim = false;
+      }
     }
     this.hit.invalidate();
     this.dirty = true;
@@ -718,8 +842,20 @@ export class TreeRenderer {
     if (this.effScale() !== this.dpr) this.setSize(this.W, this.H);
   }
 
-  private fitCut(rect: boolean, base: number, budget: number, summaries: boolean, useHint: boolean): { res: CutResult; minPx: number; retries: number } {
-    const r = searchCut(rect, this.tree, this.L, this.T, this.classOf, this.list, this.seen, { lod: this.opts.lod, base, budget, summaries, hint: useHint ? this.minPxHint : 0 });
+  private fitCut(
+    rect: boolean,
+    base: number,
+    budget: number,
+    summaries: boolean,
+    useHint: boolean,
+  ): { res: CutResult; minPx: number; retries: number } {
+    const r = searchCut(rect, this.tree, this.L, this.T, this.classOf, this.list, this.seen, {
+      lod: this.opts.lod,
+      base,
+      budget,
+      summaries,
+      hint: useHint ? this.minPxHint : 0,
+    });
     if (useHint) this.minPxHint = r.minPx;
     return r;
   }
@@ -762,9 +898,22 @@ export class TreeRenderer {
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
     const S: Scene = {
-      tree, L, T, list: this.list, theme: this.theme, colours: this.colours, classOf: this.classOf, highlight: this.hl, hlRanks: this.hlRanks,
-      hoverNode: this.hoverNode, activeNode: this.activeNode, density: opts.labelDensity, italic: opts.italicLabels, format: opts.formatLabel,
-      scale: dpr, thin: !rect && this.list.count >= THIN_PRIMS,
+      tree,
+      L,
+      T,
+      list: this.list,
+      theme: this.theme,
+      colours: this.colours,
+      classOf: this.classOf,
+      highlight: this.hl,
+      hlRanks: this.hlRanks,
+      hoverNode: this.hoverNode,
+      activeNode: this.activeNode,
+      density: opts.labelDensity,
+      italic: opts.italicLabels,
+      format: opts.formatLabel,
+      scale: dpr,
+      thin: !rect && this.list.count >= THIN_PRIMS,
     };
     ctx.save();
     ctx.beginPath();
@@ -773,7 +922,7 @@ export class TreeRenderer {
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, BRANCH_W);
     drawMarkers(ctx, S);
-    drawLabels(ctx, S, this.labels, minPx);
+    drawLabels(ctx, S, this.labels);
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
@@ -795,10 +944,28 @@ export class TreeRenderer {
 
     const frameMs = performance.now() - t0;
     const st = this.stats;
-    st.frameMs = frameMs; st.cutMs = cutMs; st.drawMs = drawMs; st.visited = res.visited; st.drawn = this.list.count; st.summaries = res.summaries; st.tips = res.tips;
-    st.labels = this.labels.count; st.minPxUsed = minPx; st.budgetRetries = retries; st.budgetHit = minPx > base || res.overflow; st.truncated = res.overflow; st.frames++;
-    st.budget = budget; st.forced = res.forced; st.summaryTips = res.summaryTips; st.mergedTips = res.mergedTips; st.reduced = reduced; st.scale = dpr;
-    this.msSum += frameMs; this.msN++; if (frameMs > this.msMax) this.msMax = frameMs;
+    st.frameMs = frameMs;
+    st.cutMs = cutMs;
+    st.drawMs = drawMs;
+    st.visited = res.visited;
+    st.drawn = this.list.count;
+    st.summaries = res.summaries;
+    st.tips = res.tips;
+    st.labels = this.labels.count;
+    st.minPxUsed = minPx;
+    st.budgetRetries = retries;
+    st.budgetHit = minPx > base || res.overflow;
+    st.truncated = res.overflow;
+    st.frames++;
+    st.budget = budget;
+    st.forced = res.forced;
+    st.summaryTips = res.summaryTips;
+    st.mergedTips = res.mergedTips;
+    st.reduced = reduced;
+    st.scale = dpr;
+    this.msSum += frameMs;
+    this.msN++;
+    if (frameMs > this.msMax) this.msMax = frameMs;
     this.cb.onFrame?.(st);
   }
 
@@ -822,7 +989,11 @@ export class TreeRenderer {
     }
     want.sort((a, b) => b.px - a.px);
     const keep = new Set(want.map((w) => w.id));
-    for (const [id, ac] of this.pending) if (!keep.has(id)) { ac.abort(); this.pending.delete(id); }
+    for (const [id, ac] of this.pending)
+      if (!keep.has(id)) {
+        ac.abort();
+        this.pending.delete(id);
+      }
     for (const w of want) {
       if (this.pending.size >= DETAIL_INFLIGHT) break;
       if (this.pending.has(w.id) || this.failedDetail.has(w.id)) continue;
@@ -830,8 +1001,18 @@ export class TreeRenderer {
       const v0 = this.source.version;
       this.pending.set(w.id, ac);
       this.source.ensureClade(w.id, { signal: ac.signal, priority: w.px }).then(
-        () => { this.pending.delete(w.id); if (this.source.version !== v0) this.invalidate(); else this.doneAt.set(w.id, v0); }, // nothing changed: do not ask again until the version moves
-        (err) => { this.pending.delete(w.id); if (!ac.signal.aborted) { this.failedDetail.add(w.id); console.warn('TreeSource.ensureClade failed', w.id, err); } },
+        () => {
+          this.pending.delete(w.id);
+          if (this.source.version !== v0) this.invalidate();
+          else this.doneAt.set(w.id, v0);
+        }, // nothing changed: do not ask again until the version moves
+        (err) => {
+          this.pending.delete(w.id);
+          if (!ac.signal.aborted) {
+            this.failedDetail.add(w.id);
+            console.warn('TreeSource.ensureClade failed', w.id, err);
+          }
+        },
       );
     }
   }
@@ -839,11 +1020,18 @@ export class TreeRenderer {
   private updateNotice(show: boolean, n: number): void {
     const el = this.notice;
     if (!show) {
-      if (this.noticeShown) { el.style.display = 'none'; this.noticeShown = false; this.noticeText = ''; }
+      if (this.noticeShown) {
+        el.style.display = 'none';
+        this.noticeShown = false;
+        this.noticeText = '';
+      }
       return;
     }
     const text = `${n.toLocaleString('en')} clade${n === 1 ? '' : 's'} summarised, raise the limit in Library options`;
-    if (text !== this.noticeText) { el.textContent = text; this.noticeText = text; }
+    if (text !== this.noticeText) {
+      el.textContent = text;
+      this.noticeText = text;
+    }
     if (!this.noticeShown) {
       el.style.display = 'block';
       el.style.background = `color-mix(in srgb, ${this.theme.background} 85%, transparent)`;
@@ -864,7 +1052,8 @@ export class TreeRenderer {
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const S = { T: this.T, L: this.L } as Scene;
-    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode) drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
+    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode)
+      drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
     if (this.activeNode >= 0 && (this.focusWithin || this.activeNode >= 0)) {
       drawRing(c, S, this.activeNode, 10, this.theme.highlight, 2.5);
       const p = { x: 0, y: 0 };
@@ -874,8 +1063,10 @@ export class TreeRenderer {
         c.globalAlpha = 0.5;
         c.lineWidth = 1;
         const ky = this.T.ky;
-        const y0 = this.T.oy + this.tree.leafStart[this.activeNode] * ky, y1 = this.T.oy + this.tree.leafEnd[this.activeNode] * ky;
-        if (y1 - y0 > 3 && this.tree.childCount[this.activeNode] > 0) c.strokeRect(p.x, Math.max(this.T.clipT, y0), Math.max(4, this.T.clipR - p.x - 4), Math.min(this.T.clipB, y1) - Math.max(this.T.clipT, y0));
+        const y0 = this.T.oy + this.tree.leafStart[this.activeNode] * ky,
+          y1 = this.T.oy + this.tree.leafEnd[this.activeNode] * ky;
+        if (y1 - y0 > 3 && this.tree.childCount[this.activeNode] > 0)
+          c.strokeRect(p.x, Math.max(this.T.clipT, y0), Math.max(4, this.T.clipR - p.x - 4), Math.min(this.T.clipB, y1) - Math.max(this.T.clipT, y0));
         c.globalAlpha = 1;
       }
     }
@@ -891,9 +1082,15 @@ export class TreeRenderer {
   private updateOverlay(): void {
     const { labels, opts, T } = this;
     const mode = opts.tipHref ? 'a' : 'span';
-    if (mode !== this.poolMode) { this.clearPool(); this.poolMode = mode; }
+    if (mode !== this.poolMode) {
+      this.clearPool();
+      this.poolMode = mode;
+    }
     const key = this.theme.fontFamily + '|' + opts.italicLabels;
-    if (key !== this.lastKey) { this.clearPool(); this.lastKey = key; }
+    if (key !== this.lastKey) {
+      this.clearPool();
+      this.lastKey = key;
+    }
     const used = new Set<number>();
     const active = document.activeElement;
     const rect = T.kind === 'rectangular';
@@ -927,13 +1124,18 @@ export class TreeRenderer {
       if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
       else {
         const deg = (labels.ang[k] * 180) / Math.PI;
-        el.style.transform = labels.flip[k] ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-8px)` : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(8px)`;
+        el.style.transform = labels.flip[k]
+          ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-8px)`
+          : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(8px)`;
       }
       el.style.display = '';
     }
     for (const [r, el] of this.pool) {
       if (used.has(r)) continue;
-      if (el === active) { el.style.transform = 'translate(-9999px,0)'; continue; } // keep focus alive until it moves
+      if (el === active) {
+        el.style.transform = 'translate(-9999px,0)';
+        continue;
+      } // keep focus alive until it moves
       el.remove();
       this.pool.delete(r);
     }
@@ -962,7 +1164,9 @@ export class TreeRenderer {
       }
     }
     const head = document.createElement('li');
-    head.textContent = total ? `${total} tips drawn in view${total > items.length ? `, first ${items.length} listed` : ''}` : 'No individual tips are drawn at this zoom level; zoom in to list them';
+    head.textContent = total
+      ? `${total} tips drawn in view${total > items.length ? `, first ${items.length} listed` : ''}`
+      : 'No individual tips are drawn at this zoom level; zoom in to list them';
     this.srList.replaceChildren(head, ...items);
   }
 
@@ -981,7 +1185,8 @@ export class TreeRenderer {
     const L = this.labels;
     if (this.T.kind === 'rectangular') {
       for (let k = 0; k < L.count; k++) {
-        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2) return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
+        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2)
+          return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
       }
     }
     return this.hit.query(x, y, this.T);
@@ -989,7 +1194,8 @@ export class TreeRenderer {
 
   private findInList(node: number): number {
     const a = this.list.node;
-    let lo = 0, hi = this.list.count - 1;
+    let lo = 0,
+      hi = this.list.count - 1;
     while (lo <= hi) {
       const m = (lo + hi) >> 1;
       if (a[m] < node) lo = m + 1;
@@ -1003,12 +1209,36 @@ export class TreeRenderer {
     const t = this.tree;
     if (run) {
       // a run of small siblings: reported under its parent, with only ITS tips (the members are adjacent, so one range)
-      let clades = 0, single = 0;
-      for (let j = run.first; j <= run.last; j = t.subtreeEnd[j]) if (t.childCount[j] === 0) single++; else clades++;
-      return { node: t.globalId === null ? node : t.globalId[node], isTip: false, tipId: null, kind, tipStart: t.leafStart[run.first], tipEnd: t.leafEnd[run.last], clientX: cx, clientY: cy, via, run: { clades, single } };
+      let clades = 0,
+        single = 0;
+      for (let j = run.first; j <= run.last; j = t.subtreeEnd[j])
+        if (t.childCount[j] === 0) single++;
+        else clades++;
+      return {
+        node: t.globalId === null ? node : t.globalId[node],
+        isTip: false,
+        tipId: null,
+        kind,
+        tipStart: t.leafStart[run.first],
+        tipEnd: t.leafEnd[run.last],
+        clientX: cx,
+        clientY: cy,
+        via,
+        run: { clades, single },
+      };
     }
     const isTip = t.childCount[node] === 0;
-    return { node: t.globalId === null ? node : t.globalId[node], isTip, tipId: isTip ? t.labels[node] ?? null : null, kind, tipStart: t.leafStart[node], tipEnd: t.leafEnd[node], clientX: cx, clientY: cy, via };
+    return {
+      node: t.globalId === null ? node : t.globalId[node],
+      isTip,
+      tipId: isTip ? (t.labels[node] ?? null) : null,
+      kind,
+      tipStart: t.leafStart[node],
+      tipEnd: t.leafEnd[node],
+      clientX: cx,
+      clientY: cy,
+      via,
+    };
   }
 
   private doHover(): void {
@@ -1069,7 +1299,7 @@ export class TreeRenderer {
       const d = (e.deltaY !== 0 ? e.deltaY : e.deltaX) * unit;
       if (!horizontal && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
         const w = this.view.x1 - this.view.x0;
-        const dx = (e.deltaX * unit / a.aw) * w;
+        const dx = ((e.deltaX * unit) / a.aw) * w;
         this.setViewport({ ...this.view, x0: this.view.x0 + dx, x1: this.view.x1 + dx });
         return;
       }
@@ -1089,7 +1319,8 @@ export class TreeRenderer {
     const v = this.view;
     const wx = v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0);
     const wy = v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0);
-    const w2 = (v.x1 - v.x0) / fx, h2 = (v.y1 - v.y0) / fy;
+    const w2 = (v.x1 - v.x0) / fx,
+      h2 = (v.y1 - v.y0) / fy;
     const nv = { x0: wx - ((px - a.ax) / a.aw) * w2, x1: 0, y0: wy - ((py - a.ay) / a.ah) * h2, y1: 0 };
     nv.x1 = nv.x0 + w2;
     nv.y1 = nv.y0 + h2;
@@ -1122,19 +1353,25 @@ export class TreeRenderer {
     if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, this.local(e));
     if (this.pinch && this.pointers.size >= 2) {
       const [p, q] = [...this.pointers.values()];
-      const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
+      const dx = Math.abs(p.x - q.x),
+        dy = Math.abs(p.y - q.y);
       const pc = this.pinch;
-      const dist = Math.hypot(dx, dy), dist0 = Math.hypot(pc.dx, pc.dy);
+      const dist = Math.hypot(dx, dy),
+        dist0 = Math.hypot(pc.dx, pc.dy);
       const fx = pc.dx >= 30 ? Math.max(0.2, Math.min(5, dx / pc.dx)) : dist0 > 0 ? dist / dist0 : 1;
       const fy = pc.dy >= 30 ? Math.max(0.2, Math.min(5, dy / pc.dy)) : dist0 > 0 ? dist / dist0 : 1;
       const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
       const a = this.area;
       const v0 = pc.v0;
       const rad = this.opts.layout === 'radial';
-      const ffx = rad ? dist / Math.max(1, dist0) : fx, ffy = rad ? dist / Math.max(1, dist0) : fy;
-      const w2 = (v0.x1 - v0.x0) / ffx, h2 = (v0.y1 - v0.y0) / ffy;
-      const wx = v0.x0 + ((pc.mid.x - a.ax) / a.aw) * (v0.x1 - v0.x0), wy = v0.y0 + ((pc.mid.y - a.ay) / a.ah) * (v0.y1 - v0.y0);
-      const x0 = wx - ((mid.x - a.ax) / a.aw) * w2, y0 = wy - ((mid.y - a.ay) / a.ah) * h2;
+      const ffx = rad ? dist / Math.max(1, dist0) : fx,
+        ffy = rad ? dist / Math.max(1, dist0) : fy;
+      const w2 = (v0.x1 - v0.x0) / ffx,
+        h2 = (v0.y1 - v0.y0) / ffy;
+      const wx = v0.x0 + ((pc.mid.x - a.ax) / a.aw) * (v0.x1 - v0.x0),
+        wy = v0.y0 + ((pc.mid.y - a.ay) / a.ah) * (v0.y1 - v0.y0);
+      const x0 = wx - ((mid.x - a.ax) / a.aw) * w2,
+        y0 = wy - ((mid.y - a.ay) / a.ah) * h2;
       this.suppressClick = true;
       this.noteInput();
       this.setViewport({ x0, x1: x0 + w2, y0, y1: y0 + h2 });
@@ -1143,18 +1380,27 @@ export class TreeRenderer {
     const d = this.drag;
     if (!d || e.pointerId !== d.id) return;
     const p = this.local(e);
-    const dx = p.x - d.sx, dy = p.y - d.sy;
+    const dx = p.x - d.sx,
+      dy = p.y - d.sy;
     if (!d.moved && Math.hypot(dx, dy) > 3) {
       d.moved = true;
       this.suppressClick = true;
       this.root.style.cursor = 'grabbing';
-      if (this.hoverNode >= 0) { this.hoverNode = -1; this.hoverKind = ''; this.topDirty = true; this.cb.onHover?.(null); this.schedule(); }
+      if (this.hoverNode >= 0) {
+        this.hoverNode = -1;
+        this.hoverKind = '';
+        this.topDirty = true;
+        this.cb.onHover?.(null);
+        this.schedule();
+      }
     }
     if (d.moved) {
       this.noteInput();
       const a = this.area;
-      const w = d.v0.x1 - d.v0.x0, h = d.v0.y1 - d.v0.y0;
-      const ddx = (dx / a.aw) * w, ddy = (dy / a.ah) * h;
+      const w = d.v0.x1 - d.v0.x0,
+        h = d.v0.y1 - d.v0.y0;
+      const ddx = (dx / a.aw) * w,
+        ddy = (dy / a.ah) * h;
       this.setViewport({ x0: d.v0.x0 - ddx, x1: d.v0.x1 - ddx, y0: d.v0.y0 - ddy, y1: d.v0.y1 - ddy });
     }
   };
@@ -1247,8 +1493,9 @@ export class TreeRenderer {
     let rank = 0;
     if (this.opts.layout === 'rectangular') rank = Math.floor((v.y0 + v.y1) / 2);
     else {
-      const cx = (v.x0 + v.x1) / 2, cy = (v.y0 + v.y1) / 2;
-      if (Math.hypot(cx, cy) > 0.02) rank = Math.floor(((Math.atan2(cy, cx) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI) * N);
+      const cx = (v.x0 + v.x1) / 2,
+        cy = (v.y0 + v.y1) / 2;
+      if (Math.hypot(cx, cy) > 0.02) rank = Math.floor((((Math.atan2(cy, cx) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI)) * N);
     }
     return this.tree.tipNode[Math.max(0, Math.min(N - 1, rank))];
   }
@@ -1260,7 +1507,9 @@ export class TreeRenderer {
     this.renderNow();
     if (announce && node >= 0) {
       const tip = this.tree.childCount[node] === 0;
-      this.announce(tip ? this.opts.formatLabel(this.tree.labels[node] ?? '') : `Clade of ${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`);
+      this.announce(
+        tip ? this.opts.formatLabel(this.tree.labels[node] ?? '') : `Clade of ${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`,
+      );
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root) {
         const el = this.pool.get(this.tree.tipRank[node]);
@@ -1279,11 +1528,19 @@ export class TreeRenderer {
       const h = v.y1 - v.y0;
       const m = Math.min(h * 0.12, 3);
       let { y0, y1, x0, x1 } = v;
-      if (row < y0 + m) { y0 = row - m; y1 = y0 + h; }
-      else if (row > y1 - m) { y1 = row + m; y0 = y1 - h; }
+      if (row < y0 + m) {
+        y0 = row - m;
+        y1 = y0 + h;
+      } else if (row > y1 - m) {
+        y1 = row + m;
+        y0 = y1 - h;
+      }
       const xt = this.L.X[node];
       const w = x1 - x0;
-      if (xt < x0 || xt > x1) { x0 = xt - w / 2; x1 = x0 + w; }
+      if (xt < x0 || xt > x1) {
+        x0 = xt - w / 2;
+        x1 = x0 + w;
+      }
       if (y0 !== v.y0 || x0 !== v.x0) this.setViewport({ x0, x1, y0, y1 });
     } else {
       const p = { x: 0, y: 0 };
@@ -1293,7 +1550,8 @@ export class TreeRenderer {
       if (p.x < pad || p.y < pad || p.x > this.W - pad || p.y > this.H - pad) {
         const k = a.aw / (v.x1 - v.x0);
         const ang = this.L.ROW[node] * ((2 * Math.PI) / this.tree.tipCount);
-        const wx = this.L.X[node] * Math.cos(ang), wy = this.L.X[node] * Math.sin(ang);
+        const wx = this.L.X[node] * Math.cos(ang),
+          wy = this.L.X[node] * Math.sin(ang);
         this.setViewport({ x0: wx - a.aw / 2 / k, x1: wx + a.aw / 2 / k, y0: wy - a.ah / 2 / k, y1: wy + a.ah / 2 / k });
       }
     }
@@ -1310,14 +1568,30 @@ export class TreeRenderer {
     const startRank = tree.leafStart[node];
     let next = -1;
     switch (e.key) {
-      case 'ArrowDown': next = tipOf(tree.childCount[node] === 0 ? startRank + 1 : tree.leafEnd[node]); break;
-      case 'ArrowUp': next = tipOf(startRank - 1); break;
-      case 'PageDown': next = tipOf(startRank + rows); break;
-      case 'PageUp': next = tipOf(startRank - rows); break;
-      case 'Home': next = tipOf(0); break;
-      case 'End': next = tipOf(N - 1); break;
-      case 'ArrowLeft': next = node > 0 ? tree.parent[node] : node; break;
-      case 'ArrowRight': next = tree.firstChild[node] >= 0 ? tree.firstChild[node] : node; break; // a stub has no loaded children
+      case 'ArrowDown':
+        next = tipOf(tree.childCount[node] === 0 ? startRank + 1 : tree.leafEnd[node]);
+        break;
+      case 'ArrowUp':
+        next = tipOf(startRank - 1);
+        break;
+      case 'PageDown':
+        next = tipOf(startRank + rows);
+        break;
+      case 'PageUp':
+        next = tipOf(startRank - rows);
+        break;
+      case 'Home':
+        next = tipOf(0);
+        break;
+      case 'End':
+        next = tipOf(N - 1);
+        break;
+      case 'ArrowLeft':
+        next = node > 0 ? tree.parent[node] : node;
+        break;
+      case 'ArrowRight':
+        next = tree.firstChild[node] >= 0 ? tree.firstChild[node] : node;
+        break; // a stub has no loaded children
       case 'Enter':
       case ' ': {
         if (this.activeNode < 0) this.activeNode = node;
@@ -1329,10 +1603,22 @@ export class TreeRenderer {
         this.cb.onClick?.(this.mkEvent(node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
         return;
       }
-      case '+': case '=': this.zoomBy(e.shiftKey ? 1 : 1, 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2); e.preventDefault(); return;
-      case '-': case '_': this.zoomBy(1, 1 / 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2); e.preventDefault(); return;
-      case '0': this.fit(true); e.preventDefault(); return;
-      default: return;
+      case '+':
+      case '=':
+        this.zoomBy(e.shiftKey ? 1 : 1, 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2);
+        e.preventDefault();
+        return;
+      case '-':
+      case '_':
+        this.zoomBy(1, 1 / 1.4, this.area.ax + this.area.aw / 2, this.area.ay + this.area.ah / 2);
+        e.preventDefault();
+        return;
+      case '0':
+        this.fit(true);
+        e.preventDefault();
+        return;
+      default:
+        return;
     }
     e.preventDefault();
     if (next >= 0) this.setActive(next);
@@ -1349,7 +1635,11 @@ export class TreeRenderer {
   private ovStyleKey = '';
   private updateOverviewBox(): void {
     const g = this.ovGeom();
-    if (!g) { this.ovWrap.style.display = 'none'; this.ovStyleKey = ''; return; }
+    if (!g) {
+      this.ovWrap.style.display = 'none';
+      this.ovStyleKey = '';
+      return;
+    }
     const s = this.ovWrap.style;
     const key = `${g.x}|${g.y}|${g.w}|${g.h}|${this.opts.layout}|${this.theme.background}|${this.theme.muted}|${this.theme.highlight}`;
     const v = this.view;
@@ -1357,7 +1647,10 @@ export class TreeRenderer {
     if (key !== this.ovStyleKey) {
       this.ovStyleKey = key;
       s.display = 'block';
-      s.left = g.x + 'px'; s.top = g.y + 'px'; s.width = g.w + 'px'; s.height = g.h + 'px';
+      s.left = g.x + 'px';
+      s.top = g.y + 'px';
+      s.width = g.w + 'px';
+      s.height = g.h + 'px';
       s.background = this.opts.layout === 'radial' ? this.theme.background : 'transparent';
       s.border = this.opts.layout === 'radial' ? `1px solid ${this.theme.muted}` : 'none';
       b.border = `1.5px solid ${this.theme.highlight}`;
@@ -1365,14 +1658,26 @@ export class TreeRenderer {
     }
     if (this.opts.layout === 'rectangular') {
       const N = this.tree.tipCount;
-      const y0 = Math.max(0, (v.y0 / N) * g.h), y1 = Math.min(g.h, (v.y1 / N) * g.h);
-      const x0 = Math.max(2, 2 + v.x0 * (g.w - 4)), x1 = Math.min(g.w - 2, 2 + v.x1 * (g.w - 4));
-      b.left = x0 + 'px'; b.top = y0 + 'px'; b.width = Math.max(4, x1 - x0) + 'px'; b.height = Math.max(3, y1 - y0) + 'px';
+      const y0 = Math.max(0, (v.y0 / N) * g.h),
+        y1 = Math.min(g.h, (v.y1 / N) * g.h);
+      const x0 = Math.max(2, 2 + v.x0 * (g.w - 4)),
+        x1 = Math.min(g.w - 2, 2 + v.x1 * (g.w - 4));
+      b.left = x0 + 'px';
+      b.top = y0 + 'px';
+      b.width = Math.max(4, x1 - x0) + 'px';
+      b.height = Math.max(3, y1 - y0) + 'px';
     } else {
       const s2 = g.w / 2.3; // world [-1.15, 1.15] -> strip
-      const toX = (x: number) => g.w / 2 + x * s2, toY = (y: number) => g.h / 2 + y * s2;
-      const x0 = Math.max(0, toX(v.x0)), x1 = Math.min(g.w, toX(v.x1)), y0 = Math.max(0, toY(v.y0)), y1 = Math.min(g.h, toY(v.y1));
-      b.left = x0 + 'px'; b.top = y0 + 'px'; b.width = Math.max(4, x1 - x0) + 'px'; b.height = Math.max(4, y1 - y0) + 'px';
+      const toX = (x: number) => g.w / 2 + x * s2,
+        toY = (y: number) => g.h / 2 + y * s2;
+      const x0 = Math.max(0, toX(v.x0)),
+        x1 = Math.min(g.w, toX(v.x1)),
+        y0 = Math.max(0, toY(v.y0)),
+        y1 = Math.min(g.h, toY(v.y1));
+      b.left = x0 + 'px';
+      b.top = y0 + 'px';
+      b.width = Math.max(4, x1 - x0) + 'px';
+      b.height = Math.max(4, y1 - y0) + 'px';
     }
   }
 
@@ -1382,25 +1687,50 @@ export class TreeRenderer {
     if (!g) return;
     const dpr = this.dpr;
     const c = this.ovCanvas;
-    const cw = Math.round(g.w * dpr), ch = Math.round(g.h * dpr);
-    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+    const cw = Math.round(g.w * dpr),
+      ch = Math.round(g.h * dpr);
+    if (c.width !== cw || c.height !== ch) {
+      c.width = cw;
+      c.height = ch;
+    }
     const ctx = this.ovCtx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, g.w, g.h);
     const rect = this.opts.layout === 'rectangular';
     const N = this.tree.tipCount;
-    const area: Area = rect ? { ax: 2, ay: 0, aw: g.w - 4, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h } : { ax: 0, ay: 0, aw: g.w, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h };
+    const area: Area = rect
+      ? { ax: 2, ay: 0, aw: g.w - 4, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h }
+      : { ax: 0, ay: 0, aw: g.w, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h };
     const vp: Viewport = rect ? { x0: 0, x1: 1, y0: 0, y1: N } : { x0: -1.15, x1: 1.15, y0: -1.15, y1: 1.15 };
     const T = makeTransform(this.opts.layout, g.w, g.h, vp, area, N);
     const P: CutParams = { lod: true, minPx: 2.5, budget: 6000, summaries: true };
     let minPx = 2.5;
     for (let k = 0; k < 6; k++) {
       P.minPx = minPx;
-      const r = rect ? cutRect(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen) : cutRadial(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen);
+      const r = rect
+        ? cutRect(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen)
+        : cutRadial(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen);
       if (!r.overflow) break;
       minPx *= 2;
     }
-    const S: Scene = { tree: this.tree, L: this.L, T, list: this.ovList, theme: this.theme, colours: this.colours, classOf: this.classOf, highlight: null, hlRanks: new Int32Array(0), hoverNode: -1, activeNode: -1, density: 'sparse', italic: false, format: this.opts.formatLabel, scale: this.dpr, thin: false };
+    const S: Scene = {
+      tree: this.tree,
+      L: this.L,
+      T,
+      list: this.ovList,
+      theme: this.theme,
+      colours: this.colours,
+      classOf: this.classOf,
+      highlight: null,
+      hlRanks: new Int32Array(0),
+      hoverNode: -1,
+      activeNode: -1,
+      density: 'sparse',
+      italic: false,
+      format: this.opts.formatLabel,
+      scale: this.dpr,
+      thin: false,
+    };
     drawBody(ctx, S, 1);
     if (rect && this.hlRanks.length) {
       ctx.fillStyle = this.theme.highlight;
@@ -1412,9 +1742,11 @@ export class TreeRenderer {
     const g = this.ovGeom();
     if (!g) return;
     const r = this.ovWrap.getBoundingClientRect();
-    const px = e.clientX - r.left, py = e.clientY - r.top;
+    const px = e.clientX - r.left,
+      py = e.clientY - r.top;
     const v = this.view;
-    const w = v.x1 - v.x0, h = v.y1 - v.y0;
+    const w = v.x1 - v.x0,
+      h = v.y1 - v.y0;
     let cx: number, cy: number;
     if (this.opts.layout === 'rectangular') {
       cy = (py / g.h) * this.tree.tipCount;
@@ -1438,7 +1770,10 @@ export class TreeRenderer {
   };
   private onOvMove = (e: PointerEvent) => {
     e.stopPropagation();
-    if (this.ovDrag) { this.noteInput(); this.ovMove(e); }
+    if (this.ovDrag) {
+      this.noteInput();
+      this.ovMove(e);
+    }
   };
   private onOvUp = (e: PointerEvent) => {
     e.stopPropagation();

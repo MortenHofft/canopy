@@ -78,7 +78,10 @@ export function nodeXY(T: Transform, L: Layout, i: number, out: { x: number; y: 
 
 /** Screen bounding box of the annular sector r0..r1 (px), angles a0..a1 (rad), around (cx, cy). */
 export function sectorBBox(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number, out: Float64Array): void {
-  const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+  const c0 = Math.cos(a0),
+    s0 = Math.sin(a0),
+    c1 = Math.cos(a1),
+    s1 = Math.sin(a1);
   let x0 = Math.min(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
   let x1 = Math.max(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
   let y0 = Math.min(r0 * s0, r1 * s0, r0 * s1, r1 * s1);

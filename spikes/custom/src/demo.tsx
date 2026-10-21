@@ -19,27 +19,70 @@ function App() {
   const [hl, setHl] = useState<string[]>([]);
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
   const [last, setLast] = useState('click a clade or a tip');
+  // Runs once: `params` is rebuilt on every render but only read here for the initial tree name.
   useEffect(() => {
     void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setTree(parseNewick(t.newick)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const g = useMemo(() => gbifTheme(), []);
-  const theme = useMemo(() => ({ background: g.bg1, foreground: g.fg1, muted: g.fg3, branch: g.fg2, highlight: g.primary, summary: g.slate400, fontFamily: g.fontBody, categorical: g.categorical }), [g]);
+  const theme = useMemo(
+    () => ({
+      background: g.bg1,
+      foreground: g.fg1,
+      muted: g.fg3,
+      branch: g.fg2,
+      highlight: g.primary,
+      summary: g.slate400,
+      fontFamily: g.fontBody,
+      categorical: g.categorical,
+    }),
+    [g],
+  );
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
   const onNode = (e: TreeNodeEvent) => {
-    setClades((cs) => (cs.some((c) => c.nodeId === e.nodeId) ? cs.filter((c) => c.nodeId !== e.nodeId) : [...cs, { nodeId: e.nodeId, colour: palette[cs.length % palette.length] }]));
+    setClades((cs) =>
+      cs.some((c) => c.nodeId === e.nodeId)
+        ? cs.filter((c) => c.nodeId !== e.nodeId)
+        : [...cs, { nodeId: e.nodeId, colour: palette[cs.length % palette.length] }],
+    );
     setHl(e.tipIds().slice(0, 5));
     setLast(`${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipRange.join(', ')})`);
   };
-  const common = { tree, clades, highlighted: hl, theme, viewport: vp, onViewportChange: setVp, onNodeClick: onNode, onTipClick: (e: TreeNodeEvent) => setLast(`tip ${e.tipId}`), tipHref: (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}` };
+  const common = {
+    tree,
+    clades,
+    highlighted: hl,
+    theme,
+    viewport: vp,
+    onViewportChange: setVp,
+    onNodeClick: onNode,
+    onTipClick: (e: TreeNodeEvent) => setLast(`tip ${e.tipId}`),
+    tipHref: (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}`,
+  };
   return (
-    <div style={{ font: '14px var(--font-body)', padding: 12, color: 'var(--fg1)', background: 'var(--bg-surface)', minHeight: '100vh', boxSizing: 'border-box' }}>
+    <div
+      style={{
+        font: '14px var(--font-body)',
+        padding: 12,
+        color: 'var(--fg1)',
+        background: 'var(--bg-surface)',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
       <p style={{ margin: '0 0 8px' }}>
-        {last} · viewport {vp ? `y ${vp.y0.toFixed(1)}..${vp.y1.toFixed(1)}, x ${vp.x0.toFixed(3)}..${vp.x1.toFixed(3)}` : 'uncontrolled until the first change'} · {clades.length} coloured clades
+        {last} · viewport{' '}
+        {vp ? `y ${vp.y0.toFixed(1)}..${vp.y1.toFixed(1)}, x ${vp.x0.toFixed(3)}..${vp.x1.toFixed(3)}` : 'uncontrolled until the first change'} ·{' '}
+        {clades.length} coloured clades
       </p>
       <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 60px)' }}>
-        <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}><TreeView {...common} branchLengths /></div>
-        <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}><TreeView {...common} branchLengths={false} options={{ overview: false }} /></div>
+        <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
+          <TreeView {...common} branchLengths />
+        </div>
+        <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
+          <TreeView {...common} branchLengths={false} options={{ overview: false }} />
+        </div>
       </div>
     </div>
   );

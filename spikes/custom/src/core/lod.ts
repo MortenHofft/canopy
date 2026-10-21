@@ -37,7 +37,9 @@ export const SLICE_MIN_CHILDREN = 16;
 const K_RUN = 4;
 export function isSlice(tree: TreeSnapshot, i: number): boolean {
   const c = tree.childCount[i];
-  return c >= SLICE_MIN_CHILDREN && tree.leafEnd[i] - tree.leafStart[i] === c && (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0);
+  return (
+    c >= SLICE_MIN_CHILDREN && tree.leafEnd[i] - tree.leafStart[i] === c && (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0)
+  );
 }
 
 /** A run (rule R) is a K_SUMMARY entry with last >= 0: `node` is its first member, `last` its last member (siblings, adjacent in
@@ -61,11 +63,21 @@ export class DrawList {
   }
   private grow(): void {
     const n = this.node.length * 2;
-    const d = new Int32Array(n); d.set(this.last); this.last = d;
-    const e = new Float32Array(n); e.set(this.xmax); this.xmax = e;
-    const a = new Int32Array(n); a.set(this.node); this.node = a;
-    const b = new Uint8Array(n); b.set(this.kind); this.kind = b;
-    const c = new Uint8Array(n); c.set(this.cls); this.cls = c;
+    const d = new Int32Array(n);
+    d.set(this.last);
+    this.last = d;
+    const e = new Float32Array(n);
+    e.set(this.xmax);
+    this.xmax = e;
+    const a = new Int32Array(n);
+    a.set(this.node);
+    this.node = a;
+    const b = new Uint8Array(n);
+    b.set(this.kind);
+    this.kind = b;
+    const c = new Uint8Array(n);
+    c.set(this.cls);
+    this.cls = c;
   }
 }
 
@@ -142,18 +154,37 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
   const PAD = 8;
   // dedupe cells are anchored at the whole-pixel part of the origin (see cutRadial): panning by a fraction of a pixel
   // does not change the cut
-  const oxs = Math.floor(ox), oys = Math.floor(oy);
+  const oxs = Math.floor(ox),
+    oys = Math.floor(oy);
   out.count = 0;
   seen.reset();
-  let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
+  let visited = 0,
+    summaries = 0,
+    tips = 0,
+    forced = 0,
+    summaryTips = 0,
+    mergedTips = 0;
   const base = P.baseMinPx ?? minPx;
   let overflow = false;
   // pending run of small siblings (rule R; only under a parent with at least SLICE_MIN_CHILDREN children, which keeps
   // binary trees off this path). Its first members are emitted as usual and taken back when the run reaches
   // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member
   const canRun = lod && P.summaries;
-  let runCount = 0, runFirst = 0, runLast = 0, runEnd = -1, runParent = -1, runCls = 0, runXmax = 0, runPx = 0, force = false;
-  let snapOut = 0, snapS = 0, snapT = 0, snapF = 0, snapST = 0, snapM = 0;
+  let runCount = 0,
+    runFirst = 0,
+    runLast = 0,
+    runEnd = -1,
+    runParent = -1,
+    runCls = 0,
+    runXmax = 0,
+    runPx = 0,
+    force = false;
+  let snapOut = 0,
+    snapS = 0,
+    snapT = 0,
+    snapF = 0,
+    snapST = 0,
+    snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
     if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
@@ -163,7 +194,10 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
         const xp = X[parent[runFirst]];
         const d = cell(oys + leafStart[runFirst] * ky);
         if (seen.add(cell(oxs + xp * kx), cell(oxs + runXmax * kx), d, d + K_RUN * 8192, cell(oys + leafEnd[runLast] * ky))) {
-          if (out.count >= budget) { overflow = true; break; }
+          if (out.count >= budget) {
+            overflow = true;
+            break;
+          }
           out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
           summaries++;
           summaryTips += tipsRun;
@@ -176,59 +210,124 @@ export function cutRect(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParam
     visited++;
     const yTop = oy + leafStart[i] * ky;
     const yBot = oy + leafEnd[i] * ky;
-    if (yBot < clipT - PAD || yTop > clipB + PAD) { i = subtreeEnd[i]; continue; }
+    if (yBot < clipT - PAD || yTop > clipB + PAD) {
+      i = subtreeEnd[i];
+      continue;
+    }
     const sx = ox + X[i] * kx;
-    if (ox + XMAX[i] * kx < clipL - PAD) { i = subtreeEnd[i]; continue; }
+    if (ox + XMAX[i] * kx < clipL - PAD) {
+      i = subtreeEnd[i];
+      continue;
+    }
     const p = parent[i];
     const sxp = i > 0 ? ox + X[p] * kx : sx;
-    if (sxp > clipR + PAD) { i = subtreeEnd[i]; continue; }
-    const sy = oy + ROW[i] * ky;
+    if (sxp > clipR + PAD) {
+      i = subtreeEnd[i];
+      continue;
+    }
     let kind: number;
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
-    else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB; // clade not loaded: a triangle, never opened
+    else if (stub !== null && stub[i] === 1)
+      kind = P.summaries ? K_SUMMARY : K_STUB; // clade not loaded: a triangle, never opened
     else if (sx > clipR + PAD) kind = K_STUB;
-    else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx))) kind = P.summaries ? K_SUMMARY : K_STUB;
-    else { kind = K_NODE; descend = true; }
+    else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx)))
+      kind = P.summaries ? K_SUMMARY : K_STUB;
+    else {
+      kind = K_NODE;
+      descend = true;
+    }
     if (canRun) {
       const px = yBot - yTop;
-      if (i > 0 && px < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN && (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))) {
+      if (
+        i > 0 &&
+        px < minPx &&
+        childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
+        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))
+      ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
-          if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+          if (runCount >= SLICE_MIN_CHILDREN) {
+            force = true;
+            continue;
+          }
           runCount = 0;
         }
-        if (runCount === 0) { runFirst = i; runParent = parent[i]; runCls = cl; runXmax = 0; runPx = 0; snapOut = out.count; snapS = summaries; snapT = tips; snapF = forced; snapST = summaryTips; snapM = mergedTips; }
-        runCount++; runLast = i; runEnd = subtreeEnd[i];
+        if (runCount === 0) {
+          runFirst = i;
+          runParent = parent[i];
+          runCls = cl;
+          runXmax = 0;
+          runPx = 0;
+          snapOut = out.count;
+          snapS = summaries;
+          snapT = tips;
+          snapF = forced;
+          snapST = summaryTips;
+          snapM = mergedTips;
+        }
+        runCount++;
+        runLast = i;
+        runEnd = subtreeEnd[i];
         if (XMAX[i] > runXmax) runXmax = XMAX[i];
         if (px > runPx) runPx = px;
-        if (runCount === SLICE_MIN_CHILDREN) { out.count = snapOut; summaries = snapS; tips = snapT; forced = snapF; summaryTips = snapST; mergedTips = snapM; }
-        if (runCount >= SLICE_MIN_CHILDREN) { i = runEnd; continue; }
+        if (runCount === SLICE_MIN_CHILDREN) {
+          out.count = snapOut;
+          summaries = snapS;
+          tips = snapT;
+          forced = snapF;
+          summaryTips = snapST;
+          mergedTips = snapM;
+        }
+        if (runCount >= SLICE_MIN_CHILDREN) {
+          i = runEnd;
+          continue;
+        }
       } else if (runCount !== 0) {
-        if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+        if (runCount >= SLICE_MIN_CHILDREN) {
+          force = true;
+          continue;
+        }
         runCount = 0;
       }
     }
     let emit = true;
     if (lod) {
       let d: number, e: number;
-      if (kind === K_NODE) { d = cell(oys + ROW[firstChild[i]] * ky); e = cell(oys + ROW[LAST[i]] * ky); }
-      else if (kind === K_SUMMARY) { d = cell(oys + leafStart[i] * ky); e = cell(oys + leafEnd[i] * ky); }
-      else { d = cell(oys + ROW[i] * ky); e = d; }
+      if (kind === K_NODE) {
+        d = cell(oys + ROW[firstChild[i]] * ky);
+        e = cell(oys + ROW[LAST[i]] * ky);
+      } else if (kind === K_SUMMARY) {
+        d = cell(oys + leafStart[i] * ky);
+        e = cell(oys + leafEnd[i] * ky);
+      } else {
+        d = cell(oys + ROW[i] * ky);
+        e = d;
+      }
       emit = seen.add(cell(oxs + (i > 0 ? X[p] : X[i]) * kx), cell(oxs + X[i] * kx), cell(oys + ROW[i] * ky), d + kind * 8192, e);
     }
     if (emit) {
-      if (out.count >= budget) { overflow = true; break; }
+      if (out.count >= budget) {
+        overflow = true;
+        break;
+      }
       out.push(i, kind, classOf ? classOf[i] : 0);
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && (stub === null || stub[i] === 0) && !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base))) forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base)))
+          forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
   }
-  res.visited = visited; res.summaries = summaries; res.tips = tips; res.overflow = overflow; res.forced = forced; res.summaryTips = summaryTips; res.mergedTips = mergedTips;
+  res.visited = visited;
+  res.summaries = summaries;
+  res.tips = tips;
+  res.overflow = overflow;
+  res.forced = forced;
+  res.summaryTips = summaryTips;
+  res.mergedTips = mergedTips;
   return res;
 }
 
@@ -245,26 +344,58 @@ export function radialWindow(cx: number, cy: number, L: number, T: number, R: nu
   W.rMin = Math.hypot(dxMin, dyMin);
   W.rMax = Math.hypot(Math.max(Math.abs(cx - L), Math.abs(cx - R)), Math.max(Math.abs(cy - T), Math.abs(cy - B)));
   W.all = dxMin === 0 && dyMin === 0; // the root is inside the window: every angle is visible
-  if (W.all) { W.lo = 0; W.hi = TWO_PI; W.wrap = false; return; }
+  if (W.all) {
+    W.lo = 0;
+    W.hi = TWO_PI;
+    W.wrap = false;
+    return;
+  }
   // the rectangle subtends less than pi seen from an outside point: its angular interval is the complement of the
   // largest gap between the four corner angles
   const c = cornerA;
-  c[0] = Math.atan2(T - cy, L - cx); c[1] = Math.atan2(T - cy, R - cx); c[2] = Math.atan2(B - cy, L - cx); c[3] = Math.atan2(B - cy, R - cx);
+  c[0] = Math.atan2(T - cy, L - cx);
+  c[1] = Math.atan2(T - cy, R - cx);
+  c[2] = Math.atan2(B - cy, L - cx);
+  c[3] = Math.atan2(B - cy, R - cx);
   for (let k = 0; k < 4; k++) if (c[k] < 0) c[k] += TWO_PI;
   c.sort((p, q) => p - q);
-  let gap = c[0] + TWO_PI - c[3], at = 3;
-  for (let k = 0; k < 3; k++) if (c[k + 1] - c[k] > gap) { gap = c[k + 1] - c[k]; at = k; }
-  if (at === 3) { W.lo = c[0]; W.hi = c[3]; W.wrap = false; }
-  else { W.lo = c[at + 1]; W.hi = c[at]; W.wrap = true; }
+  let gap = c[0] + TWO_PI - c[3],
+    at = 3;
+  for (let k = 0; k < 3; k++)
+    if (c[k + 1] - c[k] > gap) {
+      gap = c[k + 1] - c[k];
+      at = k;
+    }
+  if (at === 3) {
+    W.lo = c[0];
+    W.hi = c[3];
+    W.wrap = false;
+  } else {
+    W.lo = c[at + 1];
+    W.hi = c[at];
+    W.wrap = true;
+  }
   const eps = 1e-9;
-  W.lo -= eps; W.hi += eps;
+  W.lo -= eps;
+  W.hi += eps;
 }
 
-export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen): CutResult {
+export function cutRadial(
+  tree: TreeSnapshot,
+  L: Layout,
+  T: Transform,
+  P: CutParams,
+  classOf: Uint8Array | null,
+  out: DrawList,
+  seen: Seen,
+): CutResult {
   ensureTrig(L);
   const n = L.n;
   const { X, ROW, XMAX, LAST } = L;
-  const COS = L.COS!, SIN = L.SIN!, BC = L.BC!, BS = L.BS!;
+  const COS = L.COS!,
+    SIN = L.SIN!,
+    BC = L.BC!,
+    BS = L.BS!;
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
   const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { cx, cy, k, da, clipL, clipR, clipT, clipB } = T;
@@ -275,28 +406,68 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
   // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
   // frame, so which of two close clades survives does not flicker
   const fq = Math.pow(2, Math.floor(Math.log2(k))) / k;
-  const ou = Math.floor(((clipL + clipR) / 2 - cx) * fq), ov = Math.floor(((clipT + clipB) / 2 - cy) * fq);
+  const ou = Math.floor(((clipL + clipR) / 2 - cx) * fq),
+    ov = Math.floor(((clipT + clipB) / 2 - cy) * fq);
   radialWindow(cx, cy, clipL - PAD, clipT - PAD, clipR + PAD, clipB + PAD);
   const W = radialWindowState;
-  const rMin = W.rMin, rMax = W.rMax, all = W.all, lo = W.lo, hi = W.hi, wrap = W.wrap;
+  const rMin = W.rMin,
+    rMax = W.rMax,
+    all = W.all,
+    lo = W.lo,
+    hi = W.hi,
+    wrap = W.wrap;
   out.count = 0;
   seen.reset();
-  let visited = 0, summaries = 0, tips = 0, forced = 0, summaryTips = 0, mergedTips = 0;
+  let visited = 0,
+    summaries = 0,
+    tips = 0,
+    forced = 0,
+    summaryTips = 0,
+    mergedTips = 0;
   let overflow = false;
   // pending run of small siblings (rule R), see cutRect
   const canRun = lod && P.summaries;
-  let runCount = 0, runFirst = 0, runLast = 0, runEnd = -1, runParent = -1, runCls = 0, runXmax = 0, runPx = 0, force = false;
-  let snapOut = 0, snapS = 0, snapT = 0, snapF = 0, snapST = 0, snapM = 0;
+  let runCount = 0,
+    runFirst = 0,
+    runLast = 0,
+    runEnd = -1,
+    runParent = -1,
+    runCls = 0,
+    runXmax = 0,
+    runPx = 0,
+    force = false;
+  let snapOut = 0,
+    snapS = 0,
+    snapT = 0,
+    snapF = 0,
+    snapST = 0,
+    snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
     if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
       force = false;
       if (runCount >= SLICE_MIN_CHILDREN) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
-        const rq = runXmax * k, rp = X[parent[runFirst]] * k;
-        const sa0 = leafStart[runFirst] * da, sa1 = leafEnd[runLast] * da, mid = (sa0 + sa1) / 2, cm = Math.cos(mid), sm = Math.sin(mid);
-        if (seen.add(cell(rq * cm * fq - ou), cell(rq * sm * fq - ov), cell(rp * cm * fq - ou), cell(rp * sm * fq - ov) + K_RUN * 8192, Math.min(8191, Math.round((sa1 - sa0) * rq)))) {
-          if (out.count >= budget) { overflow = true; break; }
+        const rq = runXmax * k,
+          rp = X[parent[runFirst]] * k;
+        const sa0 = leafStart[runFirst] * da,
+          sa1 = leafEnd[runLast] * da,
+          mid = (sa0 + sa1) / 2,
+          cm = Math.cos(mid),
+          sm = Math.sin(mid);
+        if (
+          seen.add(
+            cell(rq * cm * fq - ou),
+            cell(rq * sm * fq - ov),
+            cell(rp * cm * fq - ou),
+            cell(rp * sm * fq - ov) + K_RUN * 8192,
+            Math.min(8191, Math.round((sa1 - sa0) * rq)),
+          )
+        ) {
+          if (out.count >= budget) {
+            overflow = true;
+            break;
+          }
           out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
           summaries++;
           summaryTips += tipsRun;
@@ -309,53 +480,114 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
     visited++;
     const r1 = XMAX[i] * k;
     const r0 = i > 0 ? X[parent[i]] * k : 0;
-    if (r1 < rMin || r0 > rMax) { i = subtreeEnd[i]; continue; }
+    if (r1 < rMin || r0 > rMax) {
+      i = subtreeEnd[i];
+      continue;
+    }
     const a0 = leafStart[i] * da;
     const a1 = leafEnd[i] * da;
-    if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) { i = subtreeEnd[i]; continue; }
+    if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) {
+      i = subtreeEnd[i];
+      continue;
+    }
     // exact enough: the sector's bounding box against the padded clip rectangle (corner points from the cached boundary
     // cos/sin, plus the axis crossings), after the cheap radius and angle tests above
     {
-      const ls = leafStart[i], le = leafEnd[i];
-      const c0 = BC[ls], s0 = BS[ls], c1 = BC[le], s1 = BS[le];
-      let bx0 = Math.min(r0 * c0, r1 * c0, r0 * c1, r1 * c1), bx1 = Math.max(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
-      let by0 = Math.min(r0 * s0, r1 * s0, r0 * s1, r1 * s1), by1 = Math.max(r0 * s0, r1 * s0, r0 * s1, r1 * s1);
+      const ls = leafStart[i],
+        le = leafEnd[i];
+      const c0 = BC[ls],
+        s0 = BS[ls],
+        c1 = BC[le],
+        s1 = BS[le];
+      let bx0 = Math.min(r0 * c0, r1 * c0, r0 * c1, r1 * c1),
+        bx1 = Math.max(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
+      let by0 = Math.min(r0 * s0, r1 * s0, r0 * s1, r1 * s1),
+        by1 = Math.max(r0 * s0, r1 * s0, r0 * s1, r1 * s1);
       for (let q = Math.ceil(a0 / HALF_PI); q * HALF_PI <= a1; q++) {
         switch (q & 3) {
-          case 0: if (r1 > bx1) bx1 = r1; break;
-          case 1: if (r1 > by1) by1 = r1; break;
-          case 2: if (-r1 < bx0) bx0 = -r1; break;
-          default: if (-r1 < by0) by0 = -r1;
+          case 0:
+            if (r1 > bx1) bx1 = r1;
+            break;
+          case 1:
+            if (r1 > by1) by1 = r1;
+            break;
+          case 2:
+            if (-r1 < bx0) bx0 = -r1;
+            break;
+          default:
+            if (-r1 < by0) by0 = -r1;
         }
       }
-      if (cx + bx1 < clipL - PAD || cx + bx0 > clipR + PAD || cy + by1 < clipT - PAD || cy + by0 > clipB + PAD) { i = subtreeEnd[i]; continue; }
+      if (cx + bx1 < clipL - PAD || cx + bx0 > clipR + PAD || cy + by1 < clipT - PAD || cy + by0 > clipB + PAD) {
+        i = subtreeEnd[i];
+        continue;
+      }
     }
     const ri = X[i] * k;
-    const ca = COS[i], sa = SIN[i];
-    const sx = cx + ri * ca, sy = cy + ri * sa;
+    const ca = COS[i],
+      sa = SIN[i];
     const arc = (a1 - a0) * r1;
     let kind: number;
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
     else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB;
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
-    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
-    else { kind = K_NODE; descend = true; }
+    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i])))
+      kind = P.summaries ? K_SUMMARY : K_STUB;
+    else {
+      kind = K_NODE;
+      descend = true;
+    }
     if (canRun) {
-      if (i > 0 && arc < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN && (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))) {
+      if (
+        i > 0 &&
+        arc < minPx &&
+        childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
+        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))
+      ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
-          if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+          if (runCount >= SLICE_MIN_CHILDREN) {
+            force = true;
+            continue;
+          }
           runCount = 0;
         }
-        if (runCount === 0) { runFirst = i; runParent = parent[i]; runCls = cl; runXmax = 0; runPx = 0; snapOut = out.count; snapS = summaries; snapT = tips; snapF = forced; snapST = summaryTips; snapM = mergedTips; }
-        runCount++; runLast = i; runEnd = subtreeEnd[i];
+        if (runCount === 0) {
+          runFirst = i;
+          runParent = parent[i];
+          runCls = cl;
+          runXmax = 0;
+          runPx = 0;
+          snapOut = out.count;
+          snapS = summaries;
+          snapT = tips;
+          snapF = forced;
+          snapST = summaryTips;
+          snapM = mergedTips;
+        }
+        runCount++;
+        runLast = i;
+        runEnd = subtreeEnd[i];
         if (XMAX[i] > runXmax) runXmax = XMAX[i];
         if (arc > runPx) runPx = arc;
-        if (runCount === SLICE_MIN_CHILDREN) { out.count = snapOut; summaries = snapS; tips = snapT; forced = snapF; summaryTips = snapST; mergedTips = snapM; }
-        if (runCount >= SLICE_MIN_CHILDREN) { i = runEnd; continue; }
+        if (runCount === SLICE_MIN_CHILDREN) {
+          out.count = snapOut;
+          summaries = snapS;
+          tips = snapT;
+          forced = snapF;
+          summaryTips = snapST;
+          mergedTips = snapM;
+        }
+        if (runCount >= SLICE_MIN_CHILDREN) {
+          i = runEnd;
+          continue;
+        }
       } else if (runCount !== 0) {
-        if (runCount >= SLICE_MIN_CHILDREN) { force = true; continue; }
+        if (runCount >= SLICE_MIN_CHILDREN) {
+          force = true;
+          continue;
+        }
         runCount = 0;
       }
     }
@@ -368,17 +600,31 @@ export function cutRadial(tree: TreeSnapshot, L: Layout, T: Transform, P: CutPar
       emit = seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
     }
     if (emit) {
-      if (out.count >= budget) { overflow = true; break; }
+      if (out.count >= budget) {
+        overflow = true;
+        break;
+      }
       out.push(i, kind, classOf ? classOf[i] : 0);
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && (stub === null || stub[i] === 0) && !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))) forced++;
+        if (
+          minPx > base &&
+          (stub === null || stub[i] === 0) &&
+          !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))
+        )
+          forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
   }
-  res.visited = visited; res.summaries = summaries; res.tips = tips; res.overflow = overflow; res.forced = forced; res.summaryTips = summaryTips; res.mergedTips = mergedTips;
+  res.visited = visited;
+  res.summaries = summaries;
+  res.tips = tips;
+  res.overflow = overflow;
+  res.forced = forced;
+  res.summaryTips = summaryTips;
+  res.mergedTips = mergedTips;
   return res;
 }
 
@@ -397,7 +643,16 @@ export interface SearchOpts {
  *  budget pressure that is one pass. Under pressure: start at the previous full frame's threshold (relaxed by 1.3x), step
  *  by 1.3x down or up until a fit and an overflow bracket the answer, bisect the bracket (3 steps, geometric), and make
  *  sure the list left behind is the one for the smallest threshold that fits. Passes that overflow stop at the budget. */
-export function searchCut(rect: boolean, tree: TreeSnapshot, L: Layout, T: Transform, classOf: Uint8Array | null, list: DrawList, seen: Seen, o: SearchOpts): { res: CutResult; minPx: number; retries: number } {
+export function searchCut(
+  rect: boolean,
+  tree: TreeSnapshot,
+  L: Layout,
+  T: Transform,
+  classOf: Uint8Array | null,
+  list: DrawList,
+  seen: Seen,
+  o: SearchOpts,
+): { res: CutResult; minPx: number; retries: number } {
   const { base, budget, summaries } = o;
   let lastM = -1;
   const run = (minPx: number): CutResult => {
@@ -415,19 +670,33 @@ export function searchCut(rect: boolean, tree: TreeSnapshot, L: Layout, T: Trans
   let passes = 1;
   if (o.lod && res.visited < 80000) {
     if (res.overflow) {
-      while (res.overflow && passes < 60) { n++; m = lvl(n); res = run(m); passes++; }
+      while (res.overflow && passes < 60) {
+        n++;
+        m = lvl(n);
+        res = run(m);
+        passes++;
+      }
     } else {
       while (n > 0 && passes < 60) {
         const r = run(lvl(n - 1));
         passes++;
         if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
-        n--; m = lvl(n); res = r;
+        n--;
+        m = lvl(n);
+        res = r;
       }
-      if (lastM !== m) { res = run(m); passes++; }
+      if (lastM !== m) {
+        res = run(m);
+        passes++;
+      }
     }
   } else if (res.overflow && o.lod) {
     // very expensive walks (caterpillar-like): no search, just double until it fits
-    while (res.overflow && passes < 24) { m *= 2; res = run(m); passes++; }
+    while (res.overflow && passes < 24) {
+      m *= 2;
+      res = run(m);
+      passes++;
+    }
   }
   return { res, minPx: m, retries: passes - 1 };
 }

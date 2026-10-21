@@ -36,14 +36,32 @@ export class LabelList {
   ang = new Float32Array(512); // radial: rotation in rad (0 for rectangular)
   flip = new Uint8Array(512);
   count = 0;
-  clear(): void { this.count = 0; }
+  clear(): void {
+    this.count = 0;
+  }
   add(rank: number, x: number, y: number, w: number, h: number, ang: number, flip: number): void {
     if (this.count === this.rank.length) {
-      const g = <A extends Float32Array | Int32Array | Uint8Array>(a: A): A => { const b = new (a.constructor as new (n: number) => A)(a.length * 2); b.set(a); return b; };
-      this.rank = g(this.rank); this.x = g(this.x); this.y = g(this.y); this.w = g(this.w); this.h = g(this.h); this.ang = g(this.ang); this.flip = g(this.flip);
+      const g = <A extends Float32Array | Int32Array | Uint8Array>(a: A): A => {
+        const b = new (a.constructor as new (n: number) => A)(a.length * 2);
+        b.set(a);
+        return b;
+      };
+      this.rank = g(this.rank);
+      this.x = g(this.x);
+      this.y = g(this.y);
+      this.w = g(this.w);
+      this.h = g(this.h);
+      this.ang = g(this.ang);
+      this.flip = g(this.flip);
     }
     const c = this.count++;
-    this.rank[c] = rank; this.x[c] = x; this.y[c] = y; this.w[c] = w; this.h[c] = h; this.ang[c] = ang; this.flip[c] = flip;
+    this.rank[c] = rank;
+    this.x[c] = x;
+    this.y[c] = y;
+    this.w[c] = w;
+    this.h[c] = h;
+    this.ang[c] = ang;
+    this.flip[c] = flip;
   }
 }
 
@@ -99,7 +117,11 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       const kind = list.kind[e];
       const sx = T.ox + X[i] * T.kx;
       const sy = T.oy + ROW[i] * T.ky;
-      if (i > 0) { const sxp = T.ox + X[parent[i]] * T.kx; ctx.moveTo(sxp, sy); ctx.lineTo(sx, sy); }
+      if (i > 0) {
+        const sxp = T.ox + X[parent[i]] * T.kx;
+        ctx.moveTo(sxp, sy);
+        ctx.lineTo(sx, sy);
+      }
       if (kind === K_NODE) {
         ctx.moveTo(sx, clampY(T.oy + ROW[firstChild[i]] * T.ky, T.H));
         ctx.lineTo(sx, clampY(T.oy + ROW[LAST[i]] * T.ky, T.H));
@@ -118,11 +140,20 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       any = true;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
-      const sx = T.ox + X[lm >= 0 ? parent[i] : i] * T.kx, sy = T.oy + ROW[i] * T.ky;
-      let y0 = T.oy + leafStart[i] * T.ky, y1 = T.oy + leafEnd[lm >= 0 ? lm : i] * T.ky;
-      if (y1 - y0 < 1.5) { const m = (y0 + y1) / 2; y0 = m - 0.75; y1 = m + 0.75; }
+      const sx = T.ox + X[lm >= 0 ? parent[i] : i] * T.kx,
+        sy = T.oy + ROW[i] * T.ky;
+      let y0 = T.oy + leafStart[i] * T.ky,
+        y1 = T.oy + leafEnd[lm >= 0 ? lm : i] * T.ky;
+      if (y1 - y0 < 1.5) {
+        const m = (y0 + y1) / 2;
+        y0 = m - 0.75;
+        y1 = m + 0.75;
+      }
       const xm = Math.max(sx + 2, T.ox + (lm >= 0 ? list.xmax[e] : XMAX[i]) * T.kx);
-      if (lm >= 0 || isSlice(tree, i)) { ctx.rect(sx, y0, xm - sx, y1 - y0); continue; } // polytomy of tips: a band, not a triangle
+      if (lm >= 0 || isSlice(tree, i)) {
+        ctx.rect(sx, y0, xm - sx, y1 - y0);
+        continue;
+      } // polytomy of tips: a band, not a triangle
       ctx.moveTo(sx, sy);
       ctx.lineTo(xm, y0);
       ctx.lineTo(xm, y1);
@@ -139,7 +170,8 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
 function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
   const { tree, L, T, list, colours, theme } = S;
   ensureTrig(L);
-  const COS = L.COS!, SIN = L.SIN!;
+  const COS = L.COS!,
+    SIN = L.SIN!;
   const { X, ROW, XMAX, LAST } = L;
   const { parent, firstChild, leafStart, leafEnd } = tree;
   const { cx, cy, k, da } = T;
@@ -158,7 +190,8 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       if (nCls > 1 && list.cls[e] !== cls) continue;
       if (list.last[e] >= 0) continue; // run: no branch of its own
       const i = list.node[e];
-      const ca = COS[i], sa = SIN[i];
+      const ca = COS[i],
+        sa = SIN[i];
       const r = X[i] * k;
       if (i > 0) {
         const rp = X[parent[i]] * k;
@@ -167,27 +200,45 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
         segs++;
       }
       if (list.kind[e] === K_NODE) {
-        const fc = firstChild[i], lc = LAST[i];
+        const fc = firstChild[i],
+          lc = LAST[i];
         const span = (ROW[lc] - ROW[fc]) * da;
         const len = span * r;
         ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
         if (len * len <= 2.4 * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
         else {
-          let a0 = ROW[fc] * da, a1 = ROW[lc] * da;
+          let a0 = ROW[fc] * da,
+            a1 = ROW[lc] * da;
           if (!W.all && r > 2e4) {
             // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
             if (W.wrap) {
-              if (a1 >= W.lo) { ctx.moveTo(cx + r * Math.cos(Math.max(a0, W.lo)), cy + r * Math.sin(Math.max(a0, W.lo))); ctx.arc(cx, cy, r, Math.max(a0, W.lo), a1); segs++; }
-              if (a0 <= W.hi) { ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0)); ctx.arc(cx, cy, r, a0, Math.min(a1, W.hi)); segs++; }
+              if (a1 >= W.lo) {
+                ctx.moveTo(cx + r * Math.cos(Math.max(a0, W.lo)), cy + r * Math.sin(Math.max(a0, W.lo)));
+                ctx.arc(cx, cy, r, Math.max(a0, W.lo), a1);
+                segs++;
+              }
+              if (a0 <= W.hi) {
+                ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+                ctx.arc(cx, cy, r, a0, Math.min(a1, W.hi));
+                segs++;
+              }
             } else {
-              a0 = Math.max(a0, W.lo); a1 = Math.min(a1, W.hi);
-              if (a1 > a0) { ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0)); ctx.arc(cx, cy, r, a0, a1); }
+              a0 = Math.max(a0, W.lo);
+              a1 = Math.min(a1, W.hi);
+              if (a1 > a0) {
+                ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+                ctx.arc(cx, cy, r, a0, a1);
+              }
             }
           } else ctx.arc(cx, cy, r, a0, a1);
         }
         segs++;
       }
-      if (segs >= STROKE_CHUNK) { ctx.stroke(); ctx.beginPath(); segs = 0; }
+      if (segs >= STROKE_CHUNK) {
+        ctx.stroke();
+        ctx.beginPath();
+        segs = 0;
+      }
     }
     if (segs) ctx.stroke();
   }
@@ -201,21 +252,32 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
-      let a0 = leafStart[i] * da, a1 = leafEnd[lm >= 0 ? lm : i] * da;
+      let a0 = leafStart[i] * da,
+        a1 = leafEnd[lm >= 0 ? lm : i] * da;
       const r0 = X[lm >= 0 ? parent[i] : i] * k;
       const r1 = Math.max(r0 + 2, (lm >= 0 ? list.xmax[e] : XMAX[i]) * k);
-      if ((a1 - a0) * r1 < 1.5) { const m = (a0 + a1) / 2, h = 0.75 / r1; a0 = m - h; a1 = m + h; } // keep slivers visible
+      if ((a1 - a0) * r1 < 1.5) {
+        const m = (a0 + a1) / 2,
+          h = 0.75 / r1;
+        a0 = m - h;
+        a1 = m + h;
+      } // keep slivers visible
       if (lm >= 0 || isSlice(tree, i)) {
         // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
         const len0 = (a1 - a0) * r1;
         ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
         ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-        if (len0 * len0 > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1); else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+        if (len0 * len0 > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1);
+        else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
         ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
         const len1 = (a1 - a0) * r0;
         if (len1 * len1 > 2.4 * r0 && r0 < 2e4) ctx.arc(cx, cy, r0, a1, a0, true);
         ctx.closePath();
-        if (++n >= FILL_CHUNK) { ctx.fill(); ctx.beginPath(); n = 0; }
+        if (++n >= FILL_CHUNK) {
+          ctx.fill();
+          ctx.beginPath();
+          n = 0;
+        }
         continue;
       }
       ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
@@ -224,7 +286,11 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       if (len * len > 2.4 * r1 && r1 < 2e4) ctx.arc(cx, cy, r1, a0, a1);
       else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
       ctx.closePath();
-      if (++n >= FILL_CHUNK) { ctx.fill(); ctx.beginPath(); n = 0; }
+      if (++n >= FILL_CHUNK) {
+        ctx.fill();
+        ctx.beginPath();
+        n = 0;
+      }
     }
     if (n) ctx.fill();
   }
@@ -323,7 +389,7 @@ export function drawRing(ctx: CanvasRenderingContext2D, S: Scene, node: number, 
 /** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay.
  *  Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
  *  setTransform per label instead of save/translate/rotate/restore (cos/sin come from the layout cache). */
-export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList, effMinPx: number): void {
+export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList): void {
   const { tree, L, T, list, theme, classOf, colours, highlight } = S;
   labels.clear();
   const rect = T.kind === 'rectangular';
@@ -352,23 +418,36 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
     const hl = highlight ? highlight[r] === 1 : false;
     const f = hl ? fontH : fontN;
-    if (f !== lastFont) { ctx.font = f; lastFont = f; }
+    if (f !== lastFont) {
+      ctx.font = f;
+      lastFont = f;
+    }
     const text = S.format(tree.tipLabels[r] ?? '');
     const w = textWidth(ctx, text, f);
-    if (f !== lastFont) { ctx.font = f; lastFont = f; } // textWidth may have set the font
+    if (f !== lastFont) {
+      ctx.font = f;
+      lastFont = f;
+    } // textWidth may have set the font
     const cl = classOf ? classOf[i] : 0;
     const fill = hl ? theme.highlight : cl ? colours[cl] : theme.foreground;
-    if (fill !== lastFill) { ctx.fillStyle = fill; lastFill = fill; }
+    if (fill !== lastFill) {
+      ctx.fillStyle = fill;
+      lastFill = fill;
+    }
     if (rect) {
       const x = p.x + 8;
       ctx.fillText(text, x, p.y + 0.5);
       labels.add(r, x, p.y, w, size + 2, 0, 0);
     } else {
       const left = L.COS![i] < 0;
-      const c = left ? -L.COS![i] : L.COS![i], sn = left ? -L.SIN![i] : L.SIN![i];
+      const c = left ? -L.COS![i] : L.COS![i],
+        sn = left ? -L.SIN![i] : L.SIN![i];
       ctx.setTransform(sc * c, sc * sn, -sc * sn, sc * c, sc * p.x, sc * p.y);
       const al = left ? 'right' : 'left';
-      if (al !== lastAlign) { ctx.textAlign = al; lastAlign = al; }
+      if (al !== lastAlign) {
+        ctx.textAlign = al;
+        lastAlign = al;
+      }
       ctx.fillText(text, left ? -8 : 8, 0.5);
       const a = L.ROW[i] * T.da;
       labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0);
@@ -409,26 +488,34 @@ export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x
   ctx.moveTo(Math.max(T.clipL, T.ox), y + 0.5);
   ctx.lineTo(Math.min(T.clipR, T.ox + T.kx), y + 0.5);
   ctx.stroke();
-  const pxPerUnit = (T.kx / 1) / maxLen; // px per tree unit
+  const pxPerUnit = T.kx / 1 / maxLen; // px per tree unit
   const step = niceStep(110 / pxPerUnit);
   // values shown: distance from the root, or age (time before the tips) for an ultrametric tree
-  const dLo = Math.max(0, x0v) * maxLen, dHi = Math.min(1, x1v) * maxLen;
+  const dLo = Math.max(0, x0v) * maxLen,
+    dHi = Math.min(1, x1v) * maxLen;
   const toPx = (d: number) => T.ox + (d / maxLen) * T.kx;
   ctx.beginPath();
   const gridAlpha = dated ? 0.12 : 0;
   const ticks: { px: number; label: string }[] = [];
   if (dated) {
-    for (let age = Math.ceil((maxLen - dHi) / step) * step; age <= maxLen - dLo + 1e-12; age += step) ticks.push({ px: toPx(maxLen - age), label: fmtTick(age, step) });
+    for (let age = Math.ceil((maxLen - dHi) / step) * step; age <= maxLen - dLo + 1e-12; age += step)
+      ticks.push({ px: toPx(maxLen - age), label: fmtTick(age, step) });
   } else {
     for (let d = Math.ceil(dLo / step) * step; d <= dHi + 1e-12; d += step) ticks.push({ px: toPx(d), label: fmtTick(d, step) });
   }
-  for (const t of ticks) { ctx.moveTo(t.px + 0.5, y); ctx.lineTo(t.px + 0.5, y + 4); }
+  for (const t of ticks) {
+    ctx.moveTo(t.px + 0.5, y);
+    ctx.lineTo(t.px + 0.5, y + 4);
+  }
   ctx.stroke();
   for (const t of ticks) if (t.px > T.clipL + 8 && t.px < T.clipR - 8) ctx.fillText(t.label, t.px, y + 5);
   if (gridAlpha) {
     ctx.globalAlpha = gridAlpha;
     ctx.beginPath();
-    for (const t of ticks) { ctx.moveTo(t.px + 0.5, ay); ctx.lineTo(t.px + 0.5, ay + ah); }
+    for (const t of ticks) {
+      ctx.moveTo(t.px + 0.5, ay);
+      ctx.lineTo(t.px + 0.5, ay + ah);
+    }
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
@@ -445,7 +532,8 @@ export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
   const pxPerUnit = T.k / L.maxLen;
   const step = niceStep(90 / pxPerUnit);
   const w = step * pxPerUnit;
-  const x = Math.max(14, T.W - w - 18), y = T.H - 18;
+  const x = Math.max(14, T.W - w - 18),
+    y = T.H - 18;
   ctx.save();
   ctx.strokeStyle = theme.muted;
   ctx.fillStyle = theme.muted;
@@ -453,7 +541,12 @@ export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
   ctx.font = `10px ${theme.fontFamily}`;
   ctx.textBaseline = 'bottom';
   ctx.beginPath();
-  ctx.moveTo(x, y - 3); ctx.lineTo(x, y + 3); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.moveTo(x + w, y - 3); ctx.lineTo(x + w, y + 3);
+  ctx.moveTo(x, y - 3);
+  ctx.lineTo(x, y + 3);
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.moveTo(x + w, y - 3);
+  ctx.lineTo(x + w, y + 3);
   ctx.stroke();
   ctx.fillText(fmtTick(step, step), x, y - 5);
   ctx.restore();
