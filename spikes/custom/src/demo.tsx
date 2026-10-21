@@ -8,10 +8,11 @@
 // whole-tree actions (midpoint root, ladderise, collapse by support). Each action returns a new tree that replaces the one
 // shown; the tree as published is kept for undo and reset and never changed.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../shared/gbif-tokens.css';
 import { gbifTheme } from '../../shared/gbif-theme.ts';
+import { showBuildInfo } from '../../shared/build-info.ts';
 import { loadTree } from '../../shared/data.ts';
 import { parseNewick } from '../../shared/newick.ts';
 import { TreeModel } from '../../shared/tree.ts';
@@ -36,6 +37,19 @@ function moveColour(tree: TreeModel, next: TreeModel, map: Int32Array, k: number
   const m = next.mrcaOf(tips);
   if (next.tipCountOf(m) === tips.length) return { node: m, split: false };
   return { node: rule === 'node' ? map[k] : -1, split: true };
+}
+
+/** Which build this is (commit, branch, time), from the site's /version.json; as on the harness pages. */
+function BuildFooter() {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    void showBuildInfo(ref.current);
+  }, []);
+  return (
+    <p ref={ref} style={{ margin: '8px 0 0' }}>
+      Build: …
+    </p>
+  );
 }
 
 function App() {
@@ -337,8 +351,10 @@ function App() {
         padding: 12,
         color: 'var(--fg1)',
         background: 'var(--bg-surface)',
-        minHeight: '100vh',
+        height: '100vh',
         boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column', // toolbar, status, the two panes (the rest of the height), build footer
       }}
     >
       <div
@@ -449,7 +465,7 @@ function App() {
         {last} · {history.length > 1 ? `${history.length - 1} change${history.length > 2 ? 's' : ''} by you, not as published` : 'tree as published'}{' '}
         · {clades.length} coloured clades
       </p>
-      <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 110px)' }}>
+      <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
           <TreeView {...common} branchLengths />
         </div>
@@ -457,6 +473,7 @@ function App() {
           <TreeView {...common} branchLengths={false} options={{ overview: false }} />
         </div>
       </div>
+      <BuildFooter />
     </div>
   );
 }
