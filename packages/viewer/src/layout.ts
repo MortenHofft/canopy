@@ -54,7 +54,7 @@ export function ensureTrig(L: Layout): void {
 
 /** Layout of a partially loaded tree: every row (loaded or stub) takes X, XMAX and ROW from the rollups of the snapshot, so no
  *  pass over descendants is needed and a stub gets the same numbers the full tree would give it (checked by
- *  parquet-experiment/test/overview_vs_layout.mjs on the main branch). */
+ *  parquet-experiment/test/overview_vs_layout.mjs on the research branch). */
 function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number): Layout {
   const n = tree.nodeCount,
     R = tree.rollup!;

@@ -3,7 +3,7 @@
 How the viewer core works and how to change it safely: the frame pipeline, the invariants, the module map, how to extend it, the cut and its
 golden tests. For using the viewer, see the [README](../README.md) and the [API reference](api.md).
 
-The core started as the custom candidate of the tree-viewer spike (the comparison lives on the `main` branch). It has a tree on typed arrays,
+The core started as the custom candidate of the tree-viewer spike (the comparison lives on the `research` branch). It has a tree on typed arrays,
 viewport level of detail with a draw budget, Canvas2D, a grid hit index and a DOM overlay for labels and links. What was measured, and the
 decisions behind the current design, are in [docs/design/custom.md](../../../docs/design/custom.md). Everything was measured headless, without a
 GPU.
@@ -238,7 +238,7 @@ Add the field to `TreeTheme` and `FALLBACK_THEME` (`types.ts`; `themeEquals` com
 
 ### Add a TreeSource
 
-Implement `TreeSource` (`src/source.ts`); `InMemorySource` is the trivial one; a partial one over Parquet files (`ParquetSource`) is on the `main` branch, `spikes/custom/src/parquet/`.
+Implement `TreeSource` (`src/source.ts`); `InMemorySource` is the trivial one; a partial one over Parquet files (`ParquetSource`) is on the `research` branch, `spikes/custom/src/parquet/`.
 
 * `snapshot()` must be always renderable, synchronous, and return the same object while `version` is unchanged. It returns a `TreeSnapshot`: all
   the `TreeData` arrays over the loaded rows (preorder, the invariants above), plus `stub` (1 = a row standing for a clade whose rows are not
@@ -249,7 +249,7 @@ Implement `TreeSource` (`src/source.ts`); `InMemorySource` is the trivial one; a
 * When rows arrive or are dropped, bump `version` and call the listeners given to `subscribe()`. `ensureClade(globalId, {signal, priority})`
   resolves after the version bump; `DetailLoader` calls it for big stubs after full-quality frames and cancels through the signal. `openCost` is
   optional. `tipLabels(r0, r1)` is async because a partial source may not have the labels; `nodeCount`, `tipCount`, `hasLengths` describe the full tree.
-* Tests of the contract: `test/detail-loader.test.mjs` has a fake partial source; `scripts/check-parquet-source.mjs` on the `main` branch is the end-to-end check of `ParquetSource`.
+* Tests of the contract: `test/detail-loader.test.mjs` has a fake partial source; `scripts/check-parquet-source.mjs` on the `research` branch is the end-to-end check of `ParquetSource`.
 
 ## The cut: why two loops, and the golden tests
 

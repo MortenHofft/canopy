@@ -2,13 +2,13 @@
 
 ## What this repo is
 
-This branch (`lib`) is the phylogenetic tree viewer as a reusable library: framework-free, tree-shakeable, and usable from React or any
-other frontend, by GBIF and by others. The research and the comparison of other viewers live on `main`. Do not bring them back here. See
+This repository (`main`) is the phylogenetic tree viewer as a reusable library: framework-free, tree-shakeable, and usable from React or any
+other frontend, by GBIF and by others. The research and the comparison of other viewers live on the `research` branch. Do not bring them back here. See
 [README.md](README.md).
 
 ## Working conventions
 
-- Develop on feature branches off `lib`. Do not open pull requests unless asked.
+- Develop on feature branches off `main`. Do not open pull requests unless asked.
 - Check licences before adding a dependency. GPL/AGPL matter for embedding in gbif.org, and the packages are Apache-2.0. The viewer and
   tree-ops have no runtime dependencies; keep it that way unless there is a strong reason.
 - Prefer web-native, browser-only solutions: the target is a static frontend fetching tree files from a remote archive.

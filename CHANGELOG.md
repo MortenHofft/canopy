@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (lib branch, 2026-10-21)
+## Unreleased (2026-10-21: the library replaces the research on `main`; the research is on the `research` branch)
 
 These changes made the spike's custom renderer into the first library form. Nothing is published yet, and the package names are placeholders.
 

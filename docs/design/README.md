@@ -1,9 +1,9 @@
 # Design notes
 
-Measurements and design notes carried over from the research on the `main` branch. They are records of what was measured and decided at
-the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results/...`) refer to the layout of `main`. On this branch:
+Measurements and design notes carried over from the research on the `research` branch. They are records of what was measured and decided at
+the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results/...`) refer to the layout of that branch. Here:
 
-| Path on `main` | Path here |
+| Path on `research` | Path here |
 |---|---|
 | `spikes/custom/src/core/` | `packages/viewer/src/` |
 | `spikes/custom/src/react/` | `packages/react/src/` |
@@ -17,6 +17,6 @@ the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results
 | [custom.md](custom.md) | The custom renderer's measurements: benchmarks, scenarios, the radial work, polytomies, the hardening pass |
 | [custom-renderer.md](custom-renderer.md) | The research that preceded it: why our own renderer, and its architecture |
 | [data-layer.md](data-layer.md) | Data layer research: formats, loading, partial trees |
-| [treesource-slice.md](treesource-slice.md) | The `TreeSource` slice: partially loaded trees (its `ParquetSource` is on `main`) |
+| [treesource-slice.md](treesource-slice.md) | The `TreeSource` slice: partially loaded trees (its `ParquetSource` is on `research`) |
 | [tree-ops.md](tree-ops.md), [tree-ops-libraries.md](tree-ops-libraries.md) | Tree operations: results and the libraries looked at |
 | [ete-ideas.md](ete-ideas.md) | Ideas from the ETE toolkit worth reimplementing |

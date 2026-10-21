@@ -1,7 +1,8 @@
 # The viewer as a library: design and what it took
 
-Written 2026-10-21, when the custom renderer of the spike was turned into the `lib` branch. Sizes are measured by
-`scripts/check-packages.mjs` (esbuild, minified, gzip level 9) on that date. Everything else follows from the code on this branch.
+Written 2026-10-21, when the custom renderer of the spike was turned into a library (developed on a `lib` branch, now `main`; the
+research moved to the `research` branch). Sizes are measured by `scripts/check-packages.mjs` (esbuild, minified, gzip level 9) on that
+date. Everything else follows from the code on this branch.
 
 ## The question
 

@@ -3,7 +3,7 @@
 A phylogenetic tree viewer for the web, built for [gbif.org](https://www.gbif.org) and usable by anyone. It is framework-free at its core
 and renders trees from a few tips to a million tips in the browser.
 
-This is the `lib` branch: the library on its own. The `main` branch holds the research behind it. That research compared existing
+This is the library. The `research` branch holds the research behind it. That research compared existing
 viewers, ran a spike with a test harness, and recorded measurements and the recommendation.
 
 ## Packages

@@ -1,7 +1,7 @@
 // TreeSource: where the renderer gets its tree from. The renderer calls snapshot() once per frame and reads typed arrays from it,
 // exactly as it read the TreeData before; a source that loads parts of the tree on demand (src/parquet/) changes what the snapshot
 // holds (loaded clades as rows, everything else as stub rows) and tells the renderer through subscribe(). The in-memory source
-// is the trivial implementation: version 0, no stubs, nothing to load. Design: docs/results/parquet-experiment.md section 8 on the main branch,
+// is the trivial implementation: version 0, no stubs, nothing to load. Design: docs/results/parquet-experiment.md section 8 on the research branch,
 // first draft in spikes/parquet-experiment/proposal/tree-source.ts there (this file differs from it where docs/design/treesource-slice.md says so).
 
 import type { TreeData, TreeSnapshot } from './types.ts';
