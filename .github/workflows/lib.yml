@@ -1,0 +1,63 @@
+name: lib
+
+# Typecheck, lint, format check, unit tests, build and package checks of every workspace, and, as a separate job, the browser check
+# (the test page in tests/browser, built and served by vite preview, driven by Playwright). The viewer's regression test reads
+# data/synthetic and the committed OTL 91k tree, and the tree-ops and io tests read trees under data/, so data/ triggers the jobs too.
+on:
+  push:
+    paths:
+      - 'packages/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'data/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - 'eslint.config.js'
+      - '.github/workflows/lib.yml'
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'examples/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'data/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - 'eslint.config.js'
+      - '.github/workflows/lib.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run build -w examples/react
+
+  # Slower and needing a browser, so a separate job: lint and unit failures are reported without waiting for it.
+  test-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+        working-directory: tests/browser
+      # build, vite preview on a free port, the check, stop the server; the exit code is the check's
+      - run: npm run test:browser -w tests/browser

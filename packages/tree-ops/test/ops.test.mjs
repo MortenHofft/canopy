@@ -6,16 +6,26 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
-// Test fixtures only: the spikes' Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
+// Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
 // something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
-import { parseNewick, toNewick } from '../../../spikes/shared/newick.ts';
-import { TreeModel } from '../../../spikes/shared/tree.ts';
+import { parseNewick, toNewick, TreeModel } from '@gbif-phylo/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
-const wrap = (fn) => (...a) => { const r = fn(...a); return { ...r, tree: r.changed ? new TreeModel(r.tree) : r.tree }; };
-const reroot = wrap(ops.reroot), midpointRoot = wrap(ops.midpointRoot), ladderise = wrap(ops.ladderise), rotate = wrap(ops.rotate);
+const wrap =
+  (fn) =>
+  (...a) => {
+    const r = fn(...a);
+    return { ...r, tree: r.changed ? new TreeModel(r.tree) : r.tree };
+  };
+const reroot = wrap(ops.reroot),
+  midpointRoot = wrap(ops.midpointRoot),
+  ladderise = wrap(ops.ladderise),
+  rotate = wrap(ops.rotate);
 const collapseClades = wrap(ops.collapseClades);
-const collapseBySupport = wrap(ops.collapseBySupport), collapseShortBranches = wrap(ops.collapseShortBranches), prune = wrap(ops.prune), subtree = wrap(ops.subtree);
+const collapseBySupport = wrap(ops.collapseBySupport),
+  collapseShortBranches = wrap(ops.collapseShortBranches),
+  prune = wrap(ops.prune),
+  subtree = wrap(ops.subtree);
 const readTree = (p) => parseNewick(zlib.gunzipSync(fs.readFileSync(path.join(DATA, p))).toString('utf8'));
 const tip = (t, l) => t.tipIndex(l);
 const nwk = (t) => toNewick(t);
@@ -23,11 +33,15 @@ const nwk = (t) => toNewick(t);
 /** Structural invariants of TreeModel (same as shared/tree.ts promises). */
 /** Structural invariants; `maxUnary` = one-child nodes allowed (the input's own; operations must not create new ones). */
 function checkModel(t, maxUnary = 0) {
-  let tips = 0, unary = 0;
+  let tips = 0,
+    unary = 0;
   for (let i = 0; i < t.nodeCount; i++) {
     if (i > 0) assert.ok(t.parent[i] < i && t.parent[i] >= 0, `parent of ${i}`);
     assert.ok(t.subtreeEnd[i] > i && t.subtreeEnd[i] <= t.nodeCount);
-    if (t.childCount[i] === 0) { assert.equal(t.leafStart[i], tips); tips++; }
+    if (t.childCount[i] === 0) {
+      assert.equal(t.leafStart[i], tips);
+      tips++;
+    }
     if (t.childCount[i] === 1) unary++;
   }
   assert.ok(unary <= maxUnary, `${unary} one-child nodes, at most ${maxUnary} expected`);
@@ -49,11 +63,22 @@ function splitSupports(t) {
   }
   return out;
 }
-const unaryCount = (t) => { let u = 0; for (let i = 0; i < t.nodeCount; i++) if (t.childCount[i] === 1) u++; return u; };
+const unaryCount = (t) => {
+  let u = 0;
+  for (let i = 0; i < t.nodeCount; i++) if (t.childCount[i] === 1) u++;
+  return u;
+};
 
 /** Tip-to-tip distance, missing lengths as 0. */
 function dist(t, a, b) {
-  const cum = (i) => { let s = 0; for (; i > 0; i = t.parent[i]) { const l = t.length[i]; if (l === l) s += l; } return s; };
+  const cum = (i) => {
+    let s = 0;
+    for (; i > 0; i = t.parent[i]) {
+      const l = t.length[i];
+      if (!Number.isNaN(l)) s += l;
+    }
+    return s;
+  };
   return cum(a) + cum(b) - 2 * cum(t.mrca(a, b));
 }
 
@@ -71,7 +96,7 @@ function splits(t) {
 }
 
 let seed = 1;
-const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 
 test('reroot: new root splits the edge, path reversed, binary old root suppressed', () => {
   const t = parseNewick('((A:1,B:2)AB:3,(C:4,D:5)CD:6)root;');
@@ -120,19 +145,31 @@ test('reroot preserves tip distances and unrooted splits on a real tree', () => 
     assert.equal(tree.tipCount, t.tipCount);
     assert.deepEqual(splits(tree), before);
     for (let j = 0; j < 20; j++) {
-      const a = t.tipNode[Math.floor(rnd() * t.tipCount)], b = t.tipNode[Math.floor(rnd() * t.tipCount)];
+      const a = t.tipNode[Math.floor(rnd() * t.tipCount)],
+        b = t.tipNode[Math.floor(rnd() * t.tipCount)];
       assert.ok(Math.abs(dist(t, a, b) - dist(tree, map[a], map[b])) < 1e-9);
     }
   }
 });
 
 test('midpoint root: both sides of the root reach half the diameter', () => {
-  for (const p of ['real-ladder/trees/gtdb-0200-iainarchaeia.nwk.gz', 'real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz', 'real-ladder/trees/otl-0200-canidae.nwk.gz']) {
+  for (const p of [
+    'real-ladder/trees/gtdb-0200-iainarchaeia.nwk.gz',
+    'real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz',
+    'real-ladder/trees/otl-0200-canidae.nwk.gz',
+  ]) {
     const t = readTree(p);
-    if (!t.hasLengths) { assert.throws(() => midpointRoot(t)); continue; }
+    if (!t.hasLengths) {
+      assert.throws(() => midpointRoot(t));
+      continue;
+    }
     const { tree, info } = midpointRoot(t);
     checkModel(tree);
-    const deepest = (c) => { let m = 0; for (let r = tree.leafStart[c]; r < tree.leafEnd[c]; r++) m = Math.max(m, dist(tree, 0, tree.tipNode[r])); return m; };
+    const deepest = (c) => {
+      let m = 0;
+      for (let r = tree.leafStart[c]; r < tree.leafEnd[c]; r++) m = Math.max(m, dist(tree, 0, tree.tipNode[r]));
+      return m;
+    };
     // the two farthest tips lie on different sides of the root, each at distance D/2
     const [a, b] = info.tips;
     const side = (v) => tree.children(0).find((c) => tree.contains(c, v));
@@ -188,7 +225,8 @@ test('prune: unary nodes merged, edges above the new root dropped, distances kep
   assert.equal(tree.tipCount, kept.size);
   const ks = [...kept];
   for (let j = 0; j < 50; j++) {
-    const a = r.tipNode[ks[Math.floor(rnd() * ks.length)]], b = r.tipNode[ks[Math.floor(rnd() * ks.length)]];
+    const a = r.tipNode[ks[Math.floor(rnd() * ks.length)]],
+      b = r.tipNode[ks[Math.floor(rnd() * ks.length)]];
     assert.ok(Math.abs(dist(r, a, b) - dist(tree, map[a], map[b])) < 1e-9);
   }
 });
@@ -200,8 +238,16 @@ test('subtree', () => {
 });
 
 test('edge-case trees: reroot on every node, midpoint, prune and collapse keep the invariants', () => {
-  const read = (p) => { const b = fs.readFileSync(path.join(DATA, p)); return parseNewick((p.endsWith('.gz') ? zlib.gunzipSync(b) : b).toString('utf8')); };
-  for (const p of ['rich/edge-cases/polytomy-missing-lengths.nwk', 'rich/edge-cases/unrooted-trifurcating-root.nwk', 'rich/edge-cases/internal-labels-support.nwk', 'rich/edge-cases/quoted-labels.nwk']) {
+  const read = (p) => {
+    const b = fs.readFileSync(path.join(DATA, p));
+    return parseNewick((p.endsWith('.gz') ? zlib.gunzipSync(b) : b).toString('utf8'));
+  };
+  for (const p of [
+    'rich/edge-cases/polytomy-missing-lengths.nwk',
+    'rich/edge-cases/unrooted-trifurcating-root.nwk',
+    'rich/edge-cases/internal-labels-support.nwk',
+    'rich/edge-cases/quoted-labels.nwk',
+  ]) {
     const t = read(p);
     const before = splits(t);
     const labels = t.tipLabels.slice().sort();
@@ -236,7 +282,6 @@ test('deep tree: a 100k-tip caterpillar (depth 100k) reroots, midpoint-roots, la
   assert.equal(prune(t, (k) => k % 3 === 0).tree.tipCount, Math.ceil(N / 3));
 });
 
-
 test('unary root edge: rerooting drops the one-child chain above the old root instead of turning it into tips', () => {
   const ids = (t, l) => (t.tipIndex(l) >= 0 ? t.tipIndex(l) : t.labels.indexOf(l));
   const cases = [
@@ -259,7 +304,7 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
   for (let trial = 0; trial < 30; trial++) {
     // random binary tree, then one-child nodes inserted above random nodes (sometimes above the root)
     const nTips = 3 + Math.floor(rnd() * 12);
-    let parts = Array.from({ length: nTips }, (_, i) => `T${i}:${(1 + Math.floor(rnd() * 9)) / 4}`);
+    const parts = Array.from({ length: nTips }, (_, i) => `T${i}:${(1 + Math.floor(rnd() * 9)) / 4}`);
     let k = 0;
     while (parts.length > 1) {
       const a = parts.splice(Math.floor(rnd() * parts.length), 1)[0];
@@ -283,8 +328,10 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
         assert.deepEqual(tree.tipLabels.slice().sort(), labels, `${text} reroot ${v} at ${f}`);
         assert.deepEqual(splits(tree), before, `${text} reroot ${v} at ${f}`);
         // every split keeps its support (supports move with their edges)
-        for (const [sp, val] of splitSupports(tree)) if (supBefore.get(sp) !== AMBIGUOUS) assert.equal(val, supBefore.get(sp), `${text} reroot ${v} at ${f}: split ${sp}`);
-        const a = t.tipNode[0], b = t.tipNode[t.tipCount - 1];
+        for (const [sp, val] of splitSupports(tree))
+          if (supBefore.get(sp) !== AMBIGUOUS) assert.equal(val, supBefore.get(sp), `${text} reroot ${v} at ${f}: split ${sp}`);
+        const a = t.tipNode[0],
+          b = t.tipNode[t.tipCount - 1];
         assert.ok(Math.abs(dist(t, a, b) - dist(tree, map[a], map[b])) < 1e-9);
       }
     }
@@ -309,7 +356,10 @@ test('prune keeps one-child nodes that were in the input (Open Tree monotypic ta
   for (let i = 0; i < o.nodeCount; i++) {
     if (o.childCount[i] !== 1) continue;
     const alive = o.leafEnd[i] - o.leafStart[i] > (o.leafStart[i] <= drop && drop < o.leafEnd[i] ? 1 : 0);
-    if (alive) { assert.ok(map[i] >= 0, `unary node ${i} (${o.labels[i]}) kept`); assert.equal(tree.labels[map[i]], o.labels[i]); }
+    if (alive) {
+      assert.ok(map[i] >= 0, `unary node ${i} (${o.labels[i]}) kept`);
+      assert.equal(tree.labels[map[i]], o.labels[i]);
+    }
   }
 });
 
@@ -357,7 +407,9 @@ test('midpoint: within 1e-6 of the diameter counts as on a node (lengths rounded
 
 test('collapseClades: a clade becomes one tip that stands for it; nested and repeated nodes are covered', () => {
   const t = parseNewick('(((A:1,B:1)95:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
-  const ab = t.mrcaOf(['A', 'B']), fam = t.mrcaOf(['A', 'C']), ef = t.mrcaOf(['E', 'F']);
+  const ab = t.mrcaOf(['A', 'B']),
+    fam = t.mrcaOf(['A', 'C']),
+    ef = t.mrcaOf(['E', 'F']);
   let r = collapseClades(t, [ab]);
   assert.equal(nwk(r.tree), "(('A and 1 more':2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);");
   checkModel(r.tree);

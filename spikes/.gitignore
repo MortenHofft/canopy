@@ -1,6 +1,0 @@
-node_modules
-dist
-dist-demo
-*.tsbuildinfo
-results/**/raw/
-.cache

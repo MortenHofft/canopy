@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../src/index.ts';
-import { parseNewick } from '../../../spikes/shared/newick.ts'; // fixture: text -> TreeInput
+import { parseNewick } from '@gbif-phylo/io'; // fixture: text -> TreeInput
 
 const argv = process.argv.slice(2);
 const reps = argv[0] === '--reps' ? Number(argv[1]) : 5;
@@ -15,7 +15,11 @@ const files = argv[0] === '--reps' ? argv.slice(2) : argv;
 const median = (fn) => {
   fn(); // warm-up
   const ts = [];
-  for (let r = 0; r < reps; r++) { const t0 = performance.now(); fn(); ts.push(performance.now() - t0); }
+  for (let r = 0; r < reps; r++) {
+    const t0 = performance.now();
+    fn();
+    ts.push(performance.now() - t0);
+  }
   ts.sort((a, b) => a - b);
   return ts[ts.length >> 1];
 };
@@ -30,7 +34,7 @@ for (const f of files) {
   const h = t.depth;
   let deep = t.tipNode[0];
   for (let r = 0; r < t.tipCount; r++) if (h[t.tipNode[r]] > h[deep]) deep = t.tipNode[r];
-  const hasSupport = t.support.some((s) => s === s);
+  const hasSupport = t.support.some((s) => !Number.isNaN(s));
   const row = {
     tree: path.basename(f),
     tips: t.tipCount,

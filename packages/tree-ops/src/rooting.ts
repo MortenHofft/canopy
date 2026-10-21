@@ -47,7 +47,8 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
   const late = new Uint8Array(n + 1); // children that go last in their new parent's list (the reversed edges)
   for (let k = path.length - 1; k > top; k--) d.parent[path[k]] = -1;
   for (let k = top; k > s; k--) {
-    const below = path[k - 1], u = path[k];
+    const below = path[k - 1],
+      u = path[k];
     d.parent[u] = below;
     d.length[u] = t.length[below];
     edgeSupport.set(u, supText(below));
@@ -108,12 +109,22 @@ function distancesFrom(t: TreeInput, src: number): Float64Array {
   let sp = 0;
   dist[src] = 0;
   stack[sp++] = src;
-  const w = (i: number) => { const l = t.length[i]; return l > 0 ? l : 0; };
+  const w = (i: number) => {
+    const l = t.length[i];
+    return l > 0 ? l : 0;
+  };
   while (sp) {
     const v = stack[--sp];
     const p = t.parent[v];
-    if (v > 0 && dist[p] < 0) { dist[p] = dist[v] + w(v); stack[sp++] = p; }
-    for (let c = t.firstChild[v]; c >= 0; c = t.nextSibling[c]) if (dist[c] < 0) { dist[c] = dist[v] + w(c); stack[sp++] = c; }
+    if (v > 0 && dist[p] < 0) {
+      dist[p] = dist[v] + w(v);
+      stack[sp++] = p;
+    }
+    for (let c = t.firstChild[v]; c >= 0; c = t.nextSibling[c])
+      if (dist[c] < 0) {
+        dist[c] = dist[v] + w(c);
+        stack[sp++] = c;
+      }
   }
   return dist;
 }
@@ -121,7 +132,10 @@ function distancesFrom(t: TreeInput, src: number): Float64Array {
 /** Farthest tip from a distance array (first in tip order on ties). */
 function farthestTip(t: TreeInput, dist: Float64Array): number {
   let best = t.tipNode[0];
-  for (let r = 1; r < t.tipCount; r++) { const v = t.tipNode[r]; if (dist[v] > dist[best]) best = v; }
+  for (let r = 1; r < t.tipCount; r++) {
+    const v = t.tipNode[r];
+    if (dist[v] > dist[best]) best = v;
+  }
   return best;
 }
 
@@ -152,7 +166,10 @@ export function midpointRoot(t: TreeInput): OpResult & { info: MidpointInfo } {
   const eps = 1e-12 * D;
   const onPath = (u: number) => Math.abs(dB[u] + dC[u] - D) <= eps * 10;
   // the b-c path climbs from each end to their MRCA; the midpoint is on one of the two climbs
-  for (const [end, dist] of [[c, dC], [b, dB]] as const) {
+  for (const [end, dist] of [
+    [c, dC],
+    [b, dB],
+  ] as const) {
     let v = end;
     while (v > 0 && onPath(t.parent[v]) && dist[t.parent[v]] < half - eps) v = t.parent[v];
     const p = t.parent[v];

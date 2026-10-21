@@ -1,0 +1,38 @@
+{
+  "name": "@gbif-phylo/react",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React component for @gbif-phylo/viewer: <TreeView> with props for state, callbacks for interaction and a ref for the imperative API.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@gbif-phylo/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@gbif-phylo/viewer": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

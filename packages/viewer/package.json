@@ -1,0 +1,30 @@
+{
+  "name": "@gbif-phylo/viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-free phylogenetic tree viewer on Canvas 2D: level-of-detail rendering for very large trees, rectangular and radial layouts, aligned columns, controls, popups and events.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "@gbif-phylo/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test --test-concurrency=4 \"test/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@gbif-phylo/io": "0.1.0"
+  }
+}

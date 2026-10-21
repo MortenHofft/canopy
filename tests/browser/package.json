@@ -1,0 +1,28 @@
+{
+  "name": "@gbif-phylo/browser-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --port 5306 --strictPort",
+    "build": "vite build",
+    "test:browser": "node scripts/test-browser.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@gbif-phylo/io": "0.1.0",
+    "@gbif-phylo/react": "0.1.0",
+    "@gbif-phylo/viewer": "0.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "playwright-core": "1.56.1",
+    "pngjs": "7.0.0",
+    "vite": "5.4.11"
+  }
+}

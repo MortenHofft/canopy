@@ -1,16 +1,29 @@
 {
   "name": "@gbif-phylo/tree-ops",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "description": "Operations a user applies to a phylogenetic tree: reroot, midpoint root, ladderise, rotate, collapse, prune, subtree. Pure TypeScript on typed arrays; no rendering, no dependencies.",
   "type": "module",
   "license": "Apache-2.0",
-  "exports": "./src/index.ts",
-  "scripts": {
-    "test": "node --experimental-transform-types --test test/*.mjs",
-    "bench": "node --max-old-space-size=8192 --experimental-transform-types bench/tree-ops.mjs"
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@gbif-phylo/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
-  "engines": {
-    "node": ">=22.7"
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/*.mjs\"",
+    "bench": "node --conditions=@gbif-phylo/source --max-old-space-size=8192 --experimental-transform-types bench/tree-ops.mjs"
+  },
+  "devDependencies": {
+    "@gbif-phylo/io": "0.1.0"
   }
 }

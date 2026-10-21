@@ -2,7 +2,7 @@
 
 Operations a user applies to a phylogenetic tree: reroot, midpoint root, ladderise, rotate, collapse, prune, show one clade. Pure TypeScript on typed arrays. No rendering, React, DOM or dependencies (it typechecks against the ES2022 library alone).
 
-This package is the **data side**. The viewer (`spikes/custom`, `<TreeView>`) knows nothing about these operations. The two meet only in a page, which offers the operations as actions (a node menu, a toolbar) and swaps in the tree that comes back. See `spikes/custom/src/demo.tsx`.
+This package is the **data side**. The viewer (`@gbif-phylo/viewer`, `<TreeView>`) knows nothing about these operations. The two meet only in a page, which offers the operations as actions (a node menu, a toolbar) and swaps in the tree that comes back. See `examples/react/src/main.tsx`.
 
 ```
 viewer (draws, reports clicks)          page (integration)                     tree-ops (data)
@@ -29,31 +29,31 @@ The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate
 
 ## Contract
 
-- **In:** a `TreeInput` (see `src/types.ts`): preorder arrays (`parent`, `firstChild`, `nextSibling`, `childCount`, `length`, `support`, `labels`, tip ranges). The spikes' `TreeModel` satisfies it structurally.
+- **In:** a `TreeInput` (see `src/types.ts`): preorder arrays (`parent`, `firstChild`, `nextSibling`, `childCount`, `length`, `support`, `labels`, tip ranges). `@gbif-phylo/io`'s `TreeModel` satisfies it structurally.
 - **Out:** `{ tree: TreeArrays, map, changed }`. `tree` holds the arrays a model is built from (`new TreeModel(result.tree)`). `map` maps old node index to new (-1 if removed), for carrying selections and colours across. `changed` is false when there was nothing to do; `tree` is then the input.
 - **Never mutates the input.** Undo and "reset to the published tree" mean keeping the old object.
 
 ## Conventions
 
-- A **support value belongs to the edge** above a node and a **name belongs to the node**. Rerooting reverses edges, so supports move with their edges and names stay with their nodes. GTDB-style labels like `98.0:c__X` are split and recomposed. Of the libraries surveyed, phylotree.js, PhyloJS and patristic leave supports on the nodes, which puts them on the wrong split after a reroot. gotree, TreeSwift (`branch_support=True`) and phylocanvas.gl move them. Survey: [../../docs/research/tree-ops-libraries.md](../../docs/research/tree-ops-libraries.md).
+- A **support value belongs to the edge** above a node and a **name belongs to the node**. Rerooting reverses edges, so supports move with their edges and names stay with their nodes. GTDB-style labels like `98.0:c__X` are split and recomposed. Of the libraries surveyed, phylotree.js, PhyloJS and patristic leave supports on the nodes, which puts them on the wrong split after a reroot. gotree, TreeSwift (`branch_support=True`) and phylocanvas.gl move them. Survey: [../../docs/design/tree-ops-libraries.md](../../docs/design/tree-ops-libraries.md).
 - Missing lengths stay missing (NaN). When two edges merge, a missing length counts as 0 unless both are missing. Distances (midpoint) count missing and negative lengths as 0, as the layout does.
 - Iterative throughout: a 100k-deep caterpillar is in the tests. Everything is O(n), except ladderise at O(n log k) for k children.
-- **In-memory trees only.** A partially loaded source (`spikes/custom/src/parquet`) has no whole tree to rewrite.
+- **In-memory trees only.** A partially loaded `TreeSource` has no whole tree to rewrite.
 
 ## Run
 
 ```
-npm test                                  # 21 tests; needs Node >= 22.7 (--experimental-transform-types runs the .ts sources directly)
+npm test                                  # 24 tests; needs Node >= 22.7 (--experimental-transform-types runs the .ts sources directly)
 npm run bench -- file.nwk[.gz] ...        # median times per operation; big synthetic trees: `make large` in data/synthetic
-../../spikes/custom/node_modules/.bin/tsc -p tsconfig.json   # typecheck (no TypeScript dependency of its own)
+npm run typecheck                         # tsc, ES2022 lib only (no DOM)
 ```
 
-The tests and benchmark use the spikes' Newick parser and `TreeModel` as **fixtures** (text in, tree queries out). `src/` imports nothing outside itself.
+The tests and benchmark use `@gbif-phylo/io`'s Newick parser and `TreeModel` as **fixtures** (text in, tree queries out). `src/` imports nothing outside itself.
 
-Results and numbers: [../../docs/results/tree-ops.md](../../docs/results/tree-ops.md).
+Results and numbers: [../../docs/design/tree-ops.md](../../docs/design/tree-ops.md).
 
 ## Why our own and not a library
 
-Checked on 2026-10-20 ([../../docs/research/tree-ops-libraries.md](../../docs/research/tree-ops-libraries.md)). No permissively licensed JS or Rust library has edge reroot with supports moved, threshold collapse and prune-to-set together. The ones that do are GPL, LGPL or CeCILL (gotree, TreeSwift, the Rust `phylotree`, `newick`/`sorbus` and `light_phylogeny` crates). Several JS ones recurse, or are quadratic: phylocanvas.gl's midpoint compares all pairs of leaves, and PhyloJS sorts with a tip walk inside the comparator. The closest match, patristic (CDC, Apache-2.0, typed arrays), lacks four of the operations and would add a second tree model. Rust via WebAssembly offers nothing permissive that has these operations, and would add a copy across the boundary for an operation that already takes about a second at 1M tips (about as long as parsing the file).
+Checked on 2026-10-20 ([../../docs/design/tree-ops-libraries.md](../../docs/design/tree-ops-libraries.md)). No permissively licensed JS or Rust library has edge reroot with supports moved, threshold collapse and prune-to-set together. The ones that do are GPL, LGPL or CeCILL (gotree, TreeSwift, the Rust `phylotree`, `newick`/`sorbus` and `light_phylogeny` crates). Several JS ones recurse, or are quadratic: phylocanvas.gl's midpoint compares all pairs of leaves, and PhyloJS sorts with a tip walk inside the comparator. The closest match, patristic (CDC, Apache-2.0, typed arrays), lacks four of the operations and would add a second tree model. Rust via WebAssembly offers nothing permissive that has these operations, and would add a copy across the boundary for an operation that already takes about a second at 1M tips (about as long as parsing the file).
 
 Worth borrowing: TreeSwift and gotree as **external oracles** (run outside this repo, because they are GPL) to cross-check results on the test trees, and patristic's deep-tree test pattern (adopted).

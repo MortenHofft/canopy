@@ -1,0 +1,22 @@
+{
+  "name": "@gbif-phylo/io",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Iterative, quote-aware Newick and NEXUS parsers and a Newick writer, producing a preorder TreeModel on typed arrays.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@gbif-phylo/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
+  }
+}

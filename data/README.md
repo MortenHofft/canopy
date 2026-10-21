@@ -1,6 +1,6 @@
 # Test trees
 
-Trees for benchmarking and testing tree viewers for gbif.org (see [../docs/goal.md](../docs/goal.md) and [../docs/recommendation.md](../docs/recommendation.md)). Three collections, each with its own README, manifest and scripts. All scripts are pure Python 3 standard library and iterative (no recursion), so they survive 1M-tip and caterpillar trees.
+Trees for benchmarking and testing tree viewers for gbif.org (the research behind them is on the `main` branch, docs/goal.md). Three collections, each with its own README, manifest and scripts. All scripts are pure Python 3 standard library and iterative (no recursion), so they survive 1M-tip and caterpillar trees.
 
 | Folder | What | Sizes | Branch lengths | Committed |
 |--------|------|-------|----------------|-----------|

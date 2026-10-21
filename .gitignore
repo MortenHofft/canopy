@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 site-dist/
 node_modules/
+dist/
+*.tsbuildinfo

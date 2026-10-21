@@ -57,10 +57,13 @@ function build(d: Draft): { tree: TreeArrays; index: Int32Array } {
   let count = 0;
   // pass 1: preorder numbering (walk with firstChild / nextSibling / parent, no stack)
   const order: number[] = [];
-  for (let v = d.root; ; ) {
+  for (let v = d.root; ;) {
     index[v] = count++;
     order.push(v);
-    if (d.firstChild[v] >= 0) { v = d.firstChild[v]; continue; }
+    if (d.firstChild[v] >= 0) {
+      v = d.firstChild[v];
+      continue;
+    }
     while (v !== d.root && d.nextSibling[v] < 0) v = d.parent[v];
     if (v === d.root) break;
     v = d.nextSibling[v];
@@ -82,11 +85,17 @@ function build(d: Draft): { tree: TreeArrays; index: Int32Array } {
     length[k] = k === 0 ? NaN : d.length[v];
     const isTip = d.firstChild[v] < 0;
     // a support value at the root describes no edge: keep only the name
-    const rootSupport = k === 0 && !isTip && d.support[v] === d.support[v];
+    const rootSupport = k === 0 && !isTip && !Number.isNaN(d.support[v]);
     labels[k] = rootSupport ? supportPart(d.label[v], false).name : d.label[v];
     support[k] = rootSupport || isTip ? NaN : d.support[v];
     subtreeEnd[k] = k + 1;
-    if (isTip) { leafStart[k] = tips; leafEnd[k] = ++tips; } else { leafStart[k] = 0x7fffffff; leafEnd[k] = -1; }
+    if (isTip) {
+      leafStart[k] = tips;
+      leafEnd[k] = ++tips;
+    } else {
+      leafStart[k] = 0x7fffffff;
+      leafEnd[k] = -1;
+    }
   }
   for (let k = count - 1; k > 0; k--) {
     const p = parent[k];
@@ -111,8 +120,8 @@ export function identity(t: TreeInput): OpResult {
 
 /** Sum of two lengths where a missing one counts as 0, NaN only if both are missing. */
 export function addLen(a: number, b: number): number {
-  if (a !== a) return b;
-  if (b !== b) return a;
+  if (Number.isNaN(a)) return b;
+  if (Number.isNaN(b)) return a;
   return a + b;
 }
 

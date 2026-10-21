@@ -1,8 +1,0 @@
-{"label":"edge multi-tree nexus (translate, quoted, 3 trees)","bytes":847,"nexusNewickChars":548,"libTips":3,"libErr":3,"sampleTips":["Bobcat","2 Panthera_leo","3 'Lynx rufus (Bobcat"]}
-{"label":"fish Carangaria MCC (nexus, translate)","bytes":111429,"nexusNewickChars":102684,"libTips":135,"libErr":0,"sampleTips":["1","7","33","27"]}
-{"label":"corvoid MCC 680 (nexus, translate, BEAST comments)","bytes":727652,"nexusNewickChars":694946,"libTips":680,"libErr":0,"sampleTips":["1","361","535","434"]}
-{"label":"birdtree 100 posterior (many trees)","bytes":1804126,"nexusNewickChars":1803854,"libTips":5,"libErr":3,"sampleTips":["see Jetz et al. 2012 supplement for details","Callipepla_californica","Callipepla_gambelii","Callipepla_squamata"]}
-{"label":"edge quoted labels (newick)","bytes":149,"libTips":5,"libErr":3,"sampleTips":["'Puma concolor'","'Panthera leo'","'O''Brien''s fox'","Vulpes_vulpes"],"truthTips":5,"truthSample":["Puma concolor","Panthera leo","O'Brien's fox","Vulpes_vulpes"]}
-{"label":"edge polytomy missing lengths (newick)","bytes":85,"libTips":10,"libErr":0,"sampleTips":["A","B","C","D"],"truthTips":10,"truthSample":["A","B","C","D"]}
-{"label":"edge internal support (newick)","bytes":81,"libTips":6,"libErr":0,"sampleTips":["A","B","C","D"],"truthTips":6,"truthSample":["A","B","C","D"]}
-{"label":"edge trifurcating root (newick)","bytes":34,"libTips":4,"libErr":0,"sampleTips":["A","B","C","D"],"truthTips":4,"truthSample":["A","B","C","D"]}
