@@ -105,9 +105,9 @@ test('searchCut returns an independent result per call', () => {
   const list = new DrawList(),
     seen = new Seen();
   const o = { lod: true, base: 3, budget: 1000, summaries: true, hint: 0 };
-  const r1 = searchCut(tree, L, radialT, null, list, seen, o);
+  const r1 = searchCut(projectionFor(tree, L, radialT), null, list, seen, o);
   const snap = { ...r1.res };
-  const r2 = searchCut(tree, L, rectT, null, list, seen, o);
+  const r2 = searchCut(projectionFor(tree, L, rectT), null, list, seen, o);
   assert.notEqual(r1.res, r2.res);
   assert.deepEqual(r1.res, snap);
 });

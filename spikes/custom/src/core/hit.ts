@@ -3,8 +3,7 @@
 // of candidate tests, never a scan of all nodes. Works for both layouts: geometry of a candidate is recomputed
 // from the layout projection (positions, clade extents) when tested, only (node, type) is stored.
 
-import type { DrawList } from './lod.ts';
-import { K_NODE, K_SUMMARY, K_TIP, isSlice } from './kinds.ts';
+import { K_NODE, K_SUMMARY, K_TIP, isSlice, type DrawList } from './lod.ts';
 import type { LayoutProjection, Pt } from './projection.ts';
 import type { Hit } from './types.ts';
 
@@ -100,43 +99,43 @@ export class HitIndex {
     }
   }
 
-  build(list: DrawList, P: LayoutProjection): void {
+  build(list: DrawList, proj: LayoutProjection): void {
     const t0 = performance.now();
-    const { tree, L, T } = P;
+    const { tree, L, T } = proj;
     this.gw = Math.ceil(T.W / CELL) + 1;
     this.gh = Math.ceil(T.H / CELL) + 1;
     if (this.head.length < this.gw * this.gh) this.head = new Int32Array(this.gw * this.gh);
     this.head.fill(-1, 0, this.gw * this.gh);
     this.nE = 0;
     this.nI = 0;
-    const rect = P.kind === 'rectangular';
+    const rect = proj.kind === 'rectangular';
     const { LAST } = L;
-    const tipPitch = P.tipPitch;
+    const tipPitch = proj.tipPitch;
     const { pt, pp } = this;
     for (let e = 0; e < list.count; e++) {
       const i = list.node[e];
       const kind = list.kind[e];
       const lm = list.last[e];
       if (lm >= 0) {
-        this.addRun(i, lm, list.xmax[e], P);
+        this.addRun(i, lm, list.xmax[e], proj);
         continue;
       }
-      P.nodeXY(i, pt);
-      P.parentXY(i, pp);
+      proj.nodeXY(i, pt);
+      proj.parentXY(i, pp);
       const x = pt.x,
         y = pt.y;
       if (i > 0) this.addSegment(this.addItem(i, T_STUB), pp.x, pp.y, x, y);
       if (kind === K_TIP) {
         if (tipPitch >= 6) this.addPoint(this.addItem(i, T_TIPPT), x, y);
       } else if (kind === K_NODE) {
-        if (P.cladeSize(i) >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
+        if (proj.cladeSize(i) >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
         const it = this.addItem(i, T_CONN);
-        const a0 = P.tip(tree.firstChild[i]),
-          a1 = P.tip(LAST[i]);
+        const a0 = proj.tip(tree.firstChild[i]),
+          a1 = proj.tip(LAST[i]);
         if (rect) this.addSegment(it, x, a0, x, a1);
         else {
           // the connector is an arc: a polyline of chords about CELL apart
-          const r = P.depth(i);
+          const r = proj.depth(i);
           const nseg = Math.min(400, Math.max(1, Math.ceil(((a1 - a0) * r) / (CELL * 0.75))));
           let lx = T.cx + r * Math.cos(a0),
             ly = T.cy + r * Math.sin(a0);
@@ -151,8 +150,8 @@ export class HitIndex {
         }
       } else if (kind === K_SUMMARY) {
         const it = this.addItem(i, T_SUMMARY);
-        P.summaryExtent(i, -1, 0);
-        this.addExtent(it, P, 24);
+        proj.summaryExtent(i, -1, 0);
+        this.addExtent(it, proj, 24);
         if (!rect) this.addPoint(it, x, y);
       }
     }
@@ -162,15 +161,15 @@ export class HitIndex {
     this.builtMs = performance.now() - t0;
   }
 
-  /** Grid entries for the extent set by P.summaryExtent(): rectangular, every cell of the box; radial, points along its inner and
+  /** Grid entries for the extent set by proj.summaryExtent(): rectangular, every cell of the box; radial, points along its inner and
    *  outer arc (at most `steps` + 1 of each). */
-  private addExtent(it: number, P: LayoutProjection, steps: number): void {
-    const { d0, d1, t0, t1 } = P;
-    if (P.kind === 'rectangular') {
+  private addExtent(it: number, proj: LayoutProjection, steps: number): void {
+    const { d0, d1, t0, t1 } = proj;
+    if (proj.kind === 'rectangular') {
       for (let cy = Math.floor(t0 / CELL); cy <= Math.floor(t1 / CELL); cy++)
         for (let cx = Math.floor(d0 / CELL); cx <= Math.floor(d1 / CELL); cx++) this.addEntry(it, cx, cy);
     } else {
-      const { cx, cy } = P.T;
+      const { cx, cy } = proj.T;
       const n = Math.max(2, Math.min(steps, Math.ceil(((t1 - t0) * d1) / CELL) + 1));
       for (let s = 0; s <= n; s++) {
         const a = t0 + ((t1 - t0) * s) / n;
@@ -181,18 +180,18 @@ export class HitIndex {
   }
 
   /** A run of small siblings (rule R in lod.ts): one summary item over the slice, no branch or marker of its own. */
-  private addRun(first: number, last: number, xmax: number, P: LayoutProjection): void {
+  private addRun(first: number, last: number, xmax: number, proj: LayoutProjection): void {
     const it = this.addItem(first, T_SUMMARY, last, xmax);
-    P.summaryExtent(first, last, xmax);
-    this.addExtent(it, P, 400);
+    proj.summaryExtent(first, last, xmax);
+    this.addExtent(it, proj, 400);
   }
 
   /** Best hit under (mx, my) in container CSS px, or null. A run is reported as its parent node with kind 'summary' and `run`
    *  (first and last member): the tips it stands for are exactly [leafStart[first], leafEnd[last]), not the parent's. */
-  query(mx: number, my: number, P: LayoutProjection): Hit | null {
+  query(mx: number, my: number, proj: LayoutProjection): Hit | null {
     if (!this.valid) return null;
-    const { tree, L, T } = P;
-    const rect = P.kind === 'rectangular';
+    const { tree, L, T } = proj;
+    const rect = proj.kind === 'rectangular';
     const { pt, pp } = this;
     const cx0 = Math.floor(mx / CELL),
       cy0 = Math.floor(my / CELL);
@@ -209,7 +208,7 @@ export class HitIndex {
           const i = this.iNode[item];
           const type = this.iType[item];
           const lm = this.iLast[item]; // >= 0: a run (type is T_SUMMARY)
-          P.nodeXY(i, pt);
+          proj.nodeXY(i, pt);
           const x = pt.x,
             y = pt.y;
           let d: number;
@@ -217,7 +216,7 @@ export class HitIndex {
             if (rect) {
               const dx = Math.abs(mx - x),
                 dy = Math.abs(my - y);
-              if (dx > 8 || dy > Math.max(6, P.tipPitch * 0.5)) continue;
+              if (dx > 8 || dy > Math.max(6, proj.tipPitch * 0.5)) continue;
               d = Math.hypot(dx, dy);
             } else {
               d = Math.hypot(mx - x, my - y);
@@ -227,12 +226,12 @@ export class HitIndex {
             d = Math.hypot(mx - x, my - y);
             if (d > MARKER_PX) continue;
           } else if (type === T_SUMMARY) {
-            P.summaryExtent(i, lm, this.iXmax[item]);
+            proj.summaryExtent(i, lm, this.iXmax[item]);
             if (rect) {
-              const y0 = P.t0,
-                y1 = P.t1;
-              const xs = P.d0;
-              const xm = Math.max(xs + 2, P.d1);
+              const y0 = proj.t0,
+                y1 = proj.t1;
+              const xs = proj.d0;
+              const xm = Math.max(xs + 2, proj.d1);
               if (mx < xs - 2 || mx > xm + 2) continue;
               const ym = Math.max(y1, y0 + 2);
               const yt = ym - Math.max(y1 - y0, 2);
@@ -251,10 +250,10 @@ export class HitIndex {
               const rr = Math.hypot(mx - T.cx, my - T.cy);
               let th = Math.atan2(my - T.cy, mx - T.cx);
               if (th < 0) th += 2 * Math.PI;
-              const a0 = P.t0,
-                a1 = P.t1;
-              const r1 = P.d1;
-              const rs = P.d0;
+              const a0 = proj.t0,
+                a1 = proj.t1;
+              const r1 = proj.d1;
+              const rs = proj.d0;
               const slack = 3 / Math.max(rr, 1);
               if (rr < rs - 3 || rr > r1 + 3 || th < a0 - slack || th > a1 + slack) continue;
               // inside the fan scores 0; inside the 3 px slack only, the distance outside (px), so the fan under the pointer
@@ -262,7 +261,7 @@ export class HitIndex {
               d = (th < a0 ? a0 - th : th > a1 ? th - a1 : 0) * rr + (rr < rs ? rs - rr : rr > r1 ? rr - r1 : 0);
             }
           } else if (type === T_STUB) {
-            P.parentXY(i, pp);
+            proj.parentXY(i, pp);
             if (rect) {
               const dy = Math.abs(my - y);
               if (dy > 4 || mx < Math.min(pp.x, x) - 4 || mx > Math.max(pp.x, x) + 4) continue;
@@ -272,18 +271,18 @@ export class HitIndex {
               if (d > 4) continue;
             }
           } else if (rect) {
-            const y0 = P.tip(tree.firstChild[i]),
-              y1 = P.tip(L.LAST[i]);
+            const y0 = proj.tip(tree.firstChild[i]),
+              y1 = proj.tip(L.LAST[i]);
             const dx = Math.abs(mx - x);
             if (dx > 4 || my < y0 - 4 || my > y1 + 4) continue;
             d = dx;
           } else {
-            const r = P.depth(i);
+            const r = proj.depth(i);
             const rr = Math.hypot(mx - T.cx, my - T.cy);
             let th = Math.atan2(my - T.cy, mx - T.cx);
             if (th < 0) th += 2 * Math.PI;
-            const a0 = P.tip(tree.firstChild[i]),
-              a1 = P.tip(L.LAST[i]);
+            const a0 = proj.tip(tree.firstChild[i]),
+              a1 = proj.tip(L.LAST[i]);
             const slack = 4 / Math.max(r, 1);
             d = Math.abs(rr - r);
             if (d > 4 || th < a0 - slack || th > a1 + slack) continue;

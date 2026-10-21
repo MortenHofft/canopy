@@ -93,7 +93,13 @@ const lo = new DrawList(),
 let prev = null;
 for (const [name, vp] of views) {
   const T = makeTransform('radial', W, H, vp, area, N);
-  const { res, minPx, retries } = searchCut(tree, L, T, null, list, seen, { lod: true, base: 3, budget: BUDGET, summaries: true, hint: 0 });
+  const { res, minPx, retries } = searchCut(projectionFor(tree, L, T), null, list, seen, {
+    lod: true,
+    base: 3,
+    budget: BUDGET,
+    summaries: true,
+    hint: 0,
+  });
   console.log(
     `${name}: drawn ${list.count} (tips ${res.tips}, summaries ${res.summaries}, forced ${res.forced}), minPx ${minPx.toFixed(2)}, passes ${retries + 1}, visited ${res.visited}, merged tips ${res.mergedTips}`,
   );
@@ -145,7 +151,7 @@ for (const [name, vp] of views) {
   let uncovered = 0;
   for (const r of visibleTips) if (!covered[r]) uncovered++;
   ok(uncovered <= res.mergedTips, `${name}: ${uncovered} visible tips are neither drawn nor summarised (merged ${res.mergedTips})`);
-  const { res: r0 } = searchCut(tree, L, T, null, lo, seen2, { lod: false, base: 3, budget: 1e7, summaries: true, hint: 0 });
+  const { res: r0 } = searchCut(projectionFor(tree, L, T), null, lo, seen2, { lod: false, base: 3, budget: 1e7, summaries: true, hint: 0 });
   const have = new Uint8Array(N);
   for (let e = 0; e < lo.count; e++) if (lo.kind[e] === K_TIP) have[tree.tipRank[lo.node[e]]] = 1;
   let missing = 0;
@@ -188,7 +194,7 @@ for (const [name, vp] of views) {
 // budgets 500..20000 at fit: never above the budget
 for (const b of [500, 1000, 2000, 5000, 20000]) {
   const T = makeTransform('radial', W, H, fitView, area, N);
-  const { res } = searchCut(tree, L, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+  const { res } = searchCut(projectionFor(tree, L, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
   console.log(`budget ${b}: drawn ${list.count}${res.overflow ? ' TRUNCATED' : ''}`);
   ok(!res.overflow && list.count <= b, `budget ${b}: drawn ${list.count}`);
 }
@@ -228,7 +234,7 @@ function panCheck(label, tr, Lr, Nr) {
         [9.3, 0],
       ]) {
         const T = makeTransform(kind, W, H, mk(dx, dy), area, Nr);
-        searchCut(tr, Lr, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+        searchCut(projectionFor(tr, Lr, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
         const cur = summarySet(list);
         if (!ref) {
           ref = cur;
@@ -273,7 +279,7 @@ if (fs.existsSync(otlFile)) {
     for (const z of [3, 8, 20]) {
       const vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
       const T = makeTransform('radial', W, H, vp, area, Ns);
-      const { res, minPx } = searchCut(st, Ls, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+      const { res, minPx } = searchCut(projectionFor(st, Ls, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
       let kids = 0,
         sliceDrawn = 0,
         other = 0;
@@ -342,7 +348,7 @@ if (fs.existsSync(otlFile)) {
   const rows = (c) => (Lp.ROW[poly.firstChild[c]] + Lp.ROW[Lp.LAST[c]]) / 2; // not used for placement, only a stable centre row
   void rows;
   const checkCut = (label, T, b, vis) => {
-    const { res, minPx } = searchCut(poly, Lp, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+    const { res, minPx } = searchCut(projectionFor(poly, Lp, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
     let runs = 0,
       direct = 0,
       tipsDrawn = 0,
@@ -508,7 +514,7 @@ if (fs.existsSync(otlFile)) {
         const w = W / kfit / z,
           h = H / kfit / z;
         const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz);
-        const { minPx } = searchCut(otl2, Lz, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+        const { minPx } = searchCut(projectionFor(otl2, Lz, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
         hint = minPx;
         const cur = new Set();
         for (let e = 0; e < list.count; e++) cur.add(list.node[e] * 8 + list.kind[e]);
@@ -549,7 +555,7 @@ if (fs.existsSync(otlFile)) {
       const w = W / kfit / z,
         h = H / kfit / z;
       const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3);
-      const { minPx } = searchCut(otl3, L3, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+      const { minPx } = searchCut(projectionFor(otl3, L3, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
       hint = minPx;
       if (prevM && minPx > prevM * 1.001) rises++;
       prevM = minPx;

@@ -275,6 +275,12 @@ export class TreeRenderer {
   /** Pick up a new snapshot when the source changed (rows arrived or were dropped). Everything derived from the rows is rebuilt:
    *  layouts, hit index, label reserve. Per-node state keyed by row (classOf, activeNode, hover) is reset, ranks (highlights,
    *  columns) stay valid because they are ranks of the full tree. */
+  /** The projection reads the tree and layout arrays of the moment it was built: rebuild it whenever either is replaced, so position
+   *  queries between that and the next render (locateNode, nodeBounds, focus) do not read the old arrays. */
+  private rebuildProj(): void {
+    if (this.T) this.proj = projectionFor(this.tree, this.L, this.T);
+  }
+
   private syncSource(): void {
     const v = this.source.version;
     if (v === this.srcVersion || this.destroyed) return;
@@ -282,6 +288,7 @@ export class TreeRenderer {
     this.tree = this.source.snapshot();
     this.layouts.clear();
     this.L = this.layoutFor(this.opts.branchLengths);
+    this.rebuildProj();
     this.hit = new HitIndex();
     this.applyClades();
     this.activeNode = -1;
@@ -326,6 +333,7 @@ export class TreeRenderer {
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
+      this.rebuildProj();
       this.hit.invalidate();
     }
     if (tipHrefChanged) this.clearPool();
@@ -879,7 +887,7 @@ export class TreeRenderer {
   }
 
   private fitCut(base: number, budget: number, summaries: boolean, useHint: boolean): { res: CutResult; minPx: number; retries: number } {
-    const r = searchCut(this.tree, this.L, this.T, this.classOf, this.list, this.seen, {
+    const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
       base,
       budget,
@@ -929,10 +937,7 @@ export class TreeRenderer {
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
     const S: Scene = {
-      tree,
-      L,
-      T,
-      P: this.proj,
+      proj: this.proj,
       list: this.list,
       theme: this.theme,
       colours: this.colours,
@@ -1084,13 +1089,13 @@ export class TreeRenderer {
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
-    const P = this.proj;
+    const proj = this.proj;
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode)
-      drawRing(c, P, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
+      drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
     if (this.activeNode >= 0) {
-      drawRing(c, P, this.activeNode, 10, this.theme.highlight, 2.5);
+      drawRing(c, proj, this.activeNode, 10, this.theme.highlight, 2.5);
       const p = { x: 0, y: 0 };
-      P.nodeXY(this.activeNode, p);
+      proj.nodeXY(this.activeNode, p);
       if (this.T.kind === 'rectangular') {
         c.strokeStyle = this.theme.highlight;
         c.globalAlpha = 0.5;
@@ -1748,10 +1753,7 @@ export class TreeRenderer {
       minPx *= 2;
     }
     const S: Scene = {
-      tree: this.tree,
-      L: this.L,
-      T,
-      P: proj,
+      proj,
       list: this.ovList,
       theme: this.theme,
       colours: this.colours,

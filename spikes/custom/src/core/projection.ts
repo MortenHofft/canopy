@@ -1,12 +1,17 @@
-// Layout projections: everything the cut, the drawing and the hit index need to know about HOW a layout maps the tree to the
-// screen, behind one interface, so those three can be written once and the rectangular / radial difference lives here.
+// Layout projections: what the drawing and the hit index need to know about HOW a layout maps the tree to the screen, behind
+// one interface, so those two are written once and the rectangular / radial difference lives here (node and branch positions, clade
+// extents, the summary / run geometry), plus the per-frame values the cut needs (the dedupe grid anchors, the radial window, the
+// run's dedupe key).
 //
 // A projection is built per frame (per Transform) and owns its scratch state, so there is no module-level mutable state and
-// two renderers (or the main and the overview cut of one renderer) never share any. Per-frame precomputation (dedupe grid
-// anchors, the radial window) is done in the constructor. Per-node answers are plain methods that write into fields of the
-// projection (`ext`, `d0`, ...) or into a caller-supplied point: nothing is allocated per node. There is exactly one class
-// per layout and both have the same field order and method names, so the call sites in the hot loops stay monomorphic
-// whenever one layout is in use.
+// two renderers (or the main and the overview cut of one renderer) never share any. Answers are plain methods that write into
+// fields of the projection (`d0`, ...) or into a caller-supplied point: nothing is allocated per node.
+//
+// What it does NOT do is serve the cut per node. The cut (lod.ts) keeps its cull test, collapse rules and dedupe key inline in one
+// loop per layout: asking the projection for them per node was measured 25-50% slower on a 1M caterpillar (200k: rect 20 -> 26 ms,
+// radial 25 -> 30 ms; 1M: rect 100 -> 123 ms, radial 121 -> 158 ms, medians of fresh processes), not because of polymorphism but
+// because of V8's cumulative inlining budget (--max-inlined-bytecode-size-cumulative=920): the methods stay real calls and the loop's
+// many live locals spill around each one. Draw and hit run per drawn primitive (thousands), where the calls are cheap.
 //
 // Two coordinates describe a point of either layout. DEPTH is the distance from the root in px along the branch axis (rect:
 // screen x, radial: radius). The TIP AXIS is where a node sits across the tips (rect: screen y in px, radial: angle in rad).
@@ -17,8 +22,7 @@ import { CULL_PAD_PX } from './constants.ts';
 import type { Layout } from './layout.ts';
 import { ensureTrig } from './layout.ts';
 import type { Transform } from './geom.ts';
-import { K_NODE, K_RUN, K_SUMMARY, isSlice } from './kinds.ts';
-import type { Seen } from './lod.ts';
+import { K_RUN, cell, type Seen } from './lod.ts';
 import type { LayoutKind, TreeSnapshot } from './types.ts';
 
 export interface Pt {
@@ -27,35 +31,17 @@ export interface Pt {
 }
 
 const TWO_PI = 2 * Math.PI;
-const HALF_PI = Math.PI / 2;
 const PAD = CULL_PAD_PX;
 
-/** Dedupe cell of a pixel (or scaled tree-space) coordinate: offset so small negatives stay distinct, clamped to the 13 bits Seen.add packs. */
-const cell = (v: number): number => {
-  const c = Math.floor(v) + 1024;
-  return c < 0 ? 0 : c > 8191 ? 8191 : c;
-};
-
-/** What every projection offers. The cut uses the first group per node, draw and hit use the second. */
+/** What every projection offers. */
 export interface ProjectionCore {
   readonly kind: LayoutKind;
   readonly tree: TreeSnapshot;
   readonly L: Layout;
   readonly T: Transform;
 
-  // ---- cut (lod.ts), per visited node. cull() must return false before collapses()/pastClip()/dedupe() are called for the same node.
-  /** Pixel extent along the tip axis of the node last accepted by cull() (rect: rows, radial: arc at the clade's outer radius). */
-  ext: number;
-  /** true: the clade cannot touch the padded clip rectangle, skip its subtree. Otherwise sets `ext` and the per-node scratch. */
-  cull(i: number): boolean;
-  /** true: the node starts beyond the right clip edge, so it is never opened (rect only; radial culls such clades instead). */
-  pastClip(i: number): boolean;
-  /** Collapse rules A/B (extent or width below minPx, the latter while still shorter than 4 minPx) and, radial only, the
-   *  polytomy-slice rule. Uses the scratch of the last cull(). */
-  collapses(i: number, minPx: number): boolean;
-  /** Add the dedupe key of a K_NODE / K_TIP / K_SUMMARY / K_STUB entry (rule C); false: an earlier primitive owns these cells. */
-  dedupe(seen: Seen, i: number, kind: number): boolean;
-  /** Same for a run of siblings first..last whose deepest member ends at xmax (rule R). */
+  // ---- cut (lod.ts), once per run of small siblings
+  /** Add the dedupe key of a run of siblings first..last whose deepest member ends at xmax (rule R); false: an earlier primitive owns these cells. */
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean;
 
   // ---- drawing and hit-testing
@@ -85,13 +71,11 @@ export interface ProjectionCore {
 
 export class RectProjection implements ProjectionCore {
   readonly kind = 'rectangular' as const;
-  ext = 0;
   d0 = 0;
   d1 = 0;
   t0 = 0;
   t1 = 0;
   readonly tipPitch: number;
-  private sx = 0; // x of the node last accepted by cull()
   // copies of the transform and of the arrays the hot methods read: one field load instead of a chain (measured: the chain made the cut 30% slower)
   private readonly X: Float64Array;
   private readonly ROW: Float64Array;
@@ -105,13 +89,9 @@ export class RectProjection implements ProjectionCore {
   private readonly oy: number;
   private readonly kx: number;
   private readonly ky: number;
-  private readonly clipTm: number; // clip edges moved out by PAD
-  private readonly clipBp: number;
-  private readonly clipLm: number;
-  private readonly clipRp: number;
   // dedupe cells are anchored at the whole-pixel part of the origin: panning by a fraction of a pixel does not change the cut
-  private readonly oxs: number;
-  private readonly oys: number;
+  readonly oxs: number;
+  readonly oys: number;
 
   constructor(
     readonly tree: TreeSnapshot,
@@ -130,59 +110,9 @@ export class RectProjection implements ProjectionCore {
     this.oy = T.oy;
     this.kx = T.kx;
     this.ky = T.ky;
-    this.clipTm = T.clipT - PAD;
-    this.clipBp = T.clipB + PAD;
-    this.clipLm = T.clipL - PAD;
-    this.clipRp = T.clipR + PAD;
     this.oxs = Math.floor(T.ox);
     this.oys = Math.floor(T.oy);
     this.tipPitch = T.ky;
-  }
-
-  cull(i: number): boolean {
-    const { ox, oy, kx, ky } = this;
-    const yTop = oy + this.leafStart[i] * ky;
-    const yBot = oy + this.leafEnd[i] * ky;
-    if (yBot < this.clipTm || yTop > this.clipBp) return true;
-    const sx = ox + this.X[i] * kx;
-    if (ox + this.XMAX[i] * kx < this.clipLm) return true;
-    const sxp = i > 0 ? ox + this.X[this.parent[i]] * kx : sx;
-    if (sxp > this.clipRp) return true;
-    this.sx = sx;
-    this.ext = yBot - yTop;
-    return false;
-  }
-
-  pastClip(_i: number): boolean {
-    return this.sx > this.clipRp;
-  }
-
-  collapses(i: number, minPx: number): boolean {
-    const ext = this.ext;
-    return ext < minPx || (this.ox + this.XMAX[i] * this.kx - this.sx < minPx && ext < 4 * minPx);
-  }
-
-  dedupe(seen: Seen, i: number, kind: number): boolean {
-    const { ROW, oys, ky } = this;
-    let d: number, e: number;
-    if (kind === K_NODE) {
-      d = cell(oys + ROW[this.firstChild[i]] * ky);
-      e = cell(oys + ROW[this.LAST[i]] * ky);
-    } else if (kind === K_SUMMARY) {
-      d = cell(oys + this.leafStart[i] * ky);
-      e = cell(oys + this.leafEnd[i] * ky);
-    } else {
-      d = cell(oys + ROW[i] * ky);
-      e = d;
-    }
-    const X = this.X;
-    return seen.add(
-      cell(this.oxs + (i > 0 ? X[this.parent[i]] : X[i]) * this.kx),
-      cell(this.oxs + X[i] * this.kx),
-      cell(oys + ROW[i] * ky),
-      d + kind * 8192,
-      e,
-    );
   }
 
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean {
@@ -229,7 +159,6 @@ export class RectProjection implements ProjectionCore {
 
 export class RadialProjection implements ProjectionCore {
   readonly kind = 'radial' as const;
-  ext = 0;
   d0 = 0;
   d1 = 0;
   t0 = 0;
@@ -242,24 +171,16 @@ export class RadialProjection implements ProjectionCore {
   lo = 0;
   hi = 0;
   wrap = false;
-  // scratch of the node last accepted by cull()
-  private r0 = 0; // radius of the parent (0 for the root)
-  private r1 = 0; // radius of the clade's outer edge
-  private ri = 0; // radius of the node
   private readonly cx: number;
   private readonly cy: number;
   private readonly k: number;
   private readonly da: number;
-  private readonly clipTm: number;
-  private readonly clipBp: number;
-  private readonly clipLm: number;
-  private readonly clipRp: number;
   // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
   // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
   // frame, so which of two close clades survives does not flicker
-  private readonly fq: number;
-  private readonly ou: number;
-  private readonly ov: number;
+  readonly fq: number;
+  readonly ou: number;
+  readonly ov: number;
   private readonly X: Float64Array;
   private readonly ROW: Float64Array;
   private readonly XMAX: Float32Array;
@@ -270,8 +191,6 @@ export class RadialProjection implements ProjectionCore {
   private readonly leafEnd: Int32Array;
   private readonly COS: Float64Array;
   private readonly SIN: Float64Array;
-  private readonly BC: Float64Array;
-  private readonly BS: Float64Array;
   private readonly corner = new Float64Array(4);
 
   constructor(
@@ -290,22 +209,16 @@ export class RadialProjection implements ProjectionCore {
     this.leafEnd = tree.leafEnd;
     this.COS = L.COS!;
     this.SIN = L.SIN!;
-    this.BC = L.BC!;
-    this.BS = L.BS!;
     this.cx = T.cx;
     this.cy = T.cy;
     this.k = T.k;
     this.da = T.da;
-    this.clipTm = T.clipT - PAD;
-    this.clipBp = T.clipB + PAD;
-    this.clipLm = T.clipL - PAD;
-    this.clipRp = T.clipR + PAD;
     this.tipPitch = (2 * Math.PI * T.k) / Math.max(1, tree.tipCount);
     const fq = Math.pow(2, Math.floor(Math.log2(T.k))) / T.k;
     this.fq = fq;
     this.ou = Math.floor(((T.clipL + T.clipR) / 2 - T.cx) * fq);
     this.ov = Math.floor(((T.clipT + T.clipB) / 2 - T.cy) * fq);
-    this.window(this.clipLm, this.clipTm, this.clipRp, this.clipBp);
+    this.window(T.clipL - PAD, T.clipT - PAD, T.clipR + PAD, T.clipB + PAD);
   }
 
   /** The rectangle L..R x T..B seen from the root (cx, cy): radius range and angle interval. */
@@ -350,71 +263,6 @@ export class RadialProjection implements ProjectionCore {
     const eps = 1e-9;
     this.lo -= eps;
     this.hi += eps;
-  }
-
-  cull(i: number): boolean {
-    const { X, XMAX, parent, leafStart, leafEnd, k, da } = this;
-    const r1 = XMAX[i] * k;
-    const r0 = i > 0 ? X[parent[i]] * k : 0;
-    if (r1 < this.rMin || r0 > this.rMax) return true;
-    const ls = leafStart[i],
-      le = leafEnd[i];
-    const a0 = ls * da;
-    const a1 = le * da;
-    if (!this.all && (this.wrap ? !(a1 >= this.lo || a0 <= this.hi) : !(a1 >= this.lo && a0 <= this.hi))) return true;
-    // exact enough: the sector's bounding box against the padded clip rectangle (corner points from the cached boundary
-    // cos/sin, plus the axis crossings), after the cheap radius and angle tests above
-    const c0 = this.BC[ls],
-      s0 = this.BS[ls],
-      c1 = this.BC[le],
-      s1 = this.BS[le];
-    let bx0 = Math.min(r0 * c0, r1 * c0, r0 * c1, r1 * c1),
-      bx1 = Math.max(r0 * c0, r1 * c0, r0 * c1, r1 * c1);
-    let by0 = Math.min(r0 * s0, r1 * s0, r0 * s1, r1 * s1),
-      by1 = Math.max(r0 * s0, r1 * s0, r0 * s1, r1 * s1);
-    for (let q = Math.ceil(a0 / HALF_PI); q * HALF_PI <= a1; q++) {
-      switch (q & 3) {
-        case 0:
-          if (r1 > bx1) bx1 = r1;
-          break;
-        case 1:
-          if (r1 > by1) by1 = r1;
-          break;
-        case 2:
-          if (-r1 < bx0) bx0 = -r1;
-          break;
-        default:
-          if (-r1 < by0) by0 = -r1;
-      }
-    }
-    if (this.cx + bx1 < this.clipLm || this.cx + bx0 > this.clipRp || this.cy + by1 < this.clipTm || this.cy + by0 > this.clipBp) return true;
-    this.r0 = r0;
-    this.r1 = r1;
-    this.ri = X[i] * k;
-    this.ext = (a1 - a0) * r1;
-    return false;
-  }
-
-  pastClip(_i: number): boolean {
-    return false;
-  }
-
-  collapses(i: number, minPx: number): boolean {
-    const arc = this.ext;
-    // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
-    return arc < minPx || (this.r1 - this.ri < minPx && arc < 4 * minPx) || (isSlice(this.tree, i) && arc < minPx * this.tree.childCount[i]);
-  }
-
-  dedupe(seen: Seen, i: number, kind: number): boolean {
-    const { ROW, LAST, firstChild, fq, ou, ov } = this;
-    const ri = this.ri;
-    const rp = i > 0 ? this.r0 : ri;
-    const ca = this.COS[i],
-      sa = this.SIN[i];
-    let e = 0;
-    if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * this.da * ri));
-    else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(this.ext));
-    return seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
   }
 
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean {

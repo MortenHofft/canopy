@@ -2,19 +2,13 @@
 // allocates per node. Strokes are batched into one path per colour class.
 
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
-import type { Transform } from './geom.ts';
-import type { Layout } from './layout.ts';
-import { DrawList } from './lod.ts';
-import { K_NODE, K_SUMMARY, K_TIP, isSlice } from './kinds.ts';
+import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
-import type { LabelDensity, TreeSnapshot, TreeTheme } from './types.ts';
+import type { LabelDensity, TreeTheme } from './types.ts';
 
 export interface Scene {
-  tree: TreeSnapshot;
-  L: Layout;
-  T: Transform;
-  P: LayoutProjection; // where nodes and clades are on screen (built from T and L); the drawing below takes its geometry from it
+  proj: LayoutProjection; // the frame's tree, layout and transform (proj.tree, proj.L, proj.T) and where nodes and clades are on screen
   list: DrawList;
   theme: TreeTheme;
   colours: string[]; // colour by class; class 0 = default branch colour
@@ -107,9 +101,10 @@ const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX 
 /** Branches and collapsed clades. Positions and clade extents come from the layout projection; what is drawn differs by layout
  *  (axis-aligned strokes and triangles vs arcs and fans), so each has its own loop. */
 export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
-  const P = S.P;
-  if (P.kind === 'radial') return drawBodyRadial(ctx, S, P, lineW);
-  const { tree, L, T, list, colours, theme } = S;
+  const proj = S.proj;
+  if (proj.kind === 'radial') return drawBodyRadial(ctx, S, proj, lineW);
+  const { list, colours, theme } = S;
+  const { tree, L, T } = proj;
   const { firstChild } = tree;
   const { LAST } = L;
   const nCls = colours.length;
@@ -129,15 +124,15 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       if (list.last[e] >= 0) continue; // a run has no branch of its own (its members' branches lie inside the slice)
       const i = list.node[e];
       const kind = list.kind[e];
-      P.nodeXY(i, p);
+      proj.nodeXY(i, p);
       if (i > 0) {
-        P.parentXY(i, q);
+        proj.parentXY(i, q);
         ctx.moveTo(q.x, p.y);
         ctx.lineTo(p.x, p.y);
       }
       if (kind === K_NODE) {
-        ctx.moveTo(p.x, clampY(P.tip(firstChild[i]), T.H));
-        ctx.lineTo(p.x, clampY(P.tip(LAST[i]), T.H));
+        ctx.moveTo(p.x, clampY(proj.tip(firstChild[i]), T.H));
+        ctx.lineTo(p.x, clampY(proj.tip(LAST[i]), T.H));
       }
     }
     if (any) ctx.stroke();
@@ -153,17 +148,17 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       any = true;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
-      P.summaryExtent(i, lm, list.xmax[e]);
-      const sx = P.d0,
-        sy = P.tip(i);
-      let y0 = P.t0,
-        y1 = P.t1;
+      proj.summaryExtent(i, lm, list.xmax[e]);
+      const sx = proj.d0,
+        sy = proj.tip(i);
+      let y0 = proj.t0,
+        y1 = proj.t1;
       if (y1 - y0 < 1.5) {
         const m = (y0 + y1) / 2;
         y0 = m - 0.75;
         y1 = m + 0.75;
       }
-      const xm = Math.max(sx + 2, P.d1);
+      const xm = Math.max(sx + 2, proj.d1);
       if (lm >= 0 || isSlice(tree, i)) {
         ctx.rect(sx, y0, xm - sx, y1 - y0);
         continue;
@@ -181,8 +176,9 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
 /** Radial branches: one stroke() per colour class and 256 segments, connector arcs only where the arc differs from its
  *  chord by more than about 0.3 px (sagitta s^2/8r), long arcs of far-off clades clipped to the visible angles (the
  *  projection's window), summaries as filled fans. No trigonometry per node (cached cos/sin of the node angles). */
-function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjection, lineW: number): void {
-  const { tree, L, T, list, colours, theme } = S;
+function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialProjection, lineW: number): void {
+  const { list, colours, theme } = S;
+  const { tree, L, T } = proj;
   const COS = L.COS!,
     SIN = L.SIN!;
   const { firstChild } = tree;
@@ -204,8 +200,8 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjec
       if (list.last[e] >= 0) continue; // run: no branch of its own
       const i = list.node[e];
       if (i > 0) {
-        P.parentXY(i, q);
-        P.nodeXY(i, p);
+        proj.parentXY(i, q);
+        proj.nodeXY(i, p);
         ctx.moveTo(q.x, q.y);
         ctx.lineTo(p.x, p.y);
         segs++;
@@ -213,29 +209,29 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjec
       if (list.kind[e] === K_NODE) {
         const fc = firstChild[i],
           lc = LAST[i];
-        const r = P.depth(i);
-        const len = P.tipSpan(fc, lc) * r;
+        const r = proj.depth(i);
+        const len = proj.tipSpan(fc, lc) * r;
         ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
         if (len * len <= ARC_SAGITTA_K * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
         else {
-          let a0 = P.tip(fc),
-            a1 = P.tip(lc);
-          if (!P.all && r > RADIAL_FAR_ARC_R) {
+          let a0 = proj.tip(fc),
+            a1 = proj.tip(lc);
+          if (!proj.all && r > RADIAL_FAR_ARC_R) {
             // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
-            if (P.wrap) {
-              if (a1 >= P.lo) {
-                ctx.moveTo(cx + r * Math.cos(Math.max(a0, P.lo)), cy + r * Math.sin(Math.max(a0, P.lo)));
-                ctx.arc(cx, cy, r, Math.max(a0, P.lo), a1);
+            if (proj.wrap) {
+              if (a1 >= proj.lo) {
+                ctx.moveTo(cx + r * Math.cos(Math.max(a0, proj.lo)), cy + r * Math.sin(Math.max(a0, proj.lo)));
+                ctx.arc(cx, cy, r, Math.max(a0, proj.lo), a1);
                 segs++;
               }
-              if (a0 <= P.hi) {
+              if (a0 <= proj.hi) {
                 ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
-                ctx.arc(cx, cy, r, a0, Math.min(a1, P.hi));
+                ctx.arc(cx, cy, r, a0, Math.min(a1, proj.hi));
                 segs++;
               }
             } else {
-              a0 = Math.max(a0, P.lo);
-              a1 = Math.min(a1, P.hi);
+              a0 = Math.max(a0, proj.lo);
+              a1 = Math.min(a1, proj.hi);
               if (a1 > a0) {
                 ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
                 ctx.arc(cx, cy, r, a0, a1);
@@ -263,11 +259,11 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjec
       if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
-      P.summaryExtent(i, lm, list.xmax[e]);
-      let a0 = P.t0,
-        a1 = P.t1;
-      const r0 = P.d0;
-      const r1 = Math.max(r0 + 2, P.d1);
+      proj.summaryExtent(i, lm, list.xmax[e]);
+      let a0 = proj.t0,
+        a1 = proj.t1;
+      const r0 = proj.d0;
+      const r1 = Math.max(r0 + 2, proj.d1);
       if ((a1 - a0) * r1 < 1.5) {
         const m = (a0 + a1) / 2,
           h = 0.75 / r1;
@@ -311,9 +307,9 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjec
 
 /** Tip dots and internal node markers. Returns nothing; positions are recomputed by hit-testing. */
 export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
-  const { P, list, theme, colours } = S;
+  const { proj, list, theme, colours } = S;
   const p: Pt = { x: 0, y: 0 };
-  const tipPx = P.tipPitch;
+  const tipPx = proj.tipPitch;
   const dots = tipPx >= TIP_DOT_PX;
   const rTip = Math.min(3.2, Math.max(1.5, tipPx * 0.25));
   // internal markers: small filled squares (cheap), only for clades big enough to click
@@ -328,13 +324,13 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       const i = list.node[e];
       if (kind === K_TIP) {
         if (!dots) continue;
-        P.nodeXY(i, p);
+        proj.nodeXY(i, p);
         ctx.moveTo(p.x + rTip, p.y);
         ctx.arc(p.x, p.y, rTip, 0, 6.2832);
         any = true;
       } else if (kind === K_NODE) {
-        if (P.cladeSize(i) < MARKER_PX) continue;
-        P.nodeXY(i, p);
+        if (proj.cladeSize(i) < MARKER_PX) continue;
+        proj.nodeXY(i, p);
         ctx.rect(p.x - 2, p.y - 2, 4, 4);
         any = true;
       }
@@ -345,9 +341,10 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
 }
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {
-  const { tree, L, T, P, theme, hlRanks } = S;
+  const { proj, theme, hlRanks } = S;
+  const { tree, L, T } = proj;
   if (!hlRanks.length) return;
-  const rect = P.kind === 'rectangular';
+  const rect = proj.kind === 'rectangular';
   const p: Pt = { x: 0, y: 0 };
   ctx.fillStyle = theme.highlight;
   ctx.strokeStyle = theme.highlight;
@@ -361,14 +358,14 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
       ctx.globalAlpha = 0.16;
       ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
       ctx.globalAlpha = 1;
-      P.nodeXY(node, p);
+      proj.nodeXY(node, p);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 7, 0, 6.2832);
       ctx.stroke();
     } else {
-      P.nodeXY(node, p);
+      proj.nodeXY(node, p);
       if (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20) continue;
-      const a = P.tip(node);
+      const a = proj.tip(node);
       ctx.globalAlpha = 0.16;
       ctx.lineWidth = Math.max(3, T.da * L.X[node] * T.k);
       ctx.beginPath();
@@ -384,11 +381,11 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
   }
 }
 
-export function drawRing(ctx: CanvasRenderingContext2D, P: LayoutProjection, node: number, radius: number, colour: string, width: number): void {
+export function drawRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, node: number, radius: number, colour: string, width: number): void {
   if (node < 0) return;
   const p: Pt = { x: 0, y: 0 };
-  P.nodeXY(node, p);
-  if (p.x < -20 || p.y < -20 || p.x > P.T.W + 20 || p.y > P.T.H + 20) return;
+  proj.nodeXY(node, p);
+  if (p.x < -20 || p.y < -20 || p.x > proj.T.W + 20 || p.y > proj.T.H + 20) return;
   ctx.strokeStyle = colour;
   ctx.lineWidth = width;
   ctx.beginPath();
@@ -400,10 +397,11 @@ export function drawRing(ctx: CanvasRenderingContext2D, P: LayoutProjection, nod
  *  Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
  *  setTransform per label instead of save/translate/rotate/restore (cos/sin come from the layout cache). */
 export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList): void {
-  const { tree, L, T, P, list, theme, classOf, colours, highlight } = S;
+  const { proj, list, theme, classOf, colours, highlight } = S;
+  const { tree, L, T } = proj;
   labels.clear();
-  const rect = P.kind === 'rectangular';
-  const pitch = P.tipPitch;
+  const rect = proj.kind === 'rectangular';
+  const pitch = proj.tipPitch;
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
   const size = Math.max(8, Math.min(13, Math.round(pitch * 0.78)));
@@ -421,7 +419,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     if (list.kind[e] !== K_TIP) continue;
     const i = list.node[e];
     const r = tree.tipRank[i];
-    P.nodeXY(i, p);
+    proj.nodeXY(i, p);
     if (rect) {
       if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x > T.clipR) continue;
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
@@ -458,7 +456,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
         lastAlign = al;
       }
       ctx.fillText(text, left ? -8 : 8, 0.5);
-      const a = P.tip(i);
+      const a = proj.tip(i);
       labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0);
     }
   }
@@ -480,7 +478,8 @@ const fmtTick = (v: number, step: number) => {
 
 /** Rectangular phylogram: distance axis (time-before-tips axis for an ultrametric tree) in the footer band. */
 export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x1v: number): void {
-  const { L, T, theme } = S;
+  const { theme } = S;
+  const { L, T } = S.proj;
   if (T.kind !== 'rectangular' || !L.usedLengths) return;
   const { ax, ay, ah } = T.area;
   const y = ay + ah + 2;
@@ -535,7 +534,8 @@ export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x
 
 /** Radial: a scale bar of a round length at the bottom left. */
 export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
-  const { L, T, theme } = S;
+  const { theme } = S;
+  const { L, T } = S.proj;
   if (T.kind !== 'radial' || !L.usedLengths) return;
   const pxPerUnit = T.k / L.maxLen;
   const step = niceStep(90 / pxPerUnit);
