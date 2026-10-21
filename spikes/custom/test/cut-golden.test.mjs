@@ -4,7 +4,8 @@
 // of retries) were captured from the code at commit e2897fb (the cut before it was moved behind the layout projection), by running the cases
 // of cut-golden-cases.mjs through that commit's searchCut (rectangular and radial loops, as they were) with options { lod: true, base,
 // budget, summaries: true, hint: 0 }. So a failure here means the cut no longer produces what it produced then. To recapture on purpose
-// (a deliberate change of the cut), run the same cases through the new searchCut and write the JSON in the same shape.
+// (a deliberate change of the cut): `node --experimental-transform-types scripts/capture-cut-golden.mjs`, which writes the JSON from the
+// current code in the same layout (one case per line); on the unchanged cut it reproduces the committed file byte for byte.
 //
 // The cases cover: a comb, a balanced tree with thin cherries (rule B), a random tree, polytomies (runs of small siblings between larger
 // children, a class change and a parent change in the middle of a run), a snapshot with stubs, a view that cuts the tree at the right edge

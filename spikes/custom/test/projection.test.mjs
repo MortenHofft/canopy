@@ -1,5 +1,6 @@
-// Unit tests of the layout projections (src/core/projection.ts), of the cut written once on top of them (src/core/lod.ts) and of
-// the per-renderer text measurer (src/core/draw.ts): no module-level state is shared between instances.
+// Unit tests of the layout projections (src/core/projection.ts: positions, clade extents, per-frame values), of the cut's caller-owned
+// results (src/core/lod.ts) and of the per-renderer text measurer (src/core/draw.ts): no module-level state is shared between instances.
+// The cut's output itself is pinned by cut-golden.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -56,17 +57,17 @@ test('node and parent positions follow the layout formulas', () => {
 });
 
 test('summaryExtent: a plain summary starts at the node, a run at its parent', () => {
-  for (const P of [projectionFor(tree, L, rectT), projectionFor(tree, L, radialT)]) {
+  for (const proj of [projectionFor(tree, L, rectT), projectionFor(tree, L, radialT)]) {
     const i = 1; // the clade (A,B)
-    P.summaryExtent(i, -1, 0);
-    assert.equal(P.d0, P.depth(i));
-    assert.ok(P.d1 >= P.d0);
-    assert.ok(P.t1 > P.t0);
+    proj.summaryExtent(i, -1, 0);
+    assert.equal(proj.d0, proj.depth(i));
+    assert.ok(proj.d1 >= proj.d0);
+    assert.ok(proj.t1 > proj.t0);
     const kids = [tree.firstChild[i]];
     for (let c = tree.nextSibling[kids[0]]; c >= 0; c = tree.nextSibling[c]) kids.push(c);
-    P.summaryExtent(kids[0], kids[kids.length - 1], 0.9);
-    assert.equal(P.d0, P.depth(i), 'a run spans from its parent');
-    assert.ok(Math.abs(P.d1 - (P.depth(i) + (0.9 - L.X[i]) * (P.kind === 'rectangular' ? rectT.kx : radialT.k))) < 1e-9);
+    proj.summaryExtent(kids[0], kids[kids.length - 1], 0.9);
+    assert.equal(proj.d0, proj.depth(i), 'a run spans from its parent');
+    assert.ok(Math.abs(proj.d1 - (proj.depth(i) + (0.9 - L.X[i]) * (proj.kind === 'rectangular' ? rectT.kx : radialT.k))) < 1e-9);
   }
 });
 
@@ -82,10 +83,10 @@ test('the radial window belongs to the projection: the root inside it sees every
 
 test('cut: LOD off emits every node; results are caller-owned and never shared', () => {
   for (const T of [rectT, radialT]) {
-    const P = projectionFor(tree, L, T);
+    const proj = projectionFor(tree, L, T);
     const list = new DrawList(),
       seen = new Seen();
-    const a = cut(P, { lod: false, minPx: 3, budget: 1e6, summaries: true }, null, list, seen, newCutResult());
+    const a = cut(proj, { lod: false, minPx: 3, budget: 1e6, summaries: true }, null, list, seen, newCutResult());
     assert.equal(list.count, tree.nodeCount);
     assert.equal(a.tips, N);
     const kinds = Array.from({ length: list.count }, (_, e) => list.kind[e]);
@@ -94,7 +95,7 @@ test('cut: LOD off emits every node; results are caller-owned and never shared',
     // a second cut with a threshold that collapses everything must not touch the first result
     const before = { ...a };
     const small = new DrawList();
-    const b = cut(P, { lod: true, minPx: 1e6, budget: 1e6, summaries: true }, null, small, seen, newCutResult());
+    const b = cut(proj, { lod: true, minPx: 1e6, budget: 1e6, summaries: true }, null, small, seen, newCutResult());
     assert.notEqual(a, b);
     assert.deepEqual(a, before);
     assert.ok(b.visited <= a.visited);

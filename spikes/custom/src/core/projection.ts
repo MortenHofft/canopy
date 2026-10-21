@@ -8,7 +8,7 @@
 // fields of the projection (`d0`, ...) or into a caller-supplied point: nothing is allocated per node.
 //
 // What it does NOT do is serve the cut per node. The cut (lod.ts) keeps its cull test, collapse rules and dedupe key inline in one
-// loop per layout: asking the projection for them per node was measured 25-50% slower on a 1M caterpillar (200k: rect 20 -> 26 ms,
+// loop per layout: asking the projection for them per node was measured 20-30% slower on a 1M caterpillar (200k: rect 20 -> 26 ms,
 // radial 25 -> 30 ms; 1M: rect 100 -> 123 ms, radial 121 -> 158 ms, medians of fresh processes), not because of polymorphism but
 // because of V8's cumulative inlining budget (--max-inlined-bytecode-size-cumulative=920): the methods stay real calls and the loop's
 // many live locals spill around each one. Draw and hit run per drawn primitive (thousands), where the calls are cheap.
@@ -55,8 +55,6 @@ export interface ProjectionCore {
   depth(i: number): number;
   /** Tip-axis coordinate of node j (rect: px, radial: rad). */
   tip(j: number): number;
-  /** Tip-axis distance from node a to node b (as tip(b) - tip(a), without the origin's rounding). */
-  tipSpan(a: number, b: number): number;
   /** Pixel size of the clade below node i across the tips, at its outer edge (marker threshold). */
   cladeSize(i: number): number;
   /** Sets d0 / d1 (depth at the clade's apex, at its outer edge) and t0 / t1 (tip axis, first to last tip) for a summary of node
@@ -76,13 +74,11 @@ export class RectProjection implements ProjectionCore {
   t0 = 0;
   t1 = 0;
   readonly tipPitch: number;
-  // copies of the transform and of the arrays the hot methods read: one field load instead of a chain (measured: the chain made the cut 30% slower)
+  // copies of the transform and of the arrays the methods below read
   private readonly X: Float64Array;
   private readonly ROW: Float64Array;
   private readonly XMAX: Float32Array;
-  private readonly LAST: Int32Array;
   private readonly parent: Int32Array;
-  private readonly firstChild: Int32Array;
   private readonly leafStart: Int32Array;
   private readonly leafEnd: Int32Array;
   private readonly ox: number;
@@ -101,9 +97,7 @@ export class RectProjection implements ProjectionCore {
     this.X = L.X;
     this.ROW = L.ROW;
     this.XMAX = L.XMAX;
-    this.LAST = L.LAST;
     this.parent = tree.parent;
-    this.firstChild = tree.firstChild;
     this.leafStart = tree.leafStart;
     this.leafEnd = tree.leafEnd;
     this.ox = T.ox;
@@ -137,10 +131,6 @@ export class RectProjection implements ProjectionCore {
 
   tip(j: number): number {
     return this.oy + this.ROW[j] * this.ky;
-  }
-
-  tipSpan(a: number, b: number): number {
-    return (this.ROW[b] - this.ROW[a]) * this.ky;
   }
 
   cladeSize(i: number): number {
@@ -184,9 +174,7 @@ export class RadialProjection implements ProjectionCore {
   private readonly X: Float64Array;
   private readonly ROW: Float64Array;
   private readonly XMAX: Float32Array;
-  private readonly LAST: Int32Array;
   private readonly parent: Int32Array;
-  private readonly firstChild: Int32Array;
   private readonly leafStart: Int32Array;
   private readonly leafEnd: Int32Array;
   private readonly COS: Float64Array;
@@ -202,9 +190,7 @@ export class RadialProjection implements ProjectionCore {
     this.X = L.X;
     this.ROW = L.ROW;
     this.XMAX = L.XMAX;
-    this.LAST = L.LAST;
     this.parent = tree.parent;
-    this.firstChild = tree.firstChild;
     this.leafStart = tree.leafStart;
     this.leafEnd = tree.leafEnd;
     this.COS = L.COS!;
@@ -303,6 +289,7 @@ export class RadialProjection implements ProjectionCore {
     return this.ROW[j] * this.da;
   }
 
+  /** Angle from node a to node b (as tip(b) - tip(a), without the origin's rounding; the sagitta test of a connector arc). */
   tipSpan(a: number, b: number): number {
     return (this.ROW[b] - this.ROW[a]) * this.da;
   }

@@ -169,12 +169,17 @@ function finishCut(
 
 /** The cut of one frame: dispatches on the projection's layout. The two loops below are deliberately separate copies: the per-node
  *  work (cull, collapse test, dedupe key) and rule R's run accumulator are written inline in each, as locals. Asking the projection
- *  per node cost 25-50% on a caterpillar (200k: rect 20 -> 26 ms, radial 25 -> 30 ms; 1M: rect 100 -> 123 ms, radial 121 -> 158 ms,
+ *  per node cost 20-30% on a caterpillar (200k: rect 20 -> 26 ms, radial 25 -> 30 ms; 1M: rect 100 -> 123 ms, radial 121 -> 158 ms,
  *  medians of fresh processes) because V8's cumulative inlining budget (--max-inlined-bytecode-size-cumulative=920, which a page
  *  cannot change) leaves the projection's `dedupe` and the radial `cull` as real calls and the loop's ~30 live locals spill around
  *  every call; a shared run-accumulator object cost another 4-5% on the same trees. What the two loops share is what does not run
  *  per node: the run's dedupe key (proj.dedupeRun), the dedupe anchors and radial window the projection computes once per frame,
- *  and the result. Fills `out` and `res` (both caller-owned; nothing is shared between calls). */
+ *  and the result. Fills `out` and `res` (both caller-owned; nothing is shared between calls).
+ *
+ *  Cost against the loops of e2897fb that this replaced (searchCut on 200k and 1M caterpillars, one layout per fresh Node 22 process,
+ *  interleaved batches, medians, the machine's run-to-run noise is about 5-10%): +3% to +17% at fit views (worst: 1M radial, +6% to +17%
+ *  over four batches), equal or faster zoomed. Not recovered by a literal PAD, an inline epilogue, computing the dedupe anchors locally or
+ *  reading them and the radial window from a Float64Array: all within noise of each other. */
 export function cut(proj: LayoutProjection, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen, res: CutResult): CutResult {
   return proj.kind === 'rectangular' ? cutRect(proj, P, classOf, out, seen, res) : cutRadial(proj, P, classOf, out, seen, res);
 }
@@ -201,6 +206,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     mergedTips = 0;
   const base = P.baseMinPx ?? minPx;
   let overflow = false;
+  // RULE R ACCUMULATOR: this copy and the one in cutRadial are deliberately duplicated, not a shared helper object: a helper cost 4-5% on
+  // caterpillars (V8's inlining budget, see `cut`). Change both together.
   // pending run of small siblings (rule R; only under a parent with at least SLICE_MIN_CHILDREN children, which keeps
   // binary trees off this path). Its first members are emitted as usual and taken back when the run reaches
   // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member
@@ -254,6 +261,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     }
     const p = parent[i];
     const sxp = i > 0 ? ox + X[p] * kx : sx;
+    // only the root can fail this: a descended node's parent starts at or before clipR + PAD (pastClip below stops the descent), so this is not a cull
     if (sxp > clipR + PAD) {
       i = subtreeEnd[i];
       continue;
@@ -385,6 +393,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     summaryTips = 0,
     mergedTips = 0;
   let overflow = false;
+  // RULE R ACCUMULATOR: the copy of the one in cutRect (deliberately duplicated, see there); change both together.
   // pending run of small siblings (rule R), see cutRect
   const canRun = lod && P.summaries;
   let runCount = 0,
@@ -601,9 +610,7 @@ export function searchCut(
   const run = (minPx: number): CutResult => {
     lastM = minPx;
     const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
-    return proj.kind === 'rectangular'
-      ? cutRect(proj, P, classOf, list, seen, newCutResult())
-      : cutRadial(proj, P, classOf, list, seen, newCutResult());
+    return cut(proj, P, classOf, list, seen, newCutResult());
   };
   // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
   // when the next level down also fits with room to spare. The number of primitives is not monotone in the threshold (the
