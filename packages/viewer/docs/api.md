@@ -6,10 +6,11 @@ said otherwise.
 | Import | What |
 |---|---|
 | `@gbif-phylo/viewer` | everything below: `TreeViewer`, controls, overlays, column and theme types. One ES module per source file and no side effects, so a bundler keeps only what you import (`scripts/check-packages.mjs` checks this) |
+| `@gbif-phylo/viewer/browser` | the same as one self-contained, minified ES module (`dist/browser/viewer.js`) for pages without a build step: load it with an import map or by URL. It includes every control |
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once |
 | `@gbif-phylo/viewer/gbif.css` | optional: GBIF design tokens mapped to the `--phylo-*` properties |
 | `@gbif-phylo/react` | `<TreeView>` ([below](#treeview)) |
-| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `TreeModel` (a `TreeData`) |
+| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -26,7 +27,8 @@ const viewer = new TreeViewer({
 viewer.on('click', (e) => console.log(e.isTip ? e.tipId : `${e.tipCount} tips`));
 ```
 
-The framework-free example ([`examples/vanilla`](../../../examples/vanilla)) shows every part: controls in corners and outside the
+Without a bundler, map the two packages to their single-file builds in an import map and load `viewer.css` with a `<link>`; the code is
+the same (see [`examples/no-build`](../../../examples/no-build)). The framework-free example ([`examples/vanilla`](../../../examples/vanilla)) shows every part: controls in corners and outside the
 viewer, a control of its own, a custom popup, the node menu, a custom column, a dark theme and an event log.
 
 ## TreeViewer ([`src/viewer.ts`](../src/viewer.ts))

@@ -15,8 +15,11 @@ viewers, ran a spike with a test harness, and recorded measurements and the reco
 | [`@gbif-phylo/tree-ops`](packages/tree-ops) | Tree operations a user applies: reroot, midpoint root, ladderise, rotate, collapse, prune, subtree. No rendering. |
 | [`@gbif-phylo/io`](packages/io) | Newick and NEXUS parsers, a Newick writer and the `TreeModel` they produce. |
 
-Examples: [`examples/vanilla`](examples/vanilla) (no framework: controls, events, a custom popup and a custom column) and
-[`examples/react`](examples/react) (`<TreeView>` with tree operations). Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
+Examples:
+
+- [`examples/vanilla`](examples/vanilla): no framework, with controls, events, a custom popup and a custom column.
+- [`examples/react`](examples/react): `<TreeView>` with tree operations.
+- [`examples/no-build`](examples/no-build): plain HTML with an import map; no bundler and no npm on the page's side. Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
 [`data/`](data); see [data/README.md](data/README.md) for what each tree is for and its licence. Design notes and the measurements behind
 the viewer are in [`docs/design`](docs/design).
 
@@ -46,7 +49,7 @@ npm ci
 npm run check          # typecheck, lint, format check, all unit tests
 npm run build          # build every package into its dist/
 npm run check:packages                 # after build: publint, tarball contents, tree shaking and bundle sizes
-npm run test:browser -w tests/browser   # build and serve the test page and both examples, run their browser checks (needs a Chromium)
+npm run test:browser -w tests/browser   # build and serve the test page and the examples, run their browser checks (needs a Chromium)
 npm run dev -w examples/vanilla         # the framework-free example on http://127.0.0.1:5308
 npm run dev -w examples/react           # the React example on http://127.0.0.1:5307
 ```

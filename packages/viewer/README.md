@@ -26,6 +26,28 @@ viewer.on('click', (e) => console.log(e.isTip ? e.tipId : `clade of ${e.tipCount
 - **Style.** One set of `--phylo-*` CSS custom properties themes both the canvas (colours, line widths, marker sizes, opacities, fonts) and the DOM (controls, popups). A dark mode is a few custom properties, and `gbif.css` gives the GBIF look.
 - **Tree shaking.** The package is one ES module per source file and has no side effects except its CSS. `TreeViewer` alone bundles no control or popup, about 27 kB gzipped; `scripts/check-packages.mjs` checks this.
 
+## Without a build step
+
+The viewer is plain ES modules with no dependencies, so a page can use it directly. `<package>/browser` is a single-file build of each
+package, two requests in all:
+
+```html
+<link rel="stylesheet" href="/vendor/gbif-phylo/viewer.css" />
+<script type="importmap">
+  { "imports": { "@gbif-phylo/viewer": "/vendor/gbif-phylo/viewer.js", "@gbif-phylo/io": "/vendor/gbif-phylo/io.js" } }
+</script>
+<script type="module">
+  import { TreeViewer, defaultControls } from '@gbif-phylo/viewer';
+  import { parseNewick } from '@gbif-phylo/io';
+  const tree = parseNewick(await (await fetch('/trees/my.nwk')).text());
+  new TreeViewer({ target: document.getElementById('tree'), tree, controls: defaultControls() });
+</script>
+```
+
+Copy `css/viewer.css`, `dist/browser/viewer.js` and `io`'s `dist/browser/io.js` to your server, or point at a CDN once the packages are
+published. The single-file build includes every control (33.4 kB gzip); bundler users import the package itself and get only what they
+use. See [`examples/no-build`](../../examples/no-build).
+
 Docs:
 
 - [API reference](docs/api.md)

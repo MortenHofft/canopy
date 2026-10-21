@@ -14,6 +14,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./browser": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/browser/viewer.js"
+    },
     "./viewer.css": "./css/viewer.css",
     "./gbif.css": "./css/gbif.css"
   },
@@ -23,7 +27,7 @@
     "css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/bundle-browser.mjs viewer",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test --test-concurrency=4 \"test/**/*.test.mjs\""
   },

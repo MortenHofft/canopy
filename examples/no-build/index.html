@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@gbif-phylo/viewer without a build step</title>
+    <!--
+      No bundler, no npm install on the page's side: the viewer's CSS as a stylesheet and its single-file ES module through an import
+      map. Here the paths point into this repository (serve the repository root and open /examples/no-build/); from a CDN they would be,
+      for example, https://cdn.jsdelivr.net/npm/@gbif-phylo/viewer@<version>/dist/browser/viewer.js once the packages are published.
+    -->
+    <link rel="stylesheet" href="../../packages/viewer/css/viewer.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@gbif-phylo/viewer": "../../packages/viewer/dist/browser/viewer.js",
+          "@gbif-phylo/io": "../../packages/io/dist/browser/io.js"
+        }
+      }
+    </script>
+    <style>
+      body { margin: 0; font: 14px system-ui, sans-serif; }
+      header { padding: 10px 16px; }
+      #tree { height: calc(100vh - 80px); margin: 0 16px; border: 1px solid #ddd; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>No build step</strong>: plain HTML, an import map and a module script. Last click: <span id="last">none</span>
+    </header>
+    <div id="tree"></div>
+    <script type="module">
+      import { TreeViewer, defaultControls, Tooltip } from '@gbif-phylo/viewer';
+      import { parseNewick } from '@gbif-phylo/io';
+
+      const text = await (await fetch('../../data/synthetic/newick/yule_200.nwk')).text();
+      const softwareCanvas = new URLSearchParams(location.search).get('cpu') === '1';
+      const viewer = new TreeViewer({
+        target: document.getElementById('tree'),
+        tree: parseNewick(text),
+        controls: [...defaultControls({ search: true }), new Tooltip()],
+        options: { softwareCanvas },
+      });
+      viewer.on('click', (e) => {
+        document.getElementById('last').textContent = e.isTip ? e.tipId : `clade of ${e.tipCount} tips`;
+      });
+      window.__noBuild = { viewer }; // for tests/browser/scripts/check-no-build.mjs
+    </script>
+  </body>
+</html>

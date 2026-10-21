@@ -3,7 +3,8 @@
 //   test      this workspace's test page            scripts/check-radial-ui.mjs
 //   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
-//   node scripts/test-browser.mjs [--only test,vanilla,react] [--no-build]
+//   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
+//   node scripts/test-browser.mjs [--only test,vanilla,react,no-build] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -109,7 +110,18 @@ const SUITES = [
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
   { name: 'react', dir: path.join(repo, 'examples/react'), check: 'check-node-menu.mjs', args: (port) => ['--url', `http://127.0.0.1:${port}/`] },
+  // no Vite: the packages' own build (dist/browser), and the check serves the repository as static files
+  { name: 'no-build', dir: path.join(repo, 'examples/no-build'), check: 'check-no-build.mjs', static: true },
 ];
+
+/** `npm run build` at the repository root (every package, with the single-file browser builds); resolves to its exit code. */
+function buildPackages() {
+  return new Promise((resolve) => {
+    running = spawn('npm', ['run', 'build'], { cwd: repo, stdio: 'inherit' });
+    running.on('error', () => resolve(1));
+    running.on('exit', (c) => resolve(c ?? 1));
+  });
+}
 const only = opt('only')?.split(',');
 
 let code = 0;
@@ -117,6 +129,19 @@ for (const s of SUITES) {
   if (only && !only.includes(s.name)) continue;
   try {
     console.log(`\n== ${s.name}: ${path.relative(repo, s.dir)}`);
+    if (s.static) {
+      if (!flag('no-build')) {
+        console.log('> npm run build (packages)');
+        const b = await buildPackages();
+        if (b !== 0) {
+          code ||= b;
+          continue;
+        }
+      }
+      console.log(`> ${s.check}`);
+      code ||= await run([path.join(here, s.check)]);
+      continue;
+    }
     if (!flag('no-build')) {
       console.log('> vite build');
       const b = await run([vite, 'build'], s.dir);

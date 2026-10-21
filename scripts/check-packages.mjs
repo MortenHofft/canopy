@@ -1,6 +1,7 @@
 // Package checks, run after `npm run build`:
 //  1. publint on every published package (errors and warnings fail; suggestions are printed);
 //  2. `npm pack --dry-run`: the tarball holds dist/ (JS, declarations, maps), src/, css/ (viewer), README and LICENSE, nothing else;
+//     the single-file browser build (`./browser` export) is there and imports nothing;
 //  3. tree shaking: small apps importing one thing are bundled with esbuild from dist/ (the way a consumer's bundler sees the packages)
 //     and the modules that must NOT end up in them are asserted absent; minified and gzipped sizes are printed.
 //   node scripts/check-packages.mjs [--json out.json]
@@ -22,6 +23,7 @@ const ok = (c, m) => {
 };
 
 // ---- 1 and 2: publint and pack contents
+const report = [];
 const licence = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8');
 for (const name of PACKAGES) {
   const dir = path.join(root, 'packages', name);
@@ -45,6 +47,22 @@ for (const name of PACKAGES) {
   );
   ok(files.includes('dist/index.d.ts') && files.some((f) => f.endsWith('.js.map')), 'tarball has declarations and source maps');
   console.log(`  ${files.length} files, ${(packed.size / 1024).toFixed(1)} kB packed, ${(packed.unpackedSize / 1024).toFixed(1)} kB unpacked`);
+  // the single-file browser build (pages without a build step): present, packed, self-contained
+  const browser = pkg.exports['./browser'];
+  if (browser) {
+    const rel = (typeof browser === 'string' ? browser : browser.default).replace(/^\.\//, '');
+    const file = path.join(dir, rel);
+    ok(fs.existsSync(file) && files.includes(rel), `browser build ${rel} exists and is in the tarball`);
+    if (fs.existsSync(file)) {
+      const code = fs.readFileSync(file, 'utf8');
+      // any import or export-from left in the bundle would need a resolver (an import map or a bundler); there must be none
+      const left = code.match(/(?:\bimport\s*\(|\bfrom\s*["'`]|\bimport\s*["'`])/g) ?? [];
+      ok(left.length === 0, `browser build has no imports left (${left.length})`);
+      const gz = zlib.gzipSync(code, { level: 9 }).length;
+      console.log(`  browser build: ${(code.length / 1024).toFixed(1)} kB min, ${(gz / 1024).toFixed(1)} kB gzip`);
+      report.push({ name: `${pkg.name}/browser`, modules: 1, minBytes: code.length, gzipBytes: gz });
+    }
+  }
 }
 
 // ---- 3: tree shaking. `forbid` are substrings of bundled input paths (relative to the repository) that must be absent.
@@ -83,7 +101,6 @@ const SCENARIOS = [
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 ];
-const report = [];
 for (const s of SCENARIOS) {
   const r = await esbuild.build({
     stdin: { contents: s.code, resolveDir: root, loader: 'js' },

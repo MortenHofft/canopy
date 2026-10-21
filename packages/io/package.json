@@ -11,11 +11,18 @@
       "@gbif-phylo/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/browser/io.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/bundle-browser.mjs io",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
   }

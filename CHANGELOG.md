@@ -12,4 +12,5 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **Custom columns.** `kind: 'custom'` with a `ColumnRenderer`.
 - **Theme.** Canvas sizes and opacities are now tokens. The theme can come from `--phylo-*` CSS custom properties (`themeFromCss`, `refreshTheme`). There is `viewer.css` for the DOM and an optional `gbif.css`.
 - **`<TreeView>`.** New `controls` prop. `theme` holds overrides only. `TreeNodeEvent` is the viewer's `TreeEvent`, so `tipRange` is now `tipStart` / `tipEnd`.
+- **No build step.** Single-file browser builds `@gbif-phylo/viewer/browser` and `@gbif-phylo/io/browser`, and `examples/no-build`, a plain HTML page with an import map, plus its browser check.
 - **Examples and checks.** A framework-free example. Browser checks for the test page and both examples. A package check covering publint, the tarball contents, tree shaking and sizes.

@@ -42,6 +42,9 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   created, on `refreshTheme()` and when the colour scheme preference changes. It writes the theme in force back on its root, so the DOM matches
   even when the theme comes from JavaScript. Every visual constant of the drawing code is now a token (line widths, marker sizes, opacities,
   label and axis sizes), with the old constants as defaults. Further style changes are token edits.
+* **No build step needed.** Besides the per-file modules for bundlers, each of the viewer and io packages ships one self-contained ES module
+  (`dist/browser/*.js`, exported as `<package>/browser`, built by esbuild in `scripts/bundle-browser.mjs`). A page loads it with an import map
+  or a plain URL, from its own server or a CDN, without npm or a bundler. Tree shaking does not apply there, so it includes every control.
 * **Tree shaking by construction.** The packages are emitted as one ES module per source file (`tsc`, `.ts` imports rewritten), and
   `sideEffects` covers only the CSS. Each built-in control and popup is its own module, and the overview moved out of the viewer into a
   control. Measured: `TreeViewer` alone is 27.3 kB gzip and bundles no control or popup; with `Zoom` it is 28.1 kB; with `defaultControls` (all
@@ -61,7 +64,11 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   a drawing state; neither exists.
 * **Not published.** The package names (`@gbif-phylo/*`) are placeholders, all packages are `private`, and there is no release process or
   changelog policy yet.
-* **No web component.** A `<phylo-tree>` custom element would let pages with no build step use the viewer from HTML. It would be a thin
-  wrapper like the React one, and it was not written.
+* **No web component.** A `<phylo-tree>` custom element would make the viewer usable declaratively, configured by HTML attributes with no
+  script written by the page. It would be a thin wrapper like the React one, and it was not written. It is not needed to avoid a build step:
+  the viewer is plain ES modules with no dependencies, so a page imports it in a `<script type="module">`. The single-file builds
+  (`@gbif-phylo/viewer/browser`, 33.4 kB gzip with every control; `@gbif-phylo/io/browser`, 3.4 kB) do this in two requests through an import
+  map, with `viewer.css` as a stylesheet. `examples/no-build` does exactly that, and `tests/browser/scripts/check-no-build.mjs` checks it from a
+  plain static server.
 * **Only partly tested.** As in the spike, the browser tests ran in headless Chromium without a GPU. Other browsers, touch devices and screen
   readers were not tested with the new controls and popups (**unverified**).
