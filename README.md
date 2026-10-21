@@ -15,11 +15,27 @@ viewers, ran a spike with a test harness, and recorded measurements and the reco
 | [`@gbif-phylo/tree-ops`](packages/tree-ops) | Tree operations a user applies: reroot, midpoint root, ladderise, rotate, collapse, prune, subtree. No rendering. |
 | [`@gbif-phylo/io`](packages/io) | Newick and NEXUS parsers, a Newick writer and the `TreeModel` they produce. |
 
-Examples are in [`examples/`](examples). Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
+Examples: [`examples/vanilla`](examples/vanilla) (no framework: controls, events, a custom popup and a custom column) and
+[`examples/react`](examples/react) (`<TreeView>` with tree operations). Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
 [`data/`](data); see [data/README.md](data/README.md) for what each tree is for and its licence. Design notes and the measurements behind
 the viewer are in [`docs/design`](docs/design).
 
 The packages are not published yet; their names are placeholders.
+
+## Quick start
+
+```ts
+import '@gbif-phylo/viewer/viewer.css';
+import { parseNewick } from '@gbif-phylo/io';
+import { TreeViewer, defaultControls } from '@gbif-phylo/viewer';
+
+const viewer = new TreeViewer({ target: document.getElementById('tree')!, tree: parseNewick(text), controls: defaultControls() });
+viewer.on('click', (e) => console.log(e.isTip ? e.tipId : `${e.tipCount} tips`));
+```
+
+The [viewer README](packages/viewer/README.md) lists what can be customised: controls, events, popups, columns and styling. The [API
+reference](packages/viewer/docs/api.md) covers each part, and [docs/design/library.md](docs/design/library.md) explains how the library is put
+together and why.
 
 ## Development
 
@@ -29,7 +45,9 @@ Node >= 22.7. From the repository root:
 npm ci
 npm run check          # typecheck, lint, format check, all unit tests
 npm run build          # build every package into its dist/
-npm run test:browser -w tests/browser   # build the test page, serve it and run the browser check (needs a Chromium)
+npm run check:packages                 # after build: publint, tarball contents, tree shaking and bundle sizes
+npm run test:browser -w tests/browser   # build and serve the test page and both examples, run their browser checks (needs a Chromium)
+npm run dev -w examples/vanilla         # the framework-free example on http://127.0.0.1:5308
 npm run dev -w examples/react           # the React example on http://127.0.0.1:5307
 ```
 

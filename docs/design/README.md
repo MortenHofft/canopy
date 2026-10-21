@@ -13,6 +13,7 @@ the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results
 
 | File | What |
 |---|---|
+| [library.md](library.md) | Turning the renderer into a library: the design decisions, what it cost, what is not done (written on this branch) |
 | [custom.md](custom.md) | The custom renderer's measurements: benchmarks, scenarios, the radial work, polytomies, the hardening pass |
 | [custom-renderer.md](custom-renderer.md) | The research that preceded it: why our own renderer, and its architecture |
 | [data-layer.md](data-layer.md) | Data layer research: formats, loading, partial trees |
