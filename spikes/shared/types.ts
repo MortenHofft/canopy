@@ -197,6 +197,7 @@ export interface SpikeInfo {
   description?: string;
   repo?: string;
   demo?: string;
+  demoLabel?: string; // label of the hub card's link to the candidate's standalone page (/<candidate>/demo), if it builds one
   docs?: string;
   rendering?: string;
   styling?: { applied?: string[]; not_possible?: string[]; notes?: string };

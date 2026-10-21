@@ -94,8 +94,8 @@ export class LabelOverlay {
       else {
         const deg = (labels.ang[k] * 180) / Math.PI;
         el.style.transform = labels.flip[k]
-          ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-8px)`
-          : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(8px)`;
+          ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-${labels.gap[k]}px)`
+          : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
       }
       el.style.display = '';
     }

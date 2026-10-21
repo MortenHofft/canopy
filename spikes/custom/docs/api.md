@@ -149,6 +149,7 @@ Props (all optional, but one of `tree` / `source` is needed):
 | `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`) |
 | `clades` | `{nodeId: 'n<preorder id>', colour}[]` |
 | `highlighted` | tip labels to highlight |
+| `collapsed` | node ids (`'n<id>'`) of tips that stand for collapsed clades: drawn as a triangle instead of a dot, label moved past it. Collapsing is done in the data (the page replaces each clade by one tip, e.g. with tree-ops' `collapseClades`); this only marks the tips |
 | `columns` | `Column[]`; replace a column and its `values` when the data changes, never mutate them; ids unique |
 | `viewport` | controlled `Viewport`; omit for uncontrolled |
 | `theme` | `Partial<TreeTheme>` over `FALLBACK_THEME` |

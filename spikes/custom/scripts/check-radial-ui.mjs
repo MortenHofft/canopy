@@ -110,6 +110,11 @@ ok(
 );
 
 // ---- hover and selection never redraw the tree layer
+// A web font that finishes loading redraws the tree once, by design (renderer: fonts.ready / 'loadingdone'). The fonts come from Google
+// Fonts and load lazily, and the hover above can start one, so on a network where they arrive (CI) a load could land inside the window
+// below and count as a hover redraw. Wait for pending font loads first.
+await page.evaluate(() => document.fonts.ready);
+await sleep(100);
 const f0 = (await stats()).frames;
 for (let k = 0; k < 40; k++) {
   await page.mouse.move(px + (k % 7) * 3, py + (k % 5) * 3);

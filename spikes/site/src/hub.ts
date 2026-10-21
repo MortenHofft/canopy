@@ -14,7 +14,7 @@ interface Cand {
   version: string; rendering: string; research: string; summary: string; verdict: string; cells: Record<string, Cell>;
 }
 interface Findings { asOf: string; legend: { c: Record<string, string>; e: Record<string, string> }; dimensions: Dim[]; candidates: Cand[] }
-interface Built { name: string; title: string; version: string; license: string; description: string; repo: string; rendering: string; path: string }
+interface Built { name: string; title: string; version: string; license: string; description: string; repo: string; rendering: string; path: string; demoPage?: { label: string; path: string } }
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const el = (tag: string, attrs: Record<string, string> = {}, html = '') => {
@@ -97,6 +97,7 @@ function renderCards(f: Findings, built: Built[]) {
     const links: string[] = [];
     if (c.kind === 'spike') {
       links.push(b ? `<a class="btn btn-primary" href="${b.path}">Open our demo</a>` : `<a class="btn btn-secondary" aria-disabled="true" href="#">Demo not built yet</a>`);
+      if (b?.demoPage) links.push(`<a class="btn btn-secondary" href="${esc(b.demoPage.path)}">${esc(b.demoPage.label)}</a>`);
     }
     if (c.demo) links.push(`<a class="btn btn-secondary" href="${esc(c.demo)}" rel="noopener">Project demo</a>`);
     if (c.repo) links.push(`<a class="btn btn-secondary" href="${esc(c.repo)}" rel="noopener">Source</a>`);

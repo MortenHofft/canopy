@@ -6,6 +6,7 @@
   "description": "Our own minimal renderer: O(n) typed-array layout, viewport level of detail with a draw budget, Canvas2D, grid-indexed hit-testing and a React <TreeView> component; the performance ceiling and API shape the libraries are judged against.",
   "repo": "https://github.com/gbif/gbif-phylo",
   "demo": "",
+  "demoLabel": "Tree operations demo",
   "docs": "docs/results/custom.md",
   "rendering": "Canvas",
   "styling": {

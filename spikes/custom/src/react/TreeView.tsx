@@ -55,6 +55,16 @@ export interface TreeViewHandle {
   renderer(): TreeRenderer | null;
 }
 
+/** One entry of the node menu. The view only shows the list and calls onSelect; what an action does (and whether it changes
+ *  the tree) is the page's business, so the renderer and this component stay free of tree operations. */
+export interface NodeMenuItem {
+  id: string;
+  label: string;
+  hint?: string; // shown under the label (and as the title)
+  disabled?: boolean;
+  onSelect(): void;
+}
+
 export interface CladeProp {
   nodeId: string;
   colour: string;
@@ -86,6 +96,9 @@ export interface TreeViewProps {
   branchLengths?: boolean;
   clades?: CladeProp[];
   highlighted?: string[];
+  /** Node ids of tips that stand for collapsed clades (the page replaced each clade by one tip, e.g. with tree-ops' collapseClades):
+   *  drawn as a triangle instead of a dot, with the label moved past it. */
+  collapsed?: string[];
   columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
@@ -93,6 +106,9 @@ export interface TreeViewProps {
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
   options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; a field that is absent or undefined is the default (removing a key reverts it)
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
+  /** Actions for the clicked tip or clade, shown as a menu at the click (keyboard: Enter on the cursor opens it, arrows move,
+   *  Escape closes, Tab out closes). Return null or [] for no menu. Called after onTipClick / onNodeClick. */
+  nodeMenu?: (e: TreeNodeEvent) => NodeMenuItem[] | null | undefined;
   width?: number | string;
   height?: number | string;
   className?: string;
@@ -155,7 +171,18 @@ function liveRenderer(r: TreeRenderer | null, ref: React.RefObject<TreeRenderer 
 }
 
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(props, ref) {
-  const { layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, tipHref = null, focus, tooltip = true } = props;
+  const {
+    layout = 'rectangular',
+    branchLengths = true,
+    clades,
+    highlighted,
+    collapsed,
+    columns,
+    viewport,
+    tipHref = null,
+    focus,
+    tooltip = true,
+  } = props;
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -164,6 +191,13 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     latest.current = props; // the callbacks the renderer holds always call the newest ones
   });
   const [tip, setTip] = useState<{ ev: TreeNodeEvent; x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<{ ev: TreeNodeEvent; items: NodeMenuItem[]; x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuOpen = useRef(false); // read by the renderer callbacks, which are created once
+  useLayoutEffect(() => {
+    menuOpen.current = menu !== null;
+  });
+  const refocus = useRef(false); // set while a menu action runs; read when the action re-creates the renderer
 
   // Identity-stable inputs: an inline `options` / `theme` object is a new object on every parent render, but the effects below only
   // run when a value in it changed (the renderer's setters also ignore unchanged values, belt and braces).
@@ -203,20 +237,34 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
           const p = latest.current;
           if (ev.isTip) p.onTipClick?.(ev);
           else p.onNodeClick?.(ev);
+          const items = p.nodeMenu?.(ev);
+          if (items?.length && wrapRef.current) {
+            const b = wrapRef.current.getBoundingClientRect();
+            setTip(null);
+            setMenu({ ev, items, x: ev.clientX - b.left, y: ev.clientY - b.top });
+          } else setMenu(null);
         },
         onHover: (e) => {
           const ev = e ? toEvent(e) : null;
           latest.current.onHover?.(ev);
-          if (!ev || !wrapRef.current) return setTip(null);
+          if (menuOpen.current || !ev || !wrapRef.current) return setTip(null);
           const b = wrapRef.current.getBoundingClientRect();
           setTip({ ev, x: ev.clientX - b.left, y: ev.clientY - b.top });
         },
-        onViewportChange: (v) => latest.current.onViewportChange?.(v),
+        onViewportChange: (v) => {
+          if (menuOpen.current) setMenu(null); // the menu is anchored to a point of the old view
+          latest.current.onViewportChange?.(v);
+        },
         onFrame: (s) => latest.current.onFrame?.(s),
       },
       rendererOptions,
       fullTheme,
     );
+    // a menu action that replaced the tree removed the focused canvas with the old renderer: give focus to the new one
+    if (refocus.current) {
+      refocus.current = false;
+      r.root.focus();
+    }
     let ready = 0;
     ready = requestAnimationFrame(() => {
       ready = requestAnimationFrame(() => latest.current.onReady?.({ layoutMs: r.layout.layoutMs, tips: source.tipCount }));
@@ -226,6 +274,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       () => {
         cancelAnimationFrame(ready);
         setTip(null);
+        setMenu(null);
       },
     ];
   });
@@ -247,6 +296,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
   }, [R, rendRef, highlighted]);
+  useLayoutEffect(() => {
+    liveRenderer(R, rendRef)?.setCollapsed((collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0));
+  }, [R, rendRef, source, collapsed]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
@@ -301,6 +353,50 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     [source, rendRef],
   );
 
+  // node menu: keyboard-opened, focus the first item; close on Escape, Tab out, outside pointer, a viewport change, or after an action
+  const closeMenu = (refocusCanvas: boolean) => {
+    setMenu(null);
+    if (refocusCanvas) rendRef.current?.root.focus();
+  };
+  // keep the menu inside the container: measured before paint, so items with a hint (taller) are clamped exactly
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    const wrap = wrapRef.current;
+    if (!menu || !el || !wrap) return;
+    el.style.top = `${Math.max(4, Math.min(menu.y + 6, wrap.clientHeight - el.offsetHeight - 4))}px`;
+  }, [menu]);
+  useEffect(() => {
+    if (!menu) return;
+    // Focus goes into the menu only when it was opened from the keyboard. A tap opens it on pointerup, and the browser's compatibility
+    // mousedown that follows focuses the canvas: had the first item been focused, that blur would close the menu before the tap ends.
+    if (menu.ev.via === 'keyboard') menuRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+    const down = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenu(null);
+    };
+    // Escape closes it also while focus is on the canvas (pointer-opened menu); inside the menu onMenuKey handles it
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenu(null);
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('keydown', key);
+    };
+  }, [menu]);
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      return closeMenu(true);
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const btns = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? []);
+    const k = btns.indexOf(document.activeElement as HTMLButtonElement);
+    btns[(k + (e.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length]?.focus();
+  };
+
   // keep the tooltip fresh only while hovering
   useEffect(() => {
     if (!tooltip) setTip(null);
@@ -354,6 +450,90 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
           }}
         >
           {typeof tooltip === 'function' ? tooltip(tip.ev) : defaultTip(tip.ev)}
+        </div>
+      )}
+      {menu && (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label={menu.ev.isTip ? `Actions for tip ${menu.ev.tipId ?? ''}` : `Actions for clade of ${menu.ev.tipCount} tips`}
+          data-treeview-menu=""
+          onKeyDown={onMenuKey}
+          onBlur={(e) => {
+            if (!menuRef.current?.contains(e.relatedTarget as Node | null)) setMenu(null);
+          }}
+          style={{
+            position: 'absolute',
+            left: Math.max(4, Math.min(menu.x + 6, (wrapRef.current?.clientWidth ?? 0) - 244)),
+            top: menu.y + 6, // clamped to the container once its height is known (layout effect above)
+            zIndex: 7,
+            width: 240,
+            boxSizing: 'border-box',
+            padding: 4,
+            borderRadius: 6,
+            background: fullTheme.background,
+            color: fullTheme.foreground,
+            border: `1px solid ${fullTheme.muted}`,
+            boxShadow: '0 4px 16px rgba(0,0,0,.18)',
+            fontFamily: fullTheme.fontFamily,
+            fontSize: 13,
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              padding: '4px 8px 6px',
+              fontWeight: 600,
+              fontStyle: menu.ev.isTip ? 'italic' : 'normal',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {menu.ev.isTip
+              ? (options.formatLabel ?? ((s: string) => s.replace(/_/g, ' ')))(menu.ev.tipId ?? '')
+              : nodeLabel(menu.ev.node) || `Clade, ${menu.ev.tipCount.toLocaleString('en')} tips`}
+          </div>
+          {menu.items.map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              role="menuitem"
+              disabled={it.disabled}
+              title={it.hint}
+              data-action={it.id}
+              onClick={() => {
+                refocus.current = true;
+                closeMenu(true);
+                it.onSelect();
+                requestAnimationFrame(() => {
+                  refocus.current = false; // the re-creation, if any, happened in this task
+                });
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '6px 8px',
+                border: 0,
+                borderRadius: 4,
+                background: 'transparent',
+                color: 'inherit',
+                font: 'inherit',
+                cursor: it.disabled ? 'default' : 'pointer',
+                opacity: it.disabled ? 0.45 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!it.disabled) e.currentTarget.style.background = fullTheme.dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              {it.label}
+              {it.hint && <span style={{ display: 'block', fontSize: 11, opacity: 0.7 }}>{it.hint}</span>}
+            </button>
+          ))}
         </div>
       )}
     </div>
