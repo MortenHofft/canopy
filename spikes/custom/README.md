@@ -26,21 +26,23 @@ Node 22). Install with `npm ci` in this folder.
 | `npm run typecheck` | `tsc --noEmit`; includes `../shared/*.ts(x)` and, through `src/parquet/`, the Parquet reader in `spikes/parquet-experiment/web` | |
 | `npm run lint` | ESLint 9 flat config (typescript-eslint recommended, react-hooks, unused locals are errors), `--max-warnings 0`, over `src`, `scripts`, `bench`, `test` | |
 | `npm run format` / `format:check` | Prettier (`.prettierrc`: width 150, single quotes) | |
-| `npm test` | `node --test "test/**/*.test.mjs"` with `--experimental-transform-types`: unit tests of the core modules, the golden test of the cut, and `test/radial-cut.test.mjs`, which runs `scripts/check-radial-cut.mjs` as a child process | |
-| `npm run check` | `typecheck && lint && format:check && test`, what CI runs (`.github/workflows/custom-renderer.yml`, then `npm run build`) | |
+| `npm test` | `node --test --test-concurrency=4 "test/**/*.test.mjs"` with `--experimental-transform-types`: unit tests of the core modules (332 tests, 6.3 s wall here on 2026-10-21; fake canvas context and fake document where needed, no DOM package), the golden test of the cut, and `test/radial-cut.test.mjs`, which runs `scripts/check-radial-cut.mjs` as a child process | |
+| `npm run test:browser` | `scripts/test-browser.mjs`: builds, serves the bundle with `vite preview` on a free port (or `--port N`; `--no-build` reuses `dist/`), runs `scripts/check-radial-ui.mjs` against it, stops the server by PID and exits with the check's exit code | Playwright from `spikes/runner` (`npm ci --workspace runner` in `spikes/`); Chromium from `$CHROMIUM_PATH`, else `/opt/pw-browsers/chromium-1194` if present, else the one `npx playwright-core install chromium` fetched |
+| `npm run check` | `typecheck && lint && format:check && test` | |
 
-The test and CI commands above are being changed by the test work in flight (a `test:browser` script and a CI browser job); see the commit
-log for what exists when you read this. At commit e122a53 `npm test` covers the pure core modules, the cut goldens and the React prop helpers
-(`test/react-props.test.mjs`); it does not run a browser, `<TreeView>`, the label overlay or `ParquetSource`, and drawing has no direct test
-(the golden test checks what `draw.ts` and `hit.ts` derive from a summary's extent, not canvas output). Coverage was not measured.
+CI (`.github/workflows/custom-renderer.yml`, Node 22) has two jobs: `check` runs `npm run check` then `npm run build`; `test-browser` (20 min limit) installs Chromium with `npx playwright-core install --with-deps chromium` and runs `npm run test:browser`. Both are triggered by changes under `spikes/custom`, `spikes/shared`, the Parquet reader, `data/synthetic`, the committed OTL 91k tree and the workflow file.
+
+What the tests do not cover: real raster output (pixels), a real GPU, other browsers, touch devices, `ParquetSource` against data (its script needs
+git-ignored files and servers), and line coverage was not measured. `draw.ts` has no direct test (the golden test checks what `draw.ts` and `hit.ts`
+derive from a summary's extent; `columns.ts` is tested against a fake context).
 
 Standalone scripts (not part of `npm test` unless stated):
 
 | Script | What it checks or measures | Needs |
 |---|---|---|
-| `node --experimental-transform-types scripts/check-radial-cut.mjs [--tips N] [--budget N]` | Regression of the cut, budget, culling, summaries, runs and hit-testing on the committed 10k Yule tree (sections 1 to 12, listed in its header). Prints `OK` and exits 0. About 2 s here (1.8 s wall, run on 2026-10-21); the OTL 91k sections are skipped when the git-ignored OTL file is absent | no browser; `data/synthetic` (committed), optionally the OTL file under `data/real-ladder/fetched/` |
+| `node --experimental-transform-types scripts/check-radial-cut.mjs [--tips N] [--budget N]` | Regression of the cut, budget, culling, summaries, runs and hit-testing on the committed 10k Yule tree (sections 1 to 12, listed in its header). Prints `OK` and exits 0. About 2 s here (1.8 s wall, run on 2026-10-21). The sections on the real OTL 91k tree read `data/real-ladder/trees/otl-100k-vertebrata.nwk.gz`, which is committed, so CI runs them; if the file is missing the script prints a `SKIP ... OTL sections skipped` line | no browser; the committed `data/synthetic` 10k tree and the committed OTL tree |
 | `node --experimental-transform-types scripts/capture-cut-golden.mjs [out.json]` | Rewrites `test/cut-golden.json` (the golden draw lists of `test/cut-golden.test.mjs`) from the current code, one case per line. See "Recapturing the cut goldens" | |
-| `node scripts/check-radial-ui.mjs [--port 5306]` | Browser check on a 10k tree, radial: hover and click on summaries, clade colouring, highlight and focus inside a summary, no redraw on hover, reduced frames while wheeling and a full frame after, progressive detail | the production build served on 5306; Playwright (`playwright-core`, resolved from `spikes/runner/package.json`, i.e. `spikes/node_modules`) and Chromium at `/opt/pw-browsers/chromium-1194` |
+| `node scripts/check-radial-ui.mjs [--port 5306]` | Browser check in the built demo: on a 10k tree, radial: hover and click on summaries, clade colouring, highlight and focus inside a summary, no redraw on hover, reduced frames while wheeling and a full frame after, progressive detail. Then the renderer driven directly (through `window.__customTree`): double click on a clade with a source whose ids are not its rows, columns, `tipHref` link mode, 14 `setOptions` combinations, setters that must not redraw on equal input, two instances, mount/unmount cycles. Normally run through `npm run test:browser` | the production build served on 5306 (or the port given); Playwright (`playwright-core`, resolved from `spikes/runner/package.json`); Chromium as for `test:browser` |
 | `node --experimental-transform-types scripts/check-parquet-source.mjs [--name ..] [--tree ..] [--app ..] [--pq ..]` | `ParquetSource` against the full tree parsed from the Newick: first view request count, rollups equal `computeLayout`, stub clicks, loading by zooming, radial | three things running: the Range server (`spikes/parquet-experiment/server.mjs`), the Vite dev server on 5307, and the git-ignored Parquet files and Newick. Regeneration: `docs/results/treesource-slice.md` |
 
 Benchmarks (`bench/`, all headless Chromium without a GPU, one browser at a time, all need the production build served; the raw numbers
@@ -116,15 +118,15 @@ Related, from the measured work: the two cut loops in `lod.ts` are separate on p
 
 ## Module map
 
-Line counts are `wc -l` of the committed files at the commit named in the heading; they include comments. `renderer.ts` is still about a
+Line counts are `wc -l` of the committed files at the commit named below; they include comments. `renderer.ts` is still about a
 thousand lines by design: it keeps the public API, `render()`, `drawTop`, hover, the notice and the interaction-LOD state, because those are
 tied to the frame loop; only the parts with one job were moved out. It is a facade, not a fully decomposed class.
 
-As of commit e122a53 (`wc -l` of the committed files, 2026-10-21):
+As of commit 3317ca7 (`wc -l` of the committed files, 2026-10-21):
 
 | File | Lines | Job |
 |---|---|---|
-| `src/core/types.ts` | 232 | public types: `TreeData`, `TreeSnapshot`, `RendererOptions` and defaults, `NodeEvent`, `FrameStats`, theme |
+| `src/core/types.ts` | 233 | public types: `TreeData`, `TreeSnapshot`, `RendererOptions` and defaults, `NodeEvent`, `FrameStats`, theme |
 | `src/core/source.ts` | 97 | `TreeSource` interface, `InMemorySource` |
 | `src/core/layout.ts` | 159 | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); cos/sin cache |
 | `src/core/geom.ts` | 95 | `makeTransform` (viewport to px), sector bounding boxes |
@@ -132,7 +134,7 @@ As of commit e122a53 (`wc -l` of the committed files, 2026-10-21):
 | `src/core/lod.ts` | 654 | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R |
 | `src/core/draw.ts` | 561 | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer` |
 | `src/core/hit.ts` | 314 | `HitIndex`: uniform grid over the draw list, candidate scoring |
-| `src/core/columns.ts` | 326 | bar / text / alignment columns: compile by tip rank, draw, `cellRect`, `updateColumns` |
+| `src/core/columns.ts` | 328 | bar / text / alignment columns: compile by tip rank, draw, `cellRect`, `updateColumns` |
 | `src/core/renderer.ts` | 1,076 | `TreeRenderer` facade: DOM, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, public API |
 | `src/core/view-state.ts` | 384 | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM) |
 | `src/core/input.ts` | 298 | `InputController`: wheel, pointer, pinch, click, key events to calls on a host |
@@ -145,7 +147,7 @@ As of commit e122a53 (`wc -l` of the committed files, 2026-10-21):
 | `src/core/dom.ts` | 11 | `mk`, `SR_ONLY` |
 | `src/core/constants.ts` | 85 | tuning constants and numeric limits |
 | `src/core/index.ts` | 8 | public exports of the core |
-| `src/react/TreeView.tsx` | 357 | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent` |
+| `src/react/TreeView.tsx` | 371 | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent` |
 | `src/react/props.ts` | 38 | `useShallowStable` and the equality helpers behind the prop identity rules |
 | `src/parquet/ParquetSource.ts` | 384 | `ParquetSource`: a partial `TreeSource` over Parquet files (proof of concept) |
 | `src/parquet/page.tsx` | 103 | dev page `parquet.html` |
@@ -153,7 +155,35 @@ As of commit e122a53 (`wc -l` of the committed files, 2026-10-21):
 | `src/adapter.tsx` | 478 | harness adapter (the `spikes/shared` contract) over `<TreeView>` |
 | `src/demo.tsx` | 91 | dev page `demo.html`: two linked instances |
 | `src/main.tsx` | 5 | entry of the harness page |
-| **Total, `src/`** | **6,734** | |
+| **Total, `src/`** | **6,751** | |
+
+Scripts and tests:
+
+| File | Lines | Job |
+|---|---|---|
+| `scripts/check-radial-cut.mjs` | 583 | regression of the cut on real trees (also run by `npm test`) |
+| `scripts/check-radial-ui.mjs` | 624 | browser check of the renderer in the built demo |
+| `scripts/test-browser.mjs` | 82 | `npm run test:browser`: build, serve, run the browser check, stop the server |
+| `scripts/capture-cut-golden.mjs` | 57 | rewrites the cut goldens from the current code |
+| `scripts/check-parquet-source.mjs` | 252 | `ParquetSource` check (needs Parquet files and servers) |
+| `test/layout.test.mjs` | 66 | layout invariants (X, ROW, XMAX, LAST) on a tiny tree; the template for core unit tests |
+| `test/projection.test.mjs` | 139 | projections, the cut written once on top of them, per-renderer text measurer |
+| `test/cut-golden.test.mjs, cut-golden-cases.mjs, cut-golden.json` | 451 | 168 golden cases of the cut (draw list and `CutResult`), captured at e2897fb; recapture: `scripts/capture-cut-golden.mjs` |
+| `test/lod.test.mjs` | 204 | `Seen`, `DrawList` growth, the `searchCut` ladder |
+| `test/cut-stub.test.mjs, partial-snapshot.mjs` | 306 | the partial-source path (stubs, `globalId`, rollups) through layout, cut and hit; `partial-snapshot.mjs` is a helper, a miniature of `ParquetSource.build()` |
+| `test/geom.test.mjs` | 140 | transforms of both layouts, sector bounding boxes against a brute-force sample, `viewportEquals` |
+| `test/hit-rect.test.mjs` | 189 | rectangular hit-testing: tip, marker, branch, connector, collapsed clade, run |
+| `test/columns.test.mjs` | 455 | column compile, bar scale, `cellRect`, `drawColumns` on a fake context |
+| `test/view-state.test.mjs` | 329 | viewport arithmetic: area, fit, limits, zoom, target windows, animation |
+| `test/input.test.mjs, input-gestures.test.mjs` | 466 | `InputController`: wheel, drag, click, pinch, keys, with a fake element and host |
+| `test/keyboard.test.mjs` | 87 | keyboard cursor and `makeNodeEvent` |
+| `test/overlay.test.mjs` | 285 | `LabelOverlay` with a fake document: pool, transforms, links, screen reader list |
+| `test/overview.test.mjs` | 79 | overview geometry |
+| `test/detail-loader.test.mjs` | 162 | `DetailLoader` with a fake partial source |
+| `test/live.test.mjs` | 59 | `live()` |
+| `test/react-props.test.mjs` | 118 | prop helpers (`props.ts`), theme comparison, column reuse in `updateColumns` |
+| `test/radial-cut.test.mjs` | 19 | runs `scripts/check-radial-cut.mjs` as a child process |
+| **Total, `test/`** | **3,554** | |
 
 ## How to extend
 
@@ -165,8 +195,8 @@ As of commit e122a53 (`wc -l` of the committed files, 2026-10-21):
 3. If changing it must do more than redraw (refit, rebuild the layout, reset the threshold hint, clear the overlay), add that to `setOptions` in
    `renderer.ts`. A numeric tuning value that is not an option goes in `src/core/constants.ts`.
 4. React: nothing, if it is a field of `RendererOptions`. `<TreeView>` passes every field of its `options` prop (except `layout`, `branchLengths`
-   and `tipHref`, which are props) to `setOptions`, so adding an option touches `types.ts` and the code that reads it (commit e122a53; before it,
-   `TreeView.tsx` listed each option twice). The harness adapter (`src/adapter.tsx`) lists its own library options separately.
+   and `tipHref`, which are props) to `setOptions`, so adding an option touches `types.ts` and the code that reads it (commits e122a53 and 3317ca7; before them,
+   `TreeView.tsx` listed each option twice). A key absent from `options` is the default from `DEFAULT_OPTIONS`.. The harness adapter (`src/adapter.tsx`) lists its own library options separately.
 5. Document it in [docs/api.md](docs/api.md) and add a test if it changes geometry (`test/` has the pattern: import the module, build a tree
    from `spikes/shared/newick.ts`, assert).
 
@@ -192,7 +222,7 @@ the cut is not (see below).
 `ColumnKind` and `Column` are in `types.ts`. In `columns.ts`: `compileColumn` turns a spec into arrays by tip rank once (values are looked up by
 tip label there), `drawColumns` draws the visible rows, `cellRect` returns the cell of a tip rank for `columnCell`, `columnsWidth` /
 `layoutColumns` place them to the right of the plot, `updateColumns` / `columnSpecEquals` decide what `setColumns` recompiles (a column is compared by
-`id`, `kind`, `header`, `width` and `values` by reference). Columns are drawn in the rectangular layout only. `renderer.ts` calls `compileColumns` /
+`id`, `kind`, `header`, `width` and `values` by reference). Column ids must be unique: a duplicate id is recompiled on every call. Columns are drawn in the rectangular layout only. `renderer.ts` calls `compileColumns` /
 `drawColumns` from `setColumns` and `render()`; the header and the width come from the spec, so a new kind usually touches only `columns.ts`.
 
 ### Add a TreeSource
@@ -236,15 +266,24 @@ After a deliberate change of the cut's output: `node --experimental-transform-ty
 file byte for byte, so `git diff test/cut-golden.json` shows exactly which cases moved; review that diff like any behaviour change, and say in
 the commit why the output moved.
 
-## React identity (landed in e122a53; being changed by the React-layer / test work in flight, see the commit log)
+## React identity
 
-The rules are written in the JSDoc of `TreeViewProps` in `src/react/TreeView.tsx`; read them there. In short: `options` and `theme` are compared
-field by field (`src/react/props.ts`, `useShallowStable`), so an inline object with the same values is no change, but a function-valued option
-(`formatLabel`) or `tipHref` is compared by identity and an inline arrow counts as a change on every render. `highlighted` is compared
-element-wise, `clades` by content, `viewport` by its four numbers, `Column.values` BY REFERENCE (pass the same object while the data is unchanged,
-never mutate it in place). The renderer's own setters (`setOptions`, `setTheme`, `setHighlighted`, `setColumns`, `setClades`) are no-ops for equal
-input, so a direct user of the core gets the same behaviour. A new `tree` / `source`, or a changed `options.softwareCanvas`, re-creates the
-renderer and so resets the view.
+The rules are written in the JSDoc of `TreeViewProps` in `src/react/TreeView.tsx`; read them there. In short:
+
+* `options` and `theme` are compared field by field (`src/react/props.ts`, `useShallowStable`), so an inline object with the same values is no change. A
+  function-valued option (`formatLabel`) or `tipHref` is compared by identity, so an inline arrow counts as a change on every render: hoist it or
+  wrap it in `useCallback`.
+* The renderer's options are built as `{...DEFAULT_OPTIONS, ...stripUndefined(options), layout, branchLengths, tipHref}`: a key removed from
+  `options` (or set to `undefined`) reverts to its default; it does not keep the old value.
+* `highlighted` is compared element-wise, `clades` by content, `viewport` by its four numbers, `focus` acts when `seq` changes.
+* `columns`: compared per column by `id`, `kind`, `header`, `width` and `values` BY REFERENCE, and column objects by reference first. Replace a
+  column object (and its `values`) when the data changed; never mutate either in place. Ids must be unique.
+* The renderer's own setters (`setOptions`, `setTheme`, `setHighlighted`, `setColumns`, `setClades`) are no-ops for equal input, so a direct user of
+  the core gets the same behaviour.
+* The prop-sync effects act only on the live renderer (`liveRenderer` in `TreeView.tsx`), so no setter runs on an instance that was destroyed by a
+  strict-mode remount or a `source` swap. A new `tree` / `source`, or a changed `options.softwareCanvas`, re-creates the renderer and so resets the view.
+
+Introduced in `e122a53`, corrected in `3317ca7`.
 
 ## Known limits and open work
 

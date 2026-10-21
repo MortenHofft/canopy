@@ -1,8 +1,9 @@
 # API reference: custom renderer core and `<TreeView>`
 
 One or two lines per entry; the detail is in the source comments, linked per section. Types are in
-[`src/core/types.ts`](../src/core/types.ts) unless said otherwise. Defaults are `DEFAULT_OPTIONS` in that file. The `<TreeView>` section is being
-changed by the React-layer work in flight (prop identity); re-read [`src/react/TreeView.tsx`](../src/react/TreeView.tsx) for the current props.
+[`src/core/types.ts`](../src/core/types.ts) unless said otherwise. Defaults are `DEFAULT_OPTIONS` in that file. The identity rules of the `<TreeView>` props
+(what counts as changed) are in the JSDoc of `TreeViewProps` in [`src/react/TreeView.tsx`](../src/react/TreeView.tsx) and summarised in the
+[README](../README.md).
 
 Everything is imported from `src/core/index.ts` (core, no React) or `src/react/TreeView.tsx`.
 
@@ -34,7 +35,7 @@ State setters
 | `setTheme(theme)` | new colours and font (no-op when every field is equal); redraws (and clears the label overlay so fonts are re-measured) |
 | `setClades(clades: CladeColour[])` | colour clades; `node` is the preorder id (full tree), later entries win; nodes not in the snapshot are skipped |
 | `setHighlighted(tipIds: string[])` | highlight tips by label (row band, ring, bold label, overview ticks); unknown labels are ignored; no-op for the same ids in the same order |
-| `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` compared by reference); refits when the total width changes |
+| `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` compared by reference, ids must be unique); refits when the total width changes |
 
 Navigation and view
 
@@ -149,12 +150,12 @@ Props (all optional, but one of `tree` / `source` is needed):
 | `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`) |
 | `clades` | `{nodeId: 'n<preorder id>', colour}[]` |
 | `highlighted` | tip labels to highlight |
-| `columns` | `Column[]` |
+| `columns` | `Column[]`; replace a column and its `values` when the data changes, never mutate them; ids unique |
 | `viewport` | controlled `Viewport`; omit for uncontrolled |
 | `theme` | `Partial<TreeTheme>` over `FALLBACK_THEME` |
 | `tipHref` | `(tipId) => url` or `null` |
 | `focus` | `{tipId, seq}`: centre that tip; acts when `seq` changes |
-| `options` | any `RendererOptions` field except `layout`, `branchLengths`, `tipHref`; `softwareCanvas` re-creates the renderer |
+| `options` | any `RendererOptions` field except `layout`, `branchLengths`, `tipHref`; a key that is absent or `undefined` is the default (removing a key reverts it); `softwareCanvas` re-creates the renderer |
 | `tooltip` | `true` (default tooltip), `false`, or `(e: TreeNodeEvent) => ReactNode` |
 | `width`, `height`, `className`, `style` | the wrapper's size (default 100%) and styling |
 | `onNodeClick`, `onTipClick`, `onHover`, `onViewportChange`, `onFrame`, `onReady` | callbacks; `onReady({layoutMs, tips})` fires two animation frames after creation |
