@@ -125,6 +125,9 @@ function farthestTip(t: TreeInput, dist: Float64Array): number {
   return best;
 }
 
+/** Relative to the diameter: how close to a node a midpoint must be to count as on it (see midpointRoot). */
+const SNAP = 1e-6;
+
 export interface MidpointInfo {
   /** The two tips farthest apart (node indexes in the INPUT tree) and their distance. */
   tips: [number, number];
@@ -155,10 +158,13 @@ export function midpointRoot(t: TreeInput): OpResult & { info: MidpointInfo } {
     const p = t.parent[v];
     if (v > 0 && onPath(p) && dist[p] >= half - eps) {
       const w = t.length[v] > 0 ? t.length[v] : 0;
-      let at = w > 0 ? Math.min(1, Math.max(0, (half - dist[v]) / w)) : 0;
-      // a midpoint on a node (within rounding) roots at that node instead of next to it on a zero-length edge
-      if (at > 1 - 1e-9) at = 1;
-      else if (at < 1e-9) at = 0;
+      const above = Math.min(w, Math.max(0, half - dist[v])); // distance of the midpoint above v
+      let at = w > 0 ? above / w : 0;
+      // A midpoint on a node roots at that node, not next to it. "On" allows for rounding in the file: Newick lengths are written with
+      // a few decimals, so a dated tree's tips differ in depth by about 1e-6 and its exact midpoint lands that far from the root.
+      // Within SNAP of the diameter the midpoint counts as the node (a dated tree then comes back unchanged).
+      if (w - above <= SNAP * D) at = 1;
+      else if (above <= SNAP * D) at = 0;
       return { ...reroot(t, v, { at }), info };
     }
   }

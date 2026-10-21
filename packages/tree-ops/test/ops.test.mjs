@@ -340,3 +340,16 @@ test('ladderise on an already ladderised tree changes nothing', () => {
   assert.equal(ladderise(t).changed, false);
   assert.equal(ladderise(t, { order: 'decreasing' }).changed, true);
 });
+
+test('midpoint: within 1e-6 of the diameter counts as on a node (lengths rounded in the file)', () => {
+  // dated tree written with 6 decimals: tip depths differ by up to 2e-6, the exact midpoint is ~1e-6 from the root
+  const t = parseNewick('((A:1.000001,B:1):1,(C:1.000002,D:1):1);');
+  assert.equal(midpointRoot(t).changed, false);
+  // a real offset still moves the root
+  const u = parseNewick('((A:1.1,B:1):1,(C:1,D:1):1);');
+  const r = midpointRoot(u);
+  assert.equal(r.changed, true);
+  // longest path A-C = 4.1, midpoint 2.05 from A: 0.05 below the root on the (A,B) side
+  const [ab, cd] = r.tree.children(0);
+  assert.ok(Math.abs(r.tree.length[ab] - 0.95) < 1e-12 && Math.abs(r.tree.length[cd] - 1.05) < 1e-12, nwk(r.tree));
+});
