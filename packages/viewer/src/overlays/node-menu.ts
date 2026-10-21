@@ -55,7 +55,7 @@ export class NodeMenu extends BaseControl {
   protected attach(v: TreeViewer): void {
     if (this.refocus) {
       this.refocus = false;
-      v.element.focus();
+      v.focus();
     }
     this.listen(v.on('click', (e) => this.openAt(v, e), { asDefault: true }));
     this.listen(v.on('hover', (e) => this.open && e?.preventDefault()));
@@ -131,7 +131,7 @@ export class NodeMenu extends BaseControl {
     this.element.removeAttribute('role');
     this.element.removeAttribute('aria-label');
     delete this.element.dataset.treeviewMenu;
-    if (refocusTree) this.viewer?.element.focus();
+    if (refocusTree) this.viewer?.focus();
   }
 
   private choose(it: NodeMenuItem): void {

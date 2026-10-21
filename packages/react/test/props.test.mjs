@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { shallowEqualOwn, stripUndefined } = await import(path.join(root, 'packages/react/src/props.ts'));
+const { shallowEqualOwn, stripUndefined, changedKeys } = await import(path.join(root, 'packages/react/src/props.ts'));
 const { themeEquals, FALLBACK_THEME } = await import(path.join(root, 'packages/viewer/src/types.ts'));
 const { updateColumns, columnSpecEquals } = await import(path.join(root, 'packages/viewer/src/columns.ts'));
 
@@ -115,4 +115,14 @@ test('updateColumns: a duplicate id never shares one compiled object', () => {
   assert.notEqual(dup.columns[0], dup.columns[1]);
   assert.ok(!dup.same);
   assert.ok(!updateColumns(tree, dup.columns, [colSpec('d', v), colSpec('d', v)]).same, 'documented: never "same" with a duplicate id');
+});
+
+test('changedKeys: the keys whose values differ (Object.is), over the keys of both sets', () => {
+  const f = () => 1;
+  assert.deepEqual(changedKeys({ layout: 'rectangular', lod: true, f }, { layout: 'rectangular', lod: true, f }), []);
+  assert.deepEqual(changedKeys({ layout: 'rectangular', labelDensity: 'normal' }, { layout: 'rectangular', labelDensity: 'dense' }), [
+    'labelDensity',
+  ]);
+  assert.deepEqual(changedKeys({ a: 1 }, { b: 2 }).sort(), ['a', 'b'], 'a key on one side only counts as changed');
+  assert.deepEqual(changedKeys({ x: NaN }, { x: NaN }), [], 'NaN equals NaN under Object.is');
 });

@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { chromiumPath } from '../scripts/chromium.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
@@ -31,7 +32,7 @@ if (file.endsWith('.gz')) text = zlib.gunzipSync(text);
 text = text.toString('utf8');
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: [
     '--no-sandbox',

@@ -5,11 +5,12 @@
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { stripUndefined, useShallowStable, useStable } from './props.ts';
+import { changedKeys, stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
-  defaultControls,
+  Zoom,
+  Fit,
   NodeMenu,
   Tooltip,
   defaultTooltip as defaultTooltipFor,
@@ -76,6 +77,8 @@ export interface CladeProp {
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
  *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
  *    them once (`useMemo` / `useState`), not inline: `defaultControls()` in render makes new controls every time.
+ *  - `layout`, `branchLengths` and the fields of `options` act when their value changes: a change made on the viewer itself (by the
+ *    LayoutToggle control, say) stays until that prop changes; they are not re-applied when another prop changes.
  *  - `tree` / `source`: a new one re-creates the renderer (and so resets the view).
  *  - callbacks are read at call time and never trigger anything.
  */
@@ -97,7 +100,7 @@ export interface TreeViewProps {
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
-  /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default `defaultControls()` (zoom and fit), [] for none. */
+  /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
   controls?: Control[];
   /** The hover tooltip: true (default content), false, or your content for the event (rendered into the viewer's tooltip box). */
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
@@ -233,8 +236,18 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setTheme(themeOverrides);
   }, [R, rendRef, themeOverrides]);
+  // Only the options whose prop changed since the last render are applied: an option changed on the viewer itself (the LayoutToggle
+  // control sets `layout`) stays until its prop changes, instead of being reset whenever some other option prop changes.
+  const applied = useRef<{ r: TreeViewer; o: ViewerOptions } | null>(null);
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setOptions(rendererOptions);
+    const r = liveRenderer(R, rendRef);
+    if (!r) return;
+    const prev = applied.current;
+    applied.current = { r, o: rendererOptions };
+    if (!prev || prev.r !== r) return r.setOptions(rendererOptions); // a new viewer: the whole set (it was created with it anyway)
+    const patch: Partial<ViewerOptions> = {};
+    for (const k of changedKeys(prev.o, rendererOptions)) (patch as Record<string, unknown>)[k] = rendererOptions[k];
+    r.setOptions(patch);
   }, [R, rendRef, rendererOptions]);
   // `source` is in the dependency list of the next two only because their bodies read it; the new viewer's first run is triggered by `R`
   useLayoutEffect(() => {
@@ -251,7 +264,8 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
-  const [ownControls] = useState(() => defaultControls());
+  // the default is Zoom and Fit themselves, not defaultControls(): that would bundle every control into every app using <TreeView>
+  const [ownControls] = useState<Control[]>(() => [new Zoom(), new Fit()]);
   const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));
   const hasMenu = props.nodeMenu !== undefined;
   useLayoutEffect(() => {

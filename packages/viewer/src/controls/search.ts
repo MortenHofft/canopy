@@ -52,6 +52,7 @@ export class Search extends BaseControl {
     this.list.id = id;
     this.list.className = 'phylo-search__list';
     this.list.setAttribute('role', 'listbox');
+    this.list.dataset.phyloScroll = ''; // scrolls itself: the wheel over it does not zoom the tree
     this.list.hidden = true;
     this.element.append(icon, this.input, this.list);
   }

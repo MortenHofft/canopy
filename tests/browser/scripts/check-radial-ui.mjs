@@ -16,6 +16,7 @@ import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromiumPath } from './chromium.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
 const require = createRequire(import.meta.url);
@@ -30,8 +31,7 @@ const ok = (c, m) => {
   if (!c) failures++;
 };
 
-const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const executablePath = process.env.CHROMIUM_PATH || (fs.existsSync(SANDBOX_CHROMIUM) ? SANDBOX_CHROMIUM : undefined); // undefined: Playwright's own
+const executablePath = chromiumPath(); // undefined: Playwright's own
 const browser = await chromium.launch({
   executablePath,
   headless: true,

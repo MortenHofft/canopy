@@ -45,7 +45,7 @@ package, two requests in all:
 ```
 
 Copy `css/viewer.css`, `dist/browser/viewer.js` and `io`'s `dist/browser/io.js` to your server, or point at a CDN once the packages are
-published. The single-file build includes every control (33.4 kB gzip); bundler users import the package itself and get only what they
+published. The single-file build includes every control (33.6 kB gzip); bundler users import the package itself and get only what they
 use. See [`examples/no-build`](../../examples/no-build).
 
 Docs:

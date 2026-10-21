@@ -60,7 +60,8 @@ export interface Viewport {
 /** The canvas theme: colours, font and the sizes and opacities of what is drawn. Every field can be set as a CSS custom property
  *  (`--phylo-<field name in kebab case>`, see THEME_CSS_VARS in theme.ts), with `setTheme`, or both (setTheme wins). */
 export interface TreeTheme {
-  /** Dark background: chooses lighter hover and summary shades where the theme gives none. Derived from `background` when read from CSS. */
+  /** The background is dark. Informational, for apps and custom controls: the drawing code does not read it. From `--phylo-dark`, or
+   *  derived from the background's luminance when the theme comes from CSS. */
   dark: boolean;
   background: string;
   foreground: string; // labels, axis text

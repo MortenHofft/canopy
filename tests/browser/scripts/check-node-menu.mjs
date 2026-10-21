@@ -9,6 +9,7 @@
 // restores the tree as published; a clade click highlights nothing; collapse by support is a view (a lower threshold or
 // unticking brings branches back, colours survive); midpoint on a dated tree says the root already is the midpoint.
 import { createRequire } from 'node:module';
+import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
 const { PNG } = require('pngjs');
@@ -22,7 +23,7 @@ const ok = (c, m) => {
 };
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: ['--no-sandbox'],
 });

@@ -36,3 +36,9 @@ export function useStable<T>(value: T, equals: (a: T, b: T) => boolean): T {
 export function useShallowStable<T extends object>(value: T): T {
   return useStable(value, shallowEqualOwn);
 }
+
+/** The keys whose values differ (Object.is) between two option sets, over the keys of both. */
+export function changedKeys<T extends object>(prev: T, next: T): (keyof T)[] {
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)] as (keyof T)[]);
+  return [...keys].filter((k) => !Object.is(prev[k], next[k]));
+}

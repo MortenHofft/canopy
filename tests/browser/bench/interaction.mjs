@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import { createRequire } from 'node:module';
+import { chromiumPath } from '../scripts/chromium.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
@@ -15,7 +16,7 @@ const port = Number(args.port || 5306),
 const text = fs.readFileSync(args.tree, 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-rasterization'],
 });

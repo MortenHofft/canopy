@@ -34,7 +34,7 @@ const cutoff = args.cutoff || null; // after build: radial cut-off to set throug
 const tag = args.tag || 'run';
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: [
     '--no-sandbox',
@@ -48,6 +48,7 @@ const browser = await chromium.launch({
   ],
 });
 import os from 'node:os';
+import { chromiumPath } from '../scripts/chromium.mjs';
 const out = { tag, dsf, cpu, port, cutoff, date: new Date().toISOString(), rows: [] };
 
 const INIT = `

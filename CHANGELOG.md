@@ -14,3 +14,14 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **`<TreeView>`.** New `controls` prop. `theme` holds overrides only. `TreeNodeEvent` is the viewer's `TreeEvent`, so `tipRange` is now `tipStart` / `tipEnd`.
 - **No build step.** Single-file browser builds `@gbif-phylo/viewer/browser` and `@gbif-phylo/io/browser`, and `examples/no-build`, a plain HTML page with an import map, plus its browser check.
 - **Examples and checks.** A framework-free example. Browser checks for the test page and both examples. A package check covering publint, the tarball contents, tree shaking and sizes.
+- **Review fixes.** These come from an adversarial review of the branch.
+  - The browser checks fall back to Playwright's own Chromium, as on a CI runner (`tests/browser/scripts/chromium.mjs`).
+  - A control has one viewer: adding it to a second viewer removes it from the first.
+  - The wheel over a control or the overview zooms the tree instead of scrolling the page, except inside lists marked `data-phylo-scroll`.
+  - `<TreeView>` applies only the options whose prop changed, so a layout chosen with `LayoutToggle` is no longer reverted.
+  - The viewer's element holds the `role="tree"` element and the control layer as siblings, so controls and popups are no longer inside the tree role. New `treeElement` and `focus()`.
+  - A listener removed during an emit is no longer called by it.
+  - `TreeTheme.dark` is documented as informational.
+  - Builds clean `dist/` first, and the package check fails on output without a source.
+  - `<TreeView>`'s default controls no longer bundle every control: 31.4 kB gzip instead of 34.3 kB.
+

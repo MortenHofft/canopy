@@ -14,7 +14,8 @@
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dark
  *
- * Class names: .phylo-viewer (the root), .phylo-controls--<corner>, .phylo-control and .phylo-<name> per control, .phylo-button,
+ * Class names: .phylo-viewer (what the viewer adds to its target), .phylo-tree (the tree element, role=tree),
+ * .phylo-controls--<corner>, .phylo-control and .phylo-<name> per control, .phylo-button,
  * .phylo-bar (a group of buttons), .phylo-tooltip, .phylo-node-menu, .phylo-legend, .phylo-search, .phylo-overview, .phylo-notice.
  */
 
@@ -25,7 +26,7 @@
   background: var(--phylo-background, #ffffff);
 }
 
-.phylo-viewer:focus-visible {
+.phylo-tree:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--phylo-highlight, #4c9b45);
 }

@@ -38,6 +38,7 @@ function fakeViewer() {
     nodePosition: (id) => positions.get(id) ?? null,
     tipNode: (label) => tree.tipIndex(label),
     getTree: () => tree,
+    focus: () => element.focus(),
     event: (node, via = 'pointer', x = 120, y = 60) =>
       toTreeEvent(makeNodeEvent(tree, node, tree.childCount[node] ? 'node' : 'tip', via, x, y), source),
   };

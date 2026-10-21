@@ -38,6 +38,12 @@ for (const name of PACKAGES) {
   }
   ok(!messages.some((m) => m.type !== 'suggestion'), 'publint: no errors or warnings');
   ok(fs.readFileSync(path.join(dir, 'LICENSE'), 'utf8') === licence, 'LICENSE is the repository licence');
+  // every emitted module has a source module (a renamed or deleted source must not leave its old output in the package)
+  const stale = fs
+    .readdirSync(path.join(dir, 'dist'), { recursive: true })
+    .filter((f) => f.endsWith('.js') && !f.startsWith('browser'))
+    .filter((f) => !['.ts', '.tsx'].some((x) => fs.existsSync(path.join(dir, 'src', f.replace(/\.js$/, x)))));
+  ok(stale.length === 0, `dist/ has no output without a source${stale.length ? ': ' + stale.join(', ') : ''}`);
   const [packed] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: dir, encoding: 'utf8' }));
   const files = packed.files.map((f) => f.path);
   const unexpected = files.filter((f) => !/^(dist\/|src\/|css\/|README\.md$|LICENSE$|package\.json$)/.test(f));
@@ -95,9 +101,10 @@ const SCENARIOS = [
     forbid: [],
   },
   {
+    // React is external here (a peer dependency); what matters is that the default controls (zoom, fit) do not pull in the others
     name: 'react: TreeView',
     code: `import { TreeView } from '@gbif-phylo/react'; console.log(TreeView);`,
-    forbid: ['node_modules/react'],
+    forbid: ['controls/search.js', 'controls/legend.js', 'controls/defaults.js', 'controls/layout-toggle.js', 'packages/viewer/dist/overview.js'],
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 ];

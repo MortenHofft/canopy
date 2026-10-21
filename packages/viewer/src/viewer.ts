@@ -81,6 +81,8 @@ export interface ViewerInternals {
 }
 
 const INTERNALS = new WeakMap<TreeViewer, ViewerInternals>();
+/** The viewer a control is on (a control has one at a time). */
+const OWNER = new WeakMap<Control, TreeViewer>();
 
 /** @internal See `ViewerInternals`. */
 export function viewerInternals(v: TreeViewer): ViewerInternals {
@@ -93,7 +95,11 @@ const CORNERS: Exclude<ControlPosition, 'custom'>[] = ['top-left', 'top-right', 
 
 export class TreeViewer {
   // ------------------------------------------------------------- DOM
+  /** The tree element: role="tree", focusable, the canvases, labels and screen-reader list; the input controller listens on it. */
   readonly root: HTMLDivElement;
+  /** What the viewer appended to its target (class phylo-viewer): the tree element and, beside it (not inside the tree role), the
+   *  control layer. */
+  readonly container: HTMLDivElement;
   private canvas: HTMLCanvasElement;
   private top: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -215,6 +221,8 @@ export class TreeViewer {
     this.vs = new ViewState(this.viewEnv(), this.viewEvents());
 
     const fill = 'position:absolute;left:0;top:0;width:100%;height:100%;';
+    this.container = mk('div', 'position:relative;width:100%;height:100%;overflow:hidden');
+    this.container.className = 'phylo-viewer';
     this.root = mk(
       'div',
       'position:relative;width:100%;height:100%;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;outline:none;cursor:grab',
@@ -224,6 +232,7 @@ export class TreeViewer {
     this.root.setAttribute('aria-label', this.opts.ariaLabel);
     this.root.setAttribute('aria-roledescription', 'phylogenetic tree viewer');
     this.root.dataset.treeview = '';
+    this.root.className = 'phylo-tree';
     this.canvas = mk('canvas', fill);
     this.canvas.setAttribute('aria-hidden', 'true');
     this.top = mk('canvas', fill + 'pointer-events:none');
@@ -242,8 +251,9 @@ export class TreeViewer {
     this.uiLayer = mk('div', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none');
     this.uiLayer.className = 'phylo-ui';
     this.uiLayer.dataset.phyloUi = '';
-    this.root.append(this.canvas, this.top, this.overlay.layer, this.notice, this.uiLayer, this.overlay.srList, this.overlay.live);
-    this.root.classList.add('phylo-viewer');
+    this.root.append(this.canvas, this.top, this.overlay.layer, this.notice, this.overlay.srList, this.overlay.live);
+    // the control layer is the tree element's sibling: a tree may only own tree items, so menus, buttons and the search field stay out
+    this.container.append(this.root, this.uiLayer);
     // the theme from CSS custom properties of the target (and its ancestors); re-read when the colour scheme preference changes
     this.cssTheme = themeFromCss(this.host);
     this.theme = { ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides };
@@ -252,12 +262,14 @@ export class TreeViewer {
       this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
       this.schemeQuery.addEventListener?.('change', this.onScheme);
     }
-    this.host.appendChild(this.root);
+    this.host.appendChild(this.container);
     const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
     this.ctx = this.canvas.getContext('2d', cc)!;
     this.topCtx = this.top.getContext('2d', { willReadFrequently: this.opts.softwareCanvas })!;
 
     this.input = new InputController(this.root, this.inputHost());
+    // the wheel over controls and the overview zooms the tree as it does over the tree, except inside parts that scroll themselves
+    this.uiLayer.addEventListener('wheel', this.onUiWheel, { passive: false });
     this.root.addEventListener('focusin', this.onFocusIn);
     this.root.addEventListener('focusout', this.onFocusOut);
     this.ro = new ResizeObserver(() => {
@@ -288,6 +300,11 @@ export class TreeViewer {
   }
 
   private onFonts = () => this.invalidate(true);
+
+  private onUiWheel = (e: WheelEvent) => {
+    if ((e.target as Element | null)?.closest?.('[data-phylo-scroll]')) return; // a list that scrolls: let it
+    this.input.wheel(e);
+  };
 
   // ------------------------------------------------------------- wiring of the modules
   // The modules read the renderer's current fields through live() objects (getters, never copies) and report back through callbacks.
@@ -462,9 +479,12 @@ export class TreeViewer {
   // ---- controls
 
   /** Add a control: its element goes to its corner of the control layer (or to its `target`), then `setViewer(this)` is called.
-   *  Adding a control twice does nothing. */
+   *  Adding a control twice does nothing; a control that another viewer holds is first removed from it (a control has one viewer). */
   addControl(control: Control): void {
     if (this.destroyed || this.controls.includes(control)) return;
+    const owner = OWNER.get(control);
+    if (owner && owner !== this) owner.removeControl(control);
+    OWNER.set(control, this);
     const box = control.target ?? this.cornerBox(control.position ?? 'top-left');
     if (control.target) control.element.dataset.phyloUi = '';
     else control.element.style.pointerEvents = 'auto'; // the layer itself lets events through to the tree
@@ -478,6 +498,8 @@ export class TreeViewer {
     const k = this.controls.indexOf(control);
     if (k < 0) return;
     this.controls.splice(k, 1);
+    if (OWNER.get(control) !== this) return; // moved to another viewer meanwhile: leave it there
+    OWNER.delete(control);
     control.setViewer(null);
     control.element.remove();
   }
@@ -508,9 +530,17 @@ export class TreeViewer {
 
   // ---- state
 
-  /** The element the viewer appended to its target; it holds the canvases, labels, controls and overlays. */
+  /** The element the viewer appended to its target (class phylo-viewer): the tree element and the control layer. */
   get element(): HTMLDivElement {
+    return this.container;
+  }
+  /** The tree element (role="tree", focusable; the canvases and labels). */
+  get treeElement(): HTMLDivElement {
     return this.root;
+  }
+  /** Give keyboard focus to the tree. */
+  focus(): void {
+    this.root.focus({ preventScroll: true });
   }
   /** The tree source the viewer reads (an `InMemorySource` around a `tree` passed in). */
   getSource(): TreeSource {
@@ -605,7 +635,7 @@ export class TreeViewer {
   /** Put the theme in force on the root as custom properties, so the DOM inside it (controls, popups) matches the canvas also when the
    *  theme came from `setTheme` rather than CSS. The viewer reads CSS from its target, never from its root, so this cannot feed back. */
   private syncCssVars(): void {
-    const s = this.root.style;
+    const s = this.container.style;
     const t = this.theme;
     for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily'] as const)
       s.setProperty(THEME_CSS_VARS[k], t[k]);
@@ -943,7 +973,8 @@ export class TreeViewer {
     (document as Document & { fonts?: FontFaceSet }).fonts?.removeEventListener?.('loadingdone', this.onFonts);
     this.schemeQuery?.removeEventListener?.('change', this.onScheme);
     this.input.destroy();
-    this.root.remove();
+    this.uiLayer.removeEventListener('wheel', this.onUiWheel);
+    this.container.remove();
     // release the backing stores
     for (const c of [this.canvas, this.top]) {
       c.width = 0;

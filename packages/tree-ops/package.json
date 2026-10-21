@@ -18,7 +18,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/*.mjs\"",
     "bench": "node --conditions=@gbif-phylo/source --max-old-space-size=8192 --experimental-transform-types bench/tree-ops.mjs"

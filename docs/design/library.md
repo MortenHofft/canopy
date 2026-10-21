@@ -47,8 +47,9 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   or a plain URL, from its own server or a CDN, without npm or a bundler. Tree shaking does not apply there, so it includes every control.
 * **Tree shaking by construction.** The packages are emitted as one ES module per source file (`tsc`, `.ts` imports rewritten), and
   `sideEffects` covers only the CSS. Each built-in control and popup is its own module, and the overview moved out of the viewer into a
-  control. Measured: `TreeViewer` alone is 27.3 kB gzip and bundles no control or popup; with `Zoom` it is 28.1 kB; with `defaultControls` (all
-  controls) 31.4 kB; `<TreeView>` is 34.3 kB without React. `parseNewick` alone is 2.4 kB, and `ladderise` alone 1.1 kB.
+  control. Measured: `TreeViewer` alone is 27.5 kB gzip and bundles no control or popup; with `Zoom` it is 28.3 kB; with `defaultControls` (all
+  controls) 31.6 kB; `<TreeView>` is 31.4 kB without React (its default controls are zoom and fit only). `parseNewick` alone is 2.4 kB,
+  and `ladderise` alone 1.1 kB.
 * **Custom columns draw once per frame.** A `ColumnRenderer` prepares its data when the values change and draws the visible rows in one call.
   That keeps a column of a million tips as cheap as the built-in kinds, and an app is free to summarise rows thinner than a pixel. Columns of
   DOM cells, for example a React component per cell, are not supported. `columnCell()` plus an `Overlay` covers the occasional DOM need.
@@ -67,7 +68,7 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
 * **No web component.** A `<phylo-tree>` custom element would make the viewer usable declaratively, configured by HTML attributes with no
   script written by the page. It would be a thin wrapper like the React one, and it was not written. It is not needed to avoid a build step:
   the viewer is plain ES modules with no dependencies, so a page imports it in a `<script type="module">`. The single-file builds
-  (`@gbif-phylo/viewer/browser`, 33.4 kB gzip with every control; `@gbif-phylo/io/browser`, 3.4 kB) do this in two requests through an import
+  (`@gbif-phylo/viewer/browser`, 33.6 kB gzip with every control; `@gbif-phylo/io/browser`, 3.4 kB) do this in two requests through an import
   map, with `viewer.css` as a stylesheet. `examples/no-build` does exactly that, and `tests/browser/scripts/check-no-build.mjs` checks it from a
   plain static server.
 * **Only partly tested.** As in the spike, the browser tests ran in headless Chromium without a GPU. Other browsers, touch devices and screen

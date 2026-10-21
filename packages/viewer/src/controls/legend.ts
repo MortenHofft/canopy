@@ -31,6 +31,7 @@ export class Legend extends BaseControl {
     this.list = document.createElement('ul');
     this.list.className = 'phylo-legend__list';
     this.element.append(this.heading, this.list);
+    this.element.dataset.phyloScroll = ''; // scrolls itself (long lists): the wheel over it does not zoom the tree
     this.element.hidden = true;
   }
 

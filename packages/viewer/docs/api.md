@@ -45,7 +45,8 @@ Properties
 
 | Member | Meaning |
 |---|---|
-| `element` / `root` | the element the viewer added to `target` (class `phylo-viewer`) |
+| `element` | what the viewer added to `target` (class `phylo-viewer`): the tree element and, beside it, the control layer |
+| `treeElement` / `root` | the tree element: `role="tree"`, focusable, the canvases, labels and screen-reader list. Controls and popups are not inside it |
 | `options: Readonly<ViewerOptions>` | the options in force |
 | `size: {width, height}` | container size in CSS px |
 | `layout: Layout` | the current layout arrays (`X`, `ROW`, `XMAX`, `LAST`, `layoutMs`, ...), `layout.ts` |
@@ -90,7 +91,7 @@ Controls ([below](#controls))
 
 | Method | Meaning |
 |---|---|
-| `addControl(c)` | place `c.element` in its corner of the control layer (or in `c.target`), then call `c.setViewer(viewer)`; adding twice does nothing |
+| `addControl(c)` | place `c.element` in its corner of the control layer (or in `c.target`), then call `c.setViewer(viewer)`; adding twice does nothing. A control has one viewer: one that another viewer holds is removed from it first |
 | `removeControl(c)` | `c.setViewer(null)`, then remove its element |
 | `getControls()` | the controls added, in order |
 
@@ -105,6 +106,7 @@ Stats, frame control and lifetime
 | `renderNow()` | draw synchronously if something changed |
 | `invalidate(fonts = false)` | schedule a redraw; `fonts = true` also clears the label overlay |
 | `benchmark(n)` | force `n` full redraws; returns mean, min and max JS ms per frame and mean cut and draw ms |
+| `focus()` | give keyboard focus to the tree |
 | `destroy()` / `isDestroyed()` | emit `destroy`, remove the controls, cancel the frame loop, remove listeners, observers and DOM |
 
 ## Events ([`src/events.ts`](../src/events.ts))
@@ -158,8 +160,9 @@ viewer.on('click', (e) => {
 
 A control is any object with `element: HTMLElement`, optional `position` (`'top-left'` default, `'top-right'`, `'bottom-left'`,
 `'bottom-right'`, or `'custom'`: put in the control layer as it is, positioned by itself), optional `target` (an element of the page: the
-control lives there instead of on the viewer) and `setViewer(viewer | null)`. Pointer, wheel and key events inside the control layer never
-reach the tree.
+control lives there instead of on the viewer) and `setViewer(viewer | null)`. Pointer and key events inside the control layer never
+reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
+scrolls itself, as the legend and the search suggestions are).
 
 `BaseControl` is the base class of the built-ins: `new BaseControl(name, { position, target, className }, element?)` gives the element the
 classes `phylo-control phylo-<name>` (and `phylo-control--external` with a target); override `attach(viewer)` and `detach()`, and register
@@ -257,7 +260,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
-| `dark` | `--phylo-dark` | from the background's luminance | dark background |
+| `dark` | `--phylo-dark` | from the background's luminance | the background is dark: informational, for apps and custom controls (the drawing code does not read it) |
 
 DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--phylo-surface-hover`, `--phylo-border`, `--phylo-radius`,
 `--phylo-control-radius`, `--phylo-control-size`, `--phylo-shadow`, `--phylo-popup-shadow`, `--phylo-gap`, `--phylo-font-size`,
@@ -334,7 +337,7 @@ Props (all optional, but one of `tree` / `source` is needed):
 | Prop | Meaning |
 |---|---|
 | `tree`, `source` | one of the two: a `TreeData` or a `TreeSource`; `source` wins. Changing either re-creates the viewer |
-| `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`) |
+| `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`). Like the `options` fields, applied when the prop changes: a layout chosen with the `LayoutToggle` control stays until the prop changes |
 | `clades` | `{nodeId: 'n<preorder id>', colour, label?}[]` |
 | `highlighted` | tip labels to highlight |
 | `collapsed` | node ids (`'n<id>'`) of tips that stand for collapsed clades |

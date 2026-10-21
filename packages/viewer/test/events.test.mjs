@@ -42,7 +42,31 @@ test('off by function, has, once, clear', () => {
   assert.equal(n, 1);
 });
 
-test('adding or removing listeners during an emit does not change the walk in progress', () => {
+test('a listener removed during an emit is not called by it (also a default action, also by clear)', () => {
+  const em = new Emitter();
+  const seen = [];
+  let offLater = () => {};
+  let offDefault = () => {};
+  em.on('click', () => {
+    seen.push('first');
+    offLater();
+    offDefault();
+  });
+  offLater = em.on('click', () => seen.push('later'));
+  offDefault = em.on('click', () => seen.push('default'), { asDefault: true });
+  em.emit('click', { defaultPrevented: false });
+  assert.deepEqual(seen, ['first']);
+  seen.length = 0;
+  em.on('resize', () => {
+    seen.push('a');
+    em.clear(); // what destroy() does from inside a listener
+  });
+  em.on('resize', () => seen.push('b'));
+  em.emit('resize', { width: 1, height: 1 });
+  assert.deepEqual(seen, ['a']);
+});
+
+test('a listener added during an emit is first called by the next one', () => {
   const em = new Emitter();
   const seen = [];
   let offB = () => {};
@@ -53,7 +77,7 @@ test('adding or removing listeners during an emit does not change the walk in pr
   });
   offB = em.on('resize', () => seen.push('b'));
   em.emit('resize', { width: 1, height: 1 });
-  assert.deepEqual(seen, ['a', 'b']);
+  assert.deepEqual(seen, ['a'], 'b was removed before its turn; late was added during the emit');
   seen.length = 0;
   em.emit('resize', { width: 1, height: 1 });
   assert.deepEqual(seen, ['a', 'late']);

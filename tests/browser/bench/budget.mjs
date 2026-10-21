@@ -1,12 +1,13 @@
 // Where the draw budget kicks in: same tree, LOD off / budgets 500, 2000, 20000, at the fit view (rectangular).
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { chromiumPath } from '../scripts/chromium.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
 const [, , file, label, layout = 'rectangular'] = process.argv;
 const text = fs.readFileSync(file, 'utf8');
 const b = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: ['--no-sandbox', '--disable-gpu-rasterization'],
 });

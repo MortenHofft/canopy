@@ -119,8 +119,13 @@ export class InputController {
 
   // ------------------------------------------------------------- wheel
 
+  /** Handle a wheel event as over the tree (also called by the viewer for wheels over its control layer). */
+  wheel(e: WheelEvent): void {
+    this.onWheel(e);
+  }
+
   private onWheel = (e: WheelEvent) => {
-    if (fromUi(e)) return;
+    if ((e.target as Element | null)?.closest?.('[data-phylo-scroll]')) return; // a list inside the viewer that scrolls itself
     e.preventDefault();
     const h = this.host;
     h.noteInput();

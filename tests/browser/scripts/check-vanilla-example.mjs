@@ -4,6 +4,7 @@
 // and adding the controls, and a dark theme that is only CSS custom properties. No page errors.
 //   node tests/browser/scripts/check-vanilla-example.mjs [--url http://127.0.0.1:5308/]   (dev server: npm run dev in examples/vanilla)
 import { createRequire } from 'node:module';
+import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
 
@@ -17,7 +18,7 @@ const ok = (c, m) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: chromiumPath(),
   headless: true,
   args: ['--no-sandbox'],
 });
@@ -234,6 +235,80 @@ ok(
   logged.some((l) => l.startsWith('ready')) && logged.some((l) => l.startsWith('click')) && logged.some((l) => l.startsWith('clades')),
   'the event log saw ready, click and clades events',
 );
+
+// ---- accessibility: controls and popups are not inside the role="tree" element (a tree may only own tree items)
+await page.mouse.click(clade.x, clade.y); // open the node menu again, so it is part of what is checked
+await sleep(200);
+const inTree = await ev(() =>
+  [...document.querySelectorAll('[role=menu], [role=menuitem], .phylo-search input, .phylo-button, .phylo-legend, [role=tooltip]')]
+    .filter((e) => e.closest('[role=tree]'))
+    .map((e) => e.className || e.getAttribute('role')),
+);
+ok(inTree.length === 0, `no control or popup inside role=tree${inTree.length ? ': ' + inTree.join(', ') : ''}`);
+await page.keyboard.press('Escape');
+await sleep(100);
+
+// ---- the wheel over the overview strip zooms the tree and does not scroll the page; over the legend it is left to the legend
+// a spacer after <body> makes the page scroll without resizing the viewer
+await ev(() => {
+  const spacer = document.createElement('div');
+  spacer.id = 'spacer';
+  spacer.style.height = '2000px';
+  document.documentElement.appendChild(spacer);
+  window.scrollTo(0, 0);
+});
+await page.locator('.phylo-fit button').click();
+await sleep(500);
+const ovBox = await page.locator('.phylo-overview').boundingBox();
+const before = await view();
+await page.mouse.move(ovBox.x + ovBox.width / 2, ovBox.y + ovBox.height / 2);
+await page.mouse.wheel(0, -200);
+await sleep(300);
+const afterWheel = { v: await view(), scrollY: await ev(() => window.scrollY) };
+ok(afterWheel.scrollY === 0, `the wheel over the overview does not scroll the page (scrollY ${afterWheel.scrollY})`);
+ok(afterWheel.v.y1 - afterWheel.v.y0 < before.y1 - before.y0, 'it zooms the tree');
+const zoomBox = await page.locator('.phylo-zoom').boundingBox();
+await page.mouse.move(zoomBox.x + zoomBox.width / 2, zoomBox.y + zoomBox.height / 2);
+const v3 = await view();
+await page.mouse.wheel(0, -200);
+await sleep(300);
+ok((await ev(() => window.scrollY)) === 0 && (await view()).y1 - (await view()).y0 < v3.y1 - v3.y0, 'the same over the zoom buttons');
+await ev(() => document.getElementById('spacer').remove());
+
+// ---- a control has one viewer: added to a second viewer it leaves the first, and destroying the first leaves it working on the second
+const owner = await ev(async () => {
+  const { viewer, cornerControls } = window.__example;
+  const Viewer = viewer.constructor;
+  const Zoom = cornerControls[0].constructor;
+  const mk = () => {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:0;top:0;width:500px;height:300px;z-index:99999;background:#fff';
+    document.body.appendChild(host);
+    return { host, v: new Viewer({ target: host, tree: viewer.getTree(), options: { softwareCanvas: true } }) };
+  };
+  const a = mk();
+  const b = mk();
+  const zoom = new Zoom();
+  a.v.addControl(zoom);
+  b.v.addControl(zoom); // the natural order when replacing a viewer: the new one first, then destroy the old one
+  const inA = a.v.getControls().includes(zoom);
+  a.v.destroy();
+  a.host.remove();
+  const y0 = b.v.getViewport();
+  zoom.zoomIn.click();
+  const y1 = b.v.getViewport();
+  const out = {
+    inA,
+    inB: b.v.getControls().includes(zoom),
+    elementInB: b.v.element.contains(zoom.element),
+    zooms: y1.y1 - y1.y0 < y0.y1 - y0.y0,
+  };
+  b.v.destroy();
+  b.host.remove();
+  return out;
+});
+ok(!owner.inA && owner.inB && owner.elementInB, `adding a control to a second viewer moves it (${JSON.stringify(owner)})`);
+ok(owner.zooms, 'destroying the first viewer leaves the control working on the second');
 
 await browser.close();
 console.log(failures ? `FAILED (${failures})` : 'OK');

@@ -61,6 +61,8 @@ interface Entry {
   fn: (e: never) => void;
   asDefault: boolean;
   once: boolean;
+  /** Removed (possibly during an emit that is walking a list holding it): skipped from then on, as DOM dispatch does. */
+  removed: boolean;
 }
 
 export class Emitter {
@@ -68,8 +70,8 @@ export class Emitter {
 
   on<K extends ViewerEventType>(type: K, fn: Listener<K>, opts: ListenOptions = {}): () => void {
     const list = this.map.get(type) ?? [];
-    const entry: Entry = { fn: fn as Entry['fn'], asDefault: opts.asDefault === true, once: opts.once === true };
-    // copy on write: a listener added or removed during an emit does not change the list being walked
+    const entry: Entry = { fn: fn as Entry['fn'], asDefault: opts.asDefault === true, once: opts.once === true, removed: false };
+    // copy on write: a listener added during an emit is not called by it; one removed during it is skipped (the `removed` flag)
     this.map.set(type, [...list, entry]);
     return () => this.remove(type, entry);
   }
@@ -90,7 +92,7 @@ export class Emitter {
     for (const pass of [false, true]) {
       if (pass && prevented()) return;
       for (const x of list) {
-        if (x.asDefault !== pass) continue;
+        if (x.asDefault !== pass || x.removed) continue;
         if (x.once) this.remove(type, x);
         try {
           (x.fn as (e: ViewerEventMap[K]) => void)(e);
@@ -103,10 +105,12 @@ export class Emitter {
   }
 
   clear(): void {
+    for (const list of this.map.values()) for (const x of list) x.removed = true;
     this.map.clear();
   }
 
   private remove(type: ViewerEventType, entry: Entry): void {
+    entry.removed = true;
     const list = this.map.get(type);
     if (!list) return;
     const next = list.filter((x) => x !== entry);
