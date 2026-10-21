@@ -4,7 +4,8 @@
 // confuses a row with a full-tree id.
 //
 // Returns { snap, full, rowOf } where snap is a TreeSnapshot (stub, globalId, rollup, toLocal set; tipNode -1 for tips that are not
-// loaded; tipLabels sparse) and rowOf(g) the row of full-tree id g (-1 when it is below a stub).
+// loaded; `labels` and `tipLabels` are blank, as ParquetSource.build() leaves them, so a core read of labels on a partial snapshot shows up)
+// and rowOf(g) the row of full-tree id g (-1 when it is below a stub).
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,13 +62,12 @@ export function partialSnapshot(full, stubIds = [], idOffset = 0) {
   for (let r = 0; r < n; r++) if (stub[r]) childCount[r] = 1; // internal, so not taken for a tip
   const tipNode = new Int32Array(full.tipCount).fill(-1),
     tipRank = new Int32Array(n).fill(-1);
-  const tipLabels = new Array(full.tipCount);
+  const tipLabels = new Array(full.tipCount); // empty slots, as ParquetSource's noLabels
   for (let r = 0; r < n; r++) {
     const g = rows[r];
     if (full.childCount[g] === 0) {
       tipNode[full.leafStart[g]] = r;
       tipRank[r] = full.leafStart[g];
-      tipLabels[full.leafStart[g]] = full.labels[g];
     }
   }
   // a stub's row is its row in the layout of the FULL tree (the overview files carry it); the loaded rows above it are derived from it
@@ -90,7 +90,7 @@ export function partialSnapshot(full, stubIds = [], idOffset = 0) {
     tipNode,
     tipRank,
     tipLabels,
-    labels: rows.map((g) => (stubSet.has(g) ? undefined : full.labels[g])),
+    labels: new Array(n),
     hasLengths: full.hasLengths,
     heights: () => Int32Array.from(rows, (_, r) => snap.rollup.maxDepth[r] - snap.rollup.depth[r]),
     tipIndex: () => -1,

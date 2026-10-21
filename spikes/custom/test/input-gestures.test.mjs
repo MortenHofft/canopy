@@ -141,6 +141,18 @@ test('wheel, rectangular: a mostly horizontal gesture pans x by the share of the
   closeTo(c[1][1], Math.exp(-20 * WHEEL_ZOOM_RATE), 'x factor');
 });
 
+test('wheel, rectangular: the pan / zoom boundary is |deltaX| > 1.5 |deltaY|', () => {
+  const s = setup();
+  s.handlers.wheel(wheel({ deltaX: 12, deltaY: 10 })); // ratio 1.2: a zoom
+  let c = s.take();
+  assert.deepEqual(names(c), ['noteInput', 'zoomBy']);
+  closeTo(c[1][2], Math.exp(-10 * WHEEL_ZOOM_RATE), 'y factor from deltaY');
+  s.handlers.wheel(wheel({ deltaX: 16, deltaY: 10 })); // ratio 1.6: a pan
+  c = s.take();
+  assert.deepEqual(names(c), ['noteInput', 'setViewport']);
+  closeTo(c[1][1].x0, 0.16, 'x0 moved by 16 px of 100');
+});
+
 test('wheel, radial: one factor for both axes, from deltaY or else deltaX, whatever the modifiers', () => {
   const s = setup({ layout: 'radial' });
   s.handlers.wheel(wheel({ deltaY: -100, shiftKey: true, clientX: 60, clientY: 70 }));

@@ -277,11 +277,22 @@ test('drawColumns, bar rows under 1.5 px: rows are binned per pixel row (mean), 
     'in order, one per pixel row',
   );
   assert.equal(rects[0].args[2], barWidth(10, c0max(cols), 80), 'a pixel row of equal values draws that value');
-  // the mean of the rows in a pixel row: row r is in pixel row floor(r * 0.9); rows 112 and 113 share pixel row 101 (values 112, 113)
-  const p = Math.floor(112 * 0.9);
-  const inP = [];
-  for (let r = 0; r < N; r++) if (Math.floor(r * 0.9) === p) inP.push(values[`t${r}`]);
-  const mean = inP.reduce((a, b) => a + b, 0) / inP.length;
+  // the mean of the rows in a pixel row: row r is in pixel row floor(r * 0.9); pick a pixel row whose member rows have different values
+  const members = (p) => Array.from({ length: N }, (_, r) => r).filter((r) => Math.floor(r * 0.9) === p);
+  const p = 99;
+  const vals = members(p).map((r) => values[`t${r}`]);
+  assert.ok(vals.length >= 2 && new Set(vals).size === vals.length, `pixel row ${p} holds rows ${members(p)} with distinct values ${vals}`);
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  assert.notEqual(barWidth(mean, c0max(cols), 80), barWidth(Math.max(...vals), c0max(cols), 80), 'mean and max would draw differently');
+  assert.notEqual(
+    barWidth(mean, c0max(cols), 80),
+    barWidth(
+      vals.reduce((a, b) => a + b, 0),
+      c0max(cols),
+      80,
+    ),
+    'so would the sum',
+  );
   assert.equal(rects[p].args[2], barWidth(mean, c0max(cols), 80), 'the mean of the rows in the pixel row');
   assert.equal(ctx.globalAlpha, 1, 'alpha is restored');
 });

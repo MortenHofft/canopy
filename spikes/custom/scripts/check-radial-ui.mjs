@@ -7,6 +7,8 @@
 // not its rows zooms to the same viewport as zoomToNode(id), aligned columns through the renderer, tipHref link mode, a set of setOptions
 // combinations, setters that must not redraw on equal input, two simultaneous instances (window.__spike and __spike2), and mount / unmount cycles
 // that leave the DOM as they found it, with no page error.
+// Timing: the fixed sleeps (100 to 450 ms) wait for the refine frame, animations and the overlay timers; on a heavily loaded CI runner they may
+// need raising (the 'frames' and viewport assertions are the ones that fail first).
 // `npm run test:browser` (scripts/test-browser.mjs) builds, serves and runs this. Chromium: $CHROMIUM_PATH, else the sandbox copy when it exists,
 // else the browser Playwright installed (npx playwright-core install chromium).
 import fs from 'node:fs';
@@ -38,6 +40,13 @@ const browser = await chromium.launch({
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
 page.on('pageerror', (e) => {
   console.log('PAGEERR', e.message);
+  failures++;
+});
+// console.error is a failure too (the shell and React report their errors there); a failed resource fetch (the optional column files of
+// the catalogue trees) is not the renderer's
+page.on('console', (m) => {
+  if (m.type() !== 'error' || /Failed to load resource/.test(m.text())) return;
+  console.log('CONSOLE.ERROR', m.text().slice(0, 300));
   failures++;
 });
 await page.goto(`http://127.0.0.1:${port}/`);
@@ -506,8 +515,8 @@ const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2
     );
   ok(res.framesEqualInput === 0, `equal highlight / clades after a settled frame: ${res.framesEqualInput} redraws`);
   ok(
-    res.framesFirstHighlight <= 1,
-    `equal options / theme / empty highlight caused at most the one redraw of the first highlight (${res.framesFirstHighlight})`,
+    res.framesFirstHighlight === 1,
+    `equal options / theme / empty highlight caused exactly the one redraw of the first highlight (${res.framesFirstHighlight})`,
   );
   await page.evaluate(() => window.__t.cleanup());
 }
@@ -576,8 +585,10 @@ const mountOpts = (layout, size) => ({ treeId: 'syn-yule-10000', newick: text, l
   const two = await counts();
   ok(two.treeviews === 2, `two instances: ${two.treeviews} tree views`);
   const at = (api) => page.evaluate((a) => window[a].locate({ kind: 'node', id: 'n1' }), api);
+  const zoomOf = () => page.evaluate(async () => (await window.__spike2.getStats()).custom);
   const before0 = await at('__spike'),
-    before1 = await at('__spike2');
+    before1 = await at('__spike2'),
+    z0 = await zoomOf();
   const views = await page.evaluate(() =>
     [...document.querySelectorAll('[data-treeview]')].map((e) => {
       const r = e.getBoundingClientRect();
@@ -598,7 +609,11 @@ const mountOpts = (layout, size) => ({ treeId: 'syn-yule-10000', newick: text, l
     JSON.stringify(before0) === JSON.stringify(after0) && before0 !== null,
     `zooming instance 2 leaves instance 1 where it was (${JSON.stringify(before0)})`,
   );
-  ok(JSON.stringify(before1) !== JSON.stringify(after1), `instance 2 did zoom (${JSON.stringify(before1)} -> ${JSON.stringify(after1)})`);
+  const z1 = await zoomOf();
+  ok(
+    z1.ky > z0.ky * 1.5 && z1.frames > z0.frames,
+    `instance 2 did zoom: row height ${z0.ky.toFixed(3)} -> ${z1.ky.toFixed(3)} px, frames ${z0.frames} -> ${z1.frames} (node n1 ${JSON.stringify(before1)} -> ${JSON.stringify(after1)})`,
+  );
   ok((await stats()).frames === f0, 'no frame was drawn in instance 1 meanwhile');
   const ev0 = await page.evaluate(async () => (await window.__spike.getEvents()).length);
   await page.mouse.click(v1.x + v1.w * 0.4, v1.y + v1.h * 0.5);

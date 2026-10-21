@@ -48,6 +48,7 @@ test('Seen.reset forgets every key at once and can be repeated', () => {
 test('Seen: the generation counter rolls over without a stale key coming back to life', () => {
   const s = new Seen();
   assert.equal(s.add(5, 6, 7, 8, 9), true); // stamped with generation 1
+  // `cur` and `n` are private fields of Seen (src/core/lod.ts): a rename there must be followed here
   s.cur = 0xffffffef; // the next reset reaches 0xfffffff0 and wraps to 1
   s.reset();
   assert.equal(s.cur, 1, 'wrapped');
@@ -60,7 +61,7 @@ test('Seen: the generation counter rolls over without a stale key coming back to
 
 test('Seen: a nearly full table stops deduplicating instead of looping', () => {
   const s = new Seen();
-  s.n = 380001;
+  s.n = 380001; // private field `n` of Seen, see the note on `cur` above
   assert.equal(s.add(1, 1, 1, 1, 1), true);
   assert.equal(s.add(1, 1, 1, 1, 1), true, 'no longer remembered: both are "new"');
   s.reset();
