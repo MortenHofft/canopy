@@ -12,7 +12,7 @@
 // What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop, and
 // the focus-ring styling, because it needs the theme.
 
-import { cellRect, columnsWidth, compileColumns, drawColumns, layoutColumns, type CompiledColumn } from './columns.ts';
+import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import {
@@ -42,6 +42,7 @@ import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
   FALLBACK_THEME,
+  themeEquals,
   type CladeColour,
   type Column,
   type FrameStats,
@@ -92,6 +93,7 @@ export class TreeRenderer {
   private detail: DetailLoader;
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
+  private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
   private list = new DrawList();
   private seen = new Seen();
   private hit: HitIndex;
@@ -380,8 +382,19 @@ export class TreeRenderer {
     return { width: this.W, height: this.H };
   }
 
-  setOptions(p: Partial<RendererOptions>): void {
+  /** Apply options. Keys that are undefined or `Object.is`-equal to the current value (functions by identity) are ignored, and a call
+   *  that changes nothing returns without invalidating, so a caller may pass its whole option set on every render. */
+  setOptions(patch: Partial<RendererOptions>): void {
     const o = this.opts;
+    const p: Partial<RendererOptions> = {};
+    let any = false;
+    for (const k of Object.keys(patch) as (keyof RendererOptions)[]) {
+      const v = patch[k];
+      if (v === undefined || Object.is(v, o[k])) continue;
+      (p as Record<string, unknown>)[k] = v;
+      any = true;
+    }
+    if (!any) return;
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit =
@@ -410,7 +423,9 @@ export class TreeRenderer {
     this.invalidate();
   }
 
+  /** No-op when every field equals the current theme (`categorical` element-wise): a theme rebuilt per render costs nothing. */
   setTheme(t: TreeTheme): void {
+    if (themeEquals(t, this.theme)) return;
     this.theme = t;
     this.ov.dirty = true;
     this.overlay.clear();
@@ -450,7 +465,11 @@ export class TreeRenderer {
     this.colours = colours;
   }
 
+  /** No-op when the ids equal (element-wise, in order) the last ones passed; the array is copied, so mutating it later cannot hide a change. */
   setHighlighted(tipIds: string[]): void {
+    const last = this.hlIds;
+    if (tipIds.length === last.length && tipIds.every((id, i) => id === last[i])) return;
+    this.hlIds = tipIds.slice();
     const N = this.tree.tipCount;
     const ranks: number[] = [];
     for (const id of tipIds) {
@@ -468,9 +487,12 @@ export class TreeRenderer {
     this.invalidate();
   }
 
+  /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
   setColumns(cols: Column[]): void {
     const hadW = columnsWidth(this.columns);
-    this.columns = compileColumns(this.tree, cols);
+    const next = updateColumns(this.tree, this.columns, cols);
+    if (next.same) return;
+    this.columns = next.columns;
     const changed = columnsWidth(this.columns) !== hadW || this.columns.length > 0 !== hadW > 0;
     if (changed && this.vs.fitted) this.fit(false);
     this.hit.invalidate();

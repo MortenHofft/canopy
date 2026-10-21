@@ -50,58 +50,84 @@ function residueTable(): Uint32Array {
   return t;
 }
 
-export function compileColumns(tree: TreeSnapshot, cols: Column[]): CompiledColumn[] {
+/** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap). */
+export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn {
   const N = tree.tipCount;
-  return cols.map((spec) => {
-    const has = new Uint8Array(N);
-    let num: Float64Array | null = null;
-    let txt: (string | undefined)[] | null = null;
-    let max = 0;
-    let seqLen = 0;
-    let bitmap: HTMLCanvasElement | null = null;
-    if (spec.kind === 'bar') {
-      num = new Float64Array(N).fill(NaN);
-      for (let r = 0; r < N; r++) {
-        const v = spec.values[tree.tipLabels[r]];
-        if (v === undefined) continue;
-        const x = Number(v);
-        if (!Number.isNaN(x)) {
-          num[r] = x;
-          has[r] = 1;
-          if (x > max) max = x;
-        }
-      }
-    } else {
-      txt = new Array(N);
-      for (let r = 0; r < N; r++) {
-        const v = spec.values[tree.tipLabels[r]];
-        if (v === undefined) continue;
-        const s = String(v);
-        txt[r] = s;
+  const has = new Uint8Array(N);
+  let num: Float64Array | null = null;
+  let txt: (string | undefined)[] | null = null;
+  let max = 0;
+  let seqLen = 0;
+  let bitmap: HTMLCanvasElement | null = null;
+  if (spec.kind === 'bar') {
+    num = new Float64Array(N).fill(NaN);
+    for (let r = 0; r < N; r++) {
+      const v = spec.values[tree.tipLabels[r]];
+      if (v === undefined) continue;
+      const x = Number(v);
+      if (!Number.isNaN(x)) {
+        num[r] = x;
         has[r] = 1;
-        if (s.length > seqLen) seqLen = s.length;
-      }
-      if (spec.kind === 'alignment' && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
-        bitmap = document.createElement('canvas');
-        bitmap.width = seqLen;
-        bitmap.height = N;
-        const ctx = bitmap.getContext('2d');
-        if (ctx) {
-          const img = ctx.createImageData(seqLen, N);
-          const px = new Uint32Array(img.data.buffer);
-          const tab = residueTable();
-          for (let r = 0; r < N; r++) {
-            const s = txt[r];
-            if (s === undefined) continue;
-            const o = r * seqLen;
-            for (let j = 0; j < s.length; j++) px[o + j] = tab[s.charCodeAt(j) & 255];
-          }
-          ctx.putImageData(img, 0, 0);
-        } else bitmap = null;
+        if (x > max) max = x;
       }
     }
-    return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
+  } else {
+    txt = new Array(N);
+    for (let r = 0; r < N; r++) {
+      const v = spec.values[tree.tipLabels[r]];
+      if (v === undefined) continue;
+      const s = String(v);
+      txt[r] = s;
+      has[r] = 1;
+      if (s.length > seqLen) seqLen = s.length;
+    }
+    if (spec.kind === 'alignment' && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
+      bitmap = document.createElement('canvas');
+      bitmap.width = seqLen;
+      bitmap.height = N;
+      const ctx = bitmap.getContext('2d');
+      if (ctx) {
+        const img = ctx.createImageData(seqLen, N);
+        const px = new Uint32Array(img.data.buffer);
+        const tab = residueTable();
+        for (let r = 0; r < N; r++) {
+          const s = txt[r];
+          if (s === undefined) continue;
+          const o = r * seqLen;
+          for (let j = 0; j < s.length; j++) px[o + j] = tab[s.charCodeAt(j) & 255];
+        }
+        ctx.putImageData(img, 0, 0);
+      } else bitmap = null;
+    }
+  }
+  return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
+}
+
+/** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
+ *  possibly millions of entries, and a deep compare would cost as much as recompiling. Replace the object to change the data. */
+export function columnSpecEquals(a: Column, b: Column): boolean {
+  return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && a.values === b.values);
+}
+
+/** The new compiled list for `cols`, reusing what `old` already holds: a column with an identical spec (by `columnSpecEquals`) is kept as is,
+ *  one whose data is the same (same kind and `values` reference) but whose header or width changed keeps its arrays and bitmap under the
+ *  new spec, and only the rest is compiled. `same` is true when the result equals `old` entry for entry, so the caller can stop there. */
+export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: Column[]): { columns: CompiledColumn[]; same: boolean } {
+  const byId = new Map<string, CompiledColumn>(); // a duplicate id is a caller error; the second one is compiled afresh, never shares a compiled object
+  for (const c of old) byId.set(c.spec.id, c);
+  let same = cols.length === old.length;
+  const columns = cols.map((spec, i) => {
+    const prev = byId.get(spec.id);
+    byId.delete(spec.id);
+    if (prev && columnSpecEquals(prev.spec, spec)) {
+      if (old[i] !== prev) same = false;
+      return prev;
+    }
+    same = false;
+    if (prev && prev.spec.kind === spec.kind && prev.spec.values === spec.values) return { ...prev, spec };
+    return compileColumn(tree, spec);
   });
+  return { columns, same };
 }
 
 export function columnsWidth(cols: { spec: { width: number } }[]): number {

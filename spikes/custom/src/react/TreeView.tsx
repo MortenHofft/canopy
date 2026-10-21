@@ -6,8 +6,10 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeRenderer } from '../core/renderer.ts';
 import { InMemorySource, type TreeSource } from '../core/source.ts';
+import { stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
   FALLBACK_THEME,
+  themeEquals,
   type Column,
   type FrameStats,
   type HitKind,
@@ -57,6 +59,23 @@ export interface CladeProp {
   colour: string;
 }
 
+/**
+ * Props are the whole state; there is no need to memoise them. Identity rules (what makes a prop count as changed):
+ *  - `options`, `theme`: compared field by field (`Object.is` on every own value; `theme.categorical` element-wise). An inline object
+ *    literal with the same values is no change. A function-valued option (`formatLabel`) or `tipHref` is compared by identity, so
+ *    an inline arrow is a change on every render: hoist it or wrap it in `useCallback` (or `useMemo` for the object). A change
+ *    to `softwareCanvas` re-creates the renderer.
+ *  - `highlighted`: compared element-wise with the last array applied. A new array with the same ids costs one O(n) compare.
+ *  - `clades`: compared by content (node id and colour, in order).
+ *  - `columns`: each column is compared by `id`, `kind`, `header`, `width` and `values` BY REFERENCE (a deep compare of a dictionary
+ *    with millions of entries costs as much as recompiling). Only columns that changed are compiled again; if the data object
+ *    is unchanged and only the header or width changed, the compiled data is kept. Pass the same `values` object while the data
+ *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
+ *  - `viewport`: compared by its four numbers.
+ *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
+ *  - `tree` / `source`: a new one re-creates the renderer (and so resets the view).
+ *  - callbacks are read at call time and never trigger anything.
+ */
 export interface TreeViewProps {
   tree?: TreeData; // a tree in memory (wrapped in an InMemorySource) ...
   source?: TreeSource; // ... or a source that loads parts of it on demand; one of the two, `source` wins
@@ -65,12 +84,12 @@ export interface TreeViewProps {
   branchLengths?: boolean;
   clades?: CladeProp[];
   highlighted?: string[];
-  columns?: Column[];
+  columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
-  tipHref?: ((tipId: string) => string) | null;
+  tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
-  options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
+  options?: Partial<Omit<RendererOptions, 'layout' | 'branchLengths' | 'tipHref'>>; // every field passes through to the renderer; undefined fields keep the default
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
   width?: number | string;
   height?: number | string;
@@ -86,6 +105,8 @@ export interface TreeViewProps {
 
 const NODE_ID = /^n(\d+)$/;
 const EMPTY = {} as NonNullable<TreeViewProps['options']>;
+const EMPTY_IDS: string[] = [];
+const EMPTY_COLUMNS: Column[] = [];
 
 function nodeIndexOf(nodeCount: number, id: string): number {
   const m = NODE_ID.exec(id);
@@ -94,28 +115,56 @@ function nodeIndexOf(nodeCount: number, id: string): number {
   return k < nodeCount ? k : -1;
 }
 
+/** Create the renderer in a layout effect and destroy it in the cleanup (strict-mode safe: the cleanup undoes everything the effect did).
+ *  `make` builds the renderer over the host element and returns it with an extra cleanup; it is read from a ref, so it may close over
+ *  the props of the latest render, and the renderer is re-created only when `source` or `softwareCanvas` changes. Returns the instance
+ *  as state (the prop-sync effects depend on it, so they re-run once it exists and again after a re-creation, without anything reading
+ *  a ref during render) and as a ref for the imperative handle, which is only called after mount. */
+function useRenderer(
+  hostRef: React.RefObject<HTMLElement>,
+  source: TreeSource,
+  softwareCanvas: boolean | undefined,
+  make: (host: HTMLElement) => [TreeRenderer, () => void],
+): { renderer: TreeRenderer | null; rendererRef: React.MutableRefObject<TreeRenderer | null> } {
+  const [renderer, setRenderer] = useState<TreeRenderer | null>(null);
+  const rendererRef = useRef<TreeRenderer | null>(null);
+  const makeRef = useRef(make);
+  useLayoutEffect(() => {
+    makeRef.current = make; // declared before the create effect below, so that one sees this render's closure
+  });
+  useLayoutEffect(() => {
+    const [r, cleanup] = makeRef.current(hostRef.current!);
+    rendererRef.current = r;
+    setRenderer(r);
+    return () => {
+      cleanup();
+      r.destroy();
+      rendererRef.current = null;
+      setRenderer(null);
+    };
+  }, [hostRef, source, softwareCanvas]);
+  return { renderer, rendererRef };
+}
+
 export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeView(props, ref) {
-  const {
-    layout = 'rectangular',
-    branchLengths = true,
-    clades,
-    highlighted,
-    columns,
-    viewport,
-    theme,
-    tipHref = null,
-    focus,
-    options = EMPTY,
-    tooltip = true,
-  } = props;
+  const { layout = 'rectangular', branchLengths = true, clades, highlighted, columns, viewport, tipHref = null, focus, tooltip = true } = props;
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const rendRef = useRef<TreeRenderer | null>(null);
   const latest = useRef(props);
-  latest.current = props;
-  const [gen, setGen] = useState(0);
+  useLayoutEffect(() => {
+    latest.current = props; // the callbacks the renderer holds always call the newest ones
+  });
   const [tip, setTip] = useState<{ ev: TreeNodeEvent; x: number; y: number } | null>(null);
+
+  // Identity-stable inputs: an inline `options` / `theme` object is a new object on every parent render, but the effects below only
+  // run when a value in it changed (the renderer's setters also ignore unchanged values, belt and braces).
+  const options = useShallowStable(props.options ?? EMPTY);
+  const rendererOptions = useMemo(
+    () => stripUndefined({ ...options, layout, branchLengths, tipHref }) as Partial<RendererOptions>,
+    [options, layout, branchLengths, tipHref],
+  );
+  const fullTheme = useStable<TreeTheme>({ ...FALLBACK_THEME, ...stripUndefined(props.theme ?? {}) }, themeEquals);
 
   const toEvent = (e: NodeEvent): TreeNodeEvent => {
     return {
@@ -135,10 +184,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     };
   };
 
-  // ---- create / destroy (also strict-mode safe: the cleanup undoes everything the effect did)
-  useLayoutEffect(() => {
-    const host = hostRef.current!;
-    const o = latest.current.options ?? EMPTY;
+  const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, source, options.softwareCanvas, (host) => {
     const r = new TreeRenderer(
       host,
       source,
@@ -159,99 +205,50 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
         onViewportChange: (v) => latest.current.onViewportChange?.(v),
         onFrame: (s) => latest.current.onFrame?.(s),
       },
-      {
-        ...o,
-        layout: latest.current.layout ?? 'rectangular',
-        branchLengths: latest.current.branchLengths ?? true,
-        tipHref: latest.current.tipHref ?? null,
-      },
-      { ...FALLBACK_THEME, ...(latest.current.theme ?? {}) },
+      rendererOptions,
+      fullTheme,
     );
-    rendRef.current = r;
-    setGen((g) => g + 1);
     let ready = 0;
     ready = requestAnimationFrame(() => {
       ready = requestAnimationFrame(() => latest.current.onReady?.({ layoutMs: r.layout.layoutMs, tips: source.tipCount }));
     });
-    return () => {
-      cancelAnimationFrame(ready);
-      r.destroy();
-      rendRef.current = null;
-      setTip(null);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, options.softwareCanvas]);
+    return [
+      r,
+      () => {
+        cancelAnimationFrame(ready);
+        setTip(null);
+      },
+    ];
+  });
 
-  const R = rendRef.current;
+  // ---- props -> renderer. Each effect re-runs when the renderer is (re)created or its input changed; the renderer's setters are no-ops
+  // for an input equal to the current one, so none of them needs more than its own value in the dependency list.
   useLayoutEffect(() => {
-    R?.setTheme({ ...FALLBACK_THEME, ...(theme ?? {}) });
-  }, [gen, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+    R?.setTheme(fullTheme);
+  }, [R, fullTheme]);
   useLayoutEffect(() => {
-    R?.setOptions({
-      layout,
-      branchLengths,
-      tipHref,
-      ...(o(options.lod) && { lod: options.lod }),
-      ...(o(options.drawBudget) && { drawBudget: options.drawBudget }),
-      ...(o(options.showSummaries) && { showSummaries: options.showSummaries }),
-      ...(o(options.overview) && { overview: options.overview }),
-      ...(o(options.labelDensity) && { labelDensity: options.labelDensity }),
-      ...(o(options.rowHeight) && { rowHeight: options.rowHeight }),
-      ...(o(options.axis) && { axis: options.axis }),
-      ...(o(options.italicLabels) && { italicLabels: options.italicLabels }),
-      ...(o(options.minCladePx) && { minCladePx: options.minCladePx }),
-      ...(o(options.alignStyle) && { alignStyle: options.alignStyle }),
-      ...(o(options.alignRowGap) && { alignRowGap: options.alignRowGap }),
-      ...(o(options.formatLabel) && { formatLabel: options.formatLabel }),
-      ...(o(options.ariaLabel) && { ariaLabel: options.ariaLabel }),
-      ...(o(options.dprCap) && { dprCap: options.dprCap }),
-      ...(o(options.radialMaxNodes) && { radialMaxNodes: options.radialMaxNodes }),
-      ...(o(options.interactionLOD) && { interactionLOD: options.interactionLOD }),
-      ...(o(options.refineMs) && { refineMs: options.refineMs }),
-      ...(o(options.summaryNotice) && { summaryNotice: options.summaryNotice }),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    gen,
-    layout,
-    branchLengths,
-    tipHref,
-    options.lod,
-    options.drawBudget,
-    options.showSummaries,
-    options.overview,
-    options.labelDensity,
-    options.rowHeight,
-    options.axis,
-    options.italicLabels,
-    options.minCladePx,
-    options.alignStyle,
-    options.alignRowGap,
-    options.formatLabel,
-    options.ariaLabel,
-    options.dprCap,
-    options.radialMaxNodes,
-    options.interactionLOD,
-    options.refineMs,
-    options.summaryNotice,
-  ]);
+    R?.setOptions(rendererOptions);
+  }, [R, rendererOptions]);
   useLayoutEffect(() => {
     R?.setClades((clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour })).filter((c) => c.node >= 0));
-  }, [gen, clades]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [R, source, clades]);
   useLayoutEffect(() => {
-    R?.setHighlighted(highlighted ?? []);
-  }, [gen, highlighted]); // eslint-disable-line react-hooks/exhaustive-deps
+    R?.setHighlighted(highlighted ?? EMPTY_IDS);
+  }, [R, highlighted]);
   useLayoutEffect(() => {
-    R?.setColumns(columns ?? []);
-  }, [gen, columns]); // eslint-disable-line react-hooks/exhaustive-deps
+    R?.setColumns(columns ?? EMPTY_COLUMNS);
+  }, [R, columns]);
+  const [vx0, vx1, vy0, vy1] = [viewport?.x0, viewport?.x1, viewport?.y0, viewport?.y1]; // compared by value: a new object with the same numbers is no change
   useLayoutEffect(() => {
-    if (viewport) R?.setViewport(viewport);
-  }, [gen, viewport?.x0, viewport?.x1, viewport?.y0, viewport?.y1]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (vx0 !== undefined && vx1 !== undefined && vy0 !== undefined && vy1 !== undefined) R?.setViewport({ x0: vx0, x1: vx1, y0: vy0, y1: vy1 });
+  }, [R, vx0, vx1, vy0, vy1]);
+  const focusSeq = focus?.seq;
   useLayoutEffect(() => {
-    if (!focus) return;
-    const n = source.snapshot().tipIndex(focus.tipId);
+    const f = latest.current.focus; // acts when `seq` changes, not when only the tip id does
+    if (!f) return;
+    const n = source.snapshot().tipIndex(f.tipId);
     if (n >= 0) R?.focusTip(source.snapshot().tipRank[n]);
-  }, [gen, focus?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [R, source, focusSeq]);
 
   useImperativeHandle(
     ref,
@@ -287,7 +284,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       benchmark: (n) => rendRef.current!.benchmark(n),
       renderer: () => rendRef.current,
     }),
-    [source],
+    [source, rendRef],
   );
 
   // keep the tooltip fresh only while hovering
@@ -334,11 +331,11 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
             borderRadius: 6,
             fontSize: 12,
             lineHeight: 1.35,
-            background: theme?.background ?? FALLBACK_THEME.background,
-            color: theme?.foreground ?? FALLBACK_THEME.foreground,
-            border: `1px solid ${theme?.muted ?? FALLBACK_THEME.muted}`,
+            background: fullTheme.background,
+            color: fullTheme.foreground,
+            border: `1px solid ${fullTheme.muted}`,
             boxShadow: '0 2px 8px rgba(0,0,0,.18)',
-            fontFamily: theme?.fontFamily ?? FALLBACK_THEME.fontFamily,
+            fontFamily: fullTheme.fontFamily,
             maxWidth: 260,
           }}
         >
@@ -348,8 +345,6 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     </div>
   );
 });
-
-const o = <T,>(v: T | undefined): v is T => v !== undefined;
 
 /** Tooltip headline of a run of small siblings: '6,900 tips in 3,450 clades and 12 single tips'. */
 function runText(e: TreeNodeEvent): string {
