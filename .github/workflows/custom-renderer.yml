@@ -1,18 +1,25 @@
 name: custom-renderer
 
 # Typecheck, lint, format check, tests and build of the custom tree renderer (spikes/custom). The harness files in spikes/shared are
-# compiled into it, so they trigger the job as well.
+# compiled into it, the Parquet reader is typechecked through it and the regression test reads data/synthetic, so those trigger the job as well.
 on:
   push:
     paths:
       - 'spikes/custom/**'
       - 'spikes/shared/**'
+      - 'spikes/parquet-experiment/web/**'
+      - 'data/synthetic/**'
       - '.github/workflows/custom-renderer.yml'
   pull_request:
     paths:
       - 'spikes/custom/**'
       - 'spikes/shared/**'
+      - 'spikes/parquet-experiment/web/**'
+      - 'data/synthetic/**'
       - '.github/workflows/custom-renderer.yml'
+
+permissions:
+  contents: read
 
 jobs:
   check:
