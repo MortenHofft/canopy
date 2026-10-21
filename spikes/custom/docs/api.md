@@ -31,11 +31,11 @@ State setters
 
 | Method | Meaning |
 |---|---|
-| `setOptions(patch)` | change options (undefined and unchanged values are ignored, a call that changes nothing does not redraw); refits when `layout`, `branchLengths`, `overview`, `axis` or `rowHeight` changed |
+| `setOptions(patch)` | change options (undefined and unchanged values are ignored, a call that changes nothing does not redraw). Always refits for `layout`, `branchLengths` or `rowHeight`; for `overview` or `axis` only while the view is still fitted. A change of `tipHref` or `formatLabel` also rebuilds the DOM label anchors |
 | `setTheme(theme)` | new colours and font (no-op when every field is equal); redraws (and clears the label overlay so fonts are re-measured) |
 | `setClades(clades: CladeColour[])` | colour clades; `node` is the preorder id (full tree), later entries win; nodes not in the snapshot are skipped |
 | `setHighlighted(tipIds: string[])` | highlight tips by label (row band, ring, bold label, overview ticks); unknown labels are ignored; no-op for the same ids in the same order |
-| `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` compared by reference, ids must be unique); refits when the total width changes |
+| `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` compared by reference, ids must be unique); refits on a change of total width only while the view is still fitted |
 
 Navigation and view
 
@@ -51,7 +51,7 @@ Introspection (each draws a settled full-quality frame first)
 
 | Method | Meaning |
 |---|---|
-| `locateNode(id)` | client-px position of node `id` as a click would hit it, or `null` when not drawn or out of view |
+| `locateNode(id)` | client-px position of node `id`, or `null` when it is outside the plot's clip rectangle. An internal node must also have a draw-list entry; a tip needs none, so a tip inside a drawn summary gets a position and a click there hits the summary |
 | `nodeBounds(id)` | client-px box of the clade below `id`, clipped to the plot area, or `null` |
 | `columnCell(colId, rank)` | client-px box of a column cell, or `null` |
 | `hitTest(x, y)` | what a click at container-px (x, y) would target: a `Hit` or `null` |
@@ -98,8 +98,7 @@ Stats, frame control and lifetime
 
 ## RendererCallbacks, NodeEvent, Hit
 
-`RendererCallbacks` (all optional): `onClick(e: NodeEvent)`, `onHover(e: NodeEvent | null)`, `onViewportChange(v: Viewport)` (when the window
-changed, after a frame), `onFrame(s: FrameStats)` (after every frame; the object is reused).
+`RendererCallbacks` (all optional): `onClick(e: NodeEvent)`, `onHover(e: NodeEvent | null)`, `onViewportChange(v: Viewport)` (synchronously on every change of the window, equality-guarded; not tied to frames), `onFrame(s: FrameStats)` (after every frame; the object is reused).
 
 `NodeEvent`
 
