@@ -33,6 +33,7 @@ RESIDUE.G = '#f09048';
 RESIDUE.P = '#c0c000';
 for (const c of 'HY') RESIDUE[c] = '#15a4a4';
 RESIDUE.U = '#15c015';
+Object.freeze(RESIDUE); // a constant table: nothing writes to it after this
 
 function residueTable(): Uint32Array {
   const t = new Uint32Array(256);

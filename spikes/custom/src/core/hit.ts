@@ -1,12 +1,12 @@
 // Spatial lookup for click and hover. The index is a uniform grid over the CURRENT draw list (what is on screen),
 // built lazily on the first pointer query after a frame, so a mouse move costs one grid cell read and a handful
 // of candidate tests, never a scan of all nodes. Works for both layouts: geometry of a candidate is recomputed
-// from the layout arrays when tested, only (node, type) is stored.
+// from the layout projection (positions, clade extents) when tested, only (node, type) is stored.
 
-import type { Layout } from './layout.ts';
-import type { Transform } from './geom.ts';
-import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
-import type { Hit, TreeSnapshot } from './types.ts';
+import type { DrawList } from './lod.ts';
+import { K_NODE, K_SUMMARY, K_TIP, isSlice } from './kinds.ts';
+import type { LayoutProjection, Pt } from './projection.ts';
+import type { Hit } from './types.ts';
 
 export const MARKER_PX = 12; // internal node markers are drawn (and hittable) when the clade is at least this tall
 const CELL = 24;
@@ -34,16 +34,8 @@ export class HitIndex {
   builtMs = 0;
   items = 0;
   entries = 0;
-
-  constructor(
-    private tree: TreeSnapshot,
-    private L: Layout,
-  ) {}
-
-  setLayout(L: Layout): void {
-    this.L = L;
-    this.valid = false;
-  }
+  private pt: Pt = { x: 0, y: 0 }; // scratch positions (node, and where its branch starts)
+  private pp: Pt = { x: 0, y: 0 };
 
   invalidate(): void {
     this.valid = false;
@@ -108,53 +100,43 @@ export class HitIndex {
     }
   }
 
-  build(list: DrawList, T: Transform): void {
+  build(list: DrawList, P: LayoutProjection): void {
     const t0 = performance.now();
-    const { tree, L } = this;
+    const { tree, L, T } = P;
     this.gw = Math.ceil(T.W / CELL) + 1;
     this.gh = Math.ceil(T.H / CELL) + 1;
     if (this.head.length < this.gw * this.gh) this.head = new Int32Array(this.gw * this.gh);
     this.head.fill(-1, 0, this.gw * this.gh);
     this.nE = 0;
     this.nI = 0;
-    const rect = T.kind === 'rectangular';
-    const { X, ROW, LAST } = L;
-    const tipPitch = rect ? T.ky : (2 * Math.PI * T.k) / Math.max(1, tree.tipCount);
+    const rect = P.kind === 'rectangular';
+    const { LAST } = L;
+    const tipPitch = P.tipPitch;
+    const { pt, pp } = this;
     for (let e = 0; e < list.count; e++) {
       const i = list.node[e];
       const kind = list.kind[e];
       const lm = list.last[e];
       if (lm >= 0) {
-        this.addRun(i, lm, list.xmax[e], T);
+        this.addRun(i, lm, list.xmax[e], P);
         continue;
       }
-      let x: number, y: number, px: number, py: number;
-      if (rect) {
-        x = T.ox + X[i] * T.kx;
-        y = T.oy + ROW[i] * T.ky;
-        px = i > 0 ? T.ox + X[tree.parent[i]] * T.kx : x;
-        py = y;
-      } else {
-        const ca = L.COS ? L.COS[i] : Math.cos(ROW[i] * T.da),
-          sa = L.SIN ? L.SIN[i] : Math.sin(ROW[i] * T.da);
-        x = T.cx + X[i] * T.k * ca;
-        y = T.cy + X[i] * T.k * sa;
-        const rp = i > 0 ? X[tree.parent[i]] * T.k : X[i] * T.k;
-        px = T.cx + rp * ca;
-        py = T.cy + rp * sa;
-      }
-      if (i > 0) this.addSegment(this.addItem(i, T_STUB), px, py, x, y);
+      P.nodeXY(i, pt);
+      P.parentXY(i, pp);
+      const x = pt.x,
+        y = pt.y;
+      if (i > 0) this.addSegment(this.addItem(i, T_STUB), pp.x, pp.y, x, y);
       if (kind === K_TIP) {
         if (tipPitch >= 6) this.addPoint(this.addItem(i, T_TIPPT), x, y);
       } else if (kind === K_NODE) {
-        const hpx = rect ? (tree.leafEnd[i] - tree.leafStart[i]) * T.ky : (tree.leafEnd[i] - tree.leafStart[i]) * T.da * L.XMAX[i] * T.k;
-        if (hpx >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
+        if (P.cladeSize(i) >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
         const it = this.addItem(i, T_CONN);
-        if (rect) this.addSegment(it, x, T.oy + ROW[tree.firstChild[i]] * T.ky, x, T.oy + ROW[LAST[i]] * T.ky);
+        const a0 = P.tip(tree.firstChild[i]),
+          a1 = P.tip(LAST[i]);
+        if (rect) this.addSegment(it, x, a0, x, a1);
         else {
-          const r = X[i] * T.k;
-          const a0 = ROW[tree.firstChild[i]] * T.da,
-            a1 = ROW[LAST[i]] * T.da;
+          // the connector is an arc: a polyline of chords about CELL apart
+          const r = P.depth(i);
           const nseg = Math.min(400, Math.max(1, Math.ceil(((a1 - a0) * r) / (CELL * 0.75))));
           let lx = T.cx + r * Math.cos(a0),
             ly = T.cy + r * Math.sin(a0);
@@ -169,26 +151,9 @@ export class HitIndex {
         }
       } else if (kind === K_SUMMARY) {
         const it = this.addItem(i, T_SUMMARY);
-        if (rect) {
-          const y0 = T.oy + tree.leafStart[i] * T.ky,
-            y1 = T.oy + tree.leafEnd[i] * T.ky;
-          const xm = T.ox + L.XMAX[i] * T.kx;
-          for (let cy = Math.floor(y0 / CELL); cy <= Math.floor(y1 / CELL); cy++)
-            for (let cx = Math.floor(x / CELL); cx <= Math.floor(xm / CELL); cx++) this.addEntry(it, cx, cy);
-        } else {
-          // sector bounding box
-          const r1 = L.XMAX[i] * T.k,
-            r0 = X[i] * T.k;
-          const a0 = tree.leafStart[i] * T.da,
-            a1 = tree.leafEnd[i] * T.da;
-          const n = Math.max(2, Math.min(24, Math.ceil(((a1 - a0) * r1) / CELL) + 1));
-          for (let s = 0; s <= n; s++) {
-            const a = a0 + ((a1 - a0) * s) / n;
-            this.addPoint(it, T.cx + r1 * Math.cos(a), T.cy + r1 * Math.sin(a));
-            this.addPoint(it, T.cx + r0 * Math.cos(a), T.cy + r0 * Math.sin(a));
-          }
-          this.addPoint(it, x, y);
-        }
+        P.summaryExtent(i, -1, 0);
+        this.addExtent(it, P, 24);
+        if (!rect) this.addPoint(it, x, y);
       }
     }
     this.valid = true;
@@ -197,38 +162,38 @@ export class HitIndex {
     this.builtMs = performance.now() - t0;
   }
 
-  /** A run of small siblings (rule R in lod.ts): one summary item over the slice, no branch or marker of its own. */
-  private addRun(first: number, last: number, xmax: number, T: Transform): void {
-    const { tree, L } = this;
-    const it = this.addItem(first, T_SUMMARY, last, xmax);
-    const p = tree.parent[first];
-    if (T.kind === 'rectangular') {
-      const y0 = T.oy + tree.leafStart[first] * T.ky,
-        y1 = T.oy + tree.leafEnd[last] * T.ky;
-      const x0 = T.ox + L.X[p] * T.kx,
-        x1 = T.ox + xmax * T.kx;
-      for (let cy = Math.floor(y0 / CELL); cy <= Math.floor(y1 / CELL); cy++)
-        for (let cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++) this.addEntry(it, cx, cy);
+  /** Grid entries for the extent set by P.summaryExtent(): rectangular, every cell of the box; radial, points along its inner and
+   *  outer arc (at most `steps` + 1 of each). */
+  private addExtent(it: number, P: LayoutProjection, steps: number): void {
+    const { d0, d1, t0, t1 } = P;
+    if (P.kind === 'rectangular') {
+      for (let cy = Math.floor(t0 / CELL); cy <= Math.floor(t1 / CELL); cy++)
+        for (let cx = Math.floor(d0 / CELL); cx <= Math.floor(d1 / CELL); cx++) this.addEntry(it, cx, cy);
     } else {
-      const r1 = xmax * T.k,
-        r0 = L.X[p] * T.k;
-      const a0 = tree.leafStart[first] * T.da,
-        a1 = tree.leafEnd[last] * T.da;
-      const n = Math.max(2, Math.min(400, Math.ceil(((a1 - a0) * r1) / CELL) + 1));
+      const { cx, cy } = P.T;
+      const n = Math.max(2, Math.min(steps, Math.ceil(((t1 - t0) * d1) / CELL) + 1));
       for (let s = 0; s <= n; s++) {
-        const a = a0 + ((a1 - a0) * s) / n;
-        this.addPoint(it, T.cx + r1 * Math.cos(a), T.cy + r1 * Math.sin(a));
-        this.addPoint(it, T.cx + r0 * Math.cos(a), T.cy + r0 * Math.sin(a));
+        const a = t0 + ((t1 - t0) * s) / n;
+        this.addPoint(it, cx + d1 * Math.cos(a), cy + d1 * Math.sin(a));
+        this.addPoint(it, cx + d0 * Math.cos(a), cy + d0 * Math.sin(a));
       }
     }
   }
 
+  /** A run of small siblings (rule R in lod.ts): one summary item over the slice, no branch or marker of its own. */
+  private addRun(first: number, last: number, xmax: number, P: LayoutProjection): void {
+    const it = this.addItem(first, T_SUMMARY, last, xmax);
+    P.summaryExtent(first, last, xmax);
+    this.addExtent(it, P, 400);
+  }
+
   /** Best hit under (mx, my) in container CSS px, or null. A run is reported as its parent node with kind 'summary' and `run`
    *  (first and last member): the tips it stands for are exactly [leafStart[first], leafEnd[last]), not the parent's. */
-  query(mx: number, my: number, T: Transform): Hit | null {
+  query(mx: number, my: number, P: LayoutProjection): Hit | null {
     if (!this.valid) return null;
-    const { tree, L } = this;
-    const rect = T.kind === 'rectangular';
+    const { tree, L, T } = P;
+    const rect = P.kind === 'rectangular';
+    const { pt, pp } = this;
     const cx0 = Math.floor(mx / CELL),
       cy0 = Math.floor(my / CELL);
     let bestNode = -1,
@@ -244,23 +209,30 @@ export class HitIndex {
           const i = this.iNode[item];
           const type = this.iType[item];
           const lm = this.iLast[item]; // >= 0: a run (type is T_SUMMARY)
+          P.nodeXY(i, pt);
+          const x = pt.x,
+            y = pt.y;
           let d: number;
-          if (rect) {
-            const x = T.ox + L.X[i] * T.kx;
-            const y = T.oy + L.ROW[i] * T.ky;
-            if (type === T_TIPPT) {
+          if (type === T_TIPPT) {
+            if (rect) {
               const dx = Math.abs(mx - x),
                 dy = Math.abs(my - y);
-              if (dx > 8 || dy > Math.max(6, T.ky * 0.5)) continue;
+              if (dx > 8 || dy > Math.max(6, P.tipPitch * 0.5)) continue;
               d = Math.hypot(dx, dy);
-            } else if (type === T_NODEPT) {
+            } else {
               d = Math.hypot(mx - x, my - y);
-              if (d > MARKER_PX) continue;
-            } else if (type === T_SUMMARY) {
-              const y0 = T.oy + tree.leafStart[i] * T.ky,
-                y1 = T.oy + tree.leafEnd[lm >= 0 ? lm : i] * T.ky;
-              const xs = lm >= 0 ? T.ox + L.X[tree.parent[i]] * T.kx : x;
-              const xm = Math.max(xs + 2, T.ox + (lm >= 0 ? this.iXmax[item] : L.XMAX[i]) * T.kx);
+              if (d > 8) continue;
+            }
+          } else if (type === T_NODEPT) {
+            d = Math.hypot(mx - x, my - y);
+            if (d > MARKER_PX) continue;
+          } else if (type === T_SUMMARY) {
+            P.summaryExtent(i, lm, this.iXmax[item]);
+            if (rect) {
+              const y0 = P.t0,
+                y1 = P.t1;
+              const xs = P.d0;
+              const xm = Math.max(xs + 2, P.d1);
               if (mx < xs - 2 || mx > xm + 2) continue;
               const ym = Math.max(y1, y0 + 2);
               const yt = ym - Math.max(y1 - y0, 2);
@@ -275,60 +247,46 @@ export class HitIndex {
                 if (my < lo || my > hi) continue;
                 d = 0;
               }
-            } else if (type === T_STUB) {
-              const px = T.ox + L.X[tree.parent[i]] * T.kx;
-              const dy = Math.abs(my - y);
-              if (dy > 4 || mx < Math.min(px, x) - 4 || mx > Math.max(px, x) + 4) continue;
-              d = dy;
             } else {
-              const y0 = T.oy + L.ROW[tree.firstChild[i]] * T.ky,
-                y1 = T.oy + L.ROW[L.LAST[i]] * T.ky;
-              const dx = Math.abs(mx - x);
-              if (dx > 4 || my < y0 - 4 || my > y1 + 4) continue;
-              d = dx;
-            }
-          } else {
-            const a = L.ROW[i] * T.da;
-            const ca = Math.cos(a),
-              sa = Math.sin(a);
-            const r = L.X[i] * T.k;
-            const x = T.cx + r * ca,
-              y = T.cy + r * sa;
-            if (type === T_TIPPT) {
-              d = Math.hypot(mx - x, my - y);
-              if (d > 8) continue;
-            } else if (type === T_NODEPT) {
-              d = Math.hypot(mx - x, my - y);
-              if (d > MARKER_PX) continue;
-            } else if (type === T_SUMMARY) {
               const rr = Math.hypot(mx - T.cx, my - T.cy);
               let th = Math.atan2(my - T.cy, mx - T.cx);
               if (th < 0) th += 2 * Math.PI;
-              const a0 = tree.leafStart[i] * T.da,
-                a1 = tree.leafEnd[lm >= 0 ? lm : i] * T.da;
-              const r1 = (lm >= 0 ? this.iXmax[item] : L.XMAX[i]) * T.k;
-              const rs = lm >= 0 ? L.X[tree.parent[i]] * T.k : r;
+              const a0 = P.t0,
+                a1 = P.t1;
+              const r1 = P.d1;
+              const rs = P.d0;
               const slack = 3 / Math.max(rr, 1);
               if (rr < rs - 3 || rr > r1 + 3 || th < a0 - slack || th > a1 + slack) continue;
               // inside the fan scores 0; inside the 3 px slack only, the distance outside (px), so the fan under the pointer
               // beats a neighbour whose slack reaches the same point
               d = (th < a0 ? a0 - th : th > a1 ? th - a1 : 0) * rr + (rr < rs ? rs - rr : rr > r1 ? rr - r1 : 0);
-            } else if (type === T_STUB) {
-              const rp = L.X[tree.parent[i]] * T.k;
-              const x0 = T.cx + rp * ca,
-                y0 = T.cy + rp * sa;
-              d = distSeg(mx, my, x0, y0, x, y);
-              if (d > 4) continue;
-            } else {
-              const rr = Math.hypot(mx - T.cx, my - T.cy);
-              let th = Math.atan2(my - T.cy, mx - T.cx);
-              if (th < 0) th += 2 * Math.PI;
-              const a0 = L.ROW[tree.firstChild[i]] * T.da,
-                a1 = L.ROW[L.LAST[i]] * T.da;
-              const slack = 4 / Math.max(r, 1);
-              d = Math.abs(rr - r);
-              if (d > 4 || th < a0 - slack || th > a1 + slack) continue;
             }
+          } else if (type === T_STUB) {
+            P.parentXY(i, pp);
+            if (rect) {
+              const dy = Math.abs(my - y);
+              if (dy > 4 || mx < Math.min(pp.x, x) - 4 || mx > Math.max(pp.x, x) + 4) continue;
+              d = dy;
+            } else {
+              d = distSeg(mx, my, pp.x, pp.y, x, y);
+              if (d > 4) continue;
+            }
+          } else if (rect) {
+            const y0 = P.tip(tree.firstChild[i]),
+              y1 = P.tip(L.LAST[i]);
+            const dx = Math.abs(mx - x);
+            if (dx > 4 || my < y0 - 4 || my > y1 + 4) continue;
+            d = dx;
+          } else {
+            const r = P.depth(i);
+            const rr = Math.hypot(mx - T.cx, my - T.cy);
+            let th = Math.atan2(my - T.cy, mx - T.cx);
+            if (th < 0) th += 2 * Math.PI;
+            const a0 = P.tip(tree.firstChild[i]),
+              a1 = P.tip(L.LAST[i]);
+            const slack = 4 / Math.max(r, 1);
+            d = Math.abs(rr - r);
+            if (d > 4 || th < a0 - slack || th > a1 + slack) continue;
           }
           const score = d + PENALTY[type];
           if (score < bestScore) {

@@ -27,11 +27,24 @@ import {
   ZOOM_NODE_RADIAL_PAD,
 } from './constants.ts';
 import { cellRect, columnsWidth, compileColumns, COL_GAP, drawColumns, layoutColumns, type CompiledColumn } from './columns.ts';
-import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, drawScaleBar, LabelList, BRANCH_W, type Scene } from './draw.ts';
-import { makeTransform, nodeXY, sectorBBox, viewportEquals, type Area, type Transform } from './geom.ts';
+import {
+  drawAxis,
+  drawBody,
+  drawHighlights,
+  drawLabels,
+  drawMarkers,
+  drawRing,
+  drawScaleBar,
+  LabelList,
+  TextMeasurer,
+  BRANCH_W,
+  type Scene,
+} from './draw.ts';
+import { makeTransform, sectorBBox, viewportEquals, type Area, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { computeLayout, ensureTrig, type Layout } from './layout.ts';
-import { cutRadial, cutRect, searchCut, DrawList, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
+import { cut, newCutResult, searchCut, DrawList, K_SUMMARY, K_TIP, Seen, type CutParams, type CutResult } from './lod.ts';
+import { projectionFor, type LayoutProjection } from './projection.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
@@ -101,6 +114,7 @@ export class TreeRenderer {
   private view: Viewport = { x0: 0, x1: 1, y0: 0, y1: 1 };
   private fitted = true;
   private T!: Transform;
+  private proj!: LayoutProjection; // the layout projection of T and L (node positions, clade extents), rebuilt with T
   private area!: Area;
   private columns: CompiledColumn[] = [];
   private classOf: Uint8Array | null = null;
@@ -116,6 +130,7 @@ export class TreeRenderer {
   private seen = new Seen();
   private ovList = new DrawList();
   private hit: HitIndex;
+  private measurer = new TextMeasurer(); // label widths of this renderer's fonts only
   private labels = new LabelList();
   private hoverNode = -1;
   private hoverKind: Hit['kind'] | '' = '';
@@ -197,7 +212,7 @@ export class TreeRenderer {
     this.theme = theme;
     this.cb = cb;
     this.L = this.layoutFor(this.opts.branchLengths);
-    this.hit = new HitIndex(this.tree, this.L);
+    this.hit = new HitIndex();
 
     const mk = <K extends keyof HTMLElementTagNameMap>(tag: K, css: string): HTMLElementTagNameMap[K] => {
       const el = document.createElement(tag);
@@ -267,7 +282,7 @@ export class TreeRenderer {
     this.tree = this.source.snapshot();
     this.layouts.clear();
     this.L = this.layoutFor(this.opts.branchLengths);
-    this.hit = new HitIndex(this.tree, this.L);
+    this.hit = new HitIndex();
     this.applyClades();
     this.activeNode = -1;
     this.hoverNode = -1;
@@ -311,7 +326,7 @@ export class TreeRenderer {
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
-      this.hit.setLayout(this.L);
+      this.hit.invalidate();
     }
     if (tipHrefChanged) this.clearPool();
     if (refit) {
@@ -486,7 +501,7 @@ export class TreeRenderer {
     const isTip = this.tree.childCount[i] === 0;
     if (e < 0 && !isTip) return null;
     const p = { x: 0, y: 0 };
-    nodeXY(this.T, this.L, i, p);
+    this.proj.nodeXY(i, p);
     const m = isTip ? 0 : 1; // a tip row at the very edge of the fit view still counts as in view
     if (p.x < this.T.clipL + m || p.y < this.T.clipT + m || p.x > this.T.clipR - m || p.y > this.T.clipB - m) return null;
     const r = this.root.getBoundingClientRect();
@@ -503,7 +518,7 @@ export class TreeRenderer {
     const isTip = this.tree.childCount[i] === 0;
     if (isTip) {
       const p = { x: 0, y: 0 };
-      nodeXY(T, this.L, i, p);
+      this.proj.nodeXY(i, p);
       x0 = p.x - 5;
       x1 = p.x + 5;
       y0 = p.y - 5;
@@ -863,14 +878,8 @@ export class TreeRenderer {
     if (this.effScale() !== this.dpr) this.setSize(this.W, this.H);
   }
 
-  private fitCut(
-    rect: boolean,
-    base: number,
-    budget: number,
-    summaries: boolean,
-    useHint: boolean,
-  ): { res: CutResult; minPx: number; retries: number } {
-    const r = searchCut(rect, this.tree, this.L, this.T, this.classOf, this.list, this.seen, {
+  private fitCut(base: number, budget: number, summaries: boolean, useHint: boolean): { res: CutResult; minPx: number; retries: number } {
+    const r = searchCut(this.tree, this.L, this.T, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
       base,
       budget,
@@ -892,6 +901,7 @@ export class TreeRenderer {
     if (!rect) ensureTrig(L);
     this.computeArea();
     this.T = makeTransform(opts.layout, W, H, this.view, this.area, tree.tipCount);
+    this.proj = projectionFor(tree, L, this.T);
     const T = this.T;
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -907,9 +917,9 @@ export class TreeRenderer {
       budget = Math.max(500, Math.floor(budget / 4));
       if (this.lastFullDrawn > HEAVY_PRIMS) base = baseMinPx * REDUCED_MINPX;
     }
-    const cutRes = this.fitCut(rect, base, budget, opts.showSummaries, !reduced);
+    const cutRes = this.fitCut(base, budget, opts.showSummaries, !reduced);
     const { minPx, retries } = cutRes;
-    const res = { ...cutRes.res }; // the cut functions return a shared scratch object; the overview cut below would overwrite it
+    const res = cutRes.res;
     const cutMs = performance.now() - tc;
     this.hit.invalidate();
     if (!reduced) this.lastFullDrawn = this.list.count;
@@ -922,6 +932,7 @@ export class TreeRenderer {
       tree,
       L,
       T,
+      P: this.proj,
       list: this.list,
       theme: this.theme,
       colours: this.colours,
@@ -935,6 +946,7 @@ export class TreeRenderer {
       format: opts.formatLabel,
       scale: dpr,
       thin: !rect && this.list.count >= THIN_PRIMS,
+      measure: this.measurer,
     };
     ctx.save();
     ctx.beginPath();
@@ -1072,13 +1084,13 @@ export class TreeRenderer {
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
-    const S = { T: this.T, L: this.L } as Scene;
+    const P = this.proj;
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode)
-      drawRing(c, S, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
+      drawRing(c, P, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
     if (this.activeNode >= 0) {
-      drawRing(c, S, this.activeNode, 10, this.theme.highlight, 2.5);
+      drawRing(c, P, this.activeNode, 10, this.theme.highlight, 2.5);
       const p = { x: 0, y: 0 };
-      nodeXY(this.T, this.L, this.activeNode, p);
+      P.nodeXY(this.activeNode, p);
       if (this.T.kind === 'rectangular') {
         c.strokeStyle = this.theme.highlight;
         c.globalAlpha = 0.5;
@@ -1198,7 +1210,7 @@ export class TreeRenderer {
   // ================================================================= hit-testing
 
   private ensureHit(): void {
-    if (!this.hit.valid) this.hit.build(this.list, this.T);
+    if (!this.hit.valid) this.hit.build(this.list, this.proj);
   }
 
   private queryHit(x: number, y: number): Hit | null {
@@ -1210,7 +1222,7 @@ export class TreeRenderer {
           return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
       }
     }
-    return this.hit.query(x, y, this.T);
+    return this.hit.query(x, y, this.proj);
   }
 
   private findInList(node: number): number {
@@ -1564,7 +1576,8 @@ export class TreeRenderer {
     } else {
       const p = { x: 0, y: 0 };
       this.T = makeTransform('radial', this.W, this.H, v, a, this.tree.tipCount);
-      nodeXY(this.T, this.L, node, p);
+      this.proj = projectionFor(this.tree, this.L, this.T);
+      this.proj.nodeXY(node, p);
       const pad = 30;
       if (p.x < pad || p.y < pad || p.x > this.W - pad || p.y > this.H - pad) {
         const k = a.aw / (v.x1 - v.x0);
@@ -1616,7 +1629,7 @@ export class TreeRenderer {
         if (this.activeNode < 0) this.activeNode = node;
         const p = { x: 0, y: 0 };
         this.renderNow();
-        nodeXY(this.T, this.L, node, p);
+        this.proj.nodeXY(node, p);
         const r = this.root.getBoundingClientRect();
         e.preventDefault();
         this.cb.onClick?.(this.mkEvent(node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
@@ -1725,12 +1738,12 @@ export class TreeRenderer {
       : { x0: -OVERVIEW_WORLD_HALF, x1: OVERVIEW_WORLD_HALF, y0: -OVERVIEW_WORLD_HALF, y1: OVERVIEW_WORLD_HALF };
     const T = makeTransform(this.opts.layout, g.w, g.h, vp, area, N);
     const P: CutParams = { lod: true, minPx: 2.5, budget: 6000, summaries: true };
+    const proj = projectionFor(this.tree, this.L, T);
+    const ovRes = newCutResult();
     let minPx = 2.5;
     for (let k = 0; k < 6; k++) {
       P.minPx = minPx;
-      const r = rect
-        ? cutRect(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen)
-        : cutRadial(this.tree, this.L, T, P, this.classOf, this.ovList, this.seen);
+      const r = cut(proj, P, this.classOf, this.ovList, this.seen, ovRes);
       if (!r.overflow) break;
       minPx *= 2;
     }
@@ -1738,6 +1751,7 @@ export class TreeRenderer {
       tree: this.tree,
       L: this.L,
       T,
+      P: proj,
       list: this.ovList,
       theme: this.theme,
       colours: this.colours,
@@ -1751,6 +1765,7 @@ export class TreeRenderer {
       format: this.opts.formatLabel,
       scale: this.dpr,
       thin: false,
+      measure: this.measurer,
     };
     drawBody(ctx, S, 1);
     if (rect && this.hlRanks.length) {

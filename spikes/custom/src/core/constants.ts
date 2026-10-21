@@ -1,6 +1,11 @@
 // Tuning knobs and numeric limits used in more than one place (or worth finding in one place). Values are the ones the code always had;
 // the radial drawing ones are explained in docs/results/custom.md, section "Radial performance work".
 
+// ---- cut and drawing windows (projection.ts)
+
+/** Nodes are culled against the clip rectangle grown by this many px, and the radial window drawing clips arcs to is grown by the same. */
+export const CULL_PAD_PX = 8;
+
 // ---- radial drawing (draw.ts)
 
 /** Radius (px) from which a radial arc is no longer drawn with ctx.arc(): a far-off clade is clipped to the visible angles (or drawn as a

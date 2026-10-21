@@ -1,8 +1,7 @@
-// Screen transform and node positions. The view is a window in layout coordinates (see Viewport); the
-// transform maps layout to CSS pixels. Rectangular: sx = ox + X*kx, sy = oy + ROW*ky. Radial: the root is at
-// (cx, cy), angle = ROW*da, radius = X*k.
+// Screen transform. The view is a window in layout coordinates (see Viewport); the transform maps layout to CSS pixels.
+// Rectangular: sx = ox + X*kx, sy = oy + ROW*ky. Radial: the root is at (cx, cy), angle = ROW*da, radius = X*k.
+// Node positions and the cut's geometry are asked of the layout projection built from it (projection.ts).
 
-import type { Layout } from './layout.ts';
 import type { LayoutKind, Viewport } from './types.ts';
 
 export interface Area {
@@ -56,24 +55,6 @@ export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewpor
     clipR: a.clipR,
     clipB: a.clipB,
   };
-}
-
-/** Screen position of node i (its marker position). */
-export function nodeXY(T: Transform, L: Layout, i: number, out: { x: number; y: number }): void {
-  if (T.kind === 'rectangular') {
-    out.x = T.ox + L.X[i] * T.kx;
-    out.y = T.oy + L.ROW[i] * T.ky;
-  } else {
-    const r = L.X[i] * T.k;
-    if (L.COS) {
-      out.x = T.cx + r * L.COS[i];
-      out.y = T.cy + r * L.SIN![i];
-    } else {
-      const a = L.ROW[i] * T.da;
-      out.x = T.cx + r * Math.cos(a);
-      out.y = T.cy + r * Math.sin(a);
-    }
-  }
 }
 
 /** Screen bounding box of the annular sector r0..r1 (px), angles a0..a1 (rad), around (cx, cy). */

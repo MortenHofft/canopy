@@ -41,6 +41,7 @@ const { computeLayout, ensureTrig } = await import(path.join(root, 'spikes/custo
 const { makeTransform } = await import(path.join(root, 'spikes/custom/src/core/geom.ts'));
 const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY, isSlice, SLICE_MIN_CHILDREN } = await import(path.join(root, 'spikes/custom/src/core/lod.ts'));
 const { HitIndex } = await import(path.join(root, 'spikes/custom/src/core/hit.ts'));
+const { projectionFor } = await import(path.join(root, 'spikes/custom/src/core/projection.ts'));
 
 // ---- the tree: committed 10k file when TIPS is 10000, otherwise generated with the repo's generator
 function loadNewick() {
@@ -92,7 +93,7 @@ const lo = new DrawList(),
 let prev = null;
 for (const [name, vp] of views) {
   const T = makeTransform('radial', W, H, vp, area, N);
-  const { res, minPx, retries } = searchCut(false, tree, L, T, null, list, seen, { lod: true, base: 3, budget: BUDGET, summaries: true, hint: 0 });
+  const { res, minPx, retries } = searchCut(tree, L, T, null, list, seen, { lod: true, base: 3, budget: BUDGET, summaries: true, hint: 0 });
   console.log(
     `${name}: drawn ${list.count} (tips ${res.tips}, summaries ${res.summaries}, forced ${res.forced}), minPx ${minPx.toFixed(2)}, passes ${retries + 1}, visited ${res.visited}, merged tips ${res.mergedTips}`,
   );
@@ -144,7 +145,7 @@ for (const [name, vp] of views) {
   let uncovered = 0;
   for (const r of visibleTips) if (!covered[r]) uncovered++;
   ok(uncovered <= res.mergedTips, `${name}: ${uncovered} visible tips are neither drawn nor summarised (merged ${res.mergedTips})`);
-  const { res: r0 } = searchCut(false, tree, L, T, null, lo, seen2, { lod: false, base: 3, budget: 1e7, summaries: true, hint: 0 });
+  const { res: r0 } = searchCut(tree, L, T, null, lo, seen2, { lod: false, base: 3, budget: 1e7, summaries: true, hint: 0 });
   const have = new Uint8Array(N);
   for (let e = 0; e < lo.count; e++) if (lo.kind[e] === K_TIP) have[tree.tipRank[lo.node[e]]] = 1;
   let missing = 0;
@@ -159,8 +160,9 @@ for (const [name, vp] of views) {
   // 7 deep zoom visits little
   if (name.startsWith('16x')) ok(res.visited < 0.05 * tree.nodeCount, `${name}: visited ${res.visited} of ${tree.nodeCount} nodes`);
   // 6 hit-testing on summaries
-  const hit = new HitIndex(tree, L);
-  hit.build(list, T);
+  const hit = new HitIndex();
+  const proj = projectionFor(tree, L, T);
+  hit.build(list, proj);
   let tried = 0,
     hitOk = 0;
   for (let e = 0; e < list.count && tried < 200; e++) {
@@ -176,7 +178,7 @@ for (const [name, vp] of views) {
       y = T.cy + rr * Math.sin(a);
     if (x < 2 || y < 2 || x > W - 2 || y > H - 2) continue;
     tried++;
-    const h = hit.query(x, y, T);
+    const h = hit.query(x, y, proj);
     if (h && h.kind === 'summary' && h.node === i) hitOk++;
   }
   console.log(`  hit-test: ${hitOk}/${tried} summary centres hit their own summary`);
@@ -186,7 +188,7 @@ for (const [name, vp] of views) {
 // budgets 500..20000 at fit: never above the budget
 for (const b of [500, 1000, 2000, 5000, 20000]) {
   const T = makeTransform('radial', W, H, fitView, area, N);
-  const { res } = searchCut(false, tree, L, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+  const { res } = searchCut(tree, L, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
   console.log(`budget ${b}: drawn ${list.count}${res.overflow ? ' TRUNCATED' : ''}`);
   ok(!res.overflow && list.count <= b, `budget ${b}: drawn ${list.count}`);
 }
@@ -208,9 +210,9 @@ function panCheck(label, tr, Lr, Nr) {
     return { x0: x0 + dx / kx, x1: x1 + dx / kx, y0: y0 + dy / ky, y1: y1 + dy / ky };
   };
   const radialView = (dx, dy) => ({ x0: fitView.x0 + dx / kfit, x1: fitView.x1 + dx / kfit, y0: fitView.y0 + dy / kfit, y1: fitView.y1 + dy / kfit });
-  for (const [kind, rect, mk] of [
-    ['radial', false, radialView],
-    ['rectangular', true, rectView],
+  for (const [kind, mk] of [
+    ['radial', radialView],
+    ['rectangular', rectView],
   ]) {
     for (const b of [500, 2000]) {
       let ref = null,
@@ -226,7 +228,7 @@ function panCheck(label, tr, Lr, Nr) {
         [9.3, 0],
       ]) {
         const T = makeTransform(kind, W, H, mk(dx, dy), area, Nr);
-        searchCut(rect, tr, Lr, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+        searchCut(tr, Lr, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
         const cur = summarySet(list);
         if (!ref) {
           ref = cur;
@@ -271,7 +273,7 @@ if (fs.existsSync(otlFile)) {
     for (const z of [3, 8, 20]) {
       const vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
       const T = makeTransform('radial', W, H, vp, area, Ns);
-      const { res, minPx } = searchCut(false, st, Ls, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+      const { res, minPx } = searchCut(st, Ls, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
       let kids = 0,
         sliceDrawn = 0,
         other = 0;
@@ -292,12 +294,13 @@ if (fs.existsSync(otlFile)) {
           `star ${b} ${z}x: the threshold was raised to ${minPx.toFixed(2)} (forced ${res.forced}) because of the polytomy`,
         );
         ok(sliceDrawn === 1, `star ${b} ${z}x: the polytomy was not drawn as one slice (${sliceDrawn})`);
-        const hit = new HitIndex(st, Ls);
-        hit.build(list, T);
+        const hit = new HitIndex();
+        const proj = projectionFor(st, Ls, T);
+        hit.build(list, proj);
         const rc = Ls.XMAX[starNode] * T.k - 3; // just inside the outer edge, which is at the centre of the view
         const x = T.cx + rc * Math.cos(aa),
           y = T.cy + rc * Math.sin(aa);
-        const h = hit.query(x, y, T);
+        const h = hit.query(x, y, proj);
         ok(h && h.kind === 'summary' && h.node === starNode, `star ${b} ${z}x: click inside the slice returned ${JSON.stringify(h)}`);
       }
     }
@@ -338,8 +341,8 @@ if (fs.existsSync(otlFile)) {
   const midTip = poly.tipNode[(poly.leafStart[P] + poly.leafEnd[P]) >> 1];
   const rows = (c) => (Lp.ROW[poly.firstChild[c]] + Lp.ROW[Lp.LAST[c]]) / 2; // not used for placement, only a stable centre row
   void rows;
-  const checkCut = (label, rect, T, b, vis) => {
-    const { res, minPx } = searchCut(rect, poly, Lp, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
+  const checkCut = (label, T, b, vis) => {
+    const { res, minPx } = searchCut(poly, Lp, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
     let runs = 0,
       direct = 0,
       tipsDrawn = 0,
@@ -393,7 +396,7 @@ if (fs.existsSync(otlFile)) {
     for (const b of [500, 2000]) {
       const vp = rect ? { x0: -0.03, x1: 1.03, y0: -1, y1: Np + 1 } : fitView;
       const T = makeTransform(kind, W, H, vp, area, Np);
-      const r = checkCut(`polytomy ${kind} fit`, rect, T, b, () => true);
+      const r = checkCut(`polytomy ${kind} fit`, T, b, () => true);
       const total = r.tipsDrawn + r.res.summaryTips + r.res.mergedTips;
       ok(
         total === Np,
@@ -429,7 +432,7 @@ if (fs.existsSync(otlFile)) {
                 y = T.cy + Lp.X[nd] * T.k * Lp.SIN[nd];
               return x > 0 && x < W && y > 0 && y < H;
             };
-        const r = checkCut(`polytomy ${kind} ${z}x (tip pitch ${pitch.toFixed(2)} px)`, rect, T, b, vis);
+        const r = checkCut(`polytomy ${kind} ${z}x (tip pitch ${pitch.toFixed(2)} px)`, T, b, vis);
         if (2 * pitch < 3 && r.visLarge > 0) {
           ok(
             r.ownEntry === r.visLarge,
@@ -442,8 +445,9 @@ if (fs.existsSync(otlFile)) {
           );
           ok(r.runs > 0, `polytomy ${kind} ${b} ${z}x: no run was formed`);
           // a click inside a run reports exactly the run
-          const hit = new HitIndex(poly, Lp);
-          hit.build(list, T);
+          const hit = new HitIndex();
+          const proj = projectionFor(poly, Lp, T);
+          hit.build(list, proj);
           let tried = 0,
             good = 0;
           for (let e = 0; e < list.count && tried < 40; e++) {
@@ -467,7 +471,7 @@ if (fs.existsSync(otlFile)) {
             }
             if (x < 2 || y < 2 || x > W - 2 || y > H - 2) continue;
             tried++;
-            const h = hit.query(x, y, T);
+            const h = hit.query(x, y, proj);
             if (h && h.kind === 'summary' && h.node === P && h.run && h.run.first === i && h.run.last === lm) good++;
           }
           console.log(`  hit-test: ${good}/${tried} run centres hit their own run (parent ${P}, tip range of the run only)`);
@@ -504,7 +508,7 @@ if (fs.existsSync(otlFile)) {
         const w = W / kfit / z,
           h = H / kfit / z;
         const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz);
-        const { minPx } = searchCut(false, otl2, Lz, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+        const { minPx } = searchCut(otl2, Lz, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
         hint = minPx;
         const cur = new Set();
         for (let e = 0; e < list.count; e++) cur.add(list.node[e] * 8 + list.kind[e]);
@@ -545,7 +549,7 @@ if (fs.existsSync(otlFile)) {
       const w = W / kfit / z,
         h = H / kfit / z;
       const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3);
-      const { minPx } = searchCut(false, otl3, L3, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
+      const { minPx } = searchCut(otl3, L3, T, null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
       hint = minPx;
       if (prevM && minPx > prevM * 1.001) rises++;
       prevM = minPx;

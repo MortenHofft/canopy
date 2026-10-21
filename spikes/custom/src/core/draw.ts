@@ -2,16 +2,19 @@
 // allocates per node. Strokes are batched into one path per colour class.
 
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
-import { nodeXY, type Transform } from './geom.ts';
-import { ensureTrig, type Layout } from './layout.ts';
-import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice, radialWindow, radialWindowState } from './lod.ts';
+import type { Transform } from './geom.ts';
+import type { Layout } from './layout.ts';
+import { DrawList } from './lod.ts';
+import { K_NODE, K_SUMMARY, K_TIP, isSlice } from './kinds.ts';
 import { MARKER_PX } from './hit.ts';
+import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
 import type { LabelDensity, TreeSnapshot, TreeTheme } from './types.ts';
 
 export interface Scene {
   tree: TreeSnapshot;
   L: Layout;
   T: Transform;
+  P: LayoutProjection; // where nodes and clades are on screen (built from T and L); the drawing below takes its geometry from it
   list: DrawList;
   theme: TreeTheme;
   colours: string[]; // colour by class; class 0 = default branch colour
@@ -25,6 +28,7 @@ export interface Scene {
   format: (id: string) => string;
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
+  measure: TextMeasurer; // label widths, owned by the renderer
 }
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
@@ -74,34 +78,43 @@ export const BRANCH_W = 1.3;
 export const CLADE_W = 2;
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 
-const widthCache = new Map<string, number>();
-let widthFont = '';
-export function textWidth(ctx: CanvasRenderingContext2D, text: string, font: string): number {
-  if (font !== widthFont) {
-    // the cache key includes the size, so a family change is the only reason to clear
-    const fam = font.slice(font.indexOf('px') + 2);
-    if (widthFont.slice(widthFont.indexOf('px') + 2) !== fam || widthCache.size > 20000) widthCache.clear();
-    widthFont = font;
+/** Text widths by font and text. One per renderer, so renderers with different fonts do not clear each other's entries; bounded by
+ *  clearing when the font family changes or the table passes MAX entries (checked when the font changes). */
+export class TextMeasurer {
+  private static readonly MAX = 20000;
+  private cache = new Map<string, number>();
+  private font = '';
+  width(ctx: CanvasRenderingContext2D, text: string, font: string): number {
+    if (font !== this.font) {
+      // the cache key includes the size, so a family change is the only reason to clear
+      const fam = font.slice(font.indexOf('px') + 2);
+      if (this.font.slice(this.font.indexOf('px') + 2) !== fam || this.cache.size > TextMeasurer.MAX) this.cache.clear();
+      this.font = font;
+    }
+    const key = font + '|' + text;
+    let w = this.cache.get(key);
+    if (w === undefined) {
+      ctx.font = font;
+      w = ctx.measureText(text).width;
+      this.cache.set(key, w);
+    }
+    return w;
   }
-  const key = font + '|' + text;
-  let w = widthCache.get(key);
-  if (w === undefined) {
-    ctx.font = font;
-    w = ctx.measureText(text).width;
-    widthCache.set(key, w);
-  }
-  return w;
 }
 
 const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
 
-/** Branches and collapsed clades. */
+/** Branches and collapsed clades. Positions and clade extents come from the layout projection; what is drawn differs by layout
+ *  (axis-aligned strokes and triangles vs arcs and fans), so each has its own loop. */
 export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
-  if (S.T.kind === 'radial') return drawBodyRadial(ctx, S, lineW);
+  const P = S.P;
+  if (P.kind === 'radial') return drawBodyRadial(ctx, S, P, lineW);
   const { tree, L, T, list, colours, theme } = S;
-  const { X, ROW, XMAX, LAST } = L;
-  const { parent, firstChild, leafStart, leafEnd } = tree;
+  const { firstChild } = tree;
+  const { LAST } = L;
   const nCls = colours.length;
+  const p: Pt = { x: 0, y: 0 },
+    q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'round';
   for (let cls = 0; cls < nCls; cls++) {
@@ -116,16 +129,15 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       if (list.last[e] >= 0) continue; // a run has no branch of its own (its members' branches lie inside the slice)
       const i = list.node[e];
       const kind = list.kind[e];
-      const sx = T.ox + X[i] * T.kx;
-      const sy = T.oy + ROW[i] * T.ky;
+      P.nodeXY(i, p);
       if (i > 0) {
-        const sxp = T.ox + X[parent[i]] * T.kx;
-        ctx.moveTo(sxp, sy);
-        ctx.lineTo(sx, sy);
+        P.parentXY(i, q);
+        ctx.moveTo(q.x, p.y);
+        ctx.lineTo(p.x, p.y);
       }
       if (kind === K_NODE) {
-        ctx.moveTo(sx, clampY(T.oy + ROW[firstChild[i]] * T.ky, T.H));
-        ctx.lineTo(sx, clampY(T.oy + ROW[LAST[i]] * T.ky, T.H));
+        ctx.moveTo(p.x, clampY(P.tip(firstChild[i]), T.H));
+        ctx.lineTo(p.x, clampY(P.tip(LAST[i]), T.H));
       }
     }
     if (any) ctx.stroke();
@@ -141,16 +153,17 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       any = true;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
-      const sx = T.ox + X[lm >= 0 ? parent[i] : i] * T.kx,
-        sy = T.oy + ROW[i] * T.ky;
-      let y0 = T.oy + leafStart[i] * T.ky,
-        y1 = T.oy + leafEnd[lm >= 0 ? lm : i] * T.ky;
+      P.summaryExtent(i, lm, list.xmax[e]);
+      const sx = P.d0,
+        sy = P.tip(i);
+      let y0 = P.t0,
+        y1 = P.t1;
       if (y1 - y0 < 1.5) {
         const m = (y0 + y1) / 2;
         y0 = m - 0.75;
         y1 = m + 0.75;
       }
-      const xm = Math.max(sx + 2, T.ox + (lm >= 0 ? list.xmax[e] : XMAX[i]) * T.kx);
+      const xm = Math.max(sx + 2, P.d1);
       if (lm >= 0 || isSlice(tree, i)) {
         ctx.rect(sx, y0, xm - sx, y1 - y0);
         continue;
@@ -166,20 +179,19 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
 }
 
 /** Radial branches: one stroke() per colour class and 256 segments, connector arcs only where the arc differs from its
- *  chord by more than about 0.3 px (sagitta s^2/8r), long arcs of far-off clades clipped to the visible angles, summaries
- *  as filled fans. No trigonometry per node (cached cos/sin of the node angles). */
-function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number): void {
+ *  chord by more than about 0.3 px (sagitta s^2/8r), long arcs of far-off clades clipped to the visible angles (the
+ *  projection's window), summaries as filled fans. No trigonometry per node (cached cos/sin of the node angles). */
+function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, P: RadialProjection, lineW: number): void {
   const { tree, L, T, list, colours, theme } = S;
-  ensureTrig(L);
   const COS = L.COS!,
     SIN = L.SIN!;
-  const { X, ROW, XMAX, LAST } = L;
-  const { parent, firstChild, leafStart, leafEnd } = tree;
-  const { cx, cy, k, da } = T;
+  const { firstChild } = tree;
+  const { LAST } = L;
+  const { cx, cy } = T;
   const nCls = colours.length;
-  radialWindow(cx, cy, T.clipL - 8, T.clipT - 8, T.clipR + 8, T.clipB + 8);
-  const W = radialWindowState;
   const inv = 1 / S.scale;
+  const p: Pt = { x: 0, y: 0 },
+    q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'bevel';
   for (let cls = 0; cls < nCls; cls++) {
@@ -191,41 +203,39 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       if (nCls > 1 && list.cls[e] !== cls) continue;
       if (list.last[e] >= 0) continue; // run: no branch of its own
       const i = list.node[e];
-      const ca = COS[i],
-        sa = SIN[i];
-      const r = X[i] * k;
       if (i > 0) {
-        const rp = X[parent[i]] * k;
-        ctx.moveTo(cx + rp * ca, cy + rp * sa);
-        ctx.lineTo(cx + r * ca, cy + r * sa);
+        P.parentXY(i, q);
+        P.nodeXY(i, p);
+        ctx.moveTo(q.x, q.y);
+        ctx.lineTo(p.x, p.y);
         segs++;
       }
       if (list.kind[e] === K_NODE) {
         const fc = firstChild[i],
           lc = LAST[i];
-        const span = (ROW[lc] - ROW[fc]) * da;
-        const len = span * r;
+        const r = P.depth(i);
+        const len = P.tipSpan(fc, lc) * r;
         ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
         if (len * len <= ARC_SAGITTA_K * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
         else {
-          let a0 = ROW[fc] * da,
-            a1 = ROW[lc] * da;
-          if (!W.all && r > RADIAL_FAR_ARC_R) {
+          let a0 = P.tip(fc),
+            a1 = P.tip(lc);
+          if (!P.all && r > RADIAL_FAR_ARC_R) {
             // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
-            if (W.wrap) {
-              if (a1 >= W.lo) {
-                ctx.moveTo(cx + r * Math.cos(Math.max(a0, W.lo)), cy + r * Math.sin(Math.max(a0, W.lo)));
-                ctx.arc(cx, cy, r, Math.max(a0, W.lo), a1);
+            if (P.wrap) {
+              if (a1 >= P.lo) {
+                ctx.moveTo(cx + r * Math.cos(Math.max(a0, P.lo)), cy + r * Math.sin(Math.max(a0, P.lo)));
+                ctx.arc(cx, cy, r, Math.max(a0, P.lo), a1);
                 segs++;
               }
-              if (a0 <= W.hi) {
+              if (a0 <= P.hi) {
                 ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
-                ctx.arc(cx, cy, r, a0, Math.min(a1, W.hi));
+                ctx.arc(cx, cy, r, a0, Math.min(a1, P.hi));
                 segs++;
               }
             } else {
-              a0 = Math.max(a0, W.lo);
-              a1 = Math.min(a1, W.hi);
+              a0 = Math.max(a0, P.lo);
+              a1 = Math.min(a1, P.hi);
               if (a1 > a0) {
                 ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
                 ctx.arc(cx, cy, r, a0, a1);
@@ -253,10 +263,11 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
       if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
       const i = list.node[e];
       const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
-      let a0 = leafStart[i] * da,
-        a1 = leafEnd[lm >= 0 ? lm : i] * da;
-      const r0 = X[lm >= 0 ? parent[i] : i] * k;
-      const r1 = Math.max(r0 + 2, (lm >= 0 ? list.xmax[e] : XMAX[i]) * k);
+      P.summaryExtent(i, lm, list.xmax[e]);
+      let a0 = P.t0,
+        a1 = P.t1;
+      const r0 = P.d0;
+      const r1 = Math.max(r0 + 2, P.d1);
       if ((a1 - a0) * r1 < 1.5) {
         const m = (a0 + a1) / 2,
           h = 0.75 / r1;
@@ -300,10 +311,9 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, lineW: number):
 
 /** Tip dots and internal node markers. Returns nothing; positions are recomputed by hit-testing. */
 export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
-  const { tree, L, T, list, theme, colours } = S;
-  const rect = T.kind === 'rectangular';
-  const p = { x: 0, y: 0 };
-  const tipPx = rect ? T.ky : (2 * Math.PI * T.k) / Math.max(1, tree.tipCount);
+  const { P, list, theme, colours } = S;
+  const p: Pt = { x: 0, y: 0 };
+  const tipPx = P.tipPitch;
   const dots = tipPx >= TIP_DOT_PX;
   const rTip = Math.min(3.2, Math.max(1.5, tipPx * 0.25));
   // internal markers: small filled squares (cheap), only for clades big enough to click
@@ -318,14 +328,13 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       const i = list.node[e];
       if (kind === K_TIP) {
         if (!dots) continue;
-        nodeXY(T, L, i, p);
+        P.nodeXY(i, p);
         ctx.moveTo(p.x + rTip, p.y);
         ctx.arc(p.x, p.y, rTip, 0, 6.2832);
         any = true;
       } else if (kind === K_NODE) {
-        const size = rect ? (tree.leafEnd[i] - tree.leafStart[i]) * T.ky : (tree.leafEnd[i] - tree.leafStart[i]) * T.da * L.XMAX[i] * T.k;
-        if (size < MARKER_PX) continue;
-        nodeXY(T, L, i, p);
+        if (P.cladeSize(i) < MARKER_PX) continue;
+        P.nodeXY(i, p);
         ctx.rect(p.x - 2, p.y - 2, 4, 4);
         any = true;
       }
@@ -336,10 +345,10 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
 }
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {
-  const { tree, L, T, theme, hlRanks } = S;
+  const { tree, L, T, P, theme, hlRanks } = S;
   if (!hlRanks.length) return;
-  const rect = T.kind === 'rectangular';
-  const p = { x: 0, y: 0 };
+  const rect = P.kind === 'rectangular';
+  const p: Pt = { x: 0, y: 0 };
   ctx.fillStyle = theme.highlight;
   ctx.strokeStyle = theme.highlight;
   ctx.lineWidth = 2;
@@ -352,14 +361,14 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
       ctx.globalAlpha = 0.16;
       ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
       ctx.globalAlpha = 1;
-      nodeXY(T, L, node, p);
+      P.nodeXY(node, p);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 7, 0, 6.2832);
       ctx.stroke();
     } else {
-      nodeXY(T, L, node, p);
+      P.nodeXY(node, p);
       if (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20) continue;
-      const a = L.ROW[node] * T.da;
+      const a = P.tip(node);
       ctx.globalAlpha = 0.16;
       ctx.lineWidth = Math.max(3, T.da * L.X[node] * T.k);
       ctx.beginPath();
@@ -375,11 +384,11 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
   }
 }
 
-export function drawRing(ctx: CanvasRenderingContext2D, S: Scene, node: number, radius: number, colour: string, width: number): void {
+export function drawRing(ctx: CanvasRenderingContext2D, P: LayoutProjection, node: number, radius: number, colour: string, width: number): void {
   if (node < 0) return;
-  const p = { x: 0, y: 0 };
-  nodeXY(S.T, S.L, node, p);
-  if (p.x < -20 || p.y < -20 || p.x > S.T.W + 20 || p.y > S.T.H + 20) return;
+  const p: Pt = { x: 0, y: 0 };
+  P.nodeXY(node, p);
+  if (p.x < -20 || p.y < -20 || p.x > P.T.W + 20 || p.y > P.T.H + 20) return;
   ctx.strokeStyle = colour;
   ctx.lineWidth = width;
   ctx.beginPath();
@@ -391,10 +400,10 @@ export function drawRing(ctx: CanvasRenderingContext2D, S: Scene, node: number, 
  *  Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
  *  setTransform per label instead of save/translate/rotate/restore (cos/sin come from the layout cache). */
 export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList): void {
-  const { tree, L, T, list, theme, classOf, colours, highlight } = S;
+  const { tree, L, T, P, list, theme, classOf, colours, highlight } = S;
   labels.clear();
-  const rect = T.kind === 'rectangular';
-  const pitch = rect ? T.ky : (2 * Math.PI * T.k) / Math.max(1, tree.tipCount);
+  const rect = P.kind === 'rectangular';
+  const pitch = P.tipPitch;
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
   const size = Math.max(8, Math.min(13, Math.round(pitch * 0.78)));
@@ -402,10 +411,9 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const fontH = `${S.italic ? 'italic ' : ''}600 ${size}px ${theme.fontFamily}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  const p = { x: 0, y: 0 };
+  const p: Pt = { x: 0, y: 0 };
   const MAXL = rect ? 600 : RADIAL_LABEL_CAP;
   const sc = S.scale;
-  if (!rect) ensureTrig(L);
   let lastFont = '';
   let lastFill = '';
   let lastAlign = 'left';
@@ -413,7 +421,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     if (list.kind[e] !== K_TIP) continue;
     const i = list.node[e];
     const r = tree.tipRank[i];
-    nodeXY(T, L, i, p);
+    P.nodeXY(i, p);
     if (rect) {
       if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x > T.clipR) continue;
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
@@ -424,11 +432,11 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       lastFont = f;
     }
     const text = S.format(tree.tipLabels[r] ?? '');
-    const w = textWidth(ctx, text, f);
+    const w = S.measure.width(ctx, text, f);
     if (f !== lastFont) {
       ctx.font = f;
       lastFont = f;
-    } // textWidth may have set the font
+    } // measure.width may have set the font
     const cl = classOf ? classOf[i] : 0;
     const fill = hl ? theme.highlight : cl ? colours[cl] : theme.foreground;
     if (fill !== lastFill) {
@@ -450,7 +458,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
         lastAlign = al;
       }
       ctx.fillText(text, left ? -8 : 8, 0.5);
-      const a = L.ROW[i] * T.da;
+      const a = P.tip(i);
       labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0);
     }
   }
