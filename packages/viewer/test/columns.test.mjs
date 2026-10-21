@@ -464,3 +464,79 @@ test('updateColumns: an unchanged spec keeps its compiled column, new data recom
   const kindChanged = updateColumns(tree, first.columns, [{ ...b.spec, kind: 'text' }, t.spec]);
   assert.equal(kindChanged.columns[0].txt !== null && kindChanged.columns[0].num === null, true, 'a new kind is compiled afresh');
 });
+
+test('custom column: prepare once per data, has from the values (or hasCell), draw once per frame with the visible rows, clipped', () => {
+  const prepared = [];
+  const drawn = [];
+  const renderer = {
+    prepare(src) {
+      prepared.push(src.tipCount);
+      return Float64Array.from(src.tipLabels, (l) => src.values[l]?.score ?? NaN);
+    },
+    draw(ctx, f, data) {
+      drawn.push({ x: f.x, width: f.width, r0: f.r0, r1: f.r1, oy: f.oy, rowHeight: f.rowHeight, theme: f.theme === theme });
+      for (let r = f.r0; r <= f.r1; r++) if (!Number.isNaN(data[r])) ctx.fillRect(f.x, f.oy + r * f.rowHeight, data[r], f.rowHeight);
+    },
+  };
+  const values = { A: { score: 10 }, C: { score: 20 } };
+  const spec = { id: 'c', kind: 'custom', header: 'Score', width: 60, values, renderer };
+  const [c] = compileColumns(tree, [spec]);
+  assert.deepEqual(prepared, [6]);
+  assert.deepEqual([...c.has], [1, 0, 1, 0, 0, 0]);
+  layoutColumns([c], 300);
+  const ctx = fakeCtx();
+  draw(ctx, [c], tree, rectT());
+  assert.deepEqual(drawn, [{ x: 300, width: 60, r0: 0, r1: 5, oy: 0, rowHeight: 30, theme: true }]);
+  assert.deepEqual(
+    count(ctx, 'fillRect').map((k) => k.args),
+    [
+      [300, 0, 10, 30],
+      [300, 60, 20, 30],
+    ],
+  );
+  assert.equal(count(ctx, 'clip').length, 1, 'clipped to the column');
+  assert.equal(count(ctx, 'fillText')[0].args[0], 'Score', 'the viewer draws the header');
+  assert.deepEqual(cellRect(c, 2, rectT()), { x: 300, y: 60, width: 60, height: 30 });
+  assert.equal(cellRect(c, 1, rectT()), null);
+  // same values and renderer: kept; a new header keeps the data; a new renderer or new values prepare again
+  assert.equal(updateColumns(tree, [c], [{ ...spec }]).columns[0], c);
+  assert.equal(updateColumns(tree, [c], [{ ...spec, header: 'S' }]).columns[0].data, c.data);
+  updateColumns(tree, [c], [{ ...spec, renderer: { ...renderer } }]);
+  updateColumns(tree, [c], [{ ...spec, values: { ...values } }]);
+  assert.deepEqual(prepared, [6, 6, 6]);
+  // hasCell decides when given
+  const [h] = compileColumns(tree, [{ ...spec, renderer: { ...renderer, hasCell: (_d, r) => r === 5 } }]);
+  assert.deepEqual([...h.has], [0, 0, 0, 0, 0, 1]);
+});
+
+test('custom column: a renderer that throws does not break the frame', () => {
+  const spec = {
+    id: 'bad',
+    kind: 'custom',
+    header: 'Bad',
+    width: 40,
+    values: {},
+    renderer: {
+      prepare: () => null,
+      draw() {
+        throw new Error('boom');
+      },
+    },
+  };
+  const [c] = compileColumns(tree, [spec, bar({ A: 1 })].slice(0, 1));
+  const cols = [c, compileColumn(tree, bar({ A: 1 }))];
+  layoutColumns(cols, 300);
+  const ctx = fakeCtx();
+  const errors = [];
+  const orig = console.error;
+  console.error = (...a) => errors.push(a[0]);
+  try {
+    draw(ctx, cols, tree, rectT());
+    draw(ctx, cols, tree, rectT());
+  } finally {
+    console.error = orig;
+  }
+  assert.equal(errors.length, 1, 'reported once');
+  assert.equal(count(ctx, 'fillRect').length, 2, 'the next column is still drawn');
+  assert.equal(count(ctx, 'save').length, count(ctx, 'restore').length, 'save and restore stay balanced');
+});

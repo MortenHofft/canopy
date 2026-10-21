@@ -114,16 +114,62 @@ export interface CladeColour {
   label?: string;
 }
 
-export type ColumnKind = 'bar' | 'text' | 'alignment';
-export interface Column {
+export type ColumnKind = 'bar' | 'text' | 'alignment' | 'custom';
+
+interface ColumnBase {
   id: string;
-  kind: ColumnKind;
   header: string;
   width: number; // CSS px
+}
+
+/** A built-in column: log-scaled bars, text, or aligned sequences (residue colours or blocks, see the align* options). */
+export interface BuiltinColumn extends ColumnBase {
+  kind: 'bar' | 'text' | 'alignment';
   /** By tip label. Compared BY REFERENCE when the columns are set again (a deep compare of millions of entries costs as much as
    *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
    *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
   values: Record<string, number | string>;
+}
+
+/** A column drawn by your own renderer. `values` (by tip label, any type) is compared by reference as for the built-in kinds, and so
+ *  is `renderer`. */
+export interface CustomColumn<V = unknown, D = unknown> extends ColumnBase {
+  kind: 'custom';
+  values: Record<string, V>;
+  renderer: ColumnRenderer<V, D>;
+}
+
+export type Column = BuiltinColumn | CustomColumn;
+
+/** What a custom column's `prepare` gets: the values by tip label and the tips of the tree, by rank (the row order). */
+export interface ColumnSource<V = unknown> {
+  readonly values: Record<string, V>;
+  readonly tipLabels: readonly string[];
+  readonly tipCount: number;
+}
+
+/** Where to draw, for one frame. Row (tip rank) r spans y = oy + r * rowHeight .. oy + (r + 1) * rowHeight in CSS px; rows r0..r1
+ *  (inclusive) are in view. rowHeight is below 1 px when many rows share a pixel row: draw a summary then, not every row. */
+export interface ColumnFrame {
+  readonly x: number;
+  readonly width: number;
+  readonly top: number;
+  readonly bottom: number;
+  readonly r0: number;
+  readonly r1: number;
+  readonly oy: number;
+  readonly rowHeight: number;
+  readonly theme: TreeTheme;
+}
+
+/** Draws a custom column. `prepare` runs when the column's values (or renderer) change: turn the values into whatever is fast to draw,
+ *  typically arrays by tip rank. `draw` runs once per frame with the canvas clipped to the column and its transform in CSS px: draw
+ *  rows r0..r1 there (one call per frame, not per cell, so keep allocation out of the row loop). */
+export interface ColumnRenderer<V = unknown, D = unknown> {
+  prepare(src: ColumnSource<V>): D;
+  draw(ctx: CanvasRenderingContext2D, frame: ColumnFrame, data: D): void;
+  /** Whether rank r has a cell (for `columnCell`); default: a value exists for its tip. */
+  hasCell?(data: D, rank: number): boolean;
 }
 
 export type LabelDensity = 'sparse' | 'normal' | 'dense';

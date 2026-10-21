@@ -5,10 +5,11 @@
 //  alignment  residues as coloured cells: the whole alignment is rasterised once into an offscreen bitmap (one
 //             pixel per residue) and only the visible rows are blitted; very large alignments fall back to
 //             drawing runs for visible rows only
+//  custom     the app's ColumnRenderer: prepare() when the values change, draw() once per frame with the visible rows
 // Values are looked up by tip label once, when the columns change, into arrays by tip rank.
 
 import type { Transform } from './geom.ts';
-import type { Column, TreeSnapshot, TreeTheme } from './types.ts';
+import type { Column, ColumnFrame, TreeSnapshot, TreeTheme } from './types.ts';
 
 export const COL_GAP = 6;
 
@@ -21,6 +22,7 @@ export interface CompiledColumn {
   seqLen: number;
   bitmap: HTMLCanvasElement | null;
   runs: (Int32Array | undefined)[]; // alignment: start,end pairs of the gap-free stretches by rank, filled on first use
+  data: unknown; // custom: what the renderer's prepare() returned
   x: number; // left edge in container px, set by layoutColumns
 }
 
@@ -59,6 +61,14 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
   let max = 0;
   let seqLen = 0;
   let bitmap: HTMLCanvasElement | null = null;
+  if (spec.kind === 'custom') {
+    const data = spec.renderer.prepare({ values: spec.values, tipLabels: tree.tipLabels, tipCount: N });
+    for (let r = 0; r < N; r++) {
+      const l = tree.tipLabels[r];
+      if (spec.renderer.hasCell ? spec.renderer.hasCell(data, r) : l !== undefined && spec.values[l] !== undefined) has[r] = 1;
+    }
+    return { spec, num, txt, has, max, seqLen, bitmap, runs: [], data, x: 0 };
+  }
   if (spec.kind === 'bar') {
     num = new Float64Array(N).fill(NaN);
     for (let r = 0; r < N; r++) {
@@ -100,14 +110,19 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
       } else bitmap = null;
     }
   }
-  return { spec, num, txt, has, max, seqLen, bitmap, runs: [], x: 0 };
+  return { spec, num, txt, has, max, seqLen, bitmap, runs: [], data: null, x: 0 };
 }
 
 /** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
  *  possibly millions of entries, and a deep compare would cost as much as recompiling. Replace the object to change the data. The same
  *  Column object (`a === b`) is taken as unchanged without looking at it, so Column objects must be replaced, never mutated in place. */
 export function columnSpecEquals(a: Column, b: Column): boolean {
-  return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && a.values === b.values);
+  return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && sameData(a, b));
+}
+
+/** Same data: same values object, and for a custom column the same renderer (its prepare() made the data). */
+function sameData(a: Column, b: Column): boolean {
+  return a.values === b.values && (a.kind !== 'custom' || (b.kind === 'custom' && a.renderer === b.renderer));
 }
 
 /** The new compiled list for `cols`, reusing what `old` already holds: a column with an identical spec (by `columnSpecEquals`) is kept as is,
@@ -126,7 +141,7 @@ export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: C
       return prev;
     }
     same = false;
-    if (prev && prev.spec.kind === spec.kind && prev.spec.values === spec.values) return { ...prev, spec };
+    if (prev && prev.spec.kind === spec.kind && sameData(prev.spec, spec)) return { ...prev, spec };
     return compileColumn(tree, spec);
   });
   return { columns, same };
@@ -181,6 +196,26 @@ function runsOf(c: CompiledColumn, r: number): Int32Array {
   return v;
 }
 
+/** The frame handed to custom renderers, reused (one per draw, never kept by the renderer). */
+const FRAME: { -readonly [K in keyof ColumnFrame]: ColumnFrame[K] } = {
+  x: 0,
+  width: 0,
+  top: 0,
+  bottom: 0,
+  r0: 0,
+  r1: -1,
+  oy: 0,
+  rowHeight: 1,
+  theme: null as unknown as TreeTheme,
+};
+
+const reported = new Set<string>();
+function reportOnce(id: string, err: unknown): void {
+  if (reported.has(id)) return;
+  reported.add(id);
+  console.error(`column ${JSON.stringify(id)}: renderer failed`, err);
+}
+
 export function drawColumns(
   ctx: CanvasRenderingContext2D,
   cols: CompiledColumn[],
@@ -210,7 +245,23 @@ export function drawColumns(
     ctx.beginPath();
     ctx.rect(c.x, top, w, bottom - top);
     ctx.clip();
-    if (c.spec.kind === 'alignment' && c.txt && opts.alignStyle === 'blocks' && ky >= BLOCK_ROW_PX) {
+    if (c.spec.kind === 'custom') {
+      const f = FRAME;
+      f.x = c.x;
+      f.width = w;
+      f.top = top;
+      f.bottom = bottom;
+      f.r0 = r0;
+      f.r1 = r1;
+      f.oy = oy;
+      f.rowHeight = ky;
+      f.theme = theme;
+      try {
+        c.spec.renderer.draw(ctx, f, c.data);
+      } catch (err) {
+        reportOnce(c.spec.id, err); // a broken renderer must not stop the frame
+      }
+    } else if (c.spec.kind === 'alignment' && c.txt && opts.alignStyle === 'blocks' && ky >= BLOCK_ROW_PX) {
       // ETE style: a thin line over the whole width, grey blocks over the stretches without gaps
       const cw = w / Math.max(1, c.seqLen);
       const inset = ky >= GAP_ROW_PX ? Math.max(opts.alignRowGap, ky * 0.25) : 0;
