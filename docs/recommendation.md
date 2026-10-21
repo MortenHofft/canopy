@@ -110,7 +110,7 @@ Engineer-weeks are from the custom-renderer and data-layer agent unless noted; t
 
 - Any measured performance for any candidate, including tbrowse and react-bio-viz.
 - Real GBIF tree sizes and how tips map to occurrences.
-- Hosting: CORS and Range-request support for the supplementary files.
+- Hosting: CORS and Range-request support for the supplementary files. What the host must do, and which candidate hosts were measured, is in [hosting-parquet.md](hosting-parquet.md); the real GBIF host is still unchecked (`spikes/parquet-experiment/check-host.mjs` does it in a minute).
 - tbrowse: contributor count, Newick input path, whether a canvas/LOD tree zone can be added without changing its zone API.
 - PhyloJS repo LICENSE file (GPL-3 per the agent) versus its MIT `package.json`.
 - PhyloScape's software licence, Microreact's repo and licence.
