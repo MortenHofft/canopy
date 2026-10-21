@@ -302,7 +302,7 @@ export class TreeRenderer {
         setViewport: (v) => this.vs.setViewport(v),
         zoomBy: (fx, fy, px, py) => this.vs.zoomBy(fx, fy, px, py),
         fit: (animate) => this.fit(animate),
-        zoomToNode: (node, animate) => this.zoomToNode(node, animate),
+        zoomToRow: (row, animate) => this.zoomToRow(row, animate),
         setCursor: (c) => {
           this.root.style.cursor = c;
         },
@@ -504,9 +504,13 @@ export class TreeRenderer {
   }
 
   zoomToNode(id: number, animate = false): void {
-    const node = this.rowOf(id);
-    if (node < 0) return;
-    this.vs.setViewport(this.vs.cladeViewport(node), animate);
+    const row = this.rowOf(id);
+    if (row >= 0) this.zoomToRow(row, animate);
+  }
+
+  /** zoomToNode for a row of the snapshot (a hit's node), which with a partial source is not the node id of the public API. */
+  private zoomToRow(row: number, animate: boolean): void {
+    this.vs.setViewport(this.vs.cladeViewport(row), animate);
   }
 
   /** Where a click would land on node i (client px), or null when the node is not drawn / not in view. */
@@ -1002,6 +1006,7 @@ export class TreeRenderer {
     if (this.hoverNode >= 0) {
       this.hoverNode = -1;
       this.hoverKind = '';
+      this.hoverRun = -1;
       this.topDirty = true;
       this.cb.onHover?.(null);
       this.schedule();

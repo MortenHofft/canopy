@@ -35,7 +35,8 @@ export interface InputHost {
   setViewport(v: Viewport): void;
   zoomBy(fx: number, fy: number, px: number, py: number): void;
   fit(animate: boolean): void;
-  zoomToNode(node: number, animate: boolean): void;
+  /** Zoom to the clade below a row of the snapshot (what a hit reports; not the full-tree id of the public zoomToNode). */
+  zoomToRow(row: number, animate: boolean): void;
   setCursor(cursor: 'grab' | 'grabbing' | 'pointer'): void;
   /** What a click at (x, y) would hit, in full quality (draws a settled frame first). */
   pick(x: number, y: number): Hit | null;
@@ -254,7 +255,7 @@ export class InputController {
     const h = this.host;
     const p = this.local(e);
     const hit = h.pick(p.x, p.y);
-    if (hit && h.tree.childCount[hit.node] > 0) h.zoomToNode(hit.node, true);
+    if (hit && h.tree.childCount[hit.node] > 0) h.zoomToRow(hit.node, true);
     else if (!hit) h.fit(true);
   };
 
