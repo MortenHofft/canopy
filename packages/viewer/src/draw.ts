@@ -16,6 +16,8 @@ export interface Scene {
   highlight: Uint8Array | null; // by tip rank
   collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
+  dim: Uint8Array | null; // by row: 1 = no highlighted tip below it, drawn at theme.dimOpacity; null = no dimming
+  hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1), for runs, which have no row of their own
   hoverNode: number;
   activeNode: number;
   density: LabelDensity;
@@ -100,6 +102,20 @@ export class TextMeasurer {
   }
 }
 
+/** 1 when draw-list entry `e` is outside the highlighted set (drawn dimmed), else 0. A clade is dimmed only when none of its tips is
+ *  highlighted, so a mixed clade, a triangle holding a match and the path to a match keep full strength. A run (siblings drawn as one
+ *  slice) has no row of its own: it is dimmed when none of its members' tips is. */
+function dimmed(S: Scene, e: number): number {
+  const dim = S.dim;
+  if (dim === null) return 0;
+  const i = S.list.node[e];
+  const lm = S.list.last[e];
+  if (lm < 0) return dim[i];
+  const pre = S.hlPrefix!;
+  const t = S.proj.tree;
+  return pre[Math.min(t.leafEnd[lm], pre.length - 1)] - pre[Math.min(t.leafStart[i], pre.length - 1)] === 0 ? 1 : 0;
+}
+
 const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
 
 /** Branches and collapsed clades. Positions and clade extents come from the layout projection; what is drawn differs by layout
@@ -116,64 +132,70 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'round';
-  for (let cls = 0; cls < nCls; cls++) {
-    const col = cls === 0 ? theme.branch : colours[cls];
-    ctx.strokeStyle = col;
-    ctx.lineWidth = cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
-    ctx.beginPath();
-    let any = false;
-    for (let e = 0; e < list.count; e++) {
-      if (nCls > 1 && list.cls[e] !== cls) continue;
-      any = true;
-      if (list.last[e] >= 0) continue; // a run has no branch of its own (its members' branches lie inside the slice)
-      const i = list.node[e];
-      const kind = list.kind[e];
-      proj.nodeXY(i, p);
-      if (i > 0) {
-        proj.parentXY(i, q);
-        ctx.moveTo(q.x, p.y);
-        ctx.lineTo(p.x, p.y);
+  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  for (let pass = 0; pass < passes; pass++)
+    for (let cls = 0; cls < nCls; cls++) {
+      const col = cls === 0 ? theme.branch : colours[cls];
+      ctx.strokeStyle = col;
+      ctx.globalAlpha = pass ? theme.dimOpacity : 1;
+      ctx.lineWidth = cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
+      ctx.beginPath();
+      let any = false;
+      for (let e = 0; e < list.count; e++) {
+        if (nCls > 1 && list.cls[e] !== cls) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        any = true;
+        if (list.last[e] >= 0) continue; // a run has no branch of its own (its members' branches lie inside the slice)
+        const i = list.node[e];
+        const kind = list.kind[e];
+        proj.nodeXY(i, p);
+        if (i > 0) {
+          proj.parentXY(i, q);
+          ctx.moveTo(q.x, p.y);
+          ctx.lineTo(p.x, p.y);
+        }
+        if (kind === K_NODE) {
+          ctx.moveTo(p.x, clampY(proj.tip(firstChild[i]), T.H));
+          ctx.lineTo(p.x, clampY(proj.tip(LAST[i]), T.H));
+        }
       }
-      if (kind === K_NODE) {
-        ctx.moveTo(p.x, clampY(proj.tip(firstChild[i]), T.H));
-        ctx.lineTo(p.x, clampY(proj.tip(LAST[i]), T.H));
-      }
+      if (any) ctx.stroke();
     }
-    if (any) ctx.stroke();
-  }
   // collapsed clades: triangle from the node to the clade's extent
-  ctx.globalAlpha = theme.summaryOpacity;
-  for (let cls = 0; cls < nCls; cls++) {
-    ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
-    ctx.beginPath();
-    let any = false;
-    for (let e = 0; e < list.count; e++) {
-      if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
-      any = true;
-      const i = list.node[e];
-      const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
-      proj.summaryExtent(i, lm, list.xmax[e]);
-      const sx = proj.d0,
-        sy = proj.tip(i);
-      let y0 = proj.t0,
-        y1 = proj.t1;
-      if (y1 - y0 < 1.5) {
-        const m = (y0 + y1) / 2;
-        y0 = m - 0.75;
-        y1 = m + 0.75;
+  for (let pass = 0; pass < passes; pass++)
+    for (let cls = 0; cls < nCls; cls++) {
+      ctx.globalAlpha = pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity;
+      ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
+      ctx.beginPath();
+      let any = false;
+      for (let e = 0; e < list.count; e++) {
+        if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        any = true;
+        const i = list.node[e];
+        const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
+        proj.summaryExtent(i, lm, list.xmax[e]);
+        const sx = proj.d0,
+          sy = proj.tip(i);
+        let y0 = proj.t0,
+          y1 = proj.t1;
+        if (y1 - y0 < 1.5) {
+          const m = (y0 + y1) / 2;
+          y0 = m - 0.75;
+          y1 = m + 0.75;
+        }
+        const xm = Math.max(sx + 2, proj.d1);
+        if (lm >= 0 || isSlice(tree, i)) {
+          ctx.rect(sx, y0, xm - sx, y1 - y0);
+          continue;
+        } // polytomy of tips: a band, not a triangle
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(xm, y0);
+        ctx.lineTo(xm, y1);
+        ctx.closePath();
       }
-      const xm = Math.max(sx + 2, proj.d1);
-      if (lm >= 0 || isSlice(tree, i)) {
-        ctx.rect(sx, y0, xm - sx, y1 - y0);
-        continue;
-      } // polytomy of tips: a band, not a triangle
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(xm, y0);
-      ctx.lineTo(xm, y1);
-      ctx.closePath();
+      if (any) ctx.fill();
     }
-    if (any) ctx.fill();
-  }
   ctx.globalAlpha = 1;
 }
 
@@ -194,118 +216,124 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
     q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'bevel';
-  for (let cls = 0; cls < nCls; cls++) {
-    ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
-    ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
-    ctx.beginPath();
-    let segs = 0;
-    for (let e = 0; e < list.count; e++) {
-      if (nCls > 1 && list.cls[e] !== cls) continue;
-      if (list.last[e] >= 0) continue; // run: no branch of its own
-      const i = list.node[e];
-      if (i > 0) {
-        proj.parentXY(i, q);
-        proj.nodeXY(i, p);
-        ctx.moveTo(q.x, q.y);
-        ctx.lineTo(p.x, p.y);
-        segs++;
-      }
-      if (list.kind[e] === K_NODE) {
-        const fc = firstChild[i],
-          lc = LAST[i];
-        const r = proj.depth(i);
-        const len = proj.tipSpan(fc, lc) * r;
-        ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
-        if (len * len <= ARC_SAGITTA_K * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
-        else {
-          let a0 = proj.tip(fc),
-            a1 = proj.tip(lc);
-          if (!proj.all && r > RADIAL_FAR_ARC_R) {
-            // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
-            if (proj.wrap) {
-              if (a1 >= proj.lo) {
-                ctx.moveTo(cx + r * Math.cos(Math.max(a0, proj.lo)), cy + r * Math.sin(Math.max(a0, proj.lo)));
-                ctx.arc(cx, cy, r, Math.max(a0, proj.lo), a1);
-                segs++;
-              }
-              if (a0 <= proj.hi) {
-                ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
-                ctx.arc(cx, cy, r, a0, Math.min(a1, proj.hi));
-                segs++;
-              }
-            } else {
-              a0 = Math.max(a0, proj.lo);
-              a1 = Math.min(a1, proj.hi);
-              if (a1 > a0) {
-                ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
-                ctx.arc(cx, cy, r, a0, a1);
-              }
-            }
-          } else ctx.arc(cx, cy, r, a0, a1);
+  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  for (let pass = 0; pass < passes; pass++)
+    for (let cls = 0; cls < nCls; cls++) {
+      ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
+      ctx.globalAlpha = pass ? theme.dimOpacity : 1;
+      ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
+      ctx.beginPath();
+      let segs = 0;
+      for (let e = 0; e < list.count; e++) {
+        if (nCls > 1 && list.cls[e] !== cls) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        if (list.last[e] >= 0) continue; // run: no branch of its own
+        const i = list.node[e];
+        if (i > 0) {
+          proj.parentXY(i, q);
+          proj.nodeXY(i, p);
+          ctx.moveTo(q.x, q.y);
+          ctx.lineTo(p.x, p.y);
+          segs++;
         }
-        segs++;
+        if (list.kind[e] === K_NODE) {
+          const fc = firstChild[i],
+            lc = LAST[i];
+          const r = proj.depth(i);
+          const len = proj.tipSpan(fc, lc) * r;
+          ctx.moveTo(cx + r * COS[fc], cy + r * SIN[fc]);
+          if (len * len <= ARC_SAGITTA_K * r) ctx.lineTo(cx + r * COS[lc], cy + r * SIN[lc]);
+          else {
+            let a0 = proj.tip(fc),
+              a1 = proj.tip(lc);
+            if (!proj.all && r > RADIAL_FAR_ARC_R) {
+              // far-off clade: only the visible angles (padded), as one or two arcs; a wrapped window can show both ends
+              if (proj.wrap) {
+                if (a1 >= proj.lo) {
+                  ctx.moveTo(cx + r * Math.cos(Math.max(a0, proj.lo)), cy + r * Math.sin(Math.max(a0, proj.lo)));
+                  ctx.arc(cx, cy, r, Math.max(a0, proj.lo), a1);
+                  segs++;
+                }
+                if (a0 <= proj.hi) {
+                  ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+                  ctx.arc(cx, cy, r, a0, Math.min(a1, proj.hi));
+                  segs++;
+                }
+              } else {
+                a0 = Math.max(a0, proj.lo);
+                a1 = Math.min(a1, proj.hi);
+                if (a1 > a0) {
+                  ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+                  ctx.arc(cx, cy, r, a0, a1);
+                }
+              }
+            } else ctx.arc(cx, cy, r, a0, a1);
+          }
+          segs++;
+        }
+        if (segs >= STROKE_CHUNK) {
+          ctx.stroke();
+          ctx.beginPath();
+          segs = 0;
+        }
       }
-      if (segs >= STROKE_CHUNK) {
-        ctx.stroke();
-        ctx.beginPath();
-        segs = 0;
-      }
+      if (segs) ctx.stroke();
     }
-    if (segs) ctx.stroke();
-  }
   // collapsed clades: fans (apex at the node, outer edge at the clade's radius, arc only when it is visibly curved)
-  ctx.globalAlpha = theme.summaryOpacity;
-  for (let cls = 0; cls < nCls; cls++) {
-    ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
-    ctx.beginPath();
-    let n = 0;
-    for (let e = 0; e < list.count; e++) {
-      if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
-      const i = list.node[e];
-      const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
-      proj.summaryExtent(i, lm, list.xmax[e]);
-      let a0 = proj.t0,
-        a1 = proj.t1;
-      const r0 = proj.d0;
-      const r1 = Math.max(r0 + 2, proj.d1);
-      if ((a1 - a0) * r1 < 1.5) {
-        const m = (a0 + a1) / 2,
-          h = 0.75 / r1;
-        a0 = m - h;
-        a1 = m + h;
-      } // keep slivers visible
-      if (lm >= 0 || isSlice(tree, i)) {
-        // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
-        const len0 = (a1 - a0) * r1;
-        ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
+  for (let pass = 0; pass < passes; pass++)
+    for (let cls = 0; cls < nCls; cls++) {
+      ctx.globalAlpha = pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity;
+      ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
+      ctx.beginPath();
+      let n = 0;
+      for (let e = 0; e < list.count; e++) {
+        if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        const i = list.node[e];
+        const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
+        proj.summaryExtent(i, lm, list.xmax[e]);
+        let a0 = proj.t0,
+          a1 = proj.t1;
+        const r0 = proj.d0;
+        const r1 = Math.max(r0 + 2, proj.d1);
+        if ((a1 - a0) * r1 < 1.5) {
+          const m = (a0 + a1) / 2,
+            h = 0.75 / r1;
+          a0 = m - h;
+          a1 = m + h;
+        } // keep slivers visible
+        if (lm >= 0 || isSlice(tree, i)) {
+          // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
+          const len0 = (a1 - a0) * r1;
+          ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
+          ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+          if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
+          else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+          ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
+          const len1 = (a1 - a0) * r0;
+          if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
+          ctx.closePath();
+          if (++n >= FILL_CHUNK) {
+            ctx.fill();
+            ctx.beginPath();
+            n = 0;
+          }
+          continue;
+        }
+        ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
         ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-        if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
+        const len = (a1 - a0) * r1;
+        if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
         else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
-        ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
-        const len1 = (a1 - a0) * r0;
-        if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
         ctx.closePath();
         if (++n >= FILL_CHUNK) {
           ctx.fill();
           ctx.beginPath();
           n = 0;
         }
-        continue;
       }
-      ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
-      ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-      const len = (a1 - a0) * r1;
-      if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
-      else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
-      ctx.closePath();
-      if (++n >= FILL_CHUNK) {
-        ctx.fill();
-        ctx.beginPath();
-        n = 0;
-      }
+      if (n) ctx.fill();
     }
-    if (n) ctx.fill();
-  }
   ctx.globalAlpha = 1;
 }
 
@@ -318,30 +346,33 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
   const m = theme.nodeMarkerSize;
   // internal markers: small filled squares (cheap), only for clades big enough to click
-  ctx.globalAlpha = theme.markerOpacity;
-  for (let cls = 0; cls < colours.length; cls++) {
-    ctx.fillStyle = cls === 0 ? theme.branch : colours[cls];
-    ctx.beginPath();
-    let any = false;
-    for (let e = 0; e < list.count; e++) {
-      if (list.cls[e] !== cls) continue;
-      const kind = list.kind[e];
-      const i = list.node[e];
-      if (kind === K_TIP) {
-        if (!dots || (S.collapsed && S.collapsed[proj.tree.tipRank[i]])) continue;
-        proj.nodeXY(i, p);
-        ctx.moveTo(p.x + rTip, p.y);
-        ctx.arc(p.x, p.y, rTip, 0, 6.2832);
-        any = true;
-      } else if (kind === K_NODE) {
-        if (proj.cladeSize(i) < MARKER_PX) continue;
-        proj.nodeXY(i, p);
-        ctx.rect(p.x - m / 2, p.y - m / 2, m, m);
-        any = true;
+  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  for (let pass = 0; pass < passes; pass++)
+    for (let cls = 0; cls < colours.length; cls++) {
+      ctx.globalAlpha = pass ? theme.markerOpacity * theme.dimOpacity : theme.markerOpacity;
+      ctx.fillStyle = cls === 0 ? theme.branch : colours[cls];
+      ctx.beginPath();
+      let any = false;
+      for (let e = 0; e < list.count; e++) {
+        if (list.cls[e] !== cls) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        const kind = list.kind[e];
+        const i = list.node[e];
+        if (kind === K_TIP) {
+          if (!dots || (S.collapsed && S.collapsed[proj.tree.tipRank[i]])) continue;
+          proj.nodeXY(i, p);
+          ctx.moveTo(p.x + rTip, p.y);
+          ctx.arc(p.x, p.y, rTip, 0, 6.2832);
+          any = true;
+        } else if (kind === K_NODE) {
+          if (proj.cladeSize(i) < MARKER_PX) continue;
+          proj.nodeXY(i, p);
+          ctx.rect(p.x - m / 2, p.y - m / 2, m, m);
+          any = true;
+        }
       }
+      if (any) ctx.fill();
     }
-    if (any) ctx.fill();
-  }
   ctx.globalAlpha = 1;
   if (S.collapsed) drawCollapsedTips(ctx, S);
 }
@@ -374,13 +405,15 @@ function drawCollapsedTips(ctx: CanvasRenderingContext2D, S: Scene): void {
     ctx.lineTo(bx + sn * half, by - c * half);
     ctx.closePath();
     const cl = classOf ? classOf[i] : 0;
-    ctx.globalAlpha = 0.35;
+    const k = dimmed(S, e) ? theme.dimOpacity : 1;
+    ctx.globalAlpha = 0.35 * k;
     ctx.fillStyle = cl ? colours[cl] : theme.summary;
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = k;
     ctx.strokeStyle = cl ? colours[cl] : theme.branch;
     ctx.stroke();
   }
+  ctx.globalAlpha = 1;
 }
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {
@@ -458,6 +491,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   let lastFont = '';
   let lastFill = '';
   let lastAlign = 'left';
+  let lastAlpha = 1;
   for (let e = 0; e < list.count && labels.count < MAXL; e++) {
     if (list.kind[e] !== K_TIP) continue;
     const i = list.node[e];
@@ -484,6 +518,11 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.fillStyle = fill;
       lastFill = fill;
     }
+    const alpha = S.dim && S.dim[i] ? theme.dimOpacity : 1;
+    if (alpha !== lastAlpha) {
+      ctx.globalAlpha = alpha;
+      lastAlpha = alpha;
+    }
     const gap = S.collapsed && S.collapsed[r] ? 8 + COLLAPSED_W : 8; // past the triangle of a collapsed clade
     if (rect) {
       const x = p.x + gap;
@@ -506,6 +545,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
 }
 
 // ------------------------------------------------------------------------------------------ axis and scale bar

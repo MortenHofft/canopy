@@ -794,7 +794,7 @@ export function Reactree({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, italicLabels: false, labelDensity: 'dense' }}
+          options={{ formatLabel, italicLabels: false, labelDensity: 'dense', highlightStyle: 'dim' }}
           tooltip={tooltip}
           onNodeClick={onClick}
           onTipClick={onClick}

@@ -148,6 +148,15 @@ await page.keyboard.press('Escape');
 await page.locator('input[data-setting=find]').fill('Bothus');
 await settled();
 ok((await ev(() => window.viewer.getHighlighted().length)) === 2, 'highlight text → 2 tips');
+ok((await opt('highlightStyle')) === 'band', 'Highlight style defaults to band');
+await select('highlightStyle', 'dim');
+ok((await opt('highlightStyle')) === 'dim' && query().get('s.highlightStyle') === 'dim', 'Highlight style: dim, kept in the URL');
+ok((await theme('dimOpacity')) === 0.25, 'dimOpacity is a theme setting');
+await page
+  .locator('input[data-setting=dimOpacity]')
+  .fill('0.5')
+  .catch(() => {});
+await select('highlightStyle', 'band');
 
 console.log('tree operations');
 await page.locator('input[data-setting=find]').fill('');

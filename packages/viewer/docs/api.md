@@ -61,7 +61,7 @@ State: setters (each is a no-op for input equal to the current one) and getters
 | `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created and when the colour scheme preference changes) |
 | `getTheme()` | the theme in force |
 | `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree); where clades nest the innermost wins (for the same node, the later entry); nodes not loaded are skipped. Emits `cladeschange` |
-| `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label (row band, ring, bold label, overview ticks); unknown labels are ignored. Emits `highlightchange` |
+| `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label; unknown labels are ignored. How they show is the `highlightStyle` option: a row band, ring and bold label (`'band'`), dimming everything else (`'dim'`) or both. Overview ticks in every style. Emits `highlightchange` |
 | `setCollapsed(nodeIds)` | tips that stand for collapsed clades (drawn as triangles); the collapsing itself is done in the data, e.g. with tree-ops' `collapseClades` |
 | `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` and `renderer` by reference, ids unique) |
 | `getSource()` / `getTree()` | the tree source, and the rows loaded now (a `TreeSnapshot`; for an in-memory tree the whole tree) |
@@ -260,6 +260,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `branchWidth`, `cladeBranchWidth` | `--phylo-branch-width`, ... | 1.3, 2 | line widths (px) |
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
+| `dimOpacity` | `--phylo-dim-opacity` | 0.25 | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
 | `dark` | `--phylo-dark` | from the background's luminance | the background is dark: informational, for apps and custom controls (the drawing code does not read it) |
 
@@ -282,6 +283,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `drawBudget` | `20000` | most primitives per frame; the collapse threshold is raised until the cut fits (min 500; LOD off: 600,000) |
 | `showSummaries` | `true` | draw collapsed clades as triangles (otherwise only their branch) |
 | `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
+| `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
 | `italicLabels` | `true` | italic tip labels |
@@ -299,6 +301,20 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `summaryNotice` | `true` | radial: corner notice when the cut-off summarises clades the normal threshold would show |
 
 The overview is a control (`OverviewControl`), not an option.
+
+### Dimming highlights
+
+With `highlightStyle: 'dim'` (or `'both'`), `setHighlighted` dims what is not highlighted instead of (or as well as) banding what is. The dim
+state is precomputed per row when the highlights change (a `Uint8Array`, 1 = no highlighted tip below the row), so a frame only reads it.
+
+- A clade is dimmed only when **none** of its tips is highlighted. A clade with some highlighted tips (a mixed clade, the path from the root to
+  a match, a collapsed triangle or slice that holds a match) is drawn at full strength; its unmatched tips, branches and labels inside are dimmed
+  on their own. A connector (the vertical bar of a node) takes the state of its node, so it is not dimmed when any tip below it matches.
+- Dimmed: branches, tip dots, node markers, collapsed-clade triangles, fans and slices, collapsed-tip triangles and tip labels.
+- In `'dim'` the matches are not banded, ringed, bold or recoloured; in `'both'` they are.
+- Columns are **not** dimmed. Their cells carry data (colours, bars, alignments) that the person reads next to the label, and a custom
+  `ColumnRenderer` has no row state to dim with; the row of a dimmed tip still shows its full-strength column.
+- No highlights means no dimming. The overview and its ticks are unchanged.
 
 ## Other types
 
