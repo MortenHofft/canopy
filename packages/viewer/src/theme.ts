@@ -36,8 +36,10 @@ const NUMBERS = [
   'leaderWidth',
   'leaderOpacity',
   'alignRowGap',
+  'selectionWidth',
+  'selectionRadius',
 ] as const;
-const STRINGS = ['fontFamily', 'summaryStripeColour', 'leaderColour', 'leaderDash', 'supportColour', 'lengthColour'] as const;
+const STRINGS = ['fontFamily', 'summaryStripeColour', 'leaderColour', 'leaderDash', 'supportColour', 'lengthColour', 'selectionColour'] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(

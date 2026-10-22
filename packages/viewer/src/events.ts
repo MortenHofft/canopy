@@ -38,6 +38,9 @@ export interface ViewerEventMap {
   cladeschange: readonly CladeColour[];
   /** After `setHighlighted` changed the highlighted tips: what it was given (labels and node ids). */
   highlightchange: readonly TipRef[];
+  /** The selected node changed (`setSelected`, a click, or the viewer moving it: to the collapsed clade that now hides it, through the
+   *  map of `setTree`): its node id, null when nothing is selected. */
+  selectionchange: { node: number | null };
   /** The rows of a partial tree source changed (a clade was loaded or dropped). */
   sourcechange: { version: number };
   /** After `setTree` replaced the tree: the node map it was given (old node -> new node, -1 removed), null without one. The controls

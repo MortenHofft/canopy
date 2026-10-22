@@ -80,6 +80,8 @@ export interface CladeProp {
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
+ *  - `selected`: acts when its value changes, as `layout` does: a click selects on the viewer itself (report it back with
+ *    `onSelectionChange` to keep the prop in step), and that stays until the prop changes. Left out (undefined), the viewer keeps its own.
  *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
  *    them once (`useMemo` / `useState`), not inline: `defaultControls()` in render makes new controls every time.
  *  - `layout`, `branchLengths` and the fields of `options` act when their value changes: a change made on the viewer itself (by the
@@ -111,6 +113,9 @@ export interface TreeViewProps {
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: TipRef; seq: number } | null; // declarative "centre this tip" request (a label or a node id); acts when seq changes
+  /** The selected node (a node id, tip or clade; null for none): drawn with a ring, kept across layout and branch-length switches (the
+   *  view centres on it) and collapsing (a hidden node selects its clade). See `TreeViewer.setSelected`. */
+  selected?: number | null;
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
   /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
@@ -129,6 +134,9 @@ export interface TreeViewProps {
   onNodeClick?(e: TreeNodeEvent): void; // internal nodes, collapsed clades and branches
   onTipClick?(e: TreeNodeEvent): void;
   onHover?(e: TreeNodeEvent | null): void;
+  /** The selection changed: a click (the default action of a click, which `e.preventDefault()` in `onTipClick` / `onNodeClick` stops),
+   *  `selected`, or the viewer moving it (to a clade collapsed around it, through `treeMap`; dropped by a new `tree` without one). */
+  onSelectionChange?(node: number | null): void;
   onViewportChange?(v: Viewport): void;
   onFrame?(s: FrameStats): void;
   onReady?(info: { layoutMs: number; tips: number }): void;
@@ -246,6 +254,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     r.on('click', () => setTipState(null)); // a click hides the tooltip
     r.on('treechange', () => setTipState(null));
     r.on('viewchange', (v) => latest.current.onViewportChange?.(v));
+    r.on('selectionchange', (e) => latest.current.onSelectionChange?.(e.node));
     r.on('frame', (s) => latest.current.onFrame?.(s));
     let ready = 0;
     ready = requestAnimationFrame(() => {
@@ -299,6 +308,11 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
+  // after the tree and the collapsed clades: a node hidden in a clade collapsed in the same render selects that clade
+  const selected = props.selected;
+  useLayoutEffect(() => {
+    if (selected !== undefined) liveRenderer(R, rendRef)?.setSelected(selected);
+  }, [R, rendRef, selected]);
   // the default is Zoom and Fit themselves, not defaultControls(): that would bundle every control into every app using <TreeView>
   const [ownControls] = useState<Control[]>(() => [new Zoom(), new Fit()]);
   const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));

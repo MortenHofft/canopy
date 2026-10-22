@@ -138,7 +138,15 @@ export function Explorer({
   const [matchIdx, setMatchIdx] = useState(0);
   const searchInput = useRef<HTMLInputElement>(null);
 
-  const [info, setInfo] = useState<number | null>(null); // node (of `tree`) shown in the inspector
+  // the selected node (of `tree`): the viewer's selection (a click selects, Info opens the inspector on it). It stays across layout and
+  // tree type switches, which centre the view on it; an edit, Undo or a navigation clears it
+  const [selected, setSelected] = useState<number | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false); // the inspector shows `selected`
+  const info = infoOpen ? selected : null;
+  const deselect = () => {
+    setSelected(null);
+    setInfoOpen(false);
+  };
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [height, setHeight] = useState(defaultHeight);
@@ -193,6 +201,9 @@ export function Explorer({
     const v = view ? view.toTree[k] : k;
     return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
   };
+  // the selection in the ids of what is shown (null when the view hides it, which drops it)
+  const selectedInView = selected === null || !view ? selected : (view.toView[selected] ?? -1);
+  const selectedShown = selectedInView !== null && selectedInView >= 0 ? selectedInView : null;
   const shownClades = useMemo(
     () =>
       view
@@ -346,9 +357,17 @@ export function Explorer({
     if (r && fitted.current) fitted.current = r.fitViewport();
   }, [shown, collapsedIds]);
   useEffect(applyScales, [hScale, vScale, applyScales]);
-  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is
+  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is. After a switch of layout or tree
+  // type with a node selected the viewer has centred the new view on it: that stays, only the new fit is read for the sliders
+  const lastKind = useRef({ layout, phylogram });
   useEffect(() => {
-    const id = requestAnimationFrame(refit);
+    const switched = lastKind.current.layout !== layout || lastKind.current.phylogram !== phylogram;
+    lastKind.current = { layout, phylogram };
+    const id = requestAnimationFrame(() => {
+      const r = ref.current?.renderer();
+      if (switched && r && r.getSelected() !== null) fitted.current = r.fitViewport();
+      else refit();
+    });
     return () => cancelAnimationFrame(id);
   }, [layout, phylogram, columns, height, navTick, refit]);
 
@@ -414,7 +433,7 @@ export function Explorer({
     setClades(keptClades);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
-    setInfo(null);
+    deselect();
   };
   const undo = () => {
     const prev = history[history.length - 2];
@@ -429,7 +448,7 @@ export function Explorer({
     setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
-    setInfo(null);
+    deselect();
     setPick(null);
   };
 
@@ -451,7 +470,7 @@ export function Explorer({
   const navigate = (f: ops.Focus) => {
     setFocus(f);
     setNavTick((t) => t + 1);
-    setInfo(null);
+    deselect();
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
   };
@@ -497,6 +516,7 @@ export function Explorer({
 
   // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
   const onClick = (e: TreeNodeEvent) => {
+    if (mode !== 'none') e.preventDefault(); // a tool acts on the click: it neither selects nor opens the menu
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
     if (v < 0) return;
@@ -532,7 +552,15 @@ export function Explorer({
     const trueRoot = v === 0;
     const tips = tree.tipCountOf(v).toLocaleString('en');
     const what = isTip ? 'tip' : 'clade';
-    const info: NodeMenuItem = { id: 'info', label: 'Info', hint: 'branch length, root distance, depth, support', onSelect: () => setInfo(v) };
+    const info: NodeMenuItem = {
+      id: 'info',
+      label: 'Info',
+      hint: 'branch length, root distance, depth, support',
+      onSelect: () => {
+        setSelected(v);
+        setInfoOpen(true);
+      },
+    };
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
@@ -662,7 +690,7 @@ export function Explorer({
       if (pick !== null) closePick();
       else if (mode !== 'none') exitModes();
       else if (searchOpen) closeSearch();
-      else setInfo(null);
+      else setInfoOpen(false);
     }
   };
   const closeSearch = () => {
@@ -1195,6 +1223,8 @@ export function Explorer({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
+          selected={selectedShown}
+          onSelectionChange={(k) => setSelected(k === null || toTree(k) < 0 ? null : toTree(k))}
           options={{
             formatLabel,
             labelDensity: 'dense',
@@ -1285,7 +1315,7 @@ export function Explorer({
           <div className="ex-info" role="dialog" aria-label="Node information">
             <div className="ex-info-head">
               <span className="ex-info-name">{inspector.name.replace(/_/g, ' ')}</span>
-              <button type="button" title="Close" onClick={() => setInfo(null)}>
+              <button type="button" title="Close" onClick={() => setInfoOpen(false)}>
                 <I.IconClose />
               </button>
             </div>
