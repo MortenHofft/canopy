@@ -25,6 +25,7 @@ import {
   type CladeLabelFn,
   type Column,
   internalName,
+  defaultFormatNodeLabel,
   type Control,
   type NodeMenuItem,
   type TreeEvent,
@@ -152,6 +153,9 @@ const cladeLabel: CladeLabelFn = (node, t) => {
   const name = internalName(t.labels[t.toLocal(node)]);
   return OTL_SYNTHETIC.test(name) ? null : name;
 };
+// support as the percentages most viewers show: 0.95 is 95; values above 1 (bootstrap) and lengths are left alone
+const PERCENT = (v: number, kind: 'support' | 'length') =>
+  kind === 'support' && v <= 1 ? String(Math.round(v * 100)) : defaultFormatNodeLabel(v, kind);
 const GBIF_HREF = (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}`;
 
 function viewerOptions(): Partial<ViewerOptions> {
@@ -159,6 +163,7 @@ function viewerOptions(): Partial<ViewerOptions> {
   for (const s of SETTINGS) if (s.to === 'option') o[s.key ?? s.id] = toViewer(s, state[s.id]);
   o.formatLabel = state.underscores ? (isOtl() ? OTL_NAME : SPACES) : RAW;
   o.cladeLabel = cladeLabel;
+  o.formatNodeLabel = state.supportPercent ? PERCENT : defaultFormatNodeLabel;
   o.tipHref = state.tipLinks ? GBIF_HREF : null;
   return o as Partial<ViewerOptions>;
 }
