@@ -196,11 +196,19 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
   return true;
 }
 
-/** Stroke the collected stripes in `colour`, `width` px wide, at the current globalAlpha, and empty the buffer. */
-function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, width: number): void {
+/** The alpha of stripes that cover a share `cover` (line width over spacing, at most 1) of a summary, so that it looks as dark as a solid fill
+ *  of alpha `a`: n layers of the stripe alpha leave 1 - (1 - a_s)^c of the background, which is 1 - (1 - a) for a_s = 1 - (1 - a)^(1/c). */
+export function stripeAlpha(a: number, cover: number): number {
+  return a >= 1 || cover >= 1 ? a : cover <= 0 ? 1 : 1 - Math.pow(1 - a, 1 / cover);
+}
+
+/** Stroke the collected stripes in `colour`, `width` px wide, at alpha `alpha` (what a solid fill would use) raised for the coverage
+ *  `width / gap`, and empty the buffer. */
+function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, width: number, gap: number, alpha: number): void {
   if (stripeN === 0) return;
   ctx.strokeStyle = colour;
   ctx.lineWidth = width;
+  ctx.globalAlpha = stripeAlpha(alpha, width / gap);
   ctx.lineCap = 'butt';
   ctx.beginPath();
   for (let j = 0, c = 0; j < stripeN; j += 4) {
@@ -300,7 +308,13 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
         ctx.closePath();
       }
       if (any) ctx.fill();
-      strokeStripes(ctx, cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls], stripeWidth);
+      strokeStripes(
+        ctx,
+        cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
+        stripeWidth,
+        theme.summaryStripeGap,
+        pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
+      );
     }
   ctx.globalAlpha = 1;
 }
@@ -441,7 +455,13 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
         }
       }
       if (n) ctx.fill();
-      strokeStripes(ctx, cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls], stripeWidth);
+      strokeStripes(
+        ctx,
+        cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
+        stripeWidth,
+        theme.summaryStripeGap,
+        pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
+      );
     }
   ctx.globalAlpha = 1;
 }

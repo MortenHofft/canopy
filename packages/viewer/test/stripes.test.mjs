@@ -96,13 +96,42 @@ test('rectangular: the stripes are horizontal, run rightwards, at least the gap 
   for (const x of s) {
     assert.equal(x.y0, x.y1, 'horizontal: the direction of the tip branches');
     assert.ok(x.x1 > x.x0);
-    assert.equal(x.alpha, viewer.theme.summaryOpacity);
+    assert.ok(x.alpha > viewer.theme.summaryOpacity && x.alpha <= 1, 'raised above the solid alpha to make up for the gaps');
   }
   const gap = viewer.theme.summaryStripeGap;
   const ys = [...new Set(s.map((x) => x.y0))].sort((a, b) => a - b);
   // the stripes of one clade are evenly spaced at least `gap` apart; across clades the same holds (their bands do not overlap)
   for (let k = 1; k < ys.length; k++) assert.ok(ys[k] - ys[k - 1] >= gap - 1e-6, 'gap ' + (ys[k] - ys[k - 1]));
   assert.ok(s.length <= 300 / gap + viewer.getStats().summaries, 'bounded by the plot height over the gap');
+});
+
+test('stripes look as dark as the solid fill: coverage c leaves 1 - (1 - alpha)^c of the background, which equals the solid 1 - (1 - summaryOpacity); also dimmed', async () => {
+  for (const gap of [3, 6]) {
+    const m = await make('rectangular', { highlightStyle: 'dim' }, TREE, { theme: { summaryStripeGap: gap, dimOpacity: DIM } });
+    m.viewer.setHighlighted(['t5']);
+    m.env.flush();
+    const so = m.viewer.theme.summaryOpacity;
+    const s = stripes(m.ctx());
+    assert.ok(s.length > 0);
+    const c = Math.max(1, gap / 2) / gap;
+    const targets = [so, so * DIM];
+    const seen = new Set();
+    for (const x of s) {
+      const effective = 1 - Math.pow(1 - x.alpha, c);
+      const t = targets.find((t) => Math.abs(t - effective) < 1e-9);
+      assert.ok(t !== undefined, `alpha ${x.alpha} at coverage ${c} gives ${effective}, not ${targets}`);
+      seen.add(t);
+    }
+    assert.equal(seen.size, 2, 'lit and dimmed summaries both match their solid alpha');
+  }
+});
+
+test('stripeAlpha: a solid-equivalent alpha, clamped to 1', async () => {
+  const { stripeAlpha } = await import('../src/draw.ts');
+  assert.equal(stripeAlpha(0.6, 1), 0.6);
+  assert.ok(Math.abs(stripeAlpha(0.6, 0.5) - 0.84) < 1e-12);
+  assert.equal(stripeAlpha(1, 0.5), 1);
+  assert.ok(stripeAlpha(0.99, 0.1) <= 1);
 });
 
 test('rectangular: a larger gap gives fewer stripes, and the line is at least 1 px wide', async () => {
@@ -174,9 +203,11 @@ test('dimming: the stripes of a summary without a highlighted tip are stroked at
   m.viewer.setHighlighted(['t5']);
   m.env.flush();
   const so = m.viewer.theme.summaryOpacity;
+  const { stripeAlpha } = await import('../src/draw.ts');
+  const c = Math.max(1, m.viewer.theme.summaryStripeGap / 2) / m.viewer.theme.summaryStripeGap;
   const alphas = new Set(stripes(m.ctx()).map((x) => x.alpha));
-  assert.ok(alphas.has(so), 'the summary holding the match');
-  assert.ok(alphas.has(so * DIM), 'the others');
+  assert.ok(alphas.has(stripeAlpha(so, c)), 'the summary holding the match');
+  assert.ok(alphas.has(stripeAlpha(so * DIM, c)), 'the others');
   assert.equal(alphas.size, 2);
 });
 

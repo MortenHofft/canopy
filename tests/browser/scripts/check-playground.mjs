@@ -92,9 +92,11 @@ ok(
 );
 
 console.log('striped summaries');
-// on by default in this branch's preview (the library default is solid); the toggle compares solid and striped
-ok((await opt('summaryStyle')) === 'striped' && !query().has('s.summaryStyle'), 'striped by default in the playground, not in the URL');
-await select('minCladePx', '20'); // summaries tall enough for stripes
+// the playground shows the library's default (solid); the select compares solid and striped
+ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
+await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
+await select('summaryStyle', 'striped');
+ok((await opt('summaryStyle')) === 'striped' && query().get('s.summaryStyle') === 'striped', 'Striped: options.summaryStyle, and into the URL');
 await setInput('summaryStripeColour', '#ff0000');
 const redPixels = () =>
   ev(() => {
@@ -107,10 +109,10 @@ const redPixels = () =>
 const stripedRed = await redPixels();
 ok(stripedRed > 100, `striped: the summaries are stroked in the stripe colour (${stripedRed} red pixels)`);
 await select('summaryStyle', 'solid');
-ok((await opt('summaryStyle')) === 'solid' && query().get('s.summaryStyle') === 'solid', 'Solid: options.summaryStyle, and into the URL');
+ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'Solid: options.summaryStyle, out of the URL again');
 ok((await redPixels()) === 0, 'solid: no stripe colour on the canvas');
 await select('summaryStyle', 'striped');
-ok((await redPixels()) > 100 && !query().has('s.summaryStyle'), 'striped again, out of the URL');
+ok((await redPixels()) > 100, 'striped again');
 await setInput('summaryStripeGap', '10');
 ok(
   (await theme('summaryStripeGap')) === 10 && (await redPixels()) < stripedRed,
@@ -123,7 +125,8 @@ await toggle('stripeCollapsed', false);
 await select('layout', 'radial');
 ok((await redPixels()) > 100, 'radial: striped too');
 await select('layout', 'rectangular');
-await select('minCladePx', '3');
+await select('summaryStyle', 'solid');
+await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
 await setInput('summaryStripeColour', '');
 
 console.log('theme');

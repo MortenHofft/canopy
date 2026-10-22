@@ -398,7 +398,7 @@ a level-of-detail summary: it stays solid, with its label, unless `stripeCollaps
   so a summary is at most about `minCladePx` px tall (bands of polytomies and of runs excepted); with the default 3 px only those bands carry stripes, and
   `minCladePx` of 12 or more (or a draw budget that raises the threshold) gives most summaries some.
 - **Colour.** The stripes use the clade's colour, else `summaryStripeColour`, else `summary`; they are drawn at `summaryOpacity`, times `dimOpacity` when
-  dimmed (`highlightStyle: 'dim'` or `'both'`), by the same rule as the solid fill (a summary holding a highlighted tip keeps full strength).
+  dimmed, with the alpha raised for the gaps: coverage `c` (line width over gap) gives `1 - (1 - a)^(1/c)`, so the stripes look as dark as a solid fill of alpha `a` (`highlightStyle: 'dim'` or `'both'` follows the solid fill's rule: a summary holding a highlighted tip keeps full strength).
 - **Hit-testing, labels and the overview.** Unchanged: the summary's area is hit as before. The overview strip always draws solid summaries.
 - **Cost.** The stripes of a frame are collected into one reused buffer and stroked in batches of 256 per (dimming pass, colour class), like the branches;
   no allocation per node. Their number is bounded by the summaries' height over the gap (rectangular: only the visible rows are generated) and by 256 per fan

@@ -534,11 +534,11 @@ export const SETTINGS: Setting[] = [
   {
     id: 'summaryStyle',
     label: 'Collapsed clade fill',
-    hint: 'striped: fine stripes along the hidden branches. On in this preview branch; the library default is solid',
+    hint: 'striped: fine stripes along the hidden branches, best with a larger smallest clade',
     group: 'Level of detail',
     to: 'option',
     kind: 'select',
-    default: 'striped',
+    default: O.summaryStyle,
     options: [
       ['solid', 'Solid'],
       ['striped', 'Striped'],
@@ -565,9 +565,6 @@ export const SETTINGS: Setting[] = [
       ['3', '3 px'],
       ['5', '5 px'],
       ['8', '8 px'],
-      ['12', '12 px'],
-      ['20', '20 px'],
-      ['40', '40 px'],
     ],
   },
   {
