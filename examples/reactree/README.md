@@ -56,24 +56,27 @@ Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
 
 Still open, found in the library:
 
-- **No node or branch labels.** Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
+- **No node or branch labels** ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16); posterior values need [#17](https://github.com/MortenHofft/gbif-phylo/issues/17)). Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
   frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
   branch.
-- **No aligned tip labels with leader lines.** The Align button is shown disabled.
+- **No aligned tip labels with leader lines** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). The Align button is shown disabled.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
-- **Search can highlight, not dim.** Reactree dims the tips that do not match; the viewer has highlighting only.
-- **Alignment colours are a constant table** in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
+- **Search can highlight, not dim** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). Reactree dims the tips that do not match; the viewer has highlighting only.
+- **Alignment colours are a constant table** ([#21](https://github.com/MortenHofft/gbif-phylo/issues/21)) in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
   them. Nucleotides use the amino-acid scheme, so A and C share a colour.
 
 Differences that follow from the design, not defects:
 
 - Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
-  135-tip tree at the fitted view has none until you zoom in or raise Height.
-- Swap inside a polytomy is refused with a message: tree-ops has `rotate` (reverse the children) but no general reorder.
-- Collapsing a clade of a dated tree makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
+  135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
+- Swap inside a polytomy is refused with a message: tree-ops has `rotate` (reverse the children) but no general reorder ([#20](https://github.com/MortenHofft/gbif-phylo/issues/20)).
+- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)) makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
   expanded (the same known limit as `examples/react`).
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
   component.
 - Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from
   CSS custom properties.
+
+Other follow-ups: API ergonomics [#23](https://github.com/MortenHofft/gbif-phylo/issues/23), duplicate tip labels [#18](https://github.com/MortenHofft/gbif-phylo/issues/18), TreeViewer unit tests and the alpha canvas cost
+[#25](https://github.com/MortenHofft/gbif-phylo/issues/25), this example's own open questions [#26](https://github.com/MortenHofft/gbif-phylo/issues/26).
