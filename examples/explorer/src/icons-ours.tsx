@@ -77,3 +77,9 @@ export const IconLadderBy = () => (
     <path d="M2 3h3M2 7h6M2 11h10" {...s} strokeWidth="1.6" />
   </svg>
 );
+/** Fit to view: four corners, the geometry of the viewer's built-in fit control (its `ICONS.fit`, which the viewer does not export). */
+export const IconFit = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" {...s} strokeWidth="1.6" />
+  </svg>
+);

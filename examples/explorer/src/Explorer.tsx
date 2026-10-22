@@ -965,7 +965,7 @@ export function Explorer({
           </>
         )}
         <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
-          <I.IconFit />
+          <J.IconFit />
           Fit
         </button>
         {(ops.canGoBack(focus) || ops.canGoUp(focus)) && (
