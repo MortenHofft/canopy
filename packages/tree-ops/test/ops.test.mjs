@@ -213,7 +213,17 @@ test('swap and reorder', () => {
   checkModel(s.tree);
   assert.deepEqual(splits(s.tree), splits(t));
   assert.equal(s.tree.labels[s.map[a]], 'a'); // the map follows the nodes
-  assert.equal(swap(t, a, x).tree.children(0).length, 5);
+  assert.equal(nwk(swap(t, a, x).tree), '((c:1,d:1)X:3,b:2,a:1,e:4,f:5)R;'); // a tip with a clade
+  const n = parseNewick('((A:1,B:1,C:1)X:2,D:1)R:0.5;');
+  const X = n.children(0)[0];
+  const [A, , C] = n.children(X);
+  const rn = reorder(n, X, [C, A, n.children(X)[1]]);
+  assert.equal(nwk(rn.tree), '((C:1,A:1,B:1)X:2,D:1)R;'); // a non-root node
+  assert.equal(rn.tree.length[0], 0.5); // the root keeps its length
+  checkModel(rn.tree);
+  assert.equal(rn.tree.labels[rn.map[C]], 'C');
+  assert.equal(rn.map[X], X);
+  assert.throws(() => reorder(t, 0, null), RangeError);
   const kids = t.children(0);
   const r = reorder(t, 0, [kids[4], kids[0], kids[1], kids[2], kids[3]]);
   assert.equal(nwk(r.tree), '(f:5,a:1,b:2,(c:1,d:1)X:3,e:4)R;');

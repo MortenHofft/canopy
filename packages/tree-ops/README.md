@@ -17,7 +17,7 @@ viewer (draws, reports clicks)          page (integration)                     t
 |---|---|---|
 | `reroot(t, node, {at})` | Reroot here | New root on the edge above `node`, at fraction `at` (default 0.5) from the node; `at` 0 roots at the node itself (if internal), 1 at its parent. The path to the old root is reversed. The old root is removed if it is left with one child; a one-child chain above it is dropped |
 | `midpointRoot(t)` | Midpoint root | Root halfway along the longest tip-to-tip path (two O(n) passes). Needs lengths. A midpoint on a node (within 1e-6 of the diameter, which absorbs lengths rounded in the file) roots at that node, so a dated tree comes back unchanged. The tolerance is relative: a tree whose diameter is far below 1 with lengths rounded to 6 decimals can still move by the rounding |
-| `rotate(t, node)` | Rotate | Reverse the order of a node's children ("swap", "flip"). Display only |
+| `rotate(t, node)` | Rotate | Reverse the order of a node's children ("flip"). Display only |
 | `swap(t, a, b)` | Swap two branches | Exchange two sibling branches, the others stay. Throws `RangeError` if they are not siblings. Display only |
 | `reorder(t, node, order)` | Reorder children | The children of `node` in the order given, a permutation of its current children (`rotate` and `swap` are special cases). Throws `RangeError` otherwise; `changed` is false for the current order. Display only |
 | `ladderise(t, {order})` | Ladderise / sort clades | Children by tip count, `increasing` (smaller first, FigTree's term) or `decreasing`. Display only |
@@ -27,7 +27,7 @@ viewer (draws, reports clicks)          page (integration)                     t
 | `collapseClades(t, nodes, label?)` | Collapse / Expand | Each listed clade becomes one tip that stands for it (its descendants removed, its edge kept), labelled with the clade's name and size, or its first tip and how many more. A viewer draws such tips as collapsed clades (`<TreeView collapsed>`); keeping the input, expanding is collapsing fewer |
 | `focusOn`, `focusUp`, `focusBack`, `showFocus`, `canGoUp`, `canGoBack`, `remapFocus` (`focus.ts`) | Show only this clade, Up one level, Back | Navigation, not an edit: a `Focus` is the stack of views visited (clade ids of the tree, -1 = whole tree). `focusOn` shows a clade alone, `focusUp` the clade that contains it (the whole tree after the root's children), `focusBack` the view before, like a browser's back button. `showFocus(t, f)` gives the tree to show and its node map. `remapFocus` carries a focus over an edit of the tree (views that are gone are dropped) |
 
-The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate, Increasing/Decreasing node order; iTOL uses Re-root here, Rotate and Collapse (from memory, **unverified**). "Flip" and "swap" both mean rotate.
+The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate, Increasing/Decreasing node order; iTOL uses Re-root here, Rotate and Collapse (from memory, **unverified**). "Flip" means rotate; `swap` exchanges two chosen siblings.
 
 ## Contract
 

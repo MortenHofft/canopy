@@ -274,6 +274,7 @@ export function Reactree({
       return flash(`${what}: ${(err as Error).message}`);
     }
     if (!r.changed) return flash(`${what}: nothing to change`);
+    setSwapFirst(null);
     const next = new TreeModel(r.tree);
     const keptClades = clades.flatMap((c) => {
       const m = moveNode(tree, next, r.map, Number(c.nodeId.slice(1)));
@@ -289,6 +290,7 @@ export function Reactree({
   const undo = () => {
     const prev = history[history.length - 2];
     setHistory((h) => h.slice(0, -1));
+    setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
     setInfo(null);
