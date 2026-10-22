@@ -1,4 +1,4 @@
-// A look-alike of Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree pane, an inspector, a floating search, a colour
+// The explorer: a styled example of the full API, its look started from Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree pane, an inspector, a floating search, a colour
 // palette, an export menu), built only from the public API of @gbif-phylo: <TreeView> and its handle for the drawing, its props for
 // clades / highlights / collapsed clades / columns / theme, its callbacks for clicks and hovers, tree-ops for every edit and a
 // `nodeLabels` option for the support values and branch lengths. What could not be matched is listed in ../README.md.
@@ -13,9 +13,9 @@ import * as I from './icons.tsx';
 type Mode = 'none' | 'reroot' | 'flip' | 'swap' | 'color';
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
-const NO_CONTROLS: Control[] = []; // Reactree has its own toolbar: none of the viewer's buttons
+const NO_CONTROLS: Control[] = []; // the explorer has its own toolbar: none of the viewer's buttons
 
-/** Reactree's 12 swatches; the colours themselves are CSS custom properties (--rt-palette-<name>) in reactree.css. */
+/** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
 const ERASE = 'reset';
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
@@ -46,22 +46,22 @@ function Slider(p: {
   onChange(v: number): void;
 }) {
   return (
-    <div className="rt-slider-group" title={p.title}>
-      <span className="rt-slider-icon">{p.icon}</span>
-      {p.label && <span className="rt-slider-label">{p.label}</span>}
+    <div className="ex-slider-group" title={p.title}>
+      <span className="ex-slider-icon">{p.icon}</span>
+      {p.label && <span className="ex-slider-label">{p.label}</span>}
       <input
-        className="rt-slider"
+        className="ex-slider"
         type="range"
         aria-label={p.title}
         min={p.min}
         max={p.max}
         step={p.step}
         value={p.value}
-        style={{ width: p.width, ['--rt-fill' as string]: pct(p.value, p.min, p.max) }}
+        style={{ width: p.width, ['--ex-fill' as string]: pct(p.value, p.min, p.max) }}
         onChange={(e) => p.onChange(Number(e.target.value))}
         onDoubleClick={() => p.onChange(p.reset)}
       />
-      <button type="button" className="rt-slider-val" onClick={() => p.onChange(p.reset)}>
+      <button type="button" className="ex-slider-val" onClick={() => p.onChange(p.reset)}>
         {p.value.toFixed(1)}
         {p.digits ?? '×'}
       </button>
@@ -69,7 +69,7 @@ function Slider(p: {
   );
 }
 
-export function Reactree({
+export function Explorer({
   published,
   fasta,
   defaultHeight = 520,
@@ -224,9 +224,9 @@ export function Reactree({
     return () => cancelAnimationFrame(id);
   }, [layout, phylogram, columns, height, refit]);
 
-  // for the browser check (tests/browser/scripts/check-reactree.mjs): the viewer, to find where nodes are
+  // for the browser check (tests/browser/scripts/check-explorer.mjs): the viewer, to find where nodes are
   useEffect(() => {
-    (window as unknown as { __reactree?: () => unknown }).__reactree = () => ref.current?.renderer() ?? null;
+    (window as unknown as { __explorer?: () => unknown }).__explorer = () => ref.current?.renderer() ?? null;
   }, []);
 
   const flash = (msg: string) => setToast(msg);
@@ -319,7 +319,7 @@ export function Reactree({
         const nodeId = 'n' + v;
         const rest = clades.filter((c) => c.nodeId !== nodeId);
         if (activeColor === ERASE) return setClades(rest);
-        return setClades([...rest, { nodeId, colour: cssVar(`--rt-palette-${activeColor.toLowerCase()}`), label: activeColor }]);
+        return setClades([...rest, { nodeId, colour: cssVar(`--ex-palette-${activeColor.toLowerCase()}`), label: activeColor }]);
       }
       default:
         if (isCollapsed) return setCollapsed((cs) => cs.filter((c) => c !== v));
@@ -337,10 +337,10 @@ export function Reactree({
     const isCollapsed = e.collapsed;
     const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} taxa`;
     const tag = (cls: string, icon: React.ReactNode, text: React.ReactNode) => (
-      <span className={`rt-tip rt-tip--${cls}`}>
+      <span className={`ex-tip ex-tip--${cls}`}>
         {icon}
         {text}
-        <span className="rt-tip-name">{name}</span>
+        <span className="ex-tip-name">{name}</span>
       </span>
     );
     switch (mode) {
@@ -351,21 +351,21 @@ export function Reactree({
       case 'swap':
         return tag(
           'swap',
-          <span className="rt-tip-step">{swapFirst === null ? '1/2' : '2/2'}</span>,
+          <span className="ex-tip-step">{swapFirst === null ? '1/2' : '2/2'}</span>,
           swapFirst === null ? 'Select first branch' : 'Swap with…',
         );
       case 'color':
         return tag(
           'color',
           <span
-            className="rt-tip-dot"
-            style={{ background: activeColor === ERASE ? 'var(--rt-muted)' : `var(--rt-palette-${activeColor.toLowerCase()})` }}
+            className="ex-tip-dot"
+            style={{ background: activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})` }}
           />,
           activeColor === ERASE ? 'Erase color' : `Paint ${activeColor}`,
         );
       default:
         return (
-          <span className="rt-tip rt-tip--collapse">
+          <span className="ex-tip ex-tip--collapse">
             {isCollapsed ? `Expand · ${name}` : e.isTip ? name : v === 0 ? `Root · ${name}` : `Collapse · ${name}`}
           </span>
         );
@@ -406,7 +406,7 @@ export function Reactree({
     // the tree is drawn on a transparent background (the pane's dotted grid shows through): the PNG gets the pane's colour
     ref.current
       ?.renderer()
-      ?.toBlob({ background: cssVar('--rt-surface-10') })
+      ?.toBlob({ background: cssVar('--ex-surface-10') })
       .then((b) => download(b, 'phylotree.png'))
       .catch((err) => flash(`PNG export: ${(err as Error).message}`));
   };
@@ -466,13 +466,13 @@ export function Reactree({
     () => ({ labelSize: 11.5 * fontScale, branchWidth: strokeWidth, cladeBranchWidth: strokeWidth + 0.7 }),
     [fontScale, strokeWidth],
   );
-  const activeHex = activeColor === ERASE ? 'var(--rt-muted)' : `var(--rt-palette-${activeColor.toLowerCase()})`;
+  const activeHex = activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})`;
   const feedback = hoveredSwatch ?? (activeColor === ERASE ? 'Erase' : activeColor);
 
   return (
-    <div className={`rt-outer rt-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
+    <div className={`ex-outer ex-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
-      <div className="rt-row" role="toolbar" aria-label="View">
+      <div className="ex-row" role="toolbar" aria-label="View">
         <Slider
           icon={<I.IconWidth />}
           label={layout === 'radial' ? 'Size' : 'Width'}
@@ -486,7 +486,7 @@ export function Reactree({
         />
         {layout === 'rectangular' && (
           <>
-            <div className="rt-divider" />
+            <div className="ex-divider" />
             <Slider
               icon={<I.IconHeight />}
               label="Height"
@@ -500,7 +500,7 @@ export function Reactree({
             />
           </>
         )}
-        <div className="rt-divider" />
+        <div className="ex-divider" />
         <Slider
           icon={<I.IconFont />}
           title="Font size"
@@ -524,8 +524,8 @@ export function Reactree({
           digits=""
           onChange={setStrokeWidth}
         />
-        <div className="rt-divider" />
-        <div className="rt-group">
+        <div className="ex-divider" />
+        <div className="ex-group">
           <button
             type="button"
             className={layout === 'rectangular' ? 'active' : ''}
@@ -545,8 +545,8 @@ export function Reactree({
             <I.IconCirc />
           </button>
         </div>
-        <div className="rt-divider" />
-        <div className="rt-group">
+        <div className="ex-divider" />
+        <div className="ex-group">
           <button
             type="button"
             className={phylogram ? 'active' : ''}
@@ -569,10 +569,10 @@ export function Reactree({
         </div>
         {hasTruncatable && (
           <>
-            <div className="rt-divider" />
+            <div className="ex-divider" />
             <button
               type="button"
-              className={`rt-btn rt-toggle${truncate ? ' active' : ''}`}
+              className={`ex-btn ex-toggle${truncate ? ' active' : ''}`}
               title={truncate ? 'Names truncated — click to show full names' : 'Full names shown — click to truncate'}
               onClick={() => setTruncate((t) => !t)}
             >
@@ -581,10 +581,10 @@ export function Reactree({
             </button>
           </>
         )}
-        <div className="rt-spacer" />
+        <div className="ex-spacer" />
         <button
           type="button"
-          className={`rt-btn${searchOpen ? ' rt-search-active' : ''}`}
+          className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
           aria-label="Search taxa"
           title="Search taxa (⌘F)"
           onClick={() => {
@@ -595,11 +595,11 @@ export function Reactree({
         >
           <I.IconSearch />
         </button>
-        <div className="rt-divider" />
-        <div className="rt-export" ref={exportRef}>
+        <div className="ex-divider" />
+        <div className="ex-export" ref={exportRef}>
           <button
             type="button"
-            className={`rt-btn${downloadOpen ? ' open' : ''}`}
+            className={`ex-btn${downloadOpen ? ' open' : ''}`}
             aria-haspopup="menu"
             aria-expanded={downloadOpen}
             title="Export tree"
@@ -613,24 +613,24 @@ export function Reactree({
       </div>
 
       {/* ── Row 2: interaction tools ── */}
-      <div className="rt-row" role="toolbar" aria-label="Edit">
+      <div className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && (
           <>
-            <button type="button" className="rt-btn rt-fade" title="Undo last action" onClick={undo}>
+            <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={undo}>
               <I.IconUndo />
               Undo
             </button>
-            <div className="rt-divider" />
+            <div className="ex-divider" />
           </>
         )}
-        <button type="button" className="rt-btn" title="Fit tree" onClick={refit}>
+        <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
           <I.IconFit />
           Fit
         </button>
-        <div className="rt-divider" />
+        <div className="ex-divider" />
         <button
           type="button"
-          className={`rt-btn rt-tool${mode === 'reroot' ? ' active' : ''}`}
+          className={`ex-btn ex-tool${mode === 'reroot' ? ' active' : ''}`}
           aria-pressed={mode === 'reroot'}
           title={mode === 'reroot' ? 'Exit reroot mode (Esc)' : 'Reroot — click any node'}
           onClick={() => toggleMode('reroot')}
@@ -638,7 +638,7 @@ export function Reactree({
           <I.IconReroot />
           {mode === 'reroot' ? (
             <>
-              Click… <span className="rt-dot" />
+              Click… <span className="ex-dot" />
             </>
           ) : (
             'Reroot'
@@ -646,7 +646,7 @@ export function Reactree({
         </button>
         <button
           type="button"
-          className="rt-btn rt-tool"
+          className="ex-btn ex-tool"
           disabled={!tree.hasLengths}
           title={tree.hasLengths ? 'Midpoint root — place root at the midpoint of the longest path' : 'Midpoint root requires branch lengths'}
           onClick={() => {
@@ -659,18 +659,18 @@ export function Reactree({
         </button>
         <button
           type="button"
-          className={`rt-btn rt-tool${mode === 'flip' ? ' active' : ''}`}
+          className={`ex-btn ex-tool${mode === 'flip' ? ' active' : ''}`}
           aria-pressed={mode === 'flip'}
           title={mode === 'flip' ? 'Exit flip mode (Esc)' : 'Flip — reverse children order at a node'}
           onClick={() => toggleMode('flip')}
         >
           <I.IconFlip />
           Flip
-          {mode === 'flip' && <span className="rt-dot" />}
+          {mode === 'flip' && <span className="ex-dot" />}
         </button>
         <button
           type="button"
-          className={`rt-btn rt-tool${mode === 'swap' ? ' active rt-swap-active' : ''}`}
+          className={`ex-btn ex-tool${mode === 'swap' ? ' active ex-swap-active' : ''}`}
           aria-pressed={mode === 'swap'}
           title={mode === 'swap' ? 'Exit swap mode (Esc)' : 'Swap — exchange two sibling branches'}
           onClick={() => toggleMode('swap')}
@@ -678,26 +678,26 @@ export function Reactree({
           <I.IconSwap />
           Swap
           {mode === 'swap' && (
-            <span className="rt-steps">
+            <span className="ex-steps">
               <span className={swapFirst === null ? 'on' : 'done'}>1</span>→<span className={swapFirst !== null ? 'on' : ''}>2</span>
             </span>
           )}
         </button>
         <button
           type="button"
-          className={`rt-btn rt-color${mode === 'color' ? ' active' : ''}`}
+          className={`ex-btn ex-color${mode === 'color' ? ' active' : ''}`}
           aria-pressed={mode === 'color'}
           title={mode === 'color' ? 'Exit color mode (Esc)' : 'Color clades, branches & leaves'}
-          style={mode === 'color' ? ({ '--rt-active': activeHex } as React.CSSProperties) : undefined}
+          style={mode === 'color' ? ({ '--ex-active': activeHex } as React.CSSProperties) : undefined}
           onClick={() => toggleMode('color')}
         >
           <I.IconPalette />
           Color
-          {mode === 'color' && <span className="rt-color-dot" style={{ background: activeHex }} />}
-          {mode !== 'color' && clades.length > 0 && <span className="rt-count">{clades.length}</span>}
+          {mode === 'color' && <span className="ex-color-dot" style={{ background: activeHex }} />}
+          {mode !== 'color' && clades.length > 0 && <span className="ex-count">{clades.length}</span>}
         </button>
-        <div className="rt-divider" />
-        <div className="rt-group">
+        <div className="ex-divider" />
+        <div className="ex-group">
           <button type="button" title="Ladderize ascending — smallest clades at top" onClick={() => apply((t) => ops.ladderise(t), 'Ladderize')}>
             <I.IconLadderize asc />
           </button>
@@ -711,24 +711,24 @@ export function Reactree({
         </div>
         {collapsed.length > 0 && (
           <>
-            <div className="rt-divider" />
+            <div className="ex-divider" />
             <button
               type="button"
-              className="rt-btn rt-expand"
+              className="ex-btn ex-expand"
               title={`Expand all collapsed clades (${collapsed.length})`}
               onClick={() => setCollapsed([])}
             >
               <I.IconExpandAll />
               Expand all
-              <span className="rt-count rt-count--violet">{collapsed.length}</span>
+              <span className="ex-count ex-count--violet">{collapsed.length}</span>
             </button>
           </>
         )}
-        <div className="rt-spacer" />
+        <div className="ex-spacer" />
         {alignment && layout === 'rectangular' && (
           <button
             type="button"
-            className={`rt-btn rt-toggle${showAlignment ? ' active' : ''}`}
+            className={`ex-btn ex-toggle${showAlignment ? ' active' : ''}`}
             title={showAlignment ? 'Hide alignment track' : 'Show alignment alongside leaf nodes'}
             onClick={() => setShowAlignment((s) => !s)}
           >
@@ -739,7 +739,7 @@ export function Reactree({
         {phylogram && tree.hasLengths && (
           <button
             type="button"
-            className={`rt-btn rt-toggle${alignLabels ? ' active' : ''}`}
+            className={`ex-btn ex-toggle${alignLabels ? ' active' : ''}`}
             aria-pressed={alignLabels}
             title={alignLabels ? 'Labels follow their tips' : 'Align leaf labels in one column, with leader lines'}
             onClick={() => setAlignLabels((a) => !a)}
@@ -751,7 +751,7 @@ export function Reactree({
         {labelCycle.length > 1 && (
           <button
             type="button"
-            className={`rt-btn rt-labels rt-labels--${labelMode}`}
+            className={`ex-btn ex-labels ex-labels--${labelMode}`}
             title={`Node labels: ${labelMode === 'none' ? 'hidden' : labelMode === 'bootstrap' ? 'support values' : 'branch lengths'} — click to cycle`}
             onClick={() => setLabelMode(nextLabel)}
           >
@@ -762,7 +762,7 @@ export function Reactree({
       </div>
 
       {/* ── Body: the tree ── */}
-      <div className="rt-pane" style={{ height }}>
+      <div className="ex-pane" style={{ height }}>
         <TreeView
           ref={ref}
           tree={tree}
@@ -784,8 +784,8 @@ export function Reactree({
         />
 
         {searchOpen && (
-          <div className="rt-search">
-            <span className="rt-search-icon">
+          <div className="ex-search">
+            <span className="ex-search-icon">
               <I.IconSearch />
             </span>
             <input
@@ -810,12 +810,12 @@ export function Reactree({
               }}
             />
             {query.trim() && (
-              <span className={`rt-search-count${matches.length ? '' : ' none'}`}>
+              <span className={`ex-search-count${matches.length ? '' : ' none'}`}>
                 {matches.length ? `${matches.indexOf(current!) + 1} / ${matches.length}` : 'No match'}
               </span>
             )}
             {matches.length > 1 && (
-              <span className="rt-search-nav">
+              <span className="ex-search-nav">
                 <button type="button" title="Previous match (↑)" onClick={() => setMatchIdx((i) => i - 1)}>
                   <I.IconUp />
                 </button>
@@ -824,21 +824,21 @@ export function Reactree({
                 </button>
               </span>
             )}
-            <button type="button" className="rt-search-close" title="Close search (Esc)" onClick={closeSearch}>
+            <button type="button" className="ex-search-close" title="Close search (Esc)" onClick={closeSearch}>
               <I.IconClose />
             </button>
           </div>
         )}
 
         {inspector && (
-          <div className="rt-info" role="dialog" aria-label="Node information">
-            <div className="rt-info-head">
-              <span className="rt-info-name">{inspector.name.replace(/_/g, ' ')}</span>
+          <div className="ex-info" role="dialog" aria-label="Node information">
+            <div className="ex-info-head">
+              <span className="ex-info-name">{inspector.name.replace(/_/g, ' ')}</span>
               <button type="button" title="Close" onClick={() => setInfo(null)}>
                 <I.IconClose />
               </button>
             </div>
-            <dl className="rt-info-rows">
+            <dl className="ex-info-rows">
               {inspector.branch !== null && (
                 <>
                   <dt>Branch length</dt>
@@ -856,13 +856,13 @@ export function Reactree({
               {inspector.support !== null && (
                 <>
                   <dt>Bootstrap</dt>
-                  <dd className="rt-info-boot">{inspector.support}</dd>
+                  <dd className="ex-info-boot">{inspector.support}</dd>
                 </>
               )}
             </dl>
             <button
               type="button"
-              className="rt-info-copy"
+              className="ex-info-copy"
               title="Copy raw taxon name"
               onClick={() => void navigator.clipboard?.writeText(inspector.raw)}
             >
@@ -873,38 +873,38 @@ export function Reactree({
         )}
 
         {toast && (
-          <div className="rt-toast" role="status">
+          <div className="ex-toast" role="status">
             {toast}
           </div>
         )}
-        <div className={`rt-hint rt-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
-        <div className="rt-resize" title="Drag to resize" onPointerDown={onResizeDown}>
-          <div className="rt-grip" />
+        <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        <div className="ex-resize" title="Drag to resize" onPointerDown={onResizeDown}>
+          <div className="ex-grip" />
         </div>
       </div>
 
       {columns.length > 0 && alignment && (
-        <div className="rt-legend">
-          <span className={`rt-legend-type${alignment.alphabet === 'protein' ? ' aa' : ''}`}>{alignment.alphabet === 'protein' ? 'AA' : 'NT'}</span>
-          <span className="rt-legend-meta">
+        <div className="ex-legend">
+          <span className={`ex-legend-type${alignment.alphabet === 'protein' ? ' aa' : ''}`}>{alignment.alphabet === 'protein' ? 'AA' : 'NT'}</span>
+          <span className="ex-legend-meta">
             {alignment.sites.toLocaleString('en')} sites · {alignment.matched} of {published.tipCount} tips matched
           </span>
-          <span className="rt-legend-divider" />
+          <span className="ex-legend-divider" />
           {legend.map((l) => (
-            <span key={l.label} className="rt-legend-item">
-              <span className="rt-legend-dot" style={{ background: l.colour }} />
+            <span key={l.label} className="ex-legend-item">
+              <span className="ex-legend-dot" style={{ background: l.colour }} />
               {l.label}
             </span>
           ))}
-          <span className="rt-legend-item">
-            <span className="rt-legend-dash" />
+          <span className="ex-legend-item">
+            <span className="ex-legend-dash" />
             Gap
           </span>
         </div>
       )}
 
       {downloadOpen && (
-        <div className="rt-menu" role="menu" ref={menuRef}>
+        <div className="ex-menu" role="menu" ref={menuRef}>
           {(
             [
               ['PNG', 'Raster', <I.IconFilePng key="i" />, exportPng],
@@ -914,7 +914,7 @@ export function Reactree({
             ] as const
           ).map((item, k) =>
             item === null ? (
-              <div key={k} className="rt-menu-divider" />
+              <div key={k} className="ex-menu-divider" />
             ) : (
               <button
                 key={item[0]}
@@ -925,9 +925,9 @@ export function Reactree({
                   setDownloadOpen(false);
                 }}
               >
-                <span className="rt-menu-icon">{item[2]}</span>
-                <span className="rt-menu-label">{item[0]}</span>
-                <span className="rt-menu-desc">{item[1]}</span>
+                <span className="ex-menu-icon">{item[2]}</span>
+                <span className="ex-menu-label">{item[0]}</span>
+                <span className="ex-menu-desc">{item[1]}</span>
               </button>
             ),
           )}
@@ -936,13 +936,13 @@ export function Reactree({
 
       {/* ── Colour palette (floating, as Reactree's) ── */}
       {mode === 'color' && (
-        <div className="rt-palette" role="dialog" aria-label="Paint clades">
-          <div className="rt-palette-head">
+        <div className="ex-palette" role="dialog" aria-label="Paint clades">
+          <div className="ex-palette-head">
             <I.IconPalette />
             <span>Paint clades, branches &amp; leaves</span>
-            <span className="rt-palette-tip">Esc to exit</span>
+            <span className="ex-palette-tip">Esc to exit</span>
           </div>
-          <div className="rt-palette-grid">
+          <div className="ex-palette-grid">
             {PALETTE.map((name) => (
               <button
                 key={name}
@@ -950,19 +950,19 @@ export function Reactree({
                 title={name}
                 aria-label={name}
                 aria-pressed={activeColor === name}
-                className={`rt-swatch${activeColor === name ? ' active' : ''}`}
-                style={{ ['--sw' as string]: `var(--rt-palette-${name.toLowerCase()})` }}
+                className={`ex-swatch${activeColor === name ? ' active' : ''}`}
+                style={{ ['--sw' as string]: `var(--ex-palette-${name.toLowerCase()})` }}
                 onClick={() => setActiveColor(name)}
                 onMouseEnter={() => setHoveredSwatch(name)}
                 onMouseLeave={() => setHoveredSwatch(null)}
               />
             ))}
           </div>
-          <div className="rt-palette-divider" />
-          <div className="rt-palette-foot">
+          <div className="ex-palette-divider" />
+          <div className="ex-palette-foot">
             <button
               type="button"
-              className={`rt-erase${activeColor === ERASE ? ' active' : ''}`}
+              className={`ex-erase${activeColor === ERASE ? ' active' : ''}`}
               onClick={() => setActiveColor(ERASE)}
               onMouseEnter={() => setHoveredSwatch('Erase')}
               onMouseLeave={() => setHoveredSwatch(null)}
@@ -970,14 +970,14 @@ export function Reactree({
               <I.IconEraser /> Erase
             </button>
             {clades.length > 0 && (
-              <button type="button" className="rt-clear" onClick={() => setClades([])}>
+              <button type="button" className="ex-clear" onClick={() => setClades([])}>
                 Clear all ({clades.length})
               </button>
             )}
-            <span className="rt-palette-feedback">
+            <span className="ex-palette-feedback">
               <span
-                className="rt-tip-dot"
-                style={{ background: feedback === 'Erase' ? 'var(--rt-muted)' : `var(--rt-palette-${feedback.toLowerCase()})` }}
+                className="ex-tip-dot"
+                style={{ background: feedback === 'Erase' ? 'var(--ex-muted)' : `var(--ex-palette-${feedback.toLowerCase()})` }}
               />
               {feedback}
             </span>

@@ -20,7 +20,7 @@ Examples:
 - [`examples/vanilla`](examples/vanilla): no framework, with controls, events, a custom popup and a custom column.
 - [`examples/react`](examples/react): `<TreeView>` with tree operations.
 - [`examples/playground`](examples/playground): every option, theme token and built-in control in a side panel, on any tree.
-- [`examples/reactree`](examples/reactree): a look-alike of the Reactree viewer built on the public API, with what could not be matched.
+- [`examples/explorer`](examples/explorer): the tree explorer, a styled example of the full API and an alternative to the playground (its look started from Reactree), with what could not be matched.
 - [`examples/no-build`](examples/no-build): plain HTML with an import map; no bundler and no npm on the page's side. Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
 [`data/`](data); see [data/README.md](data/README.md) for what each tree is for and its licence. Design notes and the measurements behind
 the viewer are in [`docs/design`](docs/design).
@@ -54,7 +54,7 @@ npm run check:packages                 # after build: publint, tarball contents,
 npm run test:browser -w tests/browser   # build and serve the test page and the examples, run their browser checks (needs a Chromium)
 npm run dev -w examples/vanilla         # the framework-free example on http://127.0.0.1:5308
 npm run dev -w examples/react           # the React example on http://127.0.0.1:5307
-npm run dev -w examples/reactree        # the Reactree look-alike on http://127.0.0.1:5309
+npm run dev -w examples/explorer        # the tree explorer on http://127.0.0.1:5309
 npm run dev -w examples/playground      # the playground on http://127.0.0.1:5310
 npm run build:site                      # the demo site (hub, playground, showcases, data) into site-dist/, as Vercel builds it
 ```

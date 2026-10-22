@@ -6,6 +6,7 @@
   "outputDirectory": "site-dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [{ "source": "/reactree", "destination": "/explorer", "permanent": true }],
   "headers": [
     {
       "source": "/data/(.*)",

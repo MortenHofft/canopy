@@ -35,8 +35,8 @@ npm workspaces (Node >= 22.7):
 - `examples/vanilla`: the framework-free example (controls, events, a custom popup and column, a dark theme), checked by
   `tests/browser/scripts/check-vanilla-example.mjs`.
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
-- `examples/reactree`: a Reactree look-alike on the public API (its README lists the gaps found), checked by
-  `tests/browser/scripts/check-reactree.mjs`.
+- `examples/explorer`: the tree explorer, a styled example of the full API and an alternative to the playground (its look started from Reactree; its README lists the gaps found), checked by
+  `tests/browser/scripts/check-explorer.mjs`.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.
 - `site`: the demo site's hub. `npm run build:site` (`scripts/build-site.mjs`) builds it with the pages in `site/src/examples.json` and
@@ -68,11 +68,11 @@ npm workspaces (Node >= 22.7):
   `node --experimental-transform-types scripts/capture-cut-golden.mjs` rewrites `test/cut-golden.json` after a deliberate change of the
   cut. Otherwise a diff of that file is a regression.
 - **Browser tests.**
-  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,reactree,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
+  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,explorer,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
     - the test page runs `check-radial-ui.mjs`;
     - the vanilla example runs `check-vanilla-example.mjs`;
     - the React example runs `check-node-menu.mjs`;
-    - the Reactree look-alike runs `check-reactree.mjs`;
+    - the explorer runs `check-explorer.mjs`;
     - the playground runs `check-playground.mjs`;
     - the no-build example runs `check-no-build.mjs`. It builds the packages and serves static files itself, without Vite.
     - the site runs `check-site.mjs`. It runs `scripts/build-site.mjs` and serves `site-dist/` with vercel.json's URL rules.

@@ -1,12 +1,12 @@
-// Reactree look-alike: the page around <Reactree> (src/Reactree.tsx), a tree picker and a light/dark switch. `npm run dev` in this
+// The explorer: the page around <Explorer> (src/Explorer.tsx), a tree picker and a light/dark switch. `npm run dev` in this
 // folder, then open the printed URL (?tree=<id> picks a tree from src/trees.ts, ?theme=dark starts dark).
 
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@gbif-phylo/viewer/viewer.css';
-import './reactree.css';
+import './explorer.css';
 import type { TreeModel } from '@gbif-phylo/io';
-import { Reactree } from './Reactree.tsx';
+import { Explorer } from './Explorer.tsx';
 import { TREES, loadTree } from './trees.ts';
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
           ← All demos
         </a>
         <h1>
-          Reactree<span>.js</span> <small>look-alike on @gbif-phylo</small>
+          Tree explorer <small>on @gbif-phylo</small>
         </h1>
         <label>
           Tree{' '}
@@ -56,7 +56,7 @@ function App() {
       </header>
       {error && <p className="page-error">{error}</p>}
       {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
-      {data ? <Reactree key={data.id} published={data.tree} fasta={data.fasta} /> : !error && <p>loading…</p>}
+      {data ? <Explorer key={data.id} published={data.tree} fasta={data.fasta} /> : !error && <p>loading…</p>}
       <p className="page-foot">
         Toolbar icons from <a href="https://github.com/vaaloo/reactreejs">reactreejs</a> (MIT). Everything else is @gbif-phylo: see the README for
         what maps to which API and what could not be matched.

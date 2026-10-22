@@ -1,5 +1,5 @@
 {
-  "name": "@gbif-phylo/example-reactree",
+  "name": "@gbif-phylo/example-explorer",
   "version": "0.0.0",
   "private": true,
   "type": "module",

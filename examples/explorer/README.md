@@ -1,24 +1,28 @@
-# Example: a Reactree look-alike
+# Example: the tree explorer
 
-[Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3) rebuilt on `@gbif-phylo`, as a test of the library's public API: the same
-two toolbar rows, icons, buttons, palette, search panel, inspector and export menu, with the drawing, the events and the edits coming from
-`<TreeView>` and `@gbif-phylo/tree-ops`. Three of the gaps it found were fixed in the packages (below).
+A styled example of the full `@gbif-phylo` API, and an alternative to the [playground](../playground): two toolbar rows, modes, a palette,
+a search panel, an inspector and an export menu around `<TreeView>`, with the drawing, the events and the edits coming from the viewer and
+`@gbif-phylo/tree-ops`. It is also the seed of a drop-in widget. Its look started from [Reactree](https://github.com/vaaloo/reactreejs)
+(reactreejs 1.0.3), and the icons in `src/icons.tsx` are Reactree's, used under its MIT licence. It began as a Reactree look-alike to test
+the library's flexibility; three of the gaps that found were fixed in the packages (below).
 
 ```
-npm run dev -w examples/reactree    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
+npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
 ```
 
-The browser check is `tests/browser/scripts/check-reactree.mjs` (56 checks, all pass in headless Chromium, 2026-10-22). It drives every
+The browser check is `tests/browser/scripts/check-explorer.mjs` (56 checks, all pass in headless Chromium, 2026-10-22). It drives every
 control and reads the result back from the viewer.
 
 | File | What |
 |---|---|
-| [`src/Reactree.tsx`](src/Reactree.tsx) | the component: toolbars, modes, panels, `<TreeView>` |
-| [`src/reactree.css`](src/reactree.css) | Reactree's look as `--rt-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
+| [`src/Explorer.tsx`](src/Explorer.tsx) | the component: toolbars, modes, panels, `<TreeView>` |
+| [`src/explorer.css`](src/explorer.css) | the look (from Reactree) as `--ex-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
 | [`src/trees.ts`](src/trees.ts) | trees from `data/`, two with the alignment they were inferred from |
 
 ## What maps to what
+
+Reactree's features and where each lives here.
 
 | Reactree | Here |
 |---|---|
@@ -43,7 +47,7 @@ control and reads the result back from the viewer.
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
 
-## What could not be matched, and what testing found
+## Gaps: what could not be matched, and what testing found
 
 Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
 
@@ -71,7 +75,7 @@ Differences that follow from the design, not defects:
 - Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)): the viewer ends the triangle at the clade's tips, so the axis stays "time before tips" and no tip is made up (this was `collapseClades` with `{ extend: true }` and a changed tip length before, [#29](https://github.com/MortenHofft/gbif-phylo/issues/29)).
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
   component.
-- Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from
+- The look is kept as its own tokens (`--ex-*`), not GBIF's, so that it stays recognisably Reactree's. The viewer still takes every colour from
   CSS custom properties.
 
 Other follow-ups: API ergonomics [#23](https://github.com/MortenHofft/gbif-phylo/issues/23) (mostly done: `updateTheme`, `themeObserver`, `fitViewport`, `toBlob`, `tooltipBare`; stretch sliders and a draw-list iterator remain), duplicate tip labels [#18](https://github.com/MortenHofft/gbif-phylo/issues/18), TreeViewer unit tests and the alpha canvas cost
