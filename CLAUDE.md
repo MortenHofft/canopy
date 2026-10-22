@@ -35,7 +35,7 @@ npm workspaces (Node >= 22.7):
 - `examples/vanilla`: the framework-free example (controls, events, a custom popup and column, a dark theme), checked by
   `tests/browser/scripts/check-vanilla-example.mjs`.
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
-- `examples/explorer`: the tree explorer, a styled example of the full API and an alternative to the playground (its look started from Reactree; its README lists the gaps found), checked by
+- `examples/explorer`: the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree; its README is a table of control to API), checked by
   `tests/browser/scripts/check-explorer.mjs`.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.

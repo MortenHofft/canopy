@@ -27,7 +27,7 @@ export interface Loaded {
   fasta: Record<string, string> | null;
 }
 
-async function fetchText(path: string, remote?: string): Promise<{ text: string; bytes: number }> {
+export async function fetchText(path: string, remote?: string): Promise<{ text: string; bytes: number }> {
   let r = await fetch(`/data/${path}`);
   if (r.status === 404 && remote) r = await fetch(remote);
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);

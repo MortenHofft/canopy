@@ -1,82 +1,74 @@
 # Example: the tree explorer
 
-A styled example of the full `@gbif-phylo` API, and an alternative to the [playground](../playground): two toolbar rows, modes, a palette,
-a search panel, an inspector and an export menu around `<TreeView>`, with the drawing, the events and the edits coming from the viewer and
-`@gbif-phylo/tree-ops`. It is also the seed of a drop-in widget. Its look started from [Reactree](https://github.com/vaaloo/reactreejs)
-(reactreejs 1.0.3), and the icons in `src/icons.tsx` are Reactree's, used under its MIT licence. It began as a Reactree look-alike to test
-the library's flexibility; three of the gaps that found were fixed in the packages (below).
+The styled showcase of `@gbif-phylo`, and the counterpart of the [playground](../playground): the playground is the low-level API demo (every
+option and theme token in a panel); this is what an application built on the library looks like when it is styled, with toolbars, tools,
+a node menu, panels and an export menu around `<TreeView>`. The drawing, the events and the views come from the viewer, the edits and the
+views of the tree from `@gbif-phylo/tree-ops`. It is also the seed of a drop-in widget. Its look started from
+[Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3), and most icons in `src/icons.tsx` are Reactree's, used under its MIT
+licence; the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
 
 ```
 npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
 ```
 
-The browser check is `tests/browser/scripts/check-explorer.mjs` (56 checks, all pass in headless Chromium, 2026-10-22). It drives every
-control and reads the result back from the viewer.
+The browser check is `tests/browser/scripts/check-explorer.mjs`; it drives every control and reads the result back from the viewer (headless
+Chromium).
 
 | File | What |
 |---|---|
-| [`src/Explorer.tsx`](src/Explorer.tsx) | the component: toolbars, modes, panels, `<TreeView>` |
-| [`src/explorer.css`](src/explorer.css) | the look (from Reactree) as `--ex-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
+| [`src/Explorer.tsx`](src/Explorer.tsx) | the component: toolbars, tools, node menu, panels, `<TreeView>` |
+| [`src/explorer.css`](src/explorer.css) | the look as `--ex-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
-| [`src/trees.ts`](src/trees.ts) | trees from `data/`, two with the alignment they were inferred from |
+| [`src/icons-ours.tsx`](src/icons-ours.tsx) | icons drawn for this repository, in the same style (14 px, `currentColor`) |
+| [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../playground/src/catalogue.json`, shared) plus this example's `extras` and `overrides` |
 
-## What maps to what
+## What the explorer demonstrates
 
-Reactree's features and where each lives here.
+Each control and the API behind it.
 
-| Reactree | Here |
+| Control | API |
 |---|---|
-| Width, Height (Size in circular) | `setViewport` on the handle's `renderer()`: the window is the fitted one divided by the scale |
+| **Tree picker**: every tree of the playground's catalogue (19, in its four groups) and two of our own, from 6 tips to 2.4 million | `catalogue.json` shared with the playground; `fetchText` of the playground's `data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees) |
+| **Click (no tool)**: the node menu | `<TreeView nodeMenu>`: the core `NodeMenu`, with items for what was clicked. Internal node: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade. Collapsed clade: Expand, Info, Show only, Colour…. Tip: Info, Reroot here, Swap with…, Colour…. Root: Info, Flip, Colour…. Enter on the keyboard cursor opens it too. The hover box says "Click for actions" |
+| **Tools** (Reroot, Flip, Swap, Color): a click acts at once | `onNodeClick` / `onTipClick`, and `nodeMenu` returns `null` while a tool is active, so the menu stays out of the way. *Swap with…* in the menu starts Swap with the node picked |
+| **Show only this clade**, **Back**, **Up one level** | tree-ops `focusOn`, `focusBack`, `focusUp`, `showFocus`. A navigation, not an edit: not in Undo; an edit carries the focus over with `remapFocus` |
+| **Collapse** a clade, **Expand all** | the `collapsed` prop (`viewer.setCollapsed`, a view in the viewer: the tree is not changed and ids are the full tree's) |
+| **Collapse by support** with a threshold | tree-ops `collapseBySupport(tree, x, { keep })`, a view over the focused tree; `keep` is the clades collapsed by hand, so they stay collapsed. Composed with the focus by `composeMaps` / `invertMap`, as in `examples/react` |
+| Width, Height (Size in circular) | `setViewport` on the handle's `renderer()`: the window is the fitted one (`fitViewport()`) divided by the scale |
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
-| Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches with `highlightStyle: 'dim'` (what does not match fades to `--phylo-dim-opacity`; the columns stay at full strength) and `focus` to centre the current one |
-| Export | PNG from `viewer.toBlob({ background })` (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
-| Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
-| Fit | `fit()`; `fitViewport()` gives the fitted window for the Width / Height sliders |
-| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot`, `rotate` and `swap` (two siblings, also inside a polytomy) |
-| Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
-| Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
-| Click a clade: collapse into a triangle; Expand all | the `collapsed` prop (the viewer collapses the clade on the tree it shows, one row, ids unchanged; its label is the clade's name or "N tips" where Reactree says "N taxa"); the tooltip says "N taxa" |
-| Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
-| Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
-| Bootstrap / Length / No labels cycle | `options.nodeLabels`: `'support'`, read from `tree.support` (Bootstrap), `'length'`, `'none'`; drawn by the viewer, with `--phylo-support-colour` / `--phylo-length-colour`. The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support`, so Bootstrap shows the posterior there |
-| Align (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are the `--phylo-leader-*` theme tokens |
-| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
-| Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; the option `themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
+| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels, at most 5,000 matches kept (a keystroke on 2.4 million tips takes about half a second) |
+| **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the columns stay at full strength) |
+| Midpoint, **Ladderize ↑ ↓ by tips / depth / height** | tree-ops `midpointRoot`, `ladderise(t, { order, by })` |
+| Reroot, Flip, Swap, Undo (⌘Z) | tree-ops `reroot`, `rotate`, `swap`; a history of trees, each edit a function returning a new tree. Colours, collapsed clades and the focus follow the tips (`followClades`, `remapFocus`) and the view stays (`treeMap`, the op's node map) |
+| Color mode, 12 swatches, Erase, Clear all; **Colour…** in the menu | the `clades` prop (the innermost clade's colour wins). No label is set, so the legend names a clade by its node |
+| **Bootstrap / Length / No labels**, **As percent** | `options.nodeLabels` (`'support'` reads `tree.support`, `'length'`) and `options.formatNodeLabel` (0.95 as 95; a support above 1 is left alone). The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.json` sets `supportKey` and `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support` |
+| **Align** (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are `--phylo-leader-*` theme tokens. Disabled in the circular layout, with a tooltip, until [#52](https://github.com/MortenHofft/gbif-phylo/issues/52) |
+| **Overview**, **Legend** | the viewer's `OverviewControl` and `Legend` controls from `defaultControls({ overview, legend })`; their look follows `--phylo-surface` and `--phylo-border`. The legend names the coloured clades |
+| **Alignment** track and legend | an `alignment` column with `width: 'fill'` (the rest of the width) and `options.treeWidth: '40%'` while it is shown; the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas |
+| **Export**: PNG at 1×, 2×, 4×; Newick; NEXUS | `viewer.toBlob({ scale, background })` (the pane colour under the transparent canvas); `toNewick` / `toNexus` from `@gbif-phylo/io` |
+| Tooltips ("Click for actions", "Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
+| Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; `options.themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
 
-## Gaps: what could not be matched, and what testing found
+### Large trees
 
-Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
+Above 250,000 nodes (the 190k-tip GTDB bacteria tree, the 1.5M and 2.4M OTL trees) the controls that build a whole new tree are off, and a
+note above the pane says so: **collapse by support**, **ladderize** and **midpoint root**. Reroot, Flip and Swap stay (one edit at a time),
+and so do Show only this clade, collapse, colour, search and export, which work on what the viewer draws or on one clade. The 2.4M-tip tree
+loads in about 3 s in headless Chromium without a GPU (parse included); Show only on its largest clade takes about 1 s.
 
-- **A transparent background smeared**: every frame was drawn over the last one, because the frame filled the background colour without
-  clearing the canvas. Each frame now clears first, so the pane's dotted grid shows under the tree.
-- **`addControl` forced `pointer-events: auto`** on every control's element, so a control over the whole tree (the example's own node-label control) swallowed
-  every click. It now keeps a `pointer-events` the element already has. (That control is gone: see the next list.)
-- **Nested clade colours: the later entry won.** Now the innermost clade wins whatever the order, which is Reactree's behaviour.
-- **No NEXUS writer.** `@gbif-phylo/io` now has `toNexus` (a TAXA block, a TRANSLATE table and the tree), and the export menu offers it.
+## Notes
 
-Node labels ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16)) were a control of our own that walked every node on each frame and put a
-length at the node, not on the branch. They are now the viewer's `nodeLabels` option, drawn from the draw list (none inside a collapsed
-clade, a collapsed clade shows its own value on its stem, a length along the branch in the radial layout). Posterior values on the BEAST tree came with the
-annotations in `@gbif-phylo/io` ([#17](https://github.com/MortenHofft/gbif-phylo/issues/17)).
-
-Still open, found in the library:
-
-- **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
-  not Reactree's SVG and PDF.
-
-Differences that follow from the design, not defects:
-
-- Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
-  135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)): the viewer ends the triangle at the clade's tips, so the axis stays "time before tips" and no tip is made up (this was `collapseClades` with `{ extend: true }` and a changed tip length before, [#29](https://github.com/MortenHofft/gbif-phylo/issues/29)).
-- Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
-  component.
-- The look is kept as its own tokens (`--ex-*`), not GBIF's, so that it stays recognisably Reactree's. The viewer still takes every colour from
-  CSS custom properties.
-
-Other follow-ups: API ergonomics [#23](https://github.com/MortenHofft/gbif-phylo/issues/23) (mostly done: `updateTheme`, `themeObserver`, `fitViewport`, `toBlob`, `tooltipBare`; stretch sliders and a draw-list iterator remain), duplicate tip labels [#18](https://github.com/MortenHofft/gbif-phylo/issues/18), TreeViewer unit tests and the alpha canvas cost
-[#25](https://github.com/MortenHofft/gbif-phylo/issues/25), this example's own open questions [#26](https://github.com/MortenHofft/gbif-phylo/issues/26).
+- **Where the look differs from Reactree.** The look is kept as its own tokens (`--ex-*`), not GBIF's, so that it stays recognisably this
+  example's. The viewer still takes every colour from CSS custom properties. The palette and export menu sit inside the component, not
+  portalled to `<body>`.
+- **No vector export.** The viewer draws on a canvas, so the menu has PNG, Newick and NEXUS, not SVG or PDF.
+- **Labels only where they fit.** The viewer shows labels only where they fit (`labelDensity`), so a 135-tip tree at the fitted view has none
+  until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
+- **Undo** is a history of trees owned by this component; it is being reworked in [#44](https://github.com/MortenHofft/gbif-phylo/issues/44).
+  Only a `focus` field was added to each step so that Undo returns to the clade that was shown.
+- **Colour… is a palette, not a submenu.** `NodeMenuItem` is a flat list (`id`, `label`, `hint`, `disabled`, `onSelect`), so *Colour…* opens the
+  explorer's own palette for that one clade.
