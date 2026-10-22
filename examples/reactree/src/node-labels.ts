@@ -17,7 +17,8 @@ export class NodeLabels extends BaseControl {
 
   constructor() {
     super('rt-node-labels', { position: 'custom' });
-    this.element.style.cssText = 'position:absolute;inset:0;overflow:hidden';
+    // pointer-events none: clicks go through to the tree (addControl keeps a pointer-events set here)
+    this.element.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none';
   }
 
   setMode(mode: NodeLabelMode): void {
@@ -26,9 +27,6 @@ export class NodeLabels extends BaseControl {
   }
 
   protected attach(v: TreeViewer): void {
-    // addControl sets pointer-events:auto on every control's element (controls catch their own clicks); a layer over the whole
-    // tree must let them through, so it is reset here, after the element was placed
-    this.element.style.pointerEvents = 'none';
     this.listen(v.on('frame', () => this.place()));
     this.place();
   }

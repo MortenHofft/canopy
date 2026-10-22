@@ -37,8 +37,8 @@
   --rt-palette-slate: #64748b;
   --rt-palette-brown: #92400e;
 
-  /* the viewer's theme from the tokens */
-  --phylo-background: var(--rt-surface-10);
+  /* the viewer's theme from the tokens; transparent, so the pane's dotted grid shows under the tree */
+  --phylo-background: transparent;
   --phylo-foreground: #1e293b;
   --phylo-muted: var(--rt-muted);
   --phylo-branch: var(--rt-text-2);

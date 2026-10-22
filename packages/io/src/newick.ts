@@ -199,13 +199,18 @@ export interface WriteOptions {
 
 /** Serialise to Newick, iteratively. Missing lengths are omitted. */
 export function toNewick(t: TreeModel, o: WriteOptions = {}): string {
+  return writeTree(t, o, (i) => quoteLabel(t.labels[i]), quoteLabel);
+}
+
+/** The Newick writer behind toNewick and toNexus: `tip(i)` writes tip node i, `internal` an internal label. */
+function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, internal: (l: string) => string): string {
   const withLen = o.lengths !== false;
   const withInt = o.internalLabels !== false;
   const parts: string[] = [];
   const open: number[] = [];
   const suffix = (i: number): string => {
     let s = '';
-    if (t.childCount[i] > 0 && withInt && t.labels[i] !== '') s += quoteLabel(t.labels[i]);
+    if (t.childCount[i] > 0 && withInt && t.labels[i] !== '') s += internal(t.labels[i]);
     const l = t.length[i];
     if (withLen && !Number.isNaN(l) && i > 0) s += ':' + l;
     return s;
@@ -217,7 +222,7 @@ export function toNewick(t: TreeModel, o: WriteOptions = {}): string {
       parts.push('(');
       open.push(i);
     } else {
-      parts.push(quoteLabel(t.labels[i]) + (withLen && !Number.isNaN(t.length[i]) && i > 0 ? ':' + t.length[i] : ''));
+      parts.push(tip(i) + (withLen && !Number.isNaN(t.length[i]) && i > 0 ? ':' + t.length[i] : ''));
     }
   }
   while (open.length) parts.push(')' + suffix(open.pop() as number));
@@ -225,6 +230,34 @@ export function toNewick(t: TreeModel, o: WriteOptions = {}): string {
 }
 
 // ------------------------------------------------------------------------------------------ NEXUS
+
+/** NEXUS punctuation (and whitespace) makes a token need quotes; '_' stays, it reads back as a space in NEXUS as in Newick. */
+const NEXUS_NEEDS_QUOTE = /[()[\]{}/\\,;:=*'"`+<>\s-]/;
+const nexusQuote = (l: string): string => (l === '' || NEXUS_NEEDS_QUOTE.test(l) ? "'" + l.replace(/'/g, "''") + "'" : l);
+
+export interface NexusWriteOptions extends WriteOptions {
+  /** Name of the tree in the TREES block; default 'tree1'. */
+  treeName?: string;
+  /** Write a TRANSLATE table and numbers in the tree (default true: smaller files with long labels). */
+  translate?: boolean;
+}
+
+/** Serialise to NEXUS: a TAXA block with the tip labels and a TREES block with the tree (rooted, `[&R]`), by default through a
+ *  TRANSLATE table. parseNexus reads it back. */
+export function toNexus(t: TreeModel, o: NexusWriteOptions = {}): string {
+  const translate = o.translate !== false;
+  const out = ['#NEXUS', '', 'BEGIN TAXA;', `  DIMENSIONS NTAX=${t.tipCount};`, '  TAXLABELS'];
+  for (let r = 0; r < t.tipCount; r++) out.push('    ' + nexusQuote(t.labels[t.tipNode[r]]));
+  out.push('  ;', 'END;', '', 'BEGIN TREES;');
+  if (translate) {
+    out.push('  TRANSLATE');
+    for (let r = 0; r < t.tipCount; r++) out.push(`    ${r + 1} ${nexusQuote(t.labels[t.tipNode[r]])}${r < t.tipCount - 1 ? ',' : ''}`);
+    out.push('  ;');
+  }
+  const tip = translate ? (i: number) => String(t.tipRank[i] + 1) : (i: number) => nexusQuote(t.labels[i]);
+  out.push(`  TREE ${nexusQuote(o.treeName ?? 'tree1')} = [&R] ${writeTree(t, o, tip, nexusQuote)}`, 'END;', '');
+  return out.join('\n');
+}
 
 export interface NexusResult {
   tree: TreeModel;

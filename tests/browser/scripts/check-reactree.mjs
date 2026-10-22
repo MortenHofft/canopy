@@ -4,13 +4,15 @@
 // (window.__reactree() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights and steps; a tip click opens the inspector, a clade
 // click collapses it and a click on the triangle expands it; colour, erase and the innermost-colour-wins order; reroot, flip, swap
-// (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG and Newick downloads, SVG and PDF disabled);
+// (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG, Newick and NEXUS downloads); the transparent
+// background leaves no trace of earlier frames; the innermost clade colour wins whatever the order;
 // node labels (support, length); the alignment track and its legend; dark mode reaches the canvas; the resize handle.
 /* global __v, __order, __tipAt, __clade -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
+const { PNG } = require('pngjs');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => (x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1]]] : a), []));
 const port = Number(args.port || 5309);
 const url = args.url || `http://127.0.0.1:${port}/`;
@@ -114,6 +116,33 @@ ok((await ev((l) => __v().options.formatLabel(l), longest)).endsWith('…'), 'Tr
 await btn('Truncate').click();
 ok((await ev((l) => __v().options.formatLabel(l), longest)) === longest.replace(/_/g, ' '), 'Full names: the whole name');
 
+console.log('transparent background');
+ok((await ev(() => __v().getTheme().background)) === 'transparent', 'the canvas background is transparent (the dotted grid shows)');
+// painted pixels after fitting, after zooming in and panning, and after fitting again: with frames drawn over each other the count grows
+const painted = () =>
+  ev(() => {
+    __v().renderNow();
+    const c = __v().treeElement.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+    return n;
+  });
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(200);
+const p0 = await painted();
+const box = await page.locator('.phylo-tree').boundingBox();
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -300);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2 - 100, { steps: 6 });
+await page.mouse.up();
+await page.waitForTimeout(300);
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(300);
+const p1 = await painted();
+ok(p0 > 0 && Math.abs(p1 - p0) / p0 < 0.02, `no trace of earlier frames (${p0} painted pixels before zoom and pan, ${p1} after)`);
+
 console.log('search');
 await page.locator('button[aria-label="Search taxa"]').click();
 await page.keyboard.type('bothus');
@@ -193,11 +222,43 @@ const small = await ev(
 );
 await click(small);
 let cl = await ev(() => __v().getClades());
-ok(cl.length === 2 && cl[0].node === big.node && cl[1].node === small.node, 'two clades, the outer first so the inner colour shows');
+ok(cl.length === 2 && cl[0].node === big.node && cl[1].node === small.node, 'two nested clades coloured');
+// which colour the canvas shows just right of the inner clade's node (its branches): pixels near teal versus near pink
+const inner = () =>
+  ev((p) => {
+    const c = __v().treeElement.querySelector('canvas');
+    const b = c.getBoundingClientRect();
+    const k = c.width / b.width;
+    const d = c
+      .getContext('2d')
+      .getImageData(Math.round((p.x - b.left) * k), Math.round((p.y - b.top - 6) * k), Math.round(10 * k), Math.round(12 * k)).data;
+    const near = (i, [r, g, bb]) => Math.abs(d[i] - r) + Math.abs(d[i + 1] - g) + Math.abs(d[i + 2] - bb) < 90 && d[i + 3] > 200;
+    let teal = 0;
+    let pink = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (near(i, [20, 184, 166])) teal++;
+      if (near(i, [236, 72, 153])) pink++;
+    }
+    return { teal, pink };
+  }, small);
+let px = await inner();
+ok(px.teal > 0 && px.teal > px.pink, `the inner colour shows (teal ${px.teal}, pink ${px.pink})`);
 await page.locator('.rt-erase').click();
 await click(small);
 cl = await ev(() => __v().getClades());
 ok(cl.length === 1 && cl[0].node === big.node, 'Erase removes a clade colour');
+// the other order: outer clade painted after the inner one, and still the innermost wins (the viewer, not the order)
+await click(big);
+await page.locator('button[aria-label=Teal]').click();
+await click(small);
+await page.locator('button[aria-label=Pink]').click();
+await click(big);
+cl = await ev(() => __v().getClades());
+ok(cl.length === 2 && cl[0].node === small.node && cl[1].node === big.node, 'inner clade first, outer last');
+px = await inner();
+ok(px.teal > 0 && px.teal > px.pink, `the innermost colour still wins (teal ${px.teal}, pink ${px.pink})`);
+await page.locator('.rt-erase').click();
+await click(small);
 await page.locator('.rt-outer').press('Escape');
 ok((await page.locator('.rt-palette').count()) === 0, 'Escape leaves colour mode');
 ok((await page.locator('.rt-color .rt-count').innerText()) === '1', 'Color shows the count');
@@ -261,26 +322,36 @@ ok(o3 !== o2 && (await ev(() => __order())) !== o3, 'Ladderize both ways');
 
 console.log('export');
 await btn('Export').click();
-ok(await page.locator('.rt-menu button', { hasText: 'SVG' }).isDisabled(), 'SVG disabled (canvas viewer)');
-ok(await page.locator('.rt-menu button', { hasText: 'PDF' }).isDisabled(), 'PDF disabled');
+ok((await page.locator('.rt-menu button').allInnerTexts()).map((s) => s.split('\n')[0]).join(',') === 'PNG,Newick,NEXUS', 'menu: PNG, Newick, NEXUS');
 let dl = page.waitForEvent('download');
 await page.locator('.rt-menu button', { hasText: 'PNG' }).click();
 let d = await dl;
 const png = await (await d.createReadStream()).toArray();
 ok(d.suggestedFilename() === 'phylotree.png' && Buffer.concat(png).subarray(1, 4).toString() === 'PNG', 'PNG download');
+const img = PNG.sync.read(Buffer.concat(png));
+ok(img.data[3] === 255, 'the PNG is opaque (the pane colour under the transparent canvas)');
 await btn('Export').click();
 dl = page.waitForEvent('download');
 await page.locator('.rt-menu button', { hasText: 'Newick' }).click();
 d = await dl;
 const nwk = Buffer.concat(await (await d.createReadStream()).toArray()).toString();
 ok(nwk.startsWith('(') && nwk.trim().endsWith(';') && nwk.includes(tl[0]), 'Newick download of the current tree');
+await btn('Export').click();
+dl = page.waitForEvent('download');
+await page.locator('.rt-menu button', { hasText: 'NEXUS' }).click();
+d = await dl;
+const nex = Buffer.concat(await (await d.createReadStream()).toArray()).toString();
+ok(
+  d.suggestedFilename() === 'phylotree.nex' && nex.startsWith('#NEXUS') && nex.includes('TRANSLATE') && nex.includes(`NTAX=${tl.length};`),
+  'NEXUS download: taxa block, translate table and tree',
+);
 
 console.log('dark mode, resize');
-const bg = await ev(() => __v().getTheme().background);
+const fg = await ev(() => __v().getTheme().branch);
 await page.locator('.theme-toggle').click();
 await page.waitForTimeout(200);
-const bg2 = await ev(() => __v().getTheme().background);
-ok(bg2 !== bg, `dark mode reaches the canvas (${bg} → ${bg2})`);
+const fg2 = await ev(() => __v().getTheme().branch);
+ok(fg2 !== fg, `dark mode reaches the canvas (branches ${fg} → ${fg2})`);
 const h0 = (await page.locator('.rt-pane').boundingBox()).height;
 const g = await page.locator('.rt-resize').boundingBox();
 await page.mouse.move(g.x + g.width / 2, g.y + 7);

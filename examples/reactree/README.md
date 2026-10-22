@@ -2,13 +2,13 @@
 
 [Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3) rebuilt on `@gbif-phylo`, as a test of the library's public API: the same
 two toolbar rows, icons, buttons, palette, search panel, inspector and export menu, with the drawing, the events and the edits coming from
-`<TreeView>`, a control of our own and `@gbif-phylo/tree-ops`. Nothing in the packages was changed for it.
+`<TreeView>`, a control of our own and `@gbif-phylo/tree-ops`. Three of the gaps it found were fixed in the packages (below).
 
 ```
 npm run dev -w examples/reactree    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
 ```
 
-The browser check is `tests/browser/scripts/check-reactree.mjs` (50 checks, all pass in headless Chromium, 2026-10-21). It drives every
+The browser check is `tests/browser/scripts/check-reactree.mjs` (56 checks, all pass in headless Chromium, 2026-10-22). It drives every
 control and reads the result back from the viewer.
 
 | File | What |
@@ -28,39 +28,43 @@ control and reads the result back from the viewer.
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
 | Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one |
-| Export | PNG from the viewer's canvas (labels are drawn on it); Newick with `toNewick` from `@gbif-phylo/io` |
+| Export | PNG from the viewer's canvas (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
 | Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
 | Fit | `fit()` |
 | Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot` and `rotate` (Swap of two siblings is `rotate` of their binary parent) |
 | Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
-| Color mode, 12 swatches, Erase, Clear all | the `clades` prop; colours are carried to the new tree after an edit by their tips |
+| Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
 | Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "N taxa") and the `collapsed` prop |
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
 | Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
 | Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
+| Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
 
 ## What could not be matched, and what testing found
 
-Found in the library while building this (unchanged here; each is a candidate for a fix or a documented limit):
+Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
 
-- **A transparent background smears.** With `--phylo-background: transparent` every frame is drawn over the last one: the frame starts with
-  `fillRect` in the background colour and never clears the canvas (`packages/viewer/src/viewer.ts`, the draw step). So Reactree's dotted
-  grid can only show around the plot, not under it; the pane keeps a solid background.
-- **`addControl` sets `pointer-events: auto` on every control's element** (`viewer.ts`, `addControl`), which is not in the API reference. A
-  control that covers the whole tree (as `NodeLabels`) swallows every click unless it sets `pointer-events: none` again in `attach`.
+- **A transparent background smeared**: every frame was drawn over the last one, because the frame filled the background colour without
+  clearing the canvas. Each frame now clears first, so the pane's dotted grid shows under the tree.
+- **`addControl` forced `pointer-events: auto`** on every control's element, so a control over the whole tree (as `NodeLabels`) swallowed
+  every click. It now keeps a `pointer-events` the element already has; `NodeLabels` sets `none` in its constructor.
+- **Nested clade colours: the later entry won.** Now the innermost clade wins whatever the order, which is Reactree's behaviour.
+- **No NEXUS writer.** `@gbif-phylo/io` now has `toNexus` (a TAXA block, a TRANSLATE table and the tree), and the export menu offers it.
+
+Still open, found in the library:
+
 - **No node or branch labels.** Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
   frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
   branch.
 - **No aligned tip labels with leader lines.** The Align button is shown disabled.
-- **No vector export.** The viewer draws on a canvas, so SVG and PDF are disabled; PNG is the current view at the canvas resolution.
+- **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
+  not Reactree's SVG and PDF.
 - **Search can highlight, not dim.** Reactree dims the tips that do not match; the viewer has highlighting only.
 - **Alignment colours are a constant table** in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
   them. Nucleotides use the amino-acid scheme, so A and C share a colour.
-- **Nested clade colours: the later entry wins** (as documented); Reactree lets the innermost colour win, so the example sorts the clades
-  largest first.
 
 Differences that follow from the design, not defects:
 

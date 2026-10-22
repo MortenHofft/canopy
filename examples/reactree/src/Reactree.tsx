@@ -4,7 +4,7 @@
 // control of our own (NodeLabels) for the node labels. What could not be matched is listed in ../README.md.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { TreeModel, toNewick, splitInternalLabel } from '@gbif-phylo/io';
+import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
 import type { Column, Control, Viewport } from '@gbif-phylo/viewer';
@@ -149,20 +149,17 @@ export function Reactree({
   }, [tree, collapsed]);
   const shown = view?.tree ?? tree;
   const toTree = useCallback((n: number) => (view ? view.toTree[n] : n), [view]);
-  // the viewer lets later entries win where clades nest; Reactree lets the innermost colour win, so the larger clades go first
-  const shownClades = useMemo(() => {
-    const inView = view
-      ? clades.flatMap((c) => {
-          const k = view.toView[Number(c.nodeId.slice(1))];
-          return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
-        })
-      : clades;
-    const size = (c: CladeProp) => shown.tipCountOf(Number(c.nodeId.slice(1)));
-    return inView
-      .map((c) => [size(c), c] as const)
-      .sort((a, b) => b[0] - a[0])
-      .map(([, c]) => c);
-  }, [clades, view, shown]);
+  // where clades nest the viewer lets the innermost colour win, as Reactree does
+  const shownClades = useMemo(
+    () =>
+      view
+        ? clades.flatMap((c) => {
+            const k = view.toView[Number(c.nodeId.slice(1))];
+            return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
+          })
+        : clades,
+    [clades, view],
+  );
 
   const hasSupport = useMemo(() => tree.support.some((s) => !Number.isNaN(s)), [tree]);
   const hasTruncatable = useMemo(() => published.tipLabels.some((l) => l.length > TRUNCATE_AT), [published]);
@@ -393,7 +390,7 @@ export function Reactree({
     if (mod && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       setSearchOpen(true);
-      requestAnimationFrame(() => searchInput.current?.focus());
+      searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
     } else if (mod && e.key.toLowerCase() === 'z' && history.length > 1) {
       e.preventDefault();
       undo();
@@ -409,7 +406,7 @@ export function Reactree({
     setMatchIdx(0);
   };
 
-  // ---- export: PNG is the viewer's canvas (labels are drawn on it); Newick through @gbif-phylo/io
+  // ---- export: PNG is the viewer's canvas (labels are drawn on it); Newick and NEXUS through @gbif-phylo/io
   const download = (blob: Blob, name: string) => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -421,9 +418,19 @@ export function Reactree({
     const r = ref.current?.renderer();
     if (!r) return;
     r.renderNow();
-    r.treeElement.querySelector('canvas')?.toBlob((b) => b && download(b, 'phylotree.png'), 'image/png');
+    const src = r.treeElement.querySelector('canvas');
+    if (!src) return;
+    // the tree is drawn on a transparent background (the pane's dotted grid shows through): the PNG gets the pane's colour
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = src.height;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = cssVar('--rt-surface-10');
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(src, 0, 0);
+    out.toBlob((b) => b && download(b, 'phylotree.png'), 'image/png');
   };
-  const exportNewick = () => download(new Blob([toNewick(tree)], { type: 'text/plain' }), 'phylotree.nwk');
+  const exportText = (text: string, name: string) => download(new Blob([text], { type: 'text/plain' }), name);
 
   // close the export menu on a press outside it
   const exportRef = useRef<HTMLDivElement>(null);
@@ -603,7 +610,7 @@ export function Reactree({
           onClick={() => {
             if (searchOpen) return closeSearch();
             setSearchOpen(true);
-            requestAnimationFrame(() => searchInput.current?.focus());
+            searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
           }}
         >
           <I.IconSearch />
@@ -801,6 +808,7 @@ export function Reactree({
             </span>
             <input
               ref={searchInput}
+              autoFocus
               type="text"
               aria-label="Search taxa"
               placeholder="Search taxa…"
@@ -917,42 +925,30 @@ export function Reactree({
         <div className="rt-menu" role="menu" ref={menuRef}>
           {(
             [
-              ['SVG', 'Vector', <I.IconFileSvg key="i" />, null],
               ['PNG', 'Raster', <I.IconFilePng key="i" />, exportPng],
-              ['PDF', 'Document', <I.IconFilePdf key="i" />, null],
+              null,
+              ['Newick', 'Tree', <I.IconFileNewick key="i" />, () => exportText(toNewick(tree), 'phylotree.nwk')],
+              ['NEXUS', 'Tree', <I.IconFileNexus key="i" />, () => exportText(toNexus(tree), 'phylotree.nex')],
             ] as const
-          ).map(([label, desc, icon, act]) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              disabled={!act}
-              title={act ? undefined : 'Not available: the viewer draws on a canvas and has no vector export'}
-              onClick={() => {
-                act?.();
-                setDownloadOpen(false);
-              }}
-            >
-              <span className="rt-menu-icon">{icon}</span>
-              <span className="rt-menu-label">{label}</span>
-              <span className="rt-menu-desc">{desc}</span>
-            </button>
-          ))}
-          <div className="rt-menu-divider" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              exportNewick();
-              setDownloadOpen(false);
-            }}
-          >
-            <span className="rt-menu-icon">
-              <I.IconFileNewick />
-            </span>
-            <span className="rt-menu-label">Newick</span>
-            <span className="rt-menu-desc">Tree</span>
-          </button>
+          ).map((item, k) =>
+            item === null ? (
+              <div key={k} className="rt-menu-divider" />
+            ) : (
+              <button
+                key={item[0]}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  item[3]();
+                  setDownloadOpen(false);
+                }}
+              >
+                <span className="rt-menu-icon">{item[2]}</span>
+                <span className="rt-menu-label">{item[0]}</span>
+                <span className="rt-menu-desc">{item[1]}</span>
+              </button>
+            ),
+          )}
         </div>
       )}
 

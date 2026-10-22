@@ -24,4 +24,9 @@ These changes made the spike's custom renderer into the first library form. Noth
   - `TreeTheme.dark` is documented as informational.
   - Builds clean `dist/` first, and the package check fails on output without a source.
   - `<TreeView>`'s default controls no longer bundle every control: 31.4 kB gzip instead of 34.3 kB.
+- **Found by the Reactree look-alike** (`examples/reactree`, 2026-10-22).
+  - A transparent or translucent `--phylo-background` works: each frame clears the canvas first. Before, frames were drawn over each other.
+  - `addControl` keeps a `pointer-events` the control's element already has inline, so a control laid over the whole tree can let clicks through.
+  - Nested clade colours: the innermost clade wins, whatever the order of `setClades` / the `clades` prop (it was the later entry).
+  - `@gbif-phylo/io` has `toNexus`: a NEXUS file with a taxa block and the tree.
 

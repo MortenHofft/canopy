@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once |
 | `@gbif-phylo/viewer/gbif.css` | optional: GBIF design tokens mapped to the `--phylo-*` properties |
 | `@gbif-phylo/react` | `<TreeView>` ([below](#treeview)) |
-| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -60,7 +60,7 @@ State: setters (each is a no-op for input equal to the current one) and getters
 | `setTheme(overrides)` | theme fields over the CSS theme; replaces the overrides of an earlier call. Emits `themechange` |
 | `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created and when the colour scheme preference changes) |
 | `getTheme()` | the theme in force |
-| `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree), later entries win; nodes not loaded are skipped. Emits `cladeschange` |
+| `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree); where clades nest the innermost wins (for the same node, the later entry); nodes not loaded are skipped. Emits `cladeschange` |
 | `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label (row band, ring, bold label, overview ticks); unknown labels are ignored. Emits `highlightchange` |
 | `setCollapsed(nodeIds)` | tips that stand for collapsed clades (drawn as triangles); the collapsing itself is done in the data, e.g. with tree-ops' `collapseClades` |
 | `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` and `renderer` by reference, ids unique) |
@@ -160,8 +160,9 @@ viewer.on('click', (e) => {
 
 A control is any object with `element: HTMLElement`, optional `position` (`'top-left'` default, `'top-right'`, `'bottom-left'`,
 `'bottom-right'`, or `'custom'`: put in the control layer as it is, positioned by itself), optional `target` (an element of the page: the
-control lives there instead of on the viewer) and `setViewer(viewer | null)`. Pointer and key events inside the control layer never
-reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
+control lives there instead of on the viewer) and `setViewer(viewer | null)`. `addControl` gives a control's element `pointer-events:
+auto` unless the element already has an inline `pointer-events`: a control that lays something over the whole tree (labels, say) sets
+`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
 scrolls itself, as the legend and the search suggestions are).
 
 `BaseControl` is the base class of the built-ins: `new BaseControl(name, { position, target, className }, element?)` gives the element the
@@ -252,7 +253,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 
 | Field | CSS property | Default | Meaning |
 |---|---|---|---|
-| `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas, labels and axis text, axis lines and headers |
+| `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through), labels and axis text, axis lines and headers |
 | `branch`, `highlight`, `summary` | `--phylo-branch`, ... | `#44576a`, `#4c9b45`, `#9aa7b3` | branches, selection and focus, collapsed clades |
 | `fontFamily` | `--phylo-font-family` | `system-ui, sans-serif` | labels and axis |
 | `categorical` | `--phylo-categorical` (comma list) | 5 colours | palette for categories; the second colours bar columns |

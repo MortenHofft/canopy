@@ -487,7 +487,9 @@ export class TreeViewer {
     OWNER.set(control, this);
     const box = control.target ?? this.cornerBox(control.position ?? 'top-left');
     if (control.target) control.element.dataset.phyloUi = '';
-    else control.element.style.pointerEvents = 'auto'; // the layer itself lets events through to the tree
+    // the layer itself lets events through to the tree, so a control catches its own unless it set pointer-events itself (a layer
+    // over the whole tree sets 'none' to let clicks through)
+    else if (!control.element.style.pointerEvents) control.element.style.pointerEvents = 'auto';
     box.appendChild(control.element);
     this.controls.push(control);
     control.setViewer(this);
@@ -651,8 +653,8 @@ export class TreeViewer {
     this.events.emit('themechange', this.theme);
   }
 
-  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`; later entries win
-   *  where clades nest. No-op for the same entries in the same order. */
+  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`. Where clades nest
+   *  the innermost wins, whatever the order; for the same node the later entry wins. No-op for the same entries in the same order. */
   setClades(clades: CladeColour[]): void {
     const key = clades.map((c) => c.node + ':' + c.colour + ':' + (c.label ?? '')).join('|');
     if (key === this.cladeKey) return;
@@ -678,9 +680,13 @@ export class TreeViewer {
     }
     const cls = new Uint8Array(this.tree.nodeCount);
     const colours = [''];
-    for (const c of clades) {
-      const r = this.rowOf(c.node);
-      if (r < 0) continue;
+    // filled in preorder (an ancestor's row comes before its descendants'), so an inner clade paints over the one around it; the
+    // sort is stable, so for the same node the later entry wins
+    const placed = clades
+      .map((c) => ({ c, r: this.rowOf(c.node) }))
+      .filter((x) => x.r >= 0)
+      .sort((a, b) => a.r - b.r);
+    for (const { c, r } of placed) {
       let k = colours.indexOf(c.colour);
       if (k < 0) {
         k = Math.min(255, colours.push(c.colour) - 1);
@@ -1121,6 +1127,8 @@ export class TreeViewer {
 
     // ---- draw
     const td = performance.now();
+    // cleared first: a background that is not opaque (transparent, rgba) would otherwise show the frames before this one
+    ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
     const S: Scene = {

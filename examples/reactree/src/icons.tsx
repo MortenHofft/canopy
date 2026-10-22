@@ -216,12 +216,6 @@ export const IconDrag = () => (
     {[2, 5].flatMap((x) => [2, 5, 8].map((y) => <circle key={`${x}${y}`} cx={x} cy={y} r="1.2" fill="currentColor" />))}
   </svg>
 );
-export const IconFileSvg = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M3.5 6h5M6 3.5v5" {...s} strokeWidth="1.3" />
-  </svg>
-);
 export const IconFilePng = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
@@ -229,18 +223,17 @@ export const IconFilePng = () => (
     <path d="M1.5 9.5l2.5-3L6 8l2-2.5 2.5 3.5" {...s} strokeWidth="1.2" />
   </svg>
 );
-export const IconFilePdf = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-    <rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M4 5h1.5a1 1 0 0 1 0 2H4V5Z" {...s} strokeWidth="1.1" />
-    <path d="M4 7v2M7.5 5v4" {...s} strokeWidth="1.2" />
-    <path d="M7.5 9c1 0 1.5-.5 1.5-2s-.5-2-1.5-2" {...s} strokeWidth="1.2" />
-  </svg>
-);
 export const IconFileNewick = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <path d="M2 3h1.5M2 6h3M2 9h2" {...s} strokeWidth="1.3" />
     <path d="M6 3.5l1.5 2.5L9 3.5" {...s} strokeWidth="1.2" />
     <path d="M6 9V6h3v3" {...s} strokeWidth="1.2" />
+  </svg>
+);
+// ours, in the style of the ones above: NEXUS files start with #NEXUS
+export const IconFileNexus = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M4.8 3.5l-.6 5M7.8 3.5l-.6 5M3.5 5h5.5M3 7h5.5" {...s} strokeWidth="1.1" />
   </svg>
 );

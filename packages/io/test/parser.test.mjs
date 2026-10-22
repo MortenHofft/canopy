@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, parseNexus, toNewick } from '../src/newick.ts';
+import { parseNewick, parseNexus, toNewick, toNexus } from '../src/newick.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const read = (p) => {
@@ -137,4 +137,23 @@ test('NEXUS with TRANSLATE, comments, multiple trees', () => {
   assert.equal(m.treesSeen, 2);
   assert.ok(m.tree.tipCount > 3);
   assert.throws(() => parseNexus(read('rich/edge-cases/multi-tree-translate.nex'), 9));
+});
+
+test('toNexus round trip, with and without TRANSLATE, keeps topology, labels and lengths', () => {
+  const src = "((A_b:1,'B c':2)'x,y':0.5,('it''s':3,'D-1':4)95:1,E=F)root;";
+  const t = parseNewick(src);
+  for (const translate of [true, false]) {
+    const text = toNexus(t, { translate, treeName: 'my tree' });
+    assert.ok(text.startsWith('#NEXUS'));
+    const r = parseNexus(text);
+    assert.equal(r.treeName, 'my tree');
+    assert.deepEqual(r.tree.tipLabels, t.tipLabels, `translate ${translate}`);
+    assert.deepEqual(Array.from(r.tree.parent), Array.from(t.parent));
+    assert.deepEqual(r.tree.labels, t.labels);
+    assert.deepEqual(Array.from(r.tree.cumLength), Array.from(t.cumLength));
+  }
+  const fish = parseNexus(read('rich/fish-carangaria-mcc/Carangaria-MCC.tre')).tree;
+  const back = parseNexus(toNexus(fish)).tree;
+  assert.deepEqual(back.tipLabels, fish.tipLabels);
+  assert.deepEqual(Array.from(back.parent), Array.from(fish.parent));
 });
