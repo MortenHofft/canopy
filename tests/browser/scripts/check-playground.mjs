@@ -360,6 +360,7 @@ const otlClade = (kind, skip = 0) =>
   );
 const legendRows = () => page.locator('.phylo-legend__list li').allInnerTexts();
 const named = await otlClade('named');
+ok(named, 'the Open Tree tree has a clickable named clade');
 await page.mouse.click(named.x, named.y);
 await settled();
 const taxon = named.label.replace(/_ott\d+$/, '').replace(/_/g, ' ');
@@ -370,15 +371,14 @@ ok(
 );
 ok(!/ott|_|Clade of/.test(rows1[0] ?? ''), 'without the Open Tree id, underscores or the generic text');
 const synth = await otlClade('synthetic');
-if (synth) {
-  await page.mouse.click(synth.x, synth.y);
-  await settled();
-  const rows2 = await legendRows();
-  ok(
-    rows2[1] === `Clade of ${synth.tips.toLocaleString('en')} tips`,
-    `a synthetic mrcaott label is hidden: "Clade of N tips" (${JSON.stringify(rows2)})`,
-  );
-} else console.log('  (no clickable mrcaott clade in view: synthetic case skipped)');
+ok(synth, 'and a clickable synthetic mrcaott clade');
+await page.mouse.click(synth.x, synth.y);
+await settled();
+const rows2 = await legendRows();
+ok(
+  rows2[1] === `Clade of ${synth.tips.toLocaleString('en')} tips`,
+  `a synthetic mrcaott label is hidden: "Clade of N tips" (${JSON.stringify(rows2)})`,
+);
 
 console.log('own file, re-creation, benchmark');
 await page

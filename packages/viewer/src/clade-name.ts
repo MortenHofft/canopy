@@ -4,8 +4,11 @@
 
 import type { TreeSnapshot } from './types.ts';
 
-/** `(row, tree)`: the name of the internal node at `row` of `tree.labels`, or null for none. The viewer formats what it returns. */
-export type CladeLabelFn = (row: number, tree: TreeSnapshot) => string | null | undefined;
+/**
+ * `(node, tree)`: the name of the internal node `node` (its preorder id in the full tree, as `setClades` and `TreeEvent.node` use), or
+ * null for none. `tree` is the viewer's snapshot: read the label as `tree.labels[tree.toLocal(node)]`. The viewer formats what it returns.
+ */
+export type CladeLabelFn = (node: number, tree: TreeSnapshot) => string | null | undefined;
 
 const NUMERIC_PREFIX = /^\s*[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?\s*(?::(.*))?$/s;
 
@@ -21,13 +24,19 @@ export function internalName(label: string): string {
 }
 
 /**
- * The display name of the node at `row`, or null when it has none: a tip's label through `format`; an internal node's name (from
- * `cladeLabel` when given, else its label without the support) through `format`. Whitespace-only names count as none.
+ * The display name of the node at snapshot row `row`, or null when it has none: a tip's label through `formatLabel`; an internal
+ * node's name (from `cladeLabel`, called with the node's full-tree id, when set, else its label without the support) through
+ * `formatLabel`. Whitespace-only names count as none.
  */
-export function cladeName(tree: TreeSnapshot, row: number, format: (s: string) => string, cladeLabel?: CladeLabelFn): string | null {
+export function cladeName(
+  tree: TreeSnapshot,
+  row: number,
+  opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null },
+): string | null {
   if (row < 0) return null;
   const label = tree.labels[row] ?? '';
-  const raw = tree.childCount[row] === 0 ? label : cladeLabel ? cladeLabel(row, tree) : internalName(label);
-  const s = raw ? format(raw).trim() : '';
+  const node = tree.globalId === null ? row : tree.globalId[row];
+  const raw = tree.childCount[row] === 0 ? label : opts.cladeLabel ? opts.cladeLabel(node, tree) : internalName(label);
+  const s = raw ? opts.formatLabel(raw).trim() : '';
   return s === '' ? null : s;
 }

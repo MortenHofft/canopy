@@ -65,7 +65,7 @@ export class Tooltip extends BaseControl {
 export function defaultTooltip(e: TreeEvent, v: TreeViewer): Node {
   const t = v.getTree();
   const row = t.globalId === null ? e.node : t.toLocal(e.node);
-  const name = e.isTip ? '' : (cladeName(t, row, v.options.formatLabel) ?? '');
+  const name = e.isTip ? '' : (cladeName(t, row, v.options) ?? '');
   const box = document.createDocumentFragment();
   const title = document.createElement('div');
   title.className = 'phylo-tooltip__title';

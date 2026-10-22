@@ -18,11 +18,7 @@ export interface LegendOptions extends ControlOptions {
   title?: string;
   /** A fixed list instead of the viewer's clade colours. */
   items?: LegendItem[];
-  /**
-   * What names a coloured clade: `(row, tree)` gives the name of the internal node at `row` of `tree.labels`, or null for none (the legend
-   * then says 'Clade of N tips'). The name goes through the viewer's `formatLabel`. Default: the node's label without its support value.
-   * Hide synthetic names or look names up elsewhere here.
-   */
+  /** Overrides the viewer's `cladeLabel` option (what names an internal node) for this legend. */
   cladeLabel?: CladeLabelFn;
 }
 
@@ -47,6 +43,8 @@ export class Legend extends BaseControl {
   protected attach(v: TreeViewer): void {
     this.listen(v.on('cladeschange', () => this.render(v)));
     this.listen(v.on('sourcechange', () => this.render(v)));
+    // formatLabel and cladeLabel change the names
+    this.listen(v.on('optionschange', (e) => (e.changed.includes('formatLabel') || e.changed.includes('cladeLabel')) && this.render(v)));
     this.domListen(this.list, 'click', (e) => {
       const b = (e.target as Element).closest('button');
       if (b?.dataset.node) v.zoomToNode(Number(b.dataset.node), true);
@@ -63,9 +61,10 @@ export class Legend extends BaseControl {
       if (c.label !== undefined) return { colour: c.colour, label: c.label, node: c.node };
       const tips = row >= 0 ? t.leafEnd[row] - t.leafStart[row] : 0;
       const n = `${tips.toLocaleString('en')} tips`;
-      const name = cladeName(t, row, v.options.formatLabel, this.opts.cladeLabel);
-      if (name === null) return { colour: c.colour, label: `Clade of ${n}`, node: c.node };
-      return t.childCount[row] === 0 ? { colour: c.colour, label: name, node: c.node } : { colour: c.colour, label: name, detail: n, node: c.node };
+      const name = cladeName(t, row, { formatLabel: v.options.formatLabel, cladeLabel: this.opts.cladeLabel ?? v.options.cladeLabel });
+      const tip = row >= 0 && t.childCount[row] === 0;
+      if (name === null) return { colour: c.colour, label: tip ? 'Unnamed tip' : `Clade of ${n}`, node: c.node };
+      return tip ? { colour: c.colour, label: name, node: c.node } : { colour: c.colour, label: name, detail: n, node: c.node };
     });
   }
 

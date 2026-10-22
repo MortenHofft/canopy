@@ -180,5 +180,5 @@ function defaultTitle(e: TreeEvent, v: TreeViewer): string {
   if (e.isTip) return v.options.formatLabel(e.tipId ?? '');
   const t = v.getTree();
   const row = t.globalId === null ? e.node : t.toLocal(e.node);
-  return cladeName(t, row, v.options.formatLabel) ?? `Clade, ${e.tipCount.toLocaleString('en')} tips`;
+  return cladeName(t, row, v.options) ?? `Clade, ${e.tipCount.toLocaleString('en')} tips`;
 }

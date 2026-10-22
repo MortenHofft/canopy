@@ -214,7 +214,7 @@ test('Legend: a clade is named by its label without support, through formatLabel
   const btn = l.list.children[0].children[1];
   assert.equal(btn.textContent, 'Chelodina (2 tips)');
   // an app's cladeLabel decides what is a name: null hides it, a string replaces it (and is formatted)
-  const hide = new Legend({ cladeLabel: (r, tree) => (/^mrcaott/.test(tree.labels[r]) ? null : tree.labels[r].replace(/^[^:]*:/, '')) });
+  const hide = new Legend({ cladeLabel: (node, tree) => (/^mrcaott/.test(tree.labels[node]) ? null : tree.labels[node].replace(/^[^:]*:/, '')) });
   hide.setViewer(v);
   v.clades = [
     { node: row('mrcaott99343ott3606205'), colour: '#0' },
@@ -227,6 +227,29 @@ test('Legend: a clade is named by its label without support, through formatLabel
   // an explicit label of the clade wins and gets no detail
   v.clades = [{ node: 0, colour: '#0', label: 'Pink' }];
   assert.deepEqual(l.items(v), [{ colour: '#0', label: 'Pink', node: 0 }]);
+});
+
+test('Legend re-renders when formatLabel or the viewer cladeLabel changes; its own cladeLabel wins; an unnamed tip is not "1 tips"', () => {
+  const v = fakeViewer("((a:1,b:1)'95:Chelodina_ott1':1,(c:1,d:1)x:1,:1)r;");
+  const l = new Legend();
+  l.setViewer(v);
+  const t = v.getTree();
+  const emptyTip = t.labels.findIndex((x, i) => x === '' && t.childCount[i] === 0);
+  v.clades = [
+    { node: t.labels.indexOf('95:Chelodina_ott1'), colour: '#f00' },
+    { node: emptyTip, colour: '#0f0' },
+  ];
+  v.emit('cladeschange', v.clades);
+  const first = () => l.list.children[0].children[1].textContent;
+  assert.equal(first(), 'Chelodina ott1 (2 tips)');
+  assert.equal(l.list.children[1].children[1].textContent, 'Unnamed tip');
+  v.setOptions({ formatLabel: (s) => s.replace(/_ott\d+$/, '') });
+  assert.equal(first(), 'Chelodina (2 tips)', 'formatLabel changed: the rendered list follows');
+  v.setOptions({ cladeLabel: () => 'Viewer name' });
+  assert.equal(first(), 'Viewer name (2 tips)', 'the viewer option names clades');
+  const own = new Legend({ cladeLabel: () => 'Own' });
+  own.setViewer(v);
+  assert.equal(own.items(v)[0].label, 'Own');
 });
 
 test('defaultControls: zoom and fit by default; keys switch others on, false switches off, options pass through', () => {

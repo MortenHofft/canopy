@@ -1354,9 +1354,9 @@ export class TreeViewer {
     this.renderNow();
     if (announce && node >= 0) {
       const tip = this.tree.childCount[node] === 0;
-      const name = cladeName(this.tree, node, this.opts.formatLabel);
-      const tips = `${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`;
-      this.overlay.announce(tip ? (name ?? '') : name ? `${name}, ${tips}` : `Clade of ${tips}`);
+      const name = cladeName(this.tree, node, this.opts);
+      const tips = `${(this.tree.leafEnd[node] - this.tree.leafStart[node]).toLocaleString('en')} tips`;
+      this.overlay.announce(tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`);
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root)
         this.overlay.focusAnchor(this.tree.tipRank[node]);

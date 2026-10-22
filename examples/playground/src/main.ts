@@ -147,8 +147,8 @@ const OTL_NAME = (s: string) => SPACES(s.replace(OTL_ID, ''));
 const isOtl = () => loaded?.tree.tipLabels.slice(0, 5).some((l) => OTL_ID.test(l)) === true;
 /** OTL's unnamed clades are labelled 'mrcaott99343ott3606205': no name, so the legend counts the tips instead. */
 const OTL_SYNTHETIC = /^mrcaott\d+ott\d+$/;
-const cladeLabel: CladeLabelFn = (row, t) => {
-  const name = internalName(t.labels[row]);
+const cladeLabel: CladeLabelFn = (node, t) => {
+  const name = internalName(t.labels[t.toLocal(node)]);
   return OTL_SYNTHETIC.test(name) ? null : name;
 };
 const GBIF_HREF = (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}`;
@@ -157,6 +157,7 @@ function viewerOptions(): Partial<ViewerOptions> {
   const o: Record<string, unknown> = {};
   for (const s of SETTINGS) if (s.to === 'option') o[s.key ?? s.id] = toViewer(s, state[s.id]);
   o.formatLabel = state.underscores ? (isOtl() ? OTL_NAME : SPACES) : RAW;
+  o.cladeLabel = cladeLabel;
   o.tipHref = state.tipLinks ? GBIF_HREF : null;
   return o as Partial<ViewerOptions>;
 }
@@ -178,7 +179,7 @@ function makeControls(): Control[] {
   if (on('fit')) out.push(new Fit());
   if (on('layoutToggle')) out.push(new LayoutToggle());
   if (on('search')) out.push(new Search({ highlight: true }));
-  if (on('legend')) out.push(new Legend({ cladeLabel }));
+  if (on('legend')) out.push(new Legend());
   if (on('overview')) out.push(new OverviewControl());
   if (on('tooltip')) out.push(new Tooltip());
   if (state.click === 'menu') out.push(new NodeMenu({ items: menuItems }));
