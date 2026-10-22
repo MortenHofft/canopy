@@ -58,6 +58,69 @@ function shownSelection(selected: number | null, view: { toView: Int32Array } | 
   return null;
 }
 
+// What ladderise sorts by: 'height' is not on offer without branch lengths, so a tree without them falls back to tips.
+function effectiveLadderBy(choice: LadderBy, hasLengths: boolean): LadderBy {
+  return choice === 'height' && !hasLengths ? 'tips' : choice;
+}
+
+function LadderBySelect(p: { value: LadderBy; hasLengths: boolean; onChange: (by: LadderBy) => void }) {
+  return (
+    <select aria-label="Ladderize by" value={p.value} onChange={(e) => p.onChange(e.target.value as LadderBy)}>
+      <option value="tips">tips</option>
+      <option value="depth">depth</option>
+      {p.hasLengths && <option value="height">height</option>}
+    </select>
+  );
+}
+
+// The Collapse by support control, with the divider before it. Not rendered at all for a tree without support values.
+function SupportGroup(p: {
+  range: { lo: number; hi: number } | null;
+  step: number;
+  threshold: number;
+  active: boolean;
+  collapsedCount: number;
+  onToggle: () => void;
+  onThreshold: (x: number) => void;
+}) {
+  if (!p.range) return null;
+  return (
+    <>
+      <div className="ex-divider" />
+      <div className="ex-support">
+        <button
+          type="button"
+          className={`ex-btn ex-toggle${p.active ? ' active' : ''}`}
+          aria-label="Collapse by support"
+          aria-pressed={p.active}
+          title="Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed."
+          onClick={p.onToggle}
+        >
+          <J.IconSupport />
+          Support
+        </button>
+        {p.active && (
+          <>
+            <input
+              className="ex-num"
+              type="number"
+              aria-label="Minimum support"
+              title={`Support below this is collapsed (the tree's support runs ${p.range.lo} to ${p.range.hi})`}
+              value={p.threshold}
+              min={0}
+              step={p.step}
+              onChange={(e) => e.target.value !== '' && p.onThreshold(Number(e.target.value))}
+            />
+            <span className="ex-support-n" role="status">
+              {p.collapsedCount ? `${p.collapsedCount.toLocaleString('en')} collapsed` : 'none below'}
+            </span>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function Slider(p: {
   icon: React.ReactNode;
   label?: string;
@@ -178,7 +241,7 @@ export function Explorer({
   const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
   const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
   const supportActive = supportOn && hasSupport;
-  const ladderBy: LadderBy = ladderByChoice === 'height' && !tree.hasLengths ? 'tips' : ladderByChoice; // 'height' is not on offer without lengths
+  const ladderBy = effectiveLadderBy(ladderByChoice, tree.hasLengths);
   // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
   // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
   const protectedNodes = useMemo(() => (supportActive ? [...collapsed, ...clades.map((c) => c.node)] : NO_NODES), [supportActive, collapsed, clades]);
@@ -1094,52 +1157,17 @@ export function Explorer({
           title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
         >
           <J.IconLadderBy />
-          <select aria-label="Ladderize by" value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
-            <option value="tips">tips</option>
-            <option value="depth">depth</option>
-            {tree.hasLengths && <option value="height">height</option>}
-          </select>
+          <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
         </label>
-        {hasSupport && (
-          <>
-            <div className="ex-divider" />
-            <div className="ex-support">
-              <button
-                type="button"
-                className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
-                aria-label="Collapse by support"
-                aria-pressed={supportActive}
-                disabled={!hasSupport}
-                title={
-                  hasSupport
-                    ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
-                    : 'This tree has no support values'
-                }
-                onClick={() => setSupportOn((o) => !o)}
-              >
-                <J.IconSupport />
-                Support
-              </button>
-              {supportActive && (
-                <>
-                  <input
-                    className="ex-num"
-                    type="number"
-                    aria-label="Minimum support"
-                    title={`Support below this is collapsed (the tree's support runs ${supportRange!.lo} to ${supportRange!.hi})`}
-                    value={threshold}
-                    min={0}
-                    step={supportStep}
-                    onChange={(e) => e.target.value !== '' && setMinSupport(Number(e.target.value))}
-                  />
-                  <span className="ex-support-n" role="status">
-                    {view?.supportCollapsed ? `${view.supportCollapsed.toLocaleString('en')} collapsed` : 'none below'}
-                  </span>
-                </>
-              )}
-            </div>
-          </>
-        )}
+        <SupportGroup
+          range={supportRange}
+          step={supportStep}
+          threshold={threshold}
+          active={supportActive}
+          collapsedCount={view?.supportCollapsed ?? 0}
+          onToggle={() => setSupportOn((o) => !o)}
+          onThreshold={setMinSupport}
+        />
         {collapsed.length > 0 && (
           <>
             <div className="ex-divider" />

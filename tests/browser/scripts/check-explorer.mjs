@@ -1542,7 +1542,10 @@ ok(
   'a tree without support: the Collapse by support control is not in the DOM',
 );
 await open('rich-fish-carangaria-135');
-ok((await page.locator('button[aria-label="Collapse by support"]').isEnabled()) === true, 'a tree with support: the control is back');
+ok(
+  (await page.locator('.ex-support').count()) === 1 && (await page.locator('button[aria-label="Collapse by support"]').isEnabled()) === true,
+  'a tree with support: the control is back',
+);
 
 // ---------------------------------------------------------------- ladderise by tips / depth / height
 console.log('ladderise by');
