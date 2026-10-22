@@ -38,7 +38,7 @@ same number is `setClades({ node })`, `setCollapsed`, `zoomToNode`, `locateNode`
 `<TreeView>` the `clades[].node` and `collapsed` props and the handle's methods. It is the index tree-ops' `map` and `TreeModel` use, so an
 id from a click can be passed straight back. **Tips can also be named by label** (`highlighted`, `focus`, `focusTip`, `locateTip`, column
 `values`): labels are the lookup key into your own data. Anything else where a node is expected (a string such as `'n12'` or `'12'`, a
-fraction, a negative id, or for a tree in memory an id past the last node) is ignored with a `console.warn`, not silently;
+fraction, a negative id, or an id past the last node of the full tree, `nodeCount`) is ignored with a `console.warn`, not silently;
 `nodePosition`, meant to be called on every frame, just returns `null`. The ids and names in your own trees (tip and node labels,
 accession numbers, GBIF keys) are labels, not node ids.
 

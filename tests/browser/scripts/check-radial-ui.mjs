@@ -255,7 +255,7 @@ await page.evaluate(() => {
         toLocal: (g) => (g - OFF >= 0 && g - OFF < base.nodeCount ? g - OFF : -1),
       };
       return {
-        nodeCount: base.nodeCount,
+        nodeCount: base.nodeCount + OFF,
         tipCount: base.tipCount,
         hasLengths: base.hasLengths,
         version: 0,

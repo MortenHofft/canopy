@@ -90,7 +90,7 @@ function warnUnknownNodes(where: string, bad: unknown[], limit: number): void {
   const more = bad.length > 5 ? ` and ${bad.length - 5} more` : '';
   console.warn(
     `gbif-phylo: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
-      `(nodes are numbers, ${limit === Infinity ? 'preorder ids' : `the preorder ids 0 to ${limit - 1}`}); ignored`,
+      `(nodes are numbers, the preorder ids 0 to ${limit - 1}); ignored`,
   );
 }
 
@@ -557,10 +557,10 @@ export class TreeViewer {
     this.events.emit('sourcechange', { version: v });
   }
 
-  /** One past the largest node id: the node count for a tree in memory. A partial source's ids are only checked to be ids (whole numbers
-   *  from 0): whether one is in the full tree is the source's business, and a node that is not loaded yet is no error. */
+  /** One past the largest node id: the node count of the full tree, for a partial source too (`TreeSource.nodeCount`). Whether an id below
+   *  it is loaded is the source's business, and a node that is not loaded yet is no error. */
   private nodeLimit(): number {
-    return this.tree.globalId === null ? this.source.nodeCount : Infinity;
+    return this.source.nodeCount;
   }
 
   /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes`). */

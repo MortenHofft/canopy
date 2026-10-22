@@ -433,7 +433,7 @@ test('a function gets the full-tree id of a partial snapshot, never a stub, and 
   const full = new InMemorySource(parseNewick('((a:1,b:1)x:2,((c:1,d:1)y:1,e:1)z:1,f:1)r;')).snapshot();
   const { snap } = partialSnapshot(full, [4], OFFSET); // z (preorder 4) is not loaded
   const source = {
-    nodeCount: full.nodeCount,
+    nodeCount: full.nodeCount + OFFSET, // ids are row + OFFSET, so all are below it
     tipCount: full.tipCount,
     hasLengths: true,
     version: 0,
