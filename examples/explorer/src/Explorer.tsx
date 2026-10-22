@@ -183,6 +183,10 @@ export function Explorer({
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
+  // a click does not count, and a new tree or layout does not bring it back
+  const [hintGone, setHintGone] = useState(false);
+  const dismissHint = () => setHintGone(true);
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
   const [hScale, setHScale] = useState(1);
@@ -1254,7 +1258,13 @@ export function Explorer({
       </Scroller>
 
       {/* ── Body: the tree ── */}
-      <div className="ex-pane" style={{ height }}>
+      <div
+        className="ex-pane"
+        style={{ height }}
+        onWheel={dismissHint}
+        onPointerMove={(e) => e.buttons > 0 && dismissHint()}
+        onKeyDown={(e) => ['+', '=', '-', '_', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && dismissHint()}
+      >
         <TreeView
           ref={ref}
           tree={shown}
@@ -1406,7 +1416,11 @@ export function Explorer({
             {toast}
           </div>
         )}
-        <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        {/* the viewer's clade legend is bottom right too, and grows with its entries: the rectangular hint (also bottom right) gives way to it.
+            The radial hint is bottom left, clear of it. */}
+        {!hintGone && (layout === 'radial' || !(showLegend && clades.length > 0)) && (
+          <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        )}
         <div className="ex-resize" title="Drag to resize" onPointerDown={onResizeDown}>
           <div className="ex-grip" />
         </div>
