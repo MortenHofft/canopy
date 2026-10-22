@@ -407,6 +407,10 @@ function create() {
   v.on('themechange', () => log('theme', 'changed'));
   v.on('cladeschange', (c) => log('clades', `${c.length} coloured`));
   v.on('highlightchange', (h) => log('highlight', `${fmt(h.length)} tips`));
+  v.on('selectionchange', (e) => {
+    log('select', e.node === null ? 'none' : selectedName(v, e.node));
+    scheduleReadout();
+  });
   v.on('frame', scheduleReadout);
   apply();
 }
@@ -426,8 +430,17 @@ function scheduleReadout() {
       `frame ${s.frameMs.toFixed(1)} ms (avg ${s.avgFrameMs.toFixed(1)}, max ${s.maxFrameMs.toFixed(1)}) · ` +
       `${fmt(s.drawn)} drawn of ${fmt(s.budget)} · ${fmt(s.tips)} tips · ${fmt(s.labels)} labels · ${fmt(s.summaries)} collapsed` +
       (s.budgetHit ? ' · budget raised the threshold' : '') +
-      (s.reduced ? ' · reduced (interacting)' : '');
+      (s.reduced ? ' · reduced (interacting)' : '') +
+      (v.getSelected() !== null ? ` · selected: ${selectedName(v, v.getSelected()!)}` : '');
   });
+}
+
+/** A tip's label, or the size of a clade (node `id`; its row may not be loaded in a partial tree). */
+function selectedName(v: TreeViewer, id: number): string {
+  const t = v.getTree();
+  const row = t.globalId === null ? id : t.toLocal(id);
+  if (row < 0) return `node ${fmt(id)}`;
+  return t.childCount[row] === 0 ? t.labels[row] : `clade of ${fmt(t.leafEnd[row] - t.leafStart[row])} tips`;
 }
 
 const events: string[] = [];

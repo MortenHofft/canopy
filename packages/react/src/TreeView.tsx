@@ -5,7 +5,7 @@
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { changedKeys, liveTooltipEvent, stripUndefined, useShallowStable, useStable } from './props.ts';
+import { changedKeys, liveTooltipEvent, stripUndefined, tipRow, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
@@ -24,6 +24,7 @@ import {
   type Column,
   type FrameStats,
   type LayoutKind,
+  type TipRef,
   type TreeEvent,
   type ViewerOptions,
   type TreeData,
@@ -31,20 +32,22 @@ import {
   type Viewport,
 } from '@gbif-phylo/viewer';
 
-/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): node id as 'n<preorder index>' and number, tip or not, what was hit, the
+/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): the node (its preorder id, a number), tip or not, what was hit, the
  *  descendant tips as the rank range [tipStart, tipEnd) with `tipIds()` / `tipLabels()`, pointer position, and `preventDefault()`. */
 export type TreeNodeEvent = TreeEvent;
 
+/** Tips are named by label (a string) or by node id (a number). A label that several tips carry names the first of them here (and
+ *  `focusTip` / `focus` warn about it): pass the node id to reach another. `highlighted` highlights every tip with a label. */
 export interface TreeViewHandle {
   fit(): void;
-  focusTip(tipId: string): void;
-  zoomToNode(nodeId: string): void;
+  focusTip(tip: TipRef): void;
+  zoomToNode(node: number): void;
   getViewport(): Viewport;
   setViewport(v: Viewport): void;
-  locateTip(tipId: string): { x: number; y: number } | null;
-  locateNode(nodeId: string): { x: number; y: number } | null;
-  nodeBounds(nodeId: string): { x: number; y: number; width: number; height: number } | null;
-  columnCell(colId: string, tipId: string): { x: number; y: number; width: number; height: number } | null;
+  locateTip(tip: TipRef): { x: number; y: number } | null;
+  locateNode(node: number): { x: number; y: number } | null;
+  nodeBounds(node: number): { x: number; y: number; width: number; height: number } | null;
+  columnCell(colId: string, tip: TipRef): { x: number; y: number; width: number; height: number } | null;
   getStats(): ReturnType<TreeViewer['getStats']>;
   benchmark(n: number): ReturnType<TreeViewer['benchmark']>;
   renderer(): TreeViewer | null;
@@ -54,8 +57,9 @@ export interface TreeViewHandle {
  *  whether it changes the tree) is the page's business, so the viewer and this component stay free of tree operations. */
 export type NodeMenuItem = ViewerMenuItem;
 
+/** A coloured clade: `node` is the preorder id of its root in the tree you pass (a number, as in the events). */
 export interface CladeProp {
-  nodeId: string;
+  node: number;
   colour: string;
   /** Name in a legend (see the Legend control). */
   label?: string;
@@ -76,6 +80,10 @@ export interface CladeProp {
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
+ *  - `marked`: applied when it changes and with every new `tree` / `source` (its ids are of the tree you pass), compared element-wise
+ *    with the marks in force, so a new array with the same ids is no change.
+ *  - `selected`: acts when its value changes, as `layout` does: a click selects on the viewer itself (report it back with
+ *    `onSelectionChange` to keep the prop in step), and that stays until the prop changes. Left out (undefined), the viewer keeps its own.
  *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
  *    them once (`useMemo` / `useState`), not inline: `defaultControls()` in render makes new controls every time.
  *  - `layout`, `branchLengths` and the fields of `options` act when their value changes: a change made on the viewer itself (by the
@@ -96,16 +104,23 @@ export interface TreeViewProps {
   layout?: LayoutKind;
   branchLengths?: boolean;
   clades?: CladeProp[];
-  highlighted?: string[];
-  /** Clades to collapse, as `'n<id>'` ids of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
+  /** Tips to highlight: a label (string) highlights every tip with it, a node id (number) that one tip. */
+  highlighted?: TipRef[];
+  /** Clades to collapse, as node ids (preorder ids, numbers) of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
    *  one row, its tips hidden, and the tree is not changed (see `TreeViewer.setCollapsed`). Ids of tips are ignored. Clicks and hovers on
    *  a collapsed clade have `kind: 'summary'`, `node` = the clade and `collapsed: true`; the viewport keeps its scale. */
-  collapsed?: string[];
+  collapsed?: number[];
   columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
-  focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
+  focus?: { tipId: TipRef; seq: number } | null; // declarative "centre this tip" request (a label or a node id); acts when seq changes
+  /** The selected node (a node id, tip or clade; null for none): drawn with a ring, kept across layout and branch-length switches (the
+   *  view centres on it) and collapsing (a hidden node selects its clade). See `TreeViewer.setSelected`. */
+  selected?: number | null;
+  /** Nodes marked with a ring of their own (node ids), e.g. the first pick of a two-step action; [] or left out for none. See
+   *  `TreeViewer.setMarked`. */
+  marked?: number[];
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
   /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
@@ -124,26 +139,19 @@ export interface TreeViewProps {
   onNodeClick?(e: TreeNodeEvent): void; // internal nodes, collapsed clades and branches
   onTipClick?(e: TreeNodeEvent): void;
   onHover?(e: TreeNodeEvent | null): void;
+  /** The selection changed: a click (the default action of a click, which `e.preventDefault()` in `onTipClick` / `onNodeClick` stops),
+   *  `selected`, or the viewer moving it (to a clade collapsed around it, through `treeMap`; dropped by a new `tree` without one). */
+  onSelectionChange?(node: number | null): void;
   onViewportChange?(v: Viewport): void;
   onFrame?(s: FrameStats): void;
   onReady?(info: { layoutMs: number; tips: number }): void;
 }
 
-const NODE_ID = /^n(\d+)$/;
 const EMPTY = {} as NonNullable<TreeViewProps['options']>;
-const EMPTY_IDS: string[] = [];
+const EMPTY_IDS: TipRef[] = [];
+const EMPTY_NODES: number[] = [];
+const EMPTY_CLADES: CladeColour[] = [];
 const EMPTY_COLUMNS: Column[] = [];
-
-function nodeIndexOf(nodeCount: number, id: string): number {
-  const m = NODE_ID.exec(id);
-  if (!m) return -1;
-  const k = Number(m[1]);
-  return k < nodeCount ? k : -1;
-}
-
-function toCladeColours(nodeCount: number, clades: CladeProp[] | undefined): CladeColour[] {
-  return (clades ?? []).map((c) => ({ node: nodeIndexOf(nodeCount, c.nodeId), colour: c.colour, label: c.label })).filter((c) => c.node >= 0);
-}
 
 /** Create the renderer in a layout effect and destroy it in the cleanup (strict-mode safe: the cleanup undoes everything the effect did).
  *  `make` builds the renderer over the host element and returns it with an extra cleanup; it is read from a ref, so it may close over
@@ -251,6 +259,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     r.on('click', () => setTipState(null)); // a click hides the tooltip
     r.on('treechange', () => setTipState(null));
     r.on('viewchange', (v) => latest.current.onViewportChange?.(v));
+    r.on('selectionchange', (e) => latest.current.onSelectionChange?.(e.node));
     r.on('frame', (s) => latest.current.onFrame?.(s));
     let ready = 0;
     ready = requestAnimationFrame(() => {
@@ -286,25 +295,34 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     r.setTree(source, {
       map: treeMap,
       view: treeMap ? 'keep' : 'fit',
-      clades: toCladeColours(source.nodeCount, clades),
+      clades: clades ?? EMPTY_CLADES,
       highlighted: highlighted ?? EMPTY_IDS,
-      collapsed: (collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0),
+      collapsed: collapsed ?? EMPTY_NODES,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- treeMap, clades, highlighted and collapsed are read for this change of `source` only
   }, [R, rendRef, source]);
-  // `source` is in the dependency list of the next two only because their bodies read it; the new viewer's first run is triggered by `R`
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setClades(toCladeColours(source.nodeCount, clades));
-  }, [R, rendRef, source, clades]);
+    liveRenderer(R, rendRef)?.setClades(clades ?? EMPTY_CLADES);
+  }, [R, rendRef, clades]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
   }, [R, rendRef, highlighted]);
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setCollapsed((collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0));
-  }, [R, rendRef, source, collapsed]);
+    liveRenderer(R, rendRef)?.setCollapsed(collapsed ?? EMPTY_NODES);
+  }, [R, rendRef, collapsed]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
+  // after the tree and the collapsed clades: a node hidden in a clade collapsed in the same render selects that clade
+  const selected = props.selected;
+  useLayoutEffect(() => {
+    if (selected !== undefined) liveRenderer(R, rendRef)?.setSelected(selected);
+  }, [R, rendRef, selected]);
+  // also after a new tree: the marks are the prop's ids of the tree passed, not the old marks sent through `treeMap` (or dropped without it)
+  const marked = props.marked;
+  useLayoutEffect(() => {
+    liveRenderer(R, rendRef)?.setMarked(marked ?? EMPTY_NODES);
+  }, [R, rendRef, marked, source]);
   // the default is Zoom and Fit themselves, not defaultControls(): that would bundle every control into every app using <TreeView>
   const [ownControls] = useState<Control[]>(() => [new Zoom(), new Fit()]);
   const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));
@@ -328,7 +346,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     const r = liveRenderer(R, rendRef);
     if (!f || !r) return;
     const snap = sourceRef.current.snapshot();
-    const n = snap.tipIndex(f.tipId);
+    const n = tipRow(snap, f.tipId, '<TreeView> focus');
     if (n >= 0) r.focusTip(snap.tipRank[n]);
   }, [R, rendRef, focusSeq]);
 
@@ -337,29 +355,21 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     () => ({
       fit: () => rendRef.current?.fit(true),
       focusTip: (id) => {
-        const n = source.snapshot().tipIndex(id);
+        const n = tipRow(source.snapshot(), id, 'TreeViewHandle.focusTip');
         if (n >= 0) rendRef.current?.focusTip(source.snapshot().tipRank[n], true);
       },
-      zoomToNode: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        if (k >= 0) rendRef.current?.zoomToNode(k, true);
-      },
+      zoomToNode: (node) => rendRef.current?.zoomToNode(node, true),
       getViewport: () => rendRef.current!.getViewport(),
       setViewport: (v) => rendRef.current?.setViewport(v),
       locateTip: (id) => {
-        const n = source.snapshot().tipIndex(id);
-        return n < 0 ? null : (rendRef.current?.locateNode(n) ?? null);
+        const snap = source.snapshot();
+        const n = tipRow(snap, id);
+        return n < 0 ? null : (rendRef.current?.locateNode(snap.globalId === null ? n : snap.globalId[n]) ?? null);
       },
-      locateNode: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        return k < 0 ? null : (rendRef.current?.locateNode(k) ?? null);
-      },
-      nodeBounds: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        return k < 0 ? null : (rendRef.current?.nodeBounds(k) ?? null);
-      },
+      locateNode: (node) => rendRef.current?.locateNode(node) ?? null,
+      nodeBounds: (node) => rendRef.current?.nodeBounds(node) ?? null,
       columnCell: (c, id) => {
-        const n = source.snapshot().tipIndex(id);
+        const n = tipRow(source.snapshot(), id);
         return n < 0 ? null : (rendRef.current?.columnCell(c, source.snapshot().tipRank[n]) ?? null);
       },
       getStats: () => rendRef.current!.getStats(),

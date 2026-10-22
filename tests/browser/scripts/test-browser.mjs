@@ -148,7 +148,8 @@ for (const s of SUITES) {
     console.log(`\n== ${s.name}: ${path.relative(repo, s.dir)}`);
     if (s.self) {
       console.log(`> ${s.check}`);
-      code ||= await run([path.join(here, s.check), ...(flag('no-build') ? ['--no-build'] : [])]);
+      const c = await run([path.join(here, s.check), ...(flag('no-build') ? ['--no-build'] : [])]);
+      code ||= c;
       continue;
     }
     if (s.static) {
@@ -161,7 +162,8 @@ for (const s of SUITES) {
         }
       }
       console.log(`> ${s.check}`);
-      code ||= await run([path.join(here, s.check)]);
+      const c = await run([path.join(here, s.check)]);
+      code ||= c;
       continue;
     }
     if (!flag('no-build')) {

@@ -48,6 +48,84 @@ const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 1
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** The selected node (of the tree) in the ids of what is shown: itself, or the nearest ancestor the view keeps (collapse by support
+ *  contracts inner nodes into their parent; the selection then moves to that clade, as the viewer's does to a collapsed clade). Null when
+ *  nothing is selected or the view shows none of them. */
+function shownSelection(selected: number | null, view: { toView: Int32Array } | null, parent: ArrayLike<number>): number | null {
+  if (selected === null || !view) return selected;
+  const toView = view.toView;
+  for (let u = selected; u >= 0 && u < toView.length; u = parent[u]) if (toView[u] >= 0) return toView[u];
+  return null;
+}
+
+/** Whether the "Scroll to zoom" hint is drawn. The rectangular one shares the bottom-right corner with the viewer's clade legend, so it gives way while that shows. */
+function hintShown(gone: boolean, layout: Layout, legendOn: boolean, shownCladeCount: number): boolean {
+  return !gone && (layout === 'radial' || !(legendOn && shownCladeCount > 0));
+}
+
+// What ladderise sorts by: 'height' is not on offer without branch lengths, so a tree without them falls back to tips.
+function effectiveLadderBy(choice: LadderBy, hasLengths: boolean): LadderBy {
+  return choice === 'height' && !hasLengths ? 'tips' : choice;
+}
+
+function LadderBySelect(p: { value: LadderBy; hasLengths: boolean; onChange: (by: LadderBy) => void }) {
+  return (
+    <select aria-label="Ladderize by" value={p.value} onChange={(e) => p.onChange(e.target.value as LadderBy)}>
+      <option value="tips">tips</option>
+      <option value="depth">depth</option>
+      {p.hasLengths && <option value="height">height</option>}
+    </select>
+  );
+}
+
+// The Collapse by support control, with the divider before it. Not rendered at all for a tree without support values.
+function SupportGroup(p: {
+  range: { lo: number; hi: number } | null;
+  step: number;
+  threshold: number;
+  active: boolean;
+  collapsedCount: number;
+  onToggle: () => void;
+  onThreshold: (x: number) => void;
+}) {
+  if (!p.range) return null;
+  return (
+    <>
+      <div className="ex-divider" />
+      <div className="ex-support">
+        <button
+          type="button"
+          className={`ex-btn ex-toggle${p.active ? ' active' : ''}`}
+          aria-label="Collapse by support"
+          aria-pressed={p.active}
+          title="Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed."
+          onClick={p.onToggle}
+        >
+          <J.IconSupport />
+          Support
+        </button>
+        {p.active && (
+          <>
+            <input
+              className="ex-num"
+              type="number"
+              aria-label="Minimum support"
+              title={`Support below this is collapsed (the tree's support runs ${p.range.lo} to ${p.range.hi})`}
+              value={p.threshold}
+              min={0}
+              step={p.step}
+              onChange={(e) => e.target.value !== '' && p.onThreshold(Number(e.target.value))}
+            />
+            <span className="ex-support-n" role="status">
+              {p.collapsedCount ? `${p.collapsedCount.toLocaleString('en')} collapsed` : 'none below'}
+            </span>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function Slider(p: {
   icon: React.ReactNode;
   label?: string;
@@ -106,10 +184,15 @@ export function Explorer({
   const [navTick, setNavTick] = useState(0); // bumped by Show only / Up / Back: the view is fitted, so "fitted" is read again
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
-  const [ladderBy, setLadderBy] = useState<LadderBy>('tips');
+  const [ladderByChoice, setLadderBy] = useState<LadderBy>('tips');
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
+  // a click does not count, and a new tree or layout does not bring it back
+  const [hintGone, setHintGone] = useState(false);
+  const dismissHint = () => setHintGone(true);
+  const dragFrom = useRef<{ x: number; y: number } | null>(null); // where a drag in the pane began (not on the resize grip)
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
   const [hScale, setHScale] = useState(1);
@@ -138,7 +221,14 @@ export function Explorer({
   const [matchIdx, setMatchIdx] = useState(0);
   const searchInput = useRef<HTMLInputElement>(null);
 
-  const [info, setInfo] = useState<number | null>(null); // node (of `tree`) shown in the inspector
+  // the selected node (of `tree`): the viewer's selection (a click selects, Info opens the inspector on it). It stays across layout and
+  // tree type switches, which centre the view on it; an edit, Undo or a navigation clears it
+  const [selected, setSelected] = useState<number | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false); // the inspector shows `selected`
+  const deselect = () => {
+    setSelected(null);
+    setInfoOpen(false);
+  };
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [height, setHeight] = useState(defaultHeight);
@@ -161,12 +251,10 @@ export function Explorer({
   const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
   const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
   const supportActive = supportOn && hasSupport;
+  const ladderBy = effectiveLadderBy(ladderByChoice, tree.hasLengths);
   // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
   // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
-  const protectedNodes = useMemo(
-    () => (supportActive ? [...collapsed, ...clades.map((c) => Number(c.nodeId.slice(1)))] : NO_NODES),
-    [supportActive, collapsed, clades],
-  );
+  const protectedNodes = useMemo(() => (supportActive ? [...collapsed, ...clades.map((c) => c.node)] : NO_NODES), [supportActive, collapsed, clades]);
   // a dated tree stays dated: the contracted edge's length goes to its children, so the time axis does not change
   const dated = useMemo(() => supportActive && tree.hasLengths && tree.isUltrametric(1e-3), [supportActive, tree]);
   const view = useMemo(() => {
@@ -196,19 +284,23 @@ export function Explorer({
     const v = view ? view.toTree[k] : k;
     return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
   };
+  const selectedShown = shownSelection(selected, view, tree.parent);
+  // Swap's first pick keeps a ring of its own (the viewer's marks) until the second click or Escape
+  const swapShown = shownSelection(swapFirst, view, tree.parent);
+  const marked = useMemo(() => (swapShown === null ? [] : [swapShown]), [swapShown]);
   const shownClades = useMemo(
     () =>
       view
         ? clades.flatMap((c) => {
-            const k = view.toView[Number(c.nodeId.slice(1))];
-            return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
+            const k = view.toView[c.node];
+            return k >= 0 ? [{ ...c, node: k }] : [];
           })
         : clades,
     [view, clades],
   );
   // the collapsed clades in the shown tree's ids (a clade that focus left out, or that collapse by support contracted into its parent, has none)
   const collapsedIds = useMemo(
-    () => (view ? collapsed.map((v) => view.toView[v]) : collapsed).filter((k) => k > 0 && k < shown.nodeCount).map((k) => 'n' + k),
+    () => (view ? collapsed.map((v) => view.toView[v]) : collapsed).filter((k) => k > 0 && k < shown.nodeCount),
     [collapsed, view, shown],
   );
 
@@ -258,8 +350,10 @@ export function Explorer({
     const q = query.trim();
     if (!q) return [];
     const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ _]/g, '[ _]'), 'i');
-    const out: string[] = [];
-    for (const l of shown.tipLabels) if (re.test(l) && out.push(l) >= MAX_MATCHES) break;
+    // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
+    const out: number[] = [];
+    const labels = shown.tipLabels;
+    for (let r = 0; r < labels.length; r++) if (re.test(labels[r]) && out.push(shown.tipNode[r]) >= MAX_MATCHES) break;
     return out;
   }, [query, shown]);
   const current = matches.length ? matches[((matchIdx % matches.length) + matches.length) % matches.length] : null;
@@ -347,9 +441,17 @@ export function Explorer({
     if (r && fitted.current) fitted.current = r.fitViewport();
   }, [shown, collapsedIds]);
   useEffect(applyScales, [hScale, vScale, applyScales]);
-  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is
+  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is. After a switch of layout or tree
+  // type with a node selected the viewer has centred the new view on it: that stays, only the new fit is read for the sliders
+  const lastKind = useRef({ layout, phylogram });
   useEffect(() => {
-    const id = requestAnimationFrame(refit);
+    const switched = lastKind.current.layout !== layout || lastKind.current.phylogram !== phylogram;
+    lastKind.current = { layout, phylogram };
+    const id = requestAnimationFrame(() => {
+      const r = ref.current?.renderer();
+      if (switched && r && r.getSelected() !== null) fitted.current = r.fitViewport();
+      else refit();
+    });
     return () => cancelAnimationFrame(id);
   }, [layout, phylogram, columns, height, navTick, refit]);
 
@@ -387,11 +489,11 @@ export function Explorer({
       tree,
       next,
       r.map,
-      clades.map((c) => Number(c.nodeId.slice(1))),
+      clades.map((c) => c.node),
     );
     const keptClades = clades.flatMap((c, i) => {
       const m = followedClades[i].node;
-      return m >= 0 ? [{ ...c, nodeId: 'n' + m }] : [];
+      return m >= 0 ? [{ ...c, node: m }] : [];
     });
     const keptCollapsed = ops
       .followClades(tree, next, r.map, collapsed)
@@ -415,7 +517,7 @@ export function Explorer({
     setClades(keptClades);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
-    setInfo(null);
+    deselect();
   };
   const undo = () => {
     const prev = history[history.length - 2];
@@ -430,7 +532,7 @@ export function Explorer({
     setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
-    setInfo(null);
+    deselect();
     setPick(null);
   };
 
@@ -452,16 +554,15 @@ export function Explorer({
   const navigate = (f: ops.Focus) => {
     setFocus(f);
     setNavTick((t) => t + 1);
-    setInfo(null);
+    deselect();
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
   };
   const colourOf = (name: string) => cssVar(`--ex-palette-${name.toLowerCase()}`);
   /** Paint (or with ERASE, unpaint) the clade `v` of `tree`. The label is left out: the legend then names the clade by its node. */
   const paint = (v: number, name: string) => {
-    const nodeId = 'n' + v;
-    const rest = clades.filter((c) => c.nodeId !== nodeId);
-    setClades(name === ERASE ? rest : [...rest, { nodeId, colour: colourOf(name) }]);
+    const rest = clades.filter((c) => c.node !== v);
+    setClades(name === ERASE ? rest : [...rest, { node: v, colour: colourOf(name) }]);
   };
   /** Put text on the clipboard: the async API where there is one, else a hidden textarea and execCommand('copy'). */
   const copyText = async (text: string): Promise<boolean> => {
@@ -498,6 +599,10 @@ export function Explorer({
   };
 
   // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
+  const onToolClick = (e: TreeNodeEvent) => {
+    if (mode !== 'none') e.preventDefault(); // a tool acts on the click: it neither selects nor opens the menu
+    onClick(e);
+  };
   const onClick = (e: TreeNodeEvent) => {
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
@@ -534,7 +639,15 @@ export function Explorer({
     const trueRoot = v === 0;
     const tips = tree.tipCountOf(v).toLocaleString('en');
     const what = isTip ? 'tip' : 'clade';
-    const info: NodeMenuItem = { id: 'info', label: 'Info', hint: 'branch length, root distance, depth, support', onSelect: () => setInfo(v) };
+    const info: NodeMenuItem = {
+      id: 'info',
+      label: 'Info',
+      hint: 'branch length, root distance, depth, support',
+      onSelect: () => {
+        setSelected(v);
+        setInfoOpen(true);
+      },
+    };
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
@@ -643,7 +756,7 @@ export function Explorer({
         );
       default:
         return (
-          <span className="ex-tip ex-tip--collapse">
+          <span className="ex-tip ex-tip--menu">
             Click for actions<span className="ex-tip-name">{e.collapsed ? `${name} (collapsed)` : name}</span>
           </span>
         );
@@ -664,7 +777,7 @@ export function Explorer({
       if (pick !== null) closePick();
       else if (mode !== 'none') exitModes();
       else if (searchOpen) closeSearch();
-      else setInfo(null);
+      else setInfoOpen(false);
     }
   };
   const closeSearch = () => {
@@ -719,6 +832,7 @@ export function Explorer({
 
   // ---- inspector rows for a node of `tree`
   const inspector = useMemo(() => {
+    const info = infoOpen ? selected : null;
     if (info === null || info >= tree.nodeCount) return null;
     let root = 0;
     let any = false;
@@ -737,7 +851,7 @@ export function Explorer({
       depth: tree.depth[info],
       support: Number.isNaN(sup) ? null : sup,
     };
-  }, [info, tree]);
+  }, [infoOpen, selected, tree]);
 
   const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
   const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
@@ -925,7 +1039,7 @@ export function Explorer({
           </>
         )}
         <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
-          <I.IconFit />
+          <J.IconFit />
           Fit
         </button>
         {(ops.canGoBack(focus) || ops.canGoUp(focus)) && (
@@ -1005,7 +1119,7 @@ export function Explorer({
         </button>
         <button
           type="button"
-          className={`ex-btn ex-tool${mode === 'swap' ? ' active ex-swap-active' : ''}`}
+          className={`ex-btn ex-tool${mode === 'swap' ? ' active' : ''}`}
           aria-pressed={mode === 'swap'}
           title={mode === 'swap' ? 'Exit swap mode (Esc)' : 'Swap — exchange two sibling branches'}
           onClick={() => toggleMode('swap')}
@@ -1053,50 +1167,17 @@ export function Explorer({
           title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
         >
           <J.IconLadderBy />
-          <select aria-label="Ladderize by" value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
-            <option value="tips">tips</option>
-            <option value="depth">depth</option>
-            <option value="height" disabled={!tree.hasLengths}>
-              height
-            </option>
-          </select>
+          <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
         </label>
-        <div className="ex-divider" />
-        <div className="ex-support">
-          <button
-            type="button"
-            className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
-            aria-label="Collapse by support"
-            aria-pressed={supportActive}
-            disabled={!hasSupport}
-            title={
-              hasSupport
-                ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
-                : 'This tree has no support values'
-            }
-            onClick={() => setSupportOn((o) => !o)}
-          >
-            <J.IconSupport />
-            Support
-          </button>
-          {supportActive && (
-            <>
-              <input
-                className="ex-num"
-                type="number"
-                aria-label="Minimum support"
-                title={`Support below this is collapsed (the tree's support runs ${supportRange!.lo} to ${supportRange!.hi})`}
-                value={threshold}
-                min={0}
-                step={supportStep}
-                onChange={(e) => e.target.value !== '' && setMinSupport(Number(e.target.value))}
-              />
-              <span className="ex-support-n" role="status">
-                {view?.supportCollapsed ? `${view.supportCollapsed.toLocaleString('en')} collapsed` : 'none below'}
-              </span>
-            </>
-          )}
-        </div>
+        <SupportGroup
+          range={supportRange}
+          step={supportStep}
+          threshold={threshold}
+          active={supportActive}
+          collapsedCount={view?.supportCollapsed ?? 0}
+          onToggle={() => setSupportOn((o) => !o)}
+          onThreshold={setMinSupport}
+        />
         {collapsed.length > 0 && (
           <>
             <div className="ex-divider" />
@@ -1108,7 +1189,7 @@ export function Explorer({
             >
               <I.IconExpandAll />
               Expand all
-              <span className="ex-count ex-count--violet">{collapsed.length}</span>
+              <span className="ex-count">{collapsed.length}</span>
             </button>
           </>
         )}
@@ -1160,7 +1241,7 @@ export function Explorer({
         {labelCycle.length > 1 && (
           <button
             type="button"
-            className={`ex-btn ex-labels ex-labels--${labelMode}`}
+            className={`ex-btn ex-toggle ex-labels${labelMode !== 'none' ? ' active' : ''}`}
             title={`Node labels: ${labelMode === 'none' ? 'hidden' : labelMode === 'bootstrap' ? 'support values' : 'branch lengths'} — click to cycle`}
             onClick={() => setLabelMode(nextLabel)}
           >
@@ -1183,7 +1264,20 @@ export function Explorer({
       </Scroller>
 
       {/* ── Body: the tree ── */}
-      <div className="ex-pane" style={{ height }}>
+      <div
+        className="ex-pane"
+        style={{ height }}
+        onWheel={dismissHint}
+        onPointerDown={(e) => {
+          dragFrom.current = (e.target as Element).closest('.ex-resize') ? null : { x: e.clientX, y: e.clientY };
+        }}
+        onPointerMove={(e) => {
+          const d = dragFrom.current;
+          if (d && e.buttons > 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) dismissHint();
+        }}
+        onPointerUp={() => (dragFrom.current = null)}
+        onKeyDown={(e) => ['+', '=', '-', '_'].includes(e.key) && dismissHint()}
+      >
         <TreeView
           ref={ref}
           tree={shown}
@@ -1197,6 +1291,9 @@ export function Explorer({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
+          selected={selectedShown}
+          marked={marked}
+          onSelectionChange={(k) => setSelected(k === null || toTree(k) < 0 ? null : toTree(k))}
           options={{
             formatLabel,
             labelDensity: 'dense',
@@ -1211,12 +1308,14 @@ export function Explorer({
             // with the alignment shown, the tree takes 40% of the width and the 'fill' column the rest
             treeWidth: columns.length ? '40%' : undefined,
             themeObserver: 'document',
+            // the hover ring grows in, as in Reactree (the default; said here as the look depends on it)
+            hoverAnimation: true,
           }}
           tooltip={tooltip}
           tooltipBare
           nodeMenu={nodeMenu}
-          onNodeClick={onClick}
-          onTipClick={onClick}
+          onNodeClick={onToolClick}
+          onTipClick={onToolClick}
         />
 
         {searchOpen && (
@@ -1287,7 +1386,7 @@ export function Explorer({
           <div className="ex-info" role="dialog" aria-label="Node information">
             <div className="ex-info-head">
               <span className="ex-info-name">{inspector.name.replace(/_/g, ' ')}</span>
-              <button type="button" title="Close" onClick={() => setInfo(null)}>
+              <button type="button" title="Close" onClick={() => setInfoOpen(false)}>
                 <I.IconClose />
               </button>
             </div>
@@ -1309,7 +1408,7 @@ export function Explorer({
               {inspector.support !== null && (
                 <>
                   <dt>Bootstrap</dt>
-                  <dd className="ex-info-boot">{inspector.support}</dd>
+                  <dd>{inspector.support}</dd>
                 </>
               )}
             </dl>
@@ -1330,7 +1429,11 @@ export function Explorer({
             {toast}
           </div>
         )}
-        <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        {/* the viewer's clade legend is bottom right too, and grows with its entries: the rectangular hint (also bottom right) gives way to it.
+            The radial hint is bottom left, clear of it. */}
+        {hintShown(hintGone, layout, showLegend, shownClades.length) && (
+          <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        )}
         <div className="ex-resize" title="Drag to resize" onPointerDown={onResizeDown}>
           <div className="ex-grip" />
         </div>
@@ -1427,7 +1530,7 @@ export function Explorer({
             <button
               type="button"
               className="ex-erase"
-              disabled={!clades.some((c) => c.nodeId === 'n' + pickAt.node)}
+              disabled={!clades.some((c) => c.node === pickAt.node)}
               onClick={() => {
                 paint(pickAt.node, ERASE);
                 closePick();

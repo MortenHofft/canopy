@@ -32,8 +32,15 @@ export interface TreeData {
   readonly labels: string[]; // by node index
   readonly hasLengths: boolean;
   heights(): Int32Array;
-  tipIndex(label: string): number; // label -> node index, -1 if absent
+  tipIndex(label: string): number; // label -> node index of the first tip with it, -1 if absent
+  /** Node indexes of every tip with this label (tip labels need not be unique). Optional: without it a label names only the tip `tipIndex`
+   *  finds. `TreeModel` has it. */
+  tipIndices?(label: string): ArrayLike<number>;
 }
+
+/** A tip as the API takes it: a string is a tip LABEL (every tip that carries it), a number a NODE id (that one tip). Labels are the
+ *  lookup key into your own data and need not be unique; node ids are (see "Naming nodes" in docs/api.md). */
+export type TipRef = string | number;
 
 /** Rollups of a partially loaded tree, one value per snapshot row (all rows, stubs and loaded). The layout takes X, XMAX and ROW
  *  from them instead of from its own passes, because a stub row has no descendants to derive them from. */
@@ -103,7 +110,7 @@ export interface TreeTheme extends ResidueTheme {
   foreground: string; // labels, axis text
   muted: string; // axis lines, gridlines, headers
   branch: string;
-  highlight: string; // selection, highlight bands, focus ring
+  highlight: string; // hover and keyboard rings, marks (`markColour` unset), highlight bands, focus ring
   summary: string; // fill of collapsed clades without own colour
   fontFamily: string;
   /** Style of tip labels, `--phylo-label-font-style`: 'italic' (scientific names) or 'normal'. */
@@ -144,6 +151,27 @@ export interface TreeTheme extends ResidueTheme {
   leaderOpacity: number;
   /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep a quarter of the row free. */
   alignRowGap: number;
+  /** The ring around the selected node (`setSelected`): colour ('' = `foreground`), line width and radius (CSS px). It is drawn on a halo of
+   *  `background`, so it stands out over branches. A width of 0 draws no ring. */
+  selectionColour: string;
+  selectionWidth: number;
+  selectionRadius: number;
+  /** The rings of the marked nodes (`setMarked`, the pending pick of a two-step action): colour ('' = `highlight`), line width, radius
+   *  (CSS px) and dash pattern (CSS px separated by spaces or commas, '' or 'none' = solid). Drawn on a solid halo of `background`, outside
+   *  the selection ring. A width of 0 draws no ring. */
+  markColour: string;
+  markWidth: number;
+  markRadius: number;
+  markDash: string;
+  /** The path from the hovered node (or, with nothing hovered, the keyboard cursor) up to the root, option `hoverPath`: colour ('' =
+   *  `highlight`) and line width (CSS px, 0 = no path). Drawn on the overlay canvas under the rings, at full strength over a dimmed tree. */
+  hoverPathColour: string;
+  hoverPathWidth: number;
+  /** The hover ring, in `highlight`: radius and line width (CSS px; a collapsed clade's ring is 1.5 times the radius) and, with the
+   *  option `hoverAnimation`, how long it takes to grow in (and the ring left behind to fade out), in ms. 0 ms = no animation. */
+  hoverRingRadius: number;
+  hoverRingWidth: number;
+  hoverRingDuration: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -177,6 +205,18 @@ export const FALLBACK_THEME: TreeTheme = {
   leaderWidth: 1,
   leaderOpacity: 0.7,
   alignRowGap: 0,
+  selectionColour: '',
+  selectionWidth: 2.5,
+  selectionRadius: 7,
+  markColour: '',
+  markWidth: 2,
+  markRadius: 11,
+  markDash: '3 2',
+  hoverPathColour: '',
+  hoverPathWidth: 2,
+  hoverRingRadius: 6,
+  hoverRingWidth: 2,
+  hoverRingDuration: 150,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
@@ -226,25 +266,33 @@ export interface BuiltinColumn extends ColumnBase {
    *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
    *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
   values: Record<string, number | string>;
+  /** By node id, for values that belong to one tip rather than to a label (tip labels need not be unique, and `values` gives every tip with
+   *  a label the same value). Wins over `values` for its tips. Compared by reference, like `values`. */
+  nodeValues?: ReadonlyMap<number, number | string>;
   /** Alignment columns: the colour scheme. `'auto'` (default) picks nucleotide when more than 90% of a sample of the residues are
    *  A, C, G, T, U or N (see `detectAlphabet`), protein otherwise. Colours are the `residue*` theme tokens. */
   alphabet?: Alphabet;
 }
 
-/** A column drawn by your own renderer. `values` (by tip label, any type) is compared by reference as for the built-in kinds, and so
- *  is `renderer`. */
+/** A column drawn by your own renderer. `values` (by tip label, any type) and `nodeValues` (by node id) are compared by reference as for
+ *  the built-in kinds, and so is `renderer`. */
 export interface CustomColumn<V = unknown, D = unknown> extends ColumnBase {
   kind: 'custom';
   values: Record<string, V>;
+  nodeValues?: ReadonlyMap<number, V>;
   renderer: ColumnRenderer<V, D>;
 }
 
 export type Column = BuiltinColumn | CustomColumn;
 
-/** What a custom column's `prepare` gets: the values by tip label and the tips of the tree, by rank (the row order). */
+/** What a custom column's `prepare` gets: the values by tip label (and by node id, `null` when the column has none) and the tips of the
+ *  tree, by rank (the row order): their labels and their node ids (-1 for a tip whose row is not loaded). A tip's value is
+ *  `nodeValues.get(tipNodes[rank])` if there is one, else `values[tipLabels[rank]]`. */
 export interface ColumnSource<V = unknown> {
   readonly values: Record<string, V>;
+  readonly nodeValues: ReadonlyMap<number, V> | null;
   readonly tipLabels: readonly string[];
+  readonly tipNodes: ArrayLike<number>;
   readonly tipCount: number;
 }
 
@@ -304,6 +352,13 @@ export interface ViewerOptions {
    *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
    *  without branch lengths or in the radial layout. */
   alignLabels: boolean;
+  /** Hovering a tip, clade or summary also highlights its path to the root (every branch and connector on the way); with nothing
+   *  hovered, the keyboard cursor's path is shown. How it looks is the theme's `hoverPathColour` and `hoverPathWidth`. */
+  hoverPath: boolean;
+  /** The hover ring grows into existence (radius and opacity from 0, eased out) over the theme's `hoverRingDuration` and the ring left
+   *  behind fades out; the keyboard cursor's ring grows the same way when the cursor moves. Only the overlay canvas is redrawn, and only
+   *  while a ring is still changing. Skipped when the user prefers reduced motion (`prefers-reduced-motion: reduce`). */
+  hoverAnimation: boolean;
   /**
    * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
    * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
@@ -357,6 +412,15 @@ export interface ViewerOptions {
    *  'document' that and a change of the `class` or `data-theme` attribute of `document.documentElement` (sites that switch dark
    *  mode that way); 'none' nothing (call `refreshTheme()` yourself). */
   themeObserver: 'media' | 'document' | 'none';
+  /** Radial layout only: the share of the circle left empty between the last and the first tip, from 0 (the tips close the circle)
+   *  to below 1 (clamped to 0.99). The tips are spread over `(1 - radialOpening) * 360` degrees; 0.5 is a half circle. Default 0.05, so
+   *  the two ends of the tip order do not look like neighbours. A layout option, not a theme token: it moves the tips. */
+  radialOpening: number;
+  /** Radial layout only: where the middle of the opening sits, in degrees clockwise from 3 o'clock (the positive x axis). Default 90:
+   *  the opening at the bottom, so the tips run clockwise from just left of the bottom over the top to just right of it, and a half
+   *  circle is an arch open at the bottom. With `radialOpening: 0` and `radialRotation: 0` the angles are those of a full circle from
+   *  3 o'clock, as before the options existed. */
+  radialRotation: number;
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
@@ -378,6 +442,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   stripeCollapsed: false,
   labelDensity: 'normal',
   alignLabels: false,
+  hoverPath: true,
+  hoverAnimation: true,
   nodeLabels: 'none',
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
@@ -395,6 +461,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   softwareCanvas: false,
   dprCap: 2,
   themeObserver: 'media',
+  radialOpening: 0.05,
+  radialRotation: 90,
   radialMaxNodes: 2000,
   interactionLOD: true,
   refineMs: 120,

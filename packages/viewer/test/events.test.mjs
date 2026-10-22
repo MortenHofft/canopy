@@ -126,10 +126,9 @@ test('a throwing listener does not stop the others', async () => {
 });
 
 test('TreeEvent: ids, tip count, tip helpers, defaultPrevented', async () => {
-  const ab = tree.nodeIndex('n1');
-  const e = ev(ab);
-  assert.equal(e.nodeId, 'n1');
+  const e = ev(1);
   assert.equal(e.node, 1);
+  assert.ok(!('nodeId' in e), 'no string form of the node id (#30)');
   assert.equal(e.isTip, false);
   assert.equal(e.tipCount, 2);
   assert.deepEqual(e.tipIds(), ['A', 'B']);

@@ -251,7 +251,6 @@ test('hit-test and click on the triangle give the clade: kind summary, node = th
   v.on('click', (e) => (ev = e));
   v.inputHost().click(h, 11, 22);
   assert.equal(ev.node, x);
-  assert.equal(ev.nodeId, 'n' + x);
   assert.equal(ev.kind, 'summary');
   assert.equal(ev.collapsed, true);
   assert.equal(ev.isTip, false);
@@ -475,7 +474,7 @@ test('radial: a collapsed clade is one angular step; the fan is hit and its labe
   v.setCollapsed([x]);
   m.env.flush();
   assert.equal(v.L.rows, 5);
-  assert.ok(Math.abs(v.T.da - (2 * Math.PI) / 5) < 1e-12);
+  assert.ok(Math.abs(v.T.da - v.T.fan.span / 5) < 1e-12, 'one row of the fan per row');
   v.proj.summaryExtent(x, -1, 0);
   const th = (v.proj.t0 + v.proj.t1) / 2,
     r = (v.proj.d0 + v.proj.d1) / 2;

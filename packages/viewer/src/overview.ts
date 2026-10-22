@@ -194,7 +194,7 @@ export class Overview {
     const vp: Viewport = rect
       ? { x0: 0, x1: 1, y0: 0, y1: N }
       : { x0: -OVERVIEW_WORLD_HALF, x1: OVERVIEW_WORLD_HALF, y0: -OVERVIEW_WORLD_HALF, y1: OVERVIEW_WORLD_HALF };
-    const T = makeTransform(h.layout, g.w, g.h, vp, area, N);
+    const T = makeTransform(h.layout, g.w, g.h, vp, area, N, h.L.fan);
     const P: CutParams = { lod: true, minPx: 2.5, budget: 6000, summaries: true };
     const proj = projectionFor(h.tree, h.L, T);
     const ovRes = newCutResult();

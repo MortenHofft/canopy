@@ -4,7 +4,7 @@
 //     (`canvas.contextAttrs`); `getImageData` answers from the last fill colour, so the opaque-background probe works;
 //   - requestAnimationFrame as a queue: nothing is drawn until `env.flush()` (or `env.frame()` for one round);
 //   - ResizeObserver (`env.resize(w, h)` sets the target's size and notifies), matchMedia for prefers-color-scheme
-//     (`env.setDark(on)` fires its change listeners) and getComputedStyle over `env.setCssVars({...})` of the target.
+//     (`env.setDark(on)` fires its change listeners) and prefers-reduced-motion (`env.setReducedMotion(on)`), and getComputedStyle over `env.setCssVars({...})` of the target.
 //
 //   const { viewer, env, target } = await makeViewer('((a,b)x,(c,d)y)r;', { options: { layout: 'rectangular' } });
 //   env.flush();                                  // draw the first frame
@@ -210,10 +210,11 @@ export function installEnv() {
   };
 
   const schemeListeners = new Set();
-  const scheme = { dark: false };
+  const scheme = { dark: false, reducedMotion: false };
   g.matchMedia = (q) => ({
     media: q,
     get matches() {
+      if (/prefers-reduced-motion/.test(q)) return /reduce/.test(q) && scheme.reducedMotion;
       return /dark/.test(q) && scheme.dark;
     },
     addEventListener: (_t, f) => schemeListeners.add(f),
@@ -261,6 +262,12 @@ export function installEnv() {
       for (const f of [...schemeListeners]) f({ matches: on });
     },
     schemeListenerCount: () => schemeListeners.size,
+    /** Switch prefers-reduced-motion (read when the viewer draws a ring; no listeners). */
+    setReducedMotion(on) {
+      scheme.reducedMotion = on;
+    },
+    /** The time the next `frame()` passes to its callbacks, in ms (the clock steps 16 ms per frame). */
+    now: () => clock,
     /** The live MutationObservers (not disconnected), with what each observes: `{ el, options }`. */
     mutationObservers: () => [...mutationObservers].map((o) => o.observed),
     /** Notify the live MutationObservers, as an attribute change on what they observe would. */

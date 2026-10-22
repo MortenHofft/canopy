@@ -15,6 +15,10 @@
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
  *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *               --phylo-node-label-size  --phylo-support-colour  --phylo-length-colour
+ *               --phylo-selection-colour  --phylo-selection-width  --phylo-selection-radius
+ *               --phylo-mark-colour  --phylo-mark-width  --phylo-mark-radius  --phylo-mark-dash
+ *               --phylo-hover-path-colour  --phylo-hover-path-width
+ *               --phylo-hover-ring-radius  --phylo-hover-ring-width  --phylo-hover-ring-duration  (ms)
  *   residues    --phylo-residue-hydrophobic  -positive  -negative  -polar  -aromatic  -glycine  -proline  (protein groups)
  *               --phylo-residue-a  -c  -g  -t  (nucleotides)  --phylo-residue-other   (canvas only; defaults follow --phylo-dark)
  *
@@ -255,6 +259,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.phylo-search__dup {
+  color: var(--phylo-muted, #6b7c8a);
+  font-style: normal;
+  font-size: 0.85em;
 }
 
 .phylo-search__option:hover,

@@ -29,11 +29,12 @@ Each control and the API behind it.
 | Control | API |
 |---|---|
 | **Tree picker**: every tree of the playground's catalogue (19, in its four groups) and two of our own, from 6 tips to 2.4 million | `catalogue.json` shared with the playground; `fetchText` of `examples/shared/data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees) |
-| **Click (no tool)**: the node menu | `<TreeView nodeMenu>`: the core `NodeMenu`, with items for what was clicked. Internal node: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade. Collapsed clade: Expand, Info, Show only, Colour…. Tip: Info, Reroot here, Swap with…, Colour…. Root: Info, Flip, Colour…. Enter on the keyboard cursor opens it too. The hover box says "Click for actions" |
-| **Tools** (Reroot, Flip, Swap, Color): a click acts at once | `onNodeClick` / `onTipClick`, and `nodeMenu` returns `null` while a tool is active, so the menu stays out of the way. *Swap with…* in the menu starts Swap with the node picked |
+| **Click (no tool)**: the node menu | `<TreeView nodeMenu>`: the core `NodeMenu`, with items for what was clicked. Internal node: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade. Collapsed clade: Expand, Info, Show only, Colour…. Tip: Info, Reroot here, Swap with…, Colour…. Root: Info, Flip, Colour…. Enter on the keyboard cursor opens it too. Opening it selects the node, so the selection ring stays on it while the pointer is in the menu. The hover box says "Click for actions" |
+| **Selection**: a click selects the tip or clade (a ring), Info opens the inspector on it; both stay across Layout and Phylo/Clado switches, which centre the view on the selection | `<TreeView selected onSelectionChange>` (the viewer's `setSelected`, a click selecting by default); a tool's click calls `preventDefault()` so it selects nothing |
+| **Tools** (Reroot, Flip, Swap, Color): a click acts at once | `onNodeClick` / `onTipClick` (with `preventDefault()`: no selection), and `nodeMenu` returns `null` while a tool is active, so the menu stays out of the way. *Swap with…* in the menu starts Swap with the node picked. Swap's first pick keeps a dashed ring (`<TreeView marked>`, the viewer's `setMarked`) until the second click or Escape |
 | **Show only this clade**, **Back**, **Up one level** | tree-ops `focusOn`, `focusBack`, `focusUp`, `showFocus`. A navigation, not an edit: not in Undo; an edit carries the focus over with `remapFocus` |
 | **Collapse** a clade, **Expand all** | the `collapsed` prop (`viewer.setCollapsed`, a view in the viewer: the tree is not changed and ids are the full tree's) |
-| **Collapse by support** with a threshold | tree-ops `collapseBySupport(tree, x, { keep })`, a view over the focused tree; `keep` is the clades collapsed by hand, so they stay collapsed, and so do the coloured clades; `extend: true` on a dated tree keeps it ultrametric (the time axis does not change). Composed with the focus by `composeMaps` / `invertMap`, as in `examples/react` |
+| **Collapse by support** with a threshold (shown only for a tree with support values) | tree-ops `collapseBySupport(tree, x, { keep })`, a view over the focused tree; `keep` is the clades collapsed by hand, so they stay collapsed, and so do the coloured clades; `extend: true` on a dated tree keeps it ultrametric (the time axis does not change). Composed with the focus by `composeMaps` / `invertMap`, as in `examples/react` |
 | Width, Height (Size in circular) | `setViewport` on the handle's `renderer()`: the window is the fitted one (`fitViewport()`) divided by the scale |
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
@@ -51,6 +52,7 @@ Each control and the API behind it.
 | Tooltips ("Click for actions", "Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; `options.themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
 | Pane background | `--phylo-background: var(--ex-surface-10)`: an opaque canvas in the pane's grey; no dotted grid. `dark` is derived from it |
+| Hover ring that grows in (Reactree's) | `options.hoverAnimation` (on by default) and the theme's `--phylo-hover-ring-duration`; off when the system asks for reduced motion |
 | Resize handle | the pane's height; the viewer follows its container |
 
 ### Large trees

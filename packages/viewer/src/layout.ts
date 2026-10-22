@@ -1,7 +1,8 @@
 // O(n) layout into typed arrays, shared by the rectangular and the radial view.
 //   X   = distance from the root in [0,1] (phylogram: cumulative length; cladogram: tips aligned, internal nodes by height)
 //   ROW = row + 0.5 for tips, midpoint of first and last child for internal nodes
-// Rectangular: screen x from X, screen y from ROW. Radial: angle = 2*pi*ROW/rows, radius = X.
+// Rectangular: screen x from X, screen y from ROW. Radial: angle = fan.start + ROW * fan.span / rows, radius = X (see RadialFan: the
+// tips are spread over a share of the circle, so the first and the last tip are not neighbours).
 // Three linear passes over preorder-ordered arrays, no recursion, no per-node objects.
 //
 // ROWS. A row is a place across the tips. Without collapsed clades every tip has its own row and row = tip rank. A collapsed clade
@@ -40,25 +41,89 @@ export interface Layout {
   XMAX: Float32Array; // largest X in the subtree (clade extent for collapsing and culling)
   LAST: Int32Array; // last child, -1 for tips
   layoutMs: number;
-  /** cos and sin of the node's radial angle (ROW * 2*pi/rows); built on first use by ensureTrig() (radial layout only) */
+  /** The radial fan: where the rows start on the circle and how much of it they take (FULL_FAN until the viewer sets the options' fan
+   *  with setLayoutFan). The trig cache below is built for this fan. */
+  fan: RadialFan;
+  /** cos and sin of the node's radial angle (fanAngle(fan, rows, ROW)); built on first use by ensureTrig() (radial layout only) */
   COS: Float64Array | null;
   SIN: Float64Array | null;
-  /** cos and sin of the row boundaries k * 2*pi/rows, k = 0..rows (sector bounding boxes without trigonometry) */
+  /** cos and sin of the row boundaries fanAngle(fan, rows, k), k = 0..rows (sector bounding boxes without trigonometry) */
   BC: Float64Array | null;
   BS: Float64Array | null;
 }
 
-/** Cache cos/sin of every node's radial angle (the angle does not depend on the zoom or on branch lengths), so the cut,
- *  the drawing and the hit index never call Math.cos/sin per node. 16 bytes per node, only paid when radial is used. */
+const TAU = 2 * Math.PI;
+
+/** Where the radial layout puts the rows on the circle: they run clockwise (increasing canvas angle) from `start` over `span` radians;
+ *  the rest of the circle, `2pi - span`, is the opening between the last and the first tip. Every angle of the radial layout goes through
+ *  this and the functions below (fanAngle, fanRow, fanTheta), so the trig cache, the projection, the cut, hit-testing, the fit, the
+ *  keyboard and the view-keeping agree. */
+export interface RadialFan {
+  /** Canvas angle (rad, clockwise from 3 o'clock) of row position 0, in [0, 2pi). */
+  readonly start: number;
+  /** Angle the rows take (rad), (0, 2pi]. */
+  readonly span: number;
+}
+
+/** The whole circle from 3 o'clock: the angles the radial layout had before the opening (`radialFan(0, 0)`). */
+export const FULL_FAN: RadialFan = { start: 0, span: TAU };
+
+/** The fan of the options `radialOpening` (share of the circle left empty, clamped to 0..0.99) and `radialRotation` (degrees,
+ *  clockwise from 3 o'clock, of the middle of the opening; 90 = the bottom). `radialFan(0, 0)` is exactly FULL_FAN. */
+export function radialFan(opening: number, rotationDeg: number): RadialFan {
+  const o = Number.isFinite(opening) ? Math.min(0.99, Math.max(0, opening)) : 0;
+  const rot = Number.isFinite(rotationDeg) ? rotationDeg : 0;
+  let start = (rot * Math.PI) / 180 + o * Math.PI; // the opening is centred on rot: the rows start half an opening after it
+  start %= TAU;
+  if (start < 0) start += TAU;
+  return { start, span: (1 - o) * TAU };
+}
+
+/** Same fan (by value). */
+export function sameFan(a: RadialFan, b: RadialFan): boolean {
+  return a.start === b.start && a.span === b.span;
+}
+
+/** Canvas angle of row position `row` (0..rows; a tip is at its row + 0.5, so the first and the last tip keep half a row from the opening). */
+export function fanAngle(fan: RadialFan, rows: number, row: number): number {
+  return fan.start + row * (fan.span / Math.max(1, rows));
+}
+
+/** Any angle (rad, e.g. from atan2) as the same direction in the fan's range of angles [start + span/2 - pi, start + span/2 + pi): the
+ *  fan is [start, start + span] inside it and the opening is split at its middle, so a direction just before the first tip is a little
+ *  less than `start` and one just after the last tip a little more than `start + span`. For FULL_FAN the range is [0, 2pi). */
+export function fanTheta(fan: RadialFan, theta: number): number {
+  const lo = fan.start + (fan.span / 2 - Math.PI);
+  while (theta < lo) theta += TAU;
+  while (theta >= lo + TAU) theta -= TAU;
+  return theta;
+}
+
+/** Row position (fractional) of the direction `theta` (rad): 0..rows on the fan, below 0 or above rows in the opening (see fanTheta). */
+export function fanRow(fan: RadialFan, rows: number, theta: number): number {
+  return (fanTheta(fan, theta) - fan.start) / (fan.span / Math.max(1, rows));
+}
+
+/** Give the layout the radial fan `fan`; the trig cache is dropped when the fan changes (rebuilt by the next ensureTrig). */
+export function setLayoutFan(L: Layout, fan: RadialFan): void {
+  if (sameFan(L.fan, fan)) return;
+  L.fan = fan;
+  L.COS = L.SIN = L.BC = L.BS = null;
+}
+
+/** Cache cos/sin of every node's radial angle on the layout's fan (`L.fan`; the angle does not depend on the zoom or on branch lengths),
+ *  so the cut, the drawing and the hit index never call Math.cos/sin per node. 16 bytes per node, only paid when radial is used. It
+ *  only reads the fan: setLayoutFan is the one place that changes it. */
 export function ensureTrig(L: Layout): void {
   if (L.COS) return;
   const n = L.n;
-  const da = (2 * Math.PI) / Math.max(1, L.rows);
+  const a0 = L.fan.start;
+  const da = L.fan.span / Math.max(1, L.rows);
   const C = new Float64Array(n),
     S = new Float64Array(n);
   const ROW = L.ROW;
   for (let i = 0; i < n; i++) {
-    const a = ROW[i] * da;
+    const a = a0 + ROW[i] * da;
     C[i] = Math.cos(a);
     S[i] = Math.sin(a);
   }
@@ -66,8 +131,8 @@ export function ensureTrig(L: Layout): void {
   const BC = new Float64Array(T + 1),
     BS = new Float64Array(T + 1);
   for (let k = 0; k <= T; k++) {
-    BC[k] = Math.cos(k * da);
-    BS[k] = Math.sin(k * da);
+    BC[k] = Math.cos(a0 + k * da);
+    BS[k] = Math.sin(a0 + k * da);
   }
   L.COS = C;
   L.SIN = S;
@@ -123,6 +188,7 @@ function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number
     XMAX,
     LAST,
     layoutMs: performance.now() - t0,
+    fan: FULL_FAN,
     COS: null,
     SIN: null,
     BC: null,
@@ -205,6 +271,7 @@ export function computeLayout(tree: TreeSnapshot, branchLengths: boolean, collap
     XMAX,
     LAST,
     layoutMs: performance.now() - t0,
+    fan: FULL_FAN,
     COS: null,
     SIN: null,
     BC: null,

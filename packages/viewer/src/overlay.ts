@@ -27,6 +27,8 @@ function place(el: HTMLElement, labels: LabelList, k: number, rect: boolean): vo
   el.style.fontSize = fs + 'px';
   el.style.height = h + 'px';
   el.style.lineHeight = h + 'px';
+  // the width the canvas measured for the text it drew: a highlighted label is drawn at weight 600, wider than the anchor's own text
+  el.style.width = labels.w[k] + 'px';
   if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
   else {
     const deg = (labels.ang[k] * 180) / Math.PI;

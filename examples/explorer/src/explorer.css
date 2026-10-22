@@ -4,13 +4,14 @@
 
 :root {
   --phylo-label-font-style: normal; /* the tip labels are not scientific names here */
+  /* the one action colour: active toggles take its tone (--ex-tonal, --ex-primary-soft), active tools, modes and focus outlines the
+   * colour itself, so a theme changes them all here */
   --ex-primary: #0071f2;
   --ex-primary-hover: #3472e5;
   --ex-primary-soft: #5775cc;
-  --ex-accent: #6366f1; /* Reactree's indigo for modes and toggles */
-  --ex-violet: #8b5cf6;
-  --ex-boot: #ef4444;
-  --ex-len: #0891b2;
+  --ex-hover-tip: var(--ex-primary); /* the "Click for actions" hover box */
+  --ex-danger: #ef4444;
+  --ex-node-label: #0891b2; /* support and length labels on the tree */
   --ex-surface-0: #ffffff;
   --ex-surface-10: #f8fafc;
   --ex-surface-20: #f1f5f9;
@@ -46,7 +47,7 @@
   --phylo-foreground: #1e293b;
   --phylo-muted: var(--ex-muted);
   --phylo-branch: var(--ex-text-2);
-  --phylo-highlight: var(--ex-accent);
+  --phylo-highlight: var(--ex-primary);
   --phylo-summary: var(--ex-text-2); /* collapsed clades: the branch grey, faint: more tree here, not a selection or a colour */
   --phylo-summary-opacity: 0.28;
   --phylo-highlight-opacity: 0.14;
@@ -56,17 +57,15 @@
   --phylo-tip-radius: 2.6;
   --phylo-axis-font-size: 9px;
   --phylo-node-label-size: 9.5px;
-  --phylo-support-colour: var(--ex-boot);
-  --phylo-length-colour: var(--ex-len);
+  --phylo-support-colour: var(--ex-node-label);
+  --phylo-length-colour: var(--ex-node-label);
 }
 
 :root[data-theme='dark'] {
   --ex-primary: #3b8cff;
   --ex-primary-hover: #63a4ff;
-  --ex-accent: #818cf8;
-  --ex-violet: #a78bfa;
-  --ex-boot: #f87171;
-  --ex-len: #22d3ee;
+  --ex-danger: #f87171;
+  --ex-node-label: #22d3ee;
   --ex-surface-0: #1e293b;
   --ex-surface-10: #0f172a;
   --ex-surface-20: #172033;
@@ -142,7 +141,7 @@ body {
   cursor: pointer;
 }
 .page-error {
-  color: var(--ex-boot);
+  color: var(--ex-danger);
 }
 .page-foot {
   font-size: 11px;
@@ -272,7 +271,7 @@ body {
   border: 2.5px solid var(--ex-primary);
 }
 .ex-slider:focus-visible {
-  outline: 2px solid var(--ex-accent);
+  outline: 2px solid var(--ex-primary);
   outline-offset: 4px;
 }
 .ex-slider-val {
@@ -323,32 +322,22 @@ body {
 }
 .ex-btn:focus-visible,
 .ex-group button:focus-visible {
-  outline: 2px solid var(--ex-accent);
+  outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
 }
 .ex-fade {
   animation: ex-fade 0.2s ease;
 }
-.ex-tool:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ex-accent) 6%, transparent);
-  border-color: var(--ex-accent);
-  color: var(--ex-accent);
-}
 .ex-tool.active {
-  background: var(--ex-accent);
-  border-color: var(--ex-accent);
+  background: var(--ex-primary);
+  border-color: var(--ex-primary);
   color: white;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--ex-accent) 35%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--ex-primary) 35%, transparent);
 }
-.ex-tool.active:hover {
-  background: #4f46e5;
+.ex-tool.active:hover:not(:disabled) {
+  background: var(--ex-primary-hover);
+  border-color: var(--ex-primary-hover);
   color: white;
-}
-.ex-swap-active,
-.ex-swap-active:hover {
-  background: #0d9488 !important;
-  border-color: #0d9488 !important;
-  box-shadow: 0 2px 10px rgba(13, 148, 136, 0.35) !important;
 }
 .ex-dot {
   display: inline-block;
@@ -376,7 +365,7 @@ body {
 }
 .ex-steps span.on {
   background: white;
-  color: #0d9488;
+  color: var(--ex-primary);
   font-weight: 600;
 }
 .ex-steps span.done {
@@ -406,38 +395,16 @@ body {
   color: white;
   box-sizing: border-box;
 }
-.ex-count--violet {
-  background: var(--ex-violet);
-}
-.ex-expand {
-  border-color: color-mix(in srgb, var(--ex-violet) 35%, transparent);
-  color: var(--ex-violet);
-  background: color-mix(in srgb, var(--ex-violet) 7%, transparent);
-}
-.ex-expand:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ex-violet) 14%, transparent);
-  border-color: color-mix(in srgb, var(--ex-violet) 35%, transparent);
-  color: var(--ex-violet);
-}
-.ex-toggle,
-.ex-labels {
+.ex-toggle {
   padding: 4px 9px;
 }
+/* an active toggle (Truncate, Overview, Legend, Search, node labels, ...) and Expand all: the tone of the action colour, as an open button */
 .ex-toggle.active,
-.ex-search-active {
-  border-color: color-mix(in srgb, var(--ex-accent) 40%, transparent);
-  color: var(--ex-accent);
-  background: color-mix(in srgb, var(--ex-accent) 8%, transparent);
-}
-.ex-labels--bootstrap {
-  border-color: color-mix(in srgb, var(--ex-boot) 35%, transparent);
-  color: var(--ex-boot);
-  background: color-mix(in srgb, var(--ex-boot) 7%, transparent);
-}
-.ex-labels--branchlength {
-  border-color: color-mix(in srgb, var(--ex-len) 35%, transparent);
-  color: var(--ex-len);
-  background: color-mix(in srgb, var(--ex-len) 7%, transparent);
+.ex-search-active,
+.ex-expand {
+  border-color: var(--ex-primary-soft);
+  color: var(--ex-primary);
+  background: var(--ex-tonal);
 }
 
 /* segmented groups */
@@ -496,9 +463,9 @@ body {
   font-size: 11px;
   font-weight: 500;
   border-radius: 999px;
-  color: var(--ex-violet);
-  background: color-mix(in srgb, var(--ex-violet) 9%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ex-violet) 30%, transparent);
+  color: var(--ex-primary);
+  background: var(--ex-tonal);
+  border: 1px solid var(--ex-primary-soft);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -529,7 +496,7 @@ body {
   cursor: not-allowed;
 }
 .ex-select:focus-within {
-  outline: 2px solid var(--ex-accent);
+  outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
 }
 .ex-select--bare {
@@ -555,7 +522,7 @@ body {
   border-radius: 7px;
 }
 .ex-num:focus-visible {
-  outline: 2px solid var(--ex-accent);
+  outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
 }
 .ex-support-n {
@@ -570,7 +537,7 @@ body {
   font-size: 11.5px;
   line-height: 1.4;
   color: var(--ex-text-2);
-  background: color-mix(in srgb, var(--ex-violet) 7%, var(--ex-surface-0));
+  background: var(--ex-tonal);
   border-bottom: 1px solid var(--ex-surface-30);
 }
 .ex-swatch:disabled,
@@ -646,14 +613,10 @@ body {
   flex-shrink: 0;
 }
 .ex-mode-reroot .ex-pane,
-.ex-mode-flip .ex-pane {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-accent) 35%, transparent);
-}
-.ex-mode-swap .ex-pane {
-  box-shadow: inset 0 0 0 2px rgba(13, 148, 136, 0.35);
-}
+.ex-mode-flip .ex-pane,
+.ex-mode-swap .ex-pane,
 .ex-mode-color .ex-pane {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-violet) 30%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-primary) 35%, transparent);
 }
 .ex-pane .phylo-tree {
   cursor: grab;
@@ -696,7 +659,7 @@ body {
   touch-action: none;
 }
 .ex-resize:hover {
-  background: color-mix(in srgb, var(--ex-accent) 6%, transparent);
+  background: color-mix(in srgb, var(--ex-primary) 6%, transparent);
 }
 .ex-grip {
   width: 36px;
@@ -708,7 +671,7 @@ body {
     width 0.15s;
 }
 .ex-resize:hover .ex-grip {
-  background: var(--ex-accent);
+  background: var(--ex-primary);
   width: 48px;
 }
 .ex-toast {
@@ -741,19 +704,16 @@ body {
   border: 1px solid var(--ex-surface-30);
 }
 .ex-tip--reroot,
-.ex-tip--flip {
-  background: var(--ex-accent);
-  border-color: var(--ex-accent);
-  color: white;
-}
+.ex-tip--flip,
 .ex-tip--swap {
-  background: #0d9488;
-  border-color: #0d9488;
+  background: var(--ex-primary);
+  border-color: var(--ex-primary);
   color: white;
 }
-.ex-tip--collapse {
-  border-color: color-mix(in srgb, var(--ex-violet) 40%, transparent);
-  color: var(--ex-violet);
+/* the box with no tool on: the tone of the active toggles, from its own variable so a theme can change it alone */
+.ex-tip--menu {
+  border-color: color-mix(in srgb, var(--ex-hover-tip) 55%, transparent);
+  color: var(--ex-hover-tip);
 }
 .ex-tip--color {
   color: var(--ex-text);
@@ -763,7 +723,7 @@ body {
   opacity: 0.75;
   font-style: italic;
 }
-.ex-tip--collapse .ex-tip-name {
+.ex-tip--menu .ex-tip-name {
   display: none;
 }
 .ex-tip-step {
@@ -810,17 +770,17 @@ body {
   font-size: 12.5px;
   color: var(--ex-text);
   width: 170px;
-  caret-color: var(--ex-accent);
+  caret-color: var(--ex-primary);
 }
 .ex-search-count {
   font-family: var(--ex-mono);
   font-size: 10.5px;
   font-weight: 500;
-  color: var(--ex-accent);
+  color: var(--ex-primary);
   white-space: nowrap;
 }
 .ex-search-count.none {
-  color: var(--ex-boot);
+  color: var(--ex-danger);
 }
 .ex-search-nav {
   display: flex;
@@ -853,7 +813,7 @@ body {
 .ex-search-close:hover,
 .ex-info-head button:hover {
   background: var(--ex-tonal);
-  color: var(--ex-accent);
+  color: var(--ex-primary);
 }
 
 /* inspector */
@@ -907,9 +867,6 @@ body {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--ex-text);
-}
-.ex-info-rows dd.ex-info-boot {
-  color: var(--ex-boot);
 }
 .ex-info-copy {
   display: flex;
@@ -1067,8 +1024,8 @@ body {
   color: var(--ex-text);
 }
 .ex-clear:hover {
-  color: var(--ex-boot);
-  border-color: color-mix(in srgb, var(--ex-boot) 40%, transparent);
+  color: var(--ex-danger);
+  border-color: color-mix(in srgb, var(--ex-danger) 40%, transparent);
 }
 .ex-palette-feedback {
   margin-left: auto;

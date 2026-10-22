@@ -39,6 +39,8 @@ function fakeViewer(newick = '((A:1,B:1)AB:1,C:2)root;') {
     tipNode: (label) => tree.tipIndex(label),
     getTree: () => tree,
     focus: () => element.focus(),
+    selected: null,
+    setSelected: (n) => void (v.selected = n),
     event: (node, via = 'pointer', x = 120, y = 60) =>
       toTreeEvent(makeNodeEvent(tree, node, tree.childCount[node] ? 'node' : 'tip', via, x, y), source),
   };
@@ -122,7 +124,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
       e.isTip
         ? null
         : [
-            { id: 'zoom', label: 'Zoom to clade', onSelect: (ev) => picked.push(['zoom', ev.nodeId]) },
+            { id: 'zoom', label: 'Zoom to clade', onSelect: (ev) => picked.push(['zoom', ev.node]) },
             { id: 'off', label: 'Not now', disabled: true, onSelect: () => picked.push(['off']) },
             { id: 'rot', label: 'Rotate', hint: 'swap children', onSelect: () => picked.push(['rot']) },
           ],
@@ -133,6 +135,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
   assert.equal(m.isOpen(), false, 'no items for a tip: no menu');
   v.emit('click', v.event(1));
   assert.equal(m.isOpen(), true);
+  assert.equal(v.selected, 1, 'opening it selects its node');
   assert.equal(m.element.getAttribute('role'), 'menu');
   assert.equal(m.element.getAttribute('aria-label'), 'Actions for clade of 2 tips');
   const items = m.element.querySelectorAll('button');
@@ -149,7 +152,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
   items[1].click();
   assert.equal(m.isOpen(), true, 'a disabled item does nothing');
   items[0].click();
-  assert.deepEqual(picked, [['zoom', 'n1']]);
+  assert.deepEqual(picked, [['zoom', 1]]);
   assert.equal(m.isOpen(), false);
   assert.equal(m.element.getAttribute('role'), null);
   assert.equal(document.activeElement, v.element, 'focus goes back to the tree');

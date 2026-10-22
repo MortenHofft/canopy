@@ -110,12 +110,6 @@ export const IconUndo = () => (
     <path d="M2 3.5V7h3.5" {...s} strokeWidth="1.5" />
   </svg>
 );
-export const IconFit = () => (
-  <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
-    <path d="M7.5 1.5a6 6 0 1 0 5.5 3.6" {...s} strokeWidth="1.5" />
-    <path d="M13 1l-.5 4-4-.5" {...s} strokeWidth="1.5" />
-  </svg>
-);
 export const IconReroot = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
     <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />

@@ -5,13 +5,20 @@
 // of cut-golden-cases.mjs through that commit's searchCut (rectangular and radial loops, as they were) with options { lod: true, base,
 // budget, summaries: true, hint: 0 }. So a failure here means the cut no longer produces what it produced then. To recapture on purpose
 // (a deliberate change of the cut): `node --experimental-transform-types scripts/capture-cut-golden.mjs`, which writes the JSON from the
-// current code in the same layout (one case per line); on the unchanged cut it reproduces the committed file byte for byte.
+// current code in the same layout (one case per line); on the unchanged cut it reproduces the committed file byte for byte once formatted
+// by Prettier.
+//
+// The radial cases were recaptured on purpose for issue #41 (the radial layout leaves an opening, radialOpening 0.05 with the opening at
+// the bottom, radialRotation 90): they use the default fan of the options. The same radial cases on the whole circle from 3 o'clock
+// (radialFan(0, 0)) must still give exactly the e2897fb draw lists: cut-golden-circle.json holds their hashes, computed from the
+// cut-golden.json entries as they were before the recapture.
 //
 // The cases cover: a comb, a balanced tree with thin cherries (rule B), a random tree, polytomies (runs of small siblings between larger
 // children, a class change and a parent change in the middle of a run), a snapshot with stubs, a view that cuts the tree at the right edge
 // (clades whose node lies beyond the clip edge), sub-pixel pans, and budgets small enough to raise the threshold (`forced`).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,16 +27,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..', '..');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
 const core = path.join(root, 'packages/viewer/src');
-const { computeLayout, ensureTrig } = await import(path.join(core, 'layout.ts'));
+const { computeLayout, ensureTrig, radialFan, setLayoutFan } = await import(path.join(core, 'layout.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
 const { projectionFor } = await import(path.join(core, 'projection.ts'));
 const { drawBody } = await import(path.join(core, 'draw.ts'));
 const { HitIndex } = await import(path.join(core, 'hit.ts'));
-const { FALLBACK_THEME } = await import(path.join(core, 'types.ts'));
+const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
 const { W, H, TREES, VIEWS, allCases } = await import(path.join(here, 'cut-golden-cases.mjs'));
 const golden = JSON.parse(fs.readFileSync(path.join(here, 'cut-golden.json'), 'utf8'));
+const goldenCircle = JSON.parse(fs.readFileSync(path.join(here, 'cut-golden-circle.json'), 'utf8'));
+const FAN = radialFan(DEFAULT_OPTIONS.radialOpening, DEFAULT_OPTIONS.radialRotation);
+const CIRCLE = radialFan(0, 0);
 const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
 
 /** A snapshot with stubs is a snapshot whose `stub` array marks rows standing for clades that are not loaded. */
@@ -43,7 +53,6 @@ function build(spec) {
     Object.defineProperty(s, 'stub', { value: stub });
   }
   const L = computeLayout(s, true);
-  ensureTrig(L);
   const classOf = spec.classes ? Uint8Array.from({ length: s.nodeCount }, (_, i) => spec.classes(i)) : null;
   return { s, L, classOf };
 }
@@ -58,29 +67,56 @@ test('the golden file covers every case', () => {
   );
 });
 
+function runCase(c, fan) {
+  const { s, L, classOf } = built[c.tree];
+  const N = s.tipCount;
+  setLayoutFan(L, fan);
+  ensureTrig(L);
+  const T = makeTransform(c.layout, W, H, VIEWS[c.layout][c.view](N), area, N, fan);
+  const list = new DrawList();
+  const r = searchCut(projectionFor(s, L, T), classOf, list, new Seen(), {
+    lod: true,
+    base: c.opts.base,
+    budget: c.opts.budget,
+    summaries: true,
+    hint: 0,
+  });
+  const entries = [];
+  for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
+  return { res: r.res, minPx: r.minPx, retries: r.retries, entries };
+}
+
 for (const c of allCases()) {
   test(`cut golden: ${c.id}`, () => {
-    const { s, L, classOf } = built[c.tree];
-    const N = s.tipCount;
-    const T = makeTransform(c.layout, W, H, VIEWS[c.layout][c.view](N), area, N);
-    const list = new DrawList();
-    const r = searchCut(projectionFor(s, L, T), classOf, list, new Seen(), {
-      lod: true,
-      base: c.opts.base,
-      budget: c.opts.budget,
-      summaries: true,
-      hint: 0,
-    });
+    const r = runCase(c, FAN);
     const g = golden[c.id];
     assert.deepEqual(r.res, g.res, 'CutResult');
     assert.equal(r.minPx, g.minPx, 'threshold');
     assert.equal(r.retries, g.retries, 'retries');
-    const got = [];
-    for (let e = 0; e < list.count; e++) got.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
+    const got = r.entries;
     assert.equal(got.length, g.entries.length, `draw list length ${got.length / 5} entries, golden ${g.entries.length / 5}`);
     for (let k = 0; k < got.length; k++) assert.equal(got[k], g.entries[k], `entry ${(k / 5) | 0} field ${k % 5}`);
   });
 }
+
+test('the circle goldens cover every radial case', () => {
+  assert.deepEqual(
+    Object.keys(goldenCircle).sort(),
+    allCases()
+      .filter((c) => c.layout === 'radial')
+      .map((c) => c.id)
+      .sort(),
+  );
+});
+
+for (const c of allCases().filter((c) => c.layout === 'radial'))
+  test(`cut golden, whole circle (radialOpening 0, radialRotation 0): ${c.id}`, () => {
+    const hash = createHash('sha256')
+      .update(JSON.stringify(runCase(c, CIRCLE)))
+      .digest('hex')
+      .slice(0, 16);
+    assert.equal(hash, goldenCircle[c.id], 'the draw list of the cut before the opening existed');
+  });
 
 // ---- the minimum sizes draw and hit give a summary (a clade a fraction of a pixel in size must stay visible and clickable)
 

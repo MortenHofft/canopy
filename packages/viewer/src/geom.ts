@@ -1,7 +1,8 @@
 // Screen transform. The view is a window in layout coordinates (see Viewport); the transform maps layout to CSS pixels.
-// Rectangular: sx = ox + X*kx, sy = oy + ROW*ky. Radial: the root is at (cx, cy), angle = ROW*da, radius = X*k.
+// Rectangular: sx = ox + X*kx, sy = oy + ROW*ky. Radial: the root is at (cx, cy), angle = fan.start + ROW*da, radius = X*k.
 // Node positions and the cut's geometry are asked of the layout projection built from it (projection.ts).
 
+import { FULL_FAN, type RadialFan } from './layout.ts';
 import type { LayoutKind, Viewport } from './types.ts';
 
 export interface Area {
@@ -27,6 +28,8 @@ export interface Transform {
   cx: number;
   cy: number;
   k: number;
+  /** Radial: the fan the rows are spread over (the layout's, see RadialFan) and the angle of one row, fan.span / rows. */
+  fan: RadialFan;
   da: number;
   clipL: number;
   clipT: number;
@@ -34,7 +37,9 @@ export interface Transform {
   clipB: number;
 }
 
-export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewport, a: Area, rows: number): Transform {
+/** `fan`: the layout's radial fan (`L.fan`; the whole circle when left out). The radial projection of a frame refuses a transform whose
+ *  fan is not its layout's, so pass `L.fan` for any layout whose fan was set. */
+export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewport, a: Area, rows: number, fan: RadialFan = FULL_FAN): Transform {
   const kx = a.aw / (v.x1 - v.x0);
   const ky = a.ah / (v.y1 - v.y0);
   return {
@@ -49,7 +54,8 @@ export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewpor
     k: kx,
     cx: a.ax - v.x0 * kx,
     cy: a.ay - v.y0 * kx,
-    da: (2 * Math.PI) / Math.max(1, rows),
+    fan,
+    da: fan.span / Math.max(1, rows),
     clipL: a.clipL,
     clipT: a.clipT,
     clipR: a.clipR,

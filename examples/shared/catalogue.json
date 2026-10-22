@@ -5,6 +5,11 @@
       "path": "rich/edge-cases/internal-labels-support.nwk",
       "format": "newick"
     },
+    "edge-duplicate-labels": {
+      "label": "Duplicate tip labels (9 tips)",
+      "path": "rich/edge-cases/duplicate-tip-labels.nwk",
+      "format": "newick"
+    },
     "rich-hcv-19": {
       "label": "HCV 2k IQ-TREE (19 tips, nucleotide alignment)",
       "path": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre",

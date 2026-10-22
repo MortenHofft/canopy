@@ -4,7 +4,7 @@
 // swap, so it may loop over the tips; the frame code does not use it. The window is in rows (layout.ts): a tip is sent to its row in the
 // old layout and its new place to a row in the new one, so a clade collapsed on either side is followed as the one row it is.
 
-import type { Layout } from './layout.ts';
+import { fanAngle, type Layout } from './layout.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
 /** Where an old tip is now. */
@@ -116,7 +116,8 @@ export function keptViewport(a: KeepInput): Viewport | null {
       const h = v.y1 - v.y0;
       const extent = nHi - nLo;
       const nc = (nLo + nHi) / 2;
-      if (extent > h && !a.fixedRows) {
+      // a window that cuts a row at its edge holds that row's tips whole: compare with the rows it touches, not only its height
+      if (extent > Math.max(h, oMax - oMin + 1) && !a.fixedRows) {
         const pad = extent * 0.02;
         return { x0, x1, y0: nc - extent / 2 - pad, y1: nc + extent / 2 + pad };
       }
@@ -126,8 +127,6 @@ export function keptViewport(a: KeepInput): Viewport | null {
     }
     return null;
   }
-  const da = (2 * Math.PI) / a.beforeL.rows;
-  const dn = (2 * Math.PI) / a.afterL.rows;
   const X = a.beforeL.X;
   const inView = new Uint8Array(N);
   let seen = 0;
@@ -142,7 +141,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
       continue;
     const node = nodeBefore(r);
     if (node < 0) continue; // a tip row that is not loaded
-    const ang = ((rowOfBefore ? rowOfBefore[r] : r) + 0.5) * da;
+    const ang = fanAngle(a.beforeL.fan, a.beforeL.rows, (rowOfBefore ? rowOfBefore[r] : r) + 0.5);
     const x = X[node] * Math.cos(ang),
       y = X[node] * Math.sin(ang);
     if (x < v.x0 || x > v.x1 || y < v.y0 || y > v.y1) continue;
@@ -159,10 +158,10 @@ export function keptViewport(a: KeepInput): Viewport | null {
       n = 0;
     for (let r = 0; r < N; r++) {
       if (!inView[r] || !a.target(r, deep, t)) continue;
-      const ang = ((rowOfBefore ? rowOfBefore[r] : r) + 0.5) * da;
+      const ang = fanAngle(a.beforeL.fan, a.beforeL.rows, (rowOfBefore ? rowOfBefore[r] : r) + 0.5);
       const tLo = rowOfAfter ? rowOfAfter[t.lo] : t.lo,
         tHi = (rowOfAfter ? rowOfAfter[t.hi - 1] : t.hi - 1) + 1;
-      const d = ((tLo + tHi) / 2) * dn - ang;
+      const d = fanAngle(a.afterL.fan, a.afterL.rows, (tLo + tHi) / 2) - ang;
       sx += Math.cos(d);
       sy += Math.sin(d);
       if (deep && t.hi - t.lo === a.after.tipCount) all = true;

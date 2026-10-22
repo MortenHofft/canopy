@@ -176,7 +176,7 @@ viewer.addControl(
               hint: `${e.tipCount.toLocaleString('en')} tips`,
               onSelect: () => {
                 const cl = viewer.getClades();
-                viewer.setClades([...cl, { node: e.node, colour: palette[cl.length % palette.length], label: `Clade ${e.nodeId}` }]);
+                viewer.setClades([...cl, { node: e.node, colour: palette[cl.length % palette.length], label: `Clade ${e.node}` }]);
               },
             },
             { id: 'clear', label: 'Clear colours', disabled: viewer.getClades().length === 0, onSelect: () => viewer.setClades([]) },
@@ -205,10 +205,13 @@ const write = (text: string) => {
   log.prepend(li);
   while (log.children.length > 30) log.lastElementChild!.remove();
 };
-viewer.on('click', (e) => write(`click ${e.isTip ? 'tip ' + e.tipId : `${e.kind} ${e.nodeId} (${e.tipCount} tips)`}`));
+viewer.on('click', (e) => write(`click ${e.isTip ? 'tip ' + e.tipId : `${e.kind} ${e.node} (${e.tipCount} tips)`}`));
 viewer.on('optionschange', (e) => write(`options: ${e.changed.join(', ')}`));
 viewer.on('cladeschange', (c) => write(`clades: ${c.length}`));
-viewer.on('highlightchange', (ids) => write(`highlighted: ${ids.join(', ') || 'none'}`));
+// labels and node ids (the Search highlights the tip it found by node id: labels need not be unique)
+viewer.on('highlightchange', (ids) =>
+  write(`highlighted: ${ids.map((id) => (typeof id === 'number' ? `${viewer.getTree().labels[id]} (node ${id})` : id)).join(', ') || 'none'}`),
+);
 viewer.on('themechange', (t) => write(`theme: ${t.dark ? 'dark' : 'light'}`));
 let lastView = 0;
 viewer.on('viewchange', () => {

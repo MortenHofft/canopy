@@ -6,7 +6,7 @@
 //             pixel per residue) and only the visible rows are blitted; very large alignments fall back to
 //             drawing runs for visible rows only
 //  custom     the app's ColumnRenderer: prepare() when the values change, draw() once per frame with the visible rows
-// Values are looked up by tip label once, when the columns change, into arrays by tip rank. The columns are drawn in ROWS: with collapsed
+// Values are looked up by tip label (or by node id, `nodeValues`, which wins) once, when the columns change, into arrays by tip rank. The columns are drawn in ROWS: with collapsed
 // clades a row is no longer a rank (layout.ts), and the row of a collapsed clade is blank (a clade has no single value; the clade's tips
 // are not summarised).
 
@@ -38,8 +38,27 @@ export interface CompiledColumn {
   w: number; // width in container px: the spec's width, or for a 'fill' column the share layoutColumns gave it
 }
 
-/** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap
- *  coloured from the theme's residue tokens). */
+/** Node id of each tip, by rank (-1 when its row is not loaded): the snapshot's own `tipNode` for a tree in memory. */
+function tipNodeIds(tree: TreeSnapshot): ArrayLike<number> {
+  const g = tree.globalId;
+  if (g === null) return tree.tipNode;
+  const out = new Int32Array(tree.tipCount);
+  for (let r = 0; r < out.length; r++) out[r] = tree.tipNode[r] < 0 ? -1 : g[tree.tipNode[r]];
+  return out;
+}
+
+/** The value of each rank: by node id when `nodeValues` has the tip, else by its label. */
+function valueOf<V>(tree: TreeSnapshot, values: Record<string, V>, nodeValues: ReadonlyMap<number, V> | undefined): (r: number) => V | undefined {
+  if (!nodeValues || nodeValues.size === 0) return (r) => values[tree.tipLabels[r]];
+  const ids = tipNodeIds(tree);
+  return (r) => {
+    const v = ids[r] >= 0 ? nodeValues.get(ids[r]) : undefined;
+    return v !== undefined ? v : values[tree.tipLabels[r]];
+  };
+}
+
+/** Compile one column spec: the values are looked up by node id or tip label once, into arrays by tip rank (and, for an alignment, one
+ *  bitmap coloured from the theme's residue tokens). */
 export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme = FALLBACK_THEME): CompiledColumn {
   const N = tree.tipCount;
   const has = new Uint8Array(N);
@@ -51,17 +70,23 @@ export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme
   let alphabet: ResolvedAlphabet | null = null;
   let table: Uint32Array | null = null;
   if (spec.kind === 'custom') {
-    const data = spec.renderer.prepare({ values: spec.values, tipLabels: tree.tipLabels, tipCount: N });
-    for (let r = 0; r < N; r++) {
-      const l = tree.tipLabels[r];
-      if (spec.renderer.hasCell ? spec.renderer.hasCell(data, r) : l !== undefined && spec.values[l] !== undefined) has[r] = 1;
-    }
+    const tipNodes = tipNodeIds(tree);
+    const data = spec.renderer.prepare({
+      values: spec.values,
+      nodeValues: spec.nodeValues ?? null,
+      tipLabels: tree.tipLabels,
+      tipNodes,
+      tipCount: N,
+    });
+    const value = valueOf(tree, spec.values, spec.nodeValues);
+    for (let r = 0; r < N; r++) if (spec.renderer.hasCell ? spec.renderer.hasCell(data, r) : value(r) !== undefined) has[r] = 1;
     return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data, x: 0, w: fixedW(spec) };
   }
+  const value = valueOf(tree, spec.values, spec.nodeValues);
   if (spec.kind === 'bar') {
     num = new Float64Array(N).fill(NaN);
     for (let r = 0; r < N; r++) {
-      const v = spec.values[tree.tipLabels[r]];
+      const v = value(r);
       if (v === undefined) continue;
       const x = Number(v);
       if (!Number.isNaN(x)) {
@@ -73,7 +98,7 @@ export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme
   } else {
     txt = new Array(N);
     for (let r = 0; r < N; r++) {
-      const v = spec.values[tree.tipLabels[r]];
+      const v = value(r);
       if (v === undefined) continue;
       const s = String(v);
       txt[r] = s;
@@ -116,7 +141,7 @@ export function columnSpecEquals(a: Column, b: Column): boolean {
 /** Same data: same values object, for a custom column the same renderer (its prepare() made the data), for an alignment the same alphabet
  *  (the bitmap's colours). */
 function sameData(a: Column, b: Column): boolean {
-  if (a.values !== b.values) return false;
+  if (a.values !== b.values || a.nodeValues !== b.nodeValues) return false;
   if (a.kind === 'custom') return b.kind === 'custom' && a.renderer === b.renderer;
   if (a.kind === 'alignment') return b.kind === 'alignment' && (a.alphabet ?? 'auto') === (b.alphabet ?? 'auto');
   return true;

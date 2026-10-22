@@ -91,6 +91,80 @@ ok(
   'tip links → tipHref to GBIF',
 );
 
+console.log('radial opening and rotation (#41)');
+{
+  await select('layout', 'radial');
+  await select('click', 'nothing'); // events only: no node menu over the next tip
+  ok(
+    (await opt('radialOpening')) === 0.05 && (await opt('radialRotation')) === 90 && !query().has('s.radialOpening'),
+    'the radial opening (0.05) and rotation (90) are at their defaults, not in the URL',
+  );
+  await ev(() => {
+    window.__clicked = [];
+    window.viewer.on('click', (e) => window.__clicked.push(e.node));
+  });
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  // the first and the last tip: on either side of the opening, which is at the bottom
+  const ends = () =>
+    ev(() => {
+      const v = window.viewer;
+      const t = v.getTree();
+      const first = t.tipNode[0],
+        last = t.tipNode[t.tipCount - 1];
+      return {
+        root: v.nodePosition(0),
+        first,
+        last,
+        a: v.nodePosition(first),
+        b: v.nodePosition(last),
+        la: t.tipLabels[0],
+        lb: t.tipLabels[t.tipCount - 1],
+      };
+    });
+  const hoverAndClick = async (p, node, label, name) => {
+    await page.mouse.move(box.x + p.x, box.y + p.y);
+    await settled();
+    const hovered = await page.locator('#hover').innerText();
+    await page.mouse.click(box.x + p.x, box.y + p.y);
+    await settled();
+    const clicked = await ev(() => window.__clicked.at(-1));
+    ok(hovered === label && clicked === node, `${name}: hovered "${hovered}" (want "${label}"), click on node ${clicked} (want ${node})`);
+  };
+  let e = await ends();
+  ok(
+    e.a && e.b && e.a.y > e.root.y && e.b.y > e.root.y && e.a.x < e.root.x && e.b.x > e.root.x,
+    'default: the first tip left of the bottom, the last right of it',
+  );
+  await hoverAndClick(e.a, e.first, e.la, 'default opening, first tip');
+  await hoverAndClick(e.b, e.last, e.lb, 'default opening, last tip');
+  await setInput('radialOpening', '0.5');
+  ok((await opt('radialOpening')) === 0.5 && query().get('s.radialOpening') === '0.5', 'Radial opening → options.radialOpening, and into the URL');
+  e = await ends();
+  ok(
+    e.a && e.b && Math.abs(e.a.y - e.root.y) < 30 && Math.abs(e.b.y - e.root.y) < 30,
+    'a half circle: the ends of the tip order are level with the root',
+  );
+  await hoverAndClick(e.a, e.first, e.la, 'half circle, first tip');
+  await hoverAndClick(e.b, e.last, e.lb, 'half circle, last tip');
+  await setInput('radialRotation', '0');
+  ok((await opt('radialRotation')) === 0 && query().get('s.radialRotation') === '0', 'Radial rotation → options.radialRotation, and into the URL');
+  e = await ends();
+  // the opening from 12 to 6 o'clock through 3: the tips run clockwise from the bottom over 9 o'clock to the top
+  ok(
+    e.a && e.b && e.a.y > e.root.y && e.b.y < e.root.y && Math.max(e.a.x, e.b.x) < e.root.x + 30,
+    "rotation 0: the opening at 3 o'clock, the arch open to the right",
+  );
+  await setInput('radialRotation', '90');
+  await setInput('radialOpening', '0.05');
+  await page.mouse.move(2, 2);
+  await ev(() => window.viewer.setSelected(null)); // the clicks selected a tip: a layout switch would centre the view on it
+  await select('click', 'menu');
+  await select('layout', 'rectangular');
+}
+
 console.log('striped summaries');
 // the playground shows the library's default (solid); the select compares solid and striped
 ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
@@ -128,6 +202,134 @@ await select('layout', 'rectangular');
 await select('summaryStyle', 'solid');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
 await setInput('summaryStripeColour', '');
+
+console.log('hover path');
+// hover a tip below the root's first child: its path ends with the root's first child's branch and the root's connector, so a
+// point on them (rect: halfway along the root's vertical line; radial: halfway along the child's branch from the centre) is empty on the
+// top canvas until the hover
+const pathProbe = () =>
+  ev(() => {
+    const v = window.viewer;
+    const t = v.getTree();
+    const tip = t.tipNode[(t.leafStart[1] + t.leafEnd[1]) >> 1]; // a middle tip, clear of the controls in the corners
+    const root = v.nodePosition(0),
+      child = v.nodePosition(1);
+    const rect = v.options.layout === 'rectangular';
+    const px = rect ? root.x : (root.x + child.x) / 2,
+      py = (root.y + child.y) / 2;
+    return { tip: v.nodePosition(tip), px, py };
+  });
+const topPixel = (x, y) =>
+  ev(
+    ([x, y]) => {
+      const c = window.viewer.treeElement.querySelectorAll('canvas')[1];
+      const s = c.width / c.getBoundingClientRect().width;
+      const d = c.getContext('2d').getImageData(Math.round(x * s) - 1, Math.round(y * s) - 1, 3, 3).data;
+      let best = [0, 0, 0, 0];
+      for (let i = 0; i < d.length; i += 4) if (d[i + 3] > best[3]) best = [d[i], d[i + 1], d[i + 2], d[i + 3]];
+      return best;
+    },
+    [x, y],
+  );
+const hoverAt = async (p) => {
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  await page.mouse.move(box.x + p.x, box.y + p.y);
+  await settled();
+};
+const isRed = (px) => px[3] > 200 && px[0] > 200 && px[1] < 60 && px[2] < 60;
+ok(
+  (await opt('hoverPath')) === true && (await theme('hoverPathColour')) === '' && (await theme('hoverPathWidth')) === 2,
+  'hoverPath on by default, tokens at their defaults',
+);
+await setInput('hoverPathColour', '#ff0000');
+ok(
+  (await theme('hoverPathColour')) === '#ff0000' && query().get('s.hoverPathColour') === '#ff0000',
+  'the colour token reaches the theme and the URL',
+);
+for (const layout of ['rectangular', 'radial']) {
+  await select('layout', layout);
+  await page.mouse.move(2, 2); // nothing hovered
+  await settled();
+  const pr = await pathProbe();
+  const before = await topPixel(pr.px, pr.py);
+  ok(before[3] === 0, `${layout}: the root's connector is empty on the top canvas before the hover`);
+  await hoverAt(pr.tip);
+  const after = await topPixel(pr.px, pr.py);
+  ok(isRed(after), `${layout}: after hovering a tip it is the path colour (${after})`);
+  await toggle('hoverPath', false);
+  await hoverAt({ x: pr.tip.x + 0.5, y: pr.tip.y });
+  ok((await opt('hoverPath')) === false && (await topPixel(pr.px, pr.py))[3] === 0, `${layout}: the toggle turns the path off`);
+  await toggle('hoverPath', true);
+}
+await setInput('hoverPathWidth', '0');
+ok((await theme('hoverPathWidth')) === 0, 'the width token reaches the theme');
+await setInput('hoverPathWidth', '2');
+await setInput('hoverPathColour', '');
+await select('layout', 'rectangular');
+await page.mouse.move(2, 2);
+
+console.log('hover animation');
+// how many of 16 points on the circle of radius r around p have ink on the top canvas, after two frames
+const ringInk = (p, r) =>
+  ev(
+    async ([x, y, r]) => {
+      await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+      const c = window.viewer.treeElement.querySelectorAll('canvas')[1];
+      const s = c.width / c.getBoundingClientRect().width;
+      const g = c.getContext('2d');
+      let n = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * 2 * Math.PI;
+        if (g.getImageData(Math.round((x + r * Math.cos(a)) * s), Math.round((y + r * Math.sin(a)) * s), 1, 1).data[3] > 0) n++;
+      }
+      return n;
+    },
+    [p.x, p.y, r],
+  );
+ok(
+  (await opt('hoverAnimation')) === true &&
+    (await theme('hoverRingDuration')) === 150 &&
+    (await theme('hoverRingRadius')) === 6 &&
+    (await theme('hoverRingWidth')) === 2,
+  'hoverAnimation on by default, the ring tokens at their defaults',
+);
+await toggle('hoverPath', false); // the path would cross the ring
+await setInput('hoverRingDuration', '1000');
+ok((await theme('hoverRingDuration')) === 1000 && query().get('s.hoverRingDuration') === '1000', 'the duration token reaches the theme and the URL');
+{
+  const { tip } = await pathProbe();
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  const framesBefore = await ev(() => window.viewer.stats.frames);
+  await page.mouse.move(box.x + tip.x, box.y + tip.y);
+  const early = await ringInk(tip, 6);
+  await page.waitForTimeout(1200);
+  const late = await ringInk(tip, 6);
+  ok(early <= 2 && late >= 12, `the ring grows in: ${early} of 16 points at full radius after two frames, ${late} once settled`);
+  ok((await ev(() => window.viewer.stats.frames)) === framesBefore, 'the tree is not redrawn while the ring grows');
+  await toggle('hoverAnimation', false);
+  ok((await opt('hoverAnimation')) === false && query().get('s.hoverAnimation') !== null, 'the toggle reaches the option and the URL');
+  await page.mouse.move(2, 2);
+  await settled();
+  await page.mouse.move(box.x + tip.x, box.y + tip.y);
+  const at = await ringInk(tip, 6);
+  ok(at >= 12, `without the animation the ring is there at once (${at} of 16 points)`);
+  await setInput('hoverRingRadius', '10');
+  ok((await theme('hoverRingRadius')) === 10 && (await ringInk(tip, 10)) >= 12, 'the radius token sets the ring');
+  await setInput('hoverRingRadius', '6');
+  await setInput('hoverRingWidth', '3');
+  ok((await theme('hoverRingWidth')) === 3, 'the width token reaches the theme');
+  await setInput('hoverRingWidth', '2');
+  await toggle('hoverAnimation', true);
+}
+await setInput('hoverRingDuration', '150');
+await toggle('hoverPath', true);
+await page.mouse.move(2, 2);
 
 console.log('theme');
 await setInput('labelSize', '18');
@@ -309,6 +511,34 @@ await toggle('alignLabels', false);
 ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');
 await open(); // the default tree again for the sections that follow
+
+console.log('duplicate tip labels (#18)');
+await open('?tree=edge-duplicate-labels');
+await page.locator('input[data-setting=find]').fill('homo');
+await settled();
+ok(
+  JSON.stringify(await ev(() => [...window.viewer.hlRanks])) === '[0,1,3]',
+  '"Highlight tips containing" a label on three tips highlights all three',
+);
+await page.locator('input[data-setting=find]').fill('');
+await settled();
+await page.locator('.phylo-search__input').fill('homo');
+await page.waitForTimeout(300);
+const dupOptions = await page.locator('.phylo-search__option').allInnerTexts();
+ok(
+  JSON.stringify(dupOptions.map((t) => t.replace(/\s+/g, ' ').trim())) ===
+    JSON.stringify(['Homo sapiens 1 of 3', 'Homo sapiens 2 of 3', 'Homo sapiens 3 of 3']),
+  `the Search lists each of the three tips and says which it is (${dupOptions.join(' | ')})`,
+);
+await page.locator('.phylo-search__input').press('ArrowDown');
+await page.locator('.phylo-search__input').press('ArrowDown');
+await page.locator('.phylo-search__input').press('Enter');
+await settled();
+ok(
+  JSON.stringify(await ev(() => window.viewer.getHighlighted())) === '[7]' && JSON.stringify(await ev(() => [...window.viewer.hlRanks])) === '[3]',
+  'choosing the third highlights that tip alone (node 7, rank 3), not every Homo_sapiens',
+);
+await open(); // the default tree again
 
 console.log('node labels');
 await open('?tree=edge-internal-support');

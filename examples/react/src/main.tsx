@@ -129,7 +129,7 @@ function App() {
     if (!tree) return { keep: new Uint8Array(0), n };
     const keep = new Uint8Array(tree.tipCount);
     for (const c of clades) {
-      const k = Number(c.nodeId.slice(1));
+      const k = c.node;
       if (k < tree.nodeCount)
         for (let r = tree.leafStart[k]; r < tree.leafEnd[k]; r++)
           if (!keep[r]) {
@@ -187,18 +187,18 @@ function App() {
       tree,
       next,
       r.map,
-      clades.map((c) => Number(c.nodeId.slice(1))),
+      clades.map((c) => c.node),
       { onSplit: splitColour === 'node' ? 'keep' : 'drop' },
     );
     const kept = clades.flatMap((c, i) => {
-      const k = Number(c.nodeId.slice(1));
+      const k = c.node;
       const { node, split } = followed[i];
       if (split && node >= 0)
         notes.push(
           `⚠ a colour stayed on its node, which now holds ${next.tipCountOf(node).toLocaleString('en')} tips instead of ${tree.tipCountOf(k).toLocaleString('en')}`,
         );
       else if (split) notes.push('a colour was removed: its tips are no longer one clade');
-      return node >= 0 ? [{ ...c, nodeId: 'n' + node }] : [];
+      return node >= 0 ? [{ ...c, node }] : [];
     });
     // collapsed clades follow their tips the same way; one the operation split is expanded
     const keptCollapsed = ops
@@ -251,21 +251,20 @@ function App() {
     const f = ops.focusBack(focus);
     navigate(f, focusMsg(f));
   };
-  const toggleColour = (nodeId: string) =>
+  const toggleColour = (node: number) =>
     setClades((cs) =>
-      cs.some((c) => c.nodeId === nodeId) ? cs.filter((c) => c.nodeId !== nodeId) : [...cs, { nodeId, colour: palette[cs.length % palette.length] }],
+      cs.some((c) => c.node === node) ? cs.filter((c) => c.node !== node) : [...cs, { node, colour: palette[cs.length % palette.length] }],
     );
 
   // per-node actions: what the node menu offers for the clicked tip or clade
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] => {
     if (e.run) return []; // a run of small siblings is not one node
     const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its view (focus and support only)
-    const nodeId = 'n' + v;
     const isCollapsed = e.collapsed;
     const isTip = e.isTip;
     const what = isTip ? 'tip' : 'clade';
     const tips = tree.tipCountOf(v);
-    const coloured = clades.some((c) => c.nodeId === nodeId);
+    const coloured = clades.some((c) => c.node === v);
     const items: NodeMenuItem[] = [];
     // the root of a focused clade (the shown tree's root) leads out of it
     if (e.node === 0 && ops.canGoUp(focus)) {
@@ -319,22 +318,21 @@ function App() {
         onSelect: () => apply('remove tip', (t) => ops.prune(t, (r) => r !== t.tipRank[v])),
       });
     // a tip is coloured only when a kept colour's node became a tip (rule 'node' after a prune), so it offers only removal
-    if (!isTip || coloured)
-      items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(nodeId) });
+    if (!isTip || coloured) items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this clade', onSelect: () => toggleColour(v) });
     return items;
   };
   const onClick = (e: TreeNodeEvent) => {
     // a clicked tip is highlighted; a clicked clade is not (it was: its first five tips, which read as if the click had selected
     // them). Colouring a clade is the menu's job.
     setHl(e.isTip && e.tipId ? [e.tipId] : []);
-    setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.nodeId}: ${e.tipCount} tips, range [${e.tipStart}, ${e.tipEnd})`);
+    setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.node}: ${e.tipCount} tips, range [${e.tipStart}, ${e.tipEnd})`);
   };
 
   const shown = view?.tree ?? tree;
   const shownClades = view
     ? clades.flatMap((c) => {
-        const k = view.toView[Number(c.nodeId.slice(1))];
-        return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
+        const k = view.toView[c.node];
+        return k >= 0 ? [{ ...c, node: k }] : [];
       })
     : clades;
   // the collapsed clades in the shown tree's ids (the same as `tree`'s while no view is on; a clade that focus left out, or that collapse
@@ -345,7 +343,7 @@ function App() {
     treeMap,
     clades: shownClades,
     highlighted: hl,
-    collapsed: shownCollapsed.map((k) => 'n' + k),
+    collapsed: shownCollapsed,
     viewport: vp,
     onViewportChange: setVp,
     onNodeClick: onClick,
