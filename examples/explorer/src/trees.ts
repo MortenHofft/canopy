@@ -1,54 +1,38 @@
-// The trees this example can show (?tree=<id>), from the repository's data/ folder (served at /data/ by the dev server), some with
-// the alignment the tree was inferred from (list in trees.json). Gzipped files are inflated here with DecompressionStream.
+// The trees this example can show (?tree=<id>): every tree of the catalogue the playground uses (examples/shared/catalogue.json, shared
+// so the two examples cannot drift apart) plus this example's own, in trees.json: `extras` (more trees, by group) and `overrides` (a
+// field of a catalogue tree this example sets, e.g. the Carangaria `supportKey`). Files come from the repository's data/ folder (served
+// at /data/ by the dev server, copied there by the site build, which reads both JSON files); a tree too large for main falls back to
+// its `remote` URL. Gzipped files are inflated by content, whatever the host does (data.ts).
 
 import { parseNewick, parseNexus, supportFrom, type TreeModel } from '@gbif-phylo/io';
-import trees from './trees.json';
+import own from './trees.json';
+import { GROUPS as CATALOGUE, fetchText, parseFasta, type Entry as CatalogueEntry } from '../../shared/data.ts';
 
-interface Entry {
-  label: string;
-  path: string; // under data/
-  format: 'newick' | 'nexus';
-  fasta?: string;
+export interface Entry extends CatalogueEntry {
   /** The node annotation that holds the support (a BEAST tree: 'posterior'); copied into `tree.support` when the labels give none. */
   supportKey?: string;
 }
 
-/** In a JSON file so the site build (scripts/build-site.mjs) can copy exactly these files from data/. */
-export const TREES = trees as Record<string, Entry>;
-
-async function text(path: string): Promise<string> {
-  const r = await fetch(`/data/${path}`);
-  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
-  // inflate by content, not by name: a host that sends .gz with Content-Encoding: gzip has the browser inflate it already
-  const bytes = new Uint8Array(await r.arrayBuffer());
-  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return new TextDecoder().decode(bytes);
-  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+/** The picker's groups (as the playground's <optgroup>s) of entries by id: the catalogue's, then this example's extras. */
+export const GROUPS: Record<string, Record<string, Entry>> = {};
+const extras = own.extras as Record<string, Record<string, Entry>>;
+const overrides = own.overrides as Record<string, Partial<Entry>>;
+for (const group of new Set([...Object.keys(CATALOGUE), ...Object.keys(extras)])) {
+  const entries: Record<string, Entry> = { ...CATALOGUE[group], ...extras[group] };
+  GROUPS[group] = Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, { ...e, ...overrides[id] }]));
 }
+export const TREES: Record<string, Entry> = Object.assign({}, ...Object.values(GROUPS));
 
-/** FASTA records by id (the header up to the first space). */
-export function parseFasta(src: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  let id = '';
-  let seq: string[] = [];
-  for (const line of src.split(/\r?\n/)) {
-    if (line.startsWith('>')) {
-      if (id) out[id] = seq.join('');
-      id = line.slice(1).trim().split(/\s+/)[0];
-      seq = [];
-    } else if (id) seq.push(line.trim());
-  }
-  if (id) out[id] = seq.join('');
-  return out;
-}
+export { parseFasta };
 
-export async function loadTree(id: string): Promise<{ tree: TreeModel; fasta: Record<string, string> | null }> {
+export async function loadTree(id: string): Promise<{ tree: TreeModel; fasta: Record<string, string> | null; bytes: number }> {
   const t = TREES[id];
   if (!t) throw new Error(`unknown tree ${JSON.stringify(id)}; known: ${Object.keys(TREES).join(', ')}`);
-  const [src, fa] = await Promise.all([text(t.path), t.fasta ? text(t.fasta) : Promise.resolve(null)]);
+  const [src, fa] = await Promise.all([fetchText(t.path, t.remote), t.fasta ? fetchText(t.fasta) : Promise.resolve(null)]);
   const o = { annotations: t.supportKey !== undefined };
-  const tree = t.format === 'nexus' ? parseNexus(src, o).tree : parseNewick(src, o);
+  const tree = t.format === 'nexus' ? parseNexus(src.text, o).tree : parseNewick(src.text, o);
   // a BEAST MCC tree keeps its support as [&posterior=0.98], not as an internal label: copy it to where tree.support is read (the
   // bootstrap labels, the inspector, collapse by support), as supportFrom's documentation says
   if (t.supportKey && !tree.support.some((v) => !Number.isNaN(v))) tree.support.set(supportFrom(tree, t.supportKey));
-  return { tree, fasta: fa === null ? null : parseFasta(fa) };
+  return { tree, fasta: fa === null ? null : parseFasta(fa.text), bytes: src.bytes };
 }

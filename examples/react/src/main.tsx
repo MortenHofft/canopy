@@ -84,7 +84,7 @@ function App() {
       const before = acc.shown.nodeCount;
       // a clade the viewer collapses keeps its node (tree-ops' `keep`)
       const keep = protectedNodes.map((v) => (acc.toView ? acc.toView[v] : v)).filter((k) => k > 0);
-      const r = ops.collapseBySupport(acc.shown, minSupport, { keep });
+      const r = ops.collapseBySupport(acc.shown, minSupport, { keep, extend: acc.shown.hasLengths && acc.shown.isUltrametric(1e-3) });
       if (step(r)) supportCollapsed = before - acc.shown.nodeCount;
     }
     const { shown, toView } = acc;

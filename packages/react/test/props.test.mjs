@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { shallowEqualOwn, stripUndefined, changedKeys } = await import(path.join(root, 'packages/react/src/props.ts'));
+const { shallowEqualOwn, stripUndefined, changedKeys, liveTooltipEvent } = await import(path.join(root, 'packages/react/src/props.ts'));
 const { themeEquals, FALLBACK_THEME } = await import(path.join(root, 'packages/viewer/src/types.ts'));
 const { updateColumns, columnSpecEquals } = await import(path.join(root, 'packages/viewer/src/columns.ts'));
 
@@ -125,4 +125,13 @@ test('changedKeys: the keys whose values differ (Object.is), over the keys of bo
   ]);
   assert.deepEqual(changedKeys({ a: 1 }, { b: 2 }).sort(), ['a', 'b'], 'a key on one side only counts as changed');
   assert.deepEqual(changedKeys({ x: NaN }, { x: NaN }), [], 'NaN equals NaN under Object.is');
+});
+
+test('liveTooltipEvent: a hover event is used only while its source is the one shown (a new tree renders before the box hides)', () => {
+  const a = {};
+  const b = {};
+  const state = { e: { node: 7 }, of: a };
+  assert.equal(liveTooltipEvent(state, a), state.e);
+  assert.equal(liveTooltipEvent(state, b), null, "a new tree: the old event, whose node ids are the old tree's, is not passed on");
+  assert.equal(liveTooltipEvent(null, a), null, 'nothing hovered, or the tooltip hid');
 });

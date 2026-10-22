@@ -1,45 +1,21 @@
 {
-  "rich-fish-carangaria-135": {
-    "label": "Carangaria MCC (135 tips, dated)",
-    "path": "rich/fish-carangaria-mcc/Carangaria-MCC.tre",
-    "format": "nexus",
-    "supportKey": "posterior"
+  "overrides": {
+    "rich-fish-carangaria-135": { "supportKey": "posterior" }
   },
-  "rich-hcv-19": {
-    "label": "HCV 2k IQ-TREE (19 tips, nucleotides)",
-    "path": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre",
-    "format": "nexus",
-    "fasta": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext.fasta.gz"
-  },
-  "rich-ens-protein-197": {
-    "label": "Ensembl protein family (197 tips, amino acids)",
-    "path": "rich/ens-protein-197/tree.nwk",
-    "format": "newick",
-    "fasta": "rich/ens-protein-197/alignment.fa.gz"
-  },
-  "edge-internal-support": {
-    "label": "Support values (6 tips)",
-    "path": "rich/edge-cases/internal-labels-support.nwk",
-    "format": "newick"
-  },
-  "edge-polytomy": {
-    "label": "Polytomy, missing lengths (10 tips)",
-    "path": "rich/edge-cases/polytomy-missing-lengths.nwk",
-    "format": "newick"
-  },
-  "rich-corvoid-680": {
-    "label": "Corvoid MCC (680 tips)",
-    "path": "rich/corvoid-mcc-680/CC_MCC.tre.gz",
-    "format": "nexus"
-  },
-  "otl-1k": {
-    "label": "Open Tree, Testudines (1k tips)",
-    "path": "real-ladder/trees/otl-1k-testudines.nwk.gz",
-    "format": "newick"
-  },
-  "syn-yule-10000": {
-    "label": "Yule (10,000 tips)",
-    "path": "synthetic/newick/yule_10000.nwk.gz",
-    "format": "newick"
+  "extras": {
+    "small and annotated": {
+      "edge-polytomy": {
+        "label": "Polytomy, missing lengths (10 tips)",
+        "path": "rich/edge-cases/polytomy-missing-lengths.nwk",
+        "format": "newick"
+      }
+    },
+    "large": {
+      "otl-1k": {
+        "label": "Open Tree, Testudines (1k tips)",
+        "path": "real-ladder/trees/otl-1k-testudines.nwk.gz",
+        "format": "newick"
+      }
+    }
   }
 }

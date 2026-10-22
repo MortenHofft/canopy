@@ -4,14 +4,14 @@
 setting does, to compare trees from 6 tips to 2.39 million, or to try a tree file of your own (Newick or NEXUS, gzipped or not).
 
 ```
-npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from src/catalogue.json)
+npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from ../shared/catalogue.json)
 ```
 
 - [`src/settings.ts`](src/settings.ts) is the list of settings. It generates the panel and is stored in the URL (`?s.<id>=<value>`, only
   values that differ from the library default). Each setting says how it is applied: a viewer option, a theme token, a built-in control,
   or the page's own (presets, transparent background, tip links, the click action, highlighting by text). To expose a new option or
   token, add one line there.
-- [`src/catalogue.json`](src/catalogue.json) lists the trees, with their per-tip data (a TSV whose first column is the tip label) and
+- [`../shared/catalogue.json`](../shared/catalogue.json) lists the trees, with their per-tip data (a TSV whose first column is the tip label) and
   alignments. The site build copies exactly these files. The two largest Open Tree of Life trees are not on `main`. They come from the
   `data/otl-large` branch: the site build downloads them, and the dev server falls back to the branch's raw URL.
 - **Tree operations** from `@gbif-phylo/tree-ops`, as views of the loaded tree (as in `examples/react`), not edits:

@@ -5,7 +5,7 @@
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { changedKeys, stripUndefined, useShallowStable, useStable } from './props.ts';
+import { changedKeys, liveTooltipEvent, stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
@@ -221,14 +221,17 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   // The tooltip and the node menu are the viewer's own Tooltip and NodeMenu controls, created once per component. A tooltip given as a
   // function renders its React content through a portal into a box that the Tooltip shows (flushSync, so it is measured with it).
   const [portalBox] = useState(() => document.createElement('div'));
-  const [tipEvent, setTipEvent] = useState<TreeNodeEvent | null>(null);
+  // The last hover event, with the tree it belongs to: a `tooltip` function is only called with an event of the tree on show NOW (a new
+  // tree renders before the viewer's `treechange` hides the box, and the event's node ids are the old tree's), and the event is dropped
+  // when the box hides (the pointer leaves, a click, a tree change).
+  const [tipState, setTipState] = useState<{ e: TreeNodeEvent; of: unknown } | null>(null);
   const [tooltipControl] = useState(
     () =>
       new Tooltip({
         render: (e, v) => {
           const t = latest.current.tooltip;
           if (typeof t !== 'function') return defaultTooltipFor(e, v);
-          flushSync(() => setTipEvent(e));
+          flushSync(() => setTipState({ e, of: sourceRef.current }));
           return portalBox;
         },
       }),
@@ -241,7 +244,12 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, props.source ? 'source' : 'tree', options.softwareCanvas, (host) => {
     const r = new TreeViewer({ target: host, source, options: rendererOptions, theme: themeOverrides });
     r.on('click', (ev) => (ev.isTip ? latest.current.onTipClick?.(ev) : latest.current.onNodeClick?.(ev)));
-    r.on('hover', (ev) => latest.current.onHover?.(ev));
+    r.on('hover', (ev) => {
+      if (!ev) setTipState(null); // the pointer left: the tooltip hides
+      latest.current.onHover?.(ev);
+    });
+    r.on('click', () => setTipState(null)); // a click hides the tooltip
+    r.on('treechange', () => setTipState(null));
     r.on('viewchange', (v) => latest.current.onViewportChange?.(v));
     r.on('frame', (s) => latest.current.onFrame?.(s));
     let ready = 0;
@@ -361,6 +369,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     [source, rendRef],
   );
 
+  const tipEvent = liveTooltipEvent(tipState, source);
   return (
     <div
       ref={hostRef}
