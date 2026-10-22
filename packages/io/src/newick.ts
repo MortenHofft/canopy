@@ -23,14 +23,36 @@ export class NewickError extends Error {
 
 const isWs = (c: number) => c === 32 || c === 9 || c === 10 || c === 13;
 
-/** Position just after the comment that starts at `p` (text[p] === '['). Comments may nest. */
-function skipComment(text: string, p: number): number {
-  let depth = 0;
+/** Position just after the comment that starts at `p` (text[p] === '['). Comments may nest. With `quoted` (parsing annotations), a
+ *  quoted value in an annotation comment (`[&...]`) may hold brackets: `[&s="a]b"]`. It costs about 30% on a tree full of
+ *  annotations, so the default skip does not do it. */
+function skipComment(text: string, p: number, quoted = false): number {
   const n = text.length;
+  if (quoted && text.charCodeAt(p + 1) === 38) return skipAnnotation(text, p, n);
+  let depth = 0;
   for (; p < n; p++) {
     const c = text.charCodeAt(p);
     if (c === 91) depth++;
     else if (c === 93 && --depth === 0) return p + 1;
+  }
+  throw new NewickError('unterminated [comment]', n);
+}
+
+/** A quote opens only at the start of a value, after '=', ',' or '{'. */
+function skipAnnotation(text: string, p: number, n: number): number {
+  let depth = 0;
+  let quote = 0;
+  let prev = 0; // last character outside quotes that is not whitespace
+  for (; p < n; p++) {
+    const c = text.charCodeAt(p);
+    if (quote) {
+      if (c === quote) quote = 0;
+      continue;
+    }
+    if (c === 91) depth++;
+    else if (c === 93 && --depth === 0) return p + 1;
+    else if ((c === 34 || c === 39) && (prev === 61 || prev === 44 || prev === 123)) quote = c;
+    if (!isWs(c)) prev = c;
   }
   throw new NewickError('unterminated [comment]', n);
 }
@@ -125,7 +147,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     if (isWs(c)) {
       p++;
     } else if (c === 91) {
-      const e = skipComment(text, p);
+      const e = skipComment(text, p, annot);
       if (annot && !expect) note(p, e, afterColon);
       p = e;
     } else if (c === 40) {
@@ -171,7 +193,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
       // BEAST puts comments between ':' and the number: '1[&height=..]:[&rate=..]70.5'
       while (p < n && (isWs(text.charCodeAt(p)) || text.charCodeAt(p) === 91)) {
         if (text.charCodeAt(p) === 91) {
-          const e = skipComment(text, p);
+          const e = skipComment(text, p, annot);
           if (annot) note(p, e, true);
           p = e;
         } else p++;
@@ -246,7 +268,6 @@ function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, in
   const nodeNote = (i: number): string => (ann ? writeAnnotations(ann.node.get(i)) : '');
   // ':' + edge annotations + length; an edge with only annotations is written as ':[&...]'
   const edge = (i: number): string => {
-    if (i === 0) return '';
     const l = t.length[i];
     const e = ann ? writeAnnotations(ann.edge.get(i)) : '';
     const hasLen = withLen && !Number.isNaN(l);
@@ -313,12 +334,12 @@ export interface NexusResult {
 }
 
 /** Next ';'-terminated statement starting at p, respecting 'quotes' and [comments]; end = position after ';'. */
-function nexusStatement(text: string, p: number): { stmt: string; end: number } | null {
+function nexusStatement(text: string, p: number, quoted: boolean): { stmt: string; end: number } | null {
   const n = text.length;
   const s = p;
   while (p < n) {
     const c = text.charCodeAt(p);
-    if (c === 91) p = skipComment(text, p);
+    if (c === 91) p = skipComment(text, p, quoted);
     else if (c === 39) {
       p++;
       for (;;) {
@@ -389,14 +410,15 @@ function nexusTokens(s: string): string[] {
 export function parseNexus(text: string, treeIndex?: number, o?: ParseOptions): NexusResult;
 export function parseNexus(text: string, o: ParseOptions & { treeIndex?: number }): NexusResult;
 export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex?: number }) = 0, b: ParseOptions = {}): NexusResult {
-  const opts: ParseOptions = typeof a === 'object' ? a : b;
-  const treeIndex = typeof a === 'number' ? a : (a.treeIndex ?? 0);
+  const obj = typeof a === 'object' && a !== null ? a : null; // null and undefined read as the defaults
+  const opts: ParseOptions = obj ?? b ?? {};
+  const treeIndex = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
   let p = 0;
   let block = '';
   const translate = new Map<string, string>();
   let seen = 0;
   for (;;) {
-    const st = nexusStatement(text, p);
+    const st = nexusStatement(text, p, opts.annotations === true);
     if (!st) break;
     p = st.end;
     const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');

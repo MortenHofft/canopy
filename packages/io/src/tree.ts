@@ -74,6 +74,8 @@ export class TreeModel {
     this.leafEnd = raw.leafEnd;
     this.labels = raw.labels;
     this.annotations = raw.annotations ?? null;
+    if (this.annotations && this.annotations.nodeCount !== n)
+      throw new Error(`annotations are for a tree of ${this.annotations.nodeCount} nodes, this one has ${n}`);
 
     const firstChild = new Int32Array(n).fill(-1);
     const nextSibling = new Int32Array(n).fill(-1);

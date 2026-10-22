@@ -51,28 +51,54 @@ export class Annotations {
     return out;
   }
   /**
-   * Carry the annotations over an edit of the tree: `map` is the old-to-new node index of a tree-ops result (-1 for removed
-   * nodes) and `nodeCount` the size of the new tree. Node annotations follow their node. Edge annotations follow the node
-   * below the edge, which is right for every operation except where edges change direction: after `reroot`, the nodes on the
-   * path between the new and the old root hang from a different neighbour, so their edge annotations describe the wrong edge
-   * (`stripEdges` drops them instead). Nodes the operation added have none.
+   * Carry the annotations over an edit of the tree. `map` is the old-to-new node index of a tree-ops result (-1 for removed
+   * nodes), `before` the tree that was edited and `after` the result (`result.tree` or the model built from it); both need
+   * `parent`. Records are copied, the source table is not touched.
+   *
+   * Node annotations follow their node. An edge annotation follows the undirected edge: when the edit reversed the edge
+   * (`reroot`: every edge between the new and the old root), it moves to the node that is now below it; when `reroot` split the
+   * edge with a new root, both halves get a copy. Any other edge stays on the node below it. Not carried: the edge into a
+   * removed node, the edge of a removed node, and the edge that `reroot` merges when it suppresses the old root (the surviving
+   * child's own annotation wins). Nodes the edit added have none.
    */
-  remap(map: Int32Array, nodeCount: number, o: { stripEdges?: boolean } = {}): Annotations {
-    const move = (from: Map<number, AnnotationRecord>): Map<number, AnnotationRecord> => {
-      const to = new Map<number, AnnotationRecord>();
-      for (const [i, r] of from) {
-        const j = i < map.length ? map[i] : -1;
-        if (j >= 0) to.set(j, r);
-      }
-      return to;
-    };
-    return new Annotations(nodeCount, move(this.node), o.stripEdges ? new Map() : move(this.edge));
+  remap(map: Int32Array, before: { parent: Int32Array }, after: { parent: Int32Array; nodeCount: number }): Annotations {
+    const node = new Map<number, AnnotationRecord>();
+    for (const [i, r] of this.node) {
+      const j = i < map.length ? map[i] : -1;
+      if (j >= 0) node.set(j, copyRecord(r));
+    }
+    const edge = new Map<number, AnnotationRecord>();
+    const plain: [number, number][] = []; // [source, target] of edges that stay on their node
+    for (const [i, r] of this.edge) {
+      const a = i < map.length ? map[i] : -1;
+      if (a < 0) continue;
+      const p = before.parent[i];
+      const b = p >= 0 && p < map.length ? map[p] : -1;
+      if (b >= 0 && after.parent[b] === a)
+        edge.set(b, copyRecord(r)); // reversed
+      else if (b >= 0 && after.parent[a] >= 0 && after.parent[a] === after.parent[b]) {
+        edge.set(a, copyRecord(r)); // split by a new root
+        edge.set(b, copyRecord(r));
+      } else plain.push([i, a]);
+    }
+    for (const [i, a] of plain) if (!edge.has(a)) edge.set(a, copyRecord(this.edge.get(i) as AnnotationRecord));
+    return new Annotations(after.nodeCount, node, edge);
   }
+}
+
+function copyRecord(r: AnnotationRecord): AnnotationRecord {
+  const out = Object.create(null) as AnnotationRecord;
+  for (const k in r) {
+    const v = r[k];
+    out[k] = Array.isArray(v) ? v.slice() : v;
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------ reading
 
-const NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+// No leading zeros ('007', '0001' are identifiers and stay strings); BEAST also writes NaN and Infinity
+const NUMBER = /^(?:[+-]?(?:(?:0|[1-9]\d*)(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|NaN|[+-]?Infinity)$/;
 
 function scalar(tok: string): AnnotationScalar {
   tok = tok.trim();
@@ -81,23 +107,30 @@ function scalar(tok: string): AnnotationScalar {
   return NUMBER.test(tok) ? Number(tok) : tok;
 }
 
-/** Split `s` at `sep` outside "quotes", 'quotes' and {braces}. */
+/** Split `s` at `sep` outside "quotes", 'quotes' and {braces}. A quote opens only at the start of a value (after '=', ',', '{' or the
+ *  start), so an apostrophe inside a bare value (`O'Brien`) is just text. */
 function splitTop(s: string, sep: number): string[] {
   const out: string[] = [];
   let from = 0;
   let quote = 0;
   let brace = 0;
+  let prev = 44; // last character that is not whitespace
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     if (quote) {
       if (c === quote) quote = 0;
-    } else if (c === 34 || c === 39) quote = c;
+      prev = c;
+      continue;
+    }
+    if (c === 32 || c === 9 || c === 10 || c === 13) continue;
+    if ((c === 34 || c === 39) && (prev === 61 || prev === 44 || prev === 123)) quote = c;
     else if (c === 123) brace++;
     else if (c === 125) brace--;
     else if (c === sep && brace <= 0) {
       out.push(s.slice(from, i));
       from = i + 1;
     }
+    prev = c;
   }
   out.push(s.slice(from));
   return out;
@@ -140,12 +173,22 @@ export function parseAnnotationComment(text: string, start: number, end: number)
 
 // ------------------------------------------------------------------------------------------ writing
 
-/** `[&k=v,k=v]` in BEAST syntax ('' for no annotations). Strings are double-quoted, ranges and sets are `{a,b}`. */
+const BAD_KEY = /[\s[\]{},="']/;
+
+/** `[&k=v,k=v]` in BEAST syntax ('' for no annotations). Strings are double-quoted (single-quoted if they hold a `"`), ranges and
+ *  sets are `{a,b}`. Throws for what the syntax cannot hold and parseAnnotationComment could not read back: a key with whitespace
+ *  or `[ ] { } , = " '`, and a string with both kinds of quote. */
 export function writeAnnotations(r: AnnotationRecord | undefined): string {
   if (!r) return '';
-  const one = (v: AnnotationScalar): string => (typeof v === 'number' ? String(v) : '"' + v.replace(/"/g, "'") + '"');
+  const one = (v: AnnotationScalar): string => {
+    if (typeof v === 'number') return Object.is(v, -0) ? '-0' : String(v);
+    if (!v.includes('"')) return '"' + v + '"';
+    if (!v.includes("'")) return "'" + v + "'";
+    throw new Error(`annotation value ${JSON.stringify(v)} holds both quote characters and cannot be written`);
+  };
   const parts: string[] = [];
   for (const k in r) {
+    if (k === '' || BAD_KEY.test(k)) throw new Error(`annotation key ${JSON.stringify(k)} cannot be written`);
     const v = r[k];
     parts.push(`${k}=${Array.isArray(v) ? '{' + v.map(one).join(',') + '}' : one(v)}`);
   }
@@ -156,13 +199,30 @@ export function writeAnnotations(r: AnnotationRecord | undefined): string {
 
 /**
  * Support values taken from a node annotation, for trees whose support is not an internal label (a BEAST MCC tree has
- * `[&posterior=0.98]`). Returns a new Float64Array by node index in the layout of `tree.support` (NaN for tips and for nodes without a
- * number under `key`). `tree.support` itself is never changed. To use the values where the viewer and tree-ops read
- * `tree.support`, copy them in on purpose: `tree.support.set(supportFrom(tree, 'posterior'))`.
+ * `[&posterior=0.98]`). Returns a new Float64Array by node index in the layout of `tree.support` (NaN for tips and for nodes without
+ * a number under `key`). `tree.support` itself is never changed. To use the values where tree-ops reads `tree.support`, copy them in
+ * on purpose: `tree.support.set(supportFrom(tree, 'posterior'))`.
+ *
+ * `pick` turns a value into a number for compound annotations, for example IQ-TREE's `SH-aLRT_UFB="85.5/61"`:
+ * `supportFrom(tree, 'SH-aLRT_UFB', (v) => parseFloat(String(v).split('/')[1]))` takes the ultrafast bootstrap. It gets any value
+ * (number, string or array) and should return NaN for those it cannot use.
  */
-export function supportFrom(tree: { annotations: Annotations | null; childCount: Int32Array }, key: string): Float64Array {
-  if (!tree.annotations) throw new Error('supportFrom needs a tree parsed with { annotations: true }');
-  const col = tree.annotations.column(key);
-  for (let i = 0; i < col.length; i++) if (tree.childCount[i] === 0) col[i] = NaN;
-  return col;
+export function supportFrom(
+  tree: { annotations: Annotations | null; childCount: Int32Array },
+  key: string,
+  pick?: (value: AnnotationValue) => number,
+): Float64Array {
+  const a = tree.annotations;
+  if (!a) throw new Error('supportFrom needs a tree parsed with { annotations: true }');
+  if (!pick) {
+    const col = a.column(key);
+    for (let i = 0; i < col.length; i++) if (tree.childCount[i] === 0) col[i] = NaN;
+    return col;
+  }
+  const out = new Float64Array(a.nodeCount).fill(NaN);
+  for (const [i, r] of a.node) {
+    const v = r[key];
+    if (v !== undefined && tree.childCount[i] > 0) out[i] = pick(v);
+  }
+  return out;
 }
