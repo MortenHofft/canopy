@@ -62,6 +62,7 @@ State: setters (each is a no-op for input equal to the current one) and getters
 | `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created, and on what the `themeObserver` option watches) |
 | `getTheme()` | the theme in force |
 | `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree); where clades nest the innermost wins (for the same node, the later entry); nodes not loaded are skipped. Emits `cladeschange` |
+| `setTree(tree \| source, opts?)` | show another tree without re-creating the viewer: canvases, controls, listeners, options and theme overrides stay; layout, hit index, column data, clade classes and highlights are rebuilt, the keyboard cursor and hover are reset. `opts`: `map` (old node -> new node, as tree-ops returns it, -1 removed), `view` (`'keep'` frames the tips that were in view through `map`, or by tip label without one, at the same scale: rectangular by rank, radial by angle; `'fit'` shows the whole tree; default `'keep'` with a `map`, else `'fit'`; a fitted view stays fitted, and `'keep'` fits when no tip in view survives (a tip that is gone counts as the nearest ancestor that survived, e.g. a collapsed clade, unless that is the whole tree) or the source is partial), `clades`, `highlighted`, `collapsed` (applied with the new tree, so no frame draws the old colours on it; default: `clades` and `collapsed` sent through `map` when there is one, `highlighted` unchanged since tip labels follow the tips). The old source is not destroyed. Emits `treechange` |
 | `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label; unknown labels are ignored. How they show is the `highlightStyle` option: a row band, ring and bold label (`'band'`), dimming everything else (`'dim'`) or both. Overview ticks in every style. Emits `highlightchange` |
 | `setCollapsed(nodeIds)` | tips that stand for collapsed clades (drawn as triangles); the collapsing itself is done in the data, e.g. with tree-ops' `collapseClades` |
 | `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` and `renderer` by reference, ids unique) |
@@ -72,7 +73,7 @@ Navigation and view
 
 | Method | Meaning |
 |---|---|
-| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits |
+| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits; a window equal to the current one changes nothing, so `setViewport(getViewport())` no longer stops a running animation (a controlled `viewport` prop echoing the view does not stop `fit(true)`) |
 | `fitViewport()` | the window `fit()` would go to (a copy), without moving: for controls that set the view relative to the fitted one |
 | `fit(animate = true)` | fit the whole tree and columns into the container |
 | `toBlob({ type?, scale?, background? })` | `Promise<Blob>`: the current view as an image, drawn into an offscreen canvas with the same code as the frame (the visible canvas is not read; hover and keyboard rings are left out). `type` defaults to `'image/png'`; `scale` is canvas pixels per CSS pixel (default the canvas's own: `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale` (rejects with `RangeError` over 16384 px); `background` is a CSS colour, `null` for a transparent image, default the theme's background. Not in the image: DOM controls, overlays and label anchors; with a partial source the current cut is exported. An unsupported `type` gives a PNG (check `blob.type`). Rejects over 2^26 px in all. Lines one device pixel wide (dense radial trees) and alignment smoothing follow `scale`, so they look fainter than on screen above the screen's scale |
@@ -129,6 +130,7 @@ Stats, frame control and lifetime
 | `highlightchange` | `string[]` | `setHighlighted` changed the tips |
 | `resize` | `{width, height}` | the container was resized |
 | `sourcechange` | `{version}` | the rows of a partial source changed |
+| `treechange` | `{map}` | `setTree` replaced the tree (`map` is null without one); `Search`, `Legend`, `NodeMenu` and `Tooltip` listen, a listener of yours that keeps node ids should too |
 | `ready` | `{layoutMs, tips}` | the first frame was drawn |
 | `destroy` | none | `destroy()` ran |
 
@@ -433,7 +435,8 @@ Props (all optional, but one of `tree` / `source` is needed):
 
 | Prop | Meaning |
 |---|---|
-| `tree`, `source` | one of the two: a `TreeData` or a `TreeSource`; `source` wins. Changing either re-creates the viewer |
+| `tree`, `source` | one of the two: a `TreeData` or a `TreeSource`; `source` wins. A new one goes to the same viewer (`setTree`): the view is fitted, or kept with `treeMap`. Switching between `tree` and `source` re-creates the viewer |
+| `treeMap` | `Int32Array`, the `map` of the operation that produced the new `tree` (old node -> new node, -1 removed): the viewport stays on the same tips. Pass it in the same render as the new `tree`; without it a new `tree` is fitted |
 | `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`). Like the `options` fields, applied when the prop changes: a layout chosen with the `LayoutToggle` control stays until the prop changes |
 | `clades` | `{nodeId: 'n<preorder id>', colour, label?}[]` |
 | `highlighted` | tip labels to highlight |

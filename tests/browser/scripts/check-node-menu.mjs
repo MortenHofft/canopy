@@ -119,7 +119,7 @@ await page.mouse.wheel(0, -200);
 await page.waitForTimeout(300);
 ok(!(await menuOpen()), 'zooming (a viewport change) closes it');
 const pb = await pane.boundingBox();
-await page.mouse.dblclick(pb.x + 300, pb.y + 12); // double click on empty space fits the tree again
+await page.mouse.dblclick(pb.x + 300, pb.y + 12); // double click on empty space fits the tree again (animated, under the shared controlled viewport)
 await page.waitForTimeout(400);
 await openOn(await cladeOf('E', 'F'));
 await act('rotate');
@@ -336,6 +336,57 @@ await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
 await page.getByRole('button', { name: 'Midpoint root' }).click();
 await page.waitForTimeout(300);
 ok(/root already is the midpoint/.test(await status()), `midpoint on a dated tree: ${await status()}`);
+
+// a new tree goes to the same renderers (setTree) and the panes keep the view: zoom both panes into a stretch of the tree, reroot on a tip in
+// it, and the viewers are the same objects, still in sync, and not back at the fitted view; Undo returns to the same view
+console.log('a new tree keeps the renderers and the view');
+const panes = () =>
+  page.evaluate(() =>
+    window.__panes().map((v) => {
+      const w = v.getViewport();
+      return { ...w, tips: v.getTree().tipCount, destroyed: v.isDestroyed() };
+    }),
+  );
+await page.evaluate(() => {
+  window.__keep = window.__panes();
+  window.__treeChanges = 0;
+  window.__keep.forEach((v) => v.on('treechange', () => window.__treeChanges++));
+  window.__panes()[0].setViewport({ x0: 0, x1: 1, y0: 50, y1: 70 });
+});
+await page.waitForTimeout(300);
+const sameView = (a, b) => ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
+let [va, vb] = await panes();
+ok(sameView(va, vb) && Math.abs(va.y1 - va.y0 - 20) < 1e-6, `zoomed in, the panes in sync (rows ${va.y0.toFixed(2)} to ${va.y1.toFixed(2)})`);
+const tipPos = await page.evaluate(() => {
+  const v = window.__panes()[0];
+  const t = v.getTree();
+  window.__tip = t.tipLabels[60];
+  return v.locateNode(t.tipNode[60]);
+});
+await openOn(tipPos);
+await act('reroot');
+[va, vb] = await panes();
+ok(
+  await page.evaluate(() => window.__panes().every((v, i) => v === window.__keep[i] && !v.isDestroyed())),
+  'a reroot hands the new tree to the same two renderers',
+);
+ok((await page.evaluate(() => window.__treeChanges)) === 2, 'each emitted treechange once');
+ok(sameView(va, vb), 'the two panes stay in sync after the reroot');
+ok(
+  await page.evaluate(() => {
+    const v = window.__panes()[0];
+    const w = v.getViewport();
+    const r = v.getTree().tipLabels.indexOf(window.__tip);
+    return r + 0.5 >= w.y0 && r + 0.5 <= w.y1;
+  }),
+  'the tip that was rerooted on is still in view',
+);
+ok(va.y1 - va.y0 < va.tips * 0.6, `and do not jump to the fitted view (${(va.y1 - va.y0).toFixed(1)} of ${va.tips} rows)`);
+await page.getByRole('button', { name: 'Undo' }).click();
+await page.waitForTimeout(500);
+[va, vb] = await panes();
+ok(sameView(va, vb) && va.y1 - va.y0 < va.tips * 0.6, 'Undo: still in sync, still zoomed');
+ok(await page.evaluate(() => window.__panes().every((v, i) => v === window.__keep[i])), 'and still the same renderers');
 
 // collapsing a clade of a dated tree extends the new tip to the present (tree-ops collapseClades { extend }), so the axis stays
 // "time before tips" (without it the tip ends at the clade's node and the axis flips to "distance from root", issue #19)
