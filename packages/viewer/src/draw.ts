@@ -2,7 +2,7 @@
 // allocates per node. Strokes are batched into one path per colour class.
 
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
-import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
+import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import { labelMinPx } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
@@ -632,7 +632,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
 // ------------------------------------------------------------------------------------------ node labels
 
 const NODE_LABEL_GAP_PX = 3; // a support value ends this far left of its node
-const NODE_LABEL_PAD_PX = 3; // free space the text keeps on each side within its branch
+const NODE_LABEL_PAD_PX = 3; // free space the text keeps on each side within its branch (at least the node marker's radius + 1, see `pad`)
 const NODE_LABEL_LIFT_PX = 2; // from the branch line up to the text's baseline
 const NODE_LABEL_MIN_SEG_PX = 10; // a branch shorter than this is not looked at (no digit fits)
 
@@ -656,7 +656,9 @@ function nodeText(S: Scene, row: number): string | null {
  *  never a node inside a summary, a run or a collapsed clade. Shown only with room, by the label-density rule of tip labels: rectangular, tip rows at least `labelMinPx` (scaled with the theme's `labelSize`) apart
  *  and the text fits the visible part of the node's horizontal segment; radial, the node's arc at least that long and the text fits the
  *  branch. Support sits left of the node above its branch; a length is centred on the branch (radial: rotated along it, upright on the
- *  left half like tip labels). The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP) labels, found by one pass over
+ *  left half like tip labels). A length is placed by one rule at every zoom: centred on the visible part of its branch (rectangular; the
+ *  whole branch, radial) if the text plus `pad` on both sides fits there, else not drawn (there is no placement at the node). Tips get no
+ *  label: a label on a tip branch would meet the tip marker and the tip label. The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP) labels, found by one pass over
  *  the draw list, with the text made only after the cheap geometry tests. */
 export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const mode = S.nodeLabels;
@@ -674,6 +676,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const sc = S.scale;
   const centred = mode === 'length'; // a function's text is placed and coloured like support
   const gap = Math.max(NODE_LABEL_GAP_PX, theme.nodeMarkerSize / 2 + 1); // a support value clears the node's marker
+  const pad = Math.max(NODE_LABEL_PAD_PX, theme.nodeMarkerSize / 2 + 1); // a length keeps clear of the node marker at one end and the connector at the other
   const colSupport = theme.supportColour || theme.muted,
     colLength = theme.lengthColour || theme.muted;
   const p: Pt = { x: 0, y: 0 },
@@ -685,8 +688,11 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   let lastAlpha = 1;
   let lastAlign = '';
   for (let e = 0; e < list.count && n < maxN; e++) {
-    const col = list.kind[e] !== K_NODE; // a collapsed clade shows its own support or length on its stem, like an expanded node
-    if (col ? !(hasCollapsed && isCollapsedEntry(S, e)) : list.last[e] >= 0) continue;
+    const kind = list.kind[e];
+    const col = kind !== K_NODE; // a collapsed clade shows its own support or length on its stem, like an expanded node
+    // a stub is drawn as its branch only: when its node is right of the plot (rectangular, checked below) the visible part of a long stem
+    // still holds a length, the same as it did while the node was a pixel nearer
+    if (col ? !((hasCollapsed && isCollapsedEntry(S, e)) || (kind === K_STUB && centred && rect)) : list.last[e] >= 0) continue;
     const i = list.node[e];
     if (i === 0) continue;
     let x0 = 0, // rectangular: the visible part of the segment; radial: the label's origin
@@ -696,6 +702,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
       sn = 0;
     proj.nodeXY(i, p);
     if (rect) {
+      if (kind === K_STUB && p.x <= T.clipR) continue; // a clade cut by size, not one pushed out of view
       proj.parentXY(i, q);
       if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
       x0 = Math.max(q.x, T.clipL);
@@ -717,7 +724,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
     const text = nodeText(S, i);
     if (text === null) continue;
     const w = S.measure.width(ctx, text, font);
-    if (w + (centred ? 2 * NODE_LABEL_PAD_PX : gap + NODE_LABEL_PAD_PX) > room) continue;
+    if (w + (centred ? 2 * pad : gap + NODE_LABEL_PAD_PX) > room) continue; // no room: not drawn, never moved to the node
     const fill = centred ? colLength : colSupport;
     if (fill !== lastFill) {
       ctx.fillStyle = fill;

@@ -485,8 +485,10 @@ list costs (at most 600 labels, 300 radial).
   branch, so no label. In a cladogram (`branchLengths: false`) a length is still the node's real length, centred on the segment that is drawn.
 - **Level of detail.** Only expanded internal nodes of the draw list get a label: none inside a summary (triangle, fan or slice), none for a
   collapsed-clade tip (so the length a collapse with `extend` gave it is never shown), none for a tip. A label needs room. Rectangular: tip
-  rows at least `LABEL_MIN_PX[labelDensity]` apart (16, 11 or 8 px), and the text, with 3 px each side, fits the visible part of the horizontal
-  segment. Radial: the node's arc (radius times the angle its tips span) at least that long, and the text fits the branch. A label that
+  rows at least `LABEL_MIN_PX[labelDensity]` apart (16, 11 or 8 px), and the text, with `max(3, nodeMarkerSize / 2 + 1)` px each side
+  (so it never touches the node marker), fits the visible part of the horizontal segment. This is the one rule for a length at every zoom,
+  also for a node pushed out of view to the right: its stem is a stub in the draw list and still gets the label while the text fits what
+  can be seen of it. Radial: the node's arc (radius times the angle its tips span) at least that long, and the text fits the branch. A label that
   does not fit is left out; nothing is shrunk or moved.
 - **Dimming.** With `highlightStyle` `'dim'` or `'both'`, the label of a dimmed node is drawn at `dimOpacity`, as its branch is.
 - **Looks.** `nodeLabelSize`, `supportColour`, `lengthColour` (theme, `--phylo-*`; `''` = `muted`). Labels are not DOM and are not hit-tested.
