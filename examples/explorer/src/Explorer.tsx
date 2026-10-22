@@ -756,7 +756,7 @@ export function Explorer({
         );
       default:
         return (
-          <span className="ex-tip ex-tip--collapse">
+          <span className="ex-tip ex-tip--menu">
             Click for actions<span className="ex-tip-name">{e.collapsed ? `${name} (collapsed)` : name}</span>
           </span>
         );
@@ -1119,7 +1119,7 @@ export function Explorer({
         </button>
         <button
           type="button"
-          className={`ex-btn ex-tool${mode === 'swap' ? ' active ex-swap-active' : ''}`}
+          className={`ex-btn ex-tool${mode === 'swap' ? ' active' : ''}`}
           aria-pressed={mode === 'swap'}
           title={mode === 'swap' ? 'Exit swap mode (Esc)' : 'Swap — exchange two sibling branches'}
           onClick={() => toggleMode('swap')}
@@ -1189,7 +1189,7 @@ export function Explorer({
             >
               <I.IconExpandAll />
               Expand all
-              <span className="ex-count ex-count--violet">{collapsed.length}</span>
+              <span className="ex-count">{collapsed.length}</span>
             </button>
           </>
         )}
@@ -1241,7 +1241,7 @@ export function Explorer({
         {labelCycle.length > 1 && (
           <button
             type="button"
-            className={`ex-btn ex-labels ex-labels--${labelMode}`}
+            className={`ex-btn ex-toggle ex-labels${labelMode !== 'none' ? ' active' : ''}`}
             title={`Node labels: ${labelMode === 'none' ? 'hidden' : labelMode === 'bootstrap' ? 'support values' : 'branch lengths'} — click to cycle`}
             onClick={() => setLabelMode(nextLabel)}
           >

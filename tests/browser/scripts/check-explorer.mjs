@@ -10,7 +10,7 @@
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu;
-// disabled in radial); the alignment track (a 'fill' column) and its legend; the overview and legend controls; dark mode reaches
+// disabled in radial); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included.
 /* global __v, __order, __tipAt, __clade, __inView -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
@@ -496,7 +496,7 @@ await page.waitForTimeout(150);
   await openMenu(pr[0]);
   await act('swap');
   ok(
-    (await page.locator('.ex-tool.ex-swap-active').count()) === 1 && (await page.locator('.ex-steps .done').count()) === 1,
+    (await page.locator('.ex-tool.active', { hasText: 'Swap' }).count()) === 1 && (await page.locator('.ex-steps .done').count()) === 1,
     'Swap with… starts Swap mode with step 1 done',
   );
   // the first pick keeps its mark (#65) while the pointer goes to the second, whose hover ring shows too
@@ -1815,6 +1815,89 @@ for (const k of [2, 3, 1]) {
 const focused = await ev(() => window.__focused.filter((r, i, a) => i === 0 || r !== a[i - 1]));
 ok(JSON.stringify(focused.slice(-4)) === '[0,1,3,0]', `each step focuses the next of the three tips (ranks ${JSON.stringify(focused)})`);
 await page.keyboard.press('Escape');
+
+console.log('one action colour (#74)');
+{
+  await open('rich-fish-carangaria-135');
+  const tog = (t) => page.locator(`.ex-outer button[aria-label="${t}"]`);
+  // a CSS colour as the browser computes it, to compare with computed styles
+  const computed = (c) =>
+    ev((c) => {
+      const s = document.createElement('span');
+      s.style.color = c;
+      document.body.append(s);
+      const v = getComputedStyle(s).color;
+      s.remove();
+      return v;
+    }, c);
+  const colourOf = (loc, prop = 'color') => loc.evaluate((e, prop) => getComputedStyle(e)[prop], prop);
+  const label = page.locator('.ex-labels');
+  // the toggles and the label button in each of their on states, the tools when active and the hover box
+  const states = async () => {
+    const text = {};
+    for (const t of ['Overview', 'Legend']) {
+      if (!(await tog(t).evaluate((e) => e.classList.contains('active')))) await tog(t).click();
+      await page.mouse.move(5, 5);
+      await page.waitForTimeout(250); // the buttons' colours have a transition
+      text[t] = await colourOf(tog(t));
+    }
+    if (!(await btn('Truncate').evaluate((e) => e.classList.contains('active')))) await btn('Truncate').click();
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(250);
+    text.Truncate = await colourOf(btn('Truncate'));
+    for (let k = 0; k < 3; k++) {
+      const name = (await label.innerText()).trim().split('\n').pop();
+      text[`labels ${name}`] = (await label.evaluate((e) => e.classList.contains('active'))) ? await colourOf(label) : 'inactive';
+      await label.click();
+      await page.mouse.move(5, 5);
+      await page.waitForTimeout(250);
+    }
+    const background = {};
+    for (const t of ['Reroot', 'Flip', 'Swap']) {
+      await page.locator('.ex-tool', { hasText: t }).click();
+      await page.mouse.move(5, 5);
+      await page.waitForTimeout(200);
+      background[t] = await colourOf(page.locator('.ex-tool.active'), 'backgroundColor');
+      await page.locator('.ex-outer').press('Escape');
+      await page.waitForTimeout(100);
+    }
+    await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3]))));
+    await page.locator('.ex-tip--menu').waitFor({ timeout: 3000 });
+    await page.waitForTimeout(250);
+    text['hover box'] = await colourOf(page.locator('.ex-tip--menu'));
+    await page.mouse.move(5, 5);
+    return { text, background };
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    const theme = (await ev(() => document.documentElement.dataset.theme)) || 'light';
+    const primary = await computed('var(--ex-primary)');
+    const { text, background } = await states();
+    ok(text['labels No labels'] === 'inactive', `${theme}: "No labels" looks inactive`);
+    delete text['labels No labels'];
+    const off = Object.entries(text).filter(([, c]) => c !== primary);
+    ok(
+      Object.keys(text).length >= 6 && off.length === 0,
+      `${theme}: active toggles, the label button and the hover box have the text colour --ex-primary (${primary})${off.length ? `, not ${JSON.stringify(off)}` : ''}`,
+    );
+    ok(
+      Object.values(background).every((c) => c === primary),
+      `${theme}: Reroot, Flip and Swap, active, have the background --ex-primary (${JSON.stringify(background)})`,
+    );
+    // a theme sets the hover box's own variable: only the box changes
+    await ev(() => document.documentElement.style.setProperty('--ex-hover-tip', 'rgb(200, 30, 30)'));
+    const themed = await states();
+    await ev(() => document.documentElement.style.removeProperty('--ex-hover-tip'));
+    ok(themed.text['hover box'] === 'rgb(200, 30, 30)', `${theme}: --ex-hover-tip colours the hover box (${themed.text['hover box']})`);
+    delete themed.text['hover box'];
+    delete themed.text['labels No labels'];
+    ok(
+      Object.values(themed.text).every((c) => c === primary) && Object.values(themed.background).every((c) => c === primary),
+      `${theme}: and nothing else`,
+    );
+    await page.locator('.theme-toggle').click();
+    await page.waitForTimeout(300);
+  }
+}
 
 console.log('every tree of the playground catalogue, one from each group');
 const here = path.dirname(fileURLToPath(import.meta.url));
