@@ -141,7 +141,8 @@ export function Reactree({
   const view = useMemo(() => {
     const live = collapsed.filter((v) => v > 0 && v < tree.nodeCount);
     if (!live.length) return null;
-    const r = ops.collapseClades(tree, live, (_node, tips) => `${tips} taxa`);
+    // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
+    const r = ops.collapseClades(tree, live);
     const shown = new TreeModel(r.tree);
     const toTree = new Int32Array(shown.nodeCount);
     for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;

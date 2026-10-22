@@ -198,15 +198,20 @@ ok(after === before - c1.tips + 1, `a clade click collapses it (${before} → ${
 ok((await btn('Expand all').count()) === 1 && (await page.locator('.rt-expand .rt-count').innerText()) === '1', 'Expand all appears with the count');
 const tri = await ev(() => {
   const t = __v().getTree();
-  for (let r = 0; r < t.tipCount; r++) if (/ taxa$/.test(t.tipLabels[r])) return __v().locateNode(t.tipNode[r]);
+  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return __v().locateNode(t.tipNode[r]);
   return null;
 });
-ok(tri !== null, 'the collapsed clade is a tip labelled "N taxa"');
+ok(tri !== null, 'the collapsed clade is a tip labelled "<first tip> and N more"');
 await click(tri);
 await page.waitForTimeout(200);
 ok((await ev(() => __v().getTree().tipCount)) === before && (await btn('Expand all').count()) === 0, 'a click on the triangle expands it');
 await click(await ev(() => __clade(4, 10)));
 await click(await ev(() => __clade(4, 10, 3)));
+// two clades of the same size collapsed: their tips still have distinct labels (tip labels are the viewer's ids)
+await click(await ev(() => __clade(2, 2)));
+await click(await ev(() => __clade(2, 2, 2)));
+const labs = await ev(() => __v().getTree().tipLabels);
+ok(new Set(labs).size === labs.length, 'collapsed clades of the same size get distinct tip labels');
 await btn('Expand all').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().getTree().tipCount)) === before, 'Expand all');

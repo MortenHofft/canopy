@@ -34,7 +34,7 @@ control and reads the result back from the viewer.
 | Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot` and `rotate` (Swap of two siblings is `rotate` of their binary parent) |
 | Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
 | Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
-| Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "N taxa") and the `collapsed` prop |
+| Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "<first tip> and N more", unique, where Reactree says "N taxa") and the `collapsed` prop; the tooltip says "N taxa" |
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
 | Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
