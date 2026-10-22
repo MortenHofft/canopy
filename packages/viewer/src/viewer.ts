@@ -74,6 +74,7 @@ import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
+const AUTO_LOD_MS = 12; // interactionLOD 'auto': reduce while moving once full-quality frames take longer than this (JS time, smoothed)
 const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
 const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
 const CURSOR_RING_RADIUS = 10; // the keyboard cursor's ring, CSS px (in highlight; not a theme token yet, see api.md "Known gaps")
@@ -266,13 +267,15 @@ export class TreeViewer {
     reduced: false,
     scale: 1,
   };
-  // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced; one full frame follows
-  // `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
+  // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced (interactionLOD true, or 'auto' when the
+  // full frames are slow, see fullMs); one full frame follows `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
   private interacting = false;
   private reducedFrame = false;
   private refineTimer = 0;
   private minPxHint = 0;
   private lastFullDrawn = 0;
+  private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
+  private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
   private noticeText = '';
   private noticeShown = false;
   private msSum = 0;
@@ -1652,7 +1655,7 @@ export class TreeViewer {
 
   /** Called by every input that moves the view (wheel, drag, pinch, overview, animation steps). */
   private noteInput(): void {
-    if (!this.opts.interactionLOD) return;
+    if (this.opts.interactionLOD === false) return;
     this.interacting = true;
     if (this.refineTimer) clearTimeout(this.refineTimer);
     this.refineTimer = window.setTimeout(() => {
@@ -1662,6 +1665,19 @@ export class TreeViewer {
       if (this.reducedFrame) this.dirty = true;
       this.schedule();
     }, this.opts.refineMs);
+  }
+
+  /** Whether this frame is drawn reduced: only while the view moves, and with 'auto' only when the full-quality frames are slow. */
+  private reduceWhileMoving(): boolean {
+    const mode = this.opts.interactionLOD;
+    return this.interacting && (mode === true || (mode === 'auto' && this.fullMs > AUTO_LOD_MS));
+  }
+
+  /** Fold the JS time of a full-quality frame into fullMs (weight 1/2 on the newest). The first full frame carries one-off costs (JIT,
+   *  first measurements) and is skipped; the second seeds the average. */
+  private measureFull(ms: number): void {
+    if (this.fullFrames++ === 0) return;
+    this.fullMs = this.fullMs > 0 ? this.fullMs * 0.5 + ms * 0.5 : ms;
   }
 
   /** Force a full redraw n times and return the mean JS time per frame (benchmark helper). */
@@ -1833,7 +1849,7 @@ export class TreeViewer {
     const T = this.T;
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const reduced = this.interacting && opts.interactionLOD;
+    const reduced = this.reduceWhileMoving();
 
     // ---- cut
     const tc = performance.now();
@@ -1888,6 +1904,7 @@ export class TreeViewer {
     st.mergedTips = res.mergedTips;
     st.reduced = reduced;
     st.scale = dpr;
+    if (!reduced) this.measureFull(frameMs);
     this.msSum += frameMs;
     this.msN++;
     if (frameMs > this.msMax) this.msMax = frameMs;

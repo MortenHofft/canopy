@@ -424,9 +424,11 @@ export interface ViewerOptions {
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
-  /** While the user wheels, pinches or drags, draw with a quarter of the budget (min 500) and a coarser collapse threshold,
-   *  then refine once after `refineMs` without input. Hit-testing always settles to a full-quality frame first. */
-  interactionLOD: boolean;
+  /** Reduced frames while the view moves (wheel, pinch, drag, animation): a quarter of the budget (min 500) and a coarser collapse
+   *  threshold, then one full-quality frame after `refineMs` without input. Hit-testing always settles to a full-quality frame first.
+   *  `'auto'` (default): full quality while moving, reduced only when the full-quality frames get slow (their JS time, smoothed over
+   *  the last few, above 12 ms); `true`: always reduced while moving; `false`: never. */
+  interactionLOD: boolean | 'auto';
   refineMs: number;
   /** Small notice in the canvas corner when the radial cut-off is summarising clades the normal threshold would show. */
   summaryNotice: boolean;
@@ -464,7 +466,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   radialOpening: 0.05,
   radialRotation: 90,
   radialMaxNodes: 2000,
-  interactionLOD: true,
+  interactionLOD: 'auto',
   refineMs: 120,
   summaryNotice: true,
 };

@@ -778,7 +778,19 @@ export const SETTINGS: Setting[] = [
     kind: 'toggle',
     default: O.summaryNotice,
   },
-  { id: 'interactionLOD', label: 'Reduced frames while dragging', group: 'Level of detail', to: 'option', kind: 'toggle', default: O.interactionLOD },
+  {
+    id: 'interactionLOD',
+    label: 'Reduced frames while moving',
+    group: 'Level of detail',
+    to: 'option',
+    kind: 'select',
+    default: String(O.interactionLOD),
+    options: [
+      ['auto', 'When frames are slow'],
+      ['true', 'Always'],
+      ['false', 'Never'],
+    ],
+  },
   {
     id: 'refineMs',
     label: 'Full frame after (ms idle)',
@@ -826,6 +838,7 @@ export function toViewer(s: Setting, v: Value): unknown {
   if (s.kind !== 'select' || typeof v !== 'string') return v;
   if (v === 'fit') return null;
   if (v === 'Infinity') return Infinity;
+  if (v === 'true' || v === 'false') return v === 'true';
   return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
 }
 

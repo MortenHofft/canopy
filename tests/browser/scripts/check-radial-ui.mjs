@@ -164,6 +164,8 @@ ok(!!loc && s.drawn <= 2000, `focusTip on a tip that was inside a summary: locat
 await page.evaluate(() => window.__spike.highlightTips([]));
 
 // ---- wheel gesture: reduced frames while it lasts, one full frame after, click right after hits the full-quality target
+// (interactionLOD true for this check: the default 'auto' reduces only when full frames are slow, which depends on the machine; reset after)
+await rd(() => window.__customTree.handle().renderer().setOptions({ interactionLOD: true }));
 await rd(() => window.__customTree.handle().renderer().fit(false));
 await sleep(200);
 const cx = box.x + box.width * 0.45,
@@ -184,6 +186,7 @@ ok(sawReduced && maxReducedDrawn <= 500, `during the wheel: reduced frames drawn
 await sleep(300);
 s = await stats();
 ok(!s.reduced && s.drawn <= 2000, `300 ms after the wheel: full frame (reduced=${s.reduced}, drawn ${s.drawn})`);
+await rd(() => window.__customTree.handle().renderer().setOptions({ interactionLOD: 'auto' }));
 
 // ---- progressive detail: zoom in step by step, forced summaries fall to 0, budget respected
 const series = [];

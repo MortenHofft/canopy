@@ -74,7 +74,10 @@ Where the three adaptive mechanisms sit:
   point. Above 80,000 visited nodes (caterpillar-like walks) there is no search, `minPx` just doubles until the list fits.
 - **Interaction LOD** (`viewer.ts`: `noteInput`, `refineMs`). The input controller calls `noteInput()` before it moves the view. While the user
   wheels, pinches, drags or an animation runs, frames are reduced: a quarter of the budget (at least 500), and the threshold x1.6 when the last
-  full frame had more than 1,000 primitives. `refineMs` (default 120) after the last input one full-quality frame is drawn. The label overlay,
+  full frame had more than 1,000 primitives. With `interactionLOD: 'auto'` (the default) that happens only while the full-quality frames are
+  slow: `fullMs`, the JS time of the full frames averaged with weight 1/2 on the newest (the first full frame, with its one-off costs, is skipped), above `AUTO_LOD_MS` (12 ms). A reduced frame does
+  not update it, so a gesture that started reduced stays reduced until the frame after `refineMs` measures the full cost again. JS time
+  leaves out the GPU and compositing, so it is a lower bound of the real frame time. `refineMs` (default 120) after the last input one full-quality frame is drawn. The label overlay,
   the corner notice and the stub loader run after full-quality frames only.
 - **Settle** (`settle()` in `viewer.ts`). Anything that reads the draw list for a decision (`hitTest`, click, hover, `locateNode`, `nodeBounds`,
   `columnCell`, `renderNow`) first draws a full-quality frame if the last one was reduced, so a click always hits what a settled frame shows.
