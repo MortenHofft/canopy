@@ -1254,6 +1254,8 @@ export function Explorer({
             // with the alignment shown, the tree takes 40% of the width and the 'fill' column the rest
             treeWidth: columns.length ? '40%' : undefined,
             themeObserver: 'document',
+            // the hover ring grows in, as in Reactree (the default; said here as the look depends on it)
+            hoverAnimation: true,
           }}
           tooltip={tooltip}
           tooltipBare

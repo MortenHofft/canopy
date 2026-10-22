@@ -179,6 +179,7 @@ const longest = await ev(() =>
 ok((await ev((l) => __v().options.formatLabel(l), longest)).endsWith('…'), 'Truncate (on by default) shortens long names');
 await btn('Truncate').click();
 ok((await ev((l) => __v().options.formatLabel(l), longest)) === longest.replace(/_/g, ' '), 'Full names: the whole name');
+ok((await ev(() => __v().options.hoverAnimation)) === true, 'the hover ring grows in (hoverAnimation)');
 
 console.log('opaque background, typography');
 const paneBg = await ev(() => {

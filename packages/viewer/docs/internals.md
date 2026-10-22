@@ -170,6 +170,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/view-state.ts`               | 384       | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM)                                                                   |
 | `src/input.ts`                    | 306       | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer)                                           |
 | `src/keyboard.ts`                 | 70        | keyboard cursor: start node and navigation keys (pure functions)                                                                                     |
+| `src/ring-anim.ts` | 60 | `RingAnim`, `easeOut`: the hover and cursor rings growing in and fading out (`hoverAnimation`), on frame timestamps |
 | `src/overlay.ts`                  | 158       | `LabelOverlay`: label anchors and links, hidden tip list, live region                                                                                |
 | `src/overview.ts`                 | 269       | `Overview`: strip/disc with the window box, its geometry as pure functions (used by `controls/overview.ts`)                                          |
 | `src/detail-loader.ts`            | 87        | `DetailLoader`: opens stubs of a partial source through `ensureClade`                                                                                |

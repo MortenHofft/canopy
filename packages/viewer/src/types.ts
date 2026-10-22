@@ -167,6 +167,11 @@ export interface TreeTheme extends ResidueTheme {
    *  `highlight`) and line width (CSS px, 0 = no path). Drawn on the overlay canvas under the rings, at full strength over a dimmed tree. */
   hoverPathColour: string;
   hoverPathWidth: number;
+  /** The hover ring, in `highlight`: radius and line width (CSS px; a collapsed clade's ring is 1.5 times the radius) and, with the
+   *  option `hoverAnimation`, how long it takes to grow in (and the ring left behind to fade out), in ms. 0 ms = no animation. */
+  hoverRingRadius: number;
+  hoverRingWidth: number;
+  hoverRingDuration: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -209,6 +214,9 @@ export const FALLBACK_THEME: TreeTheme = {
   markDash: '3 2',
   hoverPathColour: '',
   hoverPathWidth: 2,
+  hoverRingRadius: 6,
+  hoverRingWidth: 2,
+  hoverRingDuration: 150,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
@@ -347,6 +355,10 @@ export interface ViewerOptions {
   /** Hovering a tip, clade or summary also highlights its path to the root (every branch and connector on the way); with nothing
    *  hovered, the keyboard cursor's path is shown. How it looks is the theme's `hoverPathColour` and `hoverPathWidth`. */
   hoverPath: boolean;
+  /** The hover ring grows into existence (radius and opacity from 0, eased out) over the theme's `hoverRingDuration` and the ring left
+   *  behind fades out; the keyboard cursor's ring grows the same way when the cursor moves. Only the overlay canvas is redrawn, and only
+   *  while a ring is still changing. Skipped when the user prefers reduced motion (`prefers-reduced-motion: reduce`). */
+  hoverAnimation: boolean;
   /**
    * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
    * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
@@ -422,6 +434,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   labelDensity: 'normal',
   alignLabels: false,
   hoverPath: true,
+  hoverAnimation: true,
   nodeLabels: 'none',
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',

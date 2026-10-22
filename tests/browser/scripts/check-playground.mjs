@@ -197,6 +197,66 @@ await setInput('hoverPathColour', '');
 await select('layout', 'rectangular');
 await page.mouse.move(2, 2);
 
+console.log('hover animation');
+// how many of 16 points on the circle of radius r around p have ink on the top canvas, after two frames
+const ringInk = (p, r) =>
+  ev(
+    async ([x, y, r]) => {
+      await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+      const c = window.viewer.treeElement.querySelectorAll('canvas')[1];
+      const s = c.width / c.getBoundingClientRect().width;
+      const g = c.getContext('2d');
+      let n = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * 2 * Math.PI;
+        if (g.getImageData(Math.round((x + r * Math.cos(a)) * s), Math.round((y + r * Math.sin(a)) * s), 1, 1).data[3] > 0) n++;
+      }
+      return n;
+    },
+    [p.x, p.y, r],
+  );
+ok(
+  (await opt('hoverAnimation')) === true &&
+    (await theme('hoverRingDuration')) === 150 &&
+    (await theme('hoverRingRadius')) === 6 &&
+    (await theme('hoverRingWidth')) === 2,
+  'hoverAnimation on by default, the ring tokens at their defaults',
+);
+await toggle('hoverPath', false); // the path would cross the ring
+await setInput('hoverRingDuration', '1000');
+ok((await theme('hoverRingDuration')) === 1000 && query().get('s.hoverRingDuration') === '1000', 'the duration token reaches the theme and the URL');
+{
+  const { tip } = await pathProbe();
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  const framesBefore = await ev(() => window.viewer.stats.frames);
+  await page.mouse.move(box.x + tip.x, box.y + tip.y);
+  const early = await ringInk(tip, 6);
+  await page.waitForTimeout(1200);
+  const late = await ringInk(tip, 6);
+  ok(early <= 2 && late >= 12, `the ring grows in: ${early} of 16 points at full radius after two frames, ${late} once settled`);
+  ok((await ev(() => window.viewer.stats.frames)) === framesBefore, 'the tree is not redrawn while the ring grows');
+  await toggle('hoverAnimation', false);
+  ok((await opt('hoverAnimation')) === false && query().get('s.hoverAnimation') !== null, 'the toggle reaches the option and the URL');
+  await page.mouse.move(2, 2);
+  await settled();
+  await page.mouse.move(box.x + tip.x, box.y + tip.y);
+  const at = await ringInk(tip, 6);
+  ok(at >= 12, `without the animation the ring is there at once (${at} of 16 points)`);
+  await setInput('hoverRingRadius', '10');
+  ok((await theme('hoverRingRadius')) === 10 && (await ringInk(tip, 10)) >= 12, 'the radius token sets the ring');
+  await setInput('hoverRingRadius', '6');
+  await setInput('hoverRingWidth', '3');
+  ok((await theme('hoverRingWidth')) === 3, 'the width token reaches the theme');
+  await setInput('hoverRingWidth', '2');
+  await toggle('hoverAnimation', true);
+}
+await setInput('hoverRingDuration', '150');
+await toggle('hoverPath', true);
+await page.mouse.move(2, 2);
+
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');

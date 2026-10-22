@@ -46,6 +46,7 @@ import { makeNodeEvent, toTreeEvent } from './node-event.ts';
 import { LabelOverlay } from './overlay.ts';
 import type { OverviewHost } from './overview.ts';
 import { projectionFor, type LayoutProjection } from './projection.ts';
+import { easeOut, RingAnim } from './ring-anim.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
@@ -75,6 +76,8 @@ const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only 
 const HEAVY_PRIMS = 1000;
 const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
 const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
+const CURSOR_RING_RADIUS = 10; // the keyboard cursor's ring, CSS px (in highlight; not a theme token yet, see api.md "Known gaps")
+const CURSOR_RING_WIDTH = 2.5;
 
 /** A node handle is a preorder id of the tree the viewer holds: an integer in [0, limit) (see `nodeLimit`). */
 function isNodeOf(limit: number, id: unknown): id is number {
@@ -231,8 +234,15 @@ export class TreeViewer {
   private marked: number[] = [];
   private markRows = new Int32Array(0);
   private raf = 0;
+  /** The timestamp of the animation frame being drawn, NaN outside one (what the ring animation reads). */
+  private frameNow = NaN;
   private dirty = true;
   private topDirty = true;
+  /** The hover ring growing in, the hover ring it replaced fading out, and the keyboard cursor's ring (option `hoverAnimation`). */
+  private hoverIn = new RingAnim();
+  private hoverOut = new RingAnim();
+  private cursorIn = new RingAnim();
+  private motionQuery: MediaQueryList | null | undefined; // prefers-reduced-motion, made on first use; null without matchMedia
   private pendingHover: { x: number; y: number } | null = null;
   private destroyed = false;
   readonly stats: FrameStats = {
@@ -1741,10 +1751,12 @@ export class TreeViewer {
     this.raf = requestAnimationFrame((now) => {
       this.raf = 0;
       if (this.destroyed) return;
+      this.frameNow = now;
       if (this.vs.animating) this.vs.stepAnim(now);
       if (this.dirty) this.render();
       if (this.pendingHover && !this.interacting) this.doHover();
       if (this.topDirty) this.drawTop();
+      this.frameNow = NaN;
       if (this.vs.animating) this.schedule();
     });
   }
@@ -1939,7 +1951,8 @@ export class TreeViewer {
   }
 
   /** The marks, selection, hover and keyboard rings, and the path to the root of the hovered node (else of the keyboard cursor; under the
-   *  rings), live on their own canvas so they never trigger a tree redraw. */
+   *  rings), live on their own canvas so they never trigger a tree redraw. While a ring grows or fades (`hoverAnimation`), this canvas
+   *  alone is redrawn every frame. */
   private topHad = false;
   private drawTop(): void {
     this.topDirty = false;
@@ -1953,24 +1966,93 @@ export class TreeViewer {
     this.drawHoverPath(c, proj);
     this.drawMarks(c, proj);
     if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
-    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
-      drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
-    if (this.activeNode >= 0) {
-      drawRing(c, proj, this.activeNode, 10, this.theme.highlight, 2.5);
-      const p = { x: 0, y: 0 };
-      proj.nodeXY(this.activeNode, p);
-      if (this.T.kind === 'rectangular') {
-        c.strokeStyle = this.theme.highlight;
-        c.globalAlpha = 0.5;
-        c.lineWidth = 1;
-        const ky = this.T.ky;
-        const y0 = this.T.oy + this.L.rowStart[this.activeNode] * ky,
-          y1 = this.T.oy + this.L.rowEnd[this.activeNode] * ky;
-        if (y1 - y0 > 3 && this.tree.childCount[this.activeNode] > 0)
-          c.strokeRect(p.x, Math.max(this.T.clipT, y0), Math.max(4, this.T.clipR - p.x - 4), Math.min(this.T.clipB, y1) - Math.max(this.T.clipT, y0));
-        c.globalAlpha = 1;
-      }
+    if (this.drawRings(c, proj, sel)) {
+      this.topDirty = true; // a ring is still changing: draw the next step
+      this.schedule();
     }
+    if (this.activeNode >= 0) this.drawCursorBox(c);
+  }
+
+  /** How long a ring takes to grow in: the theme's `hoverRingDuration` with `hoverAnimation`, 0 (at once) without it or when the user
+   *  prefers reduced motion. */
+  private ringMs(): number {
+    if (!this.opts.hoverAnimation) return 0;
+    if (this.motionQuery === undefined) this.motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    return this.motionQuery?.matches ? 0 : this.theme.hoverRingDuration;
+  }
+
+  /** The hover ring (growing in), the hover ring it replaced (fading out) and the keyboard cursor's ring (growing in when the cursor moves),
+   *  in `highlight`. Returns whether one of them is still changing. */
+  private drawRings(c: CanvasRenderingContext2D, proj: LayoutProjection, sel: number): boolean {
+    const th = this.theme;
+    const ms = this.ringMs();
+    const now = this.frameNow;
+    const hin = this.hoverIn,
+      out = this.hoverOut;
+    const shown = this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel;
+    const prev = hin.node;
+    if (prev !== (shown ? this.hoverNode : -1)) {
+      if (prev >= 0 && ms > 0) out.fadeFrom(hin);
+      else out.clear();
+    }
+    hin.to(shown ? this.hoverNode : -1, this.hoverKind === 'summary' ? 1.5 : 1);
+    this.cursorIn.to(this.activeNode, 1);
+    const fading = this.fadeRing(c, proj, ms, now);
+    const growing = this.growRing(c, proj, hin, th.hoverRingRadius * hin.scale, th.hoverRingWidth, ms, now);
+    return this.growRing(c, proj, this.cursorIn, CURSOR_RING_RADIUS, CURSOR_RING_WIDTH, ms, now) || growing || fading;
+  }
+
+  /** A ring growing in: radius and opacity eased from 0. Returns whether it is still growing. */
+  private growRing(
+    c: CanvasRenderingContext2D,
+    proj: LayoutProjection,
+    ring: RingAnim,
+    radius: number,
+    width: number,
+    ms: number,
+    now: number,
+  ): boolean {
+    if (ring.node < 0) return false;
+    const e = easeOut(ring.progress(now, ms));
+    this.strokeRing(c, proj, ring.node, radius * e, width, e);
+    return e < 1;
+  }
+
+  /** The hover ring left behind, fading out at the size it had reached. Returns whether it is still fading. */
+  private fadeRing(c: CanvasRenderingContext2D, proj: LayoutProjection, ms: number, now: number): boolean {
+    const out = this.hoverOut;
+    if (out.node < 0) return false;
+    const t = out.progress(now, ms);
+    const th = this.theme;
+    this.strokeRing(c, proj, out.node, th.hoverRingRadius * out.scale * out.peak, th.hoverRingWidth, out.peak * (1 - easeOut(t)));
+    if (t < 1) return true;
+    out.clear();
+    return false;
+  }
+
+  private strokeRing(c: CanvasRenderingContext2D, proj: LayoutProjection, node: number, radius: number, width: number, alpha: number): void {
+    if (!(radius > 0) || !(alpha > 0)) return;
+    if (alpha < 1) c.globalAlpha = alpha;
+    drawRing(c, proj, node, radius, this.theme.highlight, width);
+    if (alpha < 1) c.globalAlpha = 1;
+  }
+
+  /** Rectangular: the box of the keyboard cursor's clade, from its node to the right edge. */
+  private drawCursorBox(c: CanvasRenderingContext2D): void {
+    const T = this.T;
+    if (T.kind !== 'rectangular') return;
+    const node = this.activeNode;
+    const p = { x: 0, y: 0 };
+    this.proj.nodeXY(node, p);
+    c.strokeStyle = this.theme.highlight;
+    c.globalAlpha = 0.5;
+    c.lineWidth = 1;
+    const ky = T.ky;
+    const y0 = T.oy + this.L.rowStart[node] * ky,
+      y1 = T.oy + this.L.rowEnd[node] * ky;
+    if (y1 - y0 > 3 && this.tree.childCount[node] > 0)
+      c.strokeRect(p.x, Math.max(T.clipT, y0), Math.max(4, T.clipR - p.x - 4), Math.min(T.clipB, y1) - Math.max(T.clipT, y0));
+    c.globalAlpha = 1;
   }
 
   // ================================================================= hit-testing, hover
@@ -2025,6 +2107,8 @@ export class TreeViewer {
 
   /** Clear the hover (the pointer left, or a drag started). */
   private clearHover(): void {
+    this.hoverIn.clear(); // the pointer left, or the tree changed under it: no ring fades out
+    this.hoverOut.clear();
     this.hoverNode = -1;
     this.hoverKind = '';
     this.hoverRun = -1;
