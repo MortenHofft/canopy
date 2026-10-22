@@ -31,12 +31,15 @@ const NUMBERS = [
   'dimOpacity',
   'labelSize',
   'axisFontSize',
+  'leaderWidth',
+  'leaderOpacity',
   'alignRowGap',
 ] as const;
+const STRINGS = ['fontFamily', 'leaderColour', 'leaderDash'] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(
-  (['dark', ...COLOURS, 'fontFamily', 'labelFontStyle', 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [
+  (['dark', ...COLOURS, ...STRINGS, 'labelFontStyle', 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [
     k,
     '--phylo-' + kebab(k),
   ]),
@@ -64,8 +67,10 @@ export function themeFromCss(el: Element, deriveDarkFromBackground = true): Part
     const v = get(k);
     if (v) out[k] = v;
   }
-  const font = get('fontFamily');
-  if (font) out.fontFamily = font;
+  for (const k of STRINGS) {
+    const v = get(k);
+    if (v) out[k] = v;
+  }
   const fontStyle = get('labelFontStyle').toLowerCase(); // 'oblique' is italic to the canvas and the DOM alike
   if (fontStyle === 'italic' || fontStyle === 'oblique') out.labelFontStyle = 'italic';
   else if (fontStyle === 'normal') out.labelFontStyle = 'normal';

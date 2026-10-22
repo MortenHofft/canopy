@@ -6,6 +6,12 @@
 /** Nodes are culled against the clip rectangle grown by this many px, and the radial window drawing clips arcs to is grown by the same. */
 export const CULL_PAD_PX = 8;
 
+// ---- collapsed-clade tips (draw.ts, view-state.ts)
+
+/** Length of the triangle of a collapsed-clade tip, along the branch direction (CSS px). Aligned labels clear it, and the label reserve of
+ *  the plot area grows by it when the tree has collapsed tips. */
+export const COLLAPSED_W = 14;
+
 // ---- radial drawing (draw.ts)
 
 /** Radius (px) from which a radial arc is no longer drawn with ctx.arc(): a far-off clade is clipped to the visible angles (or drawn as a

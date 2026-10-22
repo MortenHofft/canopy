@@ -19,7 +19,19 @@ import { cellRect, columnsWidth, drawColumns, layoutColumns, recolourColumns, up
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
-import { drawAxis, drawBody, drawHighlights, drawLabels, drawMarkers, drawRing, drawScaleBar, LabelList, TextMeasurer, type Scene } from './draw.ts';
+import {
+  drawAxis,
+  drawBody,
+  drawHighlights,
+  drawLabels,
+  drawLeaders,
+  drawMarkers,
+  drawRing,
+  drawScaleBar,
+  LabelList,
+  TextMeasurer,
+  type Scene,
+} from './draw.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { InputController, type InputHost } from './input.ts';
@@ -329,6 +341,8 @@ export class TreeViewer {
         overview: () => this.overviewReserved,
         axis: () => this.opts.axis,
         rowHeight: () => this.opts.rowHeight,
+        alignLabels: () => this.opts.alignLabels,
+        hasCollapsed: () => this.collapsedRank !== null,
         W: () => this.W,
         H: () => this.H,
         tree: () => this.tree,
@@ -1344,6 +1358,7 @@ export class TreeViewer {
       hlPrefix: dimming ? this.dimPrefix() : null,
       collapsed: this.collapsedRank,
       density: opts.labelDensity,
+      alignLabels: opts.alignLabels,
       format: opts.formatLabel,
       scale,
       thin: !rect && this.list.count >= THIN_PRIMS,
@@ -1355,6 +1370,7 @@ export class TreeViewer {
     ctx.clip();
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, this.theme.branchWidth);
+    drawLeaders(ctx, S);
     drawMarkers(ctx, S);
     drawLabels(ctx, S, labels);
     ctx.restore();

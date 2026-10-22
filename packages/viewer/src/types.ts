@@ -119,6 +119,12 @@ export interface TreeTheme extends ResidueTheme {
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
   axisFontSize: number;
+  /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
+   *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
+  leaderColour: string;
+  leaderDash: string;
+  leaderWidth: number;
+  leaderOpacity: number;
   /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep a quarter of the row free. */
   alignRowGap: number;
 }
@@ -144,6 +150,10 @@ export const FALLBACK_THEME: TreeTheme = {
   dimOpacity: 0.25,
   labelSize: 13,
   axisFontSize: 10,
+  leaderColour: '',
+  leaderDash: '1 3',
+  leaderWidth: 1,
+  leaderOpacity: 0.7,
   alignRowGap: 0,
 };
 
@@ -252,6 +262,10 @@ export interface ViewerOptions {
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
   labelDensity: LabelDensity;
+  /** Rectangular phylogram: draw every tip label in one column right of the farthest tip, with a leader line (theme `leaderColour`,
+   *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
+   *  without branch lengths or in the radial layout. */
+  alignLabels: boolean;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
@@ -296,6 +310,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   drawBudget: 20000,
   showSummaries: true,
   labelDensity: 'normal',
+  alignLabels: false,
   highlightStyle: 'band',
   rowHeight: null,
   axis: true,

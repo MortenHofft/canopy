@@ -52,7 +52,7 @@ projectionFor(snapshot, L, T)    projection.ts  RectProjection | RadialProjectio
    |                                         extents, summary/run geometry, and the per-frame values the cut precomputes
 searchCut(proj, ...) -> cut      lod.ts      DrawList (node, kind, cls, last, xmax): which nodes are drawn and how (expanded node,
    |                                         tip, summary triangle/fan/slice, stub)
-   +-- drawBody, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, columns.ts  (Canvas2D)
+   +-- drawBody, drawLeaders, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, columns.ts  (Canvas2D)
    +-- HitIndex: uniform grid over the draw list, built on the first pointer query         hit.ts
    +-- LabelOverlay: DOM anchors over the canvas text, hidden tip list, live region        overlay.ts  (full-quality frames only)
    +-- DOM in the control layer: controls and popups, driven by events after the frame     control.ts, controls/, overlays/
