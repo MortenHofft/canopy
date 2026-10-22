@@ -44,8 +44,8 @@
   --phylo-muted: var(--ex-muted);
   --phylo-branch: var(--ex-text-2);
   --phylo-highlight: var(--ex-accent);
-  --phylo-summary: #a78bfa;
-  --phylo-summary-opacity: 0.35;
+  --phylo-summary: var(--ex-text-2); /* collapsed clades: the branch grey, faint: more tree here, not a selection or a colour */
+  --phylo-summary-opacity: 0.28;
   --phylo-highlight-opacity: 0.14;
   --phylo-font-family: var(--ex-font);
   --phylo-surface: var(--ex-surface-0);
@@ -78,7 +78,8 @@
   --ex-pop-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
   --phylo-foreground: #e2e8f0;
   --phylo-branch: #cbd5e1;
-  --phylo-summary: #a78bfa;
+  --phylo-summary: var(--ex-text-2);
+  --phylo-summary-opacity: 0.3;
   --phylo-dark: true; /* the background is transparent, so say it: the residue colours then use their dark defaults */
   color-scheme: dark;
 }
