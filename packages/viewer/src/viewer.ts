@@ -55,6 +55,12 @@ const THIN_PRIMS = 700; // radial: from this many primitives on, branches are on
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
 const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
+const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
+
+function checkThemeObserver(m: unknown): void {
+  if (m !== undefined && m !== 'media' && m !== 'document' && m !== 'none')
+    throw new RangeError(`themeObserver must be 'media', 'document' or 'none', not ${JSON.stringify(m)}`);
+}
 
 /** What `new TreeViewer(...)` takes. One of `tree` and `source` is needed; `source` wins. */
 export interface TreeViewerInit {
@@ -589,6 +595,7 @@ export class TreeViewer {
    *  that changes nothing returns without invalidating, so a caller may pass its whole option set on every render. */
   setOptions(patch: Partial<ViewerOptions>): void {
     const o = this.opts;
+    checkThemeObserver(patch.themeObserver);
     const p: Partial<ViewerOptions> = {};
     let any = false;
     for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) {
@@ -608,7 +615,10 @@ export class TreeViewer {
     this.opts = { ...o, ...p };
     if (layoutChanged || lengthsChanged) this.minPxHint = 0;
     if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
-    if (p.themeObserver !== undefined) this.watchTheme();
+    if (p.themeObserver !== undefined) {
+      this.watchTheme();
+      if (o.themeObserver === 'none') this.refreshTheme(); // nothing watched the page meanwhile
+    }
     if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
@@ -640,7 +650,7 @@ export class TreeViewer {
     const next: Partial<TreeTheme> = { ...this.themeOverrides };
     for (const k of Object.keys(patch) as (keyof TreeTheme)[]) {
       if (patch[k] === undefined) delete next[k];
-      else (next as Record<string, unknown>)[k] = patch[k];
+      else (next as Record<string, unknown>)[k] = Array.isArray(patch[k]) ? (patch[k] as unknown[]).slice() : patch[k];
     }
     this.themeOverrides = next;
     this.applyTheme(this.composeTheme());
@@ -663,6 +673,15 @@ export class TreeViewer {
   }
 
   private onScheme = () => this.refreshTheme();
+  private docRaf = 0;
+  /** Mutations of <html> come in bursts (class and attribute writes): one refresh per frame. */
+  private onDocMutation = () => {
+    if (this.docRaf) return;
+    this.docRaf = requestAnimationFrame(() => {
+      this.docRaf = 0;
+      this.refreshTheme();
+    });
+  };
 
   /** Start or stop what re-reads the CSS theme, per the `themeObserver` option (also when it changes). */
   private watchTheme(): void {
@@ -670,15 +689,18 @@ export class TreeViewer {
     this.schemeQuery = null;
     this.docObserver?.disconnect();
     this.docObserver = null;
+    if (this.docRaf) cancelAnimationFrame(this.docRaf);
+    this.docRaf = 0;
     if (this.destroyed) return;
     const mode = this.opts.themeObserver;
+    checkThemeObserver(mode);
     if (mode === 'none') return;
     if (typeof matchMedia === 'function') {
       this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
       this.schemeQuery.addEventListener?.('change', this.onScheme);
     }
     if (mode === 'document' && typeof MutationObserver === 'function') {
-      this.docObserver = new MutationObserver(this.onScheme);
+      this.docObserver = new MutationObserver(this.onDocMutation);
       this.docObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
     }
   }
@@ -861,28 +883,35 @@ export class TreeViewer {
     return { ...this.vs.fitViewport() };
   }
 
-  /** The view as an image: what `render` draws now, drawn again into an offscreen canvas with the same code (the visible canvas is not
+  /** The view as an image (the canvas only: DOM controls, overlays and label anchors are not in it): what `render` draws now, drawn again into an offscreen canvas with the same code (the visible canvas is not
    *  read), without hover and keyboard rings. `type` is an image MIME type (default 'image/png'); `scale` the backing pixels per CSS
    *  pixel (default the canvas's own, `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale`;
    *  `background` a CSS colour, or null for a transparent image (default: the theme's background). Rejects when the canvas cannot
-   *  make the image (a size over 16384 px, say). */
+   *  make the image, and with `RangeError` over 16384 px a side or 2^26 px in all. A browser that cannot encode `type` gives a PNG:
+   *  check `blob.type`. Lines drawn one device pixel wide (dense radial trees) are `1 / scale` CSS px, so fainter above the screen's scale. */
   toBlob(opts: { type?: string; scale?: number; background?: string | null } = {}): Promise<Blob> {
     if (this.destroyed) return Promise.reject(new Error('toBlob: the viewer is destroyed'));
     const scale = opts.scale ?? this.effScale();
     if (!(scale > 0) || !Number.isFinite(scale)) return Promise.reject(new RangeError('toBlob: scale must be a positive number'));
     const w = Math.round(this.W * scale),
       h = Math.round(this.H * scale);
-    if (w > MAX_EXPORT_PX || h > MAX_EXPORT_PX)
-      return Promise.reject(new RangeError(`toBlob: ${w} x ${h} px is over the ${MAX_EXPORT_PX} px limit; lower the scale`));
+    if (w > MAX_EXPORT_PX || h > MAX_EXPORT_PX || w * h > MAX_EXPORT_AREA)
+      return Promise.reject(
+        new RangeError(`toBlob: ${w} x ${h} px is over the limit (${MAX_EXPORT_PX} px a side, ${MAX_EXPORT_AREA} px in all); lower the scale`),
+      );
     this.renderNow(); // the list, projection and transform of the current view
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return Promise.reject(new Error('toBlob: no 2D context'));
-    this.paint(ctx, scale, new LabelList(), opts.background === undefined ? this.theme.background : opts.background, false);
+    this.paint(ctx, scale, new LabelList(), opts.background === undefined ? this.theme.background : opts.background);
     return new Promise((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob: the canvas produced no image'))), opts.type ?? 'image/png');
+      canvas.toBlob((b) => {
+        canvas.width = canvas.height = 0; // release the backing store
+        if (b) resolve(b);
+        else reject(new Error('toBlob: the canvas produced no image'));
+      }, opts.type ?? 'image/png');
     });
   }
 
@@ -1097,6 +1126,8 @@ export class TreeViewer {
     this.schemeQuery?.removeEventListener?.('change', this.onScheme);
     this.docObserver?.disconnect();
     this.docObserver = null;
+    if (this.docRaf) cancelAnimationFrame(this.docRaf);
+    this.docRaf = 0;
     this.input.destroy();
     this.uiLayer.removeEventListener('wheel', this.onUiWheel);
     this.container.remove();
@@ -1292,7 +1323,7 @@ export class TreeViewer {
 
   /** Draw the current cut (list, projection T) on `ctx` at `scale` backing pixels per CSS pixel: the background (none for null), the
    *  tree, the labels (into `labels`), the columns and the axis. The frame and `toBlob` both go through here. */
-  private paint(ctx: CanvasRenderingContext2D, scale: number, labels: LabelList, background: string | null, interactive = true): void {
+  private paint(ctx: CanvasRenderingContext2D, scale: number, labels: LabelList, background: string | null): void {
     const { W, H, opts, tree, T, vs } = this;
     const rect = opts.layout === 'rectangular';
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -1312,8 +1343,6 @@ export class TreeViewer {
       hlRanks: bands ? this.hlRanks : NO_RANKS,
       hlPrefix: dimming ? this.dimPrefix() : null,
       collapsed: this.collapsedRank,
-      hoverNode: interactive ? this.hoverNode : -1,
-      activeNode: interactive ? this.activeNode : -1,
       density: opts.labelDensity,
       format: opts.formatLabel,
       scale,

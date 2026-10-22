@@ -160,10 +160,13 @@ export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
   return true;
 }
 
-/** A copy of `o` without its undefined values, so spreading it over defaults never puts an undefined in. */
+/** A copy of `o` (array values copied too) without its undefined values, so spreading it over defaults never puts an undefined in. */
 export function stripUndefined<T extends object>(o: T): Partial<T> {
   const r: Partial<T> = {};
-  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] !== undefined) r[k] = o[k];
+  for (const k of Object.keys(o) as (keyof T)[]) {
+    const v = o[k];
+    if (v !== undefined) r[k] = (Array.isArray(v) ? v.slice() : v) as T[keyof T]; // arrays (`categorical`) are copied: no aliasing with the caller's
+  }
   return r;
 }
 

@@ -390,6 +390,34 @@ ok(
   img.width === Math.round(cssSize.w * cssSize.dpr) && img.height === Math.round(cssSize.h * cssSize.dpr),
   `the PNG is the view's size at the canvas scale (${img.width} x ${img.height})`,
 );
+const same = await ev(async () => {
+  // the export equals the screen: the visible canvas (transparent background) against toBlob at the canvas scale, pixel by pixel
+  const v = __v();
+  v.renderNow();
+  const screen = v.treeElement.querySelector('canvas');
+  const bm = await createImageBitmap(await v.toBlob({ background: null }));
+  const read = (src) => {
+    const c = document.createElement('canvas');
+    c.width = screen.width;
+    c.height = screen.height;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(src, 0, 0);
+    return x.getImageData(0, 0, c.width, c.height).data;
+  };
+  const A = read(screen),
+    B = read(bm);
+  let diff = 0,
+    painted = 0;
+  for (let i = 0; i < A.length; i += 4) {
+    if (A[i + 3] > 0) painted++;
+    if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 2) diff++;
+  }
+  return { w: bm.width === screen.width && bm.height === screen.height, diff, painted };
+});
+ok(
+  same.w && same.painted > 500 && same.diff === 0,
+  `toBlob at the canvas scale equals the screen (${same.painted} painted pixels, ${same.diff} differ)`,
+);
 const exp2 = await ev(async () => {
   const b = await __v().toBlob({ scale: 2, background: null });
   const bm = await createImageBitmap(b);

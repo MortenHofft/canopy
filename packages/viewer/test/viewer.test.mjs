@@ -437,6 +437,21 @@ test('the keyboard announcement names a clade as the legend does: name and local
 
 // ---------------------------------------------------------------- themeObserver
 
+test('theme array tokens are copied: a mutated caller array is not the live theme, and updateTheme sees the change', async () => {
+  const h = await makeViewer('((a,b),(c,d));');
+  const { viewer } = h;
+  const cat = ['#000000', '#ffffff'];
+  viewer.updateTheme({ categorical: cat });
+  cat[0] = '#123456';
+  assert.equal(viewer.getTheme().categorical[0], '#000000', 'the live theme is not the caller array');
+  viewer.updateTheme({ categorical: cat });
+  assert.equal(viewer.getTheme().categorical[0], '#123456', 'the mutated array counts as a change');
+  cat[1] = '#654321';
+  viewer.setTheme({ categorical: cat });
+  cat[1] = '#000001';
+  assert.equal(viewer.getTheme().categorical[1], '#654321');
+});
+
 test('themeObserver: media (default) only listens to the colour scheme; document also watches class and data-theme; none nothing', async () => {
   const media = await makeViewer('((a,b),(c,d));');
   assert.equal(media.env.schemeListenerCount(), 1);
@@ -450,6 +465,8 @@ test('themeObserver: media (default) only listens to the colour scheme; document
   assert.deepEqual(obs[0].options.attributeFilter, ['class', 'data-theme']);
   doc.env.setCssVars(doc.target, { '--phylo-background': '#000000' });
   doc.env.mutate(); // the page flipped data-theme
+  assert.equal(doc.viewer.getTheme().background, '#ffffff', 'coalesced into the next frame');
+  doc.env.flush();
   assert.equal(doc.viewer.getTheme().background, '#000000', 'a mutation of <html> re-reads the CSS theme');
   doc.viewer.destroy();
   assert.equal(doc.env.mutationObservers().length, 0, 'disconnected by destroy');
@@ -471,10 +488,12 @@ test('themeObserver can change with setOptions; only one watcher is ever live', 
   h.env.setCssVars(h.target, { '--phylo-background': '#000000' });
   h.env.setDark(true);
   h.env.mutate();
+  h.env.flush();
   assert.equal(h.viewer.getTheme().background, '#ffffff', 'nothing re-reads with none');
   h.viewer.setOptions({ themeObserver: 'media' });
-  h.env.setDark(false);
-  assert.equal(h.viewer.getTheme().background, '#000000', 'media listens again');
+  assert.equal(h.viewer.getTheme().background, '#000000', 'back from none it refreshes at once');
+  assert.throws(() => h.viewer.setOptions({ themeObserver: 'dcoument' }), RangeError);
+  assert.equal(h.viewer.options.themeObserver, 'media', 'a typo changes nothing');
 });
 
 // ---------------------------------------------------------------- fitViewport
@@ -539,16 +558,20 @@ test('toBlob: background null draws no fill; a colour is used as given; type is 
   const h = await makeViewer('((a,b),(c,d));');
   h.env.flush();
   globalThis.devicePixelRatio = 2;
-  const made = spyCanvases(h.env);
-  const none = await h.viewer.toBlob({ background: null, type: 'image/webp' });
-  assert.equal(none.type, 'image/webp');
-  assert.equal(made[0].blobs[0].type, 'image/webp');
-  assert.equal(made[0].blobs[0].width, 800, 'the canvas scale: dpr 2 within dprCap 2');
-  assert.ok(!made[0].ctx.log.some((e) => e[0] === 'fillRect' && e.slice(1).join() === '0,0,400,300'), 'no background fill');
-  await h.viewer.toBlob({ background: '#ff0000', scale: 1 });
-  const log = made[1].ctx.log;
-  assert.ok(log.some((e) => e[0] === 'fillStyle=' && e[1] === '#ff0000'));
-  globalThis.devicePixelRatio = 1;
+  try {
+    const made = spyCanvases(h.env);
+    const none = await h.viewer.toBlob({ background: null, type: 'image/webp' });
+    assert.equal(none.type, 'image/webp');
+    assert.equal(made[0].blobs[0].type, 'image/webp');
+    assert.equal(made[0].blobs[0].width, 800, 'the canvas scale: dpr 2 within dprCap 2');
+    assert.ok(!made[0].ctx.log.some((e) => e[0] === 'fillRect' && e.slice(1).join() === '0,0,400,300'), 'no background fill');
+    await h.viewer.toBlob({ background: '#ff0000', scale: 1 });
+    const log = made[1].ctx.log;
+    assert.ok(log.some((e) => e[0] === 'fillStyle=' && e[1] === '#ff0000'));
+    assert.equal(made[1].width, 0, 'the offscreen canvas is released after encoding');
+  } finally {
+    globalThis.devicePixelRatio = 1;
+  }
 });
 
 test('toBlob: a bad scale or a size over the limit rejects; a destroyed viewer rejects', async () => {
@@ -556,6 +579,7 @@ test('toBlob: a bad scale or a size over the limit rejects; a destroyed viewer r
   await assert.rejects(h.viewer.toBlob({ scale: 0 }), RangeError);
   await assert.rejects(h.viewer.toBlob({ scale: NaN }), RangeError);
   await assert.rejects(h.viewer.toBlob({ scale: 100 }), RangeError);
+  await assert.rejects(h.viewer.toBlob({ scale: 25 }), RangeError, 'area: 10000 x 7500 is over 2^26');
   h.viewer.destroy();
   await assert.rejects(h.viewer.toBlob(), /destroyed/);
 });

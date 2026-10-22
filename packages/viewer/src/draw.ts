@@ -17,8 +17,6 @@ export interface Scene {
   collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
-  hoverNode: number;
-  activeNode: number;
   density: LabelDensity;
   format: (id: string) => string;
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
