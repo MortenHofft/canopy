@@ -1537,7 +1537,15 @@ ok(
 );
 ok((await page.locator('input[aria-label="Minimum support"]').count()) === 0, 'the threshold hides with it');
 await open('rich-hcv-19');
-ok(await page.locator('button[aria-label="Collapse by support"]').isDisabled(), 'a tree without support: Collapse by support is disabled');
+ok(
+  (await page.locator('button[aria-label="Collapse by support"]').count()) === 0 && (await page.locator('.ex-support').count()) === 0,
+  'a tree without support: the Collapse by support control is not in the DOM',
+);
+await open('rich-fish-carangaria-135');
+ok(
+  (await page.locator('.ex-support').count()) === 1 && (await page.locator('button[aria-label="Collapse by support"]').isEnabled()) === true,
+  'a tree with support: the control is back',
+);
 
 // ---------------------------------------------------------------- ladderise by tips / depth / height
 console.log('ladderise by');
@@ -1563,6 +1571,13 @@ ok(
 );
 await open('edge-internal-support');
 ok((await page.locator('select[aria-label="Ladderize by"] option[value=height]').isEnabled()) === true, 'height is on offer for a tree with lengths');
+// a tree without branch lengths (a Newick of our own, served in place of a small catalogue file): no "height" option, no phylogram
+await page.route('**/data/rich/edge-cases/duplicate-tip-labels.nwk', (r) => r.fulfill({ contentType: 'text/plain', body: '((a,b),(c,(d,e)));' }));
+await open('edge-duplicate-labels');
+ok(!(await ev(() => window.__explorerTree().hasLengths)), 'the stand-in tree has no branch lengths');
+ok((await sel.locator('option').allInnerTexts()).join() === 'tips,depth', 'no branch lengths: Ladderize by offers tips and depth only');
+ok((await page.locator('button[aria-label="Collapse by support"]').count()) === 0, 'a tree without lengths nor support: no Collapse by support');
+await page.unroute('**/data/rich/edge-cases/duplicate-tip-labels.nwk');
 
 // ---------------------------------------------------------------- highlight style
 console.log('highlight style');
