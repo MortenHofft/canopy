@@ -697,6 +697,24 @@ await alignBtn.click();
 await page.waitForTimeout(300);
 ok(new Set(await anchorXs()).size > 3, 'Align off: the labels follow their tips again');
 
+// ---------------------------------------------------------------- striped summaries
+console.log('striped summaries');
+await open('rich-hcv-19');
+const stripesBtn = page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ });
+ok(
+  (await ev(() => __v().options.summaryStyle)) === 'striped' && (await stripesBtn.getAttribute('aria-pressed')) === 'true',
+  'Stripes: on by default in this preview branch (the library default is solid)',
+);
+await stripesBtn.click();
+await page.waitForTimeout(200);
+ok(
+  (await ev(() => __v().options.summaryStyle)) === 'solid' && (await stripesBtn.getAttribute('aria-pressed')) === 'false',
+  'the Stripes toggle switches to solid',
+);
+await stripesBtn.click();
+await page.waitForTimeout(200);
+ok((await ev(() => __v().options.summaryStyle)) === 'striped', 'and back to striped');
+
 // ---------------------------------------------------------------- alignment
 console.log('alignment');
 await open('rich-hcv-19');

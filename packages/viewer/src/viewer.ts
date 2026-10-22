@@ -1642,6 +1642,8 @@ export class TreeViewer {
       nodeLabels: opts.nodeLabels,
       formatNode: opts.formatNodeLabel,
       scale,
+      striped: opts.summaryStyle === 'striped',
+      stripeCollapsed: opts.stripeCollapsed,
       thin: !rect && this.list.count >= THIN_PRIMS,
       measure: this.measurer,
     };

@@ -97,6 +97,8 @@ export function Explorer({
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
   const [alignLabels, setAlignLabels] = useState(false);
+  // striped summaries (#59): on in this preview branch; the library's default is solid
+  const [stripes, setStripes] = useState(true);
   const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
@@ -748,6 +750,20 @@ export function Explorer({
             Align
           </button>
         )}
+        <button
+          type="button"
+          className={`ex-btn ex-toggle${stripes ? ' active' : ''}`}
+          aria-pressed={stripes}
+          title={
+            stripes
+              ? 'Collapsed clades are filled solid: click to turn the stripes off'
+              : 'Fill collapsed clades with stripes along their hidden branches'
+          }
+          onClick={() => setStripes((x) => !x)}
+        >
+          <I.IconStripes />
+          Stripes
+        </button>
         {labelCycle.length > 1 && (
           <button
             type="button"
@@ -776,7 +792,15 @@ export function Explorer({
           controls={NO_CONTROLS}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, nodeLabels, themeObserver: 'document' }}
+          options={{
+            formatLabel,
+            labelDensity: 'dense',
+            highlightStyle: 'dim',
+            summaryStyle: stripes ? 'striped' : 'solid',
+            alignLabels,
+            nodeLabels,
+            themeObserver: 'document',
+          }}
           tooltip={tooltip}
           tooltipBare
           onNodeClick={onClick}

@@ -119,6 +119,11 @@ export interface TreeTheme extends ResidueTheme {
   /** Side of the square marker on internal nodes big enough to click, CSS px. */
   nodeMarkerSize: number;
   summaryOpacity: number; // collapsed clades (triangles, fans, bands)
+  /** Colour of the stripes of a striped summary (`summaryStyle: 'striped'`) without a clade colour. '' = `summary`. */
+  summaryStripeColour: string;
+  /** Striped summaries: the least distance between two stripes, CSS px (the stripes are about this wide divided by two, at least 1 px).
+   *  A summary shorter than two gaps stays solid. */
+  summaryStripeGap: number;
   markerOpacity: number; // tip dots and node markers
   highlightOpacity: number; // the band behind a highlighted tip
   /** Opacity of what is outside the highlighted set when `highlightStyle` is 'dim' or 'both': branches, tips, labels and summaries. */
@@ -157,6 +162,8 @@ export const FALLBACK_THEME: TreeTheme = {
   tipRadius: 3.2,
   nodeMarkerSize: 4,
   summaryOpacity: 0.6,
+  summaryStripeColour: '',
+  summaryStripeGap: 3,
   markerOpacity: 0.85,
   highlightOpacity: 0.16,
   dimOpacity: 0.25,
@@ -285,6 +292,13 @@ export interface ViewerOptions {
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
+  /** Fill of the summaries the level of detail draws (triangles, fans, bands of small siblings): `'solid'`, or `'striped'`: fine stripes
+   *  in the direction the hidden branches would run (rectangular: horizontal, about one per hidden tip row, no closer than the theme's
+   *  `summaryStripeGap`; radial: along the rays from the root, spaced by angle), a compressed preview of what zooming in shows. Clades the
+   *  app collapsed (`setCollapsed`) stay solid unless `stripeCollapsed`. The overview strip is always solid. */
+  summaryStyle: 'solid' | 'striped';
+  /** With `summaryStyle: 'striped'`, stripe the clades the app collapsed (`setCollapsed`) too. Default false: they stay solid, with their label. */
+  stripeCollapsed: boolean;
   labelDensity: LabelDensity;
   /** Rectangular phylogram: draw every tip label in one column right of the farthest tip, with a leader line (theme `leaderColour`,
    *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
@@ -360,6 +374,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   lod: true,
   drawBudget: 20000,
   showSummaries: true,
+  summaryStyle: 'solid',
+  stripeCollapsed: false,
   labelDensity: 'normal',
   alignLabels: false,
   nodeLabels: 'none',

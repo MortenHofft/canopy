@@ -91,6 +91,41 @@ ok(
   'tip links → tipHref to GBIF',
 );
 
+console.log('striped summaries');
+// on by default in this branch's preview (the library default is solid); the toggle compares solid and striped
+ok((await opt('summaryStyle')) === 'striped' && !query().has('s.summaryStyle'), 'striped by default in the playground, not in the URL');
+await select('minCladePx', '20'); // summaries tall enough for stripes
+await setInput('summaryStripeColour', '#ff0000');
+const redPixels = () =>
+  ev(() => {
+    const c = document.querySelector('.phylo-tree canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 170 && d[i + 2] < 170 && Math.abs(d[i + 1] - d[i + 2]) < 20) n++;
+    return n;
+  });
+const stripedRed = await redPixels();
+ok(stripedRed > 100, `striped: the summaries are stroked in the stripe colour (${stripedRed} red pixels)`);
+await select('summaryStyle', 'solid');
+ok((await opt('summaryStyle')) === 'solid' && query().get('s.summaryStyle') === 'solid', 'Solid: options.summaryStyle, and into the URL');
+ok((await redPixels()) === 0, 'solid: no stripe colour on the canvas');
+await select('summaryStyle', 'striped');
+ok((await redPixels()) > 100 && !query().has('s.summaryStyle'), 'striped again, out of the URL');
+await setInput('summaryStripeGap', '10');
+ok(
+  (await theme('summaryStripeGap')) === 10 && (await redPixels()) < stripedRed,
+  'the gap token reaches the theme, and a wider gap draws fewer stripes',
+);
+await setInput('summaryStripeGap', '3');
+await toggle('stripeCollapsed', true);
+ok((await opt('stripeCollapsed')) === true, 'stripeCollapsed toggle → options.stripeCollapsed');
+await toggle('stripeCollapsed', false);
+await select('layout', 'radial');
+ok((await redPixels()) > 100, 'radial: striped too');
+await select('layout', 'rectangular');
+await select('minCladePx', '3');
+await setInput('summaryStripeColour', '');
+
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');
