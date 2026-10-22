@@ -270,13 +270,12 @@ export class Overview {
   };
   /** The wheel zooms about the tree point the pointer is over on the overview (like a map minimap), by the tree's own wheel rules. */
   private onWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    e.stopPropagation(); // the control layer would forward it to the tree's wheel, which anchors at the pointer in the plot
     const h = this.host;
     const g = this.geom();
-    if (!g) return;
     const z = wheelZoom(h.layout, e);
-    if (!z) return;
+    if (!g || !z) return; // a mostly horizontal swipe (a pan) goes on to the control layer, which hands it to the tree
+    e.preventDefault();
+    e.stopPropagation(); // the control layer would forward it to the tree's wheel, which anchors at the pointer in the plot
     h.noteInput();
     const r = this.wrap.getBoundingClientRect();
     const p = overviewWorldPoint(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.tree.tipCount);

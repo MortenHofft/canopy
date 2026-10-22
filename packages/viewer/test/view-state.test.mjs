@@ -169,6 +169,26 @@ for (const layout of ['rectangular', 'radial']) {
   });
 }
 
+test('zoomAtWorld: zooming out about a point far outside the window anchors at the nearest point of the window (no push away)', () => {
+  const { vs } = make();
+  vs.fit(false);
+  vs.setViewport({ x0: 0, x1: 1, y0: 20, y1: 30 });
+  const v = { ...vs.view };
+  vs.zoomAtWorld(1, 0.5, 0.5, 58); // far below the window
+  assert.ok(vs.view.y1 - vs.view.y0 > v.y1 - v.y0, 'it zooms out');
+  near(vs.view.y1, v.y1, 1e-9); // the bottom edge, the nearest point to the anchor, stays put
+  near(vs.view.y0, v.y0 - (v.y1 - v.y0), 1e-9);
+});
+
+test('zoomAtWorld: at the zoom limit a wheel-in over a far point does not pan', () => {
+  const { vs } = make({ layout: 'radial' });
+  vs.fit(false);
+  vs.zoomBy(1e6, 1e6, vs.area.ax + 100, vs.area.ay + 100); // to the limit
+  const v = { ...vs.view };
+  vs.zoomAtWorld(2, 2, v.x0 + 40, v.y0 + 40);
+  assert.deepEqual(vs.view, v);
+});
+
 test('setViewport: ignores an empty window, skips an equal one, clamps, clears fitted', () => {
   const { vs, log } = make();
   vs.fit(false);

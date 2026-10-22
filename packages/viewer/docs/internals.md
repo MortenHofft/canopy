@@ -171,7 +171,9 @@ Scripts and tests:
 | `test/controls.test.mjs` | 206 | `BaseControl` bookkeeping and the built-in controls against a fake viewer |
 | `test/overlays.test.mjs` | 195 | `Overlay` placement, the tooltip and the node menu as default actions, menu keyboard |
 | `test/theme.test.mjs` | 74 | `themeFromCss`, list splitting, luminance, `themeEquals` |
-| `test/fake-dom.mjs` | 204 | the minimal fake DOM the control and overlay tests run on |
+| `test/viewer.test.mjs` | 366 | the `TreeViewer` facade built for real: `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, `setTheme` / `refreshTheme` |
+| `test/viewer-harness.mjs` | 269 | `makeViewer(tree, init)`: a real viewer over the fake DOM, with a recording 2D context, a rAF queue, ResizeObserver, matchMedia and getComputedStyle under the test's control (build later viewer tests on it) |
+| `test/fake-dom.mjs` | 263 | the minimal fake DOM the control, overlay and viewer tests run on |
 | **Total, `test/`** | **7,869** | |
 
 ## How to extend

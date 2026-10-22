@@ -27,11 +27,49 @@ class ClassList {
   }
 }
 
+const camel = (k) => (k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase()));
+const kebab = (k) => (k.startsWith('--') ? k : k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()));
+
+/** An inline style declaration with one property map (keys camelCase, or `--custom`). `cssText` is derived from it (`k:v;` without
+ *  the space a browser writes) and its setter replaces the whole map; `style.pointerEvents = 'none'`, `setProperty('pointer-events', ..)`
+ *  and `cssText` all act on the same properties. A property that is not set reads as undefined (a browser gives ''). */
+function makeStyle() {
+  const map = new Map();
+  const api = {
+    setProperty: (k, v) => void map.set(camel(k), String(v)),
+    getPropertyValue: (k) => map.get(camel(k)) ?? '',
+    removeProperty: (k) => {
+      const old = map.get(camel(k)) ?? '';
+      map.delete(camel(k));
+      return old;
+    },
+  };
+  return new Proxy(api, {
+    get(t, k) {
+      if (k === 'cssText') return [...map].map(([n, v]) => kebab(n) + ':' + v + ';').join('');
+      if (k in t || typeof k !== 'string') return t[k];
+      return map.get(k);
+    },
+    set(_t, k, v) {
+      if (k === 'cssText') {
+        map.clear();
+        for (const d of String(v).split(';')) {
+          const i = d.indexOf(':');
+          if (i > 0) api.setProperty(d.slice(0, i).trim(), d.slice(i + 1).trim());
+        }
+      } else if (v === '' || v == null) map.delete(k);
+      else map.set(k, String(v));
+      return true;
+    },
+    has: (_t, k) => map.has(k) || k in api,
+  });
+}
+
 export class FakeElement {
   constructor(tag) {
     this.tagName = tag.toUpperCase();
     this.attrs = {};
-    this.style = { cssText: '' };
+    this.style = makeStyle();
     this.dataset = {};
     this.children = [];
     this.parentNode = null;
@@ -99,6 +137,27 @@ export class FakeElement {
     if (!this.parentNode) return;
     const p = this.parentNode;
     p.children = p.children.filter((x) => x !== this);
+    this.parentNode = null;
+  }
+  /** A copy with the same attributes, class names, style and size (not listeners or contexts); children too when `deep`. */
+  cloneNode(deep = false) {
+    const c = new this.constructor(this.tagName.toLowerCase());
+    c.attrs = { ...this.attrs };
+    c.dataset = { ...this.dataset };
+    c.classList.set = new Set(this.classList.set);
+    c.style.cssText = this.style.cssText;
+    c.w = this.w;
+    c.h = this.h;
+    if (deep) for (const k of this.children) c.appendChild(k.cloneNode(true));
+    return c;
+  }
+  replaceWith(n) {
+    const p = this.parentNode;
+    if (!p) return;
+    n.remove();
+    const k = p.children.indexOf(this);
+    p.children[k] = n;
+    n.parentNode = p;
     this.parentNode = null;
   }
   /** This element and its parents, innermost first. */
