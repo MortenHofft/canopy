@@ -6,8 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const harness = await import('./viewer-harness.mjs');
-const { destroyAll } = harness;
-const { makeViewer } = harness;
+const { destroyAll, makeViewer } = harness;
 const { Search, Legend, Zoom } = await import('../src/controls/index.ts');
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
@@ -48,17 +47,44 @@ test('setTree keeps the viewport for an identity map', async () => {
 });
 
 test('setTree keeps a window that cuts a row at its edges, with and without the zoom cap', async () => {
-  for (const options of [{}, { maxTipSpacing: 'auto' }]) {
-    const a = ladder(names(0, 40));
-    const { viewer, env } = await makeViewer(a, { options });
-    env.flush();
-    viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 21.83 });
-    const v = viewer.getViewport();
-    const b = ladder(names(0, 40));
-    viewer.setTree(b, { map: tipMap(a, b) });
-    env.flush();
-    assert.deepEqual(viewer.getViewport(), v);
-    destroyAll();
+  for (const options of [{ maxTipSpacing: Infinity }, {}]) {
+    for (const [y0, y1] of [
+      [10, 21.83],
+      [10.3, 22.13],
+    ]) {
+      const a = ladder(names(0, 40));
+      const { viewer, env } = await makeViewer(a, { options });
+      env.flush();
+      viewer.setViewport({ x0: 0, x1: 1, y0, y1 });
+      const v = viewer.getViewport();
+      const b = ladder(names(0, 40));
+      viewer.setTree(b, { map: tipMap(a, b) });
+      env.flush();
+      assert.deepEqual(viewer.getViewport(), v);
+      destroyAll();
+    }
+  }
+});
+
+test('setTree grows the window to hold survivors that a reorder spread over more rows', async () => {
+  const a = ladder(names(0, 40));
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 25 });
+  const before = viewer.getViewport();
+  // the tips in view (t10..t24) end up on every other row, rows 0, 2, .. 28
+  const seen = names(10, 25),
+    rest = [...names(0, 10), ...names(25, 40)];
+  const order = [];
+  for (let k = 0; k < 29; k++) order.push(k % 2 === 0 ? seen[k / 2] : rest.shift());
+  order.push(...rest);
+  const b = ladder(order);
+  viewer.setTree(b, { map: tipMap(a, b) });
+  const v = viewer.getViewport();
+  assert.ok(v.y1 - v.y0 > before.y1 - before.y0, `taller: ${v.y0}..${v.y1}`);
+  for (const l of seen) {
+    const row = b.tipLabels.indexOf(l);
+    assert.ok(v.y0 <= row && v.y1 >= row + 1, `${l} at row ${row} in ${v.y0}..${v.y1}`);
   }
 });
 
