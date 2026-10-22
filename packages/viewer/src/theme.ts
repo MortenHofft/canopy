@@ -41,6 +41,9 @@ const NUMBERS = [
   'markWidth',
   'markRadius',
   'hoverPathWidth',
+  'hoverRingRadius',
+  'hoverRingWidth',
+  'hoverRingDuration',
 ] as const;
 const STRINGS = [
   'fontFamily',

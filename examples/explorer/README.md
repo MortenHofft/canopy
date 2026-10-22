@@ -52,6 +52,7 @@ Each control and the API behind it.
 | Tooltips ("Click for actions", "Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; `options.themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
 | Pane background | `--phylo-background: var(--ex-surface-10)`: an opaque canvas in the pane's grey; no dotted grid. `dark` is derived from it |
+| Hover ring that grows in (Reactree's) | `options.hoverAnimation` (on by default) and the theme's `--phylo-hover-ring-duration`; off when the system asks for reduced motion |
 | Resize handle | the pane's height; the viewer follows its container |
 
 ### Large trees
