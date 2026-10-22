@@ -164,7 +164,7 @@ What is missing for production: worker for parse and cut (1M tips: 0.8 to 1.1 s 
   focus={{ tipId, seq }}              // declarative "centre this tip", acts when seq changes
   tipHref={(tipId) => url}            // makes visible labels real <a href data-tip-id target=_blank>
   theme={{ background, foreground, muted, branch, highlight, summary, fontFamily, categorical }}
-  options={{ lod, drawBudget, showSummaries, overview, labelDensity, rowHeight, axis, italicLabels,
+  options={{ lod, drawBudget, showSummaries, overview, labelDensity, rowHeight, axis, italicLabels,  // later: italicLabels became the theme token labelFontStyle (#32)
              minCladePx, formatLabel, ariaLabel, softwareCanvas,
              dprCap, radialMaxNodes, interactionLOD, refineMs, summaryNotice }}   // the last five added 2026-10
   tooltip={true | (e) => ReactNode}

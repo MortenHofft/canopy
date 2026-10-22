@@ -9,7 +9,8 @@
 // Values are looked up by tip label once, when the columns change, into arrays by tip rank.
 
 import type { Transform } from './geom.ts';
-import type { Column, ColumnFrame, TreeSnapshot, TreeTheme } from './types.ts';
+import { detectAlphabet, residueTable, type ResolvedAlphabet } from './residues.ts';
+import { FALLBACK_THEME, type Column, type ColumnFrame, type TreeSnapshot, type TreeTheme } from './types.ts';
 
 export const COL_GAP = 6;
 
@@ -21,39 +22,16 @@ export interface CompiledColumn {
   max: number;
   seqLen: number;
   bitmap: HTMLCanvasElement | null;
+  alphabet: ResolvedAlphabet | null; // alignment: the scheme in use ('auto' resolved)
+  table: Uint32Array | null; // alignment: ABGR colour by character code, from the theme it was compiled with (see recolourColumns)
   runs: (Int32Array | undefined)[]; // alignment: start,end pairs of the gap-free stretches by rank, filled on first use
   data: unknown; // custom: what the renderer's prepare() returned
   x: number; // left edge in container px, set by layoutColumns
 }
 
-const RESIDUE: Record<string, string> = {};
-for (const c of 'AILMFWVC') RESIDUE[c] = '#80a0f0';
-for (const c of 'KR') RESIDUE[c] = '#f01505';
-for (const c of 'ED') RESIDUE[c] = '#c048c0';
-for (const c of 'NQST') RESIDUE[c] = '#15c015';
-RESIDUE.G = '#f09048';
-RESIDUE.P = '#c0c000';
-for (const c of 'HY') RESIDUE[c] = '#15a4a4';
-RESIDUE.U = '#15c015';
-Object.freeze(RESIDUE); // a constant table: nothing writes to it after this
-
-function residueTable(): Uint32Array {
-  const t = new Uint32Array(256);
-  const parse = (hex: string) => {
-    const r = parseInt(hex.slice(1, 3), 16),
-      g = parseInt(hex.slice(3, 5), 16),
-      b = parseInt(hex.slice(5, 7), 16);
-    return (255 << 24) | (b << 16) | (g << 8) | r; // ABGR for a little-endian Uint32 view of ImageData
-  };
-  for (let c = 0; c < 256; c++) {
-    const ch = String.fromCharCode(c).toUpperCase();
-    t[c] = ch === '-' || ch === '.' ? 0 : parse(RESIDUE[ch] ?? '#e2e2e2');
-  }
-  return t;
-}
-
-/** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap). */
-export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn {
+/** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap
+ *  coloured from the theme's residue tokens). */
+export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme = FALLBACK_THEME): CompiledColumn {
   const N = tree.tipCount;
   const has = new Uint8Array(N);
   let num: Float64Array | null = null;
@@ -61,13 +39,15 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
   let max = 0;
   let seqLen = 0;
   let bitmap: HTMLCanvasElement | null = null;
+  let alphabet: ResolvedAlphabet | null = null;
+  let table: Uint32Array | null = null;
   if (spec.kind === 'custom') {
     const data = spec.renderer.prepare({ values: spec.values, tipLabels: tree.tipLabels, tipCount: N });
     for (let r = 0; r < N; r++) {
       const l = tree.tipLabels[r];
       if (spec.renderer.hasCell ? spec.renderer.hasCell(data, r) : l !== undefined && spec.values[l] !== undefined) has[r] = 1;
     }
-    return { spec, num, txt, has, max, seqLen, bitmap, runs: [], data, x: 0 };
+    return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data, x: 0 };
   }
   if (spec.kind === 'bar') {
     num = new Float64Array(N).fill(NaN);
@@ -91,7 +71,11 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
       has[r] = 1;
       if (s.length > seqLen) seqLen = s.length;
     }
-    if (spec.kind === 'alignment' && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
+    if (spec.kind === 'alignment') {
+      alphabet = !spec.alphabet || spec.alphabet === 'auto' ? detectAlphabet(txt) : spec.alphabet;
+      table = residueTable(theme, alphabet);
+    }
+    if (spec.kind === 'alignment' && table && seqLen > 0 && N * seqLen <= 8_000_000 && typeof document !== 'undefined') {
       bitmap = document.createElement('canvas');
       bitmap.width = seqLen;
       bitmap.height = N;
@@ -99,7 +83,7 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
       if (ctx) {
         const img = ctx.createImageData(seqLen, N);
         const px = new Uint32Array(img.data.buffer);
-        const tab = residueTable();
+        const tab = table;
         for (let r = 0; r < N; r++) {
           const s = txt[r];
           if (s === undefined) continue;
@@ -110,7 +94,7 @@ export function compileColumn(tree: TreeSnapshot, spec: Column): CompiledColumn 
       } else bitmap = null;
     }
   }
-  return { spec, num, txt, has, max, seqLen, bitmap, runs: [], data: null, x: 0 };
+  return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data: null, x: 0 };
 }
 
 /** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
@@ -120,16 +104,25 @@ export function columnSpecEquals(a: Column, b: Column): boolean {
   return a === b || (a.id === b.id && a.kind === b.kind && a.header === b.header && a.width === b.width && sameData(a, b));
 }
 
-/** Same data: same values object, and for a custom column the same renderer (its prepare() made the data). */
+/** Same data: same values object, for a custom column the same renderer (its prepare() made the data), for an alignment the same alphabet
+ *  (the bitmap's colours). */
 function sameData(a: Column, b: Column): boolean {
-  return a.values === b.values && (a.kind !== 'custom' || (b.kind === 'custom' && a.renderer === b.renderer));
+  if (a.values !== b.values) return false;
+  if (a.kind === 'custom') return b.kind === 'custom' && a.renderer === b.renderer;
+  if (a.kind === 'alignment') return b.kind === 'alignment' && (a.alphabet ?? 'auto') === (b.alphabet ?? 'auto');
+  return true;
 }
 
 /** The new compiled list for `cols`, reusing what `old` already holds: a column with an identical spec (by `columnSpecEquals`) is kept as is,
  *  one whose data is the same (same kind and `values` reference) but whose header or width changed keeps its arrays and bitmap under the
  *  new spec, and only the rest is compiled. Ids must be unique: a second column with an id already used in the list is compiled afresh on
  *  every call (a compiled column carries its own screen position, so it cannot be shared) and `same` is then never true. `same` is true when the result equals `old` entry for entry, so the caller can stop there. */
-export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: Column[]): { columns: CompiledColumn[]; same: boolean } {
+export function updateColumns(
+  tree: TreeSnapshot,
+  old: CompiledColumn[],
+  cols: Column[],
+  theme: TreeTheme = FALLBACK_THEME,
+): { columns: CompiledColumn[]; same: boolean } {
   const byId = new Map<string, CompiledColumn>(); // a duplicate id is a caller error; the second one is compiled afresh, never shares a compiled object
   for (const c of old) byId.set(c.spec.id, c);
   let same = cols.length === old.length;
@@ -142,9 +135,26 @@ export function updateColumns(tree: TreeSnapshot, old: CompiledColumn[], cols: C
     }
     same = false;
     if (prev && prev.spec.kind === spec.kind && sameData(prev.spec, spec)) return { ...prev, spec };
-    return compileColumn(tree, spec);
+    return compileColumn(tree, spec, theme);
   });
   return { columns, same };
+}
+
+/** The alignment columns of `cols` painted again for `theme`: an alignment whose residue table changed is compiled again (the bitmap holds
+ *  the colours), the others are kept. Returns the new list, or `cols` itself when no colour changed. */
+export function recolourColumns(tree: TreeSnapshot, cols: CompiledColumn[], theme: TreeTheme): CompiledColumn[] {
+  let out: CompiledColumn[] | null = null;
+  for (let i = 0; i < cols.length; i++) {
+    const c = cols[i];
+    if (!c.alphabet || !c.table) continue;
+    const tab = residueTable(theme, c.alphabet);
+    let same = true;
+    for (let j = 0; j < 256 && same; j++) if (tab[j] !== c.table[j]) same = false;
+    if (same) continue;
+    out ??= cols.slice();
+    out[i] = { ...compileColumn(tree, c.spec, theme), x: c.x };
+  }
+  return out ?? cols;
 }
 
 export function columnsWidth(cols: { spec: { width: number } }[]): number {
@@ -172,7 +182,6 @@ const BLOCK_ROW_PX = 1.5; // blocks need rows at least this tall, below it the r
 
 export interface ColumnDrawOptions {
   alignStyle: 'residues' | 'blocks';
-  alignRowGap: number;
 }
 
 /** Start/end pairs (alignment columns) of the stretches without gaps in the sequence of rank r, cached on the column. */
@@ -224,7 +233,7 @@ export function drawColumns(
   theme: TreeTheme,
   headY: number,
   barColour: string,
-  opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 },
+  opts: ColumnDrawOptions = { alignStyle: 'residues' },
 ): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
@@ -264,7 +273,7 @@ export function drawColumns(
     } else if (c.spec.kind === 'alignment' && c.txt && opts.alignStyle === 'blocks' && ky >= BLOCK_ROW_PX) {
       // ETE style: a thin line over the whole width, grey blocks over the stretches without gaps
       const cw = w / Math.max(1, c.seqLen);
-      const inset = ky >= GAP_ROW_PX ? Math.max(opts.alignRowGap, ky * 0.25) : 0;
+      const inset = ky >= GAP_ROW_PX ? Math.max(theme.alignRowGap, ky * 0.25) : 0;
       const bh = Math.max(1, ky - inset);
       const rr = Math.min(3, bh / 2);
       const canRound = typeof ctx.roundRect === 'function' && bh >= 4;
@@ -292,10 +301,10 @@ export function drawColumns(
         }
       }
       ctx.fill();
-    } else if (c.spec.kind === 'alignment' && c.bitmap && opts.alignRowGap > 0 && ky >= GAP_ROW_PX) {
+    } else if (c.spec.kind === 'alignment' && c.bitmap && theme.alignRowGap > 0 && ky >= GAP_ROW_PX) {
       // residues with a gap between sequences: one blit per visible row, a little shorter than the row
       ctx.imageSmoothingEnabled = false;
-      const g = Math.min(opts.alignRowGap, ky - 1);
+      const g = Math.min(theme.alignRowGap, ky - 1);
       for (let r = r0; r <= r1; r++) ctx.drawImage(c.bitmap, 0, r, c.seqLen, 1, c.x, oy + r * ky + g / 2, w, ky - g);
     } else if (c.spec.kind === 'alignment' && c.bitmap) {
       ctx.imageSmoothingEnabled = ky < 1;
@@ -341,7 +350,7 @@ export function drawColumns(
       }
     } else if (c.spec.kind === 'alignment' && c.txt) {
       // large alignment fallback: runs of equal colour for visible rows only
-      const tab = residueTable();
+      const tab = c.table!;
       const cw = w / Math.max(1, c.seqLen);
       for (let r = r0; r <= r1; r++) {
         const s = c.txt[r];

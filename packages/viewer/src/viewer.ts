@@ -15,7 +15,7 @@
 
 import { cladeName } from './clade-name.ts';
 import type { Control, ControlPosition } from './control.ts';
-import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
+import { cellRect, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
@@ -47,7 +47,8 @@ import {
   type TreeTheme,
   type Viewport,
 } from './types.ts';
-import { THEME_CSS_VARS, themeFromCss } from './theme.ts';
+import { isOpaque } from './colour.ts';
+import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
@@ -217,7 +218,7 @@ export class TreeViewer {
     });
     this.opts = { ...DEFAULT_OPTIONS, ...stripUndefined(init.options ?? {}) };
     this.themeOverrides = { ...stripUndefined(init.theme ?? {}) };
-    this.theme = { ...FALLBACK_THEME, ...this.themeOverrides };
+    this.theme = this.composeTheme();
     this.L = this.layoutFor(this.opts.branchLengths);
     this.hit = new HitIndex();
     this.detail = new DetailLoader(this.source, () => this.invalidate());
@@ -258,8 +259,8 @@ export class TreeViewer {
     // the control layer is the tree element's sibling: a tree may only own tree items, so menus, buttons and the search field stay out
     this.container.append(this.root, this.uiLayer);
     // the theme from CSS custom properties of the target (and its ancestors); re-read when the colour scheme preference changes
-    this.cssTheme = themeFromCss(this.host);
-    this.theme = { ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides };
+    this.cssTheme = themeFromCss(this.host, false);
+    this.theme = this.composeTheme();
     this.syncCssVars();
     if (typeof matchMedia === 'function') {
       this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
@@ -280,7 +281,7 @@ export class TreeViewer {
     });
     this.ro.observe(this.host);
     this.measure();
-    if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns).columns;
+    if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns, this.theme).columns;
     INTERNALS.set(this, {
       overviewHost: this.overviewHost(),
       sceneVersion: () => this.sceneVersion,
@@ -625,15 +626,23 @@ export class TreeViewer {
    *  so a theme rebuilt per render costs nothing. */
   setTheme(t: Partial<TreeTheme>): void {
     this.themeOverrides = { ...stripUndefined(t) };
-    this.applyTheme({ ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides });
+    this.applyTheme(this.composeTheme());
   }
 
   /** Read the theme's CSS custom properties again (after a stylesheet or class change that the viewer cannot see). The viewer does
    *  this itself when it is created and when the colour scheme preference changes. */
   refreshTheme(): void {
     if (this.destroyed) return;
-    this.cssTheme = themeFromCss(this.host);
-    this.applyTheme({ ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides });
+    this.cssTheme = themeFromCss(this.host, false);
+    this.applyTheme(this.composeTheme());
+  }
+
+  /** `FALLBACK_THEME`, the CSS properties, the overrides. `dark`, when neither `--phylo-dark` nor an override says, follows the merged
+   *  background (so `setTheme({ background: '#0f172a' })` is a dark theme); a translucent background says nothing. */
+  private composeTheme(): TreeTheme {
+    const t = { ...FALLBACK_THEME, ...this.cssTheme, ...this.themeOverrides };
+    if (this.cssTheme.dark === undefined && this.themeOverrides.dark === undefined) t.dark = deriveDark(t.background) ?? t.dark;
+    return t;
   }
 
   private onScheme = () => this.refreshTheme();
@@ -643,7 +652,7 @@ export class TreeViewer {
   private syncCssVars(): void {
     const s = this.container.style;
     const t = this.theme;
-    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily'] as const)
+    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily', 'labelFontStyle'] as const)
       s.setProperty(THEME_CSS_VARS[k], t[k]);
   }
 
@@ -655,6 +664,7 @@ export class TreeViewer {
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
     this.theme = next;
+    this.columns = recolourColumns(this.tree, this.columns, next); // residue tokens: the alignment bitmaps hold the colours
     // an opaque canvas cannot show the page through a transparent background (it clears to black): change canvas when that changes
     const alpha = !isOpaque(next.background);
     if (alpha !== this.canvasAlpha) {
@@ -773,7 +783,7 @@ export class TreeViewer {
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
   setColumns(cols: Column[]): void {
     const hadW = columnsWidth(this.columns);
-    const next = updateColumns(this.tree, this.columns, cols);
+    const next = updateColumns(this.tree, this.columns, cols, this.theme);
     if (next.same) return;
     this.columns = next.columns;
     const changed = columnsWidth(this.columns) !== hadW || this.columns.length > 0 !== hadW > 0;
@@ -1180,7 +1190,7 @@ export class TreeViewer {
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle, alignRowGap: opts.alignRowGap });
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
       if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
     } else if (opts.axis) drawScaleBar(ctx, S);
 
@@ -1379,27 +1389,4 @@ export class TreeViewer {
     this.topDirty = true;
     this.schedule();
   };
-}
-
-/** Whether a CSS colour is fully opaque: drawn on a 1×1 canvas and read back (exact for any syntax the browser knows: transparent,
- *  rgba, #rgba, hsl(… / a), color-mix). Without a 2D canvas (tests, workers) only 'transparent' counts as not opaque. */
-let probe: CanvasRenderingContext2D | null | undefined;
-function isOpaque(colour: string): boolean {
-  if (colour.trim().toLowerCase() === 'transparent') return false;
-  if (probe === undefined) {
-    try {
-      const c = document.createElement('canvas');
-      c.width = c.height = 1;
-      probe = c.getContext('2d', { willReadFrequently: true }) ?? null;
-      if (probe && typeof probe.getImageData !== 'function') probe = null;
-    } catch {
-      probe = null;
-    }
-  }
-  if (!probe) return true;
-  probe.clearRect(0, 0, 1, 1);
-  probe.fillStyle = '#000';
-  probe.fillStyle = colour;
-  probe.fillRect(0, 0, 1, 1);
-  return probe.getImageData(0, 0, 1, 1).data[3] === 255;
 }

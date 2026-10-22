@@ -426,6 +426,36 @@ await page.waitForTimeout(300);
 const cell = await ev(() => __v().columnCell('alignment', 0));
 ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
 ok((await page.locator('.rt-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
+// the legend is the canvas's own table: in dark mode, every swatch is a colour the cells are drawn in (and the cells use no other)
+if ((await ev(() => document.documentElement.dataset.theme)) !== 'dark') {
+  await page.locator('.theme-toggle').click();
+  await page.waitForTimeout(300);
+}
+const swatches = await ev(() => [...document.querySelectorAll('.rt-legend-dot')].map((d) => getComputedStyle(d).backgroundColor));
+ok(swatches.length === 4 && new Set(swatches).size === 4, `the nucleotide legend has four distinct swatches (${swatches.join(' ')})`);
+ok(swatches[0] === 'rgb(74, 222, 128)', 'in dark mode they are the dark defaults (A is #4ade80)');
+const cellColours = await ev(() => {
+  const v = __v();
+  const c = v.treeElement.querySelector('canvas');
+  const b = c.getBoundingClientRect();
+  const k = c.width / b.width;
+  const seen = new Set();
+  for (let r = 0; r < 6; r++) {
+    const cell = v.columnCell('alignment', r);
+    if (!cell) continue;
+    for (let i = 0; i < 80; i++) {
+      const x = Math.round((cell.x + ((i + 0.5) / 80) * cell.width - b.left) * k);
+      const y = Math.round((cell.y + cell.height / 2 - b.top) * k);
+      const d = c.getContext('2d').getImageData(x, y, 1, 1).data;
+      if (d[3] === 255) seen.add(`rgb(${d[0]}, ${d[1]}, ${d[2]})`);
+    }
+  }
+  return [...seen];
+});
+ok(
+  swatches.every((s) => cellColours.includes(s)),
+  `each legend swatch is the pixel colour of a residue cell (cells: ${cellColours.join(' ')})`,
+);
 await btn('Alignment').click();
 await page.waitForTimeout(200);
 ok((await ev(() => __v().columnCell('alignment', 0))) === null && (await page.locator('.rt-legend').count()) === 0, 'Alignment off');

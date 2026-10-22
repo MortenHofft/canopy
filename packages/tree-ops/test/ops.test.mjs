@@ -218,7 +218,7 @@ test('swap and reorder', () => {
   const X = n.children(0)[0];
   const [A, , C] = n.children(X);
   const rn = reorder(n, X, [C, A, n.children(X)[1]]);
-  assert.equal(nwk(rn.tree), '((C:1,A:1,B:1)X:2,D:1)R;'); // a non-root node
+  assert.equal(nwk(rn.tree), '((C:1,A:1,B:1)X:2,D:1)R:0.5;'); // a non-root node (the writer now writes the root length)
   assert.equal(rn.tree.length[0], 0.5); // the root keeps its length
   checkModel(rn.tree);
   assert.equal(rn.tree.labels[rn.map[C]], 'C');

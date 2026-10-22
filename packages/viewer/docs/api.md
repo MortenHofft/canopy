@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once |
 | `@gbif-phylo/viewer/gbif.css` | optional: GBIF design tokens mapped to the `--phylo-*` properties |
 | `@gbif-phylo/react` | `<TreeView>` ([below](#treeview)) |
-| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`; `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -217,13 +217,26 @@ All three are controls with position `'custom'`: add them with `addControl`.
 
 ```ts
 type Column = BuiltinColumn | CustomColumn;
-BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width, values: Record<tipLabel, number | string> }
+BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width, values: Record<tipLabel, number | string>, alphabet?: 'auto' | 'protein' | 'nucleotide' }
 CustomColumn:  { id, kind: 'custom', header, width, values: Record<tipLabel, V>, renderer: ColumnRenderer<V, D> }
 ```
 
 `values` (and `renderer`) are compared by reference when columns are set again: pass the same object while the data is unchanged and a new
 one when it changed; never mutate in place. Built-in kinds: log-scaled bars (binned per pixel row below 1.5 px per row), text (tinted bands
-below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and `alignRowGap`).
+below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and the theme's `alignRowGap`).
+
+An alignment column has two colour schemes, chosen by its `alphabet`: `'protein'` (Clustal-like groups) and `'nucleotide'` (A, C, G, T/U each
+their own colour). `'auto'`, the default, takes `'nucleotide'` when more than 90% of a sample of the residues (the first 400 non-gap
+residues of each sequence, up to 2000 in all; at most 20,000 characters are scanned per sequence) are A, C, G, T, U or N, otherwise `'protein'`. Changing `alphabet` recompiles the column.
+The colours are theme tokens (`residue*`, below). `residueColours(theme, alphabet)` returns the table the column is drawn from, and
+`residueGroups(alphabet)` the groups with their labels, so an app can draw a legend that cannot go stale:
+
+```ts
+import { residueColours, residueGroups, detectAlphabet } from '@gbif-phylo/viewer';
+const alphabet = detectAlphabet(Object.values(values)); // 'protein' | 'nucleotide', as 'auto' decides
+const colours = residueColours(viewer.getTheme(), alphabet); // { A: '#...', C: ..., ..., Z: ..., other: '#...' }
+const legend = residueGroups(alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
+```
 
 A `ColumnRenderer` draws a custom column:
 
@@ -249,15 +262,16 @@ Test for a new setting: would a designer set it in CSS, or does it change what i
 an element is an option; the colour, size and font of that element are theme. Settings added by other work follow the same rule, for example
 a switch for a kind of label or highlight (option) and the colours and opacities that go with it (theme).
 
-Exceptions, and why they are as they are:
+Exceptions to the rule:
 
 | Setting | Lives in | Why |
 |---|---|---|
-| `dark` | theme | not a look value: it says whether the background is dark, for apps and custom controls; the drawing code does not read it |
-| `categorical` | theme | a list of colours, so a comma list in CSS; an app picks from it |
-| `rowHeight`, `minCladePx`, `alignRowGap` | options | sizes in px, but they set layout geometry or the level-of-detail threshold, which changes what is shown, not how it is painted |
-| `alignStyle` | options | residues or blocks changes what is drawn; the colours of what is drawn are theme |
-| `ariaLabel` | option | text for assistive technology, not a look |
+| `dark` | theme | derived from the background; informational for apps, and used by the drawing code only to choose light or dark residue defaults |
+| `rowHeight` | option | a size in px, but it sets the layout (how many tips fit), not how a row is painted |
+
+Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
+
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `draw.ts`), the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
@@ -279,13 +293,27 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through; the canvas is opaque, which is faster, whenever this colour is), labels and axis text, axis lines and headers |
 | `branch`, `highlight`, `summary` | `--phylo-branch`, ... | `#44576a`, `#4c9b45`, `#9aa7b3` | branches, selection and focus, collapsed clades |
 | `fontFamily` | `--phylo-font-family` | `system-ui, sans-serif` | labels and axis |
-| `labelFontStyle` | `--phylo-label-font-style` | `italic` | `italic` or `normal`, the style of tip labels |
+| `labelFontStyle` | `--phylo-label-font-style` | `italic` | `italic` or `normal` (`oblique` reads as italic, case ignored): tip labels on the canvas and in the DOM (tooltip, node menu, search list) |
+| `alignRowGap` | `--phylo-align-row-gap` | 0 | alignment columns: empty px between sequences (rows at least 4 px tall); blocks keep at least a quarter of the row free |
 | `categorical` | `--phylo-categorical` (comma list) | 5 colours | palette for categories; the second colours bar columns |
 | `branchWidth`, `cladeBranchWidth` | `--phylo-branch-width`, ... | 1.3, 2 | line widths (px) |
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
-| `dark` | `--phylo-dark` | from the background's luminance | the background is dark: informational, for apps and custom controls (the drawing code does not read it) |
+| `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
+| `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
+| `residueA`, `residueC`, `residueG`, `residueT` | `--phylo-residue-a`, `-c`, `-g`, `-t` | light and dark sets (below) | nucleotides of alignment columns; U is drawn like T |
+| `residueOther` | `--phylo-residue-other` | light and dark sets (below) | any other residue character, in either scheme (gaps are not drawn) |
+
+The residue tokens are optional: a token that is not set is the default for the theme's `dark` (light: the Clustal-like protein colours the viewer
+always had, and A `#2f9e44`, C `#2f6fd6`, G `#c27a00`, T/U `#d63b3b`; dark: lighter variants, each at least 3:1 against `#0f172a`, see
+`defaultResidueColour` in `src/residues.ts`). A value is read the way the browser reads a CSS colour (drawn on a 1x1 canvas and read back: names, `hsl()`, `oklch()`, `color-mix()`
+and `#rgba` all work; without a canvas, as in tests, only `#rgb`, `#rrggbb` and `rgb()`/`rgba()`). The alpha is dropped, because the
+alignment bitmap is opaque. A value that is not a colour, or is fully transparent, is replaced by the default with one console warning
+per value. `residueColours` returns each colour as the `#rrggbb` that is drawn, so the returned table is always what is drawn; results
+are cached per string, so a theme change resolves a colour once. Why groups for protein but bases for nucleotides: A, C, G and T are residues in both alphabets, so
+a token per letter would have to choose one meaning; the protein scheme colours seven groups, so seven tokens cover its twenty letters.
+Setting a token repaints the alignment columns (their bitmap holds the colours); the other columns are not recompiled.
 
 DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--phylo-surface-hover`, `--phylo-border`, `--phylo-radius`,
 `--phylo-control-radius`, `--phylo-control-size`, `--phylo-shadow`, `--phylo-popup-shadow`, `--phylo-gap`, `--phylo-font-size`,
@@ -310,7 +338,6 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
 | `minCladePx` | `3` | collapse clades smaller than this many px (the base threshold of the cut) |
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
-| `alignRowGap` | `0` | alignment columns: empty px between sequences (rows at least 4 px tall) |
 | `formatLabel` | underscores to spaces | `(tipId) => string`, the displayed tip label |
 | `cladeLabel` | `null` | `(node, tree) => string \| null`, the name of an internal node (`node`: preorder id in the full tree; `tree`: the snapshot, label at `tree.labels[tree.toLocal(node)]`); null = none. See Naming clades |
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |
