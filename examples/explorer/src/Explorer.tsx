@@ -1408,7 +1408,7 @@ export function Explorer({
               {inspector.support !== null && (
                 <>
                   <dt>Bootstrap</dt>
-                  <dd className="ex-info-boot">{inspector.support}</dd>
+                  <dd>{inspector.support}</dd>
                 </>
               )}
             </dl>
