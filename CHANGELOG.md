@@ -11,6 +11,7 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **Overlays.** `Overlay` pins an element to a node. `Tooltip` and `NodeMenu` moved from React into the core.
 - **Alignment colours.** Residue colours are theme tokens (`residueHydrophobic` ... `residueProline` for protein groups, `residueA/C/G/T` for nucleotides, `residueOther`; CSS `--phylo-residue-*`), with light and dark defaults. An alignment column has `alphabet: 'auto' | 'protein' | 'nucleotide'`; nucleotides no longer use the amino-acid colours (A and C were the same). New exports `residueColours(theme, alphabet)` (the table that is drawn), `residueGroups`, `detectAlphabet`. `examples/reactree` draws its legend from them. Closes #21.
 - **Custom columns.** `kind: 'custom'` with a `ColumnRenderer`.
+- **tree-ops: `swap(t, a, b)` and `reorder(t, node, order)`.** Exchange two sibling branches, or give a node's children in any order (a permutation of them; `RangeError` otherwise). `rotate` stays. `examples/reactree`'s Swap now works inside polytomies, and its tree list has `edge-polytomy`.
 - **Theme.** Canvas sizes and opacities are now tokens. The theme can come from `--phylo-*` CSS custom properties (`themeFromCss`, `refreshTheme`). There is `viewer.css` for the DOM and an optional `gbif.css`.
 - **`<TreeView>`.** New `controls` prop. `theme` holds overrides only. `TreeNodeEvent` is the viewer's `TreeEvent`, so `tipRange` is now `tipStart` / `tipEnd`.
 - **No build step.** Single-file browser builds `@gbif-phylo/viewer/browser` and `@gbif-phylo/io/browser`, and `examples/no-build`, a plain HTML page with an import map, plus its browser check.
@@ -18,7 +19,7 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **Review fixes.** These come from an adversarial review of the branch.
   - The browser checks fall back to Playwright's own Chromium, as on a CI runner (`tests/browser/scripts/chromium.mjs`).
   - A control has one viewer: adding it to a second viewer removes it from the first.
-  - The wheel over a control or the overview zooms the tree instead of scrolling the page, except inside lists marked `data-phylo-scroll`.
+  - The wheel over a control zooms the tree instead of scrolling the page, except inside lists marked `data-phylo-scroll`. (The overview handles its own wheel, see #33.)
   - `<TreeView>` applies only the options whose prop changed, so a layout chosen with `LayoutToggle` is no longer reverted.
   - The viewer's element holds the `role="tree"` element and the control layer as siblings, so controls and popups are no longer inside the tree role. New `treeElement` and `focus()`.
   - A listener removed during an emit is no longer called by it.
@@ -34,4 +35,4 @@ These changes made the spike's custom renderer into the first library form. Noth
   - Nested clade colours: the innermost clade wins, whatever the order of `setClades` / the `clades` prop (it was the later entry).
   - `@gbif-phylo/io` has `toNexus`: a NEXUS file with a taxa block and the tree.
 - **`TreeViewer` unit tests** (#25). `test/viewer-harness.mjs` builds a real viewer in Node (`makeViewer(tree, init)`) over the fake DOM, with a recording 2D context, `requestAnimationFrame`, `ResizeObserver`, `matchMedia` and `getComputedStyle`. Tests cover `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, and `setTheme` / `refreshTheme`.
-
+- **Overview wheel** (#33). The wheel over the overview zooms about the tree point under the pointer (it zoomed toward a corner of the window box). Zooming out clamps the anchor into the window, a zoom that cannot go further does not pan, and a horizontal swipe still pans. `ViewState.zoomAtWorld` holds the zoom arithmetic and `zoomBy` shares it.

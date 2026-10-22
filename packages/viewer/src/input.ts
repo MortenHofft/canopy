@@ -12,6 +12,22 @@ import type { Area } from './geom.ts';
 import { defaultActiveNode, isNavigationKey, navigate, pageRows } from './keyboard.ts';
 import type { Hit, LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
+/** The zoom factors a wheel event means (>1 zooms in), or null for a mostly horizontal scroll of the rectangular layout (a pan).
+ *  Rectangular: rows only; Shift / Ctrl: along x only; Alt: both. Radial: both. Shared by the tree and the overview. */
+export function wheelZoom(layout: LayoutKind, e: WheelEvent): { fx: number; fy: number } | null {
+  const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+  if (layout === 'rectangular') {
+    const horizontal = e.shiftKey || e.ctrlKey;
+    const d = (e.deltaY !== 0 ? e.deltaY : e.deltaX) * unit;
+    if (!horizontal && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) return null;
+    const f = Math.exp(-d * WHEEL_ZOOM_RATE);
+    if (e.altKey) return { fx: f, fy: f };
+    return horizontal ? { fx: f, fy: 1 } : { fx: 1, fy: f };
+  }
+  const f = Math.exp(-(e.deltaY || e.deltaX) * unit * WHEEL_ZOOM_RATE);
+  return { fx: f, fy: f };
+}
+
 export interface Point {
   x: number;
   y: number;
@@ -130,25 +146,16 @@ export class InputController {
     const h = this.host;
     h.noteInput();
     const p = this.local(e);
-    const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
-    const a = h.area;
-    if (h.layout === 'rectangular') {
-      const horizontal = e.shiftKey || e.ctrlKey;
-      const d = (e.deltaY !== 0 ? e.deltaY : e.deltaX) * unit;
-      if (!horizontal && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
-        const w = h.view.x1 - h.view.x0;
-        const dx = ((e.deltaX * unit) / a.aw) * w;
-        h.setViewport({ ...h.view, x0: h.view.x0 + dx, x1: h.view.x1 + dx });
-        return;
-      }
-      const f = Math.exp(-d * WHEEL_ZOOM_RATE);
-      if (e.altKey) h.zoomBy(f, f, p.x, p.y);
-      else if (horizontal) h.zoomBy(f, 1, p.x, p.y);
-      else h.zoomBy(1, f, p.x, p.y);
-    } else {
-      const f = Math.exp(-(e.deltaY || e.deltaX) * unit * WHEEL_ZOOM_RATE);
-      h.zoomBy(f, f, p.x, p.y);
+    const z = wheelZoom(h.layout, e);
+    if (!z) {
+      // rectangular, mostly horizontal: pan along x
+      const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+      const w = h.view.x1 - h.view.x0;
+      const dx = ((e.deltaX * unit) / h.area.aw) * w;
+      h.setViewport({ ...h.view, x0: h.view.x0 + dx, x1: h.view.x1 + dx });
+      return;
     }
+    h.zoomBy(z.fx, z.fy, p.x, p.y);
   };
 
   // ------------------------------------------------------------- pointer

@@ -261,6 +261,7 @@ export function Reactree({
       return flash(`${what}: ${(err as Error).message}`);
     }
     if (!r.changed) return flash(`${what}: nothing to change`);
+    setSwapFirst(null);
     const next = new TreeModel(r.tree);
     const keptClades = clades.flatMap((c) => {
       const m = moveNode(tree, next, r.map, Number(c.nodeId.slice(1)));
@@ -276,6 +277,7 @@ export function Reactree({
   const undo = () => {
     const prev = history[history.length - 2];
     setHistory((h) => h.slice(0, -1));
+    setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
     setInfo(null);
@@ -309,11 +311,8 @@ export function Reactree({
         const a = swapFirst;
         setSwapFirst(null);
         if (a === v) return;
-        const p = tree.parent[v];
-        if (tree.parent[a] !== p) return flash('Swap needs two sibling branches');
-        // tree-ops reverses the children of a node; for two children that is the swap. It has no general reorder (yet).
-        if (tree.childCount[p] !== 2) return flash(`Swap inside a polytomy (${tree.childCount[p]} branches) needs a reorder tree-ops does not have`);
-        return apply((t) => ops.rotate(t, p), 'Swap');
+        if (tree.parent[a] !== tree.parent[v]) return flash('Swap needs two sibling branches');
+        return apply((t) => ops.swap(t, a, v), 'Swap');
       }
       case 'color': {
         const nodeId = 'n' + v;
