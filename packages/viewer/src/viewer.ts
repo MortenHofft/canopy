@@ -24,6 +24,7 @@ import {
   drawBody,
   drawHighlights,
   drawLabels,
+  drawNodeLabels,
   drawLeaders,
   drawMarkers,
   drawRing,
@@ -1535,6 +1536,8 @@ export class TreeViewer {
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
       format: opts.formatLabel,
+      nodeLabels: opts.nodeLabels,
+      formatNode: opts.formatNodeLabel,
       scale,
       thin: !rect && this.list.count >= THIN_PRIMS,
       measure: this.measurer,
@@ -1547,6 +1550,7 @@ export class TreeViewer {
     drawBody(ctx, S, this.theme.branchWidth);
     drawLeaders(ctx, S);
     drawMarkers(ctx, S);
+    drawNodeLabels(ctx, S);
     drawLabels(ctx, S, labels);
     ctx.restore();
     if (rect) {

@@ -1,18 +1,19 @@
 // A look-alike of Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree pane, an inspector, a floating search, a colour
 // palette, an export menu), built only from the public API of @gbif-phylo: <TreeView> and its handle for the drawing, its props for
 // clades / highlights / collapsed clades / columns / theme, its callbacks for clicks and hovers, tree-ops for every edit and a
-// control of our own (NodeLabels) for the node labels. What could not be matched is listed in ../README.md.
+// `nodeLabels` option for the support values and branch lengths. What could not be matched is listed in ../README.md.
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
 import { detectAlphabet, residueColours, residueGroups, type Column, type Control, type Viewport } from '@gbif-phylo/viewer';
-import { NodeLabels, type NodeLabelMode } from './node-labels.ts';
 import * as I from './icons.tsx';
 
 type Mode = 'none' | 'reroot' | 'flip' | 'swap' | 'color';
 type Layout = 'rectangular' | 'radial';
+type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
+const NO_CONTROLS: Control[] = []; // Reactree has its own toolbar: none of the viewer's buttons
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--rt-palette-<name>) in reactree.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
@@ -219,12 +220,10 @@ export function Reactree({
     [showAlignment, alignment, layout],
   );
 
-  // ---- controls on the viewer: our node labels
-  const nodeLabels = useMemo(() => new NodeLabels(), []);
-  const controls = useMemo<Control[]>(() => [nodeLabels], [nodeLabels]);
-  useEffect(() => nodeLabels.setMode(labelMode), [nodeLabels, labelMode]);
-  const collapsedIds = view?.collapsedIds;
-  useEffect(() => nodeLabels.setSkipped(new Set((collapsedIds ?? []).map((id) => Number(id.slice(1))))), [nodeLabels, collapsedIds]);
+  // ---- node labels: the viewer draws them (`nodeLabels`). 'support' reads `support` of the shown tree, which is the same for a support in
+  // the labels (0.95, 100) and for one that load() copied there from an annotation (BEAST posterior); the shown tree is the collapsed
+  // view, whose collapsed tips are never labelled.
+  const nodeLabels = labelMode === 'bootstrap' ? 'support' : labelMode === 'branchlength' ? 'length' : 'none';
 
   // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
   const fitted = useRef<Viewport | null>(null);
@@ -810,10 +809,10 @@ export function Reactree({
           highlighted={matches}
           collapsed={view?.collapsedIds}
           columns={columns}
-          controls={controls}
+          controls={NO_CONTROLS}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, themeObserver: 'document' }}
+          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, nodeLabels, themeObserver: 'document' }}
           tooltip={tooltip}
           tooltipBare
           onNodeClick={onClick}
