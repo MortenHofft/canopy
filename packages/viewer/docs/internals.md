@@ -110,6 +110,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 |---|---|---|
 | `src/types.ts` | 298 | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats` |
 | `src/viewer.ts` | 1,323 | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
+| `src/clade-name.ts` | 42 | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement) |
 | `src/events.ts` | 124 | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`) |
 | `src/node-event.ts` | 69 | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault` |
 | `src/theme.ts` | 99 | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties |
@@ -171,7 +172,9 @@ Scripts and tests:
 | `test/controls.test.mjs` | 206 | `BaseControl` bookkeeping and the built-in controls against a fake viewer |
 | `test/overlays.test.mjs` | 195 | `Overlay` placement, the tooltip and the node menu as default actions, menu keyboard |
 | `test/theme.test.mjs` | 74 | `themeFromCss`, list splitting, luminance, `themeEquals` |
-| `test/fake-dom.mjs` | 204 | the minimal fake DOM the control and overlay tests run on |
+| `test/viewer.test.mjs` | 366 | the `TreeViewer` facade built for real: `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, `setTheme` / `refreshTheme` |
+| `test/viewer-harness.mjs` | 269 | `makeViewer(tree, init)`: a real viewer over the fake DOM, with a recording 2D context, a rAF queue, ResizeObserver, matchMedia and getComputedStyle under the test's control (build later viewer tests on it) |
+| `test/fake-dom.mjs` | 263 | the minimal fake DOM the control, overlay and viewer tests run on |
 | **Total, `test/`** | **7,869** | |
 
 ## How to extend

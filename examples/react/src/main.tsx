@@ -20,23 +20,9 @@ import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent } from 
 import { defaultControls, type Viewport } from '@gbif-phylo/viewer';
 
 /** What happens to a clade colour whose tips an operation splits (rerooting inside the clade puts its tips on both sides of the new
- *  root, so they are no longer one clade): 'remove' it, or keep it on the 'node' that was coloured, which now holds other tips. */
+ *  root, so they are no longer one clade): 'remove' it, or keep it on the 'node' that was coloured, which now holds other tips
+ *  (tree-ops' `onSplit: 'drop'` and `'keep'`). */
 type SplitColour = 'remove' | 'node';
-
-/** Where a clade colour goes after an operation. A colour stands for the tips of clade `k` of `tree` that survive in `next` (through
- *  `map`); if they still form one clade it moves there (`tipsBefore === tipsAfter`). If they do not, `rule` decides: no node
- *  ('remove'), or the coloured node itself if it survived ('node'; the caller warns that it now holds other tips). */
-function moveColour(tree: TreeModel, next: TreeModel, map: Int32Array, k: number, rule: SplitColour): { node: number; split: boolean } {
-  const tips: number[] = [];
-  for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) {
-    const v = map[tree.tipNode[rk]];
-    if (v >= 0) tips.push(v);
-  }
-  if (!tips.length) return { node: -1, split: false }; // all pruned
-  const m = next.mrcaOf(tips);
-  if (next.tipCountOf(m) === tips.length) return { node: m, split: false };
-  return { node: rule === 'node' ? map[k] : -1, split: true };
-}
 
 function App() {
   const params = new URLSearchParams(location.search);
@@ -83,8 +69,7 @@ function App() {
     const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
     const step = (r: ops.OpResult) => {
       if (!r.changed) return false;
-      const first = acc.toView;
-      acc.toView = first ? first.map((v) => (v >= 0 ? r.map[v] : -1)) : r.map;
+      acc.toView = acc.toView ? ops.composeMaps(acc.toView, r.map) : r.map;
       acc.shown = new TreeModel(r.tree);
       return true;
     };
@@ -109,9 +94,7 @@ function App() {
     }
     const { shown, toView } = acc;
     if (!toView) return null;
-    const toTree = new Int32Array(shown.nodeCount);
-    for (let i = 0; i < toView.length; i++) if (toView[i] >= 0) toTree[toView[i]] = i;
-    return { tree: shown, toView, toTree, supportCollapsed, collapsedIds: collapsedTips.map((n) => 'n' + n) };
+    return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed, collapsedIds: collapsedTips.map((n) => 'n' + n) };
   }, [tree, focus, collapseOn, hasSupport, minSupport, collapsed]);
   const colouredTips = useMemo(() => {
     let n = 0;
@@ -150,7 +133,7 @@ function App() {
   if (!tree) return <p style={{ padding: 16 }}>loading…</p>;
   const palette = g.categorical;
 
-  /** Run a tree operation on the current tree. A clade colour is carried over by its tips (see moveColour): it goes to the clade
+  /** Run a tree operation on the current tree. A clade colour is carried over by its tips (see ops.followClade): it goes to the clade
    *  they form; when the operation split them, `splitColour` removes it or keeps it on its node with a warning in the status line. */
   const apply = (name: string, op: (t: TreeModel) => ops.OpResult) => {
     let r: ops.OpResult;
@@ -172,9 +155,16 @@ function App() {
     const next = new TreeModel(r.tree);
     const ms = performance.now() - t0;
     const notes: string[] = [];
-    const kept = clades.flatMap((c) => {
+    const followed = ops.followClades(
+      tree,
+      next,
+      r.map,
+      clades.map((c) => Number(c.nodeId.slice(1))),
+      { onSplit: splitColour === 'node' ? 'keep' : 'drop' },
+    );
+    const kept = clades.flatMap((c, i) => {
       const k = Number(c.nodeId.slice(1));
-      const { node, split } = moveColour(tree, next, r.map, k, splitColour);
+      const { node, split } = followed[i];
       if (split && node >= 0)
         notes.push(
           `⚠ a colour stayed on its node, which now holds ${next.tipCountOf(node).toLocaleString('en')} tips instead of ${tree.tipCountOf(k).toLocaleString('en')}`,
@@ -183,15 +173,12 @@ function App() {
       return node >= 0 ? [{ ...c, nodeId: 'n' + node }] : [];
     });
     // collapsed clades follow their tips the same way; one the operation split is expanded
-    const keptCollapsed = collapsed.flatMap((k) => {
-      const m = moveColour(tree, next, r.map, k, 'remove').node;
-      return m >= 0 && next.childCount[m] > 0 ? [m] : [];
-    });
+    const keptCollapsed = ops
+      .followClades(tree, next, r.map, collapsed)
+      .map((f) => f.node)
+      .filter((m) => m >= 0 && next.childCount[m] > 0);
     // so does the focus (a focused clade the operation split is left: back skips it)
-    const keptFocus = ops.remapFocus(focus, (k) => {
-      const m = moveColour(tree, next, r.map, k, 'remove').node;
-      return m > 0 && next.childCount[m] > 0 ? m : -1;
-    });
+    const keptFocus = ops.remapFocus(focus, tree, next, r.map);
     setClades(kept);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);

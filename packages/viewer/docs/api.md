@@ -162,7 +162,7 @@ A control is any object with `element: HTMLElement`, optional `position` (`'top-
 `'bottom-right'`, or `'custom'`: put in the control layer as it is, positioned by itself), optional `target` (an element of the page: the
 control lives there instead of on the viewer) and `setViewer(viewer | null)`. `addControl` gives a control's element `pointer-events:
 auto` unless the element already has an inline `pointer-events`: a control that lays something over the whole tree (labels, say) sets
-`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
+`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control zooms the tree, and over the overview zooms about the tree point under the pointer (the overview handles its own wheel), except inside an element marked `data-phylo-scroll` (a list that
 scrolls itself, as the legend and the search suggestions are).
 
 `BaseControl` is the base class of the built-ins: `new BaseControl(name, { position, target, className }, element?)` gives the element the
@@ -195,7 +195,7 @@ Built-in controls (each in its own module; options extend `{ position, target, c
 | `Fit` | top-left | `icon`, `label` | `fit(true)` |
 | `LayoutToggle` | top-left | `icons`, `labels` (per layout) | one pressed button per layout; follows `optionschange` |
 | `Search` | top-right | `placeholder`, `maxResults` (8), `highlight` (false), `onSelect(tipId, viewer)`, `icon` | find tips by label (prefix matches first, case-insensitive on the displayed label), keyboard list; focuses the chosen tip |
-| `Legend` | bottom-right | `title`, `items` (`{colour, label, node?}[]` instead of the clade colours) | the clade colours with their names; click to zoom to a clade; hidden while empty |
+| `Legend` | bottom-right | `title`, `items` (`{colour, label, detail?, node?}[]` instead of the clade colours), `cladeLabel` (overrides the viewer option) | the clade colours with their names; click to zoom to a clade; hidden while empty; follows `formatLabel` and `cladeLabel` changes. A clade is named by its `setClades` label, else by its node's name and tip count (`Chelodina ott1 (12 tips)`; see Naming clades), else `Clade of 12 tips` (`Unnamed tip` for a tip with no label) |
 | `OverviewControl` | custom | | the whole tree in small with the window box (a strip right of the rectangular plot, which leaves room for it; a disc in radial) |
 
 `defaultControls({ zoom, fit, layoutToggle, search, legend, overview })` returns the usual set: zoom and fit on, the others off; each key is
@@ -289,6 +289,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
 | `alignRowGap` | `0` | alignment columns: empty px between sequences (rows at least 4 px tall) |
 | `formatLabel` | underscores to spaces | `(tipId) => string`, the displayed tip label |
+| `cladeLabel` | `null` | `(node, tree) => string \| null`, the name of an internal node (`node`: preorder id in the full tree; `tree`: the snapshot, label at `tree.labels[tree.toLocal(node)]`); null = none. See Naming clades |
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |
 | `ariaLabel` | `'Phylogenetic tree'` | label of the root element |
 | `softwareCanvas` | `false` | create the 2D contexts with `willReadFrequently` (CPU-backed canvas); read at construction only |
@@ -358,3 +359,18 @@ Props (all optional, but one of `tree` / `source` is needed):
 `setViewport(v)`, `locateTip(tipId)`, `locateNode(nodeId)`, `nodeBounds(nodeId)`, `columnCell(colId, tipId)`, `getStats()`, `benchmark(n)`,
 `renderer()` (the underlying `TreeViewer` or `null`, for everything else: events, controls). Methods that take ids translate them to node
 indexes and leaf ranks; unknown ids are ignored or return `null`.
+
+## Naming clades
+
+One rule names an internal node in the legend, the node menu's default title, the default tooltip's detail line and the keyboard cursor's announcement:
+the name is the `cladeLabel` option's result, or by default the node's label without its support value (`95:Chelodina_ott1` gives `Chelodina_ott1`,
+`98.0:c__Nitrososphaeria` gives `c__Nitrososphaeria`, `95` gives no name); it goes through `formatLabel`; with no name the places say `Clade of N tips`.
+A tip is named by its own label through `formatLabel`. Return null from `cladeLabel` to hide a synthetic name (OTL's `mrcaott…`) or return a name looked up elsewhere.
+
+Exported helpers:
+
+| Export | Signature |
+|---|---|
+| `internalName` | `(label: string) => string`: the label without its support value, `''` if it was only a support. The same rule as `splitInternalLabel(label).name` in `@gbif-phylo/io` (a test compares them) |
+| `cladeName` | `(tree: TreeSnapshot, row: number, opts: { formatLabel, cladeLabel? }) => string \| null`: the display name of the snapshot row `row`; passes `cladeLabel` the full-tree id of the node |
+| `CladeLabelFn` | `(node: number, tree: TreeSnapshot) => string \| null \| undefined` |

@@ -1,6 +1,8 @@
 // Public types of the viewer core. No React: `TreeData` is the structural subset of @gbif-phylo/io's `TreeModel` that the core
 // reads, so any tree model with preorder ids and leaf-contiguous subtree ranges can be shown.
 
+import type { CladeLabelFn } from './clade-name.ts';
+
 export interface TreeData {
   readonly nodeCount: number;
   readonly tipCount: number;
@@ -131,7 +133,7 @@ export function stripUndefined<T extends object>(o: T): Partial<T> {
 export interface CladeColour {
   node: number; // node id (preorder id of the full tree)
   colour: string;
-  /** Name for a legend; without it the legend uses the node's own name, or 'Clade of N tips'. */
+  /** Name for a legend; without it the legend uses the clade's name (see Legend's cladeLabel), or 'Clade of N tips'. */
   label?: string;
 }
 
@@ -212,6 +214,12 @@ export interface ViewerOptions {
   /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep at least a quarter of the row free. */
   alignRowGap: number;
   formatLabel: (tipId: string) => string;
+  /**
+   * What names an internal node, for the legend, the node menu title, the default tooltip and the keyboard announcement: `(node, tree)`
+   * returns the node's name or null for none (the places then say 'Clade of N tips'). `node` is the preorder id in the full tree.
+   * The name goes through `formatLabel`. null = the node's label without its support value. Hide synthetic names or look names up here.
+   */
+  cladeLabel: CladeLabelFn | null;
   tipHref: ((tipId: string) => string) | null;
   ariaLabel: string;
   /** Create the 2D contexts with willReadFrequently (CPU-backed canvas). Read at construction only. */
@@ -244,6 +252,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   alignStyle: 'residues',
   alignRowGap: 0,
   formatLabel: (s) => s.replace(/_/g, ' '),
+  cladeLabel: null,
   tipHref: null,
   ariaLabel: 'Phylogenetic tree',
   softwareCanvas: false,

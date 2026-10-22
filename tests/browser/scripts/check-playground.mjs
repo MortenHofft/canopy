@@ -104,6 +104,61 @@ ok(
 );
 await select('layout', 'rectangular');
 
+console.log('the wheel over the overview zooms about the tree point under the pointer');
+{
+  const ovBox = () => page.locator('.phylo-overview').boundingBox();
+  const mid = (v) => (v.y0 + v.y1) / 2;
+  // rectangular: zoomed into the top of the tree, a wheel-in over the bottom of the strip moves the window toward the bottom clades
+  const tips = await ev(() => window.viewer.getTree().tipCount);
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: n / 10 }), tips);
+  await settled();
+  let v0 = await ev(() => window.viewer.getViewport());
+  let b = await ovBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.9);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  let v1 = await ev(() => window.viewer.getViewport());
+  const row = tips * 0.9;
+  ok(v1.y1 - v1.y0 < v0.y1 - v0.y0, 'rectangular: it zooms');
+  ok(
+    mid(v1) > mid(v0) + tips * 0.1,
+    `rectangular: and the window moves toward the bottom clades (centre ${mid(v0).toFixed(1)} -> ${mid(v1).toFixed(1)}, row ${row.toFixed(0)})`,
+  );
+  // a pointer over a place inside the window: that tree row keeps its relative place in the window (nothing clamps it)
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: n * 0.4, y1: n * 0.6 }), tips);
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  const py = b.y + b.height * 0.55;
+  const rowAt = ((py - b.y) / b.height) * tips;
+  await page.mouse.move(b.x + b.width / 2, py);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  // (a tolerance of a pixel: the browser rounds the event's clientY to whole pixels)
+  const rel = (v) => (rowAt - v.y0) / (v.y1 - v.y0);
+  ok(
+    v1.y1 - v1.y0 < v0.y1 - v0.y0 && Math.abs(rel(v1) - rel(v0)) < 0.01,
+    `rectangular: the row under the pointer keeps its relative place (${rel(v0).toFixed(4)} -> ${rel(v1).toFixed(4)})`,
+  );
+  // radial: a wheel-in over the right edge of the disc moves the window right (x) of where it was
+  await select('layout', 'radial');
+  await ev(() => window.viewer.fit(false));
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  await page.mouse.move(b.x + b.width * 0.85, b.y + b.height * 0.5);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  ok(v1.x1 - v1.x0 < v0.x1 - v0.x0, 'radial: it zooms');
+  ok(
+    (v1.x0 + v1.x1) / 2 > (v0.x0 + v0.x1) / 2 + 0.05,
+    'radial: and the window moves toward the right of the tree, where the pointer is on the overview',
+  );
+  await select('layout', 'rectangular');
+}
+
 console.log('the URL keeps the settings');
 const before = page.url();
 await open(new URL(before).search);
@@ -278,6 +333,52 @@ ok((await cell('alignment')) === null && (await cell('m:country_code')) !== null
 await toggle('columns', false);
 ok((await cell('m:occurrence_count')) === null, 'all columns off with the group switch');
 ok(query().get('tree') === 'syn-yule-1000', 'the tree is in the URL');
+
+console.log('legend names clades by their taxon names (Open Tree labels)');
+await page.selectOption('#tree-select', 'otl-10k-amphibia');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('10'), null, { timeout: 60000 });
+await page.waitForTimeout(500);
+await toggle('legend', true);
+await select('click', 'colour');
+// a clade of the shown tree whose label is `kind` ('named': Name_ott123; 'synthetic': mrcaott1ott2) and that is big enough to click
+const otlClade = (kind, skip = 0) =>
+  ev(
+    ([kind, skip]) => {
+      const v = window.viewer;
+      const t = v.getTree();
+      const re = kind === 'named' ? /^[A-Za-z_]+_ott\d+$/ : /^mrcaott\d+ott\d+$/;
+      for (let i = 1; i < t.nodeCount; i++) {
+        const c = t.leafEnd[i] - t.leafStart[i];
+        if (t.firstChild[i] >= 0 && c >= 40 && c <= 4000 && re.test(t.labels[i]) && skip-- <= 0) {
+          const q = v.locateNode(i);
+          if (q) return { node: i, tips: c, label: t.labels[i], x: q.x, y: q.y };
+        }
+      }
+      return null;
+    },
+    [kind, skip],
+  );
+const legendRows = () => page.locator('.phylo-legend__list li').allInnerTexts();
+const named = await otlClade('named');
+ok(named, 'the Open Tree tree has a clickable named clade');
+await page.mouse.click(named.x, named.y);
+await settled();
+const taxon = named.label.replace(/_ott\d+$/, '').replace(/_/g, ' ');
+const rows1 = await legendRows();
+ok(
+  rows1.length === 1 && rows1[0] === `${taxon} (${named.tips.toLocaleString('en')} tips)`,
+  `a named clade is listed by its taxon name and tip count (${JSON.stringify(rows1)}, wanted ${taxon})`,
+);
+ok(!/ott|_|Clade of/.test(rows1[0] ?? ''), 'without the Open Tree id, underscores or the generic text');
+const synth = await otlClade('synthetic');
+ok(synth, 'and a clickable synthetic mrcaott clade');
+await page.mouse.click(synth.x, synth.y);
+await settled();
+const rows2 = await legendRows();
+ok(
+  rows2[1] === `Clade of ${synth.tips.toLocaleString('en')} tips`,
+  `a synthetic mrcaott label is hidden: "Clade of N tips" (${JSON.stringify(rows2)})`,
+);
 
 console.log('own file, re-creation, benchmark');
 await page

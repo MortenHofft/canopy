@@ -13,6 +13,7 @@
 // What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop, and
 // the focus-ring styling, because it needs the theme.
 
+import { cladeName } from './clade-name.ts';
 import type { Control, ControlPosition } from './control.ts';
 import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
@@ -369,6 +370,7 @@ export class TreeViewer {
         noteInput: () => this.noteInput(),
         cancelAnim: () => this.vs.cancelAnim(),
         setViewport: (v) => this.vs.setViewport(v),
+        zoomAtWorld: (fx, fy, wx, wy) => this.vs.zoomAtWorld(fx, fy, wx, wy),
       },
     );
   }
@@ -1352,9 +1354,9 @@ export class TreeViewer {
     this.renderNow();
     if (announce && node >= 0) {
       const tip = this.tree.childCount[node] === 0;
-      this.overlay.announce(
-        tip ? this.opts.formatLabel(this.tree.labels[node] ?? '') : `Clade of ${this.tree.leafEnd[node] - this.tree.leafStart[node]} tips`,
-      );
+      const name = cladeName(this.tree, node, this.opts);
+      const tips = `${(this.tree.leafEnd[node] - this.tree.leafStart[node]).toLocaleString('en')} tips`;
+      this.overlay.announce(tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`);
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root)
         this.overlay.focusAnchor(this.tree.tipRank[node]);

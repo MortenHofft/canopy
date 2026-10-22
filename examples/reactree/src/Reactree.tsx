@@ -42,19 +42,6 @@ interface Step {
   collapsed: number[];
 }
 
-/** Where a clade (or a collapsed clade) goes after an operation: to the clade its surviving tips form, or nowhere when the operation
- *  split them (rerooting inside it) or removed them all. */
-function moveNode(tree: TreeModel, next: TreeModel, map: Int32Array, k: number): number {
-  const tips: number[] = [];
-  for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) {
-    const v = map[tree.tipNode[rk]];
-    if (v >= 0) tips.push(v);
-  }
-  if (!tips.length) return -1;
-  const m = next.mrcaOf(tips);
-  return next.tipCountOf(m) === tips.length ? m : -1;
-}
-
 const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -144,9 +131,7 @@ export function Reactree({
     // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
     const r = ops.collapseClades(tree, live);
     const shown = new TreeModel(r.tree);
-    const toTree = new Int32Array(shown.nodeCount);
-    for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;
-    return { tree: shown, toView: r.map, toTree, collapsedIds: live.map((v) => 'n' + r.map[v]) };
+    return { tree: shown, toView: r.map, toTree: ops.invertMap(r.map, shown.nodeCount), collapsedIds: live.map((v) => 'n' + r.map[v]) };
   }, [tree, collapsed]);
   const shown = view?.tree ?? tree;
   const toTree = useCallback((n: number) => (view ? view.toTree[n] : n), [view]);
@@ -274,12 +259,22 @@ export function Reactree({
       return flash(`${what}: ${(err as Error).message}`);
     }
     if (!r.changed) return flash(`${what}: nothing to change`);
+    setSwapFirst(null);
     const next = new TreeModel(r.tree);
-    const keptClades = clades.flatMap((c) => {
-      const m = moveNode(tree, next, r.map, Number(c.nodeId.slice(1)));
+    const followedClades = ops.followClades(
+      tree,
+      next,
+      r.map,
+      clades.map((c) => Number(c.nodeId.slice(1))),
+    );
+    const keptClades = clades.flatMap((c, i) => {
+      const m = followedClades[i].node;
       return m >= 0 ? [{ ...c, nodeId: 'n' + m }] : [];
     });
-    const keptCollapsed = collapsed.map((k) => moveNode(tree, next, r.map, k)).filter((m) => m > 0 && next.childCount[m] > 0);
+    const keptCollapsed = ops
+      .followClades(tree, next, r.map, collapsed)
+      .map((f) => f.node)
+      .filter((m) => m > 0 && next.childCount[m] > 0);
     if (keptClades.length < clades.length) flash(`${clades.length - keptClades.length} colour(s) removed: their tips are no longer one clade`);
     setHistory((h) => [...h.slice(0, -1), { tree, clades, collapsed }, { tree: next, clades: keptClades, collapsed: keptCollapsed }]);
     setClades(keptClades);
@@ -289,6 +284,7 @@ export function Reactree({
   const undo = () => {
     const prev = history[history.length - 2];
     setHistory((h) => h.slice(0, -1));
+    setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
     setInfo(null);
@@ -322,11 +318,8 @@ export function Reactree({
         const a = swapFirst;
         setSwapFirst(null);
         if (a === v) return;
-        const p = tree.parent[v];
-        if (tree.parent[a] !== p) return flash('Swap needs two sibling branches');
-        // tree-ops reverses the children of a node; for two children that is the swap. It has no general reorder (yet).
-        if (tree.childCount[p] !== 2) return flash(`Swap inside a polytomy (${tree.childCount[p]} branches) needs a reorder tree-ops does not have`);
-        return apply((t) => ops.rotate(t, p), 'Swap');
+        if (tree.parent[a] !== tree.parent[v]) return flash('Swap needs two sibling branches');
+        return apply((t) => ops.swap(t, a, v), 'Swap');
       }
       case 'color': {
         const nodeId = 'n' + v;
