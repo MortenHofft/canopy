@@ -1428,6 +1428,11 @@ const colMe = await weak(2, 12, 1);
 await click(colMe);
 await page.locator('.ex-outer').press('Escape');
 ok((await ev(() => __v().getClades().length)) === 1, `a clade of ${colMe.tips} tips coloured (support ${colMe.support})`);
+// a selected clade that collapse by support contracts: the selection moves to the clade that holds it, and the inspector stays open (#61)
+const selMe = await weak(2, 12, 2);
+await openMenu(selMe);
+await act('info');
+ok((await page.locator('.ex-info').count()) === 1 && (await ev(() => __v().getSelected())) === selMe.node, 'a weak clade selected, Info open');
 await page.locator('button[aria-label="Collapse by support"]').click();
 await page.waitForTimeout(300);
 const thr = page.locator('input[aria-label="Minimum support"]');
@@ -1442,6 +1447,14 @@ ok(
   `the clade collapsed by hand is still collapsed, with its ${keepMe.tips} tips, and a node of its own`,
 );
 ok((await ev(() => __v().getClades().length)) === 1, 'the coloured clade below the threshold is not contracted away');
+{
+  const sel = await ev(() => __v().getSelected());
+  ok(
+    (await page.locator('.ex-info').count()) === 1 && sel !== null && sel < (await nodeCount()),
+    `the selected clade was contracted: the inspector stays open on the clade that holds it (node ${sel})`,
+  );
+  await page.locator('.ex-info-head button').click();
+}
 // a dated tree stays dated: the contracted lengths go to the children, so the axis keeps "time before tips" and every tip stays at 0
 ok(
   await ev(() => {

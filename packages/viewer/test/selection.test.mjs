@@ -121,7 +121,7 @@ for (const [what, patch, back] of [
   test(`setOptions(${what}): the keyboard cursor and the selection stay, and their rings are drawn at the node's new position`, async () => {
     const { viewer, env, top } = await make();
     env.flush();
-    const cursor = tipId(viewer, 't20');
+    const cursor = tipId(viewer, 't15'); // next to the selection: in view whenever it is
     const sel = tipId(viewer, 't14');
     viewer.setActive(cursor);
     viewer.setSelected(sel);
@@ -130,6 +130,7 @@ for (const [what, patch, back] of [
     viewer.on('selectionchange', (e) => changes.push(e.node));
     for (const step of [patch, back, patch]) {
       const was = viewer.nodePosition(sel);
+      viewer.overlay.live.textContent = '';
       viewer.setOptions(step);
       env.flush();
       assert.equal(viewer.activeNode, cursor, 'the cursor is kept');
@@ -140,10 +141,11 @@ for (const [what, patch, back] of [
       const rs = rings(top());
       assert.ok(ringAt(rs, p, viewer.getTheme().selectionRadius), 'the selection ring is at its new position');
       const c = viewer.nodePosition(cursor);
-      if (c) assert.ok(ringAt(rs, c, 10), 'the cursor ring is at its new position');
+      assert.ok(c, 'the cursor tip is in view');
+      assert.ok(ringAt(rs, c, 10), 'the cursor ring is at its new position');
+      assert.equal(viewer.overlay.live.textContent, 't15', 'the cursor is announced again');
     }
     assert.deepEqual(changes, [], 'no selectionchange');
-    assert.match(viewer.overlay.live.textContent, /^t20$/, 'the cursor is announced again');
   });
 }
 

@@ -48,6 +48,16 @@ const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 1
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** The selected node (of the tree) in the ids of what is shown: itself, or the nearest ancestor the view keeps (collapse by support
+ *  contracts inner nodes into their parent; the selection then moves to that clade, as the viewer's does to a collapsed clade). Null when
+ *  nothing is selected or the view shows none of them. */
+function shownSelection(selected: number | null, view: { toView: Int32Array } | null, parent: ArrayLike<number>): number | null {
+  if (selected === null || !view) return selected;
+  const toView = view.toView;
+  for (let u = selected; u >= 0 && u < toView.length; u = parent[u]) if (toView[u] >= 0) return toView[u];
+  return null;
+}
+
 function Slider(p: {
   icon: React.ReactNode;
   label?: string;
@@ -142,7 +152,6 @@ export function Explorer({
   // tree type switches, which centre the view on it; an edit, Undo or a navigation clears it
   const [selected, setSelected] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false); // the inspector shows `selected`
-  const info = infoOpen ? selected : null;
   const deselect = () => {
     setSelected(null);
     setInfoOpen(false);
@@ -201,9 +210,7 @@ export function Explorer({
     const v = view ? view.toTree[k] : k;
     return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
   };
-  // the selection in the ids of what is shown (null when the view hides it, which drops it)
-  const selectedInView = selected === null || !view ? selected : (view.toView[selected] ?? -1);
-  const selectedShown = selectedInView !== null && selectedInView >= 0 ? selectedInView : null;
+  const selectedShown = shownSelection(selected, view, tree.parent);
   const shownClades = useMemo(
     () =>
       view
@@ -515,8 +522,11 @@ export function Explorer({
   };
 
   // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
-  const onClick = (e: TreeNodeEvent) => {
+  const onToolClick = (e: TreeNodeEvent) => {
     if (mode !== 'none') e.preventDefault(); // a tool acts on the click: it neither selects nor opens the menu
+    onClick(e);
+  };
+  const onClick = (e: TreeNodeEvent) => {
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
     if (v < 0) return;
@@ -745,6 +755,7 @@ export function Explorer({
 
   // ---- inspector rows for a node of `tree`
   const inspector = useMemo(() => {
+    const info = infoOpen ? selected : null;
     if (info === null || info >= tree.nodeCount) return null;
     let root = 0;
     let any = false;
@@ -763,7 +774,7 @@ export function Explorer({
       depth: tree.depth[info],
       support: Number.isNaN(sup) ? null : sup,
     };
-  }, [info, tree]);
+  }, [infoOpen, selected, tree]);
 
   const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
   const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
@@ -1243,8 +1254,8 @@ export function Explorer({
           tooltip={tooltip}
           tooltipBare
           nodeMenu={nodeMenu}
-          onNodeClick={onClick}
-          onTipClick={onClick}
+          onNodeClick={onToolClick}
+          onTipClick={onToolClick}
         />
 
         {searchOpen && (

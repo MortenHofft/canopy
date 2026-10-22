@@ -731,10 +731,7 @@ export class TreeViewer {
       ).columns;
     }
     this.activeNode = -1;
-    // the selection follows the map (a node that is gone, or one inside a clade collapsed now, as everywhere); without a map the new tree's
-    // ids name other nodes, so it is dropped
-    const sel = map && oldSelected >= 0 ? rm(oldSelected) : -1;
-    this.selected = sel >= 0 && isNodeOf(this.nodeLimit(), sel) ? this.shownNode(sel) : -1;
+    this.selected = this.selectionAfterSetTree(oldSelected, map, rm);
     this.pendingHover = null;
     this.clearHover();
     this.root.style.cursor = 'grab';
@@ -803,7 +800,7 @@ export class TreeViewer {
     this.events.emit('treechange', { map });
     if (cladesChanged) this.events.emit('cladeschange', this.getClades());
     if (hlChanged) this.events.emit('highlightchange', this.hlIds.slice());
-    if (this.selected !== oldSelected) this.emitSelection();
+    this.emitSelectionSince(oldSelected);
     if (hadHover) this.emitNode('hover', null);
   }
 
@@ -910,16 +907,20 @@ export class TreeViewer {
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    // the keyboard cursor and the selection stay (node ids do not change with the layout); the view goes to the selection, else it is fitted
-    if (refit) {
-      const switched = layoutChanged || lengthsChanged;
-      if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
-        this.fit(false);
-      if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
-    } else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
+    if (refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
     this.events.emit('optionschange', { options: this.opts, changed });
+  }
+
+  /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
+   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before, and the cursor
+   *  is announced again. */
+  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
+    if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
+      this.fit(false);
+    if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
 
   /** Set the theme overrides: these fields over the theme read from CSS custom properties, over `FALLBACK_THEME` (a field left out,
@@ -1176,7 +1177,7 @@ export class TreeViewer {
     this.hit.invalidate();
     this.invalidate(true);
     this.overlay.scheduleList();
-    if (this.selected !== wasSelected) this.emitSelection();
+    this.emitSelectionSince(wasSelected);
   }
 
   /** Highlight tips: a string highlights every tip with that label (labels need not be unique), a number the tip with that node id. Unknown
@@ -1248,6 +1249,13 @@ export class TreeViewer {
     return out;
   }
 
+  /** The selection of the new tree in `setTree`: the old one sent through `rm` (gone: none; inside a clade collapsed now: the clade).
+   *  Without a map the new tree's ids name other nodes, so it is dropped. */
+  private selectionAfterSetTree(old: number, map: Int32Array | null, rm: (n: number) => number): number {
+    const sel = map && old >= 0 ? rm(old) : -1;
+    return sel >= 0 && isNodeOf(this.nodeLimit(), sel) ? this.shownNode(sel) : -1;
+  }
+
   /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
    *  loaded. They stay in the list (`getHighlighted` gives back what was set) and highlight nothing. */
   private checkHighlighted(where: string, ids: readonly TipRef[]): void {
@@ -1303,6 +1311,11 @@ export class TreeViewer {
 
   private emitSelection(): void {
     this.events.emit('selectionchange', { node: this.selected < 0 ? null : this.selected });
+  }
+
+  /** `selectionchange` when the selection is no longer `old`. */
+  private emitSelectionSince(old: number): void {
+    if (this.selected !== old) this.emitSelection();
   }
 
   /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
