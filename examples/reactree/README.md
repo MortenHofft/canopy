@@ -31,7 +31,7 @@ control and reads the result back from the viewer.
 | Export | PNG from the viewer's canvas (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
 | Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
 | Fit | `fit()` |
-| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot` and `rotate` (Swap of two siblings is `rotate` of their binary parent) |
+| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot`, `rotate` and `swap` (two siblings, also inside a polytomy) |
 | Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
 | Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
 | Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "<first tip> and N more", unique, where Reactree says "N taxa") and the `collapsed` prop; the tooltip says "N taxa" |
@@ -70,7 +70,6 @@ Differences that follow from the design, not defects:
 
 - Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
   135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- Swap inside a polytomy is refused with a message: tree-ops has `rotate` (reverse the children) but no general reorder ([#20](https://github.com/MortenHofft/gbif-phylo/issues/20)).
 - Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)) makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
   expanded (the same known limit as `examples/react`).
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
