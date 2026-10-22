@@ -147,41 +147,41 @@ tied to the frame loop; only the parts with one job were moved out. It is a faca
 
 As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its files):
 
-| File                              | Lines     | Job                                                                                                                                                                            |
-| --------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/types.ts`                    | 298       | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats`                                   |
-| `src/viewer.ts`                   | 1,323     | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API                           |
-| `src/clade-name.ts`               | 42        | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement)                                                                  |
-| `src/events.ts`                   | 124       | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`)                                                                                                   |
-| `src/node-event.ts`               | 69        | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault`                                                                         |
-| `src/theme.ts`                    | 99        | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties                                                                                                 |
-| `src/control.ts`                  | 84        | `Control`, `BaseControl` (listener bookkeeping), `makeButton`                                                                                                                  |
-| `src/controls/`                   | 471       | built-in controls, one module each: zoom, fit, layout toggle, search, legend, overview (+ `defaults.ts`, `icons.ts`)                                                           |
-| `src/overlays/`                   | 379       | `Overlay` (pinned to a node), `Tooltip`, `NodeMenu`                                                                                                                            |
-| `src/source.ts`                   | 97        | `TreeSource` interface, `InMemorySource`                                                                                                                                       |
-| `src/layout.ts`                   | 270       | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); the rows and rank <-> row tables of collapsed clades; `remapRow`; cos/sin cache |
-| `src/geom.ts`                     | 95        | `makeTransform` (viewport to px), sector bounding boxes                                                                                                                        |
-| `src/projection.ts`               | 316       | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values                                                |
-| `src/lod.ts`                      | 655       | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R                                                                      |
-| `src/draw.ts`                     | 643       | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer`                                                             |
-| `src/hit.ts`                      | 314       | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                                                 |
-| `src/columns.ts`                  | 379       | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                                                |
-| `src/view-keep.ts`                | 92        | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM)                                                       |
-| `src/view-state.ts`               | 384       | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM)                                                                                             |
-| `src/input.ts`                    | 306       | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer)                                                                     |
-| `src/keyboard.ts`                 | 70        | keyboard cursor: start node and navigation keys (pure functions)                                                                                                               |
-| `src/overlay.ts`                  | 158       | `LabelOverlay`: label anchors and links, hidden tip list, live region                                                                                                          |
-| `src/overview.ts`                 | 269       | `Overview`: strip/disc with the window box, its geometry as pure functions (used by `controls/overview.ts`)                                                                    |
-| `src/detail-loader.ts`            | 87        | `DetailLoader`: opens stubs of a partial source through `ensureClade`                                                                                                          |
-| `src/live.ts`                     | 13        | `live()`: builds the getter objects modules read the viewer through                                                                                                            |
-| `src/dom.ts`                      | 11        | `mk`, `SR_ONLY`                                                                                                                                                                |
-| `src/constants.ts`                | 85        | tuning constants and numeric limits                                                                                                                                            |
-| `src/index.ts`                    | 14        | public exports                                                                                                                                                                 |
-| `css/viewer.css`                  | 326       | styles of the DOM (controls, popups, legend, search, notice), `--phylo-*` properties with fallbacks                                                                            |
-| `css/gbif.css`                    | 22        | GBIF design tokens mapped to `--phylo-*`                                                                                                                                       |
-| `../react/src/TreeView.tsx`       | 324       | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent`                                                                                                                      |
-| `../react/src/props.ts`           | 38        | `useShallowStable` and the equality helpers behind the prop identity rules                                                                                                     |
-| **Total, `src/` of this package** | **6,864** |                                                                                                                                                                                |
+| File                              | Lines     | Job                                                                                                                                                  |
+| --------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/types.ts`                    | 298       | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats`         |
+| `src/viewer.ts`                   | 1,323     | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
+| `src/clade-name.ts`               | 42        | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement)                                        |
+| `src/events.ts`                   | 124       | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`)                                                                         |
+| `src/node-event.ts`               | 69        | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault`                                               |
+| `src/theme.ts`                    | 99        | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties                                                                       |
+| `src/control.ts`                  | 84        | `Control`, `BaseControl` (listener bookkeeping), `makeButton`                                                                                        |
+| `src/controls/`                   | 471       | built-in controls, one module each: zoom, fit, layout toggle, search, legend, overview (+ `defaults.ts`, `icons.ts`)                                 |
+| `src/overlays/`                   | 379       | `Overlay` (pinned to a node), `Tooltip`, `NodeMenu`                                                                                                  |
+| `src/source.ts`                   | 97        | `TreeSource` interface, `InMemorySource`                                                                                                             |
+| `src/layout.ts` | 280 | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); the rows and rank <-> row tables of collapsed clades; `remapRow`; cos/sin cache |
+| `src/geom.ts`                     | 95        | `makeTransform` (viewport to px), sector bounding boxes                                                                                              |
+| `src/projection.ts`               | 316       | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values                      |
+| `src/lod.ts`                      | 655       | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R                                            |
+| `src/draw.ts`                     | 643       | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer`                                   |
+| `src/hit.ts`                      | 314       | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                       |
+| `src/columns.ts`                  | 379       | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                      |
+| `src/view-keep.ts`                | 92        | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM)                             |
+| `src/view-state.ts`               | 384       | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM)                                                                   |
+| `src/input.ts`                    | 306       | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer)                                           |
+| `src/keyboard.ts`                 | 70        | keyboard cursor: start node and navigation keys (pure functions)                                                                                     |
+| `src/overlay.ts`                  | 158       | `LabelOverlay`: label anchors and links, hidden tip list, live region                                                                                |
+| `src/overview.ts`                 | 269       | `Overview`: strip/disc with the window box, its geometry as pure functions (used by `controls/overview.ts`)                                          |
+| `src/detail-loader.ts`            | 87        | `DetailLoader`: opens stubs of a partial source through `ensureClade`                                                                                |
+| `src/live.ts`                     | 13        | `live()`: builds the getter objects modules read the viewer through                                                                                  |
+| `src/dom.ts`                      | 11        | `mk`, `SR_ONLY`                                                                                                                                      |
+| `src/constants.ts`                | 85        | tuning constants and numeric limits                                                                                                                  |
+| `src/index.ts`                    | 14        | public exports                                                                                                                                       |
+| `css/viewer.css`                  | 326       | styles of the DOM (controls, popups, legend, search, notice), `--phylo-*` properties with fallbacks                                                  |
+| `css/gbif.css`                    | 22        | GBIF design tokens mapped to `--phylo-*`                                                                                                             |
+| `../react/src/TreeView.tsx`       | 324       | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent`                                                                                            |
+| `../react/src/props.ts`           | 38        | `useShallowStable` and the equality helpers behind the prop identity rules                                                                           |
+| **Total, `src/` of this package** | **6,864** |                                                                                                                                                      |
 
 Scripts and tests:
 

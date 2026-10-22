@@ -15,6 +15,12 @@ import { detectAlphabet, residueTable, type ResolvedAlphabet } from './residues.
 import { FALLBACK_THEME, type Column, type ColumnFrame, type TreeSnapshot, type TreeTheme } from './types.ts';
 
 export const COL_GAP = 6;
+/** A 'fill' column is never narrower than this (px), however little room the tree split leaves. */
+export const FILL_MIN_PX = 40;
+
+function fixedW(spec: { width: number | 'fill' }): number {
+  return spec.width === 'fill' ? 0 : spec.width;
+}
 
 export interface CompiledColumn {
   spec: Column;
@@ -29,6 +35,7 @@ export interface CompiledColumn {
   runs: (Int32Array | undefined)[]; // alignment: start,end pairs of the gap-free stretches by rank, filled on first use
   data: unknown; // custom: what the renderer's prepare() returned
   x: number; // left edge in container px, set by layoutColumns
+  w: number; // width in container px: the spec's width, or for a 'fill' column the share layoutColumns gave it
 }
 
 /** Compile one column spec: the values are looked up by tip label once, into arrays by tip rank (and, for an alignment, one bitmap
@@ -49,7 +56,7 @@ export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme
       const l = tree.tipLabels[r];
       if (spec.renderer.hasCell ? spec.renderer.hasCell(data, r) : l !== undefined && spec.values[l] !== undefined) has[r] = 1;
     }
-    return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data, x: 0 };
+    return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data, x: 0, w: fixedW(spec) };
   }
   if (spec.kind === 'bar') {
     num = new Float64Array(N).fill(NaN);
@@ -96,7 +103,7 @@ export function compileColumn(tree: TreeSnapshot, spec: Column, theme: TreeTheme
       } else bitmap = null;
     }
   }
-  return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data: null, x: 0 };
+  return { spec, num, txt, has, max, seqLen, bitmap, alphabet, table, runs: [], data: null, x: 0, w: fixedW(spec) };
 }
 
 /** Same column for everything the renderer reads from the spec. `values` is compared by reference: it is a dictionary keyed by tip label,
@@ -154,22 +161,38 @@ export function recolourColumns(tree: TreeSnapshot, cols: CompiledColumn[], them
     for (let j = 0; j < 256 && same; j++) if (tab[j] !== c.table[j]) same = false;
     if (same) continue;
     out ??= cols.slice();
-    out[i] = { ...compileColumn(tree, c.spec, theme), x: c.x };
+    out[i] = { ...compileColumn(tree, c.spec, theme), x: c.x, w: c.w };
   }
   return out ?? cols;
 }
 
-export function columnsWidth(cols: { spec: { width: number } }[]): number {
+/** What the columns need before the split is known: the widths of the fixed columns and one gap per column, and how many 'fill' columns
+ *  share the rest. */
+export function columnsFixed(cols: { spec: { width: number | 'fill' } }[]): { fixed: number; fills: number } {
+  let fixed = 0,
+    fills = 0;
+  for (const c of cols) {
+    fixed += COL_GAP;
+    if (c.spec.width === 'fill') fills++;
+    else fixed += c.spec.width;
+  }
+  return { fixed, fills };
+}
+
+/** Total width of the columns as laid out (fill columns at the width layoutColumns gave them), gaps included. */
+export function columnsWidth(cols: { w: number }[]): number {
   let w = 0;
-  for (const c of cols) w += c.spec.width + COL_GAP;
+  for (const c of cols) w += c.w + COL_GAP;
   return w;
 }
 
-export function layoutColumns(cols: CompiledColumn[], left: number): void {
+/** Place the columns from `left`; each 'fill' column gets `fillW` (at least FILL_MIN_PX). */
+export function layoutColumns(cols: CompiledColumn[], left: number, fillW = 0): void {
   let x = left;
   for (const c of cols) {
     c.x = x;
-    x += c.spec.width + COL_GAP;
+    c.w = c.spec.width === 'fill' ? Math.max(FILL_MIN_PX, fillW) : c.spec.width;
+    x += c.w + COL_GAP;
   }
 }
 
@@ -256,7 +279,7 @@ export function drawColumns(
   const r1 = Math.min(N - 1, Math.ceil((bottom - oy) / ky));
   ctx.save();
   for (const c of cols) {
-    const w = c.spec.width;
+    const w = c.w;
     ctx.fillStyle = theme.muted;
     ctx.font = `600 11px ${theme.fontFamily}`;
     ctx.textBaseline = 'alphabetic';
@@ -443,7 +466,7 @@ export function cellRect(
   if (rankAt(rankOfRow, row) !== r) return null;
   const y = T.oy + row * T.ky;
   if (y + T.ky < T.area.ay || y > T.area.ay + T.area.ah) return null;
-  const w = c.spec.width;
+  const w = c.w;
   if (c.spec.kind === 'bar' && c.num) {
     if (T.ky >= 1.5) return { x: c.x + 2, y: y + T.ky * 0.1, width: barWidth(c.num[r], c.max, w), height: Math.max(1, T.ky * 0.8) };
     return { x: c.x + 2, y, width: barWidth(c.num[r], c.max, w), height: Math.max(1, T.ky) };

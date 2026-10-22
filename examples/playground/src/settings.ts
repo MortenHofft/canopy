@@ -39,7 +39,7 @@ export const GROUPS: Group[] = [
 
 const O = DEFAULT_OPTIONS;
 const T = FALLBACK_THEME;
-const num = (v: number | null) => (v === null ? 'fit' : Number.isFinite(v) ? String(v) : 'Infinity');
+const num = (v: number | string | null) => (v === null ? 'fit' : typeof v === 'string' || Number.isFinite(v) ? String(v) : 'Infinity');
 
 export const SETTINGS: Setting[] = [
   // ---- layout and labels
@@ -75,10 +75,59 @@ export const SETTINGS: Setting[] = [
     default: num(O.rowHeight),
     options: [
       ['fit', 'Fit all tips'],
+      ['auto', 'Auto (1.85 em)'],
       ['6', '6 px'],
       ['12', '12 px'],
       ['24', '24 px'],
       ['48', '48 px'],
+    ],
+  },
+  {
+    id: 'maxTipSpacing',
+    label: 'Max tip spacing',
+    hint: 'the most room between tips when zooming in; auto = 1.85 x label size. A small tree is never forced below its fit',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: num(O.maxTipSpacing),
+    options: [
+      ['auto', 'Auto (1.85 em)'],
+      ['12', '12 px'],
+      ['24', '24 px'],
+      ['48', '48 px'],
+      ['4em', '4 em'],
+      ['Infinity', 'No cap'],
+    ],
+  },
+  {
+    id: 'maxViewWidth',
+    label: 'Max horizontal zoom-out',
+    hint: 'rectangular: widest x window in tree widths; larger lets the tree get narrower',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: num(O.maxViewWidth),
+    options: [
+      ['1.6', '1.6 (default)'],
+      ['3', '3'],
+      ['6', '6'],
+      ['20', '20'],
+    ],
+  },
+  {
+    id: 'treeWidth',
+    label: 'Tree width',
+    hint: 'rectangular: the tree area against the columns; the alignment fills the rest',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: num(O.treeWidth),
+    options: [
+      ['auto', 'Auto'],
+      ['20%', '20%'],
+      ['35%', '35%'],
+      ['50%', '50%'],
+      ['300', '300 px'],
     ],
   },
   {
@@ -89,9 +138,9 @@ export const SETTINGS: Setting[] = [
     kind: 'select',
     default: O.labelDensity,
     options: [
-      ['sparse', 'Sparse (rows ≥ 16 px)'],
-      ['normal', 'Normal (rows ≥ 11 px)'],
-      ['dense', 'Dense (rows ≥ 8 px)'],
+      ['sparse', 'Sparse (rows ≥ 16 px at 13 px labels)'],
+      ['normal', 'Normal (≥ 11 px)'],
+      ['dense', 'Dense (≥ 8 px)'],
     ],
   },
   {
@@ -373,6 +422,15 @@ export const SETTINGS: Setting[] = [
     kind: 'text',
     default: '',
     placeholder: 'e.g. Homo or _ott',
+  },
+  {
+    id: 'fillAlignment',
+    label: 'Alignment fills the width',
+    hint: "column width 'fill': it takes what the tree area leaves, scaled to fit",
+    group: 'Data and interaction',
+    to: 'app',
+    kind: 'toggle',
+    default: false,
   },
   {
     id: 'columns',

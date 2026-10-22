@@ -11,9 +11,19 @@ const core = path.join(root, 'packages/viewer/src');
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { FALLBACK_THEME } = await import(path.join(core, 'types.ts'));
-const { compileColumn, columnSpecEquals, updateColumns, columnsWidth, layoutColumns, barWidth, cellRect, drawColumns, COL_GAP } = await import(
-  path.join(core, 'columns.ts')
-);
+const {
+  compileColumn,
+  columnSpecEquals,
+  updateColumns,
+  columnsWidth,
+  columnsFixed,
+  FILL_MIN_PX,
+  layoutColumns,
+  barWidth,
+  cellRect,
+  drawColumns,
+  COL_GAP,
+} = await import(path.join(core, 'columns.ts'));
 const compileColumns = (t, specs) => specs.map((s) => compileColumn(t, s));
 
 const snap = (nwk) => new InMemorySource(parseNewick(nwk)).snapshot();
@@ -149,13 +159,32 @@ test('columnsWidth and layoutColumns: each column takes its width plus the gap, 
   cols[0].spec.width = 50;
   cols[1].spec.width = 30;
   cols[2].spec.width = 20;
-  assert.equal(columnsWidth(cols), 100 + 3 * COL_GAP);
+  assert.deepEqual(columnsFixed(cols), { fixed: 100 + 3 * COL_GAP, fills: 0 });
   layoutColumns(cols, 400);
+  assert.equal(columnsWidth(cols), 100 + 3 * COL_GAP);
   assert.deepEqual(
     cols.map((c) => c.x),
     [400, 400 + 50 + COL_GAP, 400 + 80 + 2 * COL_GAP],
   );
   assert.equal(columnsWidth([]), 0);
+});
+
+test("a 'fill' column takes the width it is given (at least FILL_MIN_PX); fixed ones keep theirs", () => {
+  const cols = compileColumns(tree, [bar({ A: 1 }), text({ A: 'a' })]);
+  cols[0].spec.width = 50;
+  cols[1].spec.width = 'fill';
+  assert.deepEqual(columnsFixed(cols), { fixed: 50 + 2 * COL_GAP, fills: 1 });
+  layoutColumns(cols, 100, 200);
+  assert.deepEqual(
+    cols.map((c) => [c.x, c.w]),
+    [
+      [100, 50],
+      [100 + 50 + COL_GAP, 200],
+    ],
+  );
+  layoutColumns(cols, 100, 5);
+  assert.equal(cols[1].w, FILL_MIN_PX, 'never narrower than the minimum');
+  assert.equal(columnsWidth(cols), 50 + FILL_MIN_PX + 2 * COL_GAP);
 });
 
 test('barWidth: log scale up to width - 4, at least one pixel', () => {

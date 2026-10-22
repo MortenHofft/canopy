@@ -7,6 +7,8 @@
 // the exceptions are in docs/api.md ("Theme or option").
 
 import type { CladeLabelFn } from './clade-name.ts';
+import { RECT_MAX_VIEW_W } from './constants.ts';
+import type { FontRelative, TreeWidth } from './sizes.ts';
 import { defaultFormatNodeLabel, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import { RESIDUE_THEME_KEYS, type Alphabet } from './residues.ts';
 
@@ -205,7 +207,9 @@ export type ColumnKind = 'bar' | 'text' | 'alignment' | 'custom';
 interface ColumnBase {
   id: string;
   header: string;
-  width: number; // CSS px
+  /** CSS px, or 'fill': the column takes the width left after the tree and the fixed columns (shared equally between fill columns,
+   *  at least 40 px). An alignment is scaled to fit its width. See the `treeWidth` option. */
+  width: number | 'fill';
 }
 
 /** A built-in column: log-scaled bars, text, or aligned sequences (residue colours or blocks, see the align* options). */
@@ -299,7 +303,23 @@ export interface ViewerOptions {
   formatNodeLabel: (value: number, kind: NodeLabelKind) => string;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
-  rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
+  /** Fixed height per tip row at the fit view (rectangular): px, `'<n>em'` (n times the theme's `labelSize`), or `'auto'` (1.85 em). em values are rounded to whole px.
+   *  null = fit all tips into the height. */
+  rowHeight: FontRelative | null;
+  /** The most space between two neighbouring tips when zooming in: a row's height in px (rectangular) or the arc between tips on the
+   *  outer circle (radial). px, `'<n>em'` (n times `labelSize`, so it follows `--phylo-label-size`) or `'auto'` (1.85 em, 24 px at
+   *  the default size: a label line, an alignment row and padding). `Infinity` = no cap beyond the hard ceilings (500 px per row, radial
+   *  20000 times the fit scale). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
+   *  zoom out. The x axis (rectangular) is not capped by this: zooming x stretches branch lengths and stays up to 5e6 px per unit. */
+  maxTipSpacing: FontRelative;
+  /** Rectangular: the widest x window, in tree widths (default 1.6: the tree can shrink to about 62% of the plot width). Raise it to
+   *  zoom the tree out further, e.g. next to wide columns. Values below 1 are taken as 1. */
+  maxViewWidth: number;
+  /** Rectangular: the width of the tree area (branches and labels) against the columns right of it. `'auto'` (default): the columns keep
+   *  their widths and the tree takes the rest (with `'fill'` columns the tree and they split what the fixed columns leave, half each).
+   *  A number is px, `'<n>%'` a share of the width (container minus the overview strip); the columns, `'fill'` ones first, get the rest.
+   *  At least 120 px. */
+  treeWidth: TreeWidth;
   axis: boolean; // scale bar / time axis
   minCladePx: number; // collapse clades smaller than this many pixels (either direction)
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
@@ -346,6 +366,9 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
   rowHeight: null,
+  maxTipSpacing: 'auto',
+  maxViewWidth: RECT_MAX_VIEW_W,
+  treeWidth: 'auto',
   axis: true,
   minCladePx: 3,
   alignStyle: 'residues',

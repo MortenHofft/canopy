@@ -16,16 +16,17 @@ import {
   OVERVIEW_STRIP_W_PX,
   RADIAL_FIT_MARGIN_PX,
   RADIAL_FIT_MIN_R_PX,
+  RADIAL_GEOMETRIC_ZOOM,
   RADIAL_MAX_ZOOM,
   RADIAL_MIN_ZOOM,
   RADIAL_PAN_LIMIT,
   RECT_MAX_VIEW_H_FACTOR,
-  RECT_MAX_VIEW_W,
   RECT_MAX_ZOOM_X,
   RECT_MAX_ZOOM_Y,
   ZOOM_NODE_RADIAL_PAD,
 } from './constants.ts';
-import { COL_GAP } from './columns.ts';
+import { COL_GAP, FILL_MIN_PX } from './columns.ts';
+import { resolveTreeWidth, scaledPx, type TreeWidth } from './sizes.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Area } from './geom.ts';
 import type { Layout } from './layout.ts';
 import { projectionFor } from './projection.ts';
@@ -34,6 +35,7 @@ import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 const LABEL_W = 190; // cap of the room right of the tips for labels (rectangular)
 const HEAD_H = 24; // room above the plot for column headers
 const FOOT_H = 36; // room below the plot for the axis
+const AUTO_FILL_TREE_MIN_PX = 240; // 'auto' with a fill column: the tree keeps at least this (room for its labels) before the half split
 const MIN_HEAD = 8; // top and (without an axis) bottom margin
 
 /** What a ViewState reads of the world. Plain getters over the renderer's current values (read at call time, never cached). */
@@ -41,8 +43,16 @@ export interface ViewEnv {
   readonly layout: LayoutKind;
   readonly overview: boolean;
   readonly axis: boolean;
-  /** Fixed row height in px, null (or 0) = fit all tips into the height. */
+  /** Fixed row height in px (the option resolved against the label size), null (or 0) = fit all tips into the height. */
   readonly rowHeight: number | null;
+  /** Most px between two neighbouring tips (the option resolved against the label size); Infinity = only the hard ceilings. */
+  readonly maxTipSpacing: number;
+  /** The theme's label size (px): the font-relative minimums scale with it. */
+  readonly labelSize: number;
+  /** Widest x window in tree widths (rectangular). */
+  readonly maxViewWidth: number;
+  /** The `treeWidth` option (rectangular). */
+  readonly treeWidth: TreeWidth;
   /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
   readonly alignLabels: boolean;
   /** Container size in CSS px. */
@@ -50,11 +60,13 @@ export interface ViewEnv {
   readonly H: number;
   readonly tree: TreeSnapshot;
   readonly L: Layout;
-  /** Total width of the data columns (px), 0 without columns. */
+  /** Width of the data columns that have one (px) plus a gap per column, 0 without columns. */
   readonly columnsWidth: number;
+  /** How many columns are `'fill'` (they share what the tree and the other columns leave). */
+  readonly fillColumns: number;
   readonly hasColumns: boolean;
-  /** Place the columns' left edge (they sit right of the clip rectangle). */
-  placeColumns(left: number): void;
+  /** Place the columns' left edge (they sit right of the clip rectangle); each fill column gets `fillWidth` px. */
+  placeColumns(left: number, fillWidth: number): void;
 }
 
 /** How a ViewState reports. All three are called synchronously from the method that caused them. */
@@ -135,14 +147,26 @@ export class ViewState {
     } else {
       const ovG = this.env.overview ? OVERVIEW_STRIP_W_PX + 8 : 0;
       const colsW = this.env.columnsWidth;
-      const clipR = Math.max(120, W - ovG - colsW);
+      const avail = W - ovG;
+      const nf = this.env.fillColumns;
+      // 'auto': the columns keep their widths and the tree takes the rest; with fill columns the tree and they split what the fixed ones leave
+      const fixedTree = resolveTreeWidth(this.env.treeWidth, avail);
+      const room = avail - colsW - nf * FILL_MIN_PX; // what the tree may take: the fixed columns and the fill minimums stay on screen
+      const clipR = Math.max(
+        120,
+        fixedTree !== null
+          ? Math.min(fixedTree, room)
+          : nf > 0
+            ? Math.min(room, Math.max(AUTO_FILL_TREE_MIN_PX, (avail - colsW) / 2))
+            : avail - colsW,
+      );
       const head = this.env.hasColumns ? HEAD_H : MIN_HEAD;
       const foot = this.env.axis && this.env.L.usedLengths ? FOOT_H : MIN_HEAD;
       const ax = 10;
       const labelW = Math.min(this.labelReserve(), clipR * 0.4);
       const aw = Math.max(40, clipR - ax - labelW);
       this.area = { ax, ay: head, aw, ah: Math.max(40, H - head - foot), clipL: 0, clipT: head, clipR, clipB: head + Math.max(40, H - head - foot) };
-      this.env.placeColumns(clipR + COL_GAP);
+      this.env.placeColumns(clipR + COL_GAP, nf > 0 ? (avail - clipR - colsW) / nf : 0);
     }
     return this.area;
   }
@@ -166,12 +190,14 @@ export class ViewState {
     const a = this.area;
     if (this.env.layout === 'rectangular') {
       const N = this.env.L.rows;
-      const wmax = RECT_MAX_VIEW_W,
+      const wmax = Math.max(1, this.env.maxViewWidth),
         wmin = a.aw / RECT_MAX_ZOOM_X;
       let w = v.x1 - v.x0;
       w = Math.min(wmax, Math.max(wmin, w));
+      // the cap never forces the view below the fitted one: most px per row = max(fit, min(cap, ceiling)); fit is the y span of fitViewport
+      const hfit = this.env.rowHeight ? a.ah / this.env.rowHeight : N;
       const hmax = Math.max(N * RECT_MAX_VIEW_H_FACTOR, a.ah / 4),
-        hmin = a.ah / RECT_MAX_ZOOM_Y;
+        hmin = Math.min(Math.max(1, hfit), a.ah / Math.min(RECT_MAX_ZOOM_Y, this.env.maxTipSpacing));
       let h = v.y1 - v.y0;
       h = Math.min(hmax, Math.max(hmin, h));
       let x0 = v.x0,
@@ -183,7 +209,11 @@ export class ViewState {
     }
     const kfit = radialFitScale(this.env.W, this.env.H);
     let k = a.aw / (v.x1 - v.x0);
-    k = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_MIN_ZOOM, k));
+    // outer-circle arc between neighbouring tips = k * 2 PI / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
+    // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
+    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / (2 * Math.PI);
+    const kcap = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap));
+    k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
       cy = (v.y0 + v.y1) / 2;
     cx = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cx));
@@ -240,7 +270,10 @@ export class ViewState {
 
   /** Zoom by factors fx, fy (>1 zooms in) keeping the layout point under (px, py) fixed. */
   zoomBy(fx: number, fy: number, px: number, py: number): void {
-    this.setViewport(this.zoomedView(fx, fy, px, py));
+    const a = this.area;
+    const v = this.view;
+    // through zoomAtWorld: an axis at its zoom limit keeps its window instead of scrolling
+    this.zoomAtWorld(fx, fy, v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0), v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0));
   }
 
   /** The window zoomBy goes to (radial: already clamped; rectangular: setViewport clamps). */
@@ -255,12 +288,25 @@ export class ViewState {
   zoomAtWorld(fx: number, fy: number, wx: number, wy: number): void {
     const nv = this.zoomedViewAt(fx, fy, wx, wy);
     if (fx >= 1 && fy >= 1) {
-      // at the zoom limit nothing zooms, and the window must not slide toward the point either
+      // at a zoom limit nothing zooms, and the window must not slide toward the point either: an axis that is at its limit keeps its
+      // window (the other axis may still zoom, e.g. y at maxTipSpacing while x is free)
       const v = this.view;
       const c = this.clampView({ ...nv });
-      const same = (f: number, a0: number, a1: number, b0: number, b1: number) =>
+      const atLimit = (f: number, a0: number, a1: number, b0: number, b1: number) =>
         f === 1 || Math.abs(b1 - b0 - (a1 - a0)) <= 1e-12 * Math.abs(a1 - a0);
-      if (same(fx, v.x0, v.x1, c.x0, c.x1) && same(fy, v.y0, v.y1, c.y0, c.y1) && (fx > 1 || fy > 1)) return;
+      const xLim = fx > 1 && atLimit(fx, v.x0, v.x1, c.x0, c.x1);
+      const yLim = fy > 1 && atLimit(fy, v.y0, v.y1, c.y0, c.y1);
+      if ((xLim || fx === 1) && (yLim || fy === 1)) return;
+      if (this.env.layout === 'rectangular') {
+        if (xLim) {
+          nv.x0 = v.x0;
+          nv.x1 = v.x1;
+        }
+        if (yLim) {
+          nv.y0 = v.y0;
+          nv.y1 = v.y1;
+        }
+      }
     }
     this.setViewport(nv);
   }
@@ -285,7 +331,8 @@ export class ViewState {
     const a = this.area;
     if (this.env.layout === 'rectangular') {
       const kyNow = a.ah / (v.y1 - v.y0);
-      const ky = Math.min(FOCUS_TIP_MAX_ROW_PX, Math.max(kyNow, FOCUS_TIP_MIN_ROW_PX));
+      const minRow = Math.min(scaledPx(FOCUS_TIP_MIN_ROW_PX, this.env.labelSize), this.env.maxTipSpacing);
+      const ky = Math.min(FOCUS_TIP_MAX_ROW_PX, Math.max(kyNow, minRow));
       const h = a.ah / ky;
       const row = L.ROW[node];
       let { x0, x1 } = v;
@@ -297,7 +344,10 @@ export class ViewState {
       }
       return { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     }
-    const k = Math.max(a.aw / (v.x1 - v.x0), (FOCUS_TIP_RADIAL_PITCH_PX * L.rows) / (2 * Math.PI));
+    const k = Math.max(
+      a.aw / (v.x1 - v.x0),
+      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / (2 * Math.PI),
+    );
     const ang = L.ROW[node] * ((2 * Math.PI) / L.rows);
     const px = L.X[node] * Math.cos(ang),
       py = L.X[node] * Math.sin(ang);

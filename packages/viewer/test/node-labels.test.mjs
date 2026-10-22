@@ -191,7 +191,7 @@ test('highlightStyle dim: a clade with no highlighted tip is drawn at dimOpacity
 });
 
 test('only drawn nodes: scrolled out of view, the label is not drawn', async () => {
-  const m = await make({ nodeLabels: 'support' });
+  const m = await make({ nodeLabels: 'support', maxTipSpacing: Infinity }); // a window tighter than the default cap
   m.ctx().reset();
   m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 2 });
   m.env.flush();

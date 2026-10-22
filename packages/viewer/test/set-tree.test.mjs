@@ -5,7 +5,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
+const harness = await import('./viewer-harness.mjs');
+const { destroyAll } = harness;
+// these tests set windows of a few rows: no tip-spacing cap (they are about the view kept across a tree change, not the zoom limit)
+const makeViewer = (tree, init = {}) => harness.makeViewer(tree, { ...init, options: { maxTipSpacing: Infinity, ...init.options } });
 const { Search, Legend, Zoom } = await import('../src/controls/index.ts');
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));

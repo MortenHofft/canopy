@@ -115,7 +115,7 @@ await page.mouse.click(5, 5);
 ok(!(await menuOpen()), 'outside click closes it');
 await openOn(ef);
 await page.mouse.move(ef.x - 20, ef.y - 80); // wheel zoom: a viewport change without a pointer press
-await page.mouse.wheel(0, -200);
+await page.mouse.wheel(0, 200); // out: a 6-tip tree already fits at more than maxTipSpacing per row, so it cannot zoom in
 await page.waitForTimeout(300);
 ok(!(await menuOpen()), 'zooming (a viewport change) closes it');
 const pb = await pane.boundingBox();
@@ -364,12 +364,12 @@ await page.evaluate(() => {
   window.__keep = window.__panes();
   window.__treeChanges = 0;
   window.__keep.forEach((v) => v.on('treechange', () => window.__treeChanges++));
-  window.__panes()[0].setViewport({ x0: 0, x1: 1, y0: 50, y1: 70 });
+  window.__panes()[0].setViewport({ x0: 0, x1: 1, y0: 50, y1: 100 });
 });
 await page.waitForTimeout(300);
 const sameView = (a, b) => ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
 let [va, vb] = await panes();
-ok(sameView(va, vb) && Math.abs(va.y1 - va.y0 - 20) < 1e-6, `zoomed in, the panes in sync (rows ${va.y0.toFixed(2)} to ${va.y1.toFixed(2)})`);
+ok(sameView(va, vb) && Math.abs(va.y1 - va.y0 - 50) < 1e-6, `zoomed in, the panes in sync (rows ${va.y0.toFixed(2)} to ${va.y1.toFixed(2)})`);
 const tipPos = await page.evaluate(() => {
   const v = window.__panes()[0];
   const t = v.getTree();
