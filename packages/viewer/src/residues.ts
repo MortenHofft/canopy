@@ -6,6 +6,7 @@
 // bases (--phylo-residue-a/-c/-g/-t, U shares T). Seven plus four plus "anything else" is a set a stylesheet can reasonably set, and
 // every residue letter is still covered.
 
+import { resolveColour, toHex } from './colour.ts';
 import type { ResidueTheme } from './types.ts';
 
 export type Alphabet = 'auto' | 'protein' | 'nucleotide';
@@ -95,27 +96,27 @@ export function defaultResidueColour(token: Token, dark: boolean): string {
   return (dark ? DARK : LIGHT)[token];
 }
 
-/** #rgb, #rrggbb (an alpha part is ignored) or rgb()/rgba() as [r, g, b]; null for anything else (named colours, var(), hsl()). */
-export function parseRgb(colour: string): [number, number, number] | null {
-  const c = colour.trim();
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})([0-9a-f]{2})?$/i.exec(c);
-  if (hex) {
-    const h = hex[1].length === 3 ? [...hex[1]].map((x) => x + x).join('') : hex[1];
-    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-  }
-  const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(c);
-  return m ? [Math.min(255, Number(m[1])), Math.min(255, Number(m[2])), Math.min(255, Number(m[3]))] : null;
-}
+const warned = new Set<string>();
 
 /** The colour of each residue letter (A to Z, upper case; lower case is drawn like upper case) in the scheme of `alphabet`, plus `other`
- *  for every character that is not one of them. This is the table the alignment column is drawn from, so a legend built from it
- *  matches. Each colour is the theme's `residue*` field when that is a colour the canvas table can use (#rgb, #rrggbb, rgb(), rgba()),
- *  otherwise the default for a light or a dark theme (`theme.dark`). Gaps (`-` and `.`) are not drawn. */
+ *  for every character that is not one of them, each as `#rrggbb`. This is the table the alignment column is drawn from, so a legend
+ *  built from it matches. Each colour is the theme's `residue*` field, read the way the browser reads a CSS colour (names, hsl(),
+ *  oklch() and the rest work; without a canvas only #rgb, #rrggbb and rgb()), with the alpha dropped: the bitmap is opaque. A value
+ *  that is not a colour (or is fully transparent) is replaced by the default for a light or a dark theme (`theme.dark`), with one
+ *  console warning per value. Gaps (`-` and `.`) are not drawn. */
 export function residueColours(theme: ResidueTheme & { dark?: boolean }, alphabet: ResolvedAlphabet): Record<string, string> {
   const dark = theme.dark === true;
   const pick = (token: Token): string => {
     const v = theme[token];
-    return typeof v === 'string' && parseRgb(v) ? v.trim() : defaultResidueColour(token, dark);
+    if (typeof v === 'string' && v.trim()) {
+      const c = resolveColour(v);
+      if (c && c.a > 0) return toHex(c);
+      if (!warned.has(v)) {
+        warned.add(v);
+        console.warn(`${token}: ${JSON.stringify(v)} is not a colour the alignment can use; the default is drawn instead`);
+      }
+    }
+    return defaultResidueColour(token, dark);
   };
   const other = pick('residueOther');
   const out: Record<string, string> = {};
@@ -133,8 +134,8 @@ export function residueColours(theme: ResidueTheme & { dark?: boolean }, alphabe
 export function residueTable(theme: ResidueTheme & { dark?: boolean }, alphabet: ResolvedAlphabet): Uint32Array {
   const colours = residueColours(theme, alphabet);
   const abgr = (hex: string) => {
-    const [r, g, b] = parseRgb(hex)!;
-    return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+    const n = parseInt(hex.slice(1), 16); // #rrggbb
+    return ((255 << 24) | ((n & 255) << 16) | (n & 0xff00) | (n >> 16)) >>> 0;
   };
   const cache: Record<string, number> = {};
   const t = new Uint32Array(256);
@@ -149,19 +150,23 @@ export function residueTable(theme: ResidueTheme & { dark?: boolean }, alphabet:
 
 const SAMPLE_PER_SEQUENCE = 400;
 const SAMPLE_TOTAL = 2000;
+const SCAN_PER_SEQUENCE = 20000; // characters looked at per sequence, so a sequence of gaps costs a bounded scan
 
 /** `'nucleotide'` when more than 90% of a sample of the residues are A, C, G, T, U or N (any case), otherwise `'protein'` (also for no
- *  residues). The sample is the first 400 residues of each sequence, up to 2000 residues in all; gaps (`-`, `.`) are not residues. */
+ *  residues). The sample is the first 400 residues of each sequence (gaps, `-` and `.`, are skipped and not counted; at most 20,000
+ *  characters are scanned per sequence), up to 2000 residues in all. */
 export function detectAlphabet(sequences: Iterable<string | undefined>): ResolvedAlphabet {
   let nt = 0;
   let all = 0;
   for (const s of sequences) {
     if (s === undefined) continue;
-    const n = Math.min(s.length, SAMPLE_PER_SEQUENCE);
-    for (let i = 0; i < n && all < SAMPLE_TOTAL; i++) {
+    const end = Math.min(s.length, SCAN_PER_SEQUENCE);
+    let taken = 0;
+    for (let i = 0; i < end && taken < SAMPLE_PER_SEQUENCE && all < SAMPLE_TOTAL; i++) {
       const raw = s.charCodeAt(i);
       if (raw === 45 || raw === 46) continue;
       const c = raw | 32; // lower case
+      taken++;
       all++;
       if (c === 97 || c === 99 || c === 103 || c === 116 || c === 117 || c === 110) nt++; // a c g t u n
     }

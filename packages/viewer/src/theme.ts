@@ -8,6 +8,7 @@
 //
 // A value that cannot be read (empty, or not a number where one is needed) is left out, so the fallback theme applies.
 
+import { luminanceOf, resolveColour } from './colour.ts';
 import { RESIDUE_THEME_KEYS } from './residues.ts';
 import type { TreeTheme } from './types.ts';
 
@@ -34,8 +35,16 @@ export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntrie
   ]),
 ) as Record<keyof TreeTheme, string>;
 
-/** The theme fields set as custom properties on `el` (or inherited from its ancestors). Fields that are not set are absent. */
-export function themeFromCss(el: Element): Partial<TreeTheme> {
+/** Whether a background is dark (luminance under 0.4); null when it is not a colour or is translucent, which says nothing about the
+ *  colour of the page behind it. */
+export function deriveDark(background: string): boolean | null {
+  const c = resolveColour(background);
+  return c && c.a === 1 ? luminanceOf(c) < 0.4 : null;
+}
+
+/** The theme fields set as custom properties on `el` (or inherited from its ancestors). Fields that are not set are absent. Without
+ *  `--phylo-dark`, `dark` is derived from `--phylo-background` unless `deriveDarkFromBackground` is false. */
+export function themeFromCss(el: Element, deriveDarkFromBackground = true): Partial<TreeTheme> {
   if (typeof getComputedStyle !== 'function') return {};
   const cs = getComputedStyle(el);
   const get = (k: keyof TreeTheme) => cs.getPropertyValue(THEME_CSS_VARS[k]).trim();
@@ -59,9 +68,9 @@ export function themeFromCss(el: Element): Partial<TreeTheme> {
   const dark = get('dark');
   if (dark === 'true' || dark === '1') out.dark = true;
   else if (dark === 'false' || dark === '0') out.dark = false;
-  else if (out.background) {
-    const l = luminance(out.background);
-    if (l !== null) out.dark = l < 0.4;
+  else if (deriveDarkFromBackground && out.background) {
+    const d = deriveDark(out.background);
+    if (d !== null) out.dark = d;
   }
   return out;
 }

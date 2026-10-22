@@ -20,6 +20,7 @@ import {
   Tooltip,
   TreeViewer,
   Zoom,
+  type Alphabet,
   type CladeColour,
   type Column,
   type Control,
@@ -151,7 +152,7 @@ function viewerOptions(): Partial<ViewerOptions> {
 
 function themeOverrides(): Partial<TreeTheme> {
   const t: Record<string, unknown> = {};
-  for (const s of SETTINGS) if (s.to === 'theme') t[s.key ?? s.id] = state[s.id];
+  for (const s of SETTINGS) if (s.to === 'theme' && state[s.id] !== '') t[s.key ?? s.id] = state[s.id]; // '' = not set (residue colours)
   if (state.transparent) t.background = 'transparent';
   return t as Partial<TreeTheme>;
 }
@@ -194,7 +195,7 @@ function columns(): Column[] {
     );
   }
   if (loaded.fasta && columnOn.get('alignment'))
-    out.push({ id: 'alignment', kind: 'alignment', header: 'Alignment', width: 260, values: loaded.fasta });
+    out.push({ id: 'alignment', kind: 'alignment', header: 'Alignment', width: 260, values: loaded.fasta, alphabet: state.alphabet as Alphabet });
   return out;
 }
 

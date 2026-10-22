@@ -226,8 +226,8 @@ one when it changed; never mutate in place. Built-in kinds: log-scaled bars (bin
 below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and `alignRowGap`).
 
 An alignment column has two colour schemes, chosen by its `alphabet`: `'protein'` (Clustal-like groups) and `'nucleotide'` (A, C, G, T/U each
-their own colour). `'auto'`, the default, takes `'nucleotide'` when more than 90% of a sample of the residues (the first 400 of each
-sequence, up to 2000 in all, gaps left out) are A, C, G, T, U or N, otherwise `'protein'`. Changing `alphabet` recompiles the column.
+their own colour). `'auto'`, the default, takes `'nucleotide'` when more than 90% of a sample of the residues (the first 400 non-gap
+residues of each sequence, up to 2000 in all; at most 20,000 characters are scanned per sequence) are A, C, G, T, U or N, otherwise `'protein'`. Changing `alphabet` recompiles the column.
 The colours are theme tokens (`residue*`, below). `residueColours(theme, alphabet)` returns the table the column is drawn from, and
 `residueGroups(alphabet)` the groups with their labels, so an app can draw a legend that cannot go stale:
 
@@ -274,16 +274,18 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
-| `dark` | `--phylo-dark` | from the background's luminance | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
+| `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
 | `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
 | `residueA`, `residueC`, `residueG`, `residueT` | `--phylo-residue-a`, `-c`, `-g`, `-t` | light and dark sets (below) | nucleotides of alignment columns; U is drawn like T |
 | `residueOther` | `--phylo-residue-other` | light and dark sets (below) | any other residue character, in either scheme (gaps are not drawn) |
 
 The residue tokens are optional: a token that is not set is the default for the theme's `dark` (light: the Clustal-like protein colours the viewer
 always had, and A `#2f9e44`, C `#2f6fd6`, G `#c27a00`, T/U `#d63b3b`; dark: lighter variants, each at least 3:1 against `#0f172a`, see
-`defaultResidueColour` in `src/residues.ts`). Values must be `#rgb`, `#rrggbb` or `rgb()`/`rgba()`, because the alignment bitmap is filled
-from them; anything else (a named colour, `var()`) is replaced by the default, and `residueColours` returns that replacement, so the
-returned table is always what is drawn. Why groups for protein but bases for nucleotides: A, C, G and T are residues in both alphabets, so
+`defaultResidueColour` in `src/residues.ts`). A value is read the way the browser reads a CSS colour (drawn on a 1x1 canvas and read back: names, `hsl()`, `oklch()`, `color-mix()`
+and `#rgba` all work; without a canvas, as in tests, only `#rgb`, `#rrggbb` and `rgb()`/`rgba()`). The alpha is dropped, because the
+alignment bitmap is opaque. A value that is not a colour, or is fully transparent, is replaced by the default with one console warning
+per value. `residueColours` returns each colour as the `#rrggbb` that is drawn, so the returned table is always what is drawn; results
+are cached per string, so a theme change resolves a colour once. Why groups for protein but bases for nucleotides: A, C, G and T are residues in both alphabets, so
 a token per letter would have to choose one meaning; the protein scheme colours seven groups, so seven tokens cover its twenty letters.
 Setting a token repaints the alignment columns (their bitmap holds the colours); the other columns are not recompiled.
 

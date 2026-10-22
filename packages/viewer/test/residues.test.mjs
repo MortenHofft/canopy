@@ -3,7 +3,8 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { residueColours, residueGroups, detectAlphabet, parseRgb, RESIDUE_THEME_KEYS } = await import('../src/residues.ts');
+const { residueColours, residueGroups, detectAlphabet, RESIDUE_THEME_KEYS } = await import('../src/residues.ts');
+const { resolveColour, toHex } = await import('../src/colour.ts');
 const { luminance, themeFromCss } = await import('../src/theme.ts');
 const { FALLBACK_THEME, themeEquals } = await import('../src/types.ts');
 const { compileColumn, updateColumns, recolourColumns, columnSpecEquals, drawColumns } = await import('../src/columns.ts');
@@ -33,6 +34,18 @@ function fakeCtx() {
   for (const op of ['save', 'restore', 'beginPath', 'clip', 'rect', 'drawImage', 'fillText', 'stroke', 'moveTo', 'lineTo']) ctx[op] = () => {};
   ctx.fillRect = (...args) => calls.push({ op: 'fillRect', args, fillStyle: ctx.fillStyle });
   return ctx;
+}
+async function withDocument(doc, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'document');
+  const old = globalThis.document;
+  if (doc === undefined) delete globalThis.document;
+  else globalThis.document = doc;
+  try {
+    return await fn();
+  } finally {
+    if (had) globalThis.document = old;
+    else delete globalThis.document;
+  }
 }
 async function withBitmaps(fn) {
   const old = globalThis.document;
@@ -83,20 +96,70 @@ test('residueColours covers A to Z and other, and returns a new object each time
   assert.notEqual(c, residueColours(FALLBACK_THEME, 'protein'));
 });
 
-test('theme tokens override the defaults; a colour the canvas table cannot use falls back to the default', () => {
-  const c = residueColours(
-    { ...FALLBACK_THEME, residueA: '#112233', residueT: ' rgb(1, 2, 3) ', residueC: 'banana', residueOther: '#abc' },
-    'nucleotide',
-  );
-  assert.equal(c.A, '#112233');
-  assert.equal(c.T, 'rgb(1, 2, 3)');
-  assert.equal(c.U, 'rgb(1, 2, 3)');
-  assert.equal(c.C, residueColours(FALLBACK_THEME, 'nucleotide').C);
-  assert.equal(c.N, '#abc');
+/** Run fn with console.warn collected. */
+function warnings(fn) {
+  const had = console.warn;
+  const seen = [];
+  console.warn = (...a) => seen.push(a.join(' '));
+  try {
+    fn();
+  } finally {
+    console.warn = had;
+  }
+  return seen;
+}
+
+test('theme tokens override the defaults and come back as #rrggbb; a value that is not a colour falls back to the default, with one warning', () => {
+  const seen = warnings(() => {
+    const t = { ...FALLBACK_THEME, residueA: '#112233', residueT: ' rgb(1, 2, 3) ', residueC: 'not a colour 1', residueOther: '#abc' };
+    const c = residueColours(t, 'nucleotide');
+    assert.equal(c.A, '#112233');
+    assert.equal(c.T, '#010203');
+    assert.equal(c.U, '#010203');
+    assert.equal(c.C, residueColours(FALLBACK_THEME, 'nucleotide').C);
+    assert.equal(c.N, '#aabbcc');
+    residueColours(t, 'nucleotide'); // the same bad value again: no second warning
+  });
+  assert.equal(seen.length, 1);
+  assert.match(seen[0], /residueC/);
   assert.equal(residueColours({ residueHydrophobic: '#010203' }, 'protein').I, '#010203', 'a partial theme without `dark` is light');
   // the protein tokens do not touch the nucleotide scheme and the other way round
   assert.equal(residueColours({ ...FALLBACK_THEME, residueA: '#112233' }, 'protein').A, '#80a0f0');
   assert.equal(residueColours({ ...FALLBACK_THEME, residueHydrophobic: '#010203' }, 'nucleotide').A, residueColours(FALLBACK_THEME, 'nucleotide').A);
+});
+
+test('any colour the browser knows is resolved through a probe canvas; alpha is dropped, transparent is not a colour', async () => {
+  const h = await makeViewer('(a,b);'); // installs the fake document, whose canvas fills and reads back like a browser's
+  void h;
+  assert.equal(toHex(resolveColour('red')), '#ff0000', 'a name');
+  assert.equal(toHex(resolveColour('#1234')), '#112233', '#rgba');
+  assert.equal(Math.round(resolveColour('rgba(0, 0, 255, 0.5)').a * 255), 128);
+  assert.equal(resolveColour('not a colour 2'), null);
+  assert.equal(resolveColour('  '), null);
+  const seen = warnings(() => {
+    const c = residueColours(
+      { residueA: 'rgba(0, 0, 255, 0.5)', residueC: 'red', residueG: 'transparent', residueT: 'not a colour 3' },
+      'nucleotide',
+    );
+    assert.equal(c.A, '#0000ff', 'the opaque colour that is drawn');
+    assert.equal(c.C, '#ff0000');
+    assert.equal(c.G, residueColours({}, 'nucleotide').G, 'fully transparent: default');
+    assert.equal(c.T, residueColours({}, 'nucleotide').T);
+  });
+  assert.equal(seen.length, 2);
+});
+
+test('without a canvas only #rgb, #rrggbb and rgb()/rgba() are understood, anchored at both ends', async () => {
+  await withDocument(undefined, () => {
+    assert.deepEqual(resolveColour('#abc'), { r: 170, g: 187, b: 204, a: 1 });
+    assert.deepEqual(resolveColour('rgba(1, 2, 3, 0.5)'), { r: 1, g: 2, b: 3, a: 0.5 });
+    assert.equal(resolveColour('rgb(1 2 3 / 50%)').a, 0.5);
+    assert.equal(resolveColour('red'), null);
+    assert.equal(resolveColour('var(--x)'), null);
+    assert.equal(resolveColour('#abcxyz'), null);
+    assert.equal(resolveColour('#aabbccdd1'), null);
+    assert.equal(resolveColour('rgb(1, 2, 3) junk'), null);
+  });
 });
 
 test('every default has enough contrast against its background (3:1), light and dark, protein and nucleotide', () => {
@@ -130,14 +193,6 @@ test('residueGroups: every group has a token and its letters share one colour; t
   );
 });
 
-test('parseRgb: hex and rgb() only', () => {
-  assert.deepEqual(parseRgb('#abc'), [170, 187, 204]);
-  assert.deepEqual(parseRgb('#102030ff'), [16, 32, 48]);
-  assert.deepEqual(parseRgb('rgba(1, 2, 3, 0.5)'), [1, 2, 3]);
-  assert.equal(parseRgb('red'), null);
-  assert.equal(parseRgb('var(--x)'), null);
-});
-
 test('detectAlphabet: more than 90% A, C, G, T, U or N (any case, gaps ignored) is nucleotide; otherwise, or empty, protein', () => {
   assert.equal(detectAlphabet(['ACGTACGTAC', 'acgu--NN..']), 'nucleotide');
   assert.equal(detectAlphabet(['ACGTACGTAK']), 'protein', 'exactly 90% is not more than 90%');
@@ -145,6 +200,12 @@ test('detectAlphabet: more than 90% A, C, G, T, U or N (any case, gaps ignored) 
   assert.equal(detectAlphabet(['MKVLAAGIVG']), 'protein');
   assert.equal(detectAlphabet([undefined, '----', '']), 'protein');
   assert.equal(detectAlphabet([]), 'protein');
+});
+
+test('detectAlphabet: leading gaps are not residues, and a sequence of gaps costs a bounded scan', () => {
+  assert.equal(detectAlphabet(['-'.repeat(500) + 'ACGTACGT']), 'nucleotide');
+  assert.equal(detectAlphabet(['.'.repeat(500) + 'MKVLAAGI']), 'protein');
+  assert.equal(detectAlphabet(['-'.repeat(1e6) + 'ACGT']), 'protein', 'gaps past the scan limit: nothing to sample');
 });
 
 test('detectAlphabet looks only at a sample: the first 400 residues of each sequence', () => {
@@ -184,13 +245,13 @@ test('the exported table equals what is drawn: bitmap pixels, and the runs of th
       [...row].forEach((ch, i) => assert.equal(px[o + i], ch === '-' ? 0 : abgr(table[table[ch] ? ch : 'other']), `${alphabet} ${ch}`));
     });
     // no document: no bitmap, the visible rows are drawn as runs of the same table
-    const c = compileColumn(tree, col({ A: 'ACGTMKVL' }, alphabet), theme);
+    const c = await withDocument(undefined, () => compileColumn(tree, col({ A: 'ACGTMKVL' }, alphabet), theme));
     c.x = 300;
     const ctx = fakeCtx();
     drawColumns(ctx, [c], tree, makeTransform('rectangular', 500, 180, { x0: 0, x1: 1, y0: 0, y1: 4 }, area, 4), theme, 12, '#336699');
     const rgb = (hex) => {
-      const [r, g, b] = parseRgb(hex);
-      return `rgb(${r},${g},${b})`;
+      const n = parseInt(hex.slice(1), 16);
+      return `rgb(${n >> 16},${(n >> 8) & 255},${n & 255})`;
     };
     const runs = ctx.calls.filter((x) => x.op === 'fillRect').map((x) => x.fillStyle);
     const expected = [];
@@ -277,4 +338,27 @@ test('viewer: setTheme repaints the alignment, dropping the override restores it
 
   const css = await makeViewer('((a,b),(c,d));', { columns: [column], cssVars: { '--phylo-residue-t': '#0d0e0f' } });
   assert.equal(latest(css)[3], abgr('#0d0e0f'));
+});
+
+test('dark follows the merged background unless --phylo-dark or an override says: setTheme({ background }) gives the dark defaults', async () => {
+  const column = col({ a: 'ACGT', b: 'ACGT', c: 'ACGT', d: 'ACGT' });
+  const drawnA = (h) => {
+    const puts = h.viewer.columns[0].bitmap.ctx.calls('putImageData');
+    return new Uint32Array(puts[puts.length - 1][1].data.buffer)[0];
+  };
+  const h = await makeViewer('((a,b),(c,d));', { columns: [column] });
+  assert.equal(h.viewer.getTheme().dark, false);
+  h.viewer.setTheme({ background: '#0f172a', foreground: '#e2e8f0' }); // the playground's Dark preset
+  assert.equal(h.viewer.getTheme().dark, true);
+  assert.equal(drawnA(h), abgr(residueColours(DARK, 'nucleotide').A));
+  h.viewer.setTheme({ background: 'rgba(15, 23, 42, 0.5)' });
+  assert.equal(h.viewer.getTheme().dark, false, 'a translucent background says nothing: the default applies');
+  h.viewer.setTheme({ background: '#0f172a', dark: false });
+  assert.equal(h.viewer.getTheme().dark, false, 'an explicit dark wins');
+  h.viewer.setTheme({});
+  assert.equal(drawnA(h), abgr(residueColours(FALLBACK_THEME, 'nucleotide').A));
+  const css = await makeViewer('((a,b),(c,d));', { cssVars: { '--phylo-background': 'transparent', '--phylo-dark': 'true' } });
+  assert.equal(css.viewer.getTheme().dark, true);
+  css.viewer.setTheme({ background: '#ffffff' });
+  assert.equal(css.viewer.getTheme().dark, true, '--phylo-dark is explicit: the background does not override it');
 });

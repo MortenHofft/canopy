@@ -183,6 +183,11 @@ export function Reactree({
     const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 320, values, alphabet };
     return { column, matched, sites, alphabet };
   }, [fasta, published]);
+  // the legend reads the residue colours of the theme in force, so it follows every theme change, whoever made it
+  useEffect(() => {
+    if (!showAlignment) return;
+    return ref.current?.renderer()?.on('themechange', () => setThemeTick((t) => t + 1));
+  }, [showAlignment, alignment]);
   // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group
   const legend = useMemo(() => {
     if (!alignment) return [];
@@ -237,10 +242,7 @@ export function Reactree({
 
   // ---- dark mode: the page flips data-theme on <html>; the viewer re-reads its --phylo-* properties when told to
   useEffect(() => {
-    const mo = new MutationObserver(() => {
-      ref.current?.renderer()?.refreshTheme();
-      setThemeTick((t) => t + 1); // the alignment legend reads the residue colours of the theme in force
-    });
+    const mo = new MutationObserver(() => ref.current?.renderer()?.refreshTheme());
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => mo.disconnect();
   }, []);
