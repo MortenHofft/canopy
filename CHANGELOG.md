@@ -32,4 +32,5 @@ These changes made the spike's custom renderer into the first library form. Noth
   - `addControl` keeps a `pointer-events` the control's element already has inline, so a control laid over the whole tree can let clicks through.
   - Nested clade colours: the innermost clade wins, whatever the order of `setClades` / the `clades` prop (it was the later entry).
   - `@gbif-phylo/io` has `toNexus`: a NEXUS file with a taxa block and the tree.
+- **`TreeViewer` unit tests** (#25). `test/viewer-harness.mjs` builds a real viewer in Node (`makeViewer(tree, init)`) over the fake DOM, with a recording 2D context, `requestAnimationFrame`, `ResizeObserver`, `matchMedia` and `getComputedStyle`. Tests cover `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, and `setTheme` / `refreshTheme`.
 
