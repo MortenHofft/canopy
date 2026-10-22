@@ -57,6 +57,7 @@ function snapshotOf(t: TreeData): TreeSnapshot {
     hasLengths: t.hasLengths,
     heights: () => t.heights(),
     tipIndex: (label) => t.tipIndex(label),
+    tipIndices: t.tipIndices ? (label) => t.tipIndices!(label) : undefined,
     stub: null,
     globalId: null,
     rollup: null,

@@ -208,7 +208,10 @@ const write = (text: string) => {
 viewer.on('click', (e) => write(`click ${e.isTip ? 'tip ' + e.tipId : `${e.kind} ${e.node} (${e.tipCount} tips)`}`));
 viewer.on('optionschange', (e) => write(`options: ${e.changed.join(', ')}`));
 viewer.on('cladeschange', (c) => write(`clades: ${c.length}`));
-viewer.on('highlightchange', (ids) => write(`highlighted: ${ids.join(', ') || 'none'}`));
+// labels and node ids (the Search highlights the tip it found by node id: labels need not be unique)
+viewer.on('highlightchange', (ids) =>
+  write(`highlighted: ${ids.map((id) => (typeof id === 'number' ? `${viewer.getTree().labels[id]} (node ${id})` : id)).join(', ') || 'none'}`),
+);
 viewer.on('themechange', (t) => write(`theme: ${t.dark ? 'dark' : 'light'}`));
 let lastView = 0;
 viewer.on('viewchange', () => {

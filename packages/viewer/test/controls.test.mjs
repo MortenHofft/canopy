@@ -36,6 +36,7 @@ function fakeViewer(newick = '((Apis_mellifera:1,Apis_cerana:1)Apis:1,(Bombus_te
       em.emit('optionschange', { options: this.options, changed: Object.keys(p) });
     },
     getTree: () => tree,
+    tipNodes: (l) => Array.from(tree.tipIndices(l)),
     getClades() {
       return this.clades;
     },
@@ -148,19 +149,47 @@ test('Search: highlight and onSelect', () => {
   s.list.appendChild(li);
   li.click();
   assert.deepEqual(v.calls, [
-    ['setHighlighted', ['Bombus_terrestris']],
+    ['setHighlighted', [5]],
     ['focusTip', 2, true],
   ]);
   const picked = [];
-  const s2 = new Search({ onSelect: (id) => picked.push(id) });
+  const s2 = new Search({ onSelect: (id, _v, node) => picked.push(id, node) });
   const v2 = fakeViewer();
   s2.setViewer(v2);
   const li2 = document.createElement('li');
   li2.dataset.rank = '3';
   s2.list.appendChild(li2);
   li2.click();
-  assert.deepEqual(picked, ['Xylocopa_violacea']);
+  assert.deepEqual(picked, ['Xylocopa_violacea', 6]);
   assert.deepEqual(v2.calls, []);
+});
+
+test('Search: a label that several tips carry lists each tip, says which it is, and the choice highlights that tip alone (#18)', () => {
+  // preorder: 0 root, 1 (), 2 Homo, 3 Homo, 4 Pan, 5 Homo
+  const v = fakeViewer('((Homo_sapiens:1,Homo_sapiens:1):1,Pan_troglodytes:1,Homo_sapiens:1)root;');
+  const s = new Search({ highlight: true });
+  s.setViewer(v);
+  assert.deepEqual(s.find(v, 'homo'), [0, 1, 3], 'every tip with the label is a suggestion');
+  s.input.value = 'homo';
+  s.input.dispatch('input');
+  return new Promise((done) =>
+    setTimeout(() => {
+      const opts = [...s.list.children];
+      assert.deepEqual(
+        opts.map((li) => li.textContent),
+        ['Homo sapiens 1 of 3', 'Homo sapiens 2 of 3', 'Homo sapiens 3 of 3'],
+      );
+      s.input.dispatch('keydown', { key: 'ArrowDown' });
+      s.input.dispatch('keydown', { key: 'ArrowDown' });
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(v.calls, [
+        ['setHighlighted', [5]],
+        ['focusTip', 3, true],
+      ]);
+      s.setViewer(null);
+      done();
+    }, 150),
+  );
 });
 
 test('Legend: one entry per coloured clade, named by label, node name or tip count; click zooms; hidden when empty', () => {

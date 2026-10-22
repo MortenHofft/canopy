@@ -90,7 +90,8 @@ await sleep(250);
 await page.locator('.phylo-search input').press('Enter');
 await sleep(400);
 const found = await ev(() => ({ hl: window.__example.viewer.getHighlighted(), vp: window.__example.viewer.getViewport() }));
-ok(found.hl.length === 1 && found.hl[0] === target, `search highlights the chosen tip (${found.hl})`);
+const hlLabel = await ev((n) => window.__example.viewer.getTree().labels[n], found.hl[0]);
+ok(found.hl.length === 1 && hlLabel === target, `search highlights the chosen tip, by node id (${found.hl}: ${hlLabel})`);
 ok(found.vp.y0 <= 500 && found.vp.y1 >= 501 && found.vp.y1 - found.vp.y0 < 900, 'and brings it into view, zoomed in');
 
 // ---- a tip click opens the custom card (an Overlay) above the tip, and no menu

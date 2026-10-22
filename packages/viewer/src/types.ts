@@ -32,8 +32,15 @@ export interface TreeData {
   readonly labels: string[]; // by node index
   readonly hasLengths: boolean;
   heights(): Int32Array;
-  tipIndex(label: string): number; // label -> node index, -1 if absent
+  tipIndex(label: string): number; // label -> node index of the first tip with it, -1 if absent
+  /** Node indexes of every tip with this label (tip labels need not be unique). Optional: without it a label names only the tip `tipIndex`
+   *  finds. `TreeModel` has it. */
+  tipIndices?(label: string): ArrayLike<number>;
 }
+
+/** A tip as the API takes it: a string is a tip LABEL (every tip that carries it), a number a NODE id (that one tip). Labels are the
+ *  lookup key into your own data and need not be unique; node ids are (see "Naming nodes" in docs/api.md). */
+export type TipRef = string | number;
 
 /** Rollups of a partially loaded tree, one value per snapshot row (all rows, stubs and loaded). The layout takes X, XMAX and ROW
  *  from them instead of from its own passes, because a stub row has no descendants to derive them from. */
@@ -226,25 +233,33 @@ export interface BuiltinColumn extends ColumnBase {
    *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
    *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
   values: Record<string, number | string>;
+  /** By node id, for values that belong to one tip rather than to a label (tip labels need not be unique, and `values` gives every tip with
+   *  a label the same value). Wins over `values` for its tips. Compared by reference, like `values`. */
+  nodeValues?: ReadonlyMap<number, number | string>;
   /** Alignment columns: the colour scheme. `'auto'` (default) picks nucleotide when more than 90% of a sample of the residues are
    *  A, C, G, T, U or N (see `detectAlphabet`), protein otherwise. Colours are the `residue*` theme tokens. */
   alphabet?: Alphabet;
 }
 
-/** A column drawn by your own renderer. `values` (by tip label, any type) is compared by reference as for the built-in kinds, and so
- *  is `renderer`. */
+/** A column drawn by your own renderer. `values` (by tip label, any type) and `nodeValues` (by node id) are compared by reference as for
+ *  the built-in kinds, and so is `renderer`. */
 export interface CustomColumn<V = unknown, D = unknown> extends ColumnBase {
   kind: 'custom';
   values: Record<string, V>;
+  nodeValues?: ReadonlyMap<number, V>;
   renderer: ColumnRenderer<V, D>;
 }
 
 export type Column = BuiltinColumn | CustomColumn;
 
-/** What a custom column's `prepare` gets: the values by tip label and the tips of the tree, by rank (the row order). */
+/** What a custom column's `prepare` gets: the values by tip label (and by node id, `null` when the column has none) and the tips of the
+ *  tree, by rank (the row order): their labels and their node ids (-1 for a tip whose row is not loaded). A tip's value is
+ *  `nodeValues.get(tipNodes[rank])` if there is one, else `values[tipLabels[rank]]`. */
 export interface ColumnSource<V = unknown> {
   readonly values: Record<string, V>;
+  readonly nodeValues: ReadonlyMap<number, V> | null;
   readonly tipLabels: readonly string[];
+  readonly tipNodes: ArrayLike<number>;
   readonly tipCount: number;
 }
 

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { shallowEqualOwn, stripUndefined, changedKeys, liveTooltipEvent } = await import(path.join(root, 'packages/react/src/props.ts'));
+const { shallowEqualOwn, stripUndefined, changedKeys, liveTooltipEvent, tipRow } = await import(path.join(root, 'packages/react/src/props.ts'));
 const { themeEquals, FALLBACK_THEME } = await import(path.join(root, 'packages/viewer/src/types.ts'));
 const { updateColumns, columnSpecEquals } = await import(path.join(root, 'packages/viewer/src/columns.ts'));
 
@@ -134,4 +134,40 @@ test('liveTooltipEvent: a hover event is used only while its source is the one s
   assert.equal(liveTooltipEvent(state, a), state.e);
   assert.equal(liveTooltipEvent(state, b), null, "a new tree: the old event, whose node ids are the old tree's, is not passed on");
   assert.equal(liveTooltipEvent(null, a), null, 'nothing hovered, or the tooltip hid');
+});
+
+test('tipRow: a label is its first tip (warning when several carry it), a number a node that must be a tip (#18)', async () => {
+  const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
+  const { InMemorySource } = await import(path.join(root, 'packages/viewer/src/source.ts'));
+  // preorder: 0 root, 1 (), 2 Homo, 3 Homo, 4 Pan, 5 Homo
+  const snap = new InMemorySource(parseNewick('((Homo_sapiens,Homo_sapiens),Pan_troglodytes,Homo_sapiens)root;')).snapshot();
+  const seen = [];
+  const had = console.warn;
+  console.warn = (...a) => seen.push(a.join(' '));
+  try {
+    assert.equal(tipRow(snap, 'Homo_sapiens'), 2);
+    assert.equal(tipRow(snap, 5), 5);
+    assert.equal(tipRow(snap, 'nope'), -1);
+    assert.deepEqual(seen, [], 'no warning without a `where`');
+    assert.equal(tipRow(snap, 'Pan_troglodytes', 'focusTip'), 4);
+    assert.deepEqual(seen, [], 'a unique label does not warn');
+    assert.equal(tipRow(snap, 'Homo_sapiens', 'focusTip'), 2);
+    assert.match(seen.pop(), /focusTip: 3 tips have the label "Homo_sapiens"; the first is used/);
+    assert.equal(tipRow(snap, 1, 'focusTip'), -1);
+    assert.match(seen.pop(), /focusTip: 1 is an internal node/);
+    assert.equal(tipRow(snap, 6, 'focusTip'), -1);
+    assert.match(seen.pop(), /focusTip: 6 is not a node/);
+    assert.equal(tipRow(snap, 2.5, 'focusTip'), -1);
+    assert.match(seen.pop(), /2\.5 is not a node/);
+  } finally {
+    console.warn = had;
+  }
+  // a partial snapshot: numbers are ids of the full tree, a row that is not loaded is -1 without a warning
+  const partial = {
+    ...snap,
+    globalId: Int32Array.from({ length: snap.nodeCount }, (_, i) => i + 100),
+    toLocal: (g) => (g >= 100 && g < 106 ? g - 100 : -1),
+  };
+  assert.equal(tipRow(partial, 105, 'focusTip'), 5);
+  assert.equal(tipRow(partial, 7, 'focusTip'), -1);
 });

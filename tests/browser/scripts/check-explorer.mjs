@@ -266,9 +266,9 @@ ok((await ev(() => __v().getHighlighted().length)) === 2, 'matches highlighted')
 await page.keyboard.press('Enter');
 await page.waitForTimeout(400);
 ok((await page.locator('.ex-search-count').innerText()) === '2 / 2', 'Enter: next match');
-const cur = await ev(() => __v().getHighlighted()[1]);
+const cur = await ev(() => __v().getHighlighted()[1]); // a node id: the matches are tips, not labels
 const vp = await ev(() => __v().getViewport());
-const rank = await ev((l) => __v().getTree().tipLabels.indexOf(l), cur);
+const rank = await ev((n) => __v().getTree().tipRank[n], cur);
 ok(rank >= vp.y0 && rank <= vp.y1, 'the current match is in view');
 await page.keyboard.press('Escape');
 ok(
@@ -1549,6 +1549,30 @@ await page.waitForTimeout(400);
 }
 
 // ---------------------------------------------------------------- the playground's catalogue
+console.log('search: a label on several tips (#18)');
+await open('edge-duplicate-labels');
+// record the ranks the explorer asks the viewer to focus (on 9 tips the whole tree is in view, so the viewport cannot tell)
+await ev(() => {
+  const v = __v();
+  const focusTip = v.focusTip.bind(v);
+  window.__focused = [];
+  v.focusTip = (r, a) => (window.__focused.push(r), focusTip(r, a));
+});
+await page.locator('button[aria-label="Search tips"]').click();
+await page.keyboard.type('homo');
+await page.waitForTimeout(250);
+ok((await page.locator('.ex-search-count').innerText()) === '1 / 3', 'Homo_sapiens is on three tips: three matches');
+const hlDup = await ev(() => [...__v().hlRanks]);
+ok(JSON.stringify(hlDup) === '[0,1,3]', `all three tips are highlighted (ranks ${JSON.stringify(hlDup)})`);
+for (const k of [2, 3, 1]) {
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(250);
+  ok((await page.locator('.ex-search-count').innerText()) === `${k} / 3`, `Enter: match ${k} of 3`);
+}
+const focused = await ev(() => window.__focused.filter((r, i, a) => i === 0 || r !== a[i - 1]));
+ok(JSON.stringify(focused.slice(-4)) === '[0,1,3,0]', `each step focuses the next of the three tips (ranks ${JSON.stringify(focused)})`);
+await page.keyboard.press('Escape');
+
 console.log('every tree of the playground catalogue, one from each group');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const catalogue = JSON.parse(fs.readFileSync(path.join(here, '../../../examples/shared/catalogue.json'), 'utf8'));
@@ -1560,7 +1584,7 @@ await open('edge-internal-support');
   const ids = new Set(groups.flatMap((g) => g[1]));
   const wanted = Object.values(catalogue).flatMap((g) => Object.keys(g));
   ok(
-    wanted.length === 19 && wanted.every((id) => ids.has(id)),
+    wanted.length === 20 && wanted.every((id) => ids.has(id)),
     `the picker lists all ${wanted.length} trees of the playground catalogue (${ids.size} in all)`,
   );
   ok(

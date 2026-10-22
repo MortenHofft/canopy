@@ -10,6 +10,21 @@ Parsers for phylogenetic tree files and the tree model they produce.
 
 Only single-quoted labels are handled, not double-quoted ones. Underscores in labels are kept, so tip ids equal the text in the file.
 
+## Duplicate tip labels
+
+Tip labels are lookup keys, not the identity of a tip: the same label can be on several tips (several sequences of one species, labels
+made for display), and every tip is kept. `tree.duplicateTipLabels()` reports them after a parse (a map from each label that more than one
+tip carries to those tips' node indexes, in preorder; empty when the labels are unique), so an app can warn. `tipIndex(label)` is the
+first tip with a label, `tipIndices(label)` every one, and `mrcaOf` counts every tip of a label. To tell the tips apart, use their node
+indexes (the viewer's node ids).
+
+```ts
+const tree = parseNewick(text);
+const dup = tree.duplicateTipLabels();
+if (dup.size) console.warn(`${dup.size} tip labels are on more than one tip, e.g. ${[...dup.keys()][0]}`);
+tree.tipIndices('Homo_sapiens'); // [3, 4, 7]
+```
+
 ## Annotations
 
 BEAST / FigTree `[&key=value,...]` comments and NHX `[&&NHX:key=value:...]` comments are skipped by default, which costs nothing. Pass `{ annotations: true }` to `parseNewick` or `parseNexus` to keep them in `tree.annotations` (`null` otherwise). `parseNexus` takes the options as `parseNexus(text, options)` (with `treeIndex` in them if needed) or `parseNexus(text, treeIndex, options)`.
