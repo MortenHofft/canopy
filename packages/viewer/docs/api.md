@@ -271,7 +271,7 @@ Exceptions to the rule:
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
-Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `draw.ts`), the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
@@ -300,6 +300,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `dimOpacity` | `--phylo-dim-opacity` | 0.25 | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity |
+| `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity` | `--phylo-leader-colour`, `-dash`, `-width`, `-opacity` | `''` (= `muted`), `1 3`, 1, 0.7 | leader lines of aligned labels: colour, dash pattern (px, separated by spaces or commas; `''` or `none` = solid), width (px), opacity (times `dimOpacity` for a dimmed tip) |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
 | `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
 | `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
@@ -335,6 +336,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `drawBudget` | `20000` | most primitives per frame; the collapse threshold is raised until the cut fits (min 500; LOD off: 600,000) |
 | `showSummaries` | `true` | draw collapsed clades as triangles (otherwise only their branch) |
 | `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
+| `alignLabels` | `false` | rectangular phylogram: every tip label starts in one column right of the farthest tip, with a dotted leader line from each tip to it (see "Aligned labels"). No effect in a cladogram, without branch lengths or in the radial layout |
 | `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
@@ -352,6 +354,23 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `summaryNotice` | `true` | radial: corner notice when the cut-off summarises clades the normal threshold would show |
 
 The overview is a control (`OverviewControl`), not an option.
+
+### Aligned labels
+
+`alignLabels: true` puts the tip labels of a rectangular phylogram in one column: the text starts 8 px right of the farthest tip (and right of the
+triangle of a collapsed clade, when the tree has any), and a dotted leader line runs from each tip to 3 px before its label. The leaders are drawn
+below the tip dots, for the tips that get a label (same density rule, cap and culling as the labels), from the column leftward so the dash
+pattern lines up, and a dimmed tip's leader is dimmed with it. Label hit areas and the DOM anchors (`tipHref`, screen readers) follow the labels,
+and the label reserve of the plot area is 14 px larger while the tree has collapsed tips.
+
+The column is **pinned**: zoomed in on x so far that the farthest tip is right of the plot area, the column stays at the area's right edge (where
+the farthest tip is at the fit view), so the labels stay readable. The branches of the tips beyond it run on under the label text (they are not
+clipped), and such a tip gets no leader. Not done: the radial layout (labels on one circle with radial leaders) is not aligned; the option does
+nothing there.
+
+`leaderColour` must be a valid CSS colour or empty (empty = `muted`); anything else is drawn as the canvas reads it (an invalid value keeps the
+previous stroke colour). `leaderDash` as a CSS custom property: only `none` (not an empty value, which the viewer ignores) gives a solid line;
+with `setTheme`, `''` or `'none'` both do.
 
 ### Dimming highlights
 

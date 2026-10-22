@@ -91,6 +91,7 @@ export function Reactree({
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
+  const [alignLabels, setAlignLabels] = useState(false);
   const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
@@ -745,9 +746,10 @@ export function Reactree({
         {phylogram && tree.hasLengths && (
           <button
             type="button"
-            className="rt-btn rt-toggle"
-            disabled
-            title="Align leaf labels: not available, the viewer has no aligned-label option"
+            className={`rt-btn rt-toggle${alignLabels ? ' active' : ''}`}
+            aria-pressed={alignLabels}
+            title={alignLabels ? 'Labels follow their tips' : 'Align leaf labels in one column, with leader lines'}
+            onClick={() => setAlignLabels((a) => !a)}
           >
             <I.IconAlignLabels />
             Align
@@ -780,7 +782,7 @@ export function Reactree({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim' }}
+          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels }}
           tooltip={tooltip}
           onNodeClick={onClick}
           onTipClick={onClick}

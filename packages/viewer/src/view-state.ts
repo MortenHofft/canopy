@@ -11,6 +11,7 @@ import {
   FOCUS_TIP_MAX_ROW_PX,
   FOCUS_TIP_MIN_ROW_PX,
   FOCUS_TIP_RADIAL_PITCH_PX,
+  COLLAPSED_W,
   OVERSCROLL_FRAC,
   OVERSCROLL_KEEP_FRAC,
   OVERVIEW_STRIP_W_PX,
@@ -43,6 +44,10 @@ export interface ViewEnv {
   readonly axis: boolean;
   /** Fixed row height in px, null (or 0) = fit all tips into the height. */
   readonly rowHeight: number | null;
+  /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
+  readonly alignLabels: boolean;
+  /** Some tip stands for a collapsed clade (drawn as a triangle). */
+  readonly hasCollapsed: boolean;
   /** Container size in CSS px. */
   readonly W: number;
   readonly H: number;
@@ -107,7 +112,13 @@ export class ViewState {
     this.maxChars = -1;
   }
 
-  /** Room right of the tips for labels: from the longest label, capped (rectangular layout). */
+  /** Labels are drawn in one column right of the farthest tip (rectangular phylogram with `alignLabels`). */
+  alignsLabels(): boolean {
+    return this.env.alignLabels && this.env.layout === 'rectangular' && this.env.L.usedLengths;
+  }
+
+  /** Room right of the tips for labels: from the longest label, capped (rectangular layout). Aligned, the column also clears the
+   *  triangle of a collapsed clade. */
   labelReserve(): number {
     if (this.maxChars < 0) {
       let m = 0;
@@ -117,7 +128,7 @@ export class ViewState {
       else for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
       this.maxChars = m;
     }
-    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14));
+    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14 + (this.alignsLabels() && this.env.hasCollapsed ? COLLAPSED_W : 0)));
   }
 
   /** The plotting area for the current container size, options and columns; places the columns as a side effect (they follow the clip). */

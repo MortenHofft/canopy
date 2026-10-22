@@ -217,6 +217,7 @@ export class Overview {
       hlRanks: new Int32Array(0),
       hoverNode: -1,
       activeNode: -1,
+      alignLabels: false,
       density: 'sparse',
       format: (id) => h.formatLabel(id),
       scale: h.dpr,
