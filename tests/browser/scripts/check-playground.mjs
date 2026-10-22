@@ -149,6 +149,121 @@ await page.locator('input[data-setting=find]').fill('Bothus');
 await settled();
 ok((await ev(() => window.viewer.getHighlighted().length)) === 2, 'highlight text → 2 tips');
 
+console.log('tree operations');
+await page.locator('input[data-setting=find]').fill('');
+const tips = () => ev(() => window.viewer.getTree().tipCount);
+// a visible clade of the shown tree with lo..hi tips (skip: the how-manyth), and where to click it
+const cladeOf = (lo, hi, skip = 0) =>
+  ev(
+    ([lo, hi, skip]) => {
+      const v = window.viewer;
+      const t = v.getTree();
+      for (let i = 1; i < t.nodeCount; i++) {
+        const c = t.leafEnd[i] - t.leafStart[i];
+        if (t.firstChild[i] >= 0 && c >= lo && c <= hi && skip-- <= 0) {
+          const q = v.locateNode(i);
+          if (q) return { node: i, tips: c, x: q.x, y: q.y };
+        }
+      }
+      return null;
+    },
+    [lo, hi, skip],
+  );
+const menu = async (p, item) => {
+  await page.mouse.click(p.x, p.y);
+  await page.locator('[role=menuitem]', { hasText: item }).first().click();
+  await page.waitForTimeout(300);
+};
+const status = () => page.locator('#ops-status').innerText();
+const whole = await tips();
+const big = await cladeOf(30, 80);
+await menu(big, 'Show only this clade');
+ok((await tips()) === big.tips && (await status()).includes(`a clade of ${big.tips} of ${whole} tips`), `Show only this clade: ${big.tips} tips`);
+ok(
+  query().has('focus') && !(await page.locator('#ops-back').isDisabled()) && !(await page.locator('#ops-up').isDisabled()),
+  'focus in the URL; Back and Up enabled',
+);
+const small = await cladeOf(4, 12);
+await menu(small, 'Collapse');
+const afterCollapse = await tips();
+ok(afterCollapse === big.tips - small.tips + 1, `Collapse: ${big.tips} → ${afterCollapse} tips`);
+const tri = await ev(() => {
+  const t = window.viewer.getTree();
+  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
+  return null;
+});
+ok(
+  tri !== null && query().has('collapsed') && (await page.locator('#ops-expand').innerText()) === 'Expand all (1)',
+  'a triangle tip, collapsed in the URL, Expand all (1)',
+);
+await open(new URL(page.url()).search);
+ok((await tips()) === afterCollapse && (await status()).includes('1 collapsed'), 'the focus and the collapsed clade survive a reload');
+await menu(
+  await ev(() => {
+    const t = window.viewer.getTree();
+    for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
+  }),
+  'Expand',
+);
+ok((await tips()) === big.tips && !query().has('collapsed'), 'Expand from the triangle’s menu');
+// a colour set inside the clade stays on it when going back out
+const inner = await cladeOf(3, 10);
+await menu(inner, 'Colour this clade');
+await page.locator('#ops-up').click();
+await page.waitForTimeout(300);
+const up1 = await tips();
+ok(up1 > big.tips, `Up one level: the clade that contains it (${up1} tips)`);
+ok((await ev(() => window.viewer.getClades().length)) === 1, 'the colour moves with the clade');
+await page.locator('#ops-back').click();
+await page.waitForTimeout(300);
+ok((await tips()) === big.tips, 'Back: the clade again');
+// up from the shown root's menu, level by level, until the whole tree
+for (let i = 0; i < 50 && (await tips()) < whole; i++) {
+  const r = await ev(() => window.viewer.locateNode(0));
+  await menu(r, 'Up one level');
+}
+ok((await tips()) === whole && (await page.locator('#ops-up').isDisabled()), 'Up one level from the shown root’s menu reaches the whole tree');
+// click actions
+await select('click', 'collapse');
+const c2 = await cladeOf(4, 12, 2);
+await page.mouse.click(c2.x, c2.y);
+await page.waitForTimeout(300);
+ok((await tips()) === whole - c2.tips + 1, 'click action "Collapse or expand"');
+await page.locator('#ops-expand').click();
+await page.waitForTimeout(300);
+ok((await tips()) === whole && (await page.locator('#ops-expand').isDisabled()), 'Expand all');
+await select('click', 'focus');
+const c3 = await cladeOf(10, 40);
+await page.mouse.click(c3.x, c3.y);
+await page.waitForTimeout(300);
+ok((await tips()) === c3.tips, 'click action "Show only the clade"');
+await page.locator('#reset').click();
+await page.waitForTimeout(300);
+ok(
+  (await tips()) === whole && !query().has('focus') && (await ev(() => window.viewer.getClades().length)) === 0,
+  'Reset all: the whole tree, no colours',
+);
+// collapse by support: 0.95 and 100 on one tree (two scales in one file), so the threshold is in % of the scale 0..100
+await page.selectOption('#tree-select', 'edge-internal-support');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('6 tips'), null, { timeout: 30000 });
+await page.waitForTimeout(300);
+ok((await page.locator('#support-note').innerText()).includes('0.95 to 100'), 'the support range of the tree is shown');
+const nodes = () => ev(() => window.viewer.getTree().nodeCount);
+const n0 = await nodes();
+await toggle('supportCollapse', true);
+await setInput('minSupport', '99');
+await page.waitForTimeout(300);
+ok(
+  (await nodes()) === n0 - 1 && (await status()).includes('1 branches with low support collapsed'),
+  'collapse by support < 99: the 0.95 branch goes',
+);
+await toggle('supportCollapse', false);
+await page.waitForTimeout(300);
+ok((await nodes()) === n0, 'unticked: back');
+await page.selectOption('#tree-select', 'rich-fish-carangaria-135');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
+ok(await page.locator('input[data-setting=supportCollapse]').isDisabled(), 'no support values: the switch is off');
+
 console.log('data columns');
 await page.selectOption('#tree-select', 'syn-yule-1000');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('1,000 tips'), null, { timeout: 30000 });

@@ -59,7 +59,7 @@ Still open, found in the library:
 - **No node or branch labels** ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16); posterior values need [#17](https://github.com/MortenHofft/gbif-phylo/issues/17)). Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
   frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
   branch.
-- **No aligned tip labels with leader lines** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). The Align button is shown disabled.
+- **No aligned tip labels with leader lines** ([#35](https://github.com/MortenHofft/gbif-phylo/issues/35)). The Align button is shown disabled.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
 - **Search can highlight, not dim** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). Reactree dims the tips that do not match; the viewer has highlighting only.

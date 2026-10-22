@@ -2,6 +2,10 @@
 // or a file of your own. No framework: TreeViewer, its controls and its events directly. The settings live in src/settings.ts (one
 // list drives the panel, the URL and how each value is applied); the URL holds the tree and every setting that differs from the
 // library default, so a view can be shared. `npm run dev` in this folder.
+//
+// Tree operations (@gbif-phylo/tree-ops) are views of the loaded tree, as in examples/react: show only a clade (with Back and Up one
+// level), collapse clades into triangles, collapse branches with low support. What is shown is a new tree built from the loaded one;
+// colours, collapsed clades and the focus are kept in node ids of the loaded tree and mapped to the shown tree (toShown / toFull).
 
 import '@gbif-phylo/viewer/viewer.css';
 import '../../react/src/gbif-tokens.css';
@@ -24,6 +28,8 @@ import {
   type TreeTheme,
   type ViewerOptions,
 } from '@gbif-phylo/viewer';
+import { TreeModel } from '@gbif-phylo/io';
+import * as ops from '@gbif-phylo/tree-ops';
 import { ENTRIES, GROUPS as TREE_GROUPS, loadEntry, loadFile, type Loaded } from './data.ts';
 import { BY_ID, GROUPS, PRESETS, SETTINGS, defaults, fromUrl, toUrl, toViewer, type Setting, type State, type Value } from './settings.ts';
 
@@ -38,10 +44,96 @@ if (treeId && !ENTRIES[treeId]) treeId = 'rich-fish-carangaria-135';
 const state: State = fromUrl(location.search);
 let loaded: Loaded | null = null;
 let viewer: TreeViewer | null = null;
-let clades: CladeColour[] = [];
+let clades: CladeColour[] = []; // node ids of the loaded tree
+let focus: ops.Focus = ops.NO_FOCUS; // the clade shown alone, with its history (tree-ops' focus)
+let collapsed: number[] = []; // clades shown as one triangle (node ids of the loaded tree)
 const columnOn = new Map<string, boolean>(); // per loaded tree: which data columns are shown
 
-const writeUrl = () => history.replaceState(null, '', location.pathname + toUrl(treeId, state) + location.hash);
+// the focus stack and the collapsed clades join the settings in the URL (?focus=12,40&collapsed=7,90): node ids of the tree file
+const nodeList = (k: string) =>
+  (params.get(k) ?? '')
+    .split(',')
+    .filter((x) => /^\d+$/.test(x))
+    .map(Number);
+const urlFocus = nodeList('focus');
+const urlCollapsed = nodeList('collapsed');
+function writeUrl() {
+  const q = new URLSearchParams(toUrl(treeId, state));
+  if (treeId && focus.stack.length) q.set('focus', focus.stack.join(','));
+  if (treeId && collapsed.length) q.set('collapsed', collapsed.join(','));
+  const s = q.toString();
+  history.replaceState(null, '', location.pathname + (s ? '?' + s : '') + location.hash);
+}
+
+// ---------------------------------------------------------------- the view: what is shown of the loaded tree
+
+interface View {
+  tree: TreeModel; // what the viewer shows
+  toShown: (full: number) => number; // node of the loaded tree -> shown node, -1 when not shown
+  toFull: (shown: number) => number;
+  collapsedTips: number[]; // shown tips that stand for collapsed clades
+  supportCollapsed: number; // nodes removed by collapse by support
+  support: { lo: number; hi: number } | null; // range of the support values of the loaded tree
+}
+let view: View | null = null;
+
+function supportRange(t: TreeModel): View['support'] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const s of t.support)
+    if (!Number.isNaN(s)) {
+      lo = Math.min(lo, s);
+      hi = Math.max(hi, s);
+    }
+  return lo <= hi ? { lo, hi } : null;
+}
+
+/** Focus, then collapsed clades, then collapse by support (in that order: a collapsed clade is a tip, which the support collapse keeps;
+ *  the other way round a collapsed node with low support would be contracted first and its triangle lost). */
+function computeView(t: TreeModel): View {
+  let shown = t;
+  let toView: Int32Array | null = null; // loaded -> shown, composed over the steps
+  const step = (r: ops.OpResult) => {
+    if (!r.changed) return false;
+    toView = toView ? toView.map((v) => (v >= 0 ? r.map[v] : -1)) : r.map;
+    shown = new TreeModel(r.tree);
+    return true;
+  };
+  const toShownNow = (v: number) => (toView ? toView[v] : v);
+  step(ops.showFocus(t, focus));
+  let collapsedTips: number[] = [];
+  const inShown = collapsed.map(toShownNow).filter((v) => v > 0); // the shown root is never collapsed
+  if (inShown.length) {
+    const r = ops.collapseClades(shown, inShown);
+    if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
+  }
+  const support = supportRange(t);
+  let supportCollapsed = 0;
+  if (state.supportCollapse && support) {
+    const before = shown.nodeCount;
+    const threshold = Number(state.minSupport) * (support.hi <= 1 ? 0.01 : 1);
+    const r = ops.collapseBySupport(shown, threshold);
+    if (step(r)) {
+      supportCollapsed = before - shown.nodeCount;
+      collapsedTips = collapsedTips.map((v) => r.map[v]); // tips are kept
+    }
+  }
+  const map = toView as Int32Array | null;
+  if (!map) return { tree: t, toShown: (v) => v, toFull: (v) => v, collapsedTips, supportCollapsed, support };
+  const back = new Int32Array(shown.nodeCount);
+  for (let i = 0; i < map.length; i++) if (map[i] >= 0) back[map[i]] = i;
+  return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedTips, supportCollapsed, support };
+}
+
+/** The view changed (focus, collapsed clades, support threshold): rebuild it and the viewer when the shown tree is a different one. */
+function refreshView() {
+  if (!loaded) return;
+  const before = view?.tree;
+  view = computeView(loaded.tree);
+  renderOpsBar();
+  if (view.tree !== before) create();
+  else apply();
+}
 
 // ---------------------------------------------------------------- applying settings to the viewer
 
@@ -110,7 +202,7 @@ function highlightedTips(): string[] {
   const q = String(state.find).trim().toLowerCase();
   if (!q || !loaded) return [];
   const out: string[] = [];
-  for (const l of loaded.tree.tipLabels) if (l.toLowerCase().includes(q) && out.push(l) >= 20000) break;
+  for (const l of (view?.tree ?? loaded.tree).tipLabels) if (l.toLowerCase().includes(q) && out.push(l) >= 20000) break;
   return out;
 }
 
@@ -123,14 +215,78 @@ function apply() {
   applyControls(v);
   v.setColumns(columns());
   v.setHighlighted(highlightedTips());
-  v.setClades(clades);
+  const vw = view;
+  v.setClades(
+    vw
+      ? clades.flatMap((c) => {
+          const k = vw.toShown(c.node);
+          return k >= 0 ? [{ ...c, node: k }] : [];
+        })
+      : clades,
+  );
+  v.setCollapsed(vw?.collapsedTips ?? []);
   $('.tree-card').classList.toggle('dotted', state.transparent === true);
+  writeUrl();
+}
+
+// ---------------------------------------------------------------- tree operations
+
+const tipsOf = (full: number) => loaded!.tree.tipCountOf(full);
+function showOnly(full: number) {
+  focus = ops.focusOn(loaded!.tree, focus, full);
+  log('show', `only a clade of ${fmt(tipsOf(full))} tips`);
+  refreshView();
+}
+function goUp() {
+  focus = ops.focusUp(loaded!.tree, focus);
+  log('show', ops.canGoUp(focus) ? `up to a clade of ${fmt(tipsOf(ops.focusedNode(focus)))} tips` : 'the whole tree');
+  refreshView();
+}
+function goBack() {
+  focus = ops.focusBack(focus);
+  log('show', 'back');
+  refreshView();
+}
+function setCollapsed(full: number, on: boolean) {
+  collapsed = on ? [...collapsed.filter((c) => c !== full), full] : collapsed.filter((c) => c !== full);
+  log(on ? 'collapse' : 'expand', `a clade of ${fmt(tipsOf(full))} tips`);
+  refreshView();
+}
+function expandAll() {
+  collapsed = [];
+  log('expand', 'all');
+  refreshView();
+}
+
+/** The bar above the tree: Back, Up one level, Expand all, and what is shown. */
+function renderOpsBar() {
+  const t = loaded?.tree;
+  const vw = view;
+  if (!t || !vw) return;
+  $<HTMLButtonElement>('#ops-back').disabled = !ops.canGoBack(focus);
+  $<HTMLButtonElement>('#ops-up').disabled = !ops.canGoUp(focus);
+  const shownCollapsed = vw.collapsedTips.length;
+  const expand = $<HTMLButtonElement>('#ops-expand');
+  expand.disabled = collapsed.length === 0;
+  expand.textContent = collapsed.length ? `Expand all (${collapsed.length})` : 'Expand all';
+  const f = ops.focusedNode(focus);
+  const parts = [f < 0 ? `the whole tree, ${fmt(t.tipCount)} tips` : `a clade of ${fmt(t.tipCountOf(f))} of ${fmt(t.tipCount)} tips`];
+  if (shownCollapsed) parts.push(`${shownCollapsed} collapsed`);
+  if (vw.supportCollapsed) parts.push(`${fmt(vw.supportCollapsed)} branches with low support collapsed`);
+  $('#ops-status').textContent = 'Showing ' + parts.join(' · ');
+  // collapse by support needs support values; say what scale this tree uses (0.95 versus 95)
+  const note = $('#support-note');
+  inputs.get('supportCollapse')!.disabled = !vw.support;
+  note.textContent = vw.support
+    ? `Support in this tree: ${vw.support.lo} to ${vw.support.hi}${vw.support.hi <= 1 ? ' (compared with the value / 100)' : ''}.`
+    : 'This tree has no support values.';
   writeUrl();
 }
 
 // ---------------------------------------------------------------- clicks: the node menu, or a direct action
 
 const palette = () => viewer?.getTheme().categorical ?? ['#684393'];
+/** Colour a clade or tip (a node of the loaded tree), or remove its colour. */
 function toggleColour(node: number) {
   const has = clades.some((c) => c.node === node);
   const t = loaded?.tree;
@@ -138,26 +294,55 @@ function toggleColour(node: number) {
   clades = has ? clades.filter((c) => c.node !== node) : [...clades, { node, colour: palette()[clades.length % palette().length], label }];
   apply();
 }
+
+/** What a click hit, in node ids of the loaded tree: `full`, and whether it is a tip that stands for a collapsed clade. */
+function target(e: TreeEvent) {
+  const full = view ? view.toFull(e.node) : e.node;
+  const isCollapsed = e.isTip && loaded!.tree.childCount[full] > 0;
+  return { full, isCollapsed, isClade: !e.isTip || isCollapsed, isShownRoot: e.node === 0 };
+}
+
 function menuItems(e: TreeEvent): NodeMenuItem[] {
   if (e.run)
     return [{ id: 'zoom', label: 'Zoom in here', hint: `${fmt(e.tipCount)} tips in small clades`, onSelect: () => viewer?.zoomToNode(e.node, true) }];
-  const coloured = clades.some((c) => c.node === e.node);
+  const { full, isCollapsed, isClade, isShownRoot } = target(e);
+  const tips = loaded!.tree.tipCountOf(full);
   const items: NodeMenuItem[] = [];
+  // the root of a clade shown alone leads out of it
+  if (isShownRoot && ops.canGoUp(focus)) {
+    items.push({ id: 'up', label: 'Up one level', hint: 'show the clade that contains this one', onSelect: goUp });
+    items.push({ id: 'back', label: 'Back', hint: 'to the view before', onSelect: goBack });
+  }
+  if (isCollapsed) items.push({ id: 'expand', label: 'Expand', hint: `show its ${fmt(tips)} tips again`, onSelect: () => setCollapsed(full, false) });
   if (!e.isTip)
     items.push({ id: 'zoom', label: 'Zoom to this clade', hint: `${fmt(e.tipCount)} tips`, onSelect: () => viewer?.zoomToNode(e.node, true) });
-  items.push({
-    id: 'colour',
-    label: coloured ? 'Remove colour' : 'Colour this ' + (e.isTip ? 'tip' : 'clade'),
-    onSelect: () => toggleColour(e.node),
-  });
+  if (isClade && !isShownRoot)
+    items.push({ id: 'show', label: 'Show only this clade', hint: `${fmt(tips)} tips; Back or Up one level return`, onSelect: () => showOnly(full) });
+  if (!e.isTip && !isShownRoot)
+    items.push({ id: 'collapse', label: 'Collapse', hint: `show its ${fmt(tips)} tips as one triangle`, onSelect: () => setCollapsed(full, true) });
+  const coloured = clades.some((c) => c.node === full);
+  items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this ' + (isClade ? 'clade' : 'tip'), onSelect: () => toggleColour(full) });
   items.push({
     id: 'hl',
     label: 'Highlight ' + (e.isTip ? 'this tip' : 'its tips'),
     onSelect: () => viewer?.setHighlighted(e.tipIds().slice(0, 20000)),
   });
-  if (e.isTip && e.tipId)
+  if (e.isTip && !isCollapsed && e.tipId)
     items.push({ id: 'gbif', label: 'Search GBIF for this name', onSelect: () => window.open(GBIF_HREF(e.tipId!), '_blank', 'noopener') });
   return items;
+}
+
+/** The direct click actions (the panel's "Click on a tip or clade"; 'menu' is the NodeMenu control). */
+function clickAction(e: TreeEvent) {
+  if (e.run) return;
+  const { full, isCollapsed, isClade, isShownRoot } = target(e);
+  if (state.click === 'colour') toggleColour(full);
+  else if (state.click === 'zoom' && !e.isTip) viewer?.zoomToNode(e.node, true);
+  else if (state.click === 'focus' && isClade && !isShownRoot) showOnly(full);
+  else if (state.click === 'collapse') {
+    if (isCollapsed) setCollapsed(full, false);
+    else if (!e.isTip && !isShownRoot) setCollapsed(full, true);
+  }
 }
 
 // ---------------------------------------------------------------- the viewer
@@ -169,14 +354,13 @@ function create() {
   if (!loaded) return;
   const host = $('#tree');
   const t0 = performance.now();
-  const v = new TreeViewer({ target: host, tree: loaded.tree, options: viewerOptions(), theme: themeOverrides(), columns: columns() });
+  const v = new TreeViewer({ target: host, tree: view?.tree ?? loaded.tree, options: viewerOptions(), theme: themeOverrides(), columns: columns() });
   viewer = v;
   // for the browser check and for poking at it from the console
   (window as unknown as { viewer: TreeViewer }).viewer = v;
   v.on('click', (e) => {
     log('click', e.isTip ? `tip ${e.tipId}` : `${e.kind} n${e.node} · ${fmt(e.tipCount)} tips`);
-    if (state.click === 'colour') toggleColour(e.node);
-    else if (state.click === 'zoom' && !e.isTip) v.zoomToNode(e.node, true);
+    clickAction(e);
   });
   v.on('hover', (e) => {
     $('#hover').textContent = e ? (e.isTip ? (e.tipId ?? '') : `${e.kind} · ${fmt(e.tipCount)} tips`) : '';
@@ -266,6 +450,7 @@ function control(s: Setting): HTMLElement {
     if (s.id === 'preset') applyPreset(String(state.preset));
     syncInputs();
     if (s.rebuild && before !== state[s.id]) create();
+    else if (s.group === 'Tree operations') refreshView();
     else apply();
   });
   inputs.set(s.id, input);
@@ -304,6 +489,16 @@ function buildPanel() {
     sum.textContent = g;
     box.append(sum);
     for (const s of SETTINGS) if (s.group === g) box.append(control(s));
+    if (g === 'Tree operations') {
+      const note = document.createElement('p');
+      note.id = 'support-note';
+      note.className = 'muted';
+      const how = document.createElement('p');
+      how.className = 'muted';
+      how.textContent =
+        'Show only a clade and collapse or expand one from the node menu (or set the click action below). Back, Up one level and Expand all are above the tree.';
+      box.append(note, how);
+    }
     if (g === 'Data and interaction') {
       const cols = document.createElement('div');
       cols.id = 'data-columns';
@@ -402,6 +597,14 @@ async function show(p: Promise<Loaded>, name: string) {
   }
   clades = [];
   const t = loaded.tree;
+  // the focus and collapsed clades of the URL belong to the tree it was opened with; any other tree starts whole
+  const fromUrlTree = treeId !== null && treeId === firstTree && !urlUsed;
+  urlUsed = true;
+  const internal = (v: number) => v > 0 && v < t.nodeCount && t.childCount[v] > 0;
+  focus = fromUrlTree && urlFocus.every(internal) ? { stack: urlFocus } : ops.NO_FOCUS;
+  collapsed = fromUrlTree ? urlCollapsed.filter(internal) : [];
+  view = computeView(t);
+  renderOpsBar();
   info.textContent =
     `${fmt(t.tipCount)} tips · ${fmt(t.nodeCount)} nodes · ${t.hasLengths ? (t.isUltrametric(1e-3) ? 'dated (ultrametric)' : 'branch lengths') : 'no branch lengths'}` +
     ` · ${(loaded.bytes / 1024).toFixed(0)} KB · parsed in ${loaded.parseMs.toFixed(0)} ms`;
@@ -412,13 +615,21 @@ async function show(p: Promise<Loaded>, name: string) {
 
 // ---------------------------------------------------------------- page
 
+const firstTree = treeId;
+let urlUsed = false;
+$('#ops-back').addEventListener('click', goBack);
+$('#ops-up').addEventListener('click', goUp);
+$('#ops-expand').addEventListener('click', expandAll);
+
 buildTreePicker();
 buildPanel();
 $('#reset').addEventListener('click', () => {
   Object.assign(state, defaults());
   clades = [];
+  focus = ops.NO_FOCUS;
+  collapsed = [];
   syncInputs();
-  apply();
+  refreshView();
 });
 $('#copy-link').addEventListener('click', async () => {
   writeUrl();

@@ -25,7 +25,7 @@ These changes made the spike's custom renderer into the first library form. Noth
   - Builds clean `dist/` first, and the package check fails on output without a source.
   - `<TreeView>`'s default controls no longer bundle every control: 31.4 kB gzip instead of 34.3 kB.
 - **Demo site** (2026-10-22). A hub page (`site/`) linking a playground with every option, theme token and control
-  (`examples/playground`) and the Reactree look-alike, built with their data by `npm run build:site` for Vercel (`vercel.json`), and
+  (`examples/playground`, which also shows only a clade, collapses clades and collapses by support with tree-ops) and the Reactree look-alike, built with their data by `npm run build:site` for Vercel (`vercel.json`), and
   checked as served (`check-site.mjs`). The large OTL trees come from the `data/otl-large` branch at build time.
 - **Found by the Reactree look-alike** (`examples/reactree`, 2026-10-22).
   - A transparent or translucent `--phylo-background` works: the page shows through. The canvas has an alpha channel only while the background is not opaque (an opaque one keeps the faster opaque canvas; a theme change swaps the canvas), and is cleared before each frame. Before, frames were drawn over each other.

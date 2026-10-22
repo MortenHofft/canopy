@@ -26,8 +26,8 @@ export type Setting = Base &
     | { kind: 'text'; default: string; placeholder?: string }
   );
 
-export type Group = 'Layout and labels' | 'Level of detail' | 'Theme' | 'Controls' | 'Data and interaction';
-export const GROUPS: Group[] = ['Layout and labels', 'Theme', 'Controls', 'Data and interaction', 'Level of detail'];
+export type Group = 'Layout and labels' | 'Level of detail' | 'Theme' | 'Controls' | 'Tree operations' | 'Data and interaction';
+export const GROUPS: Group[] = ['Layout and labels', 'Theme', 'Controls', 'Tree operations', 'Data and interaction', 'Level of detail'];
 
 const O = DEFAULT_OPTIONS;
 const T = FALLBACK_THEME;
@@ -207,8 +207,32 @@ export const SETTINGS: Setting[] = [
       ['menu', 'Node menu'],
       ['colour', 'Colour the clade'],
       ['zoom', 'Zoom to the clade'],
+      ['focus', 'Show only the clade'],
+      ['collapse', 'Collapse or expand the clade'],
       ['nothing', 'Nothing (events only)'],
     ],
+  },
+  // ---- tree operations (@gbif-phylo/tree-ops), as views of the loaded tree: the focus and the collapsed clades are page state, below
+  {
+    id: 'supportCollapse',
+    label: 'Collapse branches with low support',
+    hint: 'tree-ops collapseBySupport: such branches become polytomies; a view, untick to get them back',
+    group: 'Tree operations',
+    to: 'app',
+    kind: 'toggle',
+    default: false,
+  },
+  {
+    id: 'minSupport',
+    label: 'Support below (% of the scale)',
+    hint: 'support values of 0–1 are compared with this / 100',
+    group: 'Tree operations',
+    to: 'app',
+    kind: 'range',
+    default: 70,
+    min: 0,
+    max: 100,
+    step: 1,
   },
   {
     id: 'find',

@@ -29,6 +29,12 @@
         <div id="settings"></div>
       </aside>
       <main class="main">
+        <div class="ops-bar" role="toolbar" aria-label="Tree operations">
+          <button type="button" class="btn btn-outline" id="ops-back" disabled>← Back</button>
+          <button type="button" class="btn btn-outline" id="ops-up" disabled>↑ Up one level</button>
+          <button type="button" class="btn btn-secondary" id="ops-expand" disabled>Expand all</button>
+          <span id="ops-status" class="ops-status" aria-live="polite"></span>
+        </div>
         <div class="card tree-card">
           <div id="tree"></div>
         </div>
