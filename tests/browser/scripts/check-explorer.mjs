@@ -637,6 +637,55 @@ ok(
   'Ctrl+F opens the search',
 );
 
+// ---------------------------------------------------------------- length labels sit on their branch (#53)
+console.log('length labels on the branch');
+await open('rich-fish-carangaria-135');
+for (let k = 0; k < 3 && !(await page.locator('.ex-labels').innerText()).includes('Length'); k++) await page.locator('.ex-labels').click();
+ok((await page.locator('.ex-labels').innerText()).includes('Length'), 'lengths on');
+// every drawn length is centred on the visible part of its own horizontal branch (the viewer's clip), at two zooms
+const lengthLabelsOff = async (vp) =>
+  ev(async (vp) => {
+    const v = __v();
+    const seen = [];
+    const ft = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
+      if (this.textBaseline === 'bottom' && this.textAlign === 'center') seen.push({ t: String(t), x, y });
+      return ft.call(this, t, x, y, ...r);
+    };
+    v.setViewport({ ...v.getViewport(), ...vp });
+    await new Promise((r) => setTimeout(r, 400));
+    CanvasRenderingContext2D.prototype.fillText = ft;
+    const tree = v.getTree();
+    const { proj } = v;
+    const p = { x: 0, y: 0 },
+      q = { x: 0, y: 0 };
+    const off = [];
+    for (const l of seen) {
+      let best = Infinity;
+      for (let i = 1; i < tree.nodeCount; i++) {
+        if (tree.firstChild[i] < 0 || String(Number(tree.length[i].toPrecision(3))) !== l.t) continue;
+        proj.nodeXY(i, p);
+        proj.parentXY(i, q);
+        if (Math.abs(p.y - 2 - l.y) > 1) continue;
+        const mid = (Math.max(q.x, proj.T.clipL) + Math.min(p.x, proj.T.clipR)) / 2;
+        best = Math.min(best, Math.abs(mid - l.x));
+      }
+      if (!(best <= 1)) off.push(`${l.t}@${Math.round(l.x)} (${best})`);
+    }
+    return { n: seen.length, off };
+  }, vp);
+for (const [name, vp] of [
+  ['top of the tree', { x0: 0, x1: 1, y0: 0, y1: 18 }],
+  ['x zoomed in 2.5x on the right', { x0: 0.6, x1: 1, y0: 20, y1: 38 }],
+  ['x zoomed in 1.7x on the left (long stems end past the plot)', { x0: 0, x1: 0.6, y0: 0, y1: 18 }],
+]) {
+  const r = await lengthLabelsOff(vp);
+  ok(
+    r.n >= 5 && r.off.length === 0,
+    `length labels centred on their visible branch, ${name}: ${r.n} drawn, off by more than 1 px: ${r.off.join(' ') || 'none'}`,
+  );
+}
+
 // ---------------------------------------------------------------- swap inside a polytomy
 console.log('swap in a polytomy');
 await open('edge-polytomy');
