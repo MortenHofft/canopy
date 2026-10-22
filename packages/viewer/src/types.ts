@@ -1,6 +1,8 @@
 // Public types of the viewer core. No React: `TreeData` is the structural subset of @gbif-phylo/io's `TreeModel` that the core
 // reads, so any tree model with preorder ids and leaf-contiguous subtree ranges can be shown.
 
+import { RESIDUE_THEME_KEYS, type Alphabet } from './residues.ts';
+
 export interface TreeData {
   readonly nodeCount: number;
   readonly tipCount: number;
@@ -57,10 +59,31 @@ export interface Viewport {
   y1: number;
 }
 
+/** Residue colours of alignment columns, each optional: a field left out is the default for a light or a dark theme (`TreeTheme.dark`).
+ *  Protein colours are per group, nucleotide colours per base (U is drawn like T). CSS: `--phylo-residue-hydrophobic`, `-positive`,
+ *  `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline`, `--phylo-residue-a`, `-c`, `-g`, `-t`, `--phylo-residue-other`.
+ *  Values must be #rgb, #rrggbb or rgb()/rgba() (anything else is replaced by the default). `residueColours(theme, alphabet)` gives the
+ *  table that is drawn, `residueGroups(alphabet)` the groups for a legend. */
+export interface ResidueTheme {
+  residueHydrophobic?: string; // A I L M F W V C
+  residuePositive?: string; // K R
+  residueNegative?: string; // E D
+  residuePolar?: string; // N Q S T (and U, selenocysteine)
+  residueAromatic?: string; // H Y
+  residueGlycine?: string; // G
+  residueProline?: string; // P
+  residueA?: string; // nucleotides
+  residueC?: string;
+  residueG?: string;
+  residueT?: string; // T and U
+  residueOther?: string; // any other character, in either alphabet
+}
+
 /** The canvas theme: colours, font and the sizes and opacities of what is drawn. Every field can be set as a CSS custom property
  *  (`--phylo-<field name in kebab case>`, see THEME_CSS_VARS in theme.ts), with `setTheme`, or both (setTheme wins). */
-export interface TreeTheme {
-  /** The background is dark. Informational, for apps and custom controls: the drawing code does not read it. From `--phylo-dark`, or
+export interface TreeTheme extends ResidueTheme {
+  /** The background is dark. Informational, for apps and custom controls; the drawing code reads it only to choose the default residue
+   *  colours of alignment columns (light or dark, see ResidueTheme). From `--phylo-dark`, or
    *  derived from the background's luminance when the theme comes from CSS. */
   dark: boolean;
   background: string;
@@ -116,6 +139,7 @@ export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
     if (k === 'categorical') continue;
     if (a[k] !== b[k]) return false;
   }
+  for (const k of RESIDUE_THEME_KEYS) if (a[k] !== b[k]) return false;
   if (a.categorical.length !== b.categorical.length) return false;
   for (let i = 0; i < a.categorical.length; i++) if (a.categorical[i] !== b.categorical[i]) return false;
   return true;
@@ -150,6 +174,9 @@ export interface BuiltinColumn extends ColumnBase {
    *  recompiling): pass the same object while the data is unchanged, a new object when it changed. Do not mutate it in place. The same
    *  goes for the Column object itself: an object that is passed again is taken as unchanged, so replace it, never mutate it. */
   values: Record<string, number | string>;
+  /** Alignment columns: the colour scheme. `'auto'` (default) picks nucleotide when more than 90% of a sample of the residues are
+   *  A, C, G, T, U or N (see `detectAlphabet`), protein otherwise. Colours are the `residue*` theme tokens. */
+  alphabet?: Alphabet;
 }
 
 /** A column drawn by your own renderer. `values` (by tip label, any type) is compared by reference as for the built-in kinds, and so

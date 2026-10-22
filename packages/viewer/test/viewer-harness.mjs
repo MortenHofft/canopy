@@ -72,6 +72,7 @@ export function recordingContext(canvas) {
   };
   const methods = {
     measureText: (s) => ({ width: String(s).length * 6, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 }),
+    createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
     getImageData: () => ({ data: new Uint8ClampedArray([0, 0, 0, alphaOf(props.fillStyle)]) }),
   };
   return new Proxy(api, {

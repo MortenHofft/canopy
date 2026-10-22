@@ -14,7 +14,7 @@
 // the focus-ring styling, because it needs the theme.
 
 import type { Control, ControlPosition } from './control.ts';
-import { cellRect, columnsWidth, drawColumns, layoutColumns, updateColumns, type CompiledColumn } from './columns.ts';
+import { cellRect, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
@@ -279,7 +279,7 @@ export class TreeViewer {
     });
     this.ro.observe(this.host);
     this.measure();
-    if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns).columns;
+    if (init.columns?.length) this.columns = updateColumns(this.tree, [], init.columns, this.theme).columns;
     INTERNALS.set(this, {
       overviewHost: this.overviewHost(),
       sceneVersion: () => this.sceneVersion,
@@ -653,6 +653,7 @@ export class TreeViewer {
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
     this.theme = next;
+    this.columns = recolourColumns(this.tree, this.columns, next); // residue tokens: the alignment bitmaps hold the colours
     // an opaque canvas cannot show the page through a transparent background (it clears to black): change canvas when that changes
     const alpha = !isOpaque(next.background);
     if (alpha !== this.canvasAlpha) {
@@ -771,7 +772,7 @@ export class TreeViewer {
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
   setColumns(cols: Column[]): void {
     const hadW = columnsWidth(this.columns);
-    const next = updateColumns(this.tree, this.columns, cols);
+    const next = updateColumns(this.tree, this.columns, cols, this.theme);
     if (next.same) return;
     this.columns = next.columns;
     const changed = columnsWidth(this.columns) !== hadW || this.columns.length > 0 !== hadW > 0;

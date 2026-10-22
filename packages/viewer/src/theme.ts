@@ -8,6 +8,7 @@
 //
 // A value that cannot be read (empty, or not a number where one is needed) is left out, so the fallback theme applies.
 
+import { RESIDUE_THEME_KEYS } from './residues.ts';
 import type { TreeTheme } from './types.ts';
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
@@ -27,7 +28,10 @@ const NUMBERS = [
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(
-  (['dark', ...COLOURS, 'fontFamily', 'categorical', ...NUMBERS] as (keyof TreeTheme)[]).map((k) => [k, '--phylo-' + kebab(k)]),
+  (['dark', ...COLOURS, 'fontFamily', 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [
+    k,
+    '--phylo-' + kebab(k),
+  ]),
 ) as Record<keyof TreeTheme, string>;
 
 /** The theme fields set as custom properties on `el` (or inherited from its ancestors). Fields that are not set are absent. */
@@ -37,6 +41,10 @@ export function themeFromCss(el: Element): Partial<TreeTheme> {
   const get = (k: keyof TreeTheme) => cs.getPropertyValue(THEME_CSS_VARS[k]).trim();
   const out: Partial<TreeTheme> = {};
   for (const k of COLOURS) {
+    const v = get(k);
+    if (v) out[k] = v;
+  }
+  for (const k of RESIDUE_THEME_KEYS) {
     const v = get(k);
     if (v) out[k] = v;
   }
