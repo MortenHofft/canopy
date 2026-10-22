@@ -225,27 +225,37 @@ await openOn(await cladeOf('A', 'B'));
 ok(/Remove colour/.test((await items()).join('|')) && /1 coloured clades/.test(await status()), 'unticked: (A,B) is back, still coloured');
 await page.keyboard.press('Escape');
 
-// collapse a clade: it becomes one tip drawn as a triangle, labelled with the clade's name and size ('node_EF (2 tips)'; an unnamed
-// clade gets its first tip and how many more); its menu offers Expand, which brings E and F back
+// collapse a clade: the viewer draws it as one triangle on one row (the tree is not changed, so the node keeps its id) and its menu
+// offers Expand, which brings E and F back
 if (await page.getByRole('button', { name: 'Reset' }).isEnabled()) {
   await page.getByRole('button', { name: 'Reset' }).click();
   await page.waitForTimeout(400);
 }
+const rows = () => page.evaluate(() => window.__panes()[0].layout.rows);
+/** A point inside the triangle of the collapsed clade above tip `tip` (client px), from the viewer's own bounds for it. */
+const triangleOf = (tip) =>
+  page.evaluate((tip) => {
+    const r = window.__panes()[0];
+    const b = r.nodeBounds(r.getTree().parent[r.tipNode(tip)]);
+    return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
+  }, tip);
+ok((await rows()) === 6, `six rows before: ${await rows()}`);
 await openOn(await cladeOf('E', 'F'));
 await act('collapse');
 const labels = () => pane.locator('a[data-tip-id]').evaluateAll((as) => as.map((a) => a.dataset.tipId));
-ok((await labels()).includes('node_EF (2 tips)') && !(await labels()).includes('F'), `collapse (E,F): ${(await labels()).join(', ')}`);
+ok(
+  !(await labels()).includes('F') && !(await labels()).includes('E') && (await rows()) === 5,
+  `collapse (E,F): ${(await labels()).join(', ')}, ${await rows()} rows`,
+);
 {
-  // a collapsed tip's label is 8 + 14 px past the tip (dot() assumes 8), so the triangle's middle is 15 px left of the label
-  const lb = await pane.locator('a[data-tip-id="node_EF (2 tips)"]').boundingBox();
-  const clip = { x: Math.round(lb.x - 15), y: Math.round(lb.y + lb.height / 2), width: 1, height: 1 };
-  const px = PNG.sync.read(await page.screenshot({ clip })).data;
-  ok(px[0] < 245 && px[1] < 245, `the triangle is drawn at the collapsed tip (pixel ${px[0]},${px[1]},${px[2]})`);
+  const p = await triangleOf('E');
+  const px = PNG.sync.read(await page.screenshot({ clip: { x: Math.round(p.x), y: Math.round(p.y), width: 1, height: 1 } })).data;
+  ok(px[0] < 245 && px[1] < 245, `the triangle is drawn on the clade (pixel ${px[0]},${px[1]},${px[2]})`);
 }
-await openOn(await dot('node_EF (2 tips)'));
-ok((await items())[0] === 'Expand', `collapsed tip menu: ${(await items()).join(' | ')}`);
+await openOn(await triangleOf('E'));
+ok((await items())[0] === 'Expand', `collapsed clade menu: ${(await items()).join(' | ')}`);
 await act('expand');
-ok((await labels()).includes('E') && (await labels()).includes('F'), 'expand brings E and F back');
+ok((await labels()).includes('E') && (await labels()).includes('F') && (await rows()) === 6, 'expand brings E and F back');
 
 // collapse uncoloured: with (A,B) coloured, (C,D) and (E,F) are collapsed; expand all undoes it
 await openOn(await cladeOf('A', 'B'));
@@ -253,7 +263,7 @@ if ((await items()).includes('Colour this clade')) await act('colour');
 else await page.keyboard.press('Escape');
 await page.getByRole('button', { name: /Collapse uncoloured/ }).click();
 await page.waitForTimeout(400);
-ok((await labels()).sort().join(',') === 'A,B,C and 1 more,node_EF (2 tips)', `collapse uncoloured: ${(await labels()).join(', ')}`);
+ok((await labels()).sort().join(',') === 'A,B' && (await rows()) === 4, `collapse uncoloured: ${(await labels()).join(', ')}, ${await rows()} rows`);
 await page.getByRole('button', { name: 'Expand all' }).click();
 await page.waitForTimeout(400);
 ok((await order()) === 'ABCDEF', `expand all: ${await order()}`);
@@ -298,7 +308,10 @@ await act('collapse');
 await page.getByRole('spinbutton', { name: 'Minimum support' }).fill('70');
 await page.getByRole('checkbox').check();
 await page.waitForTimeout(500);
-ok((await labels()).includes('A and 1 more'), `collapsed (A,B) kept under collapse support < 70: ${(await labels()).join(', ')}`);
+ok(
+  (await rows()) === 5 && !(await labels()).includes('A'),
+  `collapsed (A,B) kept under collapse support < 70: ${(await labels()).join(', ')}, ${await rows()} rows`,
+);
 await page.getByRole('checkbox').uncheck();
 await page.getByRole('button', { name: 'Expand all' }).click();
 await page.waitForTimeout(400);
@@ -388,8 +401,8 @@ await page.waitForTimeout(500);
 ok(sameView(va, vb) && va.y1 - va.y0 < va.tips * 0.6, 'Undo: still in sync, still zoomed');
 ok(await page.evaluate(() => window.__panes().every((v, i) => v === window.__keep[i])), 'and still the same renderers');
 
-// collapsing a clade of a dated tree extends the new tip to the present (tree-ops collapseClades { extend }), so the axis stays
-// "time before tips" (without it the tip ends at the clade's node and the axis flips to "distance from root", issue #19)
+// collapsing a clade of a dated tree keeps the axis "time before tips": the viewer ends the triangle at the clade's tips, where a collapsed
+// copy of the tree (collapseClades) ended the new tip at the clade's node and flipped the axis to "distance from root", issue #19
 {
   const axis = () => page.evaluate(() => window.__axis);
   ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
@@ -406,9 +419,15 @@ ok(await page.evaluate(() => window.__panes().every((v, i) => v === window.__kee
   }
   ok(hit !== null, 'found a clade to collapse');
   await page.evaluate(() => (window.__axis = null)); // a stale title must not pass
+  const height = () => page.evaluate(() => window.__panes().map((v) => v.getViewport().y1 - v.getViewport().y0));
+  const h0 = await height();
   await openOn(hit);
   await act('collapse');
   ok(await page.getByRole('button', { name: /Expand all/ }).isEnabled(), 'the clade is collapsed (Expand all is offered)');
+  ok(
+    (await height()).every((h, i) => Math.abs(h - h0[i]) < 1e-6),
+    `collapsing does not change the zoom (rows in view ${h0.map((h) => h.toFixed(1))})`,
+  );
   ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
 }
 

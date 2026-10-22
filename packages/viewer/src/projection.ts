@@ -15,7 +15,7 @@
 //
 // Two coordinates describe a point of either layout. DEPTH is the distance from the root in px along the branch axis (rect:
 // screen x, radial: radius). The TIP AXIS is where a node sits across the tips (rect: screen y in px, radial: angle in rad).
-// A clade occupies [d0, d1] x [t0, t1] (see summaryExtent); the pixel size of the tip-axis extent (rect: rows, radial: arc
+// A clade occupies [d0, d1] x [t0, t1] (see summaryExtent; the tip axis is in ROWS, see layout.ts); the pixel size of the tip-axis extent (rect: rows, radial: arc
 // length at the clade's outer radius) is what the collapse rules compare against minPx.
 
 import { CULL_PAD_PX } from './constants.ts';
@@ -79,8 +79,8 @@ export class RectProjection implements ProjectionCore {
   private readonly ROW: Float64Array;
   private readonly XMAX: Float32Array;
   private readonly parent: Int32Array;
-  private readonly leafStart: Int32Array;
-  private readonly leafEnd: Int32Array;
+  private readonly rowStart: Int32Array;
+  private readonly rowEnd: Int32Array;
   private readonly ox: number;
   private readonly oy: number;
   private readonly kx: number;
@@ -98,8 +98,8 @@ export class RectProjection implements ProjectionCore {
     this.ROW = L.ROW;
     this.XMAX = L.XMAX;
     this.parent = tree.parent;
-    this.leafStart = tree.leafStart;
-    this.leafEnd = tree.leafEnd;
+    this.rowStart = L.rowStart;
+    this.rowEnd = L.rowEnd;
     this.ox = T.ox;
     this.oy = T.oy;
     this.kx = T.kx;
@@ -110,9 +110,9 @@ export class RectProjection implements ProjectionCore {
   }
 
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean {
-    const { X, parent, leafStart, leafEnd, kx, ky, oxs, oys } = this;
-    const d = cell(oys + leafStart[first] * ky);
-    return seen.add(cell(oxs + X[parent[first]] * kx), cell(oxs + xmax * kx), d, d + K_RUN * 8192, cell(oys + leafEnd[last] * ky));
+    const { X, parent, rowStart, rowEnd, kx, ky, oxs, oys } = this;
+    const d = cell(oys + rowStart[first] * ky);
+    return seen.add(cell(oxs + X[parent[first]] * kx), cell(oxs + xmax * kx), d, d + K_RUN * 8192, cell(oys + rowEnd[last] * ky));
   }
 
   nodeXY(i: number, out: Pt): void {
@@ -134,16 +134,16 @@ export class RectProjection implements ProjectionCore {
   }
 
   cladeSize(i: number): number {
-    return (this.leafEnd[i] - this.leafStart[i]) * this.ky;
+    return (this.rowEnd[i] - this.rowStart[i]) * this.ky;
   }
 
   summaryExtent(i: number, last: number, xmax: number): void {
-    const { X, XMAX, parent, leafStart, leafEnd } = this;
+    const { X, XMAX, parent, rowStart, rowEnd } = this;
     const run = last >= 0;
     this.d0 = this.ox + X[run ? parent[i] : i] * this.kx;
     this.d1 = this.ox + (run ? xmax : XMAX[i]) * this.kx;
-    this.t0 = this.oy + leafStart[i] * this.ky;
-    this.t1 = this.oy + leafEnd[run ? last : i] * this.ky;
+    this.t0 = this.oy + rowStart[i] * this.ky;
+    this.t1 = this.oy + rowEnd[run ? last : i] * this.ky;
   }
 }
 
@@ -175,8 +175,8 @@ export class RadialProjection implements ProjectionCore {
   private readonly ROW: Float64Array;
   private readonly XMAX: Float32Array;
   private readonly parent: Int32Array;
-  private readonly leafStart: Int32Array;
-  private readonly leafEnd: Int32Array;
+  private readonly rowStart: Int32Array;
+  private readonly rowEnd: Int32Array;
   private readonly COS: Float64Array;
   private readonly SIN: Float64Array;
   private readonly corner = new Float64Array(4);
@@ -191,15 +191,15 @@ export class RadialProjection implements ProjectionCore {
     this.ROW = L.ROW;
     this.XMAX = L.XMAX;
     this.parent = tree.parent;
-    this.leafStart = tree.leafStart;
-    this.leafEnd = tree.leafEnd;
+    this.rowStart = L.rowStart;
+    this.rowEnd = L.rowEnd;
     this.COS = L.COS!;
     this.SIN = L.SIN!;
     this.cx = T.cx;
     this.cy = T.cy;
     this.k = T.k;
     this.da = T.da;
-    this.tipPitch = (2 * Math.PI * T.k) / Math.max(1, tree.tipCount);
+    this.tipPitch = (2 * Math.PI * T.k) / Math.max(1, L.rows);
     const fq = Math.pow(2, Math.floor(Math.log2(T.k))) / T.k;
     this.fq = fq;
     this.ou = Math.floor(((T.clipL + T.clipR) / 2 - T.cx) * fq);
@@ -252,11 +252,11 @@ export class RadialProjection implements ProjectionCore {
   }
 
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean {
-    const { X, parent, leafStart, leafEnd, k, da, fq, ou, ov } = this;
+    const { X, parent, rowStart, rowEnd, k, da, fq, ou, ov } = this;
     const rq = xmax * k,
       rp = X[parent[first]] * k;
-    const sa0 = leafStart[first] * da,
-      sa1 = leafEnd[last] * da,
+    const sa0 = rowStart[first] * da,
+      sa1 = rowEnd[last] * da,
       mid = (sa0 + sa1) / 2,
       cm = Math.cos(mid),
       sm = Math.sin(mid);
@@ -295,16 +295,16 @@ export class RadialProjection implements ProjectionCore {
   }
 
   cladeSize(i: number): number {
-    return (this.leafEnd[i] - this.leafStart[i]) * this.da * this.XMAX[i] * this.k;
+    return (this.rowEnd[i] - this.rowStart[i]) * this.da * this.XMAX[i] * this.k;
   }
 
   summaryExtent(i: number, last: number, xmax: number): void {
-    const { X, XMAX, parent, leafStart, leafEnd } = this;
+    const { X, XMAX, parent, rowStart, rowEnd } = this;
     const run = last >= 0;
     this.d0 = X[run ? parent[i] : i] * this.k;
     this.d1 = (run ? xmax : XMAX[i]) * this.k;
-    this.t0 = leafStart[i] * this.da;
-    this.t1 = leafEnd[run ? last : i] * this.da;
+    this.t0 = rowStart[i] * this.da;
+    this.t1 = rowEnd[run ? last : i] * this.da;
   }
 }
 

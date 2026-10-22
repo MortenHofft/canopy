@@ -424,8 +424,8 @@ test('maxTipSpacing: a fixed row height is not capped below itself', () => {
 test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap, but never below RADIAL_GEOMETRIC_ZOOM times the fit', () => {
   const kfit = radialFitScale(800, 600);
   const maxScale = (over, n) => {
-    const big = n ? { ...tree, tipCount: n } : tree;
-    const { vs } = make({ layout: 'radial', tree: big, ...over });
+    const bigL = n ? { ...L, rows: n } : L; // the cap counts rows
+    const { vs } = make({ layout: 'radial', L: bigL, ...over });
     const c = vs.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 });
     return vs.area.aw / (c.x1 - c.x0);
   };
@@ -436,6 +436,25 @@ test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap,
   near(maxScale({ maxTipSpacing: 1 }), kfit * K.RADIAL_GEOMETRIC_ZOOM, 1e-12);
   near(maxScale({ maxTipSpacing: Infinity }), kfit * K.RADIAL_MAX_ZOOM, 1e-9);
   assert.ok(maxScale({ maxTipSpacing: 24 }, 200) > kfit * 3.35, 'a 200-tip tree zooms well beyond the old 3.35 x');
+});
+
+test('maxTipSpacing, radial, with a collapsed clade: the cap is maxTipSpacing px per ROW, not per tip', () => {
+  // 30000 tips: a clade of over 12000 collapsed leaves fewer than 18000 rows
+  const big = new InMemorySource(parseNewick(ladder(30000))).snapshot();
+  const clade = big.parent[big.tipNode[0]]; // the deepest clade of the ladder: 2 tips; take a large one instead
+  let c = clade;
+  while (big.leafEnd[big.parent[c]] - big.leafStart[big.parent[c]] <= 12000 && big.parent[c] > 0) c = big.parent[c];
+  const mask = new Uint8Array(big.nodeCount);
+  mask[c] = 1;
+  const Lc = computeLayout(big, true, mask);
+  assert.ok(Lc.rows < big.tipCount - 10000);
+  const scale = (LL) => {
+    const { vs } = make({ layout: 'radial', tree: big, L: LL, maxTipSpacing: 24 });
+    const k = vs.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 });
+    return vs.area.aw / (k.x1 - k.x0);
+  };
+  near((scale(Lc) * 2 * Math.PI) / Lc.rows, 24, 1e-12);
+  assert.ok(scale(Lc) < scale(computeLayout(big, true)), 'fewer rows: the scale at the cap is lower than per tip');
 });
 
 test('maxTipSpacing: wheel zoom-in stops at the cap and does not pan; focusViewport respects it', () => {

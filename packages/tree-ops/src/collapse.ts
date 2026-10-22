@@ -24,12 +24,30 @@ function contract(t: TreeInput, drop: (i: number) => boolean): OpResult {
   return result(t, d);
 }
 
-/** Collapse internal edges whose support is below `threshold` into polytomies. Nodes without a support value are kept. */
-export function collapseBySupport(t: TreeInput, threshold: number): OpResult {
-  return contract(t, (i) => t.support[i] < threshold);
+/** Nodes `collapseBySupport` and `collapseShortBranches` must not contract: a set of node indexes, an array of them, or a predicate. */
+export type KeepNodes = ReadonlySet<number> | readonly number[] | ((node: number) => boolean);
+
+export interface CollapseEdgesOptions {
+  /** Nodes whose edge is kept whatever its value, e.g. the clades a viewer shows collapsed (so they stay nodes of the result). */
+  keep?: KeepNodes;
 }
 
-/** Collapse internal edges shorter than `minLength` (missing lengths are kept). */
-export function collapseShortBranches(t: TreeInput, minLength: number): OpResult {
-  return contract(t, (i) => t.length[i] < minLength);
+function keeper(keep: KeepNodes | undefined): ((i: number) => boolean) | null {
+  if (keep === undefined) return null;
+  if (typeof keep === 'function') return keep;
+  const set: ReadonlySet<number> = keep instanceof Set ? keep : new Set(keep as readonly number[]);
+  return (i) => set.has(i);
+}
+
+/** Collapse internal edges whose support is below `threshold` into polytomies. Nodes without a support value are kept, and so are the
+ *  nodes in `opts.keep`. */
+export function collapseBySupport(t: TreeInput, threshold: number, opts: CollapseEdgesOptions = {}): OpResult {
+  const keep = keeper(opts.keep);
+  return contract(t, (i) => t.support[i] < threshold && !(keep && keep(i)));
+}
+
+/** Collapse internal edges shorter than `minLength` (missing lengths are kept, and so are the nodes in `opts.keep`). */
+export function collapseShortBranches(t: TreeInput, minLength: number, opts: CollapseEdgesOptions = {}): OpResult {
+  const keep = keeper(opts.keep);
+  return contract(t, (i) => t.length[i] < minLength && !(keep && keep(i)));
 }

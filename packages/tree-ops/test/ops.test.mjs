@@ -243,6 +243,10 @@ test('collapse by support and by length', () => {
   const t = parseNewick('(((A:1,B:1)95:0.5,C:1)40:0.001,(D:1,E:1)60:2);');
   assert.equal(nwk(collapseBySupport(t, 50).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
   assert.equal(nwk(collapseBySupport(t, 70).tree), '((A:1,B:1)95:0.5,C:1,D:1,E:1);');
+  // `keep`: a set, an array or a predicate of node indexes whose edge stays whatever its support
+  const e60 = t.parent[t.tipIndex('D')];
+  for (const keep of [new Set([e60]), [e60], (i) => i === e60])
+    assert.equal(nwk(collapseBySupport(t, 70, { keep }).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);', 'a kept node is not contracted');
   assert.equal(nwk(collapseShortBranches(t, 0.01).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
   assert.equal(collapseBySupport(t, 10).changed, false); // nothing to do: the input comes back
   assert.equal(collapseBySupport(t, 10).tree, t);

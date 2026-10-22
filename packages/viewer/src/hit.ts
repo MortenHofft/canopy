@@ -235,7 +235,7 @@ export class HitIndex {
               if (mx < xs - 2 || mx > xm + 2) continue;
               const ym = Math.max(y1, y0 + 2);
               const yt = ym - Math.max(y1 - y0, 2);
-              if (lm >= 0 || isSlice(tree, i)) {
+              if (lm >= 0 || isSlice(tree, i, L.collapsed)) {
                 if (my < yt - 2 || my > ym + 2) continue;
                 d = 0;
               } else {

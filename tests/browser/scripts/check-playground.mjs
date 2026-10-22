@@ -310,6 +310,7 @@ await open();
 console.log('tree operations');
 await page.locator('input[data-setting=find]').fill('');
 const tips = () => ev(() => window.viewer.getTree().tipCount);
+const rows = () => ev(() => window.viewer.layout.rows); // collapsed clades are rows of one tip each; the tree keeps its tips
 // a visible clade of the shown tree with lo..hi tips (skip: the how-manyth), and where to click it
 const cladeOf = (lo, hi, skip = 0) =>
   ev(
@@ -318,6 +319,7 @@ const cladeOf = (lo, hi, skip = 0) =>
       const t = v.getTree();
       for (let i = 1; i < t.nodeCount; i++) {
         const c = t.leafEnd[i] - t.leafStart[i];
+        if (v.layout.collapsed?.[i]) continue;
         if (t.firstChild[i] >= 0 && c >= lo && c <= hi && skip-- <= 0) {
           const q = v.locateNode(i);
           if (q) return { node: i, tips: c, x: q.x, y: q.y };
@@ -343,27 +345,27 @@ ok(
 );
 const small = await cladeOf(4, 12);
 await menu(small, 'Collapse');
-const afterCollapse = await tips();
-ok(afterCollapse === big.tips - small.tips + 1, `Collapse: ${big.tips} → ${afterCollapse} tips`);
-const tri = await ev(() => {
-  const t = window.viewer.getTree();
-  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
-  return null;
-});
+const afterCollapse = await rows();
 ok(
-  tri !== null && query().has('collapsed') && (await page.locator('#ops-expand').innerText()) === 'Expand all (1)',
-  'a triangle tip, collapsed in the URL, Expand all (1)',
+  afterCollapse === big.tips - small.tips + 1 && (await tips()) === big.tips,
+  `Collapse: ${big.tips} → ${afterCollapse} rows, the tree keeps its tips`,
+);
+// the triangle, with the id of the clade
+const triAt = (node) =>
+  ev((n) => {
+    const b = window.viewer.nodeBounds(n);
+    return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
+  }, node);
+ok(
+  (await triAt(small.node)) !== null && query().has('collapsed') && (await page.locator('#ops-expand').innerText()) === 'Expand all (1)',
+  'a triangle on the clade, collapsed in the URL, Expand all (1)',
 );
 await open(new URL(page.url()).search);
-ok((await tips()) === afterCollapse && (await status()).includes('1 collapsed'), 'the focus and the collapsed clade survive a reload');
-// the collapsed tip of a dated tree now ends at the present, in the tip column, where the first row sits under the Find control: click
-// the triangle itself, 40 px left of the tip
-const triPoint = await ev(() => {
-  const t = window.viewer.getTree();
-  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
-});
-await menu({ x: triPoint.x - 40, y: triPoint.y }, 'Expand');
-ok((await tips()) === big.tips && !query().has('collapsed'), 'Expand from the triangle’s menu');
+ok((await rows()) === afterCollapse && (await status()).includes('1 collapsed'), 'the focus and the collapsed clade survive a reload');
+// a collapsed clade of a dated tree ends at the present, in the tip column, where the first row sits under the Find control: click the
+// triangle itself
+await menu(await triAt(small.node), 'Expand');
+ok((await rows()) === big.tips && !query().has('collapsed'), 'Expand from the triangle’s menu');
 // a colour set inside the clade stays on it when going back out
 const inner = await cladeOf(3, 10);
 await menu(inner, 'Colour this clade');
@@ -386,10 +388,10 @@ await select('click', 'collapse');
 const c2 = await cladeOf(4, 12, 2);
 await page.mouse.click(c2.x, c2.y);
 await page.waitForTimeout(300);
-ok((await tips()) === whole - c2.tips + 1, 'click action "Collapse or expand"');
+ok((await rows()) === whole - c2.tips + 1, 'click action "Collapse or expand"');
 await page.locator('#ops-expand').click();
 await page.waitForTimeout(300);
-ok((await tips()) === whole && (await page.locator('#ops-expand').isDisabled()), 'Expand all');
+ok((await rows()) === whole && (await page.locator('#ops-expand').isDisabled()), 'Expand all');
 await select('click', 'focus');
 const c3 = await cladeOf(10, 40);
 await page.mouse.click(c3.x, c3.y);

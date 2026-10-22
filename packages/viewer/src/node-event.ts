@@ -6,7 +6,7 @@ import type { TreeSource } from './source.ts';
 import type { Hit, NodeEvent, TreeSnapshot } from './types.ts';
 
 /** `node` is a row of the snapshot; the event speaks the public ids (the preorder id in the full tree for a partial source).
- *  A run of small siblings is reported under its parent with only ITS tips (the members are adjacent, so one range). */
+ *  `collapsed` is Layout.collapsed: a node in it is reported as `collapsed: true`. A run of small siblings is reported under its parent with only ITS tips (the members are adjacent, so one range). */
 export function makeNodeEvent(
   t: TreeSnapshot,
   node: number,
@@ -15,6 +15,7 @@ export function makeNodeEvent(
   clientX: number,
   clientY: number,
   run?: Hit['run'],
+  collapsed: Uint8Array | null = null,
 ): NodeEvent {
   if (run) {
     let clades = 0,
@@ -32,6 +33,7 @@ export function makeNodeEvent(
       clientX,
       clientY,
       via,
+      collapsed: false,
       run: { clades, single },
     };
   }
@@ -46,6 +48,7 @@ export function makeNodeEvent(
     clientX,
     clientY,
     via,
+    collapsed: collapsed !== null && collapsed[node] === 1,
   };
 }
 

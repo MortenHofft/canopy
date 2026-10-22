@@ -62,8 +62,9 @@ export interface TreeSnapshot extends TreeData {
 
 export type LayoutKind = 'rectangular' | 'radial';
 
-/** Visible window in layout coordinates. Rectangular: x in [0,1] (root to tips), y in rows (tip rank, 0..tips).
- *  Radial: world units where the root is (0,0) and the outermost tip circle has radius 1. */
+/** Visible window in layout coordinates. Rectangular: x in [0,1] (root to tips), y in rows (0..rows; a row is a tip, or a clade collapsed
+ *  with `setCollapsed`, so without collapsed clades y is the tip rank). Radial: world units where the root is (0,0) and the outermost tip
+ *  circle has radius 1. */
 export interface Viewport {
   x0: number;
   x1: number;
@@ -240,8 +241,13 @@ export interface ColumnSource<V = unknown> {
   readonly tipCount: number;
 }
 
-/** Where to draw, for one frame. Row (tip rank) r spans y = oy + r * rowHeight .. oy + (r + 1) * rowHeight in CSS px; rows r0..r1
- *  (inclusive) are in view. rowHeight is below 1 px when many rows share a pixel row: draw a summary then, not every row. */
+/** Where to draw, for one frame. Rank (row) r spans y = oy + r * rowHeight .. oy + (r + 1) * rowHeight in CSS px; ranks r0..r1 (inclusive)
+ *  are in view. rowHeight is below 1 px when many rows share a pixel row: draw a summary then, not every row.
+ *
+ *  Collapsed clades (`setCollapsed`) free rows, so a row is then no longer a rank. The contract above still holds: `draw` is called once per
+ *  stretch of consecutive visible ranks (once when nothing is collapsed), with `r0`/`r1` the ranks of the stretch and `oy` shifted so that
+ *  the same formula gives each tip's row. The rows of collapsed clades are in no call, so they stay blank. `rankOfRow` (row -> first rank, length
+ *  rows + 1, or null while nothing is collapsed) is there for a renderer that wants to know; it is not needed. */
 export interface ColumnFrame {
   readonly x: number;
   readonly width: number;
@@ -251,6 +257,8 @@ export interface ColumnFrame {
   readonly r1: number;
   readonly oy: number;
   readonly rowHeight: number;
+  /** Row -> first tip rank (length: number of rows + 1), or null when every row is the tip of that rank. */
+  readonly rankOfRow: Int32Array | null;
   readonly theme: TreeTheme;
 }
 
@@ -260,7 +268,7 @@ export interface ColumnFrame {
 export interface ColumnRenderer<V = unknown, D = unknown> {
   prepare(src: ColumnSource<V>): D;
   draw(ctx: CanvasRenderingContext2D, frame: ColumnFrame, data: D): void;
-  /** Whether rank r has a cell (for `columnCell`); default: a value exists for its tip. */
+  /** Whether rank r has a cell (for `columnCell`); default: a value exists for its tip. Asked of ranks, never of a collapsed clade. */
   hasCell?(data: D, rank: number): boolean;
 }
 
@@ -394,6 +402,9 @@ export interface NodeEvent {
   clientX: number;
   clientY: number;
   via: 'pointer' | 'keyboard';
+  /** The node is a clade the app collapsed with `setCollapsed` (`kind` is then 'summary' and `node` the clade's id), not one the level
+   *  of detail summarised. */
+  collapsed: boolean;
   /** Set for a run of small siblings drawn as one slice (kind 'summary'): `node` is then their parent, but the tip range is only
    *  the run's, [tipStart, tipEnd), and these are what it holds: clades (with two or more tips) and single tips. */
   run?: { clades: number; single: number };

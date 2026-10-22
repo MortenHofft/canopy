@@ -1,7 +1,8 @@
 // keptViewport: where the window of one tree goes when another tree replaces it (TreeViewer.setTree with view 'keep'). The tips in view
 // before the change are sent through a tip map and the window is placed on where they landed, at the same scale where the new tree
 // allows. Pure arithmetic over the two snapshots and layouts: no DOM, so test/set-tree.test.mjs covers it numerically. Runs once per tree
-// swap, so it may loop over the tips; the frame code does not use it.
+// swap, so it may loop over the tips; the frame code does not use it. The window is in rows (layout.ts): a tip is sent to its row in the
+// old layout and its new place to a row in the new one, so a clade collapsed on either side is followed as the one row it is.
 
 import type { Layout } from './layout.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
@@ -64,15 +65,23 @@ export function keptViewport(a: KeepInput): Viewport | null {
   if (N === 0 || a.after.tipCount === 0) return null;
   const t: TipTarget = { lo: 0, hi: 0, node: 0 };
   const tipNode = a.before.tipNode;
+  const rowOfBefore = a.beforeL.rowOfRank,
+    rankOfRowBefore = a.beforeL.rankOfRow,
+    rowOfAfter = a.afterL.rowOfRank;
+  /** The node of the old tree that stands for tip `r` on the screen: the tip, or the collapsed clade it is inside. */
+  const nodeBefore = (r: number): number => (a.beforeL.rowNode && rowOfBefore ? a.beforeL.rowNode[rowOfBefore[r]] : tipNode[r]);
   if (a.layout === 'rectangular') {
+    const R = a.beforeL.rows;
     let lo = Math.max(0, Math.ceil(v.y0 - 0.5)),
-      hi = Math.min(N - 1, Math.floor(v.y1 - 0.5));
-    if (hi < lo) lo = hi = Math.max(0, Math.min(N - 1, Math.floor((v.y0 + v.y1) / 2)));
+      hi = Math.min(R - 1, Math.floor(v.y1 - 0.5));
+    if (hi < lo) lo = hi = Math.max(0, Math.min(R - 1, Math.floor((v.y0 + v.y1) / 2)));
     for (const deep of [false, true]) {
       let oMin = Infinity,
         oMax = -Infinity,
         nLo = Infinity,
-        nHi = -Infinity;
+        nHi = -Infinity,
+        kLo = Infinity,
+        kHi = -Infinity;
       let ax0 = Infinity,
         ax1 = -Infinity,
         bx0 = Infinity,
@@ -80,13 +89,18 @@ export function keptViewport(a: KeepInput): Viewport | null {
         sa = 0,
         sb = 0,
         n = 0;
-      for (let r = lo; r <= hi; r++) {
+      for (let row = lo; row <= hi; row++) {
+        const r = rankOfRowBefore ? rankOfRowBefore[row] : row; // the first tip of the row (a collapsed clade stands for its first)
         if (!a.target(r, deep, t)) continue;
-        if (r < oMin) oMin = r;
-        if (r > oMax) oMax = r;
-        if (t.lo < nLo) nLo = t.lo;
-        if (t.hi > nHi) nHi = t.hi;
-        const xa = tipNode[r] >= 0 ? a.beforeL.X[tipNode[r]] : 0,
+        if (row < oMin) oMin = row;
+        if (row > oMax) oMax = row;
+        const tLo = rowOfAfter ? rowOfAfter[t.lo] : t.lo,
+          tHi = (rowOfAfter ? rowOfAfter[t.hi - 1] : t.hi - 1) + 1;
+        if (tLo < nLo) nLo = tLo;
+        if (tHi > nHi) nHi = tHi;
+        if (t.lo < kLo) kLo = t.lo;
+        if (t.hi > kHi) kHi = t.hi;
+        const xa = nodeBefore(r) >= 0 ? a.beforeL.X[nodeBefore(r)] : 0,
           xb = a.afterL.X[t.node];
         if (xa < ax0) ax0 = xa;
         if (xa > ax1) ax1 = xa;
@@ -97,7 +111,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
         n++;
       }
       if (!n) continue;
-      if (deep && nLo === 0 && nHi === a.after.tipCount) return null; // they only stand for the whole tree: nothing to follow
+      if (deep && kLo === 0 && kHi === a.after.tipCount) return null; // they only stand for the whole tree: nothing to follow
       const [x0, x1] = carryX(v.x0, v.x1, ax0, ax1, bx0, bx1, (sb - sa) / n);
       const h = v.y1 - v.y0;
       const extent = nHi - nLo;
@@ -112,15 +126,23 @@ export function keptViewport(a: KeepInput): Viewport | null {
     }
     return null;
   }
-  const da = (2 * Math.PI) / N;
-  const dn = (2 * Math.PI) / a.after.tipCount;
+  const da = (2 * Math.PI) / a.beforeL.rows;
+  const dn = (2 * Math.PI) / a.afterL.rows;
   const X = a.beforeL.X;
   const inView = new Uint8Array(N);
   let seen = 0;
   for (let r = 0; r < N; r++) {
-    const node = tipNode[r];
+    // a collapsed clade counts once, at its own depth (its first tip stands for it); its other tips are not at their own
+    if (
+      rankOfRowBefore &&
+      rowOfBefore &&
+      rankOfRowBefore[rowOfBefore[r] + 1] - rankOfRowBefore[rowOfBefore[r]] !== 1 &&
+      rankOfRowBefore[rowOfBefore[r]] !== r
+    )
+      continue;
+    const node = nodeBefore(r);
     if (node < 0) continue; // a tip row that is not loaded
-    const ang = (r + 0.5) * da;
+    const ang = ((rowOfBefore ? rowOfBefore[r] : r) + 0.5) * da;
     const x = X[node] * Math.cos(ang),
       y = X[node] * Math.sin(ang);
     if (x < v.x0 || x > v.x1 || y < v.y0 || y > v.y1) continue;
@@ -137,12 +159,14 @@ export function keptViewport(a: KeepInput): Viewport | null {
       n = 0;
     for (let r = 0; r < N; r++) {
       if (!inView[r] || !a.target(r, deep, t)) continue;
-      const ang = (r + 0.5) * da;
-      const d = ((t.lo + t.hi) / 2) * dn - ang;
+      const ang = ((rowOfBefore ? rowOfBefore[r] : r) + 0.5) * da;
+      const tLo = rowOfAfter ? rowOfAfter[t.lo] : t.lo,
+        tHi = (rowOfAfter ? rowOfAfter[t.hi - 1] : t.hi - 1) + 1;
+      const d = ((tLo + tHi) / 2) * dn - ang;
       sx += Math.cos(d);
       sy += Math.sin(d);
       if (deep && t.hi - t.lo === a.after.tipCount) all = true;
-      ra += X[tipNode[r]];
+      ra += X[nodeBefore(r)];
       rb += a.afterL.X[t.node];
       n++;
     }

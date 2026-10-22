@@ -20,6 +20,7 @@ function setup(layout = 'rectangular') {
     view: { x0: 0, x1: 1, y0: 450, y1: 550 },
     area,
     tree: { tipCount: 1000 },
+    L: { rows: 1000 },
     noteInput: () => calls.push(['noteInput']),
     cancelAnim() {},
     setViewport() {},

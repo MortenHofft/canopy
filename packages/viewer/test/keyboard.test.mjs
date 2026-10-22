@@ -72,7 +72,18 @@ test('defaultActiveNode: the tip row at the view centre (rectangular), the tip a
 test('makeNodeEvent: a tip, a clade, and a run of siblings', () => {
   const a = tip('A');
   const e = makeNodeEvent(t, a, 'tip', 'keyboard', 10, 20);
-  assert.deepEqual(e, { node: a, isTip: true, tipId: 'A', kind: 'tip', tipStart: 0, tipEnd: 1, clientX: 10, clientY: 20, via: 'keyboard' });
+  assert.deepEqual(e, {
+    node: a,
+    isTip: true,
+    tipId: 'A',
+    kind: 'tip',
+    tipStart: 0,
+    tipEnd: 1,
+    clientX: 10,
+    clientY: 20,
+    via: 'keyboard',
+    collapsed: false,
+  });
   const de = t.parent[tip('D')];
   const c = makeNodeEvent(t, de, 'node', 'pointer', 1, 2);
   assert.equal(c.isTip, false);

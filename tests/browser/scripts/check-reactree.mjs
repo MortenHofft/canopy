@@ -44,6 +44,7 @@ const HELPERS = () => {
     const t = v().getTree();
     for (let i = 1; i < t.nodeCount; i++) {
       const c = t.leafEnd[i] - t.leafStart[i];
+      if (v().layout.collapsed?.[i]) continue; // a collapsed clade is not a clade to collapse
       if (t.firstChild[i] >= 0 && c >= lo && c <= hi && skip-- <= 0) {
         const q = v().locateNode(i);
         if (q) return { node: i, tips: c, x: q.x, y: q.y };
@@ -220,44 +221,57 @@ ok(
 );
 ok((await page.locator('.rt-info-rows dt', { hasText: 'Root distance' }).count()) === 1, 'inspector: root distance');
 await page.locator('.rt-info-head button').click();
-const before = await ev(() => __v().getTree().tipCount);
+// collapsing is the viewer's: the tree is the same object with the same tips, and the collapsed clade is one row
+const rows = () => ev(() => __v().layout.rows);
+const before = await rows();
+const tips = await ev(() => __v().getTree().tipCount);
 const c1 = await ev(() => __clade(4, 10));
 await click(c1);
 await page.waitForTimeout(200);
-const after = await ev(() => __v().getTree().tipCount);
-ok(after === before - c1.tips + 1, `a clade click collapses it (${before} → ${after} tips)`);
+const after = await rows();
+ok(after === before - c1.tips + 1, `a clade click collapses it (${before} → ${after} rows)`);
+ok((await ev(() => __v().getTree().tipCount)) === tips, 'and the tree still has all its tips');
 ok((await btn('Expand all').count()) === 1 && (await page.locator('.rt-expand .rt-count').innerText()) === '1', 'Expand all appears with the count');
-const tri = await ev(() => {
-  const t = __v().getTree();
-  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return __v().locateNode(t.tipNode[r]);
-  return null;
-});
-ok(tri !== null, 'the collapsed clade is a tip labelled "<first tip> and N more"');
+const tri = await ev((n) => {
+  const b = __v().nodeBounds(n);
+  return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
+}, c1.node);
+ok(tri !== null, 'the collapsed clade is one triangle with the id of the clade');
 await click(tri);
 await page.waitForTimeout(200);
-ok((await ev(() => __v().getTree().tipCount)) === before && (await btn('Expand all').count()) === 0, 'a click on the triangle expands it');
+ok((await rows()) === before && (await btn('Expand all').count()) === 0, 'a click on the triangle expands it');
 await click(await ev(() => __clade(4, 10)));
 await click(await ev(() => __clade(4, 10, 3)));
-// two clades of the same size collapsed: their tips still have distinct labels (tip labels are the viewer's ids)
 await click(await ev(() => __clade(2, 2)));
 await click(await ev(() => __clade(2, 2, 2)));
 const labs = await ev(() => __v().getTree().tipLabels);
-ok(new Set(labs).size === labs.length, 'collapsed clades of the same size get distinct tip labels');
+ok(new Set(labs).size === labs.length && labs.length === tips, 'four collapsed clades: no tip label is made up, tip labels are still unique');
+ok((await rows()) < before - 4, `four collapsed clades are four rows (${await rows()} of ${before})`);
 await btn('Expand all').click();
 await page.waitForTimeout(150);
-ok((await ev(() => __v().getTree().tipCount)) === before, 'Expand all');
+ok((await rows()) === before, 'Expand all');
 
-// the tree is dated, so a collapsed clade is lengthened to the present (tree-ops collapseClades { extend }) and the axis keeps its
-// title; without it the tip ends at the clade's node and the axis flips to "distance from root" (issue #19)
+// the tree is dated and the triangle ends at the clade's tips, so the axis keeps its title ("time before tips", the viewer reads the
+// tree as it is; collapsing a copy with tree-ops collapseClades flipped it to "distance from root" without { extend }, issue #19)
 {
   const axis = () => ev(() => window.__axis);
   ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
   await ev(() => (window.__axis = null)); // a stale title must not pass
+  // zoomed in on y: collapsing keeps the window's scale (it used to re-create the viewer and fit again)
+  await page.locator('input[aria-label=Height]').fill('3');
+  await page.waitForTimeout(150);
+  const z0 = await span();
   await click(await ev(() => __clade(4, 10)));
   await page.waitForTimeout(200);
-  ok((await ev(() => __v().getTree().tipCount)) < before, 'a clade is collapsed');
+  ok((await rows()) < before, 'a clade is collapsed');
+  const z1 = await span();
+  ok(
+    Math.abs(z1.h - z0.h) < 1e-9 && Math.abs(z1.w - z0.w) < 1e-9,
+    `collapsing does not reset the zoom (${z0.h.toFixed(1)} rows in view before, ${z1.h.toFixed(1)} after)`,
+  );
   ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
   await btn('Expand all').click();
+  await page.locator('.rt-slider-val').nth(1).click();
   await page.waitForTimeout(150);
 }
 

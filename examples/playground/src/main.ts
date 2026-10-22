@@ -4,8 +4,9 @@
 // library default, so a view can be shared. `npm run dev` in this folder.
 //
 // Tree operations (@gbif-phylo/tree-ops) are views of the loaded tree, as in examples/react: show only a clade (with Back and Up one
-// level), collapse clades into triangles, collapse branches with low support. What is shown is a new tree built from the loaded one;
-// colours, collapsed clades and the focus are kept in node ids of the loaded tree and mapped to the shown tree (toShown / toFull).
+// level), collapse clades into triangles, collapse branches with low support. Collapsing clades is the viewer's (`setCollapsed`, ids of the
+// tree it shows). Focus and low support make a new tree from the loaded one; colours, collapsed clades and the focus are kept in node
+// ids of the loaded tree and mapped to the shown tree (toShown / toFull) while such a view is on.
 
 import '@gbif-phylo/viewer/viewer.css';
 import '../../react/src/gbif-tokens.css';
@@ -75,7 +76,7 @@ interface View {
   tree: TreeModel; // what the viewer shows
   toShown: (full: number) => number; // node of the loaded tree -> shown node, -1 when not shown
   toFull: (shown: number) => number;
-  collapsedTips: number[]; // shown tips that stand for collapsed clades
+  collapsedShown: number[]; // the collapsed clades, as nodes of the shown tree
   supportCollapsed: number; // nodes removed by collapse by support
   support: { lo: number; hi: number } | null; // range of the support values of the loaded tree
 }
@@ -92,8 +93,8 @@ function supportRange(t: TreeModel): View['support'] {
   return lo <= hi ? { lo, hi } : null;
 }
 
-/** Focus, then collapsed clades, then collapse by support (in that order: a collapsed clade is a tip, which the support collapse keeps;
- *  the other way round a collapsed node with low support would be contracted first and its triangle lost). */
+/** Focus, then collapse by support. Collapsed clades are not a step: the viewer collapses them on the shown tree (a clade collapse by
+ *  support would contract keeps its node: its support counts as missing for that step). */
 function computeView(t: TreeModel): View {
   let shown = t;
   let toView: Int32Array | null = null; // loaded -> shown, composed over the steps
@@ -103,30 +104,22 @@ function computeView(t: TreeModel): View {
     shown = new TreeModel(r.tree);
     return true;
   };
-  const toShownNow = (v: number) => (toView ? toView[v] : v);
   step(ops.showFocus(t, focus));
-  let collapsedTips: number[] = [];
-  const inShown = collapsed.map(toShownNow).filter((v) => v > 0); // the shown root is never collapsed
-  if (inShown.length) {
-    // on a dated (ultrametric) tree the collapsed tip is lengthened to the present, so the axis stays "time before tips"
-    const r = ops.collapseClades(shown, inShown, undefined, { extend: shown.isUltrametric(1e-3) });
-    if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
-  }
   const support = supportRange(t);
   let supportCollapsed = 0;
   if (state.supportCollapse && support) {
     const before = shown.nodeCount;
     const threshold = Number(state.minSupport) * (support.hi <= 1 ? 0.01 : 1);
-    const r = ops.collapseBySupport(shown, threshold);
-    if (step(r)) {
-      supportCollapsed = before - shown.nodeCount;
-      collapsedTips = collapsedTips.map((v) => r.map[v]); // tips are kept
-    }
+    const keep = collapsed.map((v) => (toView ? (toView as Int32Array)[v] : v)).filter((k) => k > 0);
+    const r = ops.collapseBySupport(shown, threshold, { keep }); // a clade the viewer collapses keeps its node
+    if (step(r)) supportCollapsed = before - shown.nodeCount;
   }
   const map = toView as Int32Array | null;
-  if (!map) return { tree: t, toShown: (v) => v, toFull: (v) => v, collapsedTips, supportCollapsed, support };
+  // the shown root is never collapsed; a clade left out of the view (outside the focus) or contracted has no node there
+  const collapsedShown = collapsed.map((v) => (map ? map[v] : v)).filter((v) => v > 0);
+  if (!map) return { tree: t, toShown: (v) => v, toFull: (v) => v, collapsedShown, supportCollapsed, support };
   const back = ops.invertMap(map, shown.nodeCount);
-  return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedTips, supportCollapsed, support };
+  return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedShown, supportCollapsed, support };
 }
 
 /** The view changed (focus, collapsed clades, support threshold): rebuild it and the viewer when the shown tree is a different one. */
@@ -250,7 +243,7 @@ function apply() {
         })
       : clades,
   );
-  v.setCollapsed(vw?.collapsedTips ?? []);
+  v.setCollapsed(vw?.collapsedShown ?? []);
   $('.tree-card').classList.toggle('dotted', state.transparent === true);
   writeUrl();
 }
@@ -291,7 +284,7 @@ function renderOpsBar() {
   if (!t || !vw) return;
   $<HTMLButtonElement>('#ops-back').disabled = !ops.canGoBack(focus);
   $<HTMLButtonElement>('#ops-up').disabled = !ops.canGoUp(focus);
-  const shownCollapsed = vw.collapsedTips.length;
+  const shownCollapsed = vw.collapsedShown.length;
   const expand = $<HTMLButtonElement>('#ops-expand');
   expand.disabled = collapsed.length === 0;
   expand.textContent = collapsed.length ? `Expand all (${collapsed.length})` : 'Expand all';
@@ -320,11 +313,10 @@ function toggleColour(node: number) {
   apply();
 }
 
-/** What a click hit, in node ids of the loaded tree: `full`, and whether it is a tip that stands for a collapsed clade. */
+/** What a click hit, in node ids of the loaded tree: `full`, and whether it is a collapsed clade. */
 function target(e: TreeEvent) {
   const full = view ? view.toFull(e.node) : e.node;
-  const isCollapsed = e.isTip && loaded!.tree.childCount[full] > 0;
-  return { full, isCollapsed, isClade: !e.isTip || isCollapsed, isShownRoot: e.node === 0 };
+  return { full, isCollapsed: e.collapsed, isClade: !e.isTip, isShownRoot: e.node === 0 };
 }
 
 function menuItems(e: TreeEvent): NodeMenuItem[] {
@@ -343,7 +335,7 @@ function menuItems(e: TreeEvent): NodeMenuItem[] {
     items.push({ id: 'zoom', label: 'Zoom to this clade', hint: `${fmt(e.tipCount)} tips`, onSelect: () => viewer?.zoomToNode(e.node, true) });
   if (isClade && !isShownRoot)
     items.push({ id: 'show', label: 'Show only this clade', hint: `${fmt(tips)} tips; Back or Up one level return`, onSelect: () => showOnly(full) });
-  if (!e.isTip && !isShownRoot)
+  if (!e.isTip && !isCollapsed && !isShownRoot)
     items.push({ id: 'collapse', label: 'Collapse', hint: `show its ${fmt(tips)} tips as one triangle`, onSelect: () => setCollapsed(full, true) });
   const coloured = clades.some((c) => c.node === full);
   items.push({ id: 'colour', label: coloured ? 'Remove colour' : 'Colour this ' + (isClade ? 'clade' : 'tip'), onSelect: () => toggleColour(full) });
@@ -352,7 +344,7 @@ function menuItems(e: TreeEvent): NodeMenuItem[] {
     label: 'Highlight ' + (e.isTip ? 'this tip' : 'its tips'),
     onSelect: () => viewer?.setHighlighted(e.tipIds().slice(0, 20000)),
   });
-  if (e.isTip && !isCollapsed && e.tipId)
+  if (e.isTip && e.tipId)
     items.push({ id: 'gbif', label: 'Search GBIF for this name', onSelect: () => window.open(GBIF_HREF(e.tipId!), '_blank', 'noopener') });
   return items;
 }
