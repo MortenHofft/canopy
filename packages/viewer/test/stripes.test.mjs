@@ -1,15 +1,21 @@
-// Unit tests of the striped summary fill (`summaryStyle: 'striped'`, theme `summaryStripeColour` / `summaryStripeGap`), read from the
-// calls the recording context saw: the stripes are stroked segments in the stripe colour; the solid fill is fill() at summaryOpacity.
+// Unit tests of the look of summaries (placeholders: triangles, fans, bands; theme `summary`, `summaryOpacity`, `summaryStripeOpacity`,
+// `summaryStripeGap`), read from the calls the recording context saw: every summary is one background fill() in the summary colour at
+// summaryOpacity, with stripes over it, stroked segments in the same colour at summaryStripeOpacity; a summary without room for stripes gets
+// a second fill at their mean tone (stripeToneAlpha) instead.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import('../src/types.ts');
 const { THEME_CSS_VARS } = await import('../src/theme.ts');
+const { stripeToneAlpha } = await import('../src/draw.ts');
 
 afterEach(destroyAll);
 
 const STRIPE = '#ff0000';
+// the summary colour, and a stripe opacity whose tone (stripeToneAlpha: 0.4 at the default 2 px gap) differs from the background's opacity,
+// so the fills can be told apart by their alpha
+const THEME = { summary: STRIPE, summaryStripeOpacity: 0.8 };
 const DIM = 0.3;
 
 /** A balanced binary tree with 2^depth tips named t0, t1, ... */
@@ -51,14 +57,32 @@ function stripes(ctx, colour = STRIPE) {
   }
   return out;
 }
-const fillAlphas = (ctx) => {
-  let alpha = 1;
+const fillAlphas = (ctx) => fills(ctx).map((f) => f.alpha);
+/** Every fill() in the log: its colour, alpha and the number of shapes in its path (a shape starts with moveTo or is a rect). */
+function fills(ctx) {
+  let alpha = 1,
+    style = null,
+    shapes = 0;
   const out = [];
   for (const e of ctx.log) {
     if (e[0] === 'globalAlpha=') alpha = e[1];
-    else if (e[0] === 'fill') out.push(alpha);
+    else if (e[0] === 'fillStyle=') style = e[1];
+    else if (e[0] === 'beginPath') shapes = 0;
+    else if (e[0] === 'moveTo' || e[0] === 'rect') shapes++;
+    else if (e[0] === 'fill') out.push({ alpha, style, shapes });
   }
   return out;
+}
+/** The shapes filled in `colour` at `alpha`. */
+const filled = (ctx, colour, alpha) =>
+  fills(ctx)
+    .filter((f) => f.style === colour && Math.abs(f.alpha - alpha) < 1e-12)
+    .reduce((t, f) => t + f.shapes, 0);
+/** The summaries in the frame's draw list. */
+const summaryCount = (viewer) => {
+  let n = 0;
+  for (let e = 0; e < viewer.list.count; e++) if (viewer.list.kind[e] === 2) n++; // K_SUMMARY
+  return n;
 };
 
 // the radial tests measure angles from 3 o'clock (0..2pi) and name the window through angle 0: they run on the whole circle from there
@@ -67,39 +91,56 @@ const CIRCLE = { radialOpening: 0, radialRotation: 0 };
 
 async function make(layout, options = {}, tree = TREE, extra = {}) {
   const m = await makeViewer(tree, {
-    options: { layout, minCladePx: 20, summaryStyle: 'striped', ...(layout === 'radial' ? CIRCLE : {}), ...options },
-    theme: { summaryStripeColour: STRIPE, ...extra.theme },
+    options: { layout, minCladePx: 20, ...(layout === 'radial' ? CIRCLE : {}), ...options },
+    theme: { ...THEME, ...extra.theme },
     size: layout === 'radial' ? [500, 500] : [500, 300],
   });
   m.env.flush();
   return m;
 }
 
-test('summaryStyle is an option (library default solid), stripe colour and gap are theme tokens with CSS variables', () => {
-  assert.equal(DEFAULT_OPTIONS.summaryStyle, 'solid');
-  assert.equal(DEFAULT_OPTIONS.stripeCollapsed, false);
-  assert.equal(FALLBACK_THEME.summaryStripeColour, '');
+test('one look: no summaryStyle or stripeCollapsed option; background and stripe opacity and the gap are theme tokens with CSS variables', () => {
+  assert.ok(!('summaryStyle' in DEFAULT_OPTIONS) && !('stripeCollapsed' in DEFAULT_OPTIONS));
+  assert.ok(!('summaryStripeColour' in FALLBACK_THEME));
+  assert.ok(
+    FALLBACK_THEME.summaryOpacity > 0 && FALLBACK_THEME.summaryOpacity < FALLBACK_THEME.summaryStripeOpacity,
+    'a light background, darker stripes',
+  );
   assert.ok(FALLBACK_THEME.summaryStripeGap >= 1);
-  assert.equal(THEME_CSS_VARS.summaryStripeColour, '--phylo-summary-stripe-colour');
+  assert.equal(THEME_CSS_VARS.summaryOpacity, '--phylo-summary-opacity');
+  assert.equal(THEME_CSS_VARS.summaryStripeOpacity, '--phylo-summary-stripe-opacity');
   assert.equal(THEME_CSS_VARS.summaryStripeGap, '--phylo-summary-stripe-gap');
 });
 
 for (const layout of ['rectangular', 'radial']) {
-  test(`${layout}: solid draws no stripes and fills the summaries; setOptions switches to stripes and back`, async () => {
-    const { viewer, env, ctx } = await make(layout, { summaryStyle: 'solid' });
-    assert.ok(viewer.getStats().summaries > 0, 'summaries are drawn');
-    assert.equal(stripes(ctx()).length, 0);
-    const solidFills = fillAlphas(ctx()).filter((a) => a === FALLBACK_THEME.summaryOpacity).length;
-    assert.ok(solidFills > 0, 'solid fill');
+  test(`${layout}: every summary is one background fill in the summary colour at summaryOpacity, with stripes over it at summaryStripeOpacity`, async () => {
+    const { viewer, ctx } = await make(layout, { minCladePx: 40 });
+    const n = summaryCount(viewer);
+    assert.ok(n > 0, 'summaries are drawn');
+    assert.equal(filled(ctx(), STRIPE, viewer.theme.summaryOpacity), n, 'one background shape per summary');
+    const s = stripes(ctx());
+    assert.ok(s.length > 0, 'striped');
+    assert.ok(
+      s.every((x) => x.alpha === viewer.theme.summaryStripeOpacity && x.width === 1),
+      'hairlines at the stripe opacity',
+    );
+    // the background is drawn before the stripes
+    const log = ctx().log;
+    const firstBg = log.findIndex((e, k) => e[0] === 'fill' && log.slice(0, k).findLast((x) => x[0] === 'fillStyle=')?.[1] === STRIPE);
+    const firstStripe = log.findIndex((e, k) => e[0] === 'stroke' && log.slice(0, k).findLast((x) => x[0] === 'strokeStyle=')?.[1] === STRIPE);
+    assert.ok(firstBg >= 0 && firstBg < firstStripe, 'background under the stripes');
+  });
+
+  test(`${layout}: the tokens reach the drawing: summaryOpacity the fill, summaryStripeOpacity the stripes, summary the colour of both`, async () => {
+    const { viewer, env, ctx } = await make(layout, { minCladePx: 40 });
+    const n = summaryCount(viewer);
     ctx().reset();
-    viewer.setOptions({ summaryStyle: 'striped' });
+    viewer.setTheme({ summary: '#00ff00', summaryOpacity: 0.11, summaryStripeOpacity: 0.66 });
     env.flush();
-    assert.ok(stripes(ctx()).length > 0, 'striped');
-    ctx().reset();
-    viewer.setOptions({ summaryStyle: 'solid' });
-    env.flush();
-    assert.equal(stripes(ctx()).length, 0);
-    assert.equal(fillAlphas(ctx()).filter((a) => a === FALLBACK_THEME.summaryOpacity).length, solidFills, 'the same fills as before');
+    assert.equal(filled(ctx(), '#00ff00', 0.11), n, 'the background follows summaryOpacity');
+    const s = stripes(ctx(), '#00ff00');
+    assert.ok(s.length > 0 && s.every((x) => x.alpha === 0.66), 'the stripes follow summaryStripeOpacity');
+    assert.equal(stripes(ctx()).length, 0, 'nothing left in the old colour');
   });
 }
 
@@ -120,79 +161,23 @@ test('rectangular: the stripes are horizontal, run rightwards, at least the gap 
 
 /** Group the stripes by stroke (one summary each). */
 const groups = (s) => [...Map.groupBy(s, (x) => x.id).values()];
-/** The computed coverage of a rectangular group: line width over the distance between neighbouring stripes, times the alpha. */
-function rectDarkness(g) {
-  const ys = g.map((x) => x.y0).sort((a, b) => a - b);
-  const pitch = (ys[ys.length - 1] - ys[0]) / (ys.length - 1);
-  return (g[0].alpha * g[0].width) / pitch;
-}
 
-test('stripes are as dark as the solid fill: alpha times coverage (line width over spacing) equals summaryOpacity, dimmed ones summaryOpacity * dimOpacity', async () => {
-  for (const gap of [3, 4.5, 6, 10]) {
-    const m = await make('rectangular', { highlightStyle: 'dim', minCladePx: 40 }, TREE, { theme: { summaryStripeGap: gap, dimOpacity: DIM } });
-    m.viewer.setHighlighted(['t5']);
-    m.env.flush();
-    const so = m.viewer.theme.summaryOpacity;
-    const gs = groups(stripes(m.ctx())).filter((g) => g.length > 2);
-    assert.ok(gs.length > 1, 'gap ' + gap);
-    const seen = new Set();
-    for (const g of gs) {
-      const d = rectDarkness(g);
-      const t = [so, so * DIM].find((t) => Math.abs(d - t) < 0.02 * t + 1e-9);
-      assert.ok(t !== undefined, `gap ${gap}: darkness ${d} is neither ${so} nor ${so * DIM}`);
-      seen.add(t);
-    }
-    assert.equal(seen.size, 2, 'lit and dimmed summaries');
-  }
+test('stripeToneAlpha: the mean tone of hairline stripes a pitch apart, at most 1', () => {
+  assert.equal(stripeToneAlpha(0.5, 2), 0.25);
+  assert.ok(Math.abs(stripeToneAlpha(0.6, 3) - 0.2) < 1e-12);
+  assert.equal(stripeToneAlpha(0.9, 1), 0.9);
+  assert.equal(stripeToneAlpha(1, 0.5), 1);
 });
 
-test('radial: stripes are about as dark as the solid fill (spacing measured at the middle of the stripes)', async () => {
-  const m = await make('radial', { minCladePx: 40 });
-  const { cx, cy } = m.viewer.proj.T;
-  const so = m.viewer.theme.summaryOpacity;
-  const gs = groups(stripes(m.ctx())).filter((g) => g.length > 3);
-  assert.ok(gs.length > 1);
-  for (const g of gs) {
-    const mids = g.map((x) => {
-      const mx = (x.x0 + x.x1) / 2 - cx,
-        my = (x.y0 + x.y1) / 2 - cy;
-      return { a: Math.atan2(my, mx), r: Math.hypot(mx, my) };
-    });
-    const as = mids.map((q) => q.a).sort((p, q) => p - q);
-    const rMean = mids.reduce((t, q) => t + q.r, 0) / mids.length;
-    const pitch = ((as[as.length - 1] - as[0]) / (as.length - 1)) * rMean;
-    const d = (g[0].alpha * g[0].width) / pitch;
-    assert.ok(Math.abs(d - so) < 0.15 * so, `darkness ${d} against ${so}`);
-  }
-});
-
-test('stripeLineWidth / stripeLineAlpha: the width is alpha times the pitch, at least 1 px, and the alpha makes up for the minimum', async () => {
-  const { stripeLineWidth, stripeLineAlpha } = await import('../src/draw.ts');
-  for (const [a, pitch] of [
-    [0.6, 3],
-    [0.6, 20],
-    [0.15, 3],
-    [1, 1],
-    [0.25, 25],
-  ]) {
-    const w = stripeLineWidth(a, pitch),
-      al = stripeLineAlpha(a, pitch);
-    assert.ok(w >= 1 && al > 0 && al <= 1);
-    assert.ok(Math.abs((w * al) / pitch - a) < 1e-12, `${a} at ${pitch}`);
-  }
-  assert.equal(stripeLineWidth(0.6, 20), 12);
-  assert.equal(stripeLineAlpha(0.6, 20), 1);
-});
-
-test('rectangular: a larger gap gives fewer stripes, and the line is at least 1 px wide', async () => {
+test('rectangular: a larger gap gives fewer stripes, all 1 px wide', async () => {
   const a = await make('rectangular', {}, TREE, { theme: { summaryStripeGap: 3 } });
   const na = stripes(a.ctx()).length;
   const b = await make('rectangular', {}, TREE, { theme: { summaryStripeGap: 8 } });
   const sb = stripes(b.ctx());
   assert.ok(sb.length > 0 && sb.length < na);
   assert.ok(
-    sb.every((x) => x.width >= 1),
-    'at least a pixel wide',
+    sb.every((x) => x.width === 1),
+    'hairlines',
   );
 });
 
@@ -206,7 +191,7 @@ test('radial: the stripes lie on rays from the root (their line passes through t
       dy = x.y1 - x.y0;
     const len = Math.hypot(dx, dy);
     const cross = Math.abs(dx * (x.y0 - cy) - dy * (x.x0 - cx)) / len; // distance of the centre from the stripe's line
-    assert.ok(cross < 1e-6 * Math.max(1, Math.hypot(x.x0 - cx, x.y0 - cy)) + 1e-6, 'on a ray: ' + cross);
+    assert.ok(cross < 1e-3, 'on a ray: ' + cross); // the segments are kept as 32-bit floats
     assert.ok(Math.hypot(x.x1 - cx, x.y1 - cy) > Math.hypot(x.x0 - cx, x.y0 - cy), 'outwards');
   }
 });
@@ -218,74 +203,58 @@ test('radial: a fan gets at most 256 stripes, and the total is bounded by the ci
   assert.ok(s.length <= circ / viewer.theme.summaryStripeGap + viewer.getStats().summaries, 'count ' + s.length);
 });
 
-test('summaries too small for two stripes stay solid', async () => {
+test('summaries too small for two stripes get their mean tone: the background plus a second fill at stripeToneAlpha, no stripes', async () => {
   const { viewer, ctx } = await make('rectangular', { minCladePx: 3 });
-  assert.ok(viewer.getStats().summaries > 0);
+  const n = summaryCount(viewer);
+  assert.ok(n > 0);
   assert.equal(stripes(ctx()).length, 0, 'every summary is under two gaps tall');
-  assert.ok(fillAlphas(ctx()).includes(FALLBACK_THEME.summaryOpacity));
+  const t = viewer.theme;
+  assert.equal(filled(ctx(), STRIPE, t.summaryOpacity), n, 'the background of each');
+  assert.equal(filled(ctx(), STRIPE, stripeToneAlpha(t.summaryStripeOpacity, t.summaryStripeGap)), n, 'and the tone over it');
 });
 
-test('the stripe colour defaults to the summary colour', async () => {
-  const m = await makeViewer(TREE, { options: { minCladePx: 20, summaryStyle: 'striped' }, theme: { summary: '#00ff00' }, size: [500, 300] });
-  m.env.flush();
-  assert.equal(m.viewer.theme.summaryStripeColour, '');
-  assert.ok(stripes(m.ctx(), '#00ff00').length > 0);
-});
-
-test('a clade colour is kept by its stripes', async () => {
-  const m = await makeViewer(TREE, {
-    options: { minCladePx: 20, summaryStyle: 'striped' },
-    theme: { summaryStripeColour: STRIPE },
-    size: [500, 300],
-  });
+test('a clade colour tints both the background and the stripes of its summaries', async () => {
+  const m = await make('rectangular', { minCladePx: 40 });
   m.viewer.setClades([{ node: 1, colour: '#0000ff' }]);
+  m.ctx().reset();
   m.env.flush();
   assert.ok(stripes(m.ctx(), '#0000ff').length > 0, 'the coloured clade is striped in its colour');
-  assert.ok(stripes(m.ctx(), STRIPE).length > 0, 'the rest in the stripe colour');
+  assert.ok(filled(m.ctx(), '#0000ff', m.viewer.theme.summaryOpacity) > 0, 'over a background in its colour');
+  assert.ok(stripes(m.ctx(), STRIPE).length > 0, 'the rest in the summary colour');
+  assert.ok(filled(m.ctx(), STRIPE, m.viewer.theme.summaryOpacity) > 0);
 });
 
-test('dimming: the stripes of a summary without a highlighted tip are as dark as a solid summaryOpacity * dimOpacity, the others as summaryOpacity', async () => {
-  const m = await makeViewer(TREE, {
-    options: { minCladePx: 40, summaryStyle: 'striped', highlightStyle: 'dim' },
-    theme: { summaryStripeColour: STRIPE, dimOpacity: DIM },
-    size: [500, 300],
-  });
+test('dimming: a summary without a highlighted tip has its background and stripes at dimOpacity times their opacity, the others at full', async () => {
+  const m = await make('rectangular', { minCladePx: 40, highlightStyle: 'dim' }, TREE, { theme: { dimOpacity: DIM } });
   m.viewer.setHighlighted(['t5']);
   m.env.flush();
-  const so = m.viewer.theme.summaryOpacity;
-  const darks = new Set(
-    groups(stripes(m.ctx()))
-      .filter((g) => g.length > 2)
-      .map((g) => rectDarkness(g).toFixed(6)),
-  );
-  assert.deepEqual([...darks].sort(), [(so * DIM).toFixed(6), so.toFixed(6)].sort());
+  const t = m.viewer.theme;
+  const close = (a, b) => Math.abs(a - b) < 1e-12;
+  const alphas = [...new Set(stripes(m.ctx()).map((x) => x.alpha))];
+  assert.equal(alphas.length, 2);
+  assert.ok(alphas.some((a) => close(a, t.summaryStripeOpacity)) && alphas.some((a) => close(a, t.summaryStripeOpacity * DIM)), 'stripes ' + alphas);
+  assert.ok(filled(m.ctx(), STRIPE, t.summaryOpacity) > 0, 'the lit background');
+  assert.ok(filled(m.ctx(), STRIPE, t.summaryOpacity * DIM) > 0, 'the dimmed background');
 });
 
 for (const layout of ['rectangular', 'radial']) {
-  test(`${layout}: clades the app collapsed stay solid unless stripeCollapsed`, async () => {
+  test(`${layout}: a clade the app collapsed has the same look as any summary, and keeps its label`, async () => {
     const tree =
-      '((' + Array.from({ length: 60 }, (_, k) => 'a' + k).join(',') + ')X,(' + Array.from({ length: 60 }, (_, k) => 'b' + k).join(',') + ')Y)r;';
-    const m = await makeViewer(tree, { options: { layout, summaryStyle: 'striped' }, theme: { summaryStripeColour: STRIPE }, size: [500, 500] });
+      '((' + Array.from({ length: 20 }, (_, k) => 'a' + k).join(',') + ')X,(' + Array.from({ length: 20 }, (_, k) => 'b' + k).join(',') + ')Y)r;';
+    const m = await makeViewer(tree, { options: { layout, ...(layout === 'radial' ? CIRCLE : {}) }, theme: THEME, size: [500, 500] });
     m.viewer.setCollapsed([1]);
     m.env.flush();
-    assert.equal(stripes(m.ctx()).length, 0, 'collapsed clade X is solid; Y is expanded');
-    assert.ok(fillAlphas(m.ctx()).includes(m.viewer.theme.summaryOpacity));
-    m.ctx().reset();
-    m.viewer.setOptions({ stripeCollapsed: true });
-    m.env.flush();
-    assert.ok(stripes(m.ctx()).length > 0, 'striped on request');
+    assert.ok(stripes(m.ctx()).length > 0, 'collapsed clade X is striped; Y is expanded');
+    assert.equal(filled(m.ctx(), STRIPE, m.viewer.theme.summaryOpacity), 1, 'over one background');
+    assert.ok(
+      m.ctx().log.some((e) => e[0] === 'fillText' && e[1] === 'X'),
+      'the label is drawn',
+    );
   });
 }
 
-test('the overview strip stays solid', async () => {
-  const { OverviewControl } = await import('../src/controls/index.ts');
-  const m = await makeViewer(TREE, {
-    controls: [new OverviewControl()],
-    options: { minCladePx: 20, summaryStyle: 'striped' },
-    theme: { summaryStripeColour: STRIPE },
-    size: [500, 300],
-  });
-  m.env.flush();
+/** The canvases of the overview strip: every recording canvas but the main and the top one. */
+function stripCanvases(m) {
   const canvases = [];
   const walk = (el) => {
     for (const c of el.children ?? []) {
@@ -294,12 +263,23 @@ test('the overview strip stays solid', async () => {
     }
   };
   walk(m.viewer.element);
-  const strips = canvases.filter((c) => c !== m.canvas() && c !== m.topCanvas());
+  return canvases.filter((c) => c !== m.canvas() && c !== m.topCanvas());
+}
+
+test('the overview strip draws summaries with the same look: a background fill under each, its tone where there is no room for stripes', async () => {
+  const { OverviewControl } = await import('../src/controls/index.ts');
+  const m = await makeViewer(TREE, { controls: [new OverviewControl()], options: { minCladePx: 20 }, theme: THEME, size: [500, 300] });
+  m.env.flush();
+  const strips = stripCanvases(m);
   assert.ok(strips.length > 0, 'the overview canvas exists');
-  for (const c of strips) assert.equal(stripes(c.ctx).length, 0);
+  const t = m.viewer.theme;
   assert.ok(
-    strips.some((c) => fillAlphas(c.ctx).length > 0),
-    'and draws its summaries filled',
+    strips.some((c) => filled(c.ctx, STRIPE, t.summaryOpacity) > 0),
+    'background fills',
+  );
+  assert.ok(
+    strips.some((c) => filled(c.ctx, STRIPE, stripeToneAlpha(t.summaryStripeOpacity, t.summaryStripeGap)) > 0),
+    'the tone of the small ones',
   );
 });
 
@@ -338,12 +318,6 @@ test('radial: a fan starts each ray on its side (the start radius varies), a pol
   }
 });
 
-test('a striped summary has no solid fill under its stripes', async () => {
-  const m = await make('rectangular', { minCladePx: 40 });
-  assert.ok(stripes(m.ctx()).length > 0);
-  assert.ok(!fillAlphas(m.ctx()).includes(m.viewer.theme.summaryOpacity), 'no fill at the summary opacity');
-});
-
 test('rectangular, zoomed: only the stripes of the visible rows are drawn', async () => {
   const m = await make('rectangular', { minCladePx: 400 });
   m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 310 });
@@ -358,7 +332,7 @@ test('rectangular, zoomed: only the stripes of the visible rows are drawn', asyn
   assert.ok(s.length <= (330 / gap) * (m.viewer.getStats().summaries + 1), 'bounded by the window, not the clade');
 });
 
-test('radial, zoomed: at most 256 rays per fan, drawn over the visible angles only, else solid', async () => {
+test('radial, zoomed: at most 256 rays per fan, drawn over the visible angles only', async () => {
   const m = await make('radial', { minCladePx: 600 });
   let drawn = 0;
   for (const vp of [
@@ -383,38 +357,25 @@ test('radial, zoomed: at most 256 rays per fan, drawn over the visible angles on
   assert.ok(drawn > 0, 'some fan is striped in the zoomed views');
 });
 
-test('summaryStripeGap below 1 is taken as 1: no stripe per tip, no infinite alpha', async () => {
+test('summaryStripeGap below 1 is taken as 1: no stripe per tip, no tone above the stripe opacity', async () => {
   const m = await make('rectangular', {}, TREE, { theme: { summaryStripeGap: 0 } });
   const s = stripes(m.ctx());
   assert.ok(s.length > 0);
-  assert.ok(s.every((x) => Number.isFinite(x.alpha) && x.alpha <= 1 && Number.isFinite(x.width)));
+  assert.ok(fillAlphas(m.ctx()).every((a) => Number.isFinite(a) && a <= 1));
   assert.ok(s.length <= 300 + m.viewer.getStats().summaries, 'at most one per px');
 });
 
-test('the overview strip stays solid even where it has room for stripes (a polytomy band hundreds of tips tall)', async () => {
+test('the overview strip stripes a summary with room for stripes (a polytomy band hundreds of tips tall)', async () => {
   const { OverviewControl } = await import('../src/controls/index.ts');
-  const m = await makeViewer(BANDS, {
-    controls: [new OverviewControl()],
-    options: { summaryStyle: 'striped' },
-    theme: { summaryStripeColour: STRIPE },
-    size: [500, 300],
-  });
+  const m = await makeViewer(BANDS, { controls: [new OverviewControl()], theme: THEME, size: [500, 300] });
   m.env.flush();
   assert.ok(stripes(m.ctx()).length > 0, 'the main canvas stripes the bands');
-  const canvases = [];
-  const walk = (el) => {
-    for (const c of el.children ?? []) {
-      if (c.ctx) canvases.push(c);
-      walk(c);
-    }
-  };
-  walk(m.viewer.element);
-  const strips = canvases.filter((c) => c !== m.canvas() && c !== m.topCanvas());
+  const strips = stripCanvases(m);
   assert.ok(
-    strips.some((c) => fillAlphas(c.ctx).includes(m.viewer.theme.summaryOpacity)),
-    'the strip fills its bands solid',
+    strips.some((c) => stripes(c.ctx).length > 0),
+    'and so does the strip',
   );
-  for (const c of strips) assert.equal(stripes(c.ctx).length, 0);
+  assert.ok(strips.some((c) => filled(c.ctx, STRIPE, m.viewer.theme.summaryOpacity) > 0));
 });
 
 test('one stripe per hidden tip when the rows are wider than the gap (not one per gap)', async () => {
@@ -427,11 +388,23 @@ test('one stripe per hidden tip when the rows are wider than the gap (not one pe
 const TWO_POLY = `(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`; // two bands of 800 tips: one fan each at fit
 const twoPoly = () =>
   makeViewer(TWO_POLY, {
-    options: { layout: 'radial', summaryStyle: 'striped', ...CIRCLE },
-    theme: { summaryStripeColour: STRIPE },
+    options: { layout: 'radial', ...CIRCLE },
+    theme: THEME,
     size: [900, 900],
   });
-const solidFills = (m) => fillAlphas(m.ctx()).filter((a) => a === m.viewer.theme.summaryOpacity).length;
+/** Shapes filled with the stripes' tone (the summaries without stripes). */
+const toneFills = (m) =>
+  fills(m.ctx())
+    .filter((f) => f.style === STRIPE && f.alpha > 0 && f.alpha !== m.viewer.theme.summaryOpacity)
+    .reduce((t, f) => t + f.shapes, 0);
+/** The alphas of the tone fills. */
+const toneAlphas = (m) => [
+  ...new Set(
+    fills(m.ctx())
+      .filter((f) => f.style === STRIPE && f.alpha !== m.viewer.theme.summaryOpacity)
+      .map((f) => f.alpha),
+  ),
+];
 /** The angle (0..2pi) of a ray's outer end seen from the root of the frame. */
 const rayAngle = (m, x) => {
   const { cx, cy } = m.viewer.proj.T;
@@ -452,19 +425,19 @@ test('radial: a fan with more than 256 rays in view draws every 2nd, 4th, ... ra
   }
 });
 
-test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary stays solid', async () => {
+test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary gets their tone', async () => {
   const sparse = `(${poly(10, 'p')}P,${poly(10, 'q')}Q)r;`;
   const m = await makeViewer(sparse, {
-    options: { layout: 'radial', summaryStyle: 'striped', minCladePx: 300 },
-    theme: { summaryStripeColour: STRIPE },
+    options: { layout: 'radial', minCladePx: 300 },
+    theme: THEME,
     size: [500, 500],
   });
   m.env.flush();
   assert.ok(m.viewer.getStats().summaries >= 2, 'the polytomies are summarised');
   assert.equal(stripes(m.ctx()).length, 0);
-  assert.ok(solidFills(m) >= 1, 'filled solid instead');
+  assert.ok(toneFills(m) >= 1, 'filled with the tone instead');
   m.ctx().reset();
-  m.viewer.setTheme({ summaryStripeColour: STRIPE, summaryStripeGap: 30 }); // the same fan with a gap that makes ten rays fit
+  m.viewer.setTheme({ ...THEME, summaryStripeGap: 30 }); // the same fan with a gap that makes ten rays fit
   m.env.flush();
   assert.ok(stripes(m.ctx()).length >= 10, 'striped when the pitch is within eight gaps');
 });
@@ -493,8 +466,7 @@ test('radial, window through angle 0: the rays of both visible intervals are dra
 });
 
 const FOUR_K = `(${poly(4000, 'p')}P,${poly(4000, 'q')}Q)r;`;
-const fourK = () =>
-  makeViewer(FOUR_K, { options: { layout: 'radial', summaryStyle: 'striped', ...CIRCLE }, theme: { summaryStripeColour: STRIPE }, size: [900, 900] });
+const fourK = () => makeViewer(FOUR_K, { options: { layout: 'radial', ...CIRCLE }, theme: THEME, size: [900, 900] });
 
 test('radial, window not through angle 0: only rays at visible angles are drawn', async () => {
   const m = await fourK();
@@ -563,21 +535,42 @@ test('rectangular, zoomed into a summary much taller than the screen: only the s
   assert.ok(s.length <= 330 / gap + 4, 'only the visible rows: ' + s.length);
 });
 
-test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px stays solid, one in a row of 60 px is striped', async () => {
-  const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', {
-    options: { summaryStyle: 'striped', stripeCollapsed: true },
-    theme: { summaryStripeColour: STRIPE },
-    size: [500, 300],
-  });
+test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px gets the tone, one in a row of 60 px is striped', async () => {
+  const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', { theme: { ...THEME, summaryStripeGap: 3 }, size: [500, 300] });
   m.viewer.setCollapsed([1]);
   m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 1.5 });
   m.env.flush();
   assert.equal(stripes(m.ctx()).length, 0, 'three stripes 66 px apart would be bands');
-  assert.ok(solidFills(m) >= 1);
+  assert.ok(toneFills(m) >= 1);
+  const pitch = m.viewer.proj.T.ky / 3; // the row's three stripes
+  const tones = toneAlphas(m);
+  assert.ok(
+    tones.length === 1 && Math.abs(tones[0] - stripeToneAlpha(0.8, pitch)) < 1e-6,
+    'the tone of stripes that far apart, not of stripes a gap apart: ' + tones,
+  );
   m.ctx().reset();
   m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
   m.env.flush();
   assert.equal(groups(stripes(m.ctx())).length >= 1, true, 'striped at 60 px per row (20 px stripes)');
+});
+
+test('rectangular: zooming a summary across the eight-gap limit keeps its darkness: the tone just past it matches the stripes just before it', async () => {
+  const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', { theme: { ...THEME, summaryStripeGap: 3 }, size: [500, 300] });
+  m.viewer.setCollapsed([1]);
+  const at = (rows) => {
+    m.ctx().reset();
+    m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: rows });
+    m.env.flush();
+  };
+  at(284 / 70); // rows of 70 px (the plot is 284 px tall): three stripes 23 px apart, under the 24 px limit
+  const g = groups(stripes(m.ctx()));
+  assert.equal(g.length, 1, 'striped');
+  const ys = g[0].map((x) => x.y0).sort((a, b) => a - b);
+  const striped = (g[0][0].alpha * g[0][0].width) / (ys[1] - ys[0]); // mean darkness of the stripes
+  at(284 / 74); // 74 px: 25 px apart, past the limit
+  assert.equal(stripes(m.ctx()).length, 0, 'the tone');
+  const [tone] = toneAlphas(m);
+  assert.ok(Math.abs(tone - striped) < 0.1 * striped, `tone ${tone} against the stripes' ${striped}`);
 });
 
 test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {

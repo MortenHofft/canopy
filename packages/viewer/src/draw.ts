@@ -5,7 +5,7 @@ import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts'
 import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import { labelMinPx } from './sizes.ts';
-import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
+import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
 import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import type { LabelDensity, TreeTheme } from './types.ts';
 
@@ -26,10 +26,6 @@ export interface Scene {
   nodeLabels: NodeLabelsOption; // the option
   formatNode: (value: number, kind: NodeLabelKind) => string; // formatNodeLabel
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
-  /** `summaryStyle` is 'striped': summaries get stripes instead of a solid fill (the overview strip passes false). */
-  striped: boolean;
-  /** `stripeCollapsed`: with `striped`, clades the app collapsed are striped too. */
-  stripeCollapsed: boolean;
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
   measure: TextMeasurer; // label widths, owned by the renderer
 }
@@ -81,7 +77,8 @@ const MAX_RECT_LABELS = 600;
 const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
 const FILL_CHUNK = 32; // fans per fill() call, same reason
 const MAX_RADIAL_STRIPES = 256; // rays per fan: a fan zoomed far past the screen draws every 2nd, 4th, ... ray of its grid, not more of them
-const MAX_PITCH_GAPS = 8; // stripes further apart than this many gaps (a few hidden tips over a tall summary) are not drawn: the summary stays solid
+const MAX_PITCH_GAPS = 8; // stripes further apart than this many gaps (a few hidden tips over a tall summary) are not drawn: the summary gets their mean tone
+const STRIPE_PX = 1; // line width of the stripes: hairlines, thinner than any branch, so they read as a texture and not as branches
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
@@ -125,16 +122,32 @@ function dimmed(S: Scene, e: number): number {
 
 const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
 
-// Striped summaries. The stripes of a frame's summaries are collected as segments (x0, y0, x1, y1) in one scratch buffer, in groups (one per
-// summary, with its spacing), then stroked per (dimming pass, colour class), like the branches. The buffer is module state used only inside
-// one drawBody call, grown by doubling, never held across calls. Cost: the stripes are bounded by the summary's extent over the gap,
-// rectangular ones by the visible rows only, radial ones by the visible angles and MAX_RADIAL_STRIPES per fan; a summary with room for fewer
-// than two stripes stays solid (nothing to see).
+// Summaries (placeholders: triangles, fans, bands). Every one has one look: a faint background fill of its shape (`summaryOpacity`) with
+// hairline stripes over it (`summaryStripeOpacity`), in the direction the hidden branches would run. The stripes of a frame's summaries are
+// collected as segments (x0, y0, x1, y1) in one scratch buffer, in groups (one per summary), then stroked per (dimming pass, colour class),
+// like the branches. A summary without room for stripes gets their mean tone as a second fill instead (its entry goes to `toneBuf`). The
+// buffers are module state used only inside one drawBody call, grown by doubling, never held across calls. Cost: the stripes are bounded by
+// the summary's extent over the gap, rectangular ones by the visible rows only, radial ones by the visible angles and MAX_RADIAL_STRIPES per fan.
 let stripeBuf = new Float32Array(4096);
 let stripeN = 0; // floats used
 let groupEnd = new Int32Array(256); // per summary: the end of its segments in stripeBuf
-let groupPitch = new Float32Array(256); // and the distance between its stripes (px; radial ones at the fan's mean radius, where it is not the gap but about its share of it)
 let groupN = 0;
+let toneBuf = new Int32Array(256); // draw-list entries of the summaries filled with the stripes' mean tone
+let tonePitch = new Float32Array(256); // and the distance their stripes would have (px)
+let toneN = 0;
+
+function pushTone(e: number, pitch: number): void {
+  if (toneN === toneBuf.length) {
+    const b = new Int32Array(toneN * 2),
+      p = new Float32Array(toneN * 2);
+    b.set(toneBuf);
+    p.set(tonePitch);
+    toneBuf = b;
+    tonePitch = p;
+  }
+  tonePitch[toneN] = pitch;
+  toneBuf[toneN++] = e;
+}
 
 function pushStripe(x0: number, y0: number, x1: number, y1: number): void {
   if (stripeN + 4 > stripeBuf.length) {
@@ -148,38 +161,35 @@ function pushStripe(x0: number, y0: number, x1: number, y1: number): void {
   stripeBuf[stripeN++] = y1;
 }
 
-/** Close the stripes pushed since the last group: they are `pitch` px apart. */
-function endGroup(pitch: number): void {
+/** Close the stripes pushed since the last group (one summary's). */
+function endGroup(): void {
   if (groupN === groupEnd.length) {
-    const e = new Int32Array(groupN * 2),
-      p = new Float32Array(groupN * 2);
+    const e = new Int32Array(groupN * 2);
     e.set(groupEnd);
-    p.set(groupPitch);
     groupEnd = e;
-    groupPitch = p;
   }
-  groupEnd[groupN] = stripeN;
-  groupPitch[groupN++] = pitch;
+  groupEnd[groupN++] = stripeN;
 }
 
 /** Stripes for the summary of node `i` (a run first=i..last when lm >= 0), geometry from `proj.d0..t1` set by summaryExtent. `gap` is at
  *  least 1. Rectangular stripes are at least a gap apart; radial rays are a gap apart at the outer edge and closer toward the apex (below
- *  1 px there, which only makes them merge). Returns false (nothing pushed) when the summary should be solid: no room for two stripes `gap`
- *  px apart, or the stripes would be more than MAX_PITCH_GAPS gaps apart (a few hidden tips over a tall summary, or a radial fan zoomed
- *  so far in that its visible rays are thinned that much). True with nothing pushed: it is off screen. */
-function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): boolean {
+ *  1 px there, which only makes them merge). Returns 0 when the stripes are pushed (nothing pushed: it is off screen). Otherwise the summary
+ *  gets the stripes' mean tone instead, and the return is the distance (px) its stripes would have, for that tone: when there is no room
+ *  for two stripes `gap` px apart (one per hidden tip, at least `gap`), or when the stripes would be more than MAX_PITCH_GAPS gaps apart (a
+ *  few hidden tips over a tall summary, or a radial fan zoomed so far in that its visible rays are thinned that much). */
+function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): number {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
-  if (hidden < 2) return false;
+  if (hidden < 2) return gap;
   if (proj.kind === 'rectangular') {
     const { T } = proj;
     const y0 = proj.t0,
       y1 = proj.t1,
       h = y1 - y0;
     const n = Math.min(hidden, Math.floor(h / gap));
-    if (n < 2) return false;
+    if (n < 2) return Math.max(gap, h / hidden);
     const pitch = h / n;
-    if (pitch > MAX_PITCH_GAPS * gap) return false;
+    if (pitch > MAX_PITCH_GAPS * gap) return pitch;
     const sx = proj.d0,
       sy = proj.tip(i),
       xm = Math.max(sx + 2, proj.d1);
@@ -196,8 +206,8 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
       const xs = solidShape ? sx : Math.min(xm, sx + (y < sy ? (sy - y) * up : (y - sy) * down));
       pushStripe(xs, y, xm, y);
     }
-    if (stripeN > (groupN ? groupEnd[groupN - 1] : 0)) endGroup(pitch);
-    return true;
+    if (stripeN > (groupN ? groupEnd[groupN - 1] : 0)) endGroup();
+    return 0;
   }
   const r0 = proj.d0,
     r1 = Math.max(r0 + 2, proj.d1);
@@ -218,24 +228,24 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
       v1 = a1;
     }
   }
-  if (!(u1 > u0) && !(v1 > v0)) return true; // off screen
+  if (!(u1 > u0) && !(v1 > v0)) return 0; // off screen
   // the ray grid belongs to the whole fan (rays at a0 + (k + 0.5) * da), not to what is visible, so a pan moves the rays and never
   // re-spaces them; only the rays inside the visible angles are drawn
   const nFull = Math.min(hidden, Math.floor(((a1 - a0) * r1) / gap));
-  if (nFull < 2) return false;
+  if (nFull < 2) return Math.max(gap, ((a1 - a0) * r1) / hidden);
   const da = (a1 - a0) / nFull;
   const k0 = u1 > u0 ? Math.max(0, Math.ceil((u0 - a0) / da - 0.5)) : 0,
     k1 = u1 > u0 ? Math.min(nFull - 1, Math.floor((u1 - a0) / da - 0.5)) : -1;
   const m0 = v1 > v0 ? Math.max(0, Math.ceil((v0 - a0) / da - 0.5)) : 0,
     m1 = v1 > v0 ? Math.min(nFull - 1, Math.floor((v1 - a0) / da - 0.5)) : -1;
   const visible = (k1 >= k0 ? k1 - k0 + 1 : 0) + (m1 >= m0 ? m1 - m0 + 1 : 0);
-  if (visible === 0) return true;
+  if (visible === 0) return 0;
   // more than MAX_RADIAL_STRIPES visible: every 2nd, 4th, ... ray of the same grid (the stride is a power of two, so it changes only when
   // the visible part doubles or halves)
   let stride = 1;
   while ((visible + 2) / stride > MAX_RADIAL_STRIPES) stride *= 2;
   const pitchAngle = da * stride;
-  if (pitchAngle * r1 > MAX_PITCH_GAPS * gap) return false; // zoomed so far in that the rays would be too far apart, or too few hidden tips
+  if (pitchAngle * r1 > MAX_PITCH_GAPS * gap) return pitchAngle * r1; // zoomed so far in that the rays would be too far apart, or too few hidden tips
   const phi = solidShape ? 0 : proj.tip(i); // the node's own angle, where the fan's apex lies
   const { cx, cy } = proj.T;
   // a fan's ray starts where it meets the fan's side (the segment from the apex to the edge's end), a ring segment's at r0
@@ -264,31 +274,25 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
       pushStripe(cx + rs * c, cy + rs * sn, cx + r1 * c, cy + r1 * sn);
     }
   }
-  endGroup(pitchAngle * (solidShape ? (r0 + r1) / 2 : r0 + ((r1 - r0) * 2) / 3));
-  return true;
+  endGroup();
+  return 0;
 }
 
-/** The line width of the stripes of a summary drawn at alpha `a` (a solid fill's) with stripes `pitch` px apart: the stripes cover
- *  `width / pitch` of it, so `a * pitch` makes the mean darkness the solid fill's, at least 1 px (thinner lines are not drawn crisply). */
-export function stripeLineWidth(a: number, pitch: number): number {
-  return Math.max(1, a * pitch);
+/** The alpha of the fill that stands in for the stripes of a summary that does not get them: their mean tone, stripes `STRIPE_PX` wide at
+ *  alpha `a` (`summaryStripeOpacity`, dimming included) every `pitch` px (the distance they would have, see pushStripes), so a summary
+ *  crossing a limit while zooming keeps its darkness. Drawn over the background fill, as the stripes are. */
+export function stripeToneAlpha(a: number, pitch: number): number {
+  return Math.min(1, (a * STRIPE_PX) / pitch);
 }
 
-/** Their alpha: 1 where the width is `a * pitch`, lower when the 1 px minimum made the lines wider than that. */
-export function stripeLineAlpha(a: number, pitch: number): number {
-  return Math.min(1, (a * pitch) / stripeLineWidth(a, pitch));
-}
-
-/** Stroke the collected stripes in `colour`, each summary's with the width and alpha that give the darkness of a solid fill of alpha `a`
- *  (the dimming included in `a`), and empty the buffer. */
+/** Stroke the collected stripes in `colour` at alpha `a` (the dimming included), one stroke per summary, and empty the buffer. */
 function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, a: number): void {
   if (groupN === 0) return;
   ctx.strokeStyle = colour;
   ctx.lineCap = 'butt';
+  ctx.lineWidth = STRIPE_PX;
+  ctx.globalAlpha = a;
   for (let g = 0, j = 0; g < groupN; j = groupEnd[g++]) {
-    const pitch = groupPitch[g];
-    ctx.lineWidth = stripeLineWidth(a, pitch);
-    ctx.globalAlpha = stripeLineAlpha(a, pitch);
     ctx.beginPath();
     for (let c = 0; j < groupEnd[g]; j += 4) {
       ctx.moveTo(stripeBuf[j], stripeBuf[j + 1]);
@@ -305,9 +309,123 @@ function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, a: number)
   groupN = 0;
 }
 
-/** Summary entry `e` is drawn striped (given room, see pushStripes): the style is on, and it is not a clade the app collapsed unless asked. */
-function stripedEntry(S: Scene, e: number): boolean {
-  return S.striped && (S.stripeCollapsed || !isCollapsedEntry(S, e));
+/** Rectangular: add the shape of the summary whose extent `proj.summaryExtent` just set (node `i`) to the path: a band (`band`: a polytomy
+ *  of tips or a run) or a triangle from the node, at least 2 px wide and 1.5 px tall. */
+function rectSummaryShape(ctx: CanvasRenderingContext2D, proj: RectProjection, i: number, band: boolean): void {
+  const sx = proj.d0,
+    sy = proj.tip(i);
+  let y0 = proj.t0,
+    y1 = proj.t1;
+  if (y1 - y0 < 1.5) {
+    const m = (y0 + y1) / 2;
+    y0 = m - 0.75;
+    y1 = m + 0.75;
+  }
+  const xm = Math.max(sx + 2, proj.d1);
+  if (band) {
+    ctx.rect(sx, y0, xm - sx, y1 - y0);
+    return;
+  }
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(xm, y0);
+  ctx.lineTo(xm, y1);
+  ctx.closePath();
+}
+
+/** Radial: add the shape of the summary whose extent `proj.summaryExtent` just set (node `i`) to the path: a ring segment (`band`) or a fan
+ *  from the node (apex) to the clade's radius, the outer arc only where it is visibly curved, at least 1.5 px wide at its outer edge. */
+function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProjection, i: number, band: boolean): void {
+  const { cx, cy } = proj.T;
+  let a0 = proj.t0,
+    a1 = proj.t1;
+  const r0 = proj.d0;
+  const r1 = Math.max(r0 + 2, proj.d1);
+  if ((a1 - a0) * r1 < 1.5) {
+    const m = (a0 + a1) / 2,
+      h = 0.75 / r1;
+    a0 = m - h;
+    a1 = m + h;
+  } // keep slivers visible
+  if (band) {
+    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
+    const len0 = (a1 - a0) * r1;
+    ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
+    ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+    if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
+    else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+    ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
+    const len1 = (a1 - a0) * r0;
+    if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
+    ctx.closePath();
+    return;
+  }
+  ctx.moveTo(cx + r0 * proj.L.COS![i], cy + r0 * proj.L.SIN![i]);
+  ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+  const len = (a1 - a0) * r1;
+  if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
+  else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  ctx.closePath();
+}
+
+/** Add the shape of summary entry `e` to the path (its extent is left in `proj.d0..t1`) and fill the path every `chunk` shapes. Returns the
+ *  number of shapes now in the path. */
+function addSummaryShape(ctx: CanvasRenderingContext2D, proj: LayoutProjection, list: DrawList, e: number, n: number, chunk: number): number {
+  const i = list.node[e];
+  const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows (angles)
+  const band = lm >= 0 || isSlice(proj.tree, i, proj.L.collapsed);
+  proj.summaryExtent(i, lm, list.xmax[e]);
+  if (proj.kind === 'rectangular') rectSummaryShape(ctx, proj, i, band);
+  else fanSummaryShape(ctx, proj, i, band);
+  if (++n < chunk) return n;
+  ctx.fill();
+  ctx.beginPath();
+  return 0;
+}
+
+/** Fill the summaries listed in `toneBuf` with their stripes' mean tone (stripes at alpha `stripeA`), one fill per run of equal alphas
+ *  (and per `chunk` shapes), and empty the list. */
+function fillTones(ctx: CanvasRenderingContext2D, proj: LayoutProjection, list: DrawList, stripeA: number, chunk: number): void {
+  let alpha = -1,
+    n = 0;
+  for (let k = 0; k < toneN; k++) {
+    const a = stripeToneAlpha(stripeA, tonePitch[k]);
+    if (a !== alpha) {
+      if (n) ctx.fill();
+      ctx.globalAlpha = alpha = a;
+      ctx.beginPath();
+      n = 0;
+    }
+    n = addSummaryShape(ctx, proj, list, toneBuf[k], n, chunk);
+  }
+  if (n) ctx.fill();
+  toneN = 0;
+}
+
+/** The summaries of one (dimming pass, colour class), both layouts: the background fill of every summary in `colour` at `summaryOpacity`
+ *  (fans in chunks of FILL_CHUNK shapes), then the stripe tone over the summaries that get no stripes, then the stripes. `dim` is 1, or
+ *  `dimOpacity` on the dimmed pass. */
+function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cls: number, colour: string, dim: number): void {
+  const { list, theme, proj } = S;
+  const passes = S.hlPrefix ? 2 : 1;
+  const nCls = S.colours.length;
+  const gap = theme.summaryStripeGap >= 1 ? theme.summaryStripeGap : 1; // at least 1 px: no stripe per tip
+  const stripeA = theme.summaryStripeOpacity * dim;
+  const chunk = proj.kind === 'rectangular' ? Infinity : FILL_CHUNK; // fans are filled in chunks (see FILL_CHUNK), triangles and bands at once
+  ctx.fillStyle = colour;
+  ctx.globalAlpha = theme.summaryOpacity * dim;
+  ctx.beginPath();
+  let n = 0;
+  for (let e = 0; e < list.count; e++) {
+    if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
+    if (passes > 1 && dimmed(S, e) !== pass) continue;
+    n = addSummaryShape(ctx, proj, list, e, n, chunk);
+    const lm = list.last[e];
+    const pitch = pushStripes(proj, list.node[e], lm, lm >= 0 || isSlice(proj.tree, list.node[e], proj.L.collapsed), gap);
+    if (pitch > 0) pushTone(e, pitch);
+  }
+  if (n) ctx.fill();
+  if (toneN) fillTones(ctx, proj, list, stripeA, chunk);
+  strokeStripes(ctx, colour, stripeA);
 }
 
 /** Branches and collapsed clades. Positions and clade extents come from the layout projection; what is drawn differs by layout
@@ -325,7 +443,6 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'round';
   const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
-  const gap = theme.summaryStripeGap >= 1 ? theme.summaryStripeGap : 1; // at least 1 px: no stripe per tip, no huge alpha
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       const col = cls === 0 ? theme.branch : colours[cls];
@@ -354,47 +471,9 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       }
       if (any) ctx.stroke();
     }
-  // collapsed clades: triangle from the node to the clade's extent
+  // summaries: triangles (bands) from the node to the clade's extent
   for (let pass = 0; pass < passes; pass++)
-    for (let cls = 0; cls < nCls; cls++) {
-      ctx.globalAlpha = pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity;
-      ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
-      ctx.beginPath();
-      let any = false;
-      for (let e = 0; e < list.count; e++) {
-        if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
-        if (passes > 1 && dimmed(S, e) !== pass) continue;
-        const i = list.node[e];
-        const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
-        proj.summaryExtent(i, lm, list.xmax[e]);
-        if (stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), gap)) continue;
-        any = true;
-        const sx = proj.d0,
-          sy = proj.tip(i);
-        let y0 = proj.t0,
-          y1 = proj.t1;
-        if (y1 - y0 < 1.5) {
-          const m = (y0 + y1) / 2;
-          y0 = m - 0.75;
-          y1 = m + 0.75;
-        }
-        const xm = Math.max(sx + 2, proj.d1);
-        if (lm >= 0 || isSlice(tree, i, L.collapsed)) {
-          ctx.rect(sx, y0, xm - sx, y1 - y0);
-          continue;
-        } // polytomy of tips: a band, not a triangle
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(xm, y0);
-        ctx.lineTo(xm, y1);
-        ctx.closePath();
-      }
-      if (any) ctx.fill();
-      strokeStripes(
-        ctx,
-        cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
-        pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
-      );
-    }
+    for (let cls = 0; cls < nCls; cls++) drawSummaries(ctx, S, pass, cls, cls === 0 ? theme.summary : colours[cls], pass ? theme.dimOpacity : 1);
   ctx.globalAlpha = 1;
 }
 
@@ -416,7 +495,6 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'bevel';
   const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
-  const gap = theme.summaryStripeGap >= 1 ? theme.summaryStripeGap : 1; // at least 1 px: no stripe per tip, no huge alpha
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
@@ -479,67 +557,9 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
       }
       if (segs) ctx.stroke();
     }
-  // collapsed clades: fans (apex at the node, outer edge at the clade's radius, arc only when it is visibly curved)
+  // summaries: fans (apex at the node, outer edge at the clade's radius) and ring segments
   for (let pass = 0; pass < passes; pass++)
-    for (let cls = 0; cls < nCls; cls++) {
-      ctx.globalAlpha = pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity;
-      ctx.fillStyle = cls === 0 ? theme.summary : colours[cls];
-      ctx.beginPath();
-      let n = 0;
-      for (let e = 0; e < list.count; e++) {
-        if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
-        if (passes > 1 && dimmed(S, e) !== pass) continue;
-        const i = list.node[e];
-        const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
-        proj.summaryExtent(i, lm, list.xmax[e]);
-        if (stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), gap)) continue;
-        let a0 = proj.t0,
-          a1 = proj.t1;
-        const r0 = proj.d0;
-        const r1 = Math.max(r0 + 2, proj.d1);
-        if ((a1 - a0) * r1 < 1.5) {
-          const m = (a0 + a1) / 2,
-            h = 0.75 / r1;
-          a0 = m - h;
-          a1 = m + h;
-        } // keep slivers visible
-        if (lm >= 0 || isSlice(tree, i, L.collapsed)) {
-          // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
-          const len0 = (a1 - a0) * r1;
-          ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
-          ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-          if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
-          else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
-          ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
-          const len1 = (a1 - a0) * r0;
-          if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
-          ctx.closePath();
-          if (++n >= FILL_CHUNK) {
-            ctx.fill();
-            ctx.beginPath();
-            n = 0;
-          }
-          continue;
-        }
-        ctx.moveTo(cx + r0 * COS[i], cy + r0 * SIN[i]);
-        ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-        const len = (a1 - a0) * r1;
-        if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
-        else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
-        ctx.closePath();
-        if (++n >= FILL_CHUNK) {
-          ctx.fill();
-          ctx.beginPath();
-          n = 0;
-        }
-      }
-      if (n) ctx.fill();
-      strokeStripes(
-        ctx,
-        cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
-        pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
-      );
-    }
+    for (let cls = 0; cls < nCls; cls++) drawSummaries(ctx, S, pass, cls, cls === 0 ? theme.summary : colours[cls], pass ? theme.dimOpacity : 1);
   ctx.globalAlpha = 1;
 }
 

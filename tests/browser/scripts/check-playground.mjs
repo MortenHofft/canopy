@@ -165,13 +165,16 @@ console.log('radial opening and rotation (#41)');
   await select('layout', 'rectangular');
 }
 
-console.log('striped summaries');
-// the playground shows the library's default (solid); the select compares solid and striped
-ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
+console.log('summaries');
+// one look for every summary (#85): a faint background fill with darker stripes over it; the panel has its theme tokens and no style switch
+ok(
+  (await page.locator('[data-setting=summaryStyle], [data-setting=stripeCollapsed], [data-setting=summaryStripeColour]').count()) === 0,
+  'no summary style, stripeCollapsed or stripe colour setting',
+);
 await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
-await select('summaryStyle', 'striped');
-ok((await opt('summaryStyle')) === 'striped' && query().get('s.summaryStyle') === 'striped', 'Striped: options.summaryStyle, and into the URL');
-await setInput('summaryStripeColour', '#ff0000');
+const summaryColour = await theme('summary');
+await setInput('summary', '#ff0000');
+// strong red only: the background alone (summaryOpacity 0.25 over white) is too faint to count, the stripes and their tone are not
 const redPixels = () =>
   ev(() => {
     const c = document.querySelector('.phylo-tree canvas');
@@ -181,27 +184,25 @@ const redPixels = () =>
     return n;
   });
 const stripedRed = await redPixels();
-ok(stripedRed > 100, `striped: the summaries are stroked in the stripe colour (${stripedRed} red pixels)`);
-await select('summaryStyle', 'solid');
-ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'Solid: options.summaryStyle, out of the URL again');
-ok((await redPixels()) === 0, 'solid: no stripe colour on the canvas');
-await select('summaryStyle', 'striped');
-ok((await redPixels()) > 100, 'striped again');
+ok(stripedRed > 100, `the summaries are drawn in the summary colour (${stripedRed} red pixels)`);
+await setInput('summaryStripeOpacity', '0');
+ok((await theme('summaryStripeOpacity')) === 0 && (await redPixels()) === 0, 'stripe opacity 0: only the faint background is left');
+await setInput('summaryStripeOpacity', '0.5');
+await setInput('summaryOpacity', '1');
+ok((await theme('summaryOpacity')) === 1 && (await redPixels()) > stripedRed, 'background opacity 1: the shapes are filled');
+await setInput('summaryOpacity', '0.25');
+ok((await redPixels()) === stripedRed, 'and back');
 await setInput('summaryStripeGap', '10');
 ok(
   (await theme('summaryStripeGap')) === 10 && (await redPixels()) < stripedRed,
   'the gap token reaches the theme, and a wider gap draws fewer stripes',
 );
-await setInput('summaryStripeGap', '3');
-await toggle('stripeCollapsed', true);
-ok((await opt('stripeCollapsed')) === true, 'stripeCollapsed toggle → options.stripeCollapsed');
-await toggle('stripeCollapsed', false);
+await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
-ok((await redPixels()) > 100, 'radial: striped too');
+ok((await redPixels()) > 100, 'radial: the same look');
 await select('layout', 'rectangular');
-await select('summaryStyle', 'solid');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
-await setInput('summaryStripeColour', '');
+await setInput('summary', summaryColour);
 
 console.log('hover path');
 // hover a tip below the root's first child: its path ends with the root's first child's branch and the root's connector, so a

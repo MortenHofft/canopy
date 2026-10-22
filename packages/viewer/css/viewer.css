@@ -13,6 +13,7 @@
  *   motion      --phylo-transition
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
+ *               --phylo-summary-stripe-opacity  --phylo-summary-stripe-gap
  *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *               --phylo-node-label-size  --phylo-support-colour  --phylo-length-colour
  *               --phylo-selection-colour  --phylo-selection-width  --phylo-selection-radius

@@ -330,8 +330,6 @@ export function Explorer({
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
   const [alignLabels, setAlignLabels] = useState(false);
-  // striped summaries (#59): the explorer's default; the library's is solid
-  const [stripes, setStripes] = useState(true);
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -1272,20 +1270,6 @@ export function Explorer({
             Align
           </button>
         )}
-        <button
-          type="button"
-          className={`ex-btn ex-toggle${stripes ? ' active' : ''}`}
-          aria-pressed={stripes}
-          title={
-            stripes
-              ? 'Summaries of small clades are striped: click for a solid fill'
-              : 'Fill the summaries of small clades with stripes along their hidden branches'
-          }
-          onClick={() => setStripes((x) => !x)}
-        >
-          <I.IconStripes />
-          Stripes
-        </button>
         {labelCycle.length > 1 && (
           <button
             type="button"
@@ -1346,10 +1330,9 @@ export function Explorer({
             formatLabel,
             labelDensity: 'dense',
             highlightStyle,
-            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are many,
-            // raise it while they are on (a small tree keeps every tip)
-            summaryStyle: stripes ? 'striped' : 'solid',
-            minCladePx: stripes && tree.tipCount > 1500 ? 14 : undefined,
+            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are
+            // many, raise it (a small tree keeps every tip)
+            minCladePx: tree.tipCount > 1500 ? 14 : undefined,
             alignLabels,
             nodeLabels,
             formatNodeLabel,

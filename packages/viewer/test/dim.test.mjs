@@ -133,7 +133,8 @@ function fillGroups(ctx) {
 }
 for (const tip of ['p0a', 'p17b', 'p100a', 'p199b', 'z1']) {
   test('dim: runs and slices are lit exactly when a tip of their members matches (' + tip + ')', async () => {
-    const m = await makeViewer(RUNS, { options: { highlightStyle: 'dim' }, theme: { dimOpacity: DIM }, size: [400, 120] });
+    // a stripe opacity whose tone (0.45, see stripeToneAlpha) differs from the background's: the background fills are counted, one per summary
+    const m = await makeViewer(RUNS, { options: { highlightStyle: 'dim' }, theme: { dimOpacity: DIM, summaryStripeOpacity: 0.9 }, size: [400, 120] });
     m.viewer.setHighlighted([tip]);
     m.env.flush();
     const { list, tree: t } = m.viewer;

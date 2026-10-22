@@ -1095,21 +1095,18 @@ await alignBtn.click();
 await page.waitForTimeout(300);
 ok(new Set(await anchorXs()).size > 3, 'Align off: the labels follow their tips again');
 
-// ---------------------------------------------------------------- striped summaries
-console.log('striped summaries');
+// ---------------------------------------------------------------- summaries
+console.log('summaries');
 await open('syn-yule-10000');
 await page.waitForTimeout(1500);
-const stripesBtn = page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ });
-ok(
-  (await ev(() => __v().options.summaryStyle)) === 'striped' && (await stripesBtn.getAttribute('aria-pressed')) === 'true',
-  'Stripes: on by default in the explorer (the library default is solid)',
-);
+// one look for every summary (#85): no Stripes toggle, the background and stripes are always drawn
+ok((await page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ }).count()) === 0, 'no Stripes toggle');
 ok((await ev(() => __v().options.minCladePx)) === 14, 'a big tree: smallest clade 14 px, so the summaries are tall enough to carry stripes');
-// count the stripe segments of a frame: lineTo calls between a stroke style of the stripe colour and its stroke(), on the viewer's context
+// count the stripe segments of a frame: lineTo calls while the stroke style is the summary colour, on the viewer's context
 const stripeCount = (colour) =>
   ev((colour) => {
     const v = __v();
-    v.setTheme({ ...v.getTheme(), summaryStripeColour: colour });
+    v.setTheme({ ...v.getTheme(), summary: colour });
     const ctx = v.ctx;
     const orig = { stroke: ctx.stroke, lineTo: ctx.lineTo };
     let n = 0;
@@ -1123,17 +1120,7 @@ const stripeCount = (colour) =>
     return n;
   }, colour);
 const withStripes = await stripeCount('#ff0000');
-ok(withStripes > 20, `striped: the frame draws stripe segments (${withStripes})`);
-await stripesBtn.click();
-await page.waitForTimeout(200);
-ok(
-  (await ev(() => __v().options.summaryStyle)) === 'solid' && (await stripesBtn.getAttribute('aria-pressed')) === 'false',
-  'the Stripes toggle switches to solid',
-);
-ok((await stripeCount('#ff0000')) === 0, 'solid: no stripe segments');
-await stripesBtn.click();
-await page.waitForTimeout(200);
-ok((await ev(() => __v().options.summaryStyle)) === 'striped' && (await stripeCount('#ff0000')) > 20, 'and back to striped');
+ok(withStripes > 20, `the frame draws stripe segments in the summary colour (${withStripes})`);
 await ev(() => __v().setTheme({}));
 
 // ---------------------------------------------------------------- alignment
