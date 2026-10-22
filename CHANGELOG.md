@@ -2,6 +2,15 @@
 
 ## Unreleased (2026-10-21: the library replaces the research on `main`; the research is on the `research` branch)
 
+- **API ergonomics from the Reactree look-alike** (#23; items 1, 2, 3, 5, 6 and 8).
+  - `updateTheme(patch)` merges into the theme overrides; `setTheme` still replaces them.
+  - New option `themeObserver: 'media' | 'document' | 'none'` (default `'media'`, as before). `'document'` also watches `class` and `data-theme` on `<html>` and calls `refreshTheme()`.
+  - `fitViewport()` returns the window `fit()` would go to, without moving.
+  - `toBlob({ type, scale, background })` draws the view into an offscreen canvas at a chosen scale, over the theme background unless told otherwise.
+  - `Tooltip({ bare: true })` and `<TreeView tooltipBare>` drop the box chrome.
+  - `tests/browser/README.md` documents how examples expose the viewer to browser checks.
+  - `examples/reactree` uses all of them and loses its MutationObserver, its `fit(false)` round trip, its canvas compositing and its tooltip CSS overrides.
+  - Not done: stretch sliders (item 4, low priority) and a draw-list iterator (item 7, belongs with #16).
 - **Theme or option** (#32). The rule is written down in `docs/api.md` and the headers of `types.ts` and `theme.ts`: the theme is how things look (colours, px sizes, opacities, font family and style, all `--phylo-*`), options are what is shown and how the viewer behaves. The `ViewerOptions` and `TreeTheme` fields were checked against it, and the exceptions are listed with their reason; a few look constants in the drawing code are listed as known gaps. `italicLabels` moved to the theme as `labelFontStyle` (`'italic'` by default, `--phylo-label-font-style`, which the tooltip, node menu and search list also follow), and `alignRowGap` moved to the theme (`--phylo-align-row-gap`). Reactree sets the label style in its CSS. The playground has both under Theme.
 - **Clade names** (#34). The legend names a coloured clade by its node's name (the label without its support value, through `formatLabel`) with the tip count after it, and falls back to "Clade of N tips" when there is none. The viewer has a `cladeLabel(node, tree)` option (node: full-tree id) for what counts as a name (hide OTL's `mrcaott…` labels, look a name up); `Legend` may override it. The node menu title, the default tooltip and the keyboard announcement use the same rule (`cladeName` and `internalName` are exported). The legend follows `formatLabel` changes. The playground no longer passes its own label, and strips `_ott\d+` on OTL trees.
 

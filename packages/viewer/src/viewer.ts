@@ -54,6 +54,7 @@ import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
+const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
 
 /** What `new TreeViewer(...)` takes. One of `tree` and `source` is needed; `source` wins. */
 export interface TreeViewerInit {
@@ -126,6 +127,7 @@ export class TreeViewer {
   private themeOverrides: Partial<TreeTheme> = {};
   private cssTheme: Partial<TreeTheme> = {};
   private schemeQuery: MediaQueryList | null = null;
+  private docObserver: MutationObserver | null = null;
   private events = new Emitter();
   private readyEmitted = false;
   private layouts = new Map<boolean, Layout>();
@@ -266,10 +268,7 @@ export class TreeViewer {
     this.cssTheme = themeFromCss(this.host, false);
     this.theme = this.composeTheme();
     this.syncCssVars();
-    if (typeof matchMedia === 'function') {
-      this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
-      this.schemeQuery.addEventListener?.('change', this.onScheme);
-    }
+    this.watchTheme();
     this.host.appendChild(this.container);
     this.canvasAlpha = !isOpaque(this.theme.background);
     this.ctx = this.mainContext();
@@ -609,6 +608,7 @@ export class TreeViewer {
     this.opts = { ...o, ...p };
     if (layoutChanged || lengthsChanged) this.minPxHint = 0;
     if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
+    if (p.themeObserver !== undefined) this.watchTheme();
     if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     if (lengthsChanged) {
@@ -627,10 +627,22 @@ export class TreeViewer {
   }
 
   /** Set the theme overrides: these fields over the theme read from CSS custom properties, over `FALLBACK_THEME` (a field left out,
-   *  or undefined, is the CSS or fallback value; the overrides of an earlier call are replaced, not merged). No-op when the resulting theme equals the current one (`categorical` element-wise),
+   *  or undefined, is the CSS or fallback value; the overrides of an earlier call are replaced, not merged: see `updateTheme`). No-op when the resulting theme equals the current one (`categorical` element-wise),
    *  so a theme rebuilt per render costs nothing. */
   setTheme(t: Partial<TreeTheme>): void {
     this.themeOverrides = { ...stripUndefined(t) };
+    this.applyTheme(this.composeTheme());
+  }
+
+  /** Merge these fields into the current overrides (what `setTheme` replaced): one control can set the font size and another the
+   *  branch width. A field that is `undefined` is dropped from the overrides, so it goes back to the CSS or fallback value. */
+  updateTheme(patch: Partial<TreeTheme>): void {
+    const next: Partial<TreeTheme> = { ...this.themeOverrides };
+    for (const k of Object.keys(patch) as (keyof TreeTheme)[]) {
+      if (patch[k] === undefined) delete next[k];
+      else (next as Record<string, unknown>)[k] = patch[k];
+    }
+    this.themeOverrides = next;
     this.applyTheme(this.composeTheme());
   }
 
@@ -651,6 +663,25 @@ export class TreeViewer {
   }
 
   private onScheme = () => this.refreshTheme();
+
+  /** Start or stop what re-reads the CSS theme, per the `themeObserver` option (also when it changes). */
+  private watchTheme(): void {
+    this.schemeQuery?.removeEventListener?.('change', this.onScheme);
+    this.schemeQuery = null;
+    this.docObserver?.disconnect();
+    this.docObserver = null;
+    if (this.destroyed) return;
+    const mode = this.opts.themeObserver;
+    if (mode === 'none') return;
+    if (typeof matchMedia === 'function') {
+      this.schemeQuery = matchMedia('(prefers-color-scheme: dark)');
+      this.schemeQuery.addEventListener?.('change', this.onScheme);
+    }
+    if (mode === 'document' && typeof MutationObserver === 'function') {
+      this.docObserver = new MutationObserver(this.onScheme);
+      this.docObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+    }
+  }
 
   /** Put the theme in force on the root as custom properties, so the DOM inside it (controls, popups) matches the canvas also when the
    *  theme came from `setTheme` rather than CSS. The viewer reads CSS from its target, never from its root, so this cannot feed back. */
@@ -822,6 +853,37 @@ export class TreeViewer {
 
   setViewport(v: Viewport, animate = false): void {
     this.vs.setViewport(v, animate);
+  }
+
+  /** The window `fit()` would go to, without moving: the whole tree and the columns in the container as it is now (a copy). */
+  fitViewport(): Viewport {
+    this.vs.computeArea();
+    return { ...this.vs.fitViewport() };
+  }
+
+  /** The view as an image: what `render` draws now, drawn again into an offscreen canvas with the same code (the visible canvas is not
+   *  read), without hover and keyboard rings. `type` is an image MIME type (default 'image/png'); `scale` the backing pixels per CSS
+   *  pixel (default the canvas's own, `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale`;
+   *  `background` a CSS colour, or null for a transparent image (default: the theme's background). Rejects when the canvas cannot
+   *  make the image (a size over 16384 px, say). */
+  toBlob(opts: { type?: string; scale?: number; background?: string | null } = {}): Promise<Blob> {
+    if (this.destroyed) return Promise.reject(new Error('toBlob: the viewer is destroyed'));
+    const scale = opts.scale ?? this.effScale();
+    if (!(scale > 0) || !Number.isFinite(scale)) return Promise.reject(new RangeError('toBlob: scale must be a positive number'));
+    const w = Math.round(this.W * scale),
+      h = Math.round(this.H * scale);
+    if (w > MAX_EXPORT_PX || h > MAX_EXPORT_PX)
+      return Promise.reject(new RangeError(`toBlob: ${w} x ${h} px is over the ${MAX_EXPORT_PX} px limit; lower the scale`));
+    this.renderNow(); // the list, projection and transform of the current view
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return Promise.reject(new Error('toBlob: no 2D context'));
+    this.paint(ctx, scale, new LabelList(), opts.background === undefined ? this.theme.background : opts.background, false);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob: the canvas produced no image'))), opts.type ?? 'image/png');
+    });
   }
 
   /** Fit the whole tree (and the columns) into the container. */
@@ -1033,6 +1095,8 @@ export class TreeViewer {
     this.ro = null;
     (document as Document & { fonts?: FontFaceSet }).fonts?.removeEventListener?.('loadingdone', this.onFonts);
     this.schemeQuery?.removeEventListener?.('change', this.onScheme);
+    this.docObserver?.disconnect();
+    this.docObserver = null;
     this.input.destroy();
     this.uiLayer.removeEventListener('wheel', this.onUiWheel);
     this.container.remove();
@@ -1184,43 +1248,7 @@ export class TreeViewer {
     const td = performance.now();
     // a background that is not opaque (transparent, rgba) would otherwise show the frames before this one
     if (this.canvasAlpha) ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = this.theme.background;
-    ctx.fillRect(0, 0, W, H);
-    const bands = opts.highlightStyle !== 'dim';
-    const dimming = opts.highlightStyle !== 'band';
-    const S: Scene = {
-      proj: this.proj,
-      list: this.list,
-      theme: this.theme,
-      colours: this.colours,
-      classOf: this.classOf,
-      highlight: bands ? this.hl : null,
-      hlRanks: bands ? this.hlRanks : NO_RANKS,
-      hlPrefix: dimming ? this.dimPrefix() : null,
-      collapsed: this.collapsedRank,
-      hoverNode: this.hoverNode,
-      activeNode: this.activeNode,
-      density: opts.labelDensity,
-      format: opts.formatLabel,
-      scale: dpr,
-      thin: !rect && this.list.count >= THIN_PRIMS,
-      measure: this.measurer,
-    };
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
-    ctx.clip();
-    drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
-    drawBody(ctx, S, this.theme.branchWidth);
-    drawMarkers(ctx, S);
-    drawLabels(ctx, S, this.labels);
-    ctx.restore();
-    if (rect) {
-      const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
-      if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
-    } else if (opts.axis) drawScaleBar(ctx, S);
-
+    this.paint(ctx, dpr, this.labels, this.theme.background);
     const drawMs = performance.now() - td;
     // the DOM overlay (label anchors) and the notice follow full-quality frames only; a reduced frame is replaced within refineMs
     if (!reduced) {
@@ -1260,6 +1288,52 @@ export class TreeViewer {
       this.readyEmitted = true;
       this.events.emit('ready', { layoutMs: this.L.layoutMs, tips: this.source.tipCount });
     }
+  }
+
+  /** Draw the current cut (list, projection T) on `ctx` at `scale` backing pixels per CSS pixel: the background (none for null), the
+   *  tree, the labels (into `labels`), the columns and the axis. The frame and `toBlob` both go through here. */
+  private paint(ctx: CanvasRenderingContext2D, scale: number, labels: LabelList, background: string | null, interactive = true): void {
+    const { W, H, opts, tree, T, vs } = this;
+    const rect = opts.layout === 'rectangular';
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    if (background !== null) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, W, H);
+    }
+    const bands = opts.highlightStyle !== 'dim';
+    const dimming = opts.highlightStyle !== 'band';
+    const S: Scene = {
+      proj: this.proj,
+      list: this.list,
+      theme: this.theme,
+      colours: this.colours,
+      classOf: this.classOf,
+      highlight: bands ? this.hl : null,
+      hlRanks: bands ? this.hlRanks : NO_RANKS,
+      hlPrefix: dimming ? this.dimPrefix() : null,
+      collapsed: this.collapsedRank,
+      hoverNode: interactive ? this.hoverNode : -1,
+      activeNode: interactive ? this.activeNode : -1,
+      density: opts.labelDensity,
+      format: opts.formatLabel,
+      scale,
+      thin: !rect && this.list.count >= THIN_PRIMS,
+      measure: this.measurer,
+    };
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
+    ctx.clip();
+    drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
+    drawBody(ctx, S, this.theme.branchWidth);
+    drawMarkers(ctx, S);
+    drawLabels(ctx, S, labels);
+    ctx.restore();
+    if (rect) {
+      const barC = this.theme.categorical[1] ?? this.theme.highlight;
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
+      if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
+    } else if (opts.axis) drawScaleBar(ctx, S);
   }
 
   private updateNotice(show: boolean, n: number): void {
