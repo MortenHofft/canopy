@@ -97,6 +97,12 @@ body {
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
+.page-back {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--rt-primary);
+  text-decoration: none;
+}
 .page-head h1 {
   font-size: 20px;
   margin: 0;

@@ -17,11 +17,11 @@ const deadCode = {
 };
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'data/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'data/**', 'site-dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['packages/*/src/**/*.{ts,tsx}', 'examples/*/src/**/*.{ts,tsx}', 'tests/browser/src/**/*.{ts,tsx}'],
+    files: ['packages/*/src/**/*.{ts,tsx}', 'examples/*/src/**/*.{ts,tsx}', 'tests/browser/src/**/*.{ts,tsx}', 'site/src/**/*.ts'],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },
     rules: {

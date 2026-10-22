@@ -12,6 +12,8 @@
     "examples/react",
     "examples/vanilla",
     "examples/reactree",
+    "examples/playground",
+    "site",
     "tests/browser"
   ],
   "scripts": {
@@ -22,7 +24,8 @@
     "test": "npm test --workspaces --if-present",
     "build": "npm run build -w packages/io -w packages/tree-ops -w packages/viewer -w packages/react",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "check:packages": "node scripts/check-packages.mjs"
+    "check:packages": "node scripts/check-packages.mjs",
+    "build:site": "node scripts/build-site.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

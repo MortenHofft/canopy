@@ -34,6 +34,9 @@ function App() {
   return (
     <div className="page">
       <header className="page-head">
+        <a className="page-back" href="/">
+          ← All demos
+        </a>
         <h1>
           Reactree<span>.js</span> <small>look-alike on @gbif-phylo</small>
         </h1>

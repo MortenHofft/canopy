@@ -1,0 +1,191 @@
+/* Playground page. Only GBIF design tokens (../../react/src/gbif-tokens.css); the tree takes its look from the settings panel. */
+
+body {
+  margin: 0;
+  background: var(--bg-surface);
+  color: var(--fg1);
+  font: var(--text-base) / 1.4 var(--font-body);
+}
+.top {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-6) var(--space-2);
+}
+.top h1 {
+  margin: 0;
+  font: var(--fw-semibold, 600) var(--text-2xl) var(--font-display);
+}
+.lede {
+  margin: 0;
+  color: var(--fg3);
+  flex: 1;
+  min-width: 16rem;
+}
+.back {
+  color: var(--color-accent-blue);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.top-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+.layout {
+  display: grid;
+  grid-template-columns: 20rem minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-6) var(--space-6);
+  align-items: start;
+}
+@media (max-width: 52rem) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding: var(--space-2) var(--space-4) var(--space-4);
+  }
+  .top {
+    padding: var(--space-4) var(--space-4) var(--space-2);
+  }
+}
+
+/* ---- settings panel */
+.panel {
+  position: sticky;
+  top: var(--space-2);
+  max-height: calc(100vh - var(--space-4));
+  overflow: auto;
+  background: var(--bg1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+}
+.group {
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+.group summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: var(--space-2) 0;
+  color: var(--fg1);
+}
+.tree-group select {
+  width: 100%;
+}
+.setting {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-size: var(--text-sm);
+  color: var(--fg2);
+}
+.setting--toggle {
+  grid-template-columns: auto 1fr;
+}
+.setting--select,
+.setting--text {
+  grid-template-columns: 1fr minmax(8rem, 11rem);
+}
+.setting.changed .setting-name {
+  color: var(--fg1);
+  font-weight: 600;
+}
+.setting.changed .setting-name::after {
+  content: ' •';
+  color: var(--color-primary);
+}
+.setting select,
+.setting input[type='search'] {
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg1);
+  color: var(--fg1);
+  min-width: 0;
+}
+.setting input[type='range'] {
+  width: 7rem;
+  accent-color: var(--color-primary);
+}
+.setting input[type='checkbox'] {
+  accent-color: var(--color-primary);
+}
+.setting input[type='color'] {
+  width: 2.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: none;
+}
+.setting input:disabled {
+  opacity: 0.4;
+}
+.setting output {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.5rem;
+  text-align: right;
+  color: var(--fg3);
+}
+.muted {
+  color: var(--fg3);
+  font-size: var(--text-xs);
+  margin: var(--space-1) 0;
+}
+.error {
+  color: var(--color-danger);
+}
+
+/* ---- tree and readout */
+.main {
+  min-width: 0;
+}
+.tree-card {
+  height: calc(100vh - 10rem);
+  min-height: 420px;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+/* the "transparent" theme setting: the page shows through the canvas */
+.tree-card.dotted {
+  background-color: var(--bg-surface);
+  background-image: radial-gradient(circle, var(--grey-900) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+#tree {
+  width: 100%;
+  height: 100%;
+}
+.readout-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font: var(--text-xs) var(--font-mono);
+  color: var(--fg3);
+  margin-bottom: var(--space-2);
+}
+.hover {
+  color: var(--fg2);
+}
+.readout-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+}
+.log-card summary {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  font-weight: 600;
+}
+.log-card pre {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  max-height: 14rem;
+  overflow: auto;
+  font: var(--text-xs) / 1.5 var(--font-mono);
+}

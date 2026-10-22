@@ -1,0 +1,120 @@
+/* The hub. Only GBIF design tokens (examples/react/src/gbif-tokens.css). */
+
+body {
+  margin: 0;
+  background: var(--bg-surface);
+  color: var(--fg1);
+  font: var(--text-base) / 1.5 var(--font-body);
+}
+.hero,
+main,
+footer {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+.hero {
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-6);
+}
+.hero h1 {
+  margin: 0 0 var(--space-3);
+  font: 600 var(--text-4xl) var(--font-display);
+}
+.hero p {
+  max-width: 46rem;
+  color: var(--fg2);
+  font-size: var(--text-md);
+}
+.links {
+  display: flex;
+  gap: var(--space-6);
+}
+a {
+  color: var(--color-accent-blue);
+}
+h2 {
+  font: 600 var(--text-xl) var(--font-display);
+  margin: var(--space-8) 0 var(--space-2);
+}
+.section-lede {
+  color: var(--fg3);
+  margin: 0 0 var(--space-4);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+  gap: var(--space-4);
+}
+.demo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+}
+.thumb {
+  display: block;
+  aspect-ratio: 16 / 10;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border-default);
+  overflow: hidden;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  display: block;
+}
+.demo-body {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.demo h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+.demo h3 a {
+  color: var(--fg1);
+  text-decoration: none;
+}
+.demo h3 a:hover {
+  text-decoration: underline;
+}
+.demo-body > p {
+  margin: 0 0 var(--space-3);
+  color: var(--fg2);
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+}
+.tags li {
+  margin: 0;
+  line-height: 1.6;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-light);
+  color: var(--fg2);
+}
+.demo-links {
+  margin: auto 0 0;
+  display: flex;
+  gap: var(--space-2);
+}
+.demo-links .btn {
+  text-decoration: none;
+}
+footer {
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-8);
+  color: var(--fg3);
+  font-size: var(--text-xs);
+}

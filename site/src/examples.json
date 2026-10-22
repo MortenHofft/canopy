@@ -1,0 +1,20 @@
+[
+  {
+    "id": "playground",
+    "dir": "examples/playground",
+    "kind": "playground",
+    "title": "Playground",
+    "description": "The plain viewer with every option, theme token and built-in control in one panel. Try it on trees from 6 tips to 2.4 million, or on a file of your own. The URL keeps your settings, so a view can be shared.",
+    "tags": ["@gbif-phylo/viewer", "no framework", "all options"],
+    "data": "src/catalogue.json"
+  },
+  {
+    "id": "reactree",
+    "dir": "examples/reactree",
+    "kind": "showcase",
+    "title": "Custom styling: a Reactree look-alike",
+    "description": "The Reactree viewer's toolbars, icons, modes and look, rebuilt on the public API: <TreeView>, tree-ops for every edit, a control of our own for node labels, and a theme made only of CSS custom properties. Its README lists what could not be matched.",
+    "tags": ["React", "tree-ops", "custom theme"],
+    "data": "src/trees.json"
+  }
+]

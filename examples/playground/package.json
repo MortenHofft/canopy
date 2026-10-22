@@ -1,0 +1,20 @@
+{
+  "name": "@gbif-phylo/example-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --port 5310 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@gbif-phylo/io": "0.1.0",
+    "@gbif-phylo/viewer": "0.1.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.11"
+  }
+}

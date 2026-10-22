@@ -1,39 +1,26 @@
 // The trees this example can show (?tree=<id>), from the repository's data/ folder (served at /data/ by the dev server), some with
-// the alignment the tree was inferred from. .gz files arrive as raw bytes and are inflated here with DecompressionStream.
+// the alignment the tree was inferred from (list in trees.json). Gzipped files are inflated here with DecompressionStream.
 
 import { parseNewick, parseNexus, type TreeModel } from '@gbif-phylo/io';
+import trees from './trees.json';
 
 interface Entry {
   label: string;
-  path: string;
+  path: string; // under data/
   format: 'newick' | 'nexus';
   fasta?: string;
 }
 
-export const TREES: Record<string, Entry> = {
-  'rich-fish-carangaria-135': { label: 'Carangaria MCC (135 tips, dated)', path: 'rich/fish-carangaria-mcc/Carangaria-MCC.tre', format: 'nexus' },
-  'rich-hcv-19': {
-    label: 'HCV 2k IQ-TREE (19 tips, nucleotides)',
-    path: 'rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre',
-    format: 'nexus',
-    fasta: 'rich/hcv-2k-iqtree-alignment/2k1b_2k_ext.fasta.gz',
-  },
-  'rich-ens-protein-197': {
-    label: 'Ensembl protein family (197 tips, amino acids)',
-    path: 'rich/ens-protein-197/tree.nwk',
-    format: 'newick',
-    fasta: 'rich/ens-protein-197/alignment.fa.gz',
-  },
-  'edge-internal-support': { label: 'Support values (6 tips)', path: 'rich/edge-cases/internal-labels-support.nwk', format: 'newick' },
-  'rich-corvoid-680': { label: 'Corvoid MCC (680 tips)', path: 'rich/corvoid-mcc-680/CC_MCC.tre.gz', format: 'nexus' },
-  'otl-1k': { label: 'Open Tree, Testudines (1k tips)', path: 'real-ladder/trees/otl-1k-testudines.nwk.gz', format: 'newick' },
-  'syn-yule-10000': { label: 'Yule (10,000 tips)', path: 'synthetic/newick/yule_10000.nwk.gz', format: 'newick' },
-};
+/** In a JSON file so the site build (scripts/build-site.mjs) can copy exactly these files from data/. */
+export const TREES = trees as Record<string, Entry>;
 
 async function text(path: string): Promise<string> {
   const r = await fetch(`/data/${path}`);
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
-  return path.endsWith('.gz') ? new Response(r.body!.pipeThrough(new DecompressionStream('gzip'))).text() : r.text();
+  // inflate by content, not by name: a host that sends .gz with Content-Encoding: gzip has the browser inflate it already
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return new TextDecoder().decode(bytes);
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
 }
 
 /** FASTA records by id (the header up to the first space). */

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Playground · @gbif-phylo</title>
+  </head>
+  <body>
+    <header class="top">
+      <a class="back" href="/">← All demos</a>
+      <h1>Playground</h1>
+      <p class="lede">The viewer with every option, theme token and built-in control. Changes apply at once; the URL keeps them.</p>
+      <div class="top-actions">
+        <button type="button" class="btn btn-secondary" id="reset">Reset all</button>
+        <button type="button" class="btn btn-primary" id="copy-link">Copy link</button>
+      </div>
+    </header>
+    <div class="layout">
+      <aside class="panel" aria-label="Settings">
+        <section class="group tree-group">
+          <label class="setting setting--select">
+            <span class="setting-name">Tree</span>
+            <select id="tree-select" aria-label="Tree"></select>
+          </label>
+          <input type="file" id="tree-file" accept=".nwk,.newick,.tre,.tree,.nex,.nexus,.txt,.gz" hidden />
+          <p id="tree-info" class="muted" aria-live="polite"></p>
+        </section>
+        <div id="settings"></div>
+      </aside>
+      <main class="main">
+        <div class="card tree-card">
+          <div id="tree"></div>
+        </div>
+        <div class="readout-bar">
+          <span id="readout" class="readout" aria-live="off"></span>
+          <span id="hover" class="hover"></span>
+          <span class="readout-actions">
+            <button type="button" class="btn btn-tertiary" id="fit-now">Fit</button>
+            <button type="button" class="btn btn-tertiary" id="bench" title="Draw 30 full frames and report the time">Benchmark</button>
+          </span>
+        </div>
+        <details class="card log-card">
+          <summary>Event log</summary>
+          <pre id="log"></pre>
+        </details>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -4,8 +4,10 @@
 //   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
 //   reactree  examples/reactree (a Reactree look-alike) scripts/check-reactree.mjs
+//   playground examples/playground (every setting)     scripts/check-playground.mjs
 //   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
-//   node scripts/test-browser.mjs [--only test,vanilla,react,reactree,no-build] [--no-build]
+//   site      the demo site as Vercel serves it        scripts/check-site.mjs (runs scripts/build-site.mjs, serves site-dist itself)
+//   node scripts/test-browser.mjs [--only test,vanilla,react,reactree,playground,no-build,site] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -117,8 +119,16 @@ const SUITES = [
     check: 'check-reactree.mjs',
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
+  {
+    name: 'playground',
+    dir: path.join(repo, 'examples/playground'),
+    check: 'check-playground.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
   // no Vite: the packages' own build (dist/browser), and the check serves the repository as static files
   { name: 'no-build', dir: path.join(repo, 'examples/no-build'), check: 'check-no-build.mjs', static: true },
+  // the check builds the site itself (scripts/build-site.mjs, unless --no-build) and serves it
+  { name: 'site', dir: repo, check: 'check-site.mjs', self: true },
 ];
 
 /** `npm run build` at the repository root (every package, with the single-file browser builds); resolves to its exit code. */
@@ -136,6 +146,11 @@ for (const s of SUITES) {
   if (only && !only.includes(s.name)) continue;
   try {
     console.log(`\n== ${s.name}: ${path.relative(repo, s.dir)}`);
+    if (s.self) {
+      console.log(`> ${s.check}`);
+      code ||= await run([path.join(here, s.check), ...(flag('no-build') ? ['--no-build'] : [])]);
+      continue;
+    }
     if (s.static) {
       if (!flag('no-build')) {
         console.log('> npm run build (packages)');

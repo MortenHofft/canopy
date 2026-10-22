@@ -1,0 +1,16 @@
+{
+  "name": "@gbif-phylo/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "The demo site's hub page; scripts/build-site.mjs builds it with the examples it lists into site-dist/.",
+  "scripts": {
+    "dev": "vite --port 5311 --strictPort",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "vite": "5.4.11"
+  }
+}

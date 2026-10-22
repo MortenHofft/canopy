@@ -37,6 +37,10 @@ npm workspaces (Node >= 22.7):
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
 - `examples/reactree`: a Reactree look-alike on the public API (its README lists the gaps found), checked by
   `tests/browser/scripts/check-reactree.mjs`.
+- `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
+  URL), checked by `tests/browser/scripts/check-playground.mjs`.
+- `site`: the demo site's hub. `npm run build:site` (`scripts/build-site.mjs`) builds it with the pages in `site/src/examples.json` and
+  their data into `site-dist/`; Vercel runs it (`vercel.json`). Checked as served by `tests/browser/scripts/check-site.mjs`.
 - `examples/no-build`: plain HTML using the single-file builds (`<package>/browser`, `dist/browser/*.js`, made by
   `scripts/bundle-browser.mjs` in the viewer and io builds) through an import map; checked by `tests/browser/scripts/check-no-build.mjs`.
 - `tests/browser`: a test page exposing `window.__spike`/`__spike2`/`__customTree`, the browser checks and the benchmarks.
@@ -64,12 +68,14 @@ npm workspaces (Node >= 22.7):
   `node --experimental-transform-types scripts/capture-cut-golden.mjs` rewrites `test/cut-golden.json` after a deliberate change of the
   cut. Otherwise a diff of that file is a regression.
 - **Browser tests.**
-  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,reactree,no-build` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
+  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,reactree,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
     - the test page runs `check-radial-ui.mjs`;
     - the vanilla example runs `check-vanilla-example.mjs`;
     - the React example runs `check-node-menu.mjs`;
     - the Reactree look-alike runs `check-reactree.mjs`;
+    - the playground runs `check-playground.mjs`;
     - the no-build example runs `check-no-build.mjs`. It builds the packages and serves static files itself, without Vite.
+    - the site runs `check-site.mjs`. It runs `scripts/build-site.mjs` and serves `site-dist/` with vercel.json's URL rules.
   - Each check also runs against a dev server with `--url`.
   - Cloud sandbox: headless Chromium at /opt/pw-browsers/chromium-1194 (Playwright `executablePath`). There is no GPU, so use it for functional and relative tests; final frame rates need a real browser.
   - Do not use `pkill -f`.

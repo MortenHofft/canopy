@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>@gbif-phylo demos</title>
+    <meta name="description" content="Demos of @gbif-phylo, a phylogenetic tree viewer for the web: a playground with every setting, and examples of custom builds." />
+  </head>
+  <body>
+    <header class="hero">
+      <h1>@gbif-phylo</h1>
+      <p>
+        A phylogenetic tree viewer for the web: framework-free, level-of-detail rendering on a canvas from a handful of tips to millions,
+        with a React wrapper, tree operations and Newick / NEXUS parsers. These pages are built from the repository on every push.
+      </p>
+      <p class="links">
+        <a id="repo-link" href="https://github.com/MortenHofft/gbif-phylo">Source on GitHub</a>
+        <a id="api-link" href="https://github.com/MortenHofft/gbif-phylo/blob/main/packages/viewer/docs/api.md">API reference</a>
+      </p>
+    </header>
+    <main>
+      <section aria-labelledby="h-play">
+        <h2 id="h-play">Try the viewer</h2>
+        <div class="cards" id="playground-cards"></div>
+      </section>
+      <section aria-labelledby="h-show">
+        <h2 id="h-show">Built with it</h2>
+        <p class="section-lede">Specific implementations on the public API, each with its source and a list of what it needed.</p>
+        <div class="cards" id="showcase-cards"></div>
+      </section>
+    </main>
+    <footer id="build"></footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
