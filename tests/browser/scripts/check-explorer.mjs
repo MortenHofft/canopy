@@ -1082,6 +1082,14 @@ await page.waitForTimeout(300);
 const cell = await ev(() => __v().columnCell('alignment', 0));
 ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
 ok((await page.locator('.ex-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
+ok(
+  await ev(() => {
+    const h = document.querySelector('.ex-hint').getBoundingClientRect();
+    const r = document.querySelector('.ex-legend').getBoundingClientRect();
+    return h.bottom <= r.top || h.top >= r.bottom || h.right <= r.left || h.left >= r.right;
+  }),
+  'the hint does not overlap the alignment legend (#69)',
+);
 // the legend is the canvas's own table: in dark mode, every swatch is a colour the cells are drawn in (and the cells use no other)
 if ((await ev(() => document.documentElement.dataset.theme)) !== 'dark') {
   await page.locator('.theme-toggle').click();
@@ -1655,9 +1663,77 @@ ok(
   /\(\d+ tips\)|Clade of/.test(await page.locator('.phylo-legend').innerText()),
   `named by its clade: ${(await page.locator('.phylo-legend').innerText()).replace(/\n/g, ' / ')}`,
 );
+// the "Scroll to zoom" hint never overlaps a legend (#69): the viewer's clade legend, in either layout, and the alignment strip
+const hintClear = () =>
+  ev(() => {
+    const h = document.querySelector('.ex-hint')?.getBoundingClientRect();
+    if (!h) return true; // not drawn: nothing overlaps
+    return ['.phylo-legend', '.ex-legend'].every((sel) => {
+      const e = document.querySelector(sel);
+      if (!e || e.hidden || getComputedStyle(e).display === 'none') return true;
+      const r = e.getBoundingClientRect();
+      return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
+    });
+  });
+ok(await hintClear(), 'the hint does not overlap the clade legend (rectangular)');
+await page.locator('button[title=Circular]').click();
+await page.waitForTimeout(300);
+ok(
+  (await page.locator('.phylo-legend:visible').count()) === 1 && (await page.locator('.ex-hint').count()) === 1,
+  'radial keeps its hint, with the legend shown',
+);
+ok(await hintClear(), 'the hint does not overlap the clade legend (radial)');
+await page.locator('button[title=Rectangular]').click();
+await page.waitForTimeout(300);
 await tog('Legend').click();
 await page.waitForTimeout(200);
 ok((await page.locator('.phylo-legend:visible').count()) === 0, 'Legend off hides it');
+ok((await page.locator('.ex-hint').count()) === 1 && (await hintClear()), 'and the rectangular hint is back');
+
+// the hint goes once the user zooms or pans, and stays gone (#69)
+console.log('the hint goes after the first zoom or pan');
+await open('rich-hcv-19');
+ok((await page.locator('.ex-hint').count()) === 1, 'the hint is shown at first');
+{
+  const b = await ev(() => document.querySelector('.ex-pane').getBoundingClientRect().toJSON());
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await page.waitForTimeout(150);
+  ok((await page.locator('.ex-hint').count()) === 1, 'a click does not remove it');
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.wheel(0, -200);
+  await page.waitForTimeout(200);
+  ok((await page.locator('.ex-hint').count()) === 0, 'a wheel turn removes it');
+  await page.locator('button[title=Circular]').click();
+  await page.waitForTimeout(200);
+  ok((await page.locator('.ex-hint').count()) === 0, 'and a new layout does not bring it back');
+}
+await open('rich-hcv-19');
+{
+  const b = await ev(() => document.querySelector('.ex-pane').getBoundingClientRect().toJSON());
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 40, b.y + b.height / 2 + 10, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  ok((await page.locator('.ex-hint').count()) === 0, 'a drag removes it');
+}
+await open('rich-hcv-19');
+{
+  const b = await ev(() => document.querySelector('.ex-pane').getBoundingClientRect().toJSON());
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 2, b.y + b.height / 2 + 1);
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  ok((await page.locator('.ex-hint').count()) === 1, 'a jittery click does not remove it');
+  await page.locator('.phylo-tree').focus();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(100);
+  ok((await page.locator('.ex-hint').count()) === 1, 'an arrow key (it moves the active node) does not');
+  await page.keyboard.press('+');
+  await page.waitForTimeout(150);
+  ok((await page.locator('.ex-hint').count()) === 0, 'the zoom key removes it');
+}
 
 // ---------------------------------------------------------------- the alignment fills the width
 console.log('alignment column fills the width');

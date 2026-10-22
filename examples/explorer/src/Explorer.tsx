@@ -58,6 +58,11 @@ function shownSelection(selected: number | null, view: { toView: Int32Array } | 
   return null;
 }
 
+/** Whether the "Scroll to zoom" hint is drawn. The rectangular one shares the bottom-right corner with the viewer's clade legend, so it gives way while that shows. */
+function hintShown(gone: boolean, layout: Layout, legendOn: boolean, shownCladeCount: number): boolean {
+  return !gone && (layout === 'radial' || !(legendOn && shownCladeCount > 0));
+}
+
 // What ladderise sorts by: 'height' is not on offer without branch lengths, so a tree without them falls back to tips.
 function effectiveLadderBy(choice: LadderBy, hasLengths: boolean): LadderBy {
   return choice === 'height' && !hasLengths ? 'tips' : choice;
@@ -183,6 +188,11 @@ export function Explorer({
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
+  // a click does not count, and a new tree or layout does not bring it back
+  const [hintGone, setHintGone] = useState(false);
+  const dismissHint = () => setHintGone(true);
+  const dragFrom = useRef<{ x: number; y: number } | null>(null); // where a drag in the pane began (not on the resize grip)
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
   const [hScale, setHScale] = useState(1);
@@ -1254,7 +1264,20 @@ export function Explorer({
       </Scroller>
 
       {/* ── Body: the tree ── */}
-      <div className="ex-pane" style={{ height }}>
+      <div
+        className="ex-pane"
+        style={{ height }}
+        onWheel={dismissHint}
+        onPointerDown={(e) => {
+          dragFrom.current = (e.target as Element).closest('.ex-resize') ? null : { x: e.clientX, y: e.clientY };
+        }}
+        onPointerMove={(e) => {
+          const d = dragFrom.current;
+          if (d && e.buttons > 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) dismissHint();
+        }}
+        onPointerUp={() => (dragFrom.current = null)}
+        onKeyDown={(e) => ['+', '=', '-', '_'].includes(e.key) && dismissHint()}
+      >
         <TreeView
           ref={ref}
           tree={shown}
@@ -1406,7 +1429,11 @@ export function Explorer({
             {toast}
           </div>
         )}
-        <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        {/* the viewer's clade legend is bottom right too, and grows with its entries: the rectangular hint (also bottom right) gives way to it.
+            The radial hint is bottom left, clear of it. */}
+        {hintShown(hintGone, layout, showLegend, shownClades.length) && (
+          <div className={`ex-hint ex-hint--${layout}`}>Scroll to zoom · Drag to pan</div>
+        )}
         <div className="ex-resize" title="Drag to resize" onPointerDown={onResizeDown}>
           <div className="ex-grip" />
         </div>
