@@ -47,10 +47,10 @@ Each control and the API behind it.
 | **Align** (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are `--phylo-leader-*` theme tokens. Disabled in the circular layout, with a tooltip, until [#52](https://github.com/MortenHofft/gbif-phylo/issues/52) |
 | **Overview**, **Legend** | the viewer's `OverviewControl` and `Legend` controls from `defaultControls({ overview, legend })`; their look follows `--phylo-surface` and `--phylo-border`. The legend names the coloured clades |
 | **Alignment** track and legend | an `alignment` column with `width: 'fill'` (the rest of the width) and `options.treeWidth: '40%'` while it is shown; the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas |
-| **Export**: PNG at 1×, 2×, 4×; Newick; NEXUS | `viewer.toBlob({ scale, background })` (the pane colour under the transparent canvas); `toNewick` / `toNexus` from `@gbif-phylo/io` |
+| **Export**: PNG at 1×, 2×, 4×; Newick; NEXUS | `viewer.toBlob({ scale })` (the theme's background, the pane's grey, as on screen); `toNewick` / `toNexus` from `@gbif-phylo/io` |
 | Tooltips ("Click for actions", "Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; `options.themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
-| Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
+| Pane background | `--phylo-background: var(--ex-surface-10)`: an opaque canvas in the pane's grey; no dotted grid. `dark` is derived from it |
 | Resize handle | the pane's height; the viewer follows its container |
 
 ### Large trees

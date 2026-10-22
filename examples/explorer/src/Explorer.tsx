@@ -19,6 +19,7 @@ import {
 } from '@gbif-phylo/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
+import { Scroller } from './Scroller.tsx';
 
 type Mode = 'none' | 'reroot' | 'flip' | 'swap' | 'color';
 type Layout = 'rectangular' | 'radial';
@@ -462,6 +463,7 @@ export function Explorer({
   };
   /** Put text on the clipboard: the async API where there is one, else a hidden textarea and execCommand('copy'). */
   const copyText = async (text: string): Promise<boolean> => {
+    const was = document.activeElement as HTMLElement | null; // the fallback selects a textarea: give the focus back after it
     try {
       await navigator.clipboard.writeText(text); // throws when there is no clipboard API (insecure page) or it is refused
       return true;
@@ -479,6 +481,7 @@ export function Explorer({
         ok = false;
       }
       ta.remove();
+      was?.focus?.({ preventScroll: true });
       return ok;
     }
   };
@@ -677,11 +680,10 @@ export function Explorer({
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const exportPng = (scale: 1 | 2 | 4) => {
-    // the view as an image, `scale` canvas pixels per CSS pixel. The tree is drawn on a transparent background (the pane's dotted grid
-    // shows through): the PNG gets the pane's colour
+    // the view as an image, `scale` canvas pixels per CSS pixel, on the theme's background (the pane's grey), as on screen
     ref.current
       ?.renderer()
-      ?.toBlob({ scale, background: cssVar('--ex-surface-10') })
+      ?.toBlob({ scale })
       .then((b) => download(b, scale === 1 ? 'phylotree.png' : `phylotree@${scale}x.png`))
       .catch((err) => flash(`PNG export at ${scale}×: ${(err as Error).message}`));
   };
@@ -747,7 +749,7 @@ export function Explorer({
   return (
     <div className={`ex-outer ex-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
-      <div className="ex-row" role="toolbar" aria-label="View">
+      <Scroller className="ex-row" role="toolbar" aria-label="View">
         <Slider
           icon={<I.IconWidth />}
           label={layout === 'radial' ? 'Size' : 'Width'}
@@ -859,19 +861,6 @@ export function Explorer({
         <div className="ex-spacer" />
         <button
           type="button"
-          className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
-          aria-label="Search tips"
-          title="Search tips (⌘F)"
-          onClick={() => {
-            if (searchOpen) return closeSearch();
-            setSearchOpen(true);
-            searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
-          }}
-        >
-          <I.IconSearch />
-        </button>
-        <button
-          type="button"
           className={`ex-btn ex-toggle${showOverview ? ' active' : ''}`}
           aria-label="Overview"
           aria-pressed={showOverview}
@@ -890,25 +879,40 @@ export function Explorer({
         >
           <J.IconLegend />
         </button>
-        <div className="ex-divider" />
-        <div className="ex-export" ref={exportRef}>
+        <div className="ex-pinned">
           <button
             type="button"
-            className={`ex-btn${downloadOpen ? ' open' : ''}`}
-            aria-haspopup="menu"
-            aria-expanded={downloadOpen}
-            title="Export tree"
-            onClick={() => setDownloadOpen((o) => !o)}
+            className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
+            aria-label="Search tips"
+            title="Search tips (⌘F)"
+            onClick={() => {
+              if (searchOpen) return closeSearch();
+              setSearchOpen(true);
+              searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
+            }}
           >
-            <I.IconExport />
-            Export
-            <I.IconChevronDown />
+            <I.IconSearch />
           </button>
+          <div className="ex-divider" />
+          <div className="ex-export" ref={exportRef}>
+            <button
+              type="button"
+              className={`ex-btn${downloadOpen ? ' open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={downloadOpen}
+              title="Export tree"
+              onClick={() => setDownloadOpen((o) => !o)}
+            >
+              <I.IconExport />
+              Export
+              <I.IconChevronDown />
+            </button>
+          </div>
         </div>
-      </div>
+      </Scroller>
 
       {/* ── Row 2: interaction tools ── */}
-      <div className="ex-row" role="toolbar" aria-label="Edit">
+      <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && (
           <>
             <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={undo}>
@@ -946,7 +950,13 @@ export function Explorer({
             </div>
             <span className="ex-chip" title="Only this clade is shown">
               <J.IconSubtree />
-              {ops.canGoUp(focus) ? `Clade of ${shown.tipCount.toLocaleString('en')} tips` : 'Whole tree'}
+              {ops.canGoUp(focus) ? (
+                <span>
+                  Clade of <span className="ex-mono">{shown.tipCount.toLocaleString('en')}</span> tips
+                </span>
+              ) : (
+                'Whole tree'
+              )}
             </span>
           </>
         )}
@@ -1154,7 +1164,7 @@ export function Explorer({
             <J.IconPercent />%
           </button>
         )}
-      </div>
+      </Scroller>
 
       {/* ── Body: the tree ── */}
       <div className="ex-pane" style={{ height }}>
