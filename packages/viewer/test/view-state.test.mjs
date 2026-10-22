@@ -526,3 +526,20 @@ test('treeWidth: the plot area (and so fit) follows the tree area; radial ignore
   assert.equal(a.clipR, 400);
   assert.equal(make({ layout: 'radial', treeWidth: 400 }).vs.area.clipR, 800);
 });
+
+test('zoomBy at the row cap does not scroll: y0 stays put under repeated wheel-in and centre zoom', () => {
+  const big = new InMemorySource(parseNewick(ladder(1000))).snapshot();
+  const { vs } = make({ tree: big, L: computeLayout(big, true), maxTipSpacing: 24 });
+  vs.view = vs.clampView({ x0: 0.2, x1: 0.4, y0: 500, y1: 500 + vs.area.ah / 24 });
+  const y = { y0: vs.view.y0, y1: vs.view.y1 };
+  const a = vs.area;
+  for (let i = 0; i < 5; i++) {
+    vs.zoomBy(1, 1.4, a.ax + 0.3 * a.aw, a.ay + 0.95 * a.ah); // pointer near the bottom
+    vs.zoomBy(1, 1.4, a.ax + a.aw / 2, a.ay + a.ah / 2); // the + key
+  }
+  assert.equal(vs.view.y0, y.y0);
+  assert.equal(vs.view.y1, y.y1);
+  const w = vs.view.x1 - vs.view.x0;
+  vs.zoomBy(1.4, 1, a.ax + a.aw / 2, a.ay + a.ah / 2);
+  assert.ok(vs.view.x1 - vs.view.x0 < w, 'x has no such limit and still zooms');
+});

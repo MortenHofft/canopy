@@ -541,6 +541,18 @@ const capped = await rowPx();
 ok(capped !== null && Math.abs(capped - 24) < 0.5, `wheel-in stops at the cap: ${capped} px per row with maxTipSpacing 24`);
 await wheelIn(10);
 ok(Math.abs((await rowPx()) - capped) < 1e-6, 'more wheel-in does not zoom further');
+{
+  // at the cap the wheel (pointer near the bottom) and the + key do nothing: the window does not scroll
+  const y0 = (await ev(() => window.viewer.getViewport())).y0;
+  const box = await page.locator('#tree canvas').first().boundingBox();
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.8);
+  for (let i = 0; i < 10; i++) await page.mouse.wheel(0, -400);
+  await page.locator('#tree canvas').first().focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('+');
+  await settled();
+  const y1 = (await ev(() => window.viewer.getViewport())).y0;
+  ok(y1 === y0, `at the cap the wheel and + do not scroll (y0 ${y0} -> ${y1})`);
+}
 await select('maxTipSpacing', 'Infinity');
 await wheelIn(60);
 ok((await rowPx()) > 100, `without a cap the rows keep growing (${await rowPx()} px)`);

@@ -275,7 +275,10 @@ export class ViewState {
 
   /** Zoom by factors fx, fy (>1 zooms in) keeping the layout point under (px, py) fixed. */
   zoomBy(fx: number, fy: number, px: number, py: number): void {
-    this.setViewport(this.zoomedView(fx, fy, px, py));
+    const a = this.area;
+    const v = this.view;
+    // through zoomAtWorld: an axis at its zoom limit keeps its window instead of scrolling
+    this.zoomAtWorld(fx, fy, v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0), v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0));
   }
 
   /** The window zoomBy goes to (radial: already clamped; rectangular: setViewport clamps). */

@@ -421,6 +421,8 @@ new TreeViewer({
 });
 ```
 
+### Aligned labels
+
 `alignLabels: true` puts the tip labels of a rectangular phylogram in one column: the text starts 8 px right of the farthest tip (and right of the
 triangle of a collapsed clade, when the tree has any), and a dotted leader line runs from each tip to 3 px before its label. The leaders are drawn
 below the tip dots, for the tips that get a label (same density rule, cap and culling as the labels), from the column leftward so the dash
@@ -435,8 +437,6 @@ nothing there.
 `leaderColour` must be a valid CSS colour or empty (empty = `muted`); anything else is drawn as the canvas reads it (an invalid value keeps the
 previous stroke colour). `leaderDash` as a CSS custom property: only `none` (not an empty value, which the viewer ignores) gives a solid line;
 with `setTheme`, `''` or `'none'` both do.
-
-### Aligned labels
 
 ### Node labels
 
