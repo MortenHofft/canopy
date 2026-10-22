@@ -126,6 +126,6 @@ export function addLen(a: number, b: number): number {
   return a + b;
 }
 
-export function checkNode(t: TreeInput, v: number): void {
+export function checkNode(t: TreeArrays, v: number): void {
   if (!Number.isInteger(v) || v < 0 || v >= t.nodeCount) throw new RangeError(`node ${v} is not in the tree (0..${t.nodeCount - 1})`);
 }

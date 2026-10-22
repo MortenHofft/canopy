@@ -26,8 +26,16 @@ export type Setting = Base &
     | { kind: 'text'; default: string; placeholder?: string }
   );
 
-export type Group = 'Layout and labels' | 'Level of detail' | 'Theme' | 'Controls' | 'Tree operations' | 'Data and interaction';
-export const GROUPS: Group[] = ['Layout and labels', 'Theme', 'Controls', 'Tree operations', 'Data and interaction', 'Level of detail'];
+export type Group = 'Layout and labels' | 'Level of detail' | 'Theme' | 'Controls' | 'Tree operations' | 'Data and interaction' | 'Residue colours';
+export const GROUPS: Group[] = [
+  'Layout and labels',
+  'Theme',
+  'Controls',
+  'Tree operations',
+  'Data and interaction',
+  'Residue colours',
+  'Level of detail',
+];
 
 const O = DEFAULT_OPTIONS;
 const T = FALLBACK_THEME;
@@ -278,6 +286,20 @@ export const SETTINGS: Setting[] = [
     default: true,
   },
   {
+    id: 'alphabet',
+    label: 'Alignment alphabet',
+    hint: 'auto: nucleotide when more than 90% of a sample is ACGTUN',
+    group: 'Data and interaction',
+    to: 'app',
+    kind: 'select',
+    default: 'auto',
+    options: [
+      ['auto', 'Auto'],
+      ['protein', 'Protein'],
+      ['nucleotide', 'Nucleotide'],
+    ],
+  },
+  {
     id: 'alignStyle',
     label: 'Alignment style',
     group: 'Data and interaction',
@@ -300,6 +322,29 @@ export const SETTINGS: Setting[] = [
     max: 4,
     step: 1,
   },
+
+  // ---- residue colours of alignment columns: unset (empty) means the default for a light or a dark theme, so these are text, not pickers
+  {
+    id: 'residueHydrophobic',
+    label: 'Hydrophobic (A I L M F W V C)',
+    hint: 'any CSS colour; empty = default for the theme',
+    group: 'Residue colours',
+    to: 'theme',
+    kind: 'text',
+    default: '',
+    placeholder: 'default',
+  },
+  { id: 'residuePositive', label: 'Positive (K R)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueNegative', label: 'Negative (E D)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residuePolar', label: 'Polar (N Q S T)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueAromatic', label: 'Aromatic (H Y)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueGlycine', label: 'Glycine (G)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueProline', label: 'Proline (P)', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueA', label: 'Nucleotide A', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueC', label: 'Nucleotide C', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueG', label: 'Nucleotide G', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueT', label: 'Nucleotide T / U', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
+  { id: 'residueOther', label: 'Any other residue', group: 'Residue colours', to: 'theme', kind: 'text', default: '', placeholder: 'default' },
 
   // ---- level of detail and performance
   {

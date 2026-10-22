@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once |
 | `@gbif-phylo/viewer/gbif.css` | optional: GBIF design tokens mapped to the `--phylo-*` properties |
 | `@gbif-phylo/react` | `<TreeView>` ([below](#treeview)) |
-| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`; `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -162,7 +162,7 @@ A control is any object with `element: HTMLElement`, optional `position` (`'top-
 `'bottom-right'`, or `'custom'`: put in the control layer as it is, positioned by itself), optional `target` (an element of the page: the
 control lives there instead of on the viewer) and `setViewer(viewer | null)`. `addControl` gives a control's element `pointer-events:
 auto` unless the element already has an inline `pointer-events`: a control that lays something over the whole tree (labels, say) sets
-`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
+`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control zooms the tree, and over the overview zooms about the tree point under the pointer (the overview handles its own wheel), except inside an element marked `data-phylo-scroll` (a list that
 scrolls itself, as the legend and the search suggestions are).
 
 `BaseControl` is the base class of the built-ins: `new BaseControl(name, { position, target, className }, element?)` gives the element the
@@ -195,7 +195,7 @@ Built-in controls (each in its own module; options extend `{ position, target, c
 | `Fit` | top-left | `icon`, `label` | `fit(true)` |
 | `LayoutToggle` | top-left | `icons`, `labels` (per layout) | one pressed button per layout; follows `optionschange` |
 | `Search` | top-right | `placeholder`, `maxResults` (8), `highlight` (false), `onSelect(tipId, viewer)`, `icon` | find tips by label (prefix matches first, case-insensitive on the displayed label), keyboard list; focuses the chosen tip |
-| `Legend` | bottom-right | `title`, `items` (`{colour, label, node?}[]` instead of the clade colours) | the clade colours with their names; click to zoom to a clade; hidden while empty |
+| `Legend` | bottom-right | `title`, `items` (`{colour, label, detail?, node?}[]` instead of the clade colours), `cladeLabel` (overrides the viewer option) | the clade colours with their names; click to zoom to a clade; hidden while empty; follows `formatLabel` and `cladeLabel` changes. A clade is named by its `setClades` label, else by its node's name and tip count (`Chelodina ott1 (12 tips)`; see Naming clades), else `Clade of 12 tips` (`Unnamed tip` for a tip with no label) |
 | `OverviewControl` | custom | | the whole tree in small with the window box (a strip right of the rectangular plot, which leaves room for it; a disc in radial) |
 
 `defaultControls({ zoom, fit, layoutToggle, search, legend, overview })` returns the usual set: zoom and fit on, the others off; each key is
@@ -217,13 +217,26 @@ All three are controls with position `'custom'`: add them with `addControl`.
 
 ```ts
 type Column = BuiltinColumn | CustomColumn;
-BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width, values: Record<tipLabel, number | string> }
+BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width, values: Record<tipLabel, number | string>, alphabet?: 'auto' | 'protein' | 'nucleotide' }
 CustomColumn:  { id, kind: 'custom', header, width, values: Record<tipLabel, V>, renderer: ColumnRenderer<V, D> }
 ```
 
 `values` (and `renderer`) are compared by reference when columns are set again: pass the same object while the data is unchanged and a new
 one when it changed; never mutate in place. Built-in kinds: log-scaled bars (binned per pixel row below 1.5 px per row), text (tinted bands
 below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and `alignRowGap`).
+
+An alignment column has two colour schemes, chosen by its `alphabet`: `'protein'` (Clustal-like groups) and `'nucleotide'` (A, C, G, T/U each
+their own colour). `'auto'`, the default, takes `'nucleotide'` when more than 90% of a sample of the residues (the first 400 non-gap
+residues of each sequence, up to 2000 in all; at most 20,000 characters are scanned per sequence) are A, C, G, T, U or N, otherwise `'protein'`. Changing `alphabet` recompiles the column.
+The colours are theme tokens (`residue*`, below). `residueColours(theme, alphabet)` returns the table the column is drawn from, and
+`residueGroups(alphabet)` the groups with their labels, so an app can draw a legend that cannot go stale:
+
+```ts
+import { residueColours, residueGroups, detectAlphabet } from '@gbif-phylo/viewer';
+const alphabet = detectAlphabet(Object.values(values)); // 'protein' | 'nucleotide', as 'auto' decides
+const colours = residueColours(viewer.getTheme(), alphabet); // { A: '#...', C: ..., ..., Z: ..., other: '#...' }
+const legend = residueGroups(alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
+```
 
 A `ColumnRenderer` draws a custom column:
 
@@ -262,7 +275,20 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `dimOpacity` | `--phylo-dim-opacity` | 0.25 | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
-| `dark` | `--phylo-dark` | from the background's luminance | the background is dark: informational, for apps and custom controls (the drawing code does not read it) |
+| `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
+| `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
+| `residueA`, `residueC`, `residueG`, `residueT` | `--phylo-residue-a`, `-c`, `-g`, `-t` | light and dark sets (below) | nucleotides of alignment columns; U is drawn like T |
+| `residueOther` | `--phylo-residue-other` | light and dark sets (below) | any other residue character, in either scheme (gaps are not drawn) |
+
+The residue tokens are optional: a token that is not set is the default for the theme's `dark` (light: the Clustal-like protein colours the viewer
+always had, and A `#2f9e44`, C `#2f6fd6`, G `#c27a00`, T/U `#d63b3b`; dark: lighter variants, each at least 3:1 against `#0f172a`, see
+`defaultResidueColour` in `src/residues.ts`). A value is read the way the browser reads a CSS colour (drawn on a 1x1 canvas and read back: names, `hsl()`, `oklch()`, `color-mix()`
+and `#rgba` all work; without a canvas, as in tests, only `#rgb`, `#rrggbb` and `rgb()`/`rgba()`). The alpha is dropped, because the
+alignment bitmap is opaque. A value that is not a colour, or is fully transparent, is replaced by the default with one console warning
+per value. `residueColours` returns each colour as the `#rrggbb` that is drawn, so the returned table is always what is drawn; results
+are cached per string, so a theme change resolves a colour once. Why groups for protein but bases for nucleotides: A, C, G and T are residues in both alphabets, so
+a token per letter would have to choose one meaning; the protein scheme colours seven groups, so seven tokens cover its twenty letters.
+Setting a token repaints the alignment columns (their bitmap holds the colours); the other columns are not recompiled.
 
 DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--phylo-surface-hover`, `--phylo-border`, `--phylo-radius`,
 `--phylo-control-radius`, `--phylo-control-size`, `--phylo-shadow`, `--phylo-popup-shadow`, `--phylo-gap`, `--phylo-font-size`,
@@ -291,6 +317,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
 | `alignRowGap` | `0` | alignment columns: empty px between sequences (rows at least 4 px tall) |
 | `formatLabel` | underscores to spaces | `(tipId) => string`, the displayed tip label |
+| `cladeLabel` | `null` | `(node, tree) => string \| null`, the name of an internal node (`node`: preorder id in the full tree; `tree`: the snapshot, label at `tree.labels[tree.toLocal(node)]`); null = none. See Naming clades |
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |
 | `ariaLabel` | `'Phylogenetic tree'` | label of the root element |
 | `softwareCanvas` | `false` | create the 2D contexts with `willReadFrequently` (CPU-backed canvas); read at construction only |
@@ -374,3 +401,18 @@ Props (all optional, but one of `tree` / `source` is needed):
 `setViewport(v)`, `locateTip(tipId)`, `locateNode(nodeId)`, `nodeBounds(nodeId)`, `columnCell(colId, tipId)`, `getStats()`, `benchmark(n)`,
 `renderer()` (the underlying `TreeViewer` or `null`, for everything else: events, controls). Methods that take ids translate them to node
 indexes and leaf ranks; unknown ids are ignored or return `null`.
+
+## Naming clades
+
+One rule names an internal node in the legend, the node menu's default title, the default tooltip's detail line and the keyboard cursor's announcement:
+the name is the `cladeLabel` option's result, or by default the node's label without its support value (`95:Chelodina_ott1` gives `Chelodina_ott1`,
+`98.0:c__Nitrososphaeria` gives `c__Nitrososphaeria`, `95` gives no name); it goes through `formatLabel`; with no name the places say `Clade of N tips`.
+A tip is named by its own label through `formatLabel`. Return null from `cladeLabel` to hide a synthetic name (OTL's `mrcaott…`) or return a name looked up elsewhere.
+
+Exported helpers:
+
+| Export | Signature |
+|---|---|
+| `internalName` | `(label: string) => string`: the label without its support value, `''` if it was only a support. The same rule as `splitInternalLabel(label).name` in `@gbif-phylo/io` (a test compares them) |
+| `cladeName` | `(tree: TreeSnapshot, row: number, opts: { formatLabel, cladeLabel? }) => string \| null`: the display name of the snapshot row `row`; passes `cladeLabel` the full-tree id of the node |
+| `CladeLabelFn` | `(node: number, tree: TreeSnapshot) => string \| null \| undefined` |

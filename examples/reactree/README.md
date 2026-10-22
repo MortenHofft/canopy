@@ -38,7 +38,7 @@ control and reads the result back from the viewer.
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
 | Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
-| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) |
+| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
@@ -62,8 +62,6 @@ Still open, found in the library:
 - **No aligned tip labels with leader lines** ([#35](https://github.com/MortenHofft/gbif-phylo/issues/35)). The Align button is shown disabled.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
-- **Alignment colours are a constant table** ([#21](https://github.com/MortenHofft/gbif-phylo/issues/21)) in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
-  them. Nucleotides use the amino-acid scheme, so A and C share a colour.
 
 Differences that follow from the design, not defects:
 

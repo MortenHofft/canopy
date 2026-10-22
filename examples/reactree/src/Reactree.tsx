@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
-import type { Column, Control, Viewport } from '@gbif-phylo/viewer';
+import { detectAlphabet, residueColours, residueGroups, type Column, type Control, type Viewport } from '@gbif-phylo/viewer';
 import { NodeLabels, type NodeLabelMode } from './node-labels.ts';
 import * as I from './icons.tsx';
 
@@ -19,40 +19,10 @@ const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'In
 const ERASE = 'reset';
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
 
-/** The residue colours the viewer's alignment column uses (a constant table in packages/viewer/src/columns.ts, not exported), for
- *  the legend under the alignment. */
-const AA_LEGEND = [
-  { colour: '#80a0f0', label: 'Hydrophobic' },
-  { colour: '#f01505', label: 'Positive' },
-  { colour: '#c048c0', label: 'Negative' },
-  { colour: '#15c015', label: 'Polar' },
-  { colour: '#15a4a4', label: 'Aromatic' },
-  { colour: '#f09048', label: 'Glycine' },
-  { colour: '#c0c000', label: 'Proline' },
-];
-const NT_LEGEND = [
-  { colour: '#80a0f0', label: 'A / C' },
-  { colour: '#f09048', label: 'G' },
-  { colour: '#15c015', label: 'T / U' },
-];
-
 interface Step {
   tree: TreeModel;
   clades: CladeProp[];
   collapsed: number[];
-}
-
-/** Where a clade (or a collapsed clade) goes after an operation: to the clade its surviving tips form, or nowhere when the operation
- *  split them (rerooting inside it) or removed them all. */
-function moveNode(tree: TreeModel, next: TreeModel, map: Int32Array, k: number): number {
-  const tips: number[] = [];
-  for (let rk = tree.leafStart[k]; rk < tree.leafEnd[k]; rk++) {
-    const v = map[tree.tipNode[rk]];
-    if (v >= 0) tips.push(v);
-  }
-  if (!tips.length) return -1;
-  const m = next.mrcaOf(tips);
-  return next.tipCountOf(m) === tips.length ? m : -1;
 }
 
 const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
@@ -121,6 +91,7 @@ export function Reactree({
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
+  const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -144,9 +115,7 @@ export function Reactree({
     // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
     const r = ops.collapseClades(tree, live);
     const shown = new TreeModel(r.tree);
-    const toTree = new Int32Array(shown.nodeCount);
-    for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;
-    return { tree: shown, toView: r.map, toTree, collapsedIds: live.map((v) => 'n' + r.map[v]) };
+    return { tree: shown, toView: r.map, toTree: ops.invertMap(r.map, shown.nodeCount), collapsedIds: live.map((v) => 'n' + r.map[v]) };
   }, [tree, collapsed]);
   const shown = view?.tree ?? tree;
   const toTree = useCallback((n: number) => (view ? view.toTree[n] : n), [view]);
@@ -188,24 +157,29 @@ export function Reactree({
     const values: Record<string, string> = {};
     let matched = 0;
     let sites = 0;
-    let nt = 0;
-    let all = 0;
     for (const l of published.tipLabels) {
-      const s = fasta[l];
-      if (s === undefined) continue;
-      values[l] = s;
+      const sq = fasta[l];
+      if (sq === undefined) continue;
+      values[l] = sq;
       matched++;
-      sites = Math.max(sites, s.length);
-      for (let i = 0; i < Math.min(s.length, 400); i++) {
-        const c = s[i].toUpperCase();
-        if (c === '-' || c === '.') continue;
-        all++;
-        if ('ACGTUN'.includes(c)) nt++;
-      }
+      sites = Math.max(sites, sq.length);
     }
-    const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 320, values };
-    return { column, matched, sites, amino: nt < all * 0.9 };
+    const alphabet = detectAlphabet(Object.values(values)); // the column would pick the same; it is passed so the legend cannot disagree
+    const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 320, values, alphabet };
+    return { column, matched, sites, alphabet };
   }, [fasta, published]);
+  // the legend reads the residue colours of the theme in force, so it follows every theme change, whoever made it
+  useEffect(() => {
+    if (!showAlignment) return;
+    return ref.current?.renderer()?.on('themechange', () => setThemeTick((t) => t + 1));
+  }, [showAlignment, alignment]);
+  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group
+  const legend = useMemo(() => {
+    if (!alignment) return [];
+    const colours = residueColours(ref.current?.renderer()?.getTheme() ?? {}, alignment.alphabet);
+    return residueGroups(alignment.alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeTick: the theme changed
+  }, [alignment, themeTick, showAlignment]);
   const columns = useMemo(
     () => (showAlignment && alignment && layout === 'rectangular' ? [alignment.column] : []),
     [showAlignment, alignment, layout],
@@ -276,11 +250,20 @@ export function Reactree({
     if (!r.changed) return flash(`${what}: nothing to change`);
     setSwapFirst(null);
     const next = new TreeModel(r.tree);
-    const keptClades = clades.flatMap((c) => {
-      const m = moveNode(tree, next, r.map, Number(c.nodeId.slice(1)));
+    const followedClades = ops.followClades(
+      tree,
+      next,
+      r.map,
+      clades.map((c) => Number(c.nodeId.slice(1))),
+    );
+    const keptClades = clades.flatMap((c, i) => {
+      const m = followedClades[i].node;
       return m >= 0 ? [{ ...c, nodeId: 'n' + m }] : [];
     });
-    const keptCollapsed = collapsed.map((k) => moveNode(tree, next, r.map, k)).filter((m) => m > 0 && next.childCount[m] > 0);
+    const keptCollapsed = ops
+      .followClades(tree, next, r.map, collapsed)
+      .map((f) => f.node)
+      .filter((m) => m > 0 && next.childCount[m] > 0);
     if (keptClades.length < clades.length) flash(`${clades.length - keptClades.length} colour(s) removed: their tips are no longer one clade`);
     setHistory((h) => [...h.slice(0, -1), { tree, clades, collapsed }, { tree: next, clades: keptClades, collapsed: keptCollapsed }]);
     setClades(keptClades);
@@ -903,12 +886,12 @@ export function Reactree({
 
       {columns.length > 0 && alignment && (
         <div className="rt-legend">
-          <span className={`rt-legend-type${alignment.amino ? ' aa' : ''}`}>{alignment.amino ? 'AA' : 'NT'}</span>
+          <span className={`rt-legend-type${alignment.alphabet === 'protein' ? ' aa' : ''}`}>{alignment.alphabet === 'protein' ? 'AA' : 'NT'}</span>
           <span className="rt-legend-meta">
             {alignment.sites.toLocaleString('en')} sites · {alignment.matched} of {published.tipCount} tips matched
           </span>
           <span className="rt-legend-divider" />
-          {(alignment.amino ? AA_LEGEND : NT_LEGEND).map((l) => (
+          {legend.map((l) => (
             <span key={l.label} className="rt-legend-item">
               <span className="rt-legend-dot" style={{ background: l.colour }} />
               {l.label}

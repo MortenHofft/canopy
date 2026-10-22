@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { overviewGeom, overviewBox, overviewTarget } = await import(path.join(root, 'packages/viewer/src/overview.ts'));
+const { overviewGeom, overviewBox, overviewTarget, overviewWorldPoint } = await import(path.join(root, 'packages/viewer/src/overview.ts'));
 const K = await import(path.join(root, 'packages/viewer/src/constants.ts'));
 
 const area = { ax: 10, ay: 8, aw: 500, ah: 400, clipL: 0, clipT: 8, clipR: 700, clipB: 408 };
@@ -76,4 +76,16 @@ test('target, radial: pointer position -> world coordinates, inverse of the box 
   near(t.x1, v.x1);
   near(t.y0, v.y0);
   near(t.y1, v.y1);
+});
+
+test('world point: rectangular x is the depth fraction and y a row; radial is the inverse of the box mapping', () => {
+  const g = { x: 0, y: 0, w: 56, h: 400 };
+  const r = overviewWorldPoint('rectangular', g, 30, 100, 1000);
+  near(r.x, 28 / 52);
+  near(r.y, 250);
+  const gr = { x: 0, y: 0, w: 104, h: 104 };
+  const box = overviewBox('radial', gr, { x0: -0.2, x1: 0.2, y0: -0.1, y1: 0.1 }, 100);
+  const p = overviewWorldPoint('radial', gr, box.x, box.y, 100);
+  near(p.x, -0.2);
+  near(p.y, -0.1);
 });

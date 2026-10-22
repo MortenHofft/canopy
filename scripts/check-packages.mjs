@@ -75,9 +75,27 @@ for (const name of PACKAGES) {
 const SCENARIOS = [
   { name: 'io: parseNewick only', code: `import { parseNewick } from '@gbif-phylo/io'; console.log(parseNewick('(a,b);'));`, forbid: [] },
   {
+    // The annotation reader is part of the parser (`{ annotations: true }` is a plain option), so it is bundled with it: about 2.7 kB
+    // minified more than parseNewick without it. Making it separable would need the caller to import and pass it in; not worth the API.
+    name: 'io: parseNewick + annotations + supportFrom',
+    code: `import { parseNewick, supportFrom } from '@gbif-phylo/io'; const t = parseNewick('(a,b);', { annotations: true }); console.log(supportFrom(t, 'p'));`,
+    forbid: [],
+  },
+  {
     name: 'tree-ops: ladderise only',
     code: `import { ladderise } from '@gbif-phylo/tree-ops'; console.log(ladderise);`,
     forbid: ['packages/tree-ops/dist/rooting.js', 'packages/tree-ops/dist/collapse.js', 'packages/tree-ops/dist/subset.js'],
+  },
+  {
+    name: 'tree-ops: followClade, composeMaps only',
+    code: `import { followClade, composeMaps } from '@gbif-phylo/tree-ops'; console.log(followClade, composeMaps);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+    ],
   },
   {
     name: 'viewer: TreeViewer',

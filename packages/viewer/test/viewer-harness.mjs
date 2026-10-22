@@ -55,6 +55,24 @@ export function alphaOf(c) {
   throw new Error('alphaOf: the harness cannot tell whether ' + c + ' is opaque; use a colour it parses');
 }
 
+const NAMED = { red: [255, 0, 0], green: [0, 128, 0], blue: [0, 0, 255], black: [0, 0, 0], white: [255, 255, 255], rebeccapurple: [102, 51, 153] };
+
+/** The rgb a canvas would fill `c` with, for the syntaxes this harness knows (#rgb, #rrggbb, #rrggbbaa, rgb()/rgba() with commas, a few
+ *  names, transparent); null for anything else, which a browser would also not take as a fillStyle if it is not a colour. */
+export function rgbOf(c) {
+  const s = String(c).trim().toLowerCase();
+  if (s === 'transparent') return [0, 0, 0];
+  if (NAMED[s]) return NAMED[s];
+  let m = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(s);
+  if (m) {
+    const h = m[1].length <= 4 ? [...m[1]].map((x) => x + x).join('') : m[1];
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  }
+  m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,[^()]*)?\)$/.exec(s);
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+  return null;
+}
+
 /** A 2D context that records. `log` holds `[name, ...args]` for every method call and `['fillStyle=', value]` for every property
  *  write. Unknown methods are accepted and recorded; `measureText` is 6 px per character. */
 export function recordingContext(canvas) {
@@ -72,7 +90,8 @@ export function recordingContext(canvas) {
   };
   const methods = {
     measureText: (s) => ({ width: String(s).length * 6, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 }),
-    getImageData: () => ({ data: new Uint8ClampedArray([0, 0, 0, alphaOf(props.fillStyle)]) }),
+    createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+    getImageData: () => ({ data: new Uint8ClampedArray([...(rgbOf(props.fillStyle) ?? [0, 0, 0]), alphaOf(props.fillStyle)]) }),
   };
   return new Proxy(api, {
     get(t, k) {
@@ -85,7 +104,10 @@ export function recordingContext(canvas) {
       };
     },
     set(_t, k, v) {
-      props[k] = v;
+      // like a browser, a fillStyle that is not a colour is ignored (the previous one stays); rgbOf knows the harness's syntaxes, and
+      // other plain names and functions (hsl(), ...) are accepted as before
+      const ignored = k === 'fillStyle' && !/^[a-z]+$/i.test(String(v)) && rgbOf(v) === null && !/^(hsla?|oklch|color-mix)\(/i.test(String(v));
+      if (!ignored) props[k] = v;
       log.push([k + '=', v]);
       return true;
     },
