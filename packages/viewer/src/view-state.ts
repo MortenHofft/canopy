@@ -240,13 +240,19 @@ export class ViewState {
   zoomedView(fx: number, fy: number, px: number, py: number): Viewport {
     const a = this.area;
     const v = this.view;
-    const wx = v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0);
-    const wy = v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0);
-    const w2 = (v.x1 - v.x0) / fx,
-      h2 = (v.y1 - v.y0) / fy;
-    const nv = { x0: wx - ((px - a.ax) / a.aw) * w2, x1: 0, y0: wy - ((py - a.ay) / a.ah) * h2, y1: 0 };
-    nv.x1 = nv.x0 + w2;
-    nv.y1 = nv.y0 + h2;
+    return this.zoomedViewAt(fx, fy, v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0), v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0));
+  }
+
+  /** Zoom by factors fx, fy (>1 zooms in) about the layout (world) point (wx, wy), which keeps its relative place in the window. The
+   *  point may lie outside the window (the overview): the window then moves toward it. */
+  zoomAtWorld(fx: number, fy: number, wx: number, wy: number): void {
+    this.setViewport(this.zoomedViewAt(fx, fy, wx, wy));
+  }
+
+  /** The window zoomAtWorld goes to (radial: already clamped; rectangular: setViewport clamps). The one place the zoom arithmetic lives. */
+  zoomedViewAt(fx: number, fy: number, wx: number, wy: number): Viewport {
+    const v = this.view;
+    const nv = { x0: wx - (wx - v.x0) / fx, x1: wx + (v.x1 - wx) / fx, y0: wy - (wy - v.y0) / fy, y1: wy + (v.y1 - wy) / fy };
     return this.env.layout === 'radial' ? this.clampView(nv) : nv;
   }
 

@@ -11,6 +11,7 @@ import { OVERVIEW_DISC_PX, OVERVIEW_STRIP_W_PX, OVERVIEW_WORLD_HALF, OVERVIEW_WO
 import { mk } from './dom.ts';
 import { drawBody, type Scene, type TextMeasurer } from './draw.ts';
 import { makeTransform, type Area } from './geom.ts';
+import { wheelZoom } from './input.ts';
 import type { Layout } from './layout.ts';
 import { cut, DrawList, newCutResult, type CutParams, type Seen } from './lod.ts';
 import { projectionFor } from './projection.ts';
@@ -51,23 +52,25 @@ export function overviewBox(layout: LayoutKind, g: OverviewRect, view: Viewport,
   return { x: x0, y: y0, w: Math.max(4, x1 - x0), h: Math.max(4, y1 - y0) };
 }
 
+/** The layout (world) point the overview shows at (px, py), px relative to the overview. Rectangular: x is the fraction of the tree's
+ *  depth, y a row; radial: layout coordinates. */
+export function overviewWorldPoint(layout: LayoutKind, g: OverviewRect, px: number, py: number, tips: number): { x: number; y: number } {
+  if (layout === 'rectangular') return { x: (px - 2) / (g.w - 4), y: (py / g.h) * tips };
+  const s2 = g.w / OVERVIEW_WORLD_SPAN;
+  return { x: (px - g.w / 2) / s2, y: (py - g.h / 2) / s2 };
+}
+
 /** The window `view` moved so that its centre is where the pointer is (px relative to the overview). Rectangular: a window that already
  *  spans the whole tree in x keeps its x range. */
 export function overviewTarget(layout: LayoutKind, g: OverviewRect, px: number, py: number, view: Viewport, tips: number): Viewport {
   const v = view;
   const w = v.x1 - v.x0,
     h = v.y1 - v.y0;
-  let cx: number, cy: number;
-  if (layout === 'rectangular') {
-    cy = (py / g.h) * tips;
-    cx = (px - 2) / (g.w - 4);
-    // keep the x window when it already spans the whole tree
-    if (w >= 0.999) cx = (v.x0 + v.x1) / 2;
-  } else {
-    const s2 = g.w / OVERVIEW_WORLD_SPAN;
-    cx = (px - g.w / 2) / s2;
-    cy = (py - g.h / 2) / s2;
-  }
+  const c = overviewWorldPoint(layout, g, px, py, tips);
+  const cy = c.y;
+  let cx = c.x;
+  // keep the x window when it already spans the whole tree
+  if (layout === 'rectangular' && w >= 0.999) cx = (v.x0 + v.x1) / 2;
   return { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 };
 }
 
@@ -95,6 +98,8 @@ export interface OverviewHost {
   /** Stop a running animation (a press takes over). */
   cancelAnim(): void;
   setViewport(v: Viewport): void;
+  /** Zoom by factors (>1 zooms in) about a layout point. */
+  zoomAtWorld(fx: number, fy: number, wx: number, wy: number): void;
 }
 
 export class Overview {
@@ -124,6 +129,7 @@ export class Overview {
     this.wrap.addEventListener('pointermove', this.onMove);
     this.wrap.addEventListener('pointerup', this.onUp);
     this.wrap.addEventListener('pointercancel', this.onUp);
+    this.wrap.addEventListener('wheel', this.onWheel, { passive: false });
   }
 
   private geom(): OverviewRect | null {
@@ -236,6 +242,7 @@ export class Overview {
     this.wrap.removeEventListener('pointermove', this.onMove);
     this.wrap.removeEventListener('pointerup', this.onUp);
     this.wrap.removeEventListener('pointercancel', this.onUp);
+    this.wrap.removeEventListener('wheel', this.onWheel);
   }
 
   private move(e: PointerEvent): void {
@@ -260,6 +267,20 @@ export class Overview {
       this.host.noteInput();
       this.move(e);
     }
+  };
+  /** The wheel zooms about the tree point the pointer is over on the overview (like a map minimap), by the tree's own wheel rules. */
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // the control layer would forward it to the tree's wheel, which anchors at the pointer in the plot
+    const h = this.host;
+    const g = this.geom();
+    if (!g) return;
+    const z = wheelZoom(h.layout, e);
+    if (!z) return;
+    h.noteInput();
+    const r = this.wrap.getBoundingClientRect();
+    const p = overviewWorldPoint(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.tree.tipCount);
+    h.zoomAtWorld(z.fx, z.fy, p.x, p.y);
   };
   private onUp = (e: PointerEvent) => {
     e.stopPropagation();

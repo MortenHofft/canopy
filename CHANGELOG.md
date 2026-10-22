@@ -32,4 +32,4 @@ These changes made the spike's custom renderer into the first library form. Noth
   - `addControl` keeps a `pointer-events` the control's element already has inline, so a control laid over the whole tree can let clicks through.
   - Nested clade colours: the innermost clade wins, whatever the order of `setClades` / the `clades` prop (it was the later entry).
   - `@gbif-phylo/io` has `toNexus`: a NEXUS file with a taxa block and the tree.
-
+  - The wheel over the overview zooms about the tree point under the pointer (it zoomed toward a corner of the window box). `ViewState.zoomAtWorld` holds the zoom arithmetic and `zoomBy` shares it (#33).
