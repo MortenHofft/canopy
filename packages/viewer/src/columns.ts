@@ -272,14 +272,27 @@ export function drawColumns(
       f.width = w;
       f.top = top;
       f.bottom = bottom;
-      f.r0 = r0;
-      f.r1 = r1;
-      f.oy = oy;
       f.rowHeight = ky;
       f.rankOfRow = rk;
       f.theme = theme;
+      // The renderer's contract is r0..r1 in tip ranks, row r at oy + r * rowHeight. Without collapsed clades that is one call. With them it
+      // is one call per stretch of consecutive visible ranks, with oy shifted so the same formula puts each rank on its row; the rows of
+      // collapsed clades are not in any call (blank).
       try {
-        c.spec.renderer.draw(ctx, f, c.data);
+        for (let r = r0; r <= r1;) {
+          const k = rankAt(rk, r);
+          if (k < 0) {
+            r++;
+            continue;
+          }
+          let e = r;
+          while (e < r1 && rankAt(rk, e + 1) === k + (e + 1 - r)) e++;
+          f.r0 = k;
+          f.r1 = k + (e - r);
+          f.oy = oy + (r - k) * ky;
+          c.spec.renderer.draw(ctx, f, c.data);
+          r = e + 1;
+        }
       } catch (err) {
         reportOnce(c.spec.id, err); // a broken renderer must not stop the frame
       }

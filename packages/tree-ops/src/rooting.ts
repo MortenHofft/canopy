@@ -1,9 +1,16 @@
 // Rooting: reroot on an edge, midpoint root. Both rewrite which edges point away from the root, so supports move with
-// their edges (a support value describes the bipartition of the edge above a node) and names stay with their nodes.
+// their edges (a support value describes the bipartition of the edge above a node; it is read from `support`, and from the label only
+// where `support` is NaN) and names stay with their nodes.
 
 import { addLen, checkNode, draftOf, identity, linkChildren, result } from './draft.ts';
 import { compose, splitInternalLabel, supportPart } from './labels.ts';
 import type { OpResult, TreeInput } from './types.ts';
+
+interface EdgeSupport {
+  value: number; // NaN: none
+  text: string; // as the label writes it, or '' (the label then holds the name only)
+}
+const NO_SUPPORT: EdgeSupport = { value: NaN, text: '' };
 
 export interface RerootOptions {
   /** Where on the edge above `node` the root goes, as a fraction of the edge length measured from `node`. Default 0.5.
@@ -40,9 +47,19 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
   const R = n;
   const d = draftOf(t, atNode ? 0 : 1);
   // supports move with their edges; labels are split and recomposed only for the nodes whose edge changes
-  const edgeSupport = new Map<number, string>(); // node -> support text of its new edge
-  const supText = (i: number) => supportPart(t.labels[i], t.childCount[i] === 0).support;
-  const sup = supText(node);
+  // The support of the edge above a node is `t.support[i]`, and the label's number only where that is NaN. `text` is how the old
+  // node's label writes its number ('98.0', '' if none) and travels with the edge, so a label that disagrees with the array stays as written.
+  const edgeSupport = new Map<number, EdgeSupport>(); // node -> support of its new edge
+  const edgeOf = (i: number): EdgeSupport => {
+    if (t.childCount[i] === 0) return NO_SUPPORT; // a tip's edge carries no support in Newick
+    const own = t.support[i];
+    const fromLabel = splitInternalLabel(t.labels[i]).support;
+    const text = supportPart(t.labels[i], false).support;
+    if (Number.isNaN(own)) return { value: fromLabel, text };
+    return { value: own, text };
+  };
+  const has = (i: number) => !Number.isNaN(edgeOf(i).value);
+  const sup = edgeOf(node);
   // reversed: path[k] becomes a child of path[k-1] and takes the edge (length, support) that was above path[k-1]
   const late = new Uint8Array(n + 1); // children that go last in their new parent's list (the reversed edges)
   for (let k = path.length - 1; k > top; k--) d.parent[path[k]] = -1;
@@ -51,7 +68,7 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
       u = path[k];
     d.parent[u] = below;
     d.length[u] = t.length[below];
-    edgeSupport.set(u, supText(below));
+    edgeSupport.set(u, edgeOf(below));
     late[u] = 1;
   }
   if (atNode) {
@@ -75,7 +92,7 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
       const keep = t.firstChild[oldRoot] === path[top - 1] ? t.nextSibling[t.firstChild[oldRoot]] : t.firstChild[oldRoot];
       d.parent[keep] = d.parent[oldRoot];
       d.length[keep] = addLen(t.length[keep], d.length[oldRoot]);
-      if (!supText(keep)) edgeSupport.set(keep, edgeSupport.get(oldRoot) ?? '');
+      if (!has(keep)) edgeSupport.set(keep, edgeSupport.get(oldRoot) ?? NO_SUPPORT);
       late[keep] = 1;
       d.parent[oldRoot] = -1;
     }
@@ -84,14 +101,14 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
     const keep = t.firstChild[oldRoot] === node ? t.nextSibling[node] : t.firstChild[oldRoot];
     d.parent[keep] = R;
     d.length[keep] = addLen(t.length[keep], d.length[oldRoot]);
-    if (!supText(keep)) edgeSupport.set(keep, sup);
+    if (!has(keep)) edgeSupport.set(keep, sup);
     late[keep] = 1;
     d.parent[oldRoot] = -1;
   }
-  for (const [u, text] of edgeSupport) {
-    if (t.childCount[u] === 0) continue; // a tip's edge carries no support in Newick
-    d.label[u] = compose(text, supportPart(t.labels[u], false).name);
-    d.support[u] = text ? splitInternalLabel(text).support : NaN;
+  for (const [u, e] of edgeSupport) {
+    if (t.childCount[u] === 0) continue;
+    d.label[u] = compose(e.text, supportPart(t.labels[u], false).name);
+    d.support[u] = e.value;
   }
   // children order: a new root gets [node, path[1]]; everywhere else the original order, with the reversed edge last
   const order: number[] = atNode ? [] : [node];

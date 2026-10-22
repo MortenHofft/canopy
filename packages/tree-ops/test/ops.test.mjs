@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
 // Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
 // something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
-import { parseNewick, parseNexus, toNewick, TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, supportFrom, toNewick, TreeModel } from '@gbif-phylo/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const wrap =
@@ -242,6 +243,10 @@ test('collapse by support and by length', () => {
   const t = parseNewick('(((A:1,B:1)95:0.5,C:1)40:0.001,(D:1,E:1)60:2);');
   assert.equal(nwk(collapseBySupport(t, 50).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
   assert.equal(nwk(collapseBySupport(t, 70).tree), '((A:1,B:1)95:0.5,C:1,D:1,E:1);');
+  // `keep`: a set, an array or a predicate of node indexes whose edge stays whatever its support
+  const e60 = t.parent[t.tipIndex('D')];
+  for (const keep of [new Set([e60]), [e60], (i) => i === e60])
+    assert.equal(nwk(collapseBySupport(t, 70, { keep }).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);', 'a kept node is not contracted');
   assert.equal(nwk(collapseShortBranches(t, 0.01).tree), '((A:1,B:1)95:0.5,C:1,(D:1,E:1)60:2);');
   assert.equal(collapseBySupport(t, 10).changed, false); // nothing to do: the input comes back
   assert.equal(collapseBySupport(t, 10).tree, t);
@@ -375,6 +380,106 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
     }
     checkModel(midpointRoot(t).tree, unaryCount(t));
   }
+});
+
+/** Every reroot position keeps every split's support, which lives only in `tree.support` (the labels hold names or nothing). */
+function checkSupportOnlyInArray(t, what) {
+  const supBefore = splitSupports(t);
+  assert.ok(supBefore.size > 3, `${what}: has supports`);
+  const names = t.labels.filter((l, i) => t.childCount[i] > 0 && l !== '').sort();
+  let n = 0;
+  for (let v = 1; v < t.nodeCount; v++) {
+    for (const f of [0, 0.5, 1]) {
+      const { tree, changed } = reroot(t, v, { at: f });
+      if (!changed) continue;
+      const now = splitSupports(tree);
+      for (const [sp, val] of supBefore)
+        if (val !== AMBIGUOUS && now.has(sp)) assert.equal(now.get(sp), val, `${what}: reroot ${v} at ${f}: split ${sp}`);
+      // a split present before has its support after, unless the old root's edges merged into it
+      assert.ok(now.size >= supBefore.size - 1, `${what}: reroot ${v} at ${f}: ${now.size} of ${supBefore.size} splits keep a support`);
+      assert.deepEqual(
+        tree.labels.filter((l, i) => tree.childCount[i] > 0 && l !== '').sort(),
+        names.filter((x) => tree.labels.includes(x)),
+        `${what}: names stay`,
+      );
+      n++;
+    }
+  }
+  assert.ok(n > 10);
+}
+
+test('reroot: support that exists only in tree.support moves with the edges (labels without numbers)', () => {
+  const t = parseNewick('(((A:1,B:1)ab:1,C:1)abc:1,((D:1,E:1)de:1,(F:1,G:1)fg:1)defg:1,H:1);');
+  for (const [name, v] of [
+    ['ab', 0.91],
+    ['abc', 0.82],
+    ['de', 0.73],
+    ['fg', 0.64],
+    ['defg', 0.55],
+  ])
+    t.support[t.labels.indexOf(name)] = v;
+  checkSupportOnlyInArray(t, 'array-only');
+  const r = reroot(t, t.tipIndex('D'), { at: 0.5 });
+  assert.equal(r.tree.support[r.tree.mrcaOf(['A', 'B'])], 0.91);
+  assert.equal(r.tree.support[r.tree.mrcaOf(['F', 'G'])], 0.64);
+  assert.equal(r.tree.labels[r.tree.mrcaOf(['A', 'B'])], 'ab'); // the name stays, no number is written into it
+  // the array wins where label and array disagree; the label's number is used only where the array is NaN
+  const u = parseNewick('(((A,B)90:ab,C)80:abc,(D,E)70:de);');
+  u.support[u.mrcaOf(['A', 'B'])] = 0.5;
+  const abc = u.mrcaOf(['A', 'B', 'C']);
+  u.support[abc] = NaN;
+  u.labels[abc] = '80:abc'; // only the label has it
+  const w = reroot(u, u.tipIndex('D'), { at: 0.5 }).tree;
+  assert.equal(w.support[w.mrcaOf(['A', 'B'])], 0.5);
+  assert.equal(ops.splitInternalLabel(w.labels[w.mrcaOf(['A', 'B', 'C'])]).support, 80); // untouched node: label as it was
+});
+
+test('reroot: the fish MCC posterior (supportFrom) survives every reroot position and midpoint rooting', () => {
+  const t = parseNexus(fs.readFileSync(path.join(DATA, 'rich/fish-carangaria-mcc/Carangaria-MCC.tre'), 'utf8'), { annotations: true }).tree;
+  t.support.set(supportFrom(t, 'posterior'));
+  assert.ok(t.labels.every((l, i) => t.childCount[i] === 0 || Number.isNaN(ops.splitInternalLabel(l).support))); // no number in any label
+  const before = splitSupports(t);
+  checkSupportOnlyInArray(t, 'fish');
+  const m = midpointRoot(t).tree;
+  for (const [sp, val] of splitSupports(m)) if (before.get(sp) !== AMBIGUOUS) assert.equal(val, before.get(sp), `midpoint: split ${sp}`);
+});
+
+test('reroot: a moved edge carries its label text; the array wins for the value, a disagreeing label stays as written', () => {
+  const t = parseNewick("(((A,B)'90:ab',C)'80:abc',((D,E)'70:de',F)'60:def',G);");
+  const de = t.mrcaOf(['D', 'E']),
+    def = t.mrcaOf(['D', 'E', 'F']);
+  t.support[de] = 0.5; // the label says 70, the array 0.5
+  t.support[def] = 0.4; // the label says 60
+  // rooting on D reverses de and def: de's edge now sits above the node named def, def's edge above the old root
+  const r = reroot(t, t.tipIndex('D'), { at: 0.5 }).tree;
+  const efabcg = r.mrcaOf(['F', 'A', 'B', 'C', 'G']),
+    abcg = r.mrcaOf(['A', 'B', 'C', 'G']);
+  assert.equal(r.support[efabcg], 0.5);
+  assert.equal(r.labels[efabcg], '70:def'); // the number as written on the old node, the name of the new one
+  assert.equal(r.support[abcg], 0.4);
+  assert.equal(r.labels[abcg], '60'); // the old root has no name
+  // untouched nodes keep both
+  assert.equal(r.support[r.mrcaOf(['A', 'B'])], 90);
+  assert.equal(r.labels[r.mrcaOf(['A', 'B'])], '90:ab');
+  // the text is carried as written: '98.0' and '.95' are not renormalised
+  const x = parseNewick("(((A,B)'98.0:ab',C)'.95:abc',D);");
+  x.support[x.mrcaOf(['A', 'B'])] = 0.7;
+  const w = reroot(x, x.tipIndex('D'), { at: 0.5 }).tree;
+  assert.equal(w.labels[w.mrcaOf(['A', 'B', 'C'])], '.95:abc');
+  const y = parseNewick("((A,B)'98.0:ab',(C,D)'.95:cd',E);");
+  const wy = reroot(y, y.tipIndex('C'), { at: 0.5 }).tree;
+  assert.equal(wy.labels[wy.mrcaOf(['A', 'B', 'E'])], '.95'); // cd's edge, as written, without cd's name
+});
+
+test('subtree and showFocus drop a root support kept only in the label and keep the name', () => {
+  const t = parseNewick('((A,B)ab,C);');
+  const ab = t.labels.indexOf('ab');
+  t.labels[ab] = '90:ab';
+  t.support.fill(NaN);
+  const s = subtree(t, ab).tree;
+  assert.equal(s.labels[0], 'ab');
+  const f = ops.showFocus(t, ops.focusOn(t, ops.NO_FOCUS, ab)).tree;
+  assert.equal(f.labels[0], 'ab');
 });
 
 test('midpoint exactly on a node roots at that node (no zero-length edge)', () => {
@@ -678,3 +783,121 @@ test('remapFocus can follow the operation instead of a callback', () => {
   const f = ops.remapFocus({ stack: [clade(t, 'ab'), clade(t, 'abcd')] }, t, r.tree, r.map);
   assert.deepEqual(f.stack, [r.map[clade(t, 'ab')]]);
 });
+
+// ---- ladderise by: tips | depth | height (#49) ----
+
+const tipOrder = (t) => Array.from({ length: t.tipCount }, (_, i) => t.labels[t.tipNode[i]]).join('');
+
+test('ladderise by depth differs from tips: a deep thin clade next to a wide shallow polytomy', () => {
+  const t = parseNewick('((((a,b),c),d),(p,q,r,s,u));');
+  assert.equal(tipOrder(ladderise(t, { by: 'tips' }).tree), 'dcabpqrsu'); // 4 tips before 5; inside the thin clade d, c, (a,b)
+  const d = ladderise(t, { by: 'depth' });
+  assert.equal(d.changed, true);
+  assert.equal(tipOrder(d.tree), 'pqrsudcab'); // depth 1 before depth 3
+  assert.equal(tipOrder(ladderise(t, { by: 'depth', order: 'decreasing' }).tree), 'abcdpqrsu');
+  assert.deepEqual(splits(d.tree), splits(t));
+});
+
+test('ladderise by height differs from depth on a phylogram and equals it without lengths', () => {
+  const lens = parseNewick('(((a:1,b:1):1,c:1):1,(d:10,e:10):1);');
+  assert.equal(tipOrder(ladderise(lens, { by: 'depth' }).tree), 'decab'); // depth 1 before depth 2
+  assert.equal(tipOrder(ladderise(lens, { by: 'height' }).tree), 'cabde'); // height 2 before height 10
+  assert.equal(tipOrder(ladderise(lens, { by: 'height', order: 'decreasing' }).tree), 'deabc');
+  const bare = parseNewick('(((a,b),c),(d,e));');
+  assert.equal(bare.hasLengths, false);
+  assert.equal(tipOrder(ladderise(bare, { by: 'height' }).tree), tipOrder(ladderise(bare, { by: 'depth' }).tree));
+  // a wide shallow clade and a narrow deep one: depth and height put the deep one last, the tip count would not
+  const wide = parseNewick('((p,q,r,s),((a,b),c));');
+  assert.equal(tipOrder(ladderise(wide, { by: 'tips' }).tree), 'cabpqrs');
+  assert.equal(tipOrder(ladderise(wide, { by: 'depth' }).tree), 'pqrscab');
+  assert.equal(tipOrder(ladderise(wide, { by: 'height' }).tree), 'pqrscab'); // every edge counts 1, not 0
+  // missing and negative lengths count as 0
+  const odd = parseNewick('((a:-5,b:-5):1,(c,d):1,(e:0.5,f:0.5):1);');
+  assert.equal(tipOrder(ladderise(odd, { by: 'height' }).tree), 'abcdef'); // 0, 0, 0.5: input order, then ef last
+});
+
+test('ladderise ties are broken by the other measures, then by input order', () => {
+  // equal depth (1): the tip count decides under 'depth'
+  const t = parseNewick('((a,b,c),(d,e),(f,g));');
+  assert.equal(tipOrder(ladderise(t, { by: 'depth' }).tree), 'defgabc');
+  // equal tips (2) and depth (1): 'tips' ties go to the input order, the others look at height
+  const h = parseNewick('((a:5,b:5),(c:1,d:1),(e:1,f:1));');
+  assert.equal(tipOrder(ladderise(h, { by: 'tips' }).tree), 'abcdef');
+  assert.equal(tipOrder(ladderise(h, { by: 'depth' }).tree), 'cdefab'); // depth and tips tie, height 1 < 5
+  assert.equal(tipOrder(ladderise(h, { by: 'height' }).tree), 'cdefab');
+  // full ties keep the input order, in both directions, and repeat exactly
+  const same = parseNewick('((a,b),(c,d),(e,f));');
+  for (const by of ['tips', 'depth', 'height']) {
+    for (const order of ['increasing', 'decreasing']) {
+      const r = ladderise(same, { by, order });
+      assert.equal(r.changed, false);
+      assert.equal(r.tree, same);
+    }
+  }
+  const a = ladderise(t, { by: 'depth' }).tree,
+    b = ladderise(t, { by: 'depth' }).tree;
+  assert.equal(nwk(a), nwk(b));
+});
+
+test('ladderise by: changed is false on a tree already in that order, and the default equals by: tips', () => {
+  const t = parseNewick('(A:1,(B:1,C:1)X:1);');
+  for (const by of ['tips', 'depth', 'height']) {
+    assert.equal(ladderise(t, { by }).changed, false);
+    assert.equal(ladderise(t, { by, order: 'decreasing' }).changed, true);
+    const once = ladderise(parseNewick('((((a,b),c),d),(p,q,r,s,u));'), { by }).tree;
+    assert.equal(ladderise(once, { by }).changed, false);
+  }
+  // SHA-256 of the Newick written by ladderise on origin/workshift before `by` existed (captured once, 2026-10-22)
+  const r = readTree('real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz');
+  const gold = {
+    increasing: '59836a3b1374ea0d15713e551a1628281ca48d209482a6c8e65b0ed24607f9fc',
+    decreasing: '9a152f3b489929ce7d80983f0e992b3b8cab767bb78d4ee5932af85232ae6e9a',
+  };
+  for (const order of ['increasing', 'decreasing']) {
+    const hash = (o) =>
+      crypto
+        .createHash('sha256')
+        .update(nwk(new TreeModel(ops.ladderise(r, o).tree)))
+        .digest('hex');
+    assert.equal(hash({ order }), gold[order]);
+    assert.equal(hash({ order, by: 'tips' }), gold[order]);
+  }
+  assert.throws(() => ops.ladderise(t, { order: 'up' }), RangeError);
+  assert.throws(() => ops.ladderise(t, { by: 'width' }), RangeError);
+});
+
+test('ladderise by height: the definition and each step of the tie-break are pinned', () => {
+  const o = (nw, opt) => tipOrder(ladderise(parseNewick(nw), opt).tree);
+  // the child's own edge is not counted (crown height): 1 < 3 although 1 + 5 > 3 + 1
+  assert.equal(o('((a:1,b:1):5,(c:3,d:3):1);', { by: 'height' }), 'abcd');
+  // height ties: tips come before depth (3 tips, depth 2 before 4 tips, depth 1)
+  assert.equal(o('((a:1,b:1,c:1,d:1),((e:.5,f:.5):.5,g:1));', { by: 'height' }), 'gefabcd');
+  // depth ties: tips come before height (2 tips, height 5 before 3 tips, height 1)
+  assert.equal(o('((a:1,b:1,c:1),(d:5,e:5));', { by: 'depth' }), 'deabc');
+  // a negative length counts as 0, also in the middle of a path: x,y are 5 high whatever the -2 above them
+  assert.equal(o('(((x:5,y:5):-2,z:.5),(m:4,n:4));', { by: 'height' }), 'mnzxy');
+  // heights equal within 1e-6 of the greatest are ties (0.1 + 0.2 is 0.30000000000000004): tips, depth, then input order
+  assert.equal(o('(((x:0.2,y:0.2):0.1,w:0.3):1,((c:0.3,d:0.3):0,v:0.3):1);', { by: 'height' }), 'wxyvcd');
+  assert.equal(o('(((x:0.2,y:0.2):0.1,w:0.3):1,((c:0.3,d:0.3):0,v:0.3):1);', { by: 'height', order: 'decreasing' }), 'xywcdv');
+  assert.equal(o('(a:1,b:1.01);', { by: 'height' }), 'ab'); // a real difference still decides
+});
+
+test('ladderise by, decreasing: the tie-break measures are reversed too, the input order is not', () => {
+  const o = (nw, opt) => tipOrder(ladderise(parseNewick(nw), { order: 'decreasing', ...opt }).tree);
+  assert.equal(o('((d,e),(a,b,c));', { by: 'depth' }), 'abcde'); // depth ties, more tips first
+  assert.equal(o('((a:1,b:1),(c:5,d:5));', { by: 'depth' }), 'cdab'); // depth and tips tie, higher first
+  assert.equal(o('((c:5,d:5,e:5),(a:1,b:1,f:1));', { by: 'height' }), 'cdeabf');
+  assert.equal(o('((a,b),(c,d));', { by: 'depth' }), 'abcd'); // full tie: input order
+});
+
+for (const by of ['tips', 'depth', 'height']) {
+  test(`deep tree: a 100k-tip caterpillar ladderises by ${by} without recursion`, () => {
+    const N = 100000;
+    const parts = new Array(N);
+    parts[0] = '('.repeat(N - 1) + 't0:1';
+    for (let i = 1; i < N; i++) parts[i] = `,t${i}:1):1`;
+    const t = parseNewick(parts.join('').replace(/:1$/, '') + ';');
+    assert.equal(ladderise(t, { by }).tree.tipCount, N);
+    assert.equal(ladderise(t, { by, order: 'decreasing' }).tree.tipCount, N);
+  });
+}

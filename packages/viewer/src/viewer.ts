@@ -24,6 +24,7 @@ import {
   drawBody,
   drawHighlights,
   drawLabels,
+  drawNodeLabels,
   drawLeaders,
   drawMarkers,
   drawRing,
@@ -291,7 +292,7 @@ export class TreeViewer {
     this.overlay = new LabelOverlay(() => {
       if (this.destroyed) return;
       this.renderNow();
-      this.overlay.updateList(this.list, this.tree, this.opts.formatLabel);
+      this.overlay.updateList(this.list, this.tree, this.opts.formatLabel, this.L.collapsed, (row) => this.cladeText(row));
     });
     this.notice = mk(
       'div',
@@ -1180,8 +1181,16 @@ export class TreeViewer {
   }
 
   zoomToNode(id: number, animate = false): void {
-    const row = this.rowOf(id);
-    if (row >= 0) this.zoomToRow(row, animate);
+    let row = this.rowOf(id);
+    if (row < 0) return;
+    if (this.L.hidden?.[row]) row = this.L.rowNode![this.L.rowStart[row]]; // inside a collapsed clade: frame the clade
+    this.zoomToRow(row, animate);
+  }
+
+  /** The label of a collapsed clade (row of the snapshot): its name, else its size. */
+  private cladeText(row: number): string {
+    const t = this.tree;
+    return cladeName(t, row, this.opts) ?? `${(t.leafEnd[row] - t.leafStart[row]).toLocaleString('en')} tips`;
   }
 
   /** zoomToNode for a row of the snapshot (a hit's node), which with a partial source is not the node id of the public API. */
@@ -1593,7 +1602,9 @@ export class TreeViewer {
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
       format: opts.formatLabel,
-      cladeText: (row) => cladeName(tree, row, opts) ?? `${(tree.leafEnd[row] - tree.leafStart[row]).toLocaleString('en')} tips`,
+      cladeText: (row) => this.cladeText(row),
+      nodeLabels: opts.nodeLabels,
+      formatNode: opts.formatNodeLabel,
       scale,
       thin: !rect && this.list.count >= THIN_PRIMS,
       measure: this.measurer,
@@ -1606,6 +1617,7 @@ export class TreeViewer {
     drawBody(ctx, S, this.theme.branchWidth);
     drawLeaders(ctx, S);
     drawMarkers(ctx, S);
+    drawNodeLabels(ctx, S);
     drawLabels(ctx, S, labels);
     ctx.restore();
     if (rect) {
@@ -1744,7 +1756,8 @@ export class TreeViewer {
       const tip = this.tree.childCount[node] === 0;
       const name = cladeName(this.tree, node, this.opts);
       const tips = `${(this.tree.leafEnd[node] - this.tree.leafStart[node]).toLocaleString('en')} tips`;
-      this.overlay.announce(tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`);
+      const col = this.L.collapsed?.[node] === 1 ? ', collapsed' : '';
+      this.overlay.announce((tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`) + col);
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root)
         this.overlay.focusAnchor(this.tree.tipRank[node]);

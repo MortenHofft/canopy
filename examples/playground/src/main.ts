@@ -26,6 +26,7 @@ import {
   type CladeLabelFn,
   type Column,
   internalName,
+  defaultFormatNodeLabel,
   type Control,
   type NodeMenuItem,
   type TreeEvent,
@@ -109,12 +110,8 @@ function computeView(t: TreeModel): View {
   if (state.supportCollapse && support) {
     const before = shown.nodeCount;
     const threshold = Number(state.minSupport) * (support.hi <= 1 ? 0.01 : 1);
-    const keep = shown.support.slice();
-    for (const v of collapsed) {
-      const k = toView ? (toView as Int32Array)[v] : v;
-      if (k > 0) keep[k] = NaN;
-    }
-    const r = ops.collapseBySupport({ ...shown, support: keep }, threshold);
+    const keep = collapsed.map((v) => (toView ? (toView as Int32Array)[v] : v)).filter((k) => k > 0);
+    const r = ops.collapseBySupport(shown, threshold, { keep }); // a clade the viewer collapses keeps its node
     if (step(r)) supportCollapsed = before - shown.nodeCount;
   }
   const map = toView as Int32Array | null;
@@ -149,6 +146,9 @@ const cladeLabel: CladeLabelFn = (node, t) => {
   const name = internalName(t.labels[t.toLocal(node)]);
   return OTL_SYNTHETIC.test(name) ? null : name;
 };
+// support as the percentages most viewers show: 0.95 is 95; values above 1 (bootstrap) and lengths are left alone
+const PERCENT = (v: number, kind: 'support' | 'length') =>
+  kind === 'support' && v <= 1 ? String(Math.round(v * 100)) : defaultFormatNodeLabel(v, kind);
 const GBIF_HREF = (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}`;
 
 function viewerOptions(): Partial<ViewerOptions> {
@@ -156,6 +156,7 @@ function viewerOptions(): Partial<ViewerOptions> {
   for (const s of SETTINGS) if (s.to === 'option') o[s.key ?? s.id] = toViewer(s, state[s.id]);
   o.formatLabel = state.underscores ? (isOtl() ? OTL_NAME : SPACES) : RAW;
   o.cladeLabel = cladeLabel;
+  o.formatNodeLabel = state.supportPercent ? PERCENT : defaultFormatNodeLabel;
   o.tipHref = state.tipLinks ? GBIF_HREF : null;
   return o as Partial<ViewerOptions>;
 }

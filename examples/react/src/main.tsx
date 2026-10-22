@@ -82,13 +82,9 @@ function App() {
     let supportCollapsed = 0;
     if (collapseOn && hasSupport) {
       const before = acc.shown.nodeCount;
-      // a clade the viewer collapses keeps its node: its support counts as missing, which collapse by support leaves alone
-      const support = acc.shown.support.slice();
-      for (const v of protectedNodes) {
-        const k = acc.toView ? acc.toView[v] : v;
-        if (k > 0) support[k] = NaN;
-      }
-      const r = ops.collapseBySupport({ ...acc.shown, support }, minSupport);
+      // a clade the viewer collapses keeps its node (tree-ops' `keep`)
+      const keep = protectedNodes.map((v) => (acc.toView ? acc.toView[v] : v)).filter((k) => k > 0);
+      const r = ops.collapseBySupport(acc.shown, minSupport, { keep });
       if (step(r)) supportCollapsed = before - acc.shown.nodeCount;
     }
     const { shown, toView } = acc;

@@ -68,6 +68,8 @@ export function keptViewport(a: KeepInput): Viewport | null {
   const rowOfBefore = a.beforeL.rowOfRank,
     rankOfRowBefore = a.beforeL.rankOfRow,
     rowOfAfter = a.afterL.rowOfRank;
+  /** The node of the old tree that stands for tip `r` on the screen: the tip, or the collapsed clade it is inside. */
+  const nodeBefore = (r: number): number => (a.beforeL.rowNode && rowOfBefore ? a.beforeL.rowNode[rowOfBefore[r]] : tipNode[r]);
   if (a.layout === 'rectangular') {
     const R = a.beforeL.rows;
     let lo = Math.max(0, Math.ceil(v.y0 - 0.5)),
@@ -98,7 +100,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
         if (tHi > nHi) nHi = tHi;
         if (t.lo < kLo) kLo = t.lo;
         if (t.hi > kHi) kHi = t.hi;
-        const xa = tipNode[r] >= 0 ? a.beforeL.X[tipNode[r]] : 0,
+        const xa = nodeBefore(r) >= 0 ? a.beforeL.X[nodeBefore(r)] : 0,
           xb = a.afterL.X[t.node];
         if (xa < ax0) ax0 = xa;
         if (xa > ax1) ax1 = xa;
@@ -130,7 +132,15 @@ export function keptViewport(a: KeepInput): Viewport | null {
   const inView = new Uint8Array(N);
   let seen = 0;
   for (let r = 0; r < N; r++) {
-    const node = tipNode[r];
+    // a collapsed clade counts once, at its own depth (its first tip stands for it); its other tips are not at their own
+    if (
+      rankOfRowBefore &&
+      rowOfBefore &&
+      rankOfRowBefore[rowOfBefore[r] + 1] - rankOfRowBefore[rowOfBefore[r]] !== 1 &&
+      rankOfRowBefore[rowOfBefore[r]] !== r
+    )
+      continue;
+    const node = nodeBefore(r);
     if (node < 0) continue; // a tip row that is not loaded
     const ang = ((rowOfBefore ? rowOfBefore[r] : r) + 0.5) * da;
     const x = X[node] * Math.cos(ang),
@@ -156,7 +166,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
       sx += Math.cos(d);
       sy += Math.sin(d);
       if (deep && t.hi - t.lo === a.after.tipCount) all = true;
-      ra += X[tipNode[r]];
+      ra += X[nodeBefore(r)];
       rb += a.afterL.X[t.node];
       n++;
     }

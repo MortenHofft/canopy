@@ -218,6 +218,8 @@ export class Overview {
       density: 'sparse',
       format: (id) => h.formatLabel(id),
       cladeText: null,
+      nodeLabels: 'none',
+      formatNode: String,
       scale: h.dpr,
       thin: false,
       measure: h.measure,

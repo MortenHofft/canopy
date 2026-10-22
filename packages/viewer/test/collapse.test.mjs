@@ -220,7 +220,7 @@ test('setCollapsed: rows are freed and the clade is drawn as one summary on its 
   assert.equal(v.getViewport().y1, 6);
 });
 
-test('setCollapsed: tips, unknown ids and a partially loaded source collapse nothing', async () => {
+test('setCollapsed: tips and unknown ids collapse nothing (a partial source: collapse-partial.test.mjs)', async () => {
   const m = await make(NWK);
   m.env.flush();
   const v = m.viewer;
@@ -332,16 +332,42 @@ test('columns: the collapsed clade is one blank row, the other rows move up with
   assert.ok(Math.abs(c.y - (v.root.getBoundingClientRect().top + T.oy + 1 * T.ky + T.ky * 0.1)) < 1e-6, 'c is on row 1');
 });
 
-test('columns: a custom renderer is told the rows and how they map to ranks', async () => {
-  let frame = null;
-  const renderer = { prepare: () => null, draw: (_c, f) => (frame = { r0: f.r0, r1: f.r1, rank: f.rankOfRow && [...f.rankOfRow] }) };
+test('columns: a custom renderer keeps the rank contract: one call per stretch of consecutive ranks, oy shifted, collapsed rows blank', async () => {
+  let calls = [];
+  const renderer = {
+    prepare: () => null,
+    draw: (_c, f) => calls.push({ r0: f.r0, r1: f.r1, oy: f.oy, h: f.rowHeight, map: f.rankOfRow && [...f.rankOfRow] }),
+  };
   const m = await make(NWK, { columns: [{ id: 'c', kind: 'custom', header: 'c', width: 40, values: {}, renderer }] });
   m.env.flush();
-  assert.equal(frame.rank, null, 'identity without collapsed clades');
-  m.viewer.setCollapsed([parentOf(m.viewer.tree, 'a')]);
+  const v = m.viewer;
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].map, null, 'identity without collapsed clades');
+  assert.deepEqual([calls[0].r0, calls[0].r1], [0, 5]);
+  // y = (c, (d, e)) collapsed: rows a, b, y, f -> stretches of ranks 0..1 and 5
+  calls = [];
+  v.setCollapsed([parentOf(v.tree, 'c')]);
   m.env.flush();
-  assert.deepEqual(frame.rank, [0, 2, 3, 4, 5, 6]);
-  assert.equal(frame.r1, 4);
+  const oy = v.T.oy,
+    ky = v.T.ky;
+  assert.deepEqual(
+    calls.slice(-2).map((c) => [c.r0, c.r1]),
+    [
+      [0, 1],
+      [5, 5],
+    ],
+  );
+  const [s1, s2] = calls.slice(-2);
+  assert.equal(s1.oy + 0 * ky, oy, 'rank 0 is on row 0');
+  assert.equal(s2.oy + 5 * ky, oy + 3 * ky, 'rank 5 (f) is on row 3');
+  assert.deepEqual(s2.map, [0, 1, 2, 5, 6]);
+  // x collapsed: one stretch, ranks 2..5 on rows 1..4
+  calls = [];
+  v.setCollapsed([parentOf(v.tree, 'a')]);
+  m.env.flush();
+  const last = calls.at(-1);
+  assert.deepEqual([last.r0, last.r1], [2, 5]);
+  assert.equal(last.oy + 2 * v.T.ky, v.T.oy + 1 * v.T.ky);
 });
 
 test('focusTip on a tip inside a collapsed clade focuses the clade and expands nothing; a tip outside focuses the tip', async () => {
@@ -484,4 +510,98 @@ test('the overview draws the collapsed clades and its window box counts rows', a
   const g = { x: 0, y: 0, w: 56, h: 100 };
   const box = overviewBox('rectangular', g, { x0: 0, x1: 1, y0: 0, y1: 2.5 }, L.rows);
   assert.equal(box.h, 50, 'half of the 5 rows');
+});
+
+test('the overview ticks of highlights are placed in rows: a highlight after a collapsed clade is one row higher', async () => {
+  const { OverviewControl } = await import('../src/controls/index.ts');
+  const { FakeCanvas } = await import('./viewer-harness.mjs');
+  const m = await make(NWK, { controls: [new OverviewControl()] });
+  const v = m.viewer;
+  v.setCollapsed([parentOf(v.tree, 'a')]);
+  v.setHighlighted(['f']); // rank 5, row 4 of 5
+  m.env.flush();
+  const found = [];
+  const walk = (el) => {
+    if (el instanceof FakeCanvas && el !== m.canvas() && el !== m.topCanvas()) found.push(el);
+    for (const c of el.children ?? []) walk(c);
+  };
+  walk(v.container);
+  assert.ok(found.length, 'the overview canvas');
+  const ov = found[0].ctx;
+  // N = rows (5): the tick of row 4 is at 4/5 of the strip, not at 5/6 (rank 5 of 6 tips)
+  const h = v.getStats && v.T.area.ah;
+  const ticks = ov.calls('fillRect').filter((e) => e[3] > 100 === false && e[2] !== 0 && e[4] === 2.5);
+  assert.ok(ticks.length >= 1, 'a tick');
+  assert.ok(Math.abs(ticks[0][2] - ((4 / 5) * h - 1)) < 1e-6, `tick at ${ticks[0][2]}, wanted ${(4 / 5) * h - 1}`);
+});
+
+for (const kind of ['rectangular', 'radial']) {
+  test(`cut (${kind}): a collapsed clade is not counted as "forced" (collapsed only because of the budget)`, () => {
+    const t = snapshot();
+    const x = parentOf(t, 'a');
+    const L = computeLayout(t, true, mask(t.nodeCount, x));
+    if (kind === 'radial') ensureTrig(L);
+    const rect = kind === 'rectangular';
+    const [W, H] = rect ? [600, 120] : [400, 400];
+    const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
+    const view = rect ? { x0: 0, x1: 1, y0: 0, y1: L.rows } : { x0: -1.2, x1: 1.2, y0: -1.2, y1: 1.2 };
+    const proj = projectionFor(t, L, makeTransform(kind, W, H, view, area, L.rows));
+    const res = cut(proj, { lod: true, minPx: 3, baseMinPx: 1, budget: 10000, summaries: true }, null, new DrawList(), new Seen(), newCutResult());
+    assert.equal(res.summaries, 1);
+    assert.equal(res.forced, 0);
+  });
+}
+
+test('two highlighted tips inside one collapsed clade give one band and one ring, and the clade label is bold', async () => {
+  const m = await make(NWK);
+  const v = m.viewer;
+  const x = parentOf(v.tree, 'a');
+  v.setCollapsed([x]);
+  v.setHighlighted(['a', 'b', 'f']);
+  m.ctx().reset();
+  m.env.flush();
+  const bands = m
+    .ctx()
+    .calls('fillRect')
+    .filter((e) => e[1] === 0 && e[4] >= 3 && e[4] < 100);
+  assert.equal(bands.length, 2, 'one band for the clade row, one for f');
+  const rings = m
+    .ctx()
+    .calls('arc')
+    .filter((e) => e[3] === 7);
+  assert.equal(rings.length, 2);
+  const fonts = m
+    .ctx()
+    .log.filter((e) => e[0] === 'font=')
+    .map((e) => e[1]);
+  assert.ok(
+    fonts.some((f) => /600/.test(f)),
+    'a bold label',
+  );
+  let boldFor = null;
+  let bold = false;
+  for (const e of m.ctx().log) {
+    if (e[0] === 'font=') bold = /600/.test(e[1]);
+    else if (e[0] === 'fillText' && e[1] === 'x') boldFor = bold;
+  }
+  assert.equal(boldFor, true, 'the label of the clade that holds a highlight');
+});
+
+test('zoomToNode of a node inside a collapsed clade frames the clade; the screen-reader list and the announcement say "collapsed"', async () => {
+  const big = '(' + Array.from({ length: 30 }, (_, k) => `(g${k}a,g${k}b)c${k}`).join(',') + ')r;';
+  const m = await make(big, { size: [500, 300] });
+  m.env.flush();
+  const v = m.viewer;
+  const c10 = parentOf(v.tree, 'g10a');
+  v.setCollapsed([c10]);
+  m.env.flush();
+  v.zoomToNode(v.tree.tipIndex('g10a'));
+  const w = v.getViewport();
+  const row = v.L.rowStart[c10];
+  assert.ok(w.y0 <= row && w.y1 >= row + 1, 'the clade row is in view');
+  v.overlay.updateList(v.list, v.tree, v.opts.formatLabel, v.L.collapsed, (r) => v.cladeText(r));
+  const texts = v.overlay.srList.children.map((c) => c.textContent);
+  assert.ok(texts.includes('c10, collapsed'), texts.slice(0, 4).join('|'));
+  v.setActive(c10);
+  assert.match(v.overlay.live.textContent, /collapsed$/);
 });

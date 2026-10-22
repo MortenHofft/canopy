@@ -9,7 +9,7 @@
 import { SR_LIST_CAP } from './constants.ts';
 import { mk, SR_ONLY } from './dom.ts';
 import type { LabelList } from './draw.ts';
-import { K_TIP, type DrawList } from './lod.ts';
+import { K_SUMMARY, K_TIP, type DrawList } from './lod.ts';
 import type { LayoutKind, TreeSnapshot, TreeTheme } from './types.ts';
 
 const SR_DELAY_MS = 160; // the list of tips in view follows the view this long after its last change
@@ -142,15 +142,23 @@ export class LabelOverlay {
   }
 
   /** Visually hidden list of the tips in view (first SR_LIST_CAP in tree order) for assistive technology. */
-  updateList(list: DrawList, tree: TreeSnapshot, formatLabel: (id: string) => string): void {
+  updateList(
+    list: DrawList,
+    tree: TreeSnapshot,
+    formatLabel: (id: string) => string,
+    collapsed: Uint8Array | null = null,
+    cladeText?: (row: number) => string,
+  ): void {
     const items: HTMLLIElement[] = [];
     let total = 0;
     for (let e = 0; e < list.count; e++) {
-      if (list.kind[e] !== K_TIP) continue;
+      const tip = list.kind[e] === K_TIP;
+      // a collapsed clade is listed too, after its name or size, as "collapsed"
+      if (!tip && !(collapsed !== null && cladeText && list.kind[e] === K_SUMMARY && list.last[e] < 0 && collapsed[list.node[e]] === 1)) continue;
       total++;
       if (items.length < SR_LIST_CAP) {
         const li = document.createElement('li');
-        li.textContent = formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '');
+        li.textContent = tip ? formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '') : `${cladeText!(list.node[e])}, collapsed`;
         items.push(li);
       }
     }

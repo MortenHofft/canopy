@@ -5,6 +5,7 @@ import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts'
 import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
+import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import type { LabelDensity, TreeTheme } from './types.ts';
 
 export interface Scene {
@@ -21,6 +22,8 @@ export interface Scene {
   format: (id: string) => string;
   /** The label of a collapsed clade (node = row of the snapshot): its name, else its size. null: collapsed clades get no label. */
   cladeText: ((node: number) => string) | null;
+  nodeLabels: NodeLabelsOption; // the option
+  formatNode: (value: number, kind: NodeLabelKind) => string; // formatNodeLabel
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
   measure: TextMeasurer; // label widths, owned by the renderer
@@ -385,9 +388,12 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
   ctx.lineWidth = 2;
   for (let k = 0; k < hlRanks.length; k++) {
     const r = hlRanks[k];
-    const node = tree.tipNode[r];
+    // tips below a collapsed clade are marked once, on the clade's row and at its apex (the ranks are sorted, so a row's are adjacent)
+    const row = L.rowOfRank ? L.rowOfRank[r] : r;
+    if (L.rowOfRank && k > 0 && L.rowOfRank[hlRanks[k - 1]] === row) continue;
+    const node = L.rowNode ? L.rowNode[row] : tree.tipNode[r];
     if (rect) {
-      const y = T.oy + (L.rowOfRank ? L.rowOfRank[r] : r) * T.ky; // a tip below a collapsed clade is marked on the clade's row
+      const y = T.oy + row * T.ky;
       if (y + T.ky < T.clipT || y > T.clipB) continue;
       ctx.globalAlpha = theme.highlightOpacity;
       ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
@@ -443,6 +449,24 @@ export function alignedX(S: Scene): number {
 function isCollapsedEntry(S: Scene, e: number): boolean {
   const c = S.proj.L.collapsed;
   return c !== null && S.list.kind[e] === K_SUMMARY && S.list.last[e] < 0 && c[S.list.node[e]] === 1;
+}
+
+/** Some tip of the clade at row `i` is highlighted (band mode: `hlRanks`; dim mode: the prefix sums). */
+function holdsHighlight(S: Scene, i: number): boolean {
+  const t = S.proj.tree;
+  if (S.hlPrefix !== null) {
+    const n = S.hlPrefix.length - 1;
+    return S.hlPrefix[Math.min(t.leafEnd[i], n)] - S.hlPrefix[Math.min(t.leafStart[i], n)] > 0;
+  }
+  const hr = S.hlRanks;
+  let lo = 0,
+    hi = hr.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (hr[m] < t.leafStart[i]) lo = m + 1;
+    else hi = m;
+  }
+  return lo < hr.length && hr[lo] < t.leafEnd[i];
 }
 
 /** Where draw-list entry `e` is labelled from, into `p`: a tip's dot, or the outer edge of a collapsed clade's triangle on its row. */
@@ -555,7 +579,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     if (rect) {
       if (labelCulled(T, p.x, p.y, ax)) continue;
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
-    const hl = highlight && r >= 0 ? highlight[r] === 1 : false;
+    const hl = col ? highlight !== null && holdsHighlight(S, i) : highlight ? highlight[r] === 1 : false;
     const f = hl ? fontH : fontN;
     if (f !== lastFont) {
       ctx.font = f;
@@ -599,6 +623,132 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       const a = proj.tip(i);
       labels.add(key, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0, gap);
     }
+  }
+  if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+}
+
+// ------------------------------------------------------------------------------------------ node labels
+
+const NODE_LABEL_GAP_PX = 3; // a support value ends this far left of its node
+const NODE_LABEL_PAD_PX = 3; // free space the text keeps on each side within its branch
+const NODE_LABEL_LIFT_PX = 2; // from the branch line up to the text's baseline
+const NODE_LABEL_MIN_SEG_PX = 10; // a branch shorter than this is not looked at (no digit fits)
+
+/** The text of the internal node at snapshot row `row`, or null for none. 'support' reads the snapshot's `support` array when it has one
+ *  (else the numeric prefix of the label), 'length' its `length`; a function gets the node's full-tree id. A value that is not finite
+ *  gives none. */
+function nodeText(S: Scene, row: number): string | null {
+  const t = S.proj.tree;
+  const mode = S.nodeLabels;
+  if (mode === 'support' || mode === 'length') {
+    const v = mode === 'length' ? t.length[row] : t.support ? t.support[row] : internalSupport(t.labels[row] ?? '');
+    return Number.isFinite(v) ? S.formatNode(v, mode) : null;
+  }
+  if (mode === 'none') return null;
+  const r = mode(t.globalId === null ? row : t.globalId[row], t);
+  if (typeof r === 'number') return Number.isFinite(r) ? S.formatNode(r, 'support') : null;
+  return r ? r : null;
+}
+
+/** Node labels (`nodeLabels`) for the internal nodes of the draw list, which are expanded nodes and collapsed clades (on their own stem), so
+ *  never a node inside a summary, a run or a collapsed clade. Shown only with room, by the label-density rule of tip labels: rectangular, tip rows at least `LABEL_MIN_PX` apart
+ *  and the text fits the visible part of the node's horizontal segment; radial, the node's arc at least that long and the text fits the
+ *  branch. Support sits left of the node above its branch; a length is centred on the branch (radial: rotated along it, upright on the
+ *  left half like tip labels). The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP) labels, found by one pass over
+ *  the draw list, with the text made only after the cheap geometry tests. */
+export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
+  const mode = S.nodeLabels;
+  if (mode === 'none') return;
+  const { proj, list, theme } = S;
+  const { tree, L, T } = proj;
+  const rect = proj.kind === 'rectangular';
+  const need = LABEL_MIN_PX[S.density];
+  if (rect && proj.tipPitch < need) return;
+  const size = Math.max(8, Math.min(theme.nodeLabelSize, rect ? Math.round(proj.tipPitch * 0.78) : Infinity));
+  const font = `${size}px ${theme.fontFamily}`;
+  ctx.font = font;
+  ctx.textBaseline = 'bottom';
+  const maxN = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
+  const sc = S.scale;
+  const centred = mode === 'length'; // a function's text is placed and coloured like support
+  const gap = Math.max(NODE_LABEL_GAP_PX, theme.nodeMarkerSize / 2 + 1); // a support value clears the node's marker
+  const colSupport = theme.supportColour || theme.muted,
+    colLength = theme.lengthColour || theme.muted;
+  const p: Pt = { x: 0, y: 0 },
+    q: Pt = { x: 0, y: 0 };
+  const { firstChild, parent } = tree;
+  const hasCollapsed = L.collapsed !== null;
+  let n = 0;
+  let lastFill = '';
+  let lastAlpha = 1;
+  let lastAlign = '';
+  for (let e = 0; e < list.count && n < maxN; e++) {
+    const col = list.kind[e] !== K_NODE; // a collapsed clade shows its own support or length on its stem, like an expanded node
+    if (col ? !(hasCollapsed && isCollapsedEntry(S, e)) : list.last[e] >= 0) continue;
+    const i = list.node[e];
+    if (i === 0) continue;
+    let x0 = 0, // rectangular: the visible part of the segment; radial: the label's origin
+      y0 = 0,
+      room = 0,
+      c = 1,
+      sn = 0;
+    proj.nodeXY(i, p);
+    if (rect) {
+      proj.parentXY(i, q);
+      if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
+      x0 = Math.max(q.x, T.clipL);
+      room = (centred ? Math.min(p.x, T.clipR) : p.x) - x0;
+      if (!centred && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
+      y0 = p.y - NODE_LABEL_LIFT_PX;
+    } else {
+      const lc = L.LAST[i];
+      const r1 = proj.depth(i);
+      room = r1 - proj.depth(parent[i]);
+      if (room < NODE_LABEL_MIN_SEG_PX || (!col && proj.tipSpan(firstChild[i], lc) * r1 < need)) continue; // no room along the branch or across
+      c = L.COS![i];
+      sn = L.SIN![i];
+      x0 = centred ? p.x - (c * room) / 2 : p.x;
+      y0 = centred ? p.y - (sn * room) / 2 : p.y;
+      if (x0 < -20 || y0 < -20 || x0 > T.W + 20 || y0 > T.H + 20) continue;
+    }
+    if (room < NODE_LABEL_MIN_SEG_PX) continue;
+    const text = nodeText(S, i);
+    if (text === null) continue;
+    const w = S.measure.width(ctx, text, font);
+    if (w + (centred ? 2 * NODE_LABEL_PAD_PX : gap + NODE_LABEL_PAD_PX) > room) continue;
+    const fill = centred ? colLength : colSupport;
+    if (fill !== lastFill) {
+      ctx.fillStyle = fill;
+      lastFill = fill;
+    }
+    const alpha = S.hlPrefix !== null && dimmed(S, e) ? theme.dimOpacity : 1;
+    if (alpha !== lastAlpha) {
+      ctx.globalAlpha = alpha;
+      lastAlpha = alpha;
+    }
+    if (rect) {
+      const al = centred ? 'center' : 'right';
+      if (al !== lastAlign) {
+        ctx.textAlign = al;
+        lastAlign = al;
+      }
+      ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - gap, y0);
+    } else {
+      const left = c < 0; // the left half is read upside down otherwise: turn the text round
+      const cf = left ? -c : c,
+        sf = left ? -sn : sn;
+      ctx.setTransform(sc * cf, sc * sf, -sc * sf, sc * cf, sc * x0, sc * y0);
+      // support: its end at the node, which is the end of the branch away from the root (the start of the text when turned round)
+      const al = centred ? 'center' : left ? 'left' : 'right';
+      if (al !== lastAlign) {
+        ctx.textAlign = al;
+        lastAlign = al;
+      }
+      ctx.fillText(text, centred ? 0 : left ? gap : -gap, -NODE_LABEL_LIFT_PX);
+    }
+    n++;
   }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.textAlign = 'left';
