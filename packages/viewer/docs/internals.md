@@ -14,13 +14,13 @@ Node >= 22.7 is needed (the tests and scripts import the TypeScript sources dire
 Install once at the repository root with `npm ci`. From the repository root, `npm run check` runs typecheck, lint, format check and every
 workspace's tests. From `packages/viewer`:
 
-| Command | What it does |
-|---|---|
-| `npm test` | `node --test --test-concurrency=4 "test/**/*.test.mjs"` with `--experimental-transform-types` and the `@gbif-phylo/source` export condition: unit tests of the core modules (fake canvas context and fake document where needed, no DOM package), the golden test of the cut, and `test/radial-cut.test.mjs`, which runs `scripts/check-radial-cut.mjs` as a child process |
-| `npm run typecheck` | `tsc` with no emit |
-| `npm run build` | `tsc -p tsconfig.build.json` into `dist/`: one ES module per source file plus declarations and source maps |
-| `node --experimental-transform-types scripts/check-radial-cut.mjs [--tips N] [--budget N]` | regression of the cut, budget, culling, summaries, runs and hit-testing on the committed 10k Yule tree, and on the committed OTL 91k tree (`data/real-ladder/trees/otl-100k-vertebrata.nwk.gz`; prints `SKIP ...` when missing). Prints `OK`. About 2 s |
-| `node --experimental-transform-types scripts/capture-cut-golden.mjs [out.json]` | rewrites `test/cut-golden.json` from the current code. See "Recapturing the cut goldens" |
+| Command                                                                                    | What it does                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                                                                                 | `node --test --test-concurrency=4 "test/**/*.test.mjs"` with `--experimental-transform-types` and the `@gbif-phylo/source` export condition: unit tests of the core modules (fake canvas context and fake document where needed, no DOM package), the golden test of the cut, and `test/radial-cut.test.mjs`, which runs `scripts/check-radial-cut.mjs` as a child process |
+| `npm run typecheck`                                                                        | `tsc` with no emit                                                                                                                                                                                                                                                                                                                                                         |
+| `npm run build`                                                                            | `tsc -p tsconfig.build.json` into `dist/`: one ES module per source file plus declarations and source maps                                                                                                                                                                                                                                                                 |
+| `node --experimental-transform-types scripts/check-radial-cut.mjs [--tips N] [--budget N]` | regression of the cut, budget, culling, summaries, runs and hit-testing on the committed 10k Yule tree, and on the committed OTL 91k tree (`data/real-ladder/trees/otl-100k-vertebrata.nwk.gz`; prints `SKIP ...` when missing). Prints `OK`. About 2 s                                                                                                                    |
+| `node --experimental-transform-types scripts/capture-cut-golden.mjs [out.json]`            | rewrites `test/cut-golden.json` from the current code. See "Recapturing the cut goldens"                                                                                                                                                                                                                                                                                   |
 
 Browser checks and benchmarks live in [`tests/browser`](../../../tests/browser): a test page that mounts `<TreeView>` in two instances and
 exposes `window.__spike` / `__spike2` (mount, colour, highlight, focus, locate, events, stats) and `window.__customTree` (the first
@@ -66,28 +66,28 @@ something changed.
 
 Where the three adaptive mechanisms sit:
 
-* **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades smaller than `minPx` (option `minCladePx`, default 3). If the draw list
+- **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades smaller than `minPx` (option `minCladePx`, default 3). If the draw list
   would exceed the budget (`drawBudget`, default 20,000; radial: the smaller of that and `radialMaxNodes`, default 2,000), `minPx` is raised on
   a fixed ladder `base * 1.15^n` and the cut is redone; the aborted pass stops as soon as the budget is exceeded. The level is sticky: it rises
   only on overflow and falls only when the next level down fits with room to spare, and the previous full frame's level is the starting
   point. Above 80,000 visited nodes (caterpillar-like walks) there is no search, `minPx` just doubles until the list fits.
-* **Interaction LOD** (`viewer.ts`: `noteInput`, `refineMs`). The input controller calls `noteInput()` before it moves the view. While the user
+- **Interaction LOD** (`viewer.ts`: `noteInput`, `refineMs`). The input controller calls `noteInput()` before it moves the view. While the user
   wheels, pinches, drags or an animation runs, frames are reduced: a quarter of the budget (at least 500), and the threshold x1.6 when the last
   full frame had more than 1,000 primitives. `refineMs` (default 120) after the last input one full-quality frame is drawn. The label overlay,
   the corner notice and the stub loader run after full-quality frames only.
-* **Settle** (`settle()` in `viewer.ts`). Anything that reads the draw list for a decision (`hitTest`, click, hover, `locateNode`, `nodeBounds`,
+- **Settle** (`settle()` in `viewer.ts`). Anything that reads the draw list for a decision (`hitTest`, click, hover, `locateNode`, `nodeBounds`,
   `columnCell`, `renderNow`) first draws a full-quality frame if the last one was reduced, so a click always hits what a settled frame shows.
 
 ## Invariants the core relies on
 
 From the header of `packages/io/src/tree.ts` and from `src/types.ts`. (`packages/io/test/parser.test.mjs`, test 'structural invariants on a real tree', checks them on the TreeModel; `layout.test.mjs` and the cut tests exercise them on the core side.)
 
-* Nodes are numbered in preorder, so `parent[i] < i` for `i > 0`, and the subtree of `i` is the index range `[i, subtreeEnd[i])`.
-* Tips are ranked in preorder, and the tips below `i` are the rank range `[leafStart[i], leafEnd[i])`. A click event carries that range at no
+- Nodes are numbered in preorder, so `parent[i] < i` for `i > 0`, and the subtree of `i` is the index range `[i, subtreeEnd[i])`.
+- Tips are ranked in preorder, and the tips below `i` are the rank range `[leafStart[i], leafEnd[i])`. A click event carries that range at no
   cost; labels are sliced from `tipLabels`.
-* The cut is one forward scan over the preorder arrays and skips a culled or collapsed subtree by jumping to `subtreeEnd[i]`.
-* `X` never decreases from parent to child (negative or missing lengths count as 0); `layout.ts` notes that culling relies on it.
-* In a partial snapshot `nodeCount` is the number of rows, ids in the arrays are row indexes, while `tipCount`, `leafStart`, `leafEnd` and
+- The cut is one forward scan over the preorder arrays and skips a culled or collapsed subtree by jumping to `subtreeEnd[i]`.
+- `X` never decreases from parent to child (negative or missing lengths count as 0); `layout.ts` notes that culling relies on it.
+- In a partial snapshot `nodeCount` is the number of rows, ids in the arrays are row indexes, while `tipCount`, `leafStart`, `leafEnd` and
   `tipRank` are ranks of the FULL tree; a stub row has `subtreeEnd[i] = i + 1` and `childCount[i] > 0`. The public API and `NodeEvent.node` speak
   the preorder id of the full tree (`globalId`), not the row.
 
@@ -106,78 +106,78 @@ tied to the frame loop; only the parts with one job were moved out. It is a faca
 
 As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its files):
 
-| File | Lines | Job |
-|---|---|---|
-| `src/types.ts` | 298 | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats` |
-| `src/viewer.ts` | 1,323 | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
-| `src/clade-name.ts` | 42 | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement) |
-| `src/events.ts` | 124 | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`) |
-| `src/node-event.ts` | 69 | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault` |
-| `src/theme.ts` | 99 | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties |
-| `src/control.ts` | 84 | `Control`, `BaseControl` (listener bookkeeping), `makeButton` |
-| `src/controls/` | 471 | built-in controls, one module each: zoom, fit, layout toggle, search, legend, overview (+ `defaults.ts`, `icons.ts`) |
-| `src/overlays/` | 379 | `Overlay` (pinned to a node), `Tooltip`, `NodeMenu` |
-| `src/source.ts` | 97 | `TreeSource` interface, `InMemorySource` |
-| `src/layout.ts` | 159 | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); cos/sin cache |
-| `src/geom.ts` | 95 | `makeTransform` (viewport to px), sector bounding boxes |
-| `src/projection.ts` | 316 | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values |
-| `src/lod.ts` | 655 | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R |
-| `src/draw.ts` | 643 | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer` |
-| `src/hit.ts` | 314 | `HitIndex`: uniform grid over the draw list, candidate scoring |
-| `src/columns.ts` | 379 | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns` |
-| `src/view-keep.ts` | 92 | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM) |
-| `src/view-state.ts` | 384 | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM) |
-| `src/input.ts` | 306 | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer) |
-| `src/keyboard.ts` | 70 | keyboard cursor: start node and navigation keys (pure functions) |
-| `src/overlay.ts` | 158 | `LabelOverlay`: label anchors and links, hidden tip list, live region |
-| `src/overview.ts` | 269 | `Overview`: strip/disc with the window box, its geometry as pure functions (used by `controls/overview.ts`) |
-| `src/detail-loader.ts` | 87 | `DetailLoader`: opens stubs of a partial source through `ensureClade` |
-| `src/live.ts` | 13 | `live()`: builds the getter objects modules read the viewer through |
-| `src/dom.ts` | 11 | `mk`, `SR_ONLY` |
-| `src/constants.ts` | 85 | tuning constants and numeric limits |
-| `src/index.ts` | 14 | public exports |
-| `css/viewer.css` | 326 | styles of the DOM (controls, popups, legend, search, notice), `--phylo-*` properties with fallbacks |
-| `css/gbif.css` | 22 | GBIF design tokens mapped to `--phylo-*` |
-| `../react/src/TreeView.tsx` | 324 | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent` |
-| `../react/src/props.ts` | 38 | `useShallowStable` and the equality helpers behind the prop identity rules |
-| **Total, `src/` of this package** | **6,864** | |
+| File                              | Lines     | Job                                                                                                                                                  |
+| --------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/types.ts`                    | 298       | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats`         |
+| `src/viewer.ts`                   | 1,323     | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
+| `src/clade-name.ts`               | 42        | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement)                                        |
+| `src/events.ts`                   | 124       | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`)                                                                         |
+| `src/node-event.ts`               | 69        | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault`                                               |
+| `src/theme.ts`                    | 99        | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties                                                                       |
+| `src/control.ts`                  | 84        | `Control`, `BaseControl` (listener bookkeeping), `makeButton`                                                                                        |
+| `src/controls/`                   | 471       | built-in controls, one module each: zoom, fit, layout toggle, search, legend, overview (+ `defaults.ts`, `icons.ts`)                                 |
+| `src/overlays/`                   | 379       | `Overlay` (pinned to a node), `Tooltip`, `NodeMenu`                                                                                                  |
+| `src/source.ts`                   | 97        | `TreeSource` interface, `InMemorySource`                                                                                                             |
+| `src/layout.ts`                   | 159       | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); cos/sin cache                                         |
+| `src/geom.ts`                     | 95        | `makeTransform` (viewport to px), sector bounding boxes                                                                                              |
+| `src/projection.ts`               | 316       | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values                      |
+| `src/lod.ts`                      | 655       | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R                                            |
+| `src/draw.ts`                     | 643       | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer`                                   |
+| `src/hit.ts`                      | 314       | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                       |
+| `src/columns.ts`                  | 379       | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                      |
+| `src/view-keep.ts`                | 92        | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM)                             |
+| `src/view-state.ts`               | 384       | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM)                                                                   |
+| `src/input.ts`                    | 306       | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer)                                           |
+| `src/keyboard.ts`                 | 70        | keyboard cursor: start node and navigation keys (pure functions)                                                                                     |
+| `src/overlay.ts`                  | 158       | `LabelOverlay`: label anchors and links, hidden tip list, live region                                                                                |
+| `src/overview.ts`                 | 269       | `Overview`: strip/disc with the window box, its geometry as pure functions (used by `controls/overview.ts`)                                          |
+| `src/detail-loader.ts`            | 87        | `DetailLoader`: opens stubs of a partial source through `ensureClade`                                                                                |
+| `src/live.ts`                     | 13        | `live()`: builds the getter objects modules read the viewer through                                                                                  |
+| `src/dom.ts`                      | 11        | `mk`, `SR_ONLY`                                                                                                                                      |
+| `src/constants.ts`                | 85        | tuning constants and numeric limits                                                                                                                  |
+| `src/index.ts`                    | 14        | public exports                                                                                                                                       |
+| `css/viewer.css`                  | 326       | styles of the DOM (controls, popups, legend, search, notice), `--phylo-*` properties with fallbacks                                                  |
+| `css/gbif.css`                    | 22        | GBIF design tokens mapped to `--phylo-*`                                                                                                             |
+| `../react/src/TreeView.tsx`       | 324       | `<TreeView>` component, `TreeViewHandle`, `TreeNodeEvent`                                                                                            |
+| `../react/src/props.ts`           | 38        | `useShallowStable` and the equality helpers behind the prop identity rules                                                                           |
+| **Total, `src/` of this package** | **6,864** |                                                                                                                                                      |
 
 Scripts and tests:
 
-| File | Lines | Job |
-|---|---|---|
-| `scripts/check-radial-cut.mjs` | 583 | regression of the cut on real trees (also run by `npm test`) |
-| `../../tests/browser/scripts/check-radial-ui.mjs` | 667 | browser check of the renderer on the built test page |
-| `../../tests/browser/scripts/test-browser.mjs` | 141 | `npm run test:browser`: per page (test page, vanilla example, React example) build, serve, run its check, stop the server |
-| `../../tests/browser/scripts/check-vanilla-example.mjs` | 240 | browser check of the framework-free example: controls, search, custom popup, node menu, legend, custom column, dark theme |
-| `../../tests/browser/scripts/check-node-menu.mjs` | 333 | browser check of the node menu and tree operations on the React example |
-| `scripts/capture-cut-golden.mjs` | 57 | rewrites the cut goldens from the current code |
-| `test/layout.test.mjs` | 66 | layout invariants (X, ROW, XMAX, LAST) on a tiny tree; the template for core unit tests |
-| `test/projection.test.mjs` | 139 | projections, the cut written once on top of them, per-renderer text measurer |
-| `test/cut-golden.test.mjs, cut-golden-cases.mjs, cut-golden.json` | 3,984 | 168 golden cases of the cut (draw list and `CutResult`), captured at e2897fb; recapture: `scripts/capture-cut-golden.mjs` |
-| `test/lod.test.mjs` | 205 | `Seen`, `DrawList` growth, the `searchCut` ladder |
-| `test/cut-stub.test.mjs, partial-snapshot.mjs` | 306 | the partial-source path (stubs, `globalId`, rollups) through layout, cut and hit; `partial-snapshot.mjs` is a helper, a miniature of `ParquetSource.build()` |
-| `test/geom.test.mjs` | 140 | transforms of both layouts, sector bounding boxes against a brute-force sample, `viewportEquals` |
-| `test/hit-rect.test.mjs` | 189 | rectangular hit-testing: tip, marker, branch, connector, collapsed clade, run |
-| `test/columns.test.mjs` | 542 | column compile, bar scale, `cellRect`, `drawColumns` on a fake context |
-| `test/set-tree.test.mjs` | 208 | `setTree`: the view kept through a map (identity, prune, flip), fitted when nothing survives, `treechange`, controls and listeners kept, clades and highlights with the new tree, the Search index and Legend |
-| `test/view-state.test.mjs` | 329 | viewport arithmetic: area, fit, limits, zoom, target windows, animation |
-| `test/input.test.mjs, input-gestures.test.mjs` | 478 | `InputController`: wheel, drag, click, pinch, keys, with a fake element and host |
-| `test/keyboard.test.mjs` | 87 | keyboard cursor and `makeNodeEvent` |
-| `test/overlay.test.mjs` | 285 | `LabelOverlay` with a fake document: pool, transforms, links, screen reader list |
-| `test/overview.test.mjs` | 79 | overview geometry |
-| `test/detail-loader.test.mjs` | 162 | `DetailLoader` with a fake partial source |
-| `test/live.test.mjs` | 59 | `live()` |
-| `../react/test/props.test.mjs` | 118 | (React package) prop helpers (`props.ts`), theme comparison, column reuse in `updateColumns` |
-| `test/radial-cut.test.mjs` | 19 | runs `scripts/check-radial-cut.mjs` as a child process |
-| `test/events.test.mjs` | 121 | the emitter (order, removal during an emit, once, default actions, errors) and `TreeEvent` |
-| `test/controls.test.mjs` | 206 | `BaseControl` bookkeeping and the built-in controls against a fake viewer |
-| `test/overlays.test.mjs` | 195 | `Overlay` placement, the tooltip and the node menu as default actions, menu keyboard |
-| `test/theme.test.mjs` | 74 | `themeFromCss`, list splitting, luminance, `themeEquals` |
-| `test/viewer.test.mjs` | 366 | the `TreeViewer` facade built for real: `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, `setTheme` / `refreshTheme` |
-| `test/viewer-harness.mjs` | 269 | `makeViewer(tree, init)`: a real viewer over the fake DOM, with a recording 2D context, a rAF queue, ResizeObserver, matchMedia and getComputedStyle under the test's control (build later viewer tests on it) |
-| `test/fake-dom.mjs` | 263 | the minimal fake DOM the control, overlay and viewer tests run on |
-| **Total, `test/`** | **7,869** | |
+| File                                                              | Lines     | Job                                                                                                                                                                                                            |
+| ----------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/check-radial-cut.mjs`                                    | 583       | regression of the cut on real trees (also run by `npm test`)                                                                                                                                                   |
+| `../../tests/browser/scripts/check-radial-ui.mjs`                 | 667       | browser check of the renderer on the built test page                                                                                                                                                           |
+| `../../tests/browser/scripts/test-browser.mjs`                    | 141       | `npm run test:browser`: per page (test page, vanilla example, React example) build, serve, run its check, stop the server                                                                                      |
+| `../../tests/browser/scripts/check-vanilla-example.mjs`           | 240       | browser check of the framework-free example: controls, search, custom popup, node menu, legend, custom column, dark theme                                                                                      |
+| `../../tests/browser/scripts/check-node-menu.mjs`                 | 333       | browser check of the node menu and tree operations on the React example                                                                                                                                        |
+| `scripts/capture-cut-golden.mjs`                                  | 57        | rewrites the cut goldens from the current code                                                                                                                                                                 |
+| `test/layout.test.mjs`                                            | 66        | layout invariants (X, ROW, XMAX, LAST) on a tiny tree; the template for core unit tests                                                                                                                        |
+| `test/projection.test.mjs`                                        | 139       | projections, the cut written once on top of them, per-renderer text measurer                                                                                                                                   |
+| `test/cut-golden.test.mjs, cut-golden-cases.mjs, cut-golden.json` | 3,984     | 168 golden cases of the cut (draw list and `CutResult`), captured at e2897fb; recapture: `scripts/capture-cut-golden.mjs`                                                                                      |
+| `test/lod.test.mjs`                                               | 205       | `Seen`, `DrawList` growth, the `searchCut` ladder                                                                                                                                                              |
+| `test/cut-stub.test.mjs, partial-snapshot.mjs`                    | 306       | the partial-source path (stubs, `globalId`, rollups) through layout, cut and hit; `partial-snapshot.mjs` is a helper, a miniature of `ParquetSource.build()`                                                   |
+| `test/geom.test.mjs`                                              | 140       | transforms of both layouts, sector bounding boxes against a brute-force sample, `viewportEquals`                                                                                                               |
+| `test/hit-rect.test.mjs`                                          | 189       | rectangular hit-testing: tip, marker, branch, connector, collapsed clade, run                                                                                                                                  |
+| `test/columns.test.mjs`                                           | 542       | column compile, bar scale, `cellRect`, `drawColumns` on a fake context                                                                                                                                         |
+| `test/set-tree.test.mjs`                                          | 208       | `setTree`: the view kept through a map (identity, prune, flip), fitted when nothing survives, `treechange`, controls and listeners kept, clades and highlights with the new tree, the Search index and Legend  |
+| `test/view-state.test.mjs`                                        | 329       | viewport arithmetic: area, fit, limits, zoom, target windows, animation                                                                                                                                        |
+| `test/input.test.mjs, input-gestures.test.mjs`                    | 478       | `InputController`: wheel, drag, click, pinch, keys, with a fake element and host                                                                                                                               |
+| `test/keyboard.test.mjs`                                          | 87        | keyboard cursor and `makeNodeEvent`                                                                                                                                                                            |
+| `test/overlay.test.mjs`                                           | 285       | `LabelOverlay` with a fake document: pool, transforms, links, screen reader list                                                                                                                               |
+| `test/overview.test.mjs`                                          | 79        | overview geometry                                                                                                                                                                                              |
+| `test/detail-loader.test.mjs`                                     | 162       | `DetailLoader` with a fake partial source                                                                                                                                                                      |
+| `test/live.test.mjs`                                              | 59        | `live()`                                                                                                                                                                                                       |
+| `../react/test/props.test.mjs`                                    | 118       | (React package) prop helpers (`props.ts`), theme comparison, column reuse in `updateColumns`                                                                                                                   |
+| `test/radial-cut.test.mjs`                                        | 19        | runs `scripts/check-radial-cut.mjs` as a child process                                                                                                                                                         |
+| `test/events.test.mjs`                                            | 121       | the emitter (order, removal during an emit, once, default actions, errors) and `TreeEvent`                                                                                                                     |
+| `test/controls.test.mjs`                                          | 206       | `BaseControl` bookkeeping and the built-in controls against a fake viewer                                                                                                                                      |
+| `test/overlays.test.mjs`                                          | 195       | `Overlay` placement, the tooltip and the node menu as default actions, menu keyboard                                                                                                                           |
+| `test/theme.test.mjs`                                             | 74        | `themeFromCss`, list splitting, luminance, `themeEquals`                                                                                                                                                       |
+| `test/viewer.test.mjs`                                            | 366       | the `TreeViewer` facade built for real: `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, `setTheme` / `refreshTheme`                            |
+| `test/viewer-harness.mjs`                                         | 269       | `makeViewer(tree, init)`: a real viewer over the fake DOM, with a recording 2D context, a rAF queue, ResizeObserver, matchMedia and getComputedStyle under the test's control (build later viewer tests on it) |
+| `test/fake-dom.mjs`                                               | 263       | the minimal fake DOM the control, overlay and viewer tests run on                                                                                                                                              |
+| **Total, `test/`**                                                | **7,869** |                                                                                                                                                                                                                |
 
 ## How to extend
 
@@ -190,7 +190,7 @@ Scripts and tests:
    `viewer.ts`. A numeric tuning value that is not an option goes in `src/constants.ts`.
 4. React: nothing, if it is a field of `ViewerOptions`. `<TreeView>` passes every field of its `options` prop (except `layout`, `branchLengths`
    and `tipHref`, which are props) to `setOptions`, so adding an option touches `types.ts` and the code that reads it (commits e122a53 and 3317ca7; before them,
-   `TreeView.tsx` listed each option twice). A key absent from `options` is the default from `DEFAULT_OPTIONS`. 
+   `TreeView.tsx` listed each option twice). A key absent from `options` is the default from `DEFAULT_OPTIONS`.
 5. Document it in [docs/api.md](docs/api.md) and add a test if it changes geometry (`test/` has the pattern: import the module, build a tree
    from `packages/io/src/newick.ts`, assert).
 
@@ -245,16 +245,16 @@ Add the field to `TreeTheme` and `FALLBACK_THEME` (`types.ts`; `themeEquals` com
 
 Implement `TreeSource` (`src/source.ts`); `InMemorySource` is the trivial one; a partial one over Parquet files (`ParquetSource`) is on the `research` branch, `spikes/custom/src/parquet/`.
 
-* `snapshot()` must be always renderable, synchronous, and return the same object while `version` is unchanged. It returns a `TreeSnapshot`: all
+- `snapshot()` must be always renderable, synchronous, and return the same object while `version` is unchanged. It returns a `TreeSnapshot`: all
   the `TreeData` arrays over the loaded rows (preorder, the invariants above), plus `stub` (1 = a row standing for a clade whose rows are not
   loaded), `globalId` (row to preorder id of the full tree; null = identity), `rollup` (per row `cumLength`, `maxCum`, `depth`, `maxDepth`, `row`,
   the numbers the layout cannot derive for a stub) and `toLocal(globalId)` (row or -1).
-* Stub contract: a stub row is drawn as a summary from its rollups and `leafStart` / `leafEnd`, never descended into (`subtreeEnd[i] = i + 1`,
+- Stub contract: a stub row is drawn as a summary from its rollups and `leafStart` / `leafEnd`, never descended into (`subtreeEnd[i] = i + 1`,
   `childCount[i] > 0` so it is not taken for a tip), and never part of a run. A source with no stubs sets all three extra fields to null.
-* When rows arrive or are dropped, bump `version` and call the listeners given to `subscribe()`. `ensureClade(globalId, {signal, priority})`
+- When rows arrive or are dropped, bump `version` and call the listeners given to `subscribe()`. `ensureClade(globalId, {signal, priority})`
   resolves after the version bump; `DetailLoader` calls it for big stubs after full-quality frames and cancels through the signal. `openCost` is
   optional. `tipLabels(r0, r1)` is async because a partial source may not have the labels; `nodeCount`, `tipCount`, `hasLengths` describe the full tree.
-* Tests of the contract: `test/detail-loader.test.mjs` has a fake partial source; `scripts/check-parquet-source.mjs` on the `research` branch is the end-to-end check of `ParquetSource`.
+- Tests of the contract: `test/detail-loader.test.mjs` has a fake partial source; `scripts/check-parquet-source.mjs` on the `research` branch is the end-to-end check of `ParquetSource`.
 
 ## The cut: why two loops, and the golden tests
 
@@ -286,20 +286,20 @@ the commit why the output moved.
 
 The rules are written in the JSDoc of `TreeViewProps` in `packages/react/src/TreeView.tsx`; read them there. In short:
 
-* `options` is compared field by field (`useShallowStable` in `packages/react/src/props.ts`) and `theme` with `useStable(..., themeEquals)`, so an inline object with the same values is no change. A
+- `options` is compared field by field (`useShallowStable` in `packages/react/src/props.ts`) and `theme` with `useStable(..., themeEquals)`, so an inline object with the same values is no change. A
   function-valued option (`formatLabel`) or `tipHref` is compared by identity, so an inline arrow counts as a change on every render: hoist it or
   wrap it in `useCallback`.
-* The viewer's options are built as `{...DEFAULT_OPTIONS, ...stripUndefined(options), layout, branchLengths, tipHref}`: a key removed from
+- The viewer's options are built as `{...DEFAULT_OPTIONS, ...stripUndefined(options), layout, branchLengths, tipHref}`: a key removed from
   `options` (or set to `undefined`) reverts to its default; it does not keep the old value.
-* `highlighted` is compared element-wise, `clades` by content, `viewport` by its four numbers, `focus` acts when `seq` changes (and is applied again when the renderer is re-created).
-* `columns`: compared per column by `id`, `kind`, `header`, `width` and `values` BY REFERENCE, and column objects by reference first. Replace a
+- `highlighted` is compared element-wise, `clades` by content, `viewport` by its four numbers, `focus` acts when `seq` changes (and is applied again when the renderer is re-created).
+- `columns`: compared per column by `id`, `kind`, `header`, `width` and `values` BY REFERENCE, and column objects by reference first. Replace a
   column object (and its `values`) when the data changed; never mutate either in place. Ids must be unique.
-* `theme` holds overrides only: they go over the theme the viewer read from the `--phylo-*` custom properties (and `FALLBACK_THEME`).
-* `controls` is compared element by element by identity; the component adds and removes controls to match, plus its own `Tooltip` (when
+- `theme` holds overrides only: they go over the theme the viewer read from the `--phylo-*` custom properties (and `FALLBACK_THEME`).
+- `controls` is compared element by element by identity; the component adds and removes controls to match, plus its own `Tooltip` (when
   `tooltip` is not false) and `NodeMenu` (when `nodeMenu` is given), each created once per component.
-* The viewer's own setters (`setOptions`, `setTheme`, `setHighlighted`, `setColumns`, `setClades`) are no-ops for equal input, so a direct user of
+- The viewer's own setters (`setOptions`, `setTheme`, `setHighlighted`, `setColumns`, `setClades`) are no-ops for equal input, so a direct user of
   the core gets the same behaviour.
-* The prop-sync effects act only on the live renderer (`liveRenderer` in `TreeView.tsx`), so no setter runs on an instance that was destroyed by a
+- The prop-sync effects act only on the live renderer (`liveRenderer` in `TreeView.tsx`), so no setter runs on an instance that was destroyed by a
   strict-mode remount. A new `tree` / `source` of the same kind goes to the live renderer's `setTree` (in an effect before the clade, highlight and collapsed effects, with those props passed in the same call, so the next frame never shows the old colours); `treeMap` keeps the view. Only a switch between `tree` and `source`, or a changed `options.softwareCanvas`, re-creates the renderer.
 
 Introduced in `e122a53`, corrected in `3317ca7`.

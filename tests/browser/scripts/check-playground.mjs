@@ -132,6 +132,7 @@ await select('layout', 'rectangular');
 
 console.log('the wheel over the overview zooms about the tree point under the pointer');
 {
+  await select('maxTipSpacing', 'Infinity'); // these windows are tighter than the default cap; this block is about the overview, not the cap
   const ovBox = () => page.locator('.phylo-overview').boundingBox();
   const mid = (v) => (v.y0 + v.y1) / 2;
   // rectangular: zoomed into the top of the tree, a wheel-in over the bottom of the strip moves the window toward the bottom clades
@@ -183,6 +184,20 @@ console.log('the wheel over the overview zooms about the tree point under the po
     'radial: and the window moves toward the right of the tree, where the pointer is on the overview',
   );
   await select('layout', 'rectangular');
+}
+
+await select('maxTipSpacing', 'auto');
+{
+  // at the default cap the overview wheel still zooms in from the fit, and stops at the cap
+  await ev(() => window.viewer.fit(false));
+  const span = () => ev(() => window.viewer.getViewport()).then((v) => v.y1 - v.y0);
+  const s0 = await span();
+  const b = await page.locator('.phylo-overview').boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.3);
+  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, -300);
+  await settled();
+  const s1 = await span();
+  ok(s1 < s0 * 0.9, `overview wheel zooms in at the default cap (${s0.toFixed(1)} -> ${s1.toFixed(1)} rows)`);
 }
 
 console.log('the URL keeps the settings');
@@ -505,6 +520,97 @@ ok(
   rows2[1] === `Clade of ${synth.tips.toLocaleString('en')} tips`,
   `a synthetic mrcaott label is hidden: "Clade of N tips" (${JSON.stringify(rows2)})`,
 );
+
+console.log('zoom limits and the tree/columns split (#38, #39)');
+await open('?tree=syn-yule-1000');
+// a wheel-in over the top of the tree stops at maxTipSpacing: the row height of tip 0 (the alignment cell's height) stops growing at the cap
+const rowPx = () =>
+  ev(() => {
+    const v = window.viewer.getViewport();
+    return window.viewer.columnCell('alignment', Math.floor((v.y0 + v.y1) / 2))?.height ?? null; // a row in view
+  });
+const wheelIn = async (n) => {
+  const box = await page.locator('#tree canvas').first().boundingBox();
+  await page.mouse.move(box.x + box.width * 0.3, box.y + 40);
+  for (let i = 0; i < n; i++) await page.mouse.wheel(0, -400);
+  await settled();
+};
+await select('maxTipSpacing', '24');
+await wheelIn(60);
+const capped = await rowPx();
+ok(capped !== null && Math.abs(capped - 24) < 0.5, `wheel-in stops at the cap: ${capped} px per row with maxTipSpacing 24`);
+await wheelIn(10);
+ok(Math.abs((await rowPx()) - capped) < 1e-6, 'more wheel-in does not zoom further');
+{
+  // at the cap the wheel (pointer near the bottom) and the + key do nothing: the window does not scroll
+  const y0 = (await ev(() => window.viewer.getViewport())).y0;
+  const box = await page.locator('#tree canvas').first().boundingBox();
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.8);
+  for (let i = 0; i < 10; i++) await page.mouse.wheel(0, -400);
+  await page.locator('#tree canvas').first().focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('+');
+  await settled();
+  const y1 = (await ev(() => window.viewer.getViewport())).y0;
+  ok(y1 === y0, `at the cap the wheel and + do not scroll (y0 ${y0} -> ${y1})`);
+}
+await select('maxTipSpacing', 'Infinity');
+await wheelIn(60);
+ok((await rowPx()) > 100, `without a cap the rows keep growing (${await rowPx()} px)`);
+await select('maxTipSpacing', 'auto');
+ok((await opt('maxTipSpacing')) === 'auto', "'auto' reaches the option as the string");
+await ev(() => window.viewer.fit(false));
+const autoRow = await rowPx();
+ok(autoRow !== null && autoRow < 24, 'a tree with many tips is fitted below the cap (the fit is not changed)');
+await wheelIn(60);
+const autoCap = await rowPx();
+ok(autoCap === 24 || Math.abs(autoCap - 24) < 1e-6, `auto cap = 24 px at label size 13 (${autoCap} px)`);
+await setInput('labelSize', '20');
+await wheelIn(60);
+ok(Math.abs((await rowPx()) - 37) < 0.5, `the auto cap follows the label size (${await rowPx()} px at 20)`);
+
+// a narrow pane with the HCV alignment: the whole tree and the whole alignment column are on screen
+await page.setViewportSize({ width: 640, height: 700 });
+await open('?tree=rich-hcv-19&s.maxViewWidth=6');
+const geometry = () =>
+  ev(() => {
+    const v = window.viewer;
+    const c = v.columnCell('alignment', 0);
+    const left = document.querySelector('#tree').getBoundingClientRect().left; // cells come in page coordinates
+    return { W: v.size.width, cell: c && { x: c.x - left, width: c.width }, view: v.getViewport() };
+  });
+let g = await geometry();
+ok(g.cell && g.cell.width === 260, `fixed: the column keeps its 260 px and the tree gets the rest (tree area ${g.cell?.x} of ${g.W} px)`);
+const fixedX = g.cell.x;
+await toggle('fillAlignment', true);
+await select('treeWidth', '35%');
+g = await geometry();
+ok(
+  g.cell && g.cell.x + g.cell.width <= g.W + 0.5,
+  `the 'fill' alignment column is fully on screen (right edge ${g.cell?.x + g.cell?.width} of ${g.W})`,
+);
+ok(g.cell.width > 260 && g.cell.x < fixedX, `and the column has more room than fixed (${g.cell?.width} px wide, tree area ${g.cell?.x} px)`);
+ok(Math.abs(g.cell.x - (0.35 * g.W + 6)) < 1, 'the tree area is 35% of the width');
+ok(g.view.x0 <= 0 && g.view.x1 >= 1, 'the whole tree is in the window');
+const box = await page.locator('#tree canvas').first().boundingBox();
+await page.mouse.move(box.x + 100, box.y + 200);
+await ev(
+  ([x, y]) => {
+    // Shift + wheel zooms along x only (a synthetic event: the modifier is not passed on by the wheel of the mouse driver)
+    const target = document.querySelector('#tree canvas');
+    for (let i = 0; i < 12; i++)
+      target.dispatchEvent(new WheelEvent('wheel', { deltaY: 300, shiftKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+  },
+  [box.x + 100, box.y + 200],
+);
+await settled();
+g = await geometry();
+ok(g.view.x1 - g.view.x0 > 1.6 + 1e-6 && g.view.x1 - g.view.x0 <= 6 + 1e-9, `maxViewWidth 6 lets the x window pass 1.6 (${g.view.x1 - g.view.x0})`);
+await select('maxViewWidth', '1.6');
+g = await geometry();
+ok(g.view.x1 - g.view.x0 <= 1.6 + 1e-9, 'back to 1.6: the window is clamped again');
+await select('treeWidth', 'auto');
+await toggle('fillAlignment', false);
+await page.setViewportSize({ width: 1400, height: 900 });
 
 console.log('own file, re-creation, benchmark');
 await page

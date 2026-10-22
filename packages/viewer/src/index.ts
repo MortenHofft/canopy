@@ -4,6 +4,7 @@ export { TreeViewer, type TreeViewerInit, type SetTreeOptions } from './viewer.t
 export { type TreeEvent, type ViewerEventMap, type ViewerEventType, type Listener, type ListenOptions } from './events.ts';
 export { computeLayout, type Layout } from './layout.ts';
 export * from './types.ts';
+export { type FontRelative, type TreeWidth } from './sizes.ts';
 export { cut, searchCut, newCutResult, DrawList, Seen, type CutParams, type CutResult } from './lod.ts';
 export { projectionFor, RectProjection, RadialProjection, type LayoutProjection } from './projection.ts';
 export { HitIndex } from './hit.ts';
