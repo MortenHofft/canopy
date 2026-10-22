@@ -57,11 +57,12 @@ State: setters (each is a no-op for input equal to the current one) and getters
 | Method | Meaning |
 |---|---|
 | `setOptions(patch)` | change options (undefined and unchanged values are ignored). Refits for `layout`, `branchLengths` or `rowHeight`; for `axis` only while the view is still fitted. A change of `tipHref` or `formatLabel` rebuilds the DOM label anchors. Emits `optionschange` |
-| `setTheme(overrides)` | theme fields over the CSS theme; replaces the overrides of an earlier call. Emits `themechange` |
-| `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created and when the colour scheme preference changes) |
+| `setTheme(overrides)` | theme fields over the CSS theme; REPLACES the overrides of an earlier call (`setTheme({})` clears them). Emits `themechange` |
+| `updateTheme(patch)` | MERGES the fields into the current overrides (a field that is `undefined` is dropped, so it goes back to the CSS value). For controls that each own one token, such as a font-size slider and a branch-width slider. Emits `themechange` |
+| `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created, and on what the `themeObserver` option watches) |
 | `getTheme()` | the theme in force |
 | `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree); where clades nest the innermost wins (for the same node, the later entry); nodes not loaded are skipped. Emits `cladeschange` |
-| `setTree(tree \| source, opts?)` | show another tree without re-creating the viewer: canvases, controls, listeners, options and theme overrides stay; layout, hit index, column data, clade classes and highlights are rebuilt, the keyboard cursor and hover are reset. `opts`: `map` (old node -> new node, as tree-ops returns it, -1 removed), `view` (`'keep'` frames the tips that were in view through `map`, or by tip label without one, at the same scale: rectangular by rank, radial by angle; `'fit'` shows the whole tree; default `'keep'` with a `map`, else `'fit'`; a fitted view stays fitted, and `'keep'` fits when no tip in view survives or the source is partial), `clades`, `highlighted`, `collapsed` (applied with the new tree, so no frame draws the old colours on it; default: `clades` and `collapsed` sent through `map` when there is one, `highlighted` unchanged since tip labels follow the tips). The old source is not destroyed. Emits `treechange` |
+| `setTree(tree \| source, opts?)` | show another tree without re-creating the viewer: canvases, controls, listeners, options and theme overrides stay; layout, hit index, column data, clade classes and highlights are rebuilt, the keyboard cursor and hover are reset. `opts`: `map` (old node -> new node, as tree-ops returns it, -1 removed), `view` (`'keep'` frames the tips that were in view through `map`, or by tip label without one, at the same scale: rectangular by rank, radial by angle; `'fit'` shows the whole tree; default `'keep'` with a `map`, else `'fit'`; a fitted view stays fitted, and `'keep'` fits when no tip in view survives (a tip that is gone counts as the nearest ancestor that survived, e.g. a collapsed clade, unless that is the whole tree) or the source is partial), `clades`, `highlighted`, `collapsed` (applied with the new tree, so no frame draws the old colours on it; default: `clades` and `collapsed` sent through `map` when there is one, `highlighted` unchanged since tip labels follow the tips). The old source is not destroyed. Emits `treechange` |
 | `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label; unknown labels are ignored. How they show is the `highlightStyle` option: a row band, ring and bold label (`'band'`), dimming everything else (`'dim'`) or both. Overview ticks in every style. Emits `highlightchange` |
 | `setCollapsed(nodeIds)` | tips that stand for collapsed clades (drawn as triangles); the collapsing itself is done in the data, e.g. with tree-ops' `collapseClades` |
 | `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` and `renderer` by reference, ids unique) |
@@ -72,8 +73,10 @@ Navigation and view
 
 | Method | Meaning |
 |---|---|
-| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits |
+| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits; a window equal to the current one changes nothing, so `setViewport(getViewport())` no longer stops a running animation (a controlled `viewport` prop echoing the view does not stop `fit(true)`) |
+| `fitViewport()` | the window `fit()` would go to (a copy), without moving: for controls that set the view relative to the fitted one |
 | `fit(animate = true)` | fit the whole tree and columns into the container |
+| `toBlob({ type?, scale?, background? })` | `Promise<Blob>`: the current view as an image, drawn into an offscreen canvas with the same code as the frame (the visible canvas is not read; hover and keyboard rings are left out). `type` defaults to `'image/png'`; `scale` is canvas pixels per CSS pixel (default the canvas's own: `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale` (rejects with `RangeError` over 16384 px); `background` is a CSS colour, `null` for a transparent image, default the theme's background. Not in the image: DOM controls, overlays and label anchors; with a partial source the current cut is exported. An unsupported `type` gives a PNG (check `blob.type`). Rejects over 2^26 px in all. Lines one device pixel wide (dense radial trees) and alignment smoothing follow `scale`, so they look fainter than on screen above the screen's scale |
 | `zoomBy(fx, fy, px, py)` | zoom by factors (>1 zooms in) keeping container point (px, py) fixed |
 | `focusTip(rank, animate = false)` | bring the tip of leaf rank `rank` into view (rows at least 26 px); ignored when its row is not loaded |
 | `zoomToNode(id, animate = false)` | show the clade below node `id` (preorder id of the full tree) |
@@ -210,7 +213,7 @@ All three are controls with position `'custom'`: add them with `addControl`.
 | Class | Options | What it does |
 |---|---|---|
 | `Overlay` | `element`, `positioning` (`'top-left'`; vertical-horizontal, e.g. `'bottom-center'`), `offset` (`[x, y]`), `keepInside` (true), `anchor` | an element of yours pinned to `{node}`, `{tipId}` or `{x, y}` (`setPosition(anchor)`, `null` hides it); placed after every frame through `nodePosition`, hidden while the anchor is out of view. `setPositioning`, `getPosition`, `update()` |
-| `Tooltip` | `render(e, viewer)` returning a node, a string or null; `offset` (`[14, 14]`) | hover box near the pointer (default content: `defaultTooltip`); a default action of `hover` |
+| `Tooltip` | `render(e, viewer)` returning a node, a string or null; `offset` (`[14, 14]`); `bare` (content only: no padding, background, border or shadow, class `phylo-tooltip--bare`) | hover box near the pointer (default content: `defaultTooltip`); a default action of `hover` |
 | `NodeMenu` | `items(e, viewer)` returning `NodeMenuItem[]` or null; `title(e, viewer)` | actions for the clicked tip or clade at the click; keyboard (focus on the first item when opened by Enter, arrows, Escape, Tab out), closes on a press outside, a view change or a choice; a default action of `click`. `setItems`, `isOpen`, `close(refocusTree)` |
 
 `NodeMenuItem`: `{ id, label, hint?, disabled?, onSelect(e) }`.
@@ -273,12 +276,14 @@ Exceptions to the rule:
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
-Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `draw.ts`), the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
 The theme in force is `FALLBACK_THEME`, then the `--phylo-*` custom properties set on the target or any ancestor, then `setTheme`'s
-overrides. The viewer writes the colours and font in force back on its root, so the controls and popups (styled by `viewer.css` with the same
+overrides (`updateTheme` merges into them). The viewer re-reads the custom properties when it is created and, per the `themeObserver`
+option, when `prefers-color-scheme` changes (`'media'`, the default) and also when `class` or `data-theme` on `<html>` changes
+(`'document'`, a `MutationObserver`, disconnected by `destroy()`); `'none'` leaves it to `refreshTheme()`. The viewer writes the colours and font in force back on its root, so the controls and popups (styled by `viewer.css` with the same
 properties) follow a theme from JavaScript too. A dark mode is a set of custom properties:
 
 ```css
@@ -302,6 +307,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity` | `--phylo-summary-opacity`, ... | 0.6, 0.85, 0.16 | collapsed clades, markers, highlight band |
 | `dimOpacity` | `--phylo-dim-opacity` | 0.25 | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity |
+| `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity` | `--phylo-leader-colour`, `-dash`, `-width`, `-opacity` | `''` (= `muted`), `1 3`, 1, 0.7 | leader lines of aligned labels: colour, dash pattern (px, separated by spaces or commas; `''` or `none` = solid), width (px), opacity (times `dimOpacity` for a dimmed tip) |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
 | `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
 | `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
@@ -337,6 +343,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `drawBudget` | `20000` | most primitives per frame; the collapse threshold is raised until the cut fits (min 500; LOD off: 600,000) |
 | `showSummaries` | `true` | draw collapsed clades as triangles (otherwise only their branch) |
 | `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
+| `alignLabels` | `false` | rectangular phylogram: every tip label starts in one column right of the farthest tip, with a dotted leader line from each tip to it (see "Aligned labels"). No effect in a cladogram, without branch lengths or in the radial layout |
 | `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
@@ -347,6 +354,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |
 | `ariaLabel` | `'Phylogenetic tree'` | label of the root element |
 | `softwareCanvas` | `false` | create the 2D contexts with `willReadFrequently` (CPU-backed canvas); read at construction only |
+| `themeObserver` | `'media'` | what makes the viewer re-read the `--phylo-*` custom properties: `'media'` a change of `prefers-color-scheme`; `'document'` that plus a change of `class` or `data-theme` on `document.documentElement` (dark mode switched by the page); `'none'` nothing, call `refreshTheme()` yourself. Changeable with `setOptions` (back from `'none'` it refreshes at once); another value throws `RangeError`. `'document'` reacts once per animation frame and does not see dark mode set on `<body>` or by `style` on `<html>` (call `refreshTheme()`) |
 | `dprCap` | `2` | cap on canvas pixels per CSS px (`Infinity` = native); hit-testing and events use CSS px |
 | `radialMaxNodes` | `2000` | radial only: most primitives per frame; small clades become fans (`Infinity` = only `drawBudget`) |
 | `interactionLOD` | `true` | draw reduced frames while wheeling, pinching or dragging |
@@ -354,6 +362,23 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `summaryNotice` | `true` | radial: corner notice when the cut-off summarises clades the normal threshold would show |
 
 The overview is a control (`OverviewControl`), not an option.
+
+### Aligned labels
+
+`alignLabels: true` puts the tip labels of a rectangular phylogram in one column: the text starts 8 px right of the farthest tip (and right of the
+triangle of a collapsed clade, when the tree has any), and a dotted leader line runs from each tip to 3 px before its label. The leaders are drawn
+below the tip dots, for the tips that get a label (same density rule, cap and culling as the labels), from the column leftward so the dash
+pattern lines up, and a dimmed tip's leader is dimmed with it. Label hit areas and the DOM anchors (`tipHref`, screen readers) follow the labels,
+and the label reserve of the plot area is 14 px larger while the tree has collapsed tips.
+
+The column is **pinned**: zoomed in on x so far that the farthest tip is right of the plot area, the column stays at the area's right edge (where
+the farthest tip is at the fit view), so the labels stay readable. The branches of the tips beyond it run on under the label text (they are not
+clipped), and such a tip gets no leader. Not done: the radial layout (labels on one circle with radial leaders) is not aligned; the option does
+nothing there.
+
+`leaderColour` must be a valid CSS colour or empty (empty = `muted`); anything else is drawn as the canvas reads it (an invalid value keeps the
+previous stroke colour). `leaderDash` as a CSS custom property: only `none` (not an empty value, which the viewer ignores) gives a solid line;
+with `setTheme`, `''` or `'none'` both do.
 
 ### Dimming highlights
 
@@ -424,6 +449,7 @@ Props (all optional, but one of `tree` / `source` is needed):
 | `focus` | `{tipId, seq}`: centre that tip; acts when `seq` changes |
 | `options` | any `ViewerOptions` field except `layout`, `branchLengths`, `tipHref`; a key that is absent or `undefined` is the default; `softwareCanvas` re-creates the viewer |
 | `tooltip` | `true` (default tooltip), `false`, or `(e) => ReactNode` (rendered into the viewer's tooltip box) |
+| `tooltipBare` | the tooltip box without its chrome (the `bare` option of `Tooltip`), for a `tooltip` function whose content has its own |
 | `nodeMenu` | `(e) => NodeMenuItem[] \| null`: the actions of the node menu for the clicked tip or clade |
 | `width`, `height`, `className`, `style` | the wrapper's size (default 100%) and styling |
 | `onNodeClick`, `onTipClick`, `onHover`, `onViewportChange`, `onFrame`, `onReady` | callbacks; `onReady({layoutMs, tips})` fires two animation frames after creation |

@@ -52,7 +52,7 @@ projectionFor(snapshot, L, T)    projection.ts  RectProjection | RadialProjectio
    |                                         extents, summary/run geometry, and the per-frame values the cut precomputes
 searchCut(proj, ...) -> cut      lod.ts      DrawList (node, kind, cls, last, xmax): which nodes are drawn and how (expanded node,
    |                                         tip, summary triangle/fan/slice, stub)
-   +-- drawBody, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, columns.ts  (Canvas2D)
+   +-- drawBody, drawLeaders, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, columns.ts  (Canvas2D)
    +-- HitIndex: uniform grid over the draw list, built on the first pointer query         hit.ts
    +-- LabelOverlay: DOM anchors over the canvas text, hidden tip list, live region        overlay.ts  (full-quality frames only)
    +-- DOM in the control layer: controls and popups, driven by events after the frame     control.ts, controls/, overlays/
@@ -220,7 +220,7 @@ change, `draw` once per frame with the visible ranks; see `types.ts` and the hea
 visible rows, `cellRect` returns the cell of a tip rank for `columnCell`, `columnsWidth` / `layoutColumns` place them to the right of the plot,
 `updateColumns` / `columnSpecEquals` decide what `setColumns` recompiles (a column is compared by `id`, `kind`, `header`, `width`, `values` by
 reference and, for a custom column, `renderer` by reference). Column ids must be unique: a duplicate id is recompiled on every call. Columns are
-drawn in the rectangular layout only. `viewer.ts` calls `updateColumns` from `setColumns` and `drawColumns` from `render()`; the header and the
+drawn in the rectangular layout only. `viewer.ts` calls `updateColumns` from `setColumns` and `drawColumns` from `paint()` (the drawing half of `render()`, also used by `toBlob`); the header and the
 width come from the spec, so a new kind usually touches only `columns.ts` and `types.ts`.
 
 ### Add a control or a popup

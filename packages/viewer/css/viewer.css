@@ -13,6 +13,7 @@
  *   motion      --phylo-transition
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
+ *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *   residues    --phylo-residue-hydrophobic  -positive  -negative  -polar  -aromatic  -glycine  -proline  (protein groups)
  *               --phylo-residue-a  -c  -g  -t  (nucleotides)  --phylo-residue-other   (canvas only; defaults follow --phylo-dark)
  *
@@ -115,6 +116,16 @@
   padding: 4px 8px;
   font-size: 12px;
   line-height: 1.35;
+}
+
+/* Tooltip({ bare: true }): the content brings its own box */
+.phylo-tooltip.phylo-tooltip--bare {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  max-width: none;
 }
 
 .phylo-tooltip__title {

@@ -337,3 +337,34 @@ test('setTree ends a drag in progress and refreshes the screen-reader list', asy
   assert.equal(viewer.input.gesturing, false);
   assert.equal(viewer.input.pointers.size, 0);
 });
+
+test('setTree fits (and is fitted) when the tips in view are all gone in a real prune, not just the nearest ancestor (the root)', async () => {
+  const ops = await import(path.join(root, 'packages/tree-ops/src/index.ts'));
+  const { TreeModel } = await import(path.join(root, 'packages/io/src/tree.ts'));
+  const a = ladder(names(0, 40));
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
+  const r = ops.prune(a, (rank) => rank >= 10); // keeps t10..: the five tips in view are gone; their ancestors all lead to the root
+  viewer.setTree(new TreeModel(r.tree), { map: r.map });
+  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 30 });
+  assert.equal(viewer.vs.fitted, true);
+});
+
+test('setTree on a deep (caterpillar) tree: the ancestor walk is linear', async () => {
+  const ops = await import(path.join(root, 'packages/tree-ops/src/index.ts'));
+  const { TreeModel } = await import(path.join(root, 'packages/io/src/tree.ts'));
+  const N = 20000;
+  let s = 't' + (N - 1);
+  for (let i = N - 2; i >= 0; i--) s = `(t${i}:1,${s}:1)`;
+  const a = parseNewick(s + ';');
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: N * 0.9 });
+  const r = ops.prune(a, (rank) => rank >= N - 50); // nothing in view survives directly: every tip walks up
+  const b = new TreeModel(r.tree);
+  const t0 = performance.now();
+  viewer.setTree(b, { map: r.map });
+  const ms = performance.now() - t0;
+  assert.ok(ms < 1500, `setTree took ${ms.toFixed(0)} ms (was 668 ms when quadratic at 20k; linear is a few tens)`);
+});

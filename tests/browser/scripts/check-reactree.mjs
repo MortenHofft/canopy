@@ -6,7 +6,7 @@
 // click collapses it and a click on the triangle expands it; colour, erase and the innermost-colour-wins order; reroot, flip, swap
 // (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG, Newick and NEXUS downloads); the transparent
 // background leaves no trace of earlier frames; the innermost clade colour wins whatever the order;
-// node labels (support, length); the alignment track and its legend; dark mode reaches the canvas; the resize handle.
+// node labels (support, length); aligned labels (one x for the label anchors, a click on one opens the inspector); the alignment track and its legend; dark mode reaches the canvas; the resize handle.
 /* global __v, __order, __tipAt, __clade, __inView -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
@@ -324,6 +324,9 @@ ok((await page.locator('.rt-palette').count()) === 0, 'Escape leaves colour mode
 ok((await page.locator('.rt-color .rt-count').innerText()) === '1', 'Color shows the count');
 
 console.log('tree operations');
+// the earlier steps moved the view and an edit keeps it now: start from the whole tree
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
 await btn('Reroot').click();
 const rt = await ev(() => __v().getTree().tipLabels[5]);
@@ -442,6 +445,62 @@ const png = await (await d.createReadStream()).toArray();
 ok(d.suggestedFilename() === 'phylotree.png' && Buffer.concat(png).subarray(1, 4).toString() === 'PNG', 'PNG download');
 const img = PNG.sync.read(Buffer.concat(png));
 ok(img.data[3] === 255, 'the PNG is opaque (the pane colour under the transparent canvas)');
+const cssSize = await ev(() => ({ w: __v().size.width, h: __v().size.height, dpr: Math.min(window.devicePixelRatio, __v().options.dprCap) }));
+ok(
+  img.width === Math.round(cssSize.w * cssSize.dpr) && img.height === Math.round(cssSize.h * cssSize.dpr),
+  `the PNG is the view's size at the canvas scale (${img.width} x ${img.height})`,
+);
+const screenVsBlob = () =>
+  ev(async () => {
+    // the export equals the screen: the visible canvas (transparent background) against toBlob at the canvas scale, pixel by pixel
+    const v = __v();
+    v.renderNow();
+    const screen = v.treeElement.querySelector('canvas');
+    const bm = await createImageBitmap(await v.toBlob({ background: null }));
+    const read = (src) => {
+      const c = document.createElement('canvas');
+      c.width = screen.width;
+      c.height = screen.height;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(src, 0, 0);
+      return x.getImageData(0, 0, c.width, c.height).data;
+    };
+    const A = read(screen),
+      B = read(bm);
+    let diff = 0,
+      painted = 0;
+    for (let i = 0; i < A.length; i += 4) {
+      if (A[i + 3] > 0) painted++;
+      if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 2) diff++;
+    }
+    return { w: bm.width === screen.width && bm.height === screen.height, diff, painted };
+  });
+const same = await screenVsBlob();
+ok(
+  same.w && same.painted > 500 && same.diff === 0,
+  `toBlob at the canvas scale equals the screen (${same.painted} painted pixels, ${same.diff} differ)`,
+);
+const exp2 = await ev(async () => {
+  const b = await __v().toBlob({ scale: 2, background: null });
+  const bm = await createImageBitmap(b);
+  const c = document.createElement('canvas');
+  c.width = bm.width;
+  c.height = bm.height;
+  const x = c.getContext('2d');
+  x.drawImage(bm, 0, 0);
+  const d = x.getImageData(0, 0, 1, 1).data;
+  return { type: b.type, w: bm.width, h: bm.height, corner: d[3], W: __v().size.width, H: __v().size.height };
+});
+ok(exp2.type === 'image/png' && exp2.w === exp2.W * 2 && exp2.h === exp2.H * 2, `toBlob({ scale: 2 }) is twice the CSS size (${exp2.w} x ${exp2.h})`);
+ok(exp2.corner === 0, 'toBlob({ background: null }) is transparent');
+ok(
+  await ev(() => {
+    const el = document.querySelector('.phylo-tooltip');
+    const cs = getComputedStyle(el);
+    return el.classList.contains('phylo-tooltip--bare') && cs.paddingTop === '0px' && cs.boxShadow === 'none' && cs.borderTopStyle === 'none';
+  }),
+  'the tooltip box is bare (tooltipBare): no padding, border or shadow, and no CSS override in the example',
+);
 await btn('Export').click();
 dl = page.waitForEvent('download');
 await page.locator('.rt-menu button', { hasText: 'Newick' }).click();
@@ -512,6 +571,48 @@ await page.locator('.phylo-tree').focus();
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(200);
 ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'Ctrl+Z undoes the swap');
+
+// ---------------------------------------------------------------- aligned labels
+console.log('aligned labels');
+await open('rich-hcv-19');
+const alignBtn = page.locator('.rt-outer button', { hasText: /^\s*Align\s*$/ }); // not 'Alignment'
+const anchorXs = () =>
+  ev(() => [...document.querySelectorAll('.phylo-tree [data-tip-id]')].map((a) => Math.round(a.getBoundingClientRect().left * 10) / 10));
+await page.waitForTimeout(300);
+const ragged = await anchorXs();
+ok(
+  ragged.length > 5 && new Set(ragged).size > 3,
+  `labels follow their tips by default (${ragged.length} anchors, ${new Set(ragged).size} different x)`,
+);
+ok((await alignBtn.isEnabled()) && (await ev(() => __v().options.alignLabels)) === false, 'the Align button is enabled, off by default');
+await alignBtn.click();
+await page.waitForTimeout(400);
+const aligned = await anchorXs();
+ok(aligned.length > 5 && new Set(aligned).size === 1, `Align: the label anchors share one x (${aligned.length} anchors at ${aligned[0]})`);
+ok(
+  (await ev(() => __v().options.alignLabels)) === true && (await alignBtn.getAttribute('aria-pressed')) === 'true',
+  'Align sets the option and shows as pressed',
+);
+const sameAligned = await screenVsBlob();
+ok(
+  sameAligned.w && sameAligned.painted > 500 && sameAligned.diff === 0,
+  `Align on: toBlob equals the screen, leaders included (${sameAligned.painted} painted pixels, ${sameAligned.diff} differ)`,
+);
+const lab = await page.evaluate(() => {
+  const a = document.querySelector('.phylo-tree [data-tip-id]');
+  const r = a.getBoundingClientRect();
+  return { id: a.dataset.tipId, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+});
+await page.mouse.click(lab.x, lab.y);
+await page.waitForTimeout(300);
+ok(
+  (await page.locator('.rt-info-name').count()) === 1 && (await page.locator('.rt-info-name').innerText()) === lab.id.replace(/_/g, ' '),
+  'clicking an aligned label opens the inspector of its tip',
+);
+await page.locator('.rt-info-head button').click();
+await alignBtn.click();
+await page.waitForTimeout(300);
+ok(new Set(await anchorXs()).size > 3, 'Align off: the labels follow their tips again');
 
 // ---------------------------------------------------------------- alignment
 console.log('alignment');

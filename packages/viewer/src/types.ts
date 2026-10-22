@@ -119,6 +119,12 @@ export interface TreeTheme extends ResidueTheme {
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
   axisFontSize: number;
+  /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
+   *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
+  leaderColour: string;
+  leaderDash: string;
+  leaderWidth: number;
+  leaderOpacity: number;
   /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep a quarter of the row free. */
   alignRowGap: number;
 }
@@ -144,6 +150,10 @@ export const FALLBACK_THEME: TreeTheme = {
   dimOpacity: 0.25,
   labelSize: 13,
   axisFontSize: 10,
+  leaderColour: '',
+  leaderDash: '1 3',
+  leaderWidth: 1,
+  leaderOpacity: 0.7,
   alignRowGap: 0,
 };
 
@@ -160,10 +170,13 @@ export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
   return true;
 }
 
-/** A copy of `o` without its undefined values, so spreading it over defaults never puts an undefined in. */
+/** A copy of `o` (array values copied too) without its undefined values, so spreading it over defaults never puts an undefined in. */
 export function stripUndefined<T extends object>(o: T): Partial<T> {
   const r: Partial<T> = {};
-  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] !== undefined) r[k] = o[k];
+  for (const k of Object.keys(o) as (keyof T)[]) {
+    const v = o[k];
+    if (v !== undefined) r[k] = (Array.isArray(v) ? v.slice() : v) as T[keyof T]; // arrays (`categorical`) are copied: no aliasing with the caller's
+  }
   return r;
 }
 
@@ -249,6 +262,10 @@ export interface ViewerOptions {
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
   labelDensity: LabelDensity;
+  /** Rectangular phylogram: draw every tip label in one column right of the farthest tip, with a leader line (theme `leaderColour`,
+   *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
+   *  without branch lengths or in the radial layout. */
+  alignLabels: boolean;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
@@ -271,6 +288,10 @@ export interface ViewerOptions {
   /** Cap on the canvas backing-store pixel ratio (device pixels per CSS pixel): the canvas is min(devicePixelRatio, dprCap)
    *  times the CSS size. Infinity = native. Hit-testing, overlay and events always use CSS pixels. */
   dprCap: number;
+  /** What makes the viewer read the `--phylo-*` custom properties again: 'media' (default) a change of `prefers-color-scheme`;
+   *  'document' that and a change of the `class` or `data-theme` attribute of `document.documentElement` (sites that switch dark
+   *  mode that way); 'none' nothing (call `refreshTheme()` yourself). */
+  themeObserver: 'media' | 'document' | 'none';
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
@@ -289,6 +310,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   drawBudget: 20000,
   showSummaries: true,
   labelDensity: 'normal',
+  alignLabels: false,
   highlightStyle: 'band',
   rowHeight: null,
   axis: true,
@@ -300,6 +322,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   ariaLabel: 'Phylogenetic tree',
   softwareCanvas: false,
   dprCap: 2,
+  themeObserver: 'media',
   radialMaxNodes: 2000,
   interactionLOD: true,
   refineMs: 120,

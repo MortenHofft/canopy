@@ -98,6 +98,7 @@ export function Reactree({
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
+  const [alignLabels, setAlignLabels] = useState(false);
   const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
@@ -244,20 +245,14 @@ export function Reactree({
   const refit = useCallback(() => {
     const r = ref.current?.renderer();
     if (!r) return;
-    r.fit(false);
-    fitted.current = r.getViewport();
+    fitted.current = r.fitViewport();
     applyScales();
   }, [applyScales]);
   // A new tree keeps the view (the viewer's setTree, through `treeMap`), but what "fitted" is has changed with it: read it back
-  // without moving the window, so the sliders go on working relative to the new fit.
+  // (fitViewport does not move the window), so the sliders go on working relative to the new fit.
   useLayoutEffect(() => {
     const r = ref.current?.renderer();
-    if (!r || !fitted.current) return;
-    const cur = r.getViewport();
-    r.fit(false);
-    const f = r.getViewport();
-    fitted.current = f;
-    if (Object.keys(f).some((k) => Math.abs(f[k as keyof Viewport] - cur[k as keyof Viewport]) > 1e-9)) r.setViewport(cur);
+    if (r && fitted.current) fitted.current = r.fitViewport();
   }, [shown]);
   useEffect(applyScales, [hScale, vScale, applyScales]);
   // a new layout, tree type, label size or column changes what "fitted" is
@@ -269,13 +264,6 @@ export function Reactree({
   // for the browser check (tests/browser/scripts/check-reactree.mjs): the viewer, to find where nodes are
   useEffect(() => {
     (window as unknown as { __reactree?: () => unknown }).__reactree = () => ref.current?.renderer() ?? null;
-  }, []);
-
-  // ---- dark mode: the page flips data-theme on <html>; the viewer re-reads its --phylo-* properties when told to
-  useEffect(() => {
-    const mo = new MutationObserver(() => ref.current?.renderer()?.refreshTheme());
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => mo.disconnect();
   }, []);
 
   const flash = (msg: string) => setToast(msg);
@@ -443,7 +431,7 @@ export function Reactree({
     setMatchIdx(0);
   };
 
-  // ---- export: PNG is the viewer's canvas (labels are drawn on it); Newick and NEXUS through @gbif-phylo/io
+  // ---- export: PNG is the viewer's toBlob; Newick and NEXUS through @gbif-phylo/io
   const download = (blob: Blob, name: string) => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -452,20 +440,12 @@ export function Reactree({
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const exportPng = () => {
-    const r = ref.current?.renderer();
-    if (!r) return;
-    r.renderNow();
-    const src = r.treeElement.querySelector('canvas');
-    if (!src) return;
     // the tree is drawn on a transparent background (the pane's dotted grid shows through): the PNG gets the pane's colour
-    const out = document.createElement('canvas');
-    out.width = src.width;
-    out.height = src.height;
-    const ctx = out.getContext('2d')!;
-    ctx.fillStyle = cssVar('--rt-surface-10');
-    ctx.fillRect(0, 0, out.width, out.height);
-    ctx.drawImage(src, 0, 0);
-    out.toBlob((b) => b && download(b, 'phylotree.png'), 'image/png');
+    ref.current
+      ?.renderer()
+      ?.toBlob({ background: cssVar('--rt-surface-10') })
+      .then((b) => download(b, 'phylotree.png'))
+      .catch((err) => flash(`PNG export: ${(err as Error).message}`));
   };
   const exportText = (text: string, name: string) => download(new Blob([text], { type: 'text/plain' }), name);
 
@@ -796,9 +776,10 @@ export function Reactree({
         {phylogram && tree.hasLengths && (
           <button
             type="button"
-            className="rt-btn rt-toggle"
-            disabled
-            title="Align leaf labels: not available, the viewer has no aligned-label option"
+            className={`rt-btn rt-toggle${alignLabels ? ' active' : ''}`}
+            aria-pressed={alignLabels}
+            title={alignLabels ? 'Labels follow their tips' : 'Align leaf labels in one column, with leader lines'}
+            onClick={() => setAlignLabels((a) => !a)}
           >
             <I.IconAlignLabels />
             Align
@@ -832,8 +813,9 @@ export function Reactree({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim' }}
+          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, themeObserver: 'document' }}
           tooltip={tooltip}
+          tooltipBare
           onNodeClick={onClick}
           onTipClick={onClick}
         />

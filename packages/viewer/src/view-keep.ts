@@ -30,6 +30,7 @@ export interface KeepInput {
   target(rank: number, deep: boolean, out: TipTarget): boolean;
 }
 
+const PROPORTIONAL = 0.05; // X before and after is a rescaling when the survivors' nearest X is scaled like their spread (within this share of the farthest)
 const MIN_SPAN = 0.02; // a span of X smaller than this share of the window is too short to give a scale
 
 /** The x window that follows the survivors: their X (distance from the root, normalised by the deepest tip) before and after. A span
@@ -37,9 +38,11 @@ const MIN_SPAN = 0.02; // a span of X smaller than this share of the window is t
 function carryX(x0: number, x1: number, a0: number, a1: number, b0: number, b1: number, shiftOnly: number): [number, number] {
   if (a0 === b0 && a1 === b1) return [x0, x1];
   const w = x1 - x0;
-  if (a1 - a0 > MIN_SPAN * w && b1 - b0 > 0) {
+  // both spans long enough to give a scale, and a rescaling (the deepest tip changed: every X is multiplied), not a different shape (a reroot
+  // turning a dated tree into one with spread-out tips, or back)
+  if (a1 - a0 > MIN_SPAN * w && b1 - b0 > MIN_SPAN * w) {
     const s = (b1 - b0) / (a1 - a0);
-    return [b0 + (x0 - a0) * s, b0 + (x1 - a0) * s];
+    if (Math.abs(b0 - s * a0) <= PROPORTIONAL * b1) return [b0 + (x0 - a0) * s, b0 + (x1 - a0) * s];
   }
   return [x0 + shiftOnly, x1 + shiftOnly];
 }
@@ -52,7 +55,8 @@ function carryX(x0: number, x1: number, a0: number, a1: number, b0: number, b1: 
  *    x follows the survivors' X (scale and shift).
  *  - Radial: the tips inside the old window; the window turns by the mean angle the survivors moved (their angle is rank * 2pi / tips)
  *    and follows their radius. A window with no tip in it is kept as it is.
- * Tips with no counterpart count only when none has one directly; then a tip that is gone stands for the clade it was collapsed into.
+ * Tips with no counterpart count only when none has one directly; then a tip that is gone stands for the nearest ancestor that
+ * survived (a clade it was collapsed into). When that is the whole tree there is nothing to follow and the result is null.
  */
 export function keptViewport(a: KeepInput): Viewport | null {
   const N = a.before.tipCount;
@@ -93,6 +97,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
         n++;
       }
       if (!n) continue;
+      if (deep && nLo === 0 && nHi === a.after.tipCount) return null; // they only stand for the whole tree: nothing to follow
       const [x0, x1] = carryX(v.x0, v.x1, ax0, ax1, bx0, bx1, (sb - sa) / n);
       const h = v.y1 - v.y0;
       const extent = nHi - nLo;
@@ -128,6 +133,7 @@ export function keptViewport(a: KeepInput): Viewport | null {
       sy = 0,
       ra = 0,
       rb = 0,
+      all = false,
       n = 0;
     for (let r = 0; r < N; r++) {
       if (!inView[r] || !a.target(r, deep, t)) continue;
@@ -135,11 +141,13 @@ export function keptViewport(a: KeepInput): Viewport | null {
       const d = ((t.lo + t.hi) / 2) * dn - ang;
       sx += Math.cos(d);
       sy += Math.sin(d);
+      if (deep && t.hi - t.lo === a.after.tipCount) all = true;
       ra += X[tipNode[r]];
       rb += a.afterL.X[t.node];
       n++;
     }
     if (!n) continue;
+    if (all) return null;
     const d = Math.atan2(sy, sx);
     const f = ra > 1e-9 && rb > 0 ? rb / ra : 1; // the radius of the survivors, before and after: positions and window follow
     if (d === 0 && f === 1) return { ...v };

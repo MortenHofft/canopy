@@ -15,3 +15,18 @@ Headless Chromium through `playwright-core`. Chromium comes from `$CHROMIUM_PATH
 - Each check also takes `--url` (or `--port`) to run against a dev server.
 - `bench/`: before/after benchmarks against the built test page (`npm run build && npx vite preview --port 5306`). Their results are in
   `docs/design/custom.md`.
+
+## Reaching the viewer from a check
+
+A browser check needs the `TreeViewer` of the page under test. The pattern for examples: the page exposes a function that returns the
+viewer (or null before it exists) on `window`, named `__<example>` (`__reactree()` in Reactree; the test page has `__spike`; the vanilla example has an object `__example` with its `viewer`), in the
+example's own entry code and not in the library. The check waits for it and then reads state and drives the public API:
+
+```js
+await page.waitForFunction(() => typeof window.__reactree === 'function' && window.__reactree() !== null);
+const branch = await page.evaluate(() => window.__reactree().getTheme().branch);
+```
+
+A function rather than the viewer itself, because a component may re-create its viewer (a new `softwareCanvas`, a new tree source).
+The library sets no such global and no `data-` attribute linking an element to its viewer. Examples set the global only
+for their check, and the library's user documentation never mentions it.

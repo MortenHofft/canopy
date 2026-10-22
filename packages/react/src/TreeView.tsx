@@ -111,6 +111,8 @@ export interface TreeViewProps {
   controls?: Control[];
   /** The hover tooltip: true (default content), false, or your content for the event (rendered into the viewer's tooltip box). */
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);
+  /** The tooltip box without its own chrome (no padding, background, border or shadow), for a `tooltip` function whose content has its own. */
+  tooltipBare?: boolean;
   /** Actions for the clicked tip or clade, shown as a menu at the click (keyboard: Enter on the cursor opens it, arrows move,
    *  Escape closes, Tab out closes). Return null or [] for no menu. Called after onTipClick / onNodeClick. */
   nodeMenu?: (e: TreeNodeEvent) => NodeMenuItem[] | null | undefined;
@@ -191,6 +193,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     tipHref = null,
     focus,
     tooltip = true,
+    tooltipBare = false,
   } = props;
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -229,6 +232,9 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
         },
       }),
   );
+  useLayoutEffect(() => {
+    tooltipControl.element.classList.toggle('phylo-tooltip--bare', tooltipBare);
+  }, [tooltipControl, tooltipBare]);
   const [menuControl] = useState(() => new NodeMenu({ items: (e) => latest.current.nodeMenu?.(e) }));
 
   const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, props.source ? 'source' : 'tree', options.softwareCanvas, (host) => {
