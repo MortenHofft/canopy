@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const { internalName } = await import('../src/clade-name.ts');
+const { internalSupport } = await import('../src/node-label.ts');
 const { splitInternalLabel } = await import('@gbif-phylo/io');
 
 const CORPUS = [
@@ -39,10 +40,18 @@ const CORPUS = [
   '1,000',
   '100/95',
   '95%',
+  '\u00A095', // no-break space, BOM and ideographic space: io's \s accepts them, so does the viewer
+  '\uFEFF95',
+  '\u300095',
+  '95\u3000:Foo',
 ];
 
 test('internalName agrees with io splitInternalLabel(...).name over a fixed corpus', () => {
   for (const s of CORPUS) assert.equal(internalName(s), splitInternalLabel(s).name, JSON.stringify(s));
+});
+
+test('internalSupport agrees with io splitInternalLabel(...).support over the same corpus (Object.is)', () => {
+  for (const s of CORPUS) assert.ok(Object.is(internalSupport(s), splitInternalLabel(s).support), JSON.stringify(s));
 });
 
 test('internalName: support values are no name, "support:name" is the name, and "100/95" and "95%" are names', () => {

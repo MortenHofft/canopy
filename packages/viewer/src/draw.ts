@@ -18,8 +18,6 @@ export interface Scene {
   collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
-  hoverNode: number;
-  activeNode: number;
   density: LabelDensity;
   alignLabels: boolean; // the option; it acts only in a rectangular phylogram (see alignedX)
   format: (id: string) => string;
@@ -631,21 +629,19 @@ const NODE_LABEL_PAD_PX = 3; // free space the text keeps on each side within it
 const NODE_LABEL_LIFT_PX = 2; // from the branch line up to the text's baseline
 const NODE_LABEL_MIN_SEG_PX = 10; // a branch shorter than this is not looked at (no digit fits)
 
-let nodeKind: NodeLabelKind = 'support'; // set by nodeText: which colour the text takes
-
-/** The text of the internal node at snapshot row `row`, or null for none. 'support' and 'length' read the snapshot's arrays; a function
- *  gets the node's full-tree id. Sets `nodeKind`. */
+/** The text of the internal node at snapshot row `row`, or null for none. 'support' reads the snapshot's `support` array when it has one
+ *  (else the numeric prefix of the label), 'length' its `length`; a function gets the node's full-tree id. A value that is not finite
+ *  gives none. */
 function nodeText(S: Scene, row: number): string | null {
   const t = S.proj.tree;
   const mode = S.nodeLabels;
-  nodeKind = mode === 'length' ? 'length' : 'support';
   if (mode === 'support' || mode === 'length') {
-    const v = mode === 'support' ? internalSupport(t.labels[row] ?? '') : t.length[row];
-    return Number.isNaN(v) ? null : S.formatNode(v, mode);
+    const v = mode === 'length' ? t.length[row] : t.support ? t.support[row] : internalSupport(t.labels[row] ?? '');
+    return Number.isFinite(v) ? S.formatNode(v, mode) : null;
   }
   if (mode === 'none') return null;
   const r = mode(t.globalId === null ? row : t.globalId[row], t);
-  if (typeof r === 'number') return Number.isNaN(r) ? null : S.formatNode(r, 'support');
+  if (typeof r === 'number') return Number.isFinite(r) ? S.formatNode(r, 'support') : null;
   return r ? r : null;
 }
 
@@ -669,6 +665,8 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   ctx.textBaseline = 'bottom';
   const maxN = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
   const sc = S.scale;
+  const centred = mode === 'length'; // a function's text is placed and coloured like support
+  const gap = Math.max(NODE_LABEL_GAP_PX, theme.nodeMarkerSize / 2 + 1); // a support value clears the node's marker
   const colSupport = theme.supportColour || theme.muted,
     colLength = theme.lengthColour || theme.muted;
   const p: Pt = { x: 0, y: 0 },
@@ -692,8 +690,8 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
       proj.parentXY(i, q);
       if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
       x0 = Math.max(q.x, T.clipL);
-      room = (mode === 'length' ? Math.min(p.x, T.clipR) : p.x) - x0;
-      if (mode !== 'length' && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
+      room = (centred ? Math.min(p.x, T.clipR) : p.x) - x0;
+      if (!centred && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
       y0 = p.y - NODE_LABEL_LIFT_PX;
     } else {
       const lc = L.LAST[i];
@@ -702,16 +700,15 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
       if (room < NODE_LABEL_MIN_SEG_PX || proj.tipSpan(firstChild[i], lc) * r1 < need) continue; // no room along the branch or across
       c = L.COS![i];
       sn = L.SIN![i];
-      x0 = mode === 'length' ? p.x - (c * room) / 2 : p.x;
-      y0 = mode === 'length' ? p.y - (sn * room) / 2 : p.y;
+      x0 = centred ? p.x - (c * room) / 2 : p.x;
+      y0 = centred ? p.y - (sn * room) / 2 : p.y;
       if (x0 < -20 || y0 < -20 || x0 > T.W + 20 || y0 > T.H + 20) continue;
     }
     if (room < NODE_LABEL_MIN_SEG_PX) continue;
     const text = nodeText(S, i);
     if (text === null) continue;
-    const centred = nodeKind === 'length';
     const w = S.measure.width(ctx, text, font);
-    if (w + (centred ? 2 * NODE_LABEL_PAD_PX : NODE_LABEL_GAP_PX + NODE_LABEL_PAD_PX) > room) continue;
+    if (w + (centred ? 2 * NODE_LABEL_PAD_PX : gap + NODE_LABEL_PAD_PX) > room) continue;
     const fill = centred ? colLength : colSupport;
     if (fill !== lastFill) {
       ctx.fillStyle = fill;
@@ -728,7 +725,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
         ctx.textAlign = al;
         lastAlign = al;
       }
-      ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - NODE_LABEL_GAP_PX, y0);
+      ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - gap, y0);
     } else {
       const left = c < 0; // the left half is read upside down otherwise: turn the text round
       const cf = left ? -c : c,
@@ -740,7 +737,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
         ctx.textAlign = al;
         lastAlign = al;
       }
-      ctx.fillText(text, centred ? 0 : left ? NODE_LABEL_GAP_PX : -NODE_LABEL_GAP_PX, -NODE_LABEL_LIFT_PX);
+      ctx.fillText(text, centred ? 0 : left ? gap : -gap, -NODE_LABEL_LIFT_PX);
     }
     n++;
   }

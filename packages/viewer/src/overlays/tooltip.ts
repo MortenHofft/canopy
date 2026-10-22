@@ -11,6 +11,8 @@ export interface TooltipOptions extends Omit<ControlOptions, 'position' | 'targe
   render?(e: TreeEvent, viewer: TreeViewer): Node | string | null;
   /** From the pointer, px. Default [14, 14]. */
   offset?: [number, number];
+  /** Content only: no padding, background, border, shadow or width limit (class `phylo-tooltip--bare`), for content that brings its own box. */
+  bare?: boolean;
 }
 
 export class Tooltip extends BaseControl {
@@ -21,6 +23,7 @@ export class Tooltip extends BaseControl {
     this.opts = opts;
     this.element.setAttribute('role', 'tooltip');
     this.element.dataset.treeviewTooltip = '';
+    this.element.classList.toggle('phylo-tooltip--bare', opts.bare === true);
     const s = this.element.style;
     s.position = 'absolute';
     s.left = '0';
@@ -31,6 +34,7 @@ export class Tooltip extends BaseControl {
 
   protected attach(v: TreeViewer): void {
     this.listen(v.on('hover', (e) => (e ? this.show(v, e) : this.hide()), { asDefault: true }));
+    this.listen(v.on('treechange', () => this.hide()));
     this.listen(v.on('click', () => this.hide())); // a click (a menu opening, say) hides it until the next hover
   }
 

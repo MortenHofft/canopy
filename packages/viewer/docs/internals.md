@@ -125,6 +125,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/draw.ts` | 643 | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer` |
 | `src/hit.ts` | 314 | `HitIndex`: uniform grid over the draw list, candidate scoring |
 | `src/columns.ts` | 379 | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns` |
+| `src/view-keep.ts` | 92 | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM) |
 | `src/view-state.ts` | 384 | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM) |
 | `src/input.ts` | 306 | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer) |
 | `src/keyboard.ts` | 70 | keyboard cursor: start node and navigation keys (pure functions) |
@@ -159,6 +160,7 @@ Scripts and tests:
 | `test/geom.test.mjs` | 140 | transforms of both layouts, sector bounding boxes against a brute-force sample, `viewportEquals` |
 | `test/hit-rect.test.mjs` | 189 | rectangular hit-testing: tip, marker, branch, connector, collapsed clade, run |
 | `test/columns.test.mjs` | 542 | column compile, bar scale, `cellRect`, `drawColumns` on a fake context |
+| `test/set-tree.test.mjs` | 208 | `setTree`: the view kept through a map (identity, prune, flip), fitted when nothing survives, `treechange`, controls and listeners kept, clades and highlights with the new tree, the Search index and Legend |
 | `test/view-state.test.mjs` | 329 | viewport arithmetic: area, fit, limits, zoom, target windows, animation |
 | `test/input.test.mjs, input-gestures.test.mjs` | 478 | `InputController`: wheel, drag, click, pinch, keys, with a fake element and host |
 | `test/keyboard.test.mjs` | 87 | keyboard cursor and `makeNodeEvent` |
@@ -218,7 +220,7 @@ change, `draw` once per frame with the visible ranks; see `types.ts` and the hea
 visible rows, `cellRect` returns the cell of a tip rank for `columnCell`, `columnsWidth` / `layoutColumns` place them to the right of the plot,
 `updateColumns` / `columnSpecEquals` decide what `setColumns` recompiles (a column is compared by `id`, `kind`, `header`, `width`, `values` by
 reference and, for a custom column, `renderer` by reference). Column ids must be unique: a duplicate id is recompiled on every call. Columns are
-drawn in the rectangular layout only. `viewer.ts` calls `updateColumns` from `setColumns` and `drawColumns` from `render()`; the header and the
+drawn in the rectangular layout only. `viewer.ts` calls `updateColumns` from `setColumns` and `drawColumns` from `paint()` (the drawing half of `render()`, also used by `toBlob`); the header and the
 width come from the spec, so a new kind usually touches only `columns.ts` and `types.ts`.
 
 ### Add a control or a popup
@@ -298,7 +300,7 @@ The rules are written in the JSDoc of `TreeViewProps` in `packages/react/src/Tre
 * The viewer's own setters (`setOptions`, `setTheme`, `setHighlighted`, `setColumns`, `setClades`) are no-ops for equal input, so a direct user of
   the core gets the same behaviour.
 * The prop-sync effects act only on the live renderer (`liveRenderer` in `TreeView.tsx`), so no setter runs on an instance that was destroyed by a
-  strict-mode remount or a `source` swap. A new `tree` / `source`, or a changed `options.softwareCanvas`, re-creates the renderer and so resets the view.
+  strict-mode remount. A new `tree` / `source` of the same kind goes to the live renderer's `setTree` (in an effect before the clade, highlight and collapsed effects, with those props passed in the same call, so the next frame never shows the old colours); `treeMap` keeps the view. Only a switch between `tree` and `source`, or a changed `options.softwareCanvas`, re-creates the renderer.
 
 Introduced in `e122a53`, corrected in `3317ca7`.
 

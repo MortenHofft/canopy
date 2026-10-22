@@ -57,10 +57,12 @@ State: setters (each is a no-op for input equal to the current one) and getters
 | Method | Meaning |
 |---|---|
 | `setOptions(patch)` | change options (undefined and unchanged values are ignored). Refits for `layout`, `branchLengths` or `rowHeight`; for `axis` only while the view is still fitted. A change of `tipHref` or `formatLabel` rebuilds the DOM label anchors. Emits `optionschange` |
-| `setTheme(overrides)` | theme fields over the CSS theme; replaces the overrides of an earlier call. Emits `themechange` |
-| `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created and when the colour scheme preference changes) |
+| `setTheme(overrides)` | theme fields over the CSS theme; REPLACES the overrides of an earlier call (`setTheme({})` clears them). Emits `themechange` |
+| `updateTheme(patch)` | MERGES the fields into the current overrides (a field that is `undefined` is dropped, so it goes back to the CSS value). For controls that each own one token, such as a font-size slider and a branch-width slider. Emits `themechange` |
+| `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created, and on what the `themeObserver` option watches) |
 | `getTheme()` | the theme in force |
 | `setClades(clades: CladeColour[])` / `getClades()` | colour clades: `{node, colour, label?}`, `node` is the preorder id (full tree); where clades nest the innermost wins (for the same node, the later entry); nodes not loaded are skipped. Emits `cladeschange` |
+| `setTree(tree \| source, opts?)` | show another tree without re-creating the viewer: canvases, controls, listeners, options and theme overrides stay; layout, hit index, column data, clade classes and highlights are rebuilt, the keyboard cursor and hover are reset. `opts`: `map` (old node -> new node, as tree-ops returns it, -1 removed), `view` (`'keep'` frames the tips that were in view through `map`, or by tip label without one, at the same scale: rectangular by rank, radial by angle; `'fit'` shows the whole tree; default `'keep'` with a `map`, else `'fit'`; a fitted view stays fitted, and `'keep'` fits when no tip in view survives (a tip that is gone counts as the nearest ancestor that survived, e.g. a collapsed clade, unless that is the whole tree) or the source is partial), `clades`, `highlighted`, `collapsed` (applied with the new tree, so no frame draws the old colours on it; default: `clades` and `collapsed` sent through `map` when there is one, `highlighted` unchanged since tip labels follow the tips). The old source is not destroyed. Emits `treechange` |
 | `setHighlighted(tipIds)` / `getHighlighted()` | highlight tips by label; unknown labels are ignored. How they show is the `highlightStyle` option: a row band, ring and bold label (`'band'`), dimming everything else (`'dim'`) or both. Overview ticks in every style. Emits `highlightchange` |
 | `setCollapsed(nodeIds)` | tips that stand for collapsed clades (drawn as triangles); the collapsing itself is done in the data, e.g. with tree-ops' `collapseClades` |
 | `setColumns(columns: Column[])` | aligned per-tip columns (rectangular layout only); only changed columns are recompiled (`values` and `renderer` by reference, ids unique) |
@@ -71,8 +73,10 @@ Navigation and view
 
 | Method | Meaning |
 |---|---|
-| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits |
+| `getViewport()` / `setViewport(v, animate = false)` | the visible window in layout coordinates (`Viewport`); `setViewport` clamps it to the limits; a window equal to the current one changes nothing, so `setViewport(getViewport())` no longer stops a running animation (a controlled `viewport` prop echoing the view does not stop `fit(true)`) |
+| `fitViewport()` | the window `fit()` would go to (a copy), without moving: for controls that set the view relative to the fitted one |
 | `fit(animate = true)` | fit the whole tree and columns into the container |
+| `toBlob({ type?, scale?, background? })` | `Promise<Blob>`: the current view as an image, drawn into an offscreen canvas with the same code as the frame (the visible canvas is not read; hover and keyboard rings are left out). `type` defaults to `'image/png'`; `scale` is canvas pixels per CSS pixel (default the canvas's own: `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale` (rejects with `RangeError` over 16384 px); `background` is a CSS colour, `null` for a transparent image, default the theme's background. Not in the image: DOM controls, overlays and label anchors; with a partial source the current cut is exported. An unsupported `type` gives a PNG (check `blob.type`). Rejects over 2^26 px in all. Lines one device pixel wide (dense radial trees) and alignment smoothing follow `scale`, so they look fainter than on screen above the screen's scale |
 | `zoomBy(fx, fy, px, py)` | zoom by factors (>1 zooms in) keeping container point (px, py) fixed |
 | `focusTip(rank, animate = false)` | bring the tip of leaf rank `rank` into view (rows at least 26 px); ignored when its row is not loaded |
 | `zoomToNode(id, animate = false)` | show the clade below node `id` (preorder id of the full tree) |
@@ -126,6 +130,7 @@ Stats, frame control and lifetime
 | `highlightchange` | `string[]` | `setHighlighted` changed the tips |
 | `resize` | `{width, height}` | the container was resized |
 | `sourcechange` | `{version}` | the rows of a partial source changed |
+| `treechange` | `{map}` | `setTree` replaced the tree (`map` is null without one); `Search`, `Legend`, `NodeMenu` and `Tooltip` listen, a listener of yours that keeps node ids should too |
 | `ready` | `{layoutMs, tips}` | the first frame was drawn |
 | `destroy` | none | `destroy()` ran |
 
@@ -208,7 +213,7 @@ All three are controls with position `'custom'`: add them with `addControl`.
 | Class | Options | What it does |
 |---|---|---|
 | `Overlay` | `element`, `positioning` (`'top-left'`; vertical-horizontal, e.g. `'bottom-center'`), `offset` (`[x, y]`), `keepInside` (true), `anchor` | an element of yours pinned to `{node}`, `{tipId}` or `{x, y}` (`setPosition(anchor)`, `null` hides it); placed after every frame through `nodePosition`, hidden while the anchor is out of view. `setPositioning`, `getPosition`, `update()` |
-| `Tooltip` | `render(e, viewer)` returning a node, a string or null; `offset` (`[14, 14]`) | hover box near the pointer (default content: `defaultTooltip`); a default action of `hover` |
+| `Tooltip` | `render(e, viewer)` returning a node, a string or null; `offset` (`[14, 14]`); `bare` (content only: no padding, background, border or shadow, class `phylo-tooltip--bare`) | hover box near the pointer (default content: `defaultTooltip`); a default action of `hover` |
 | `NodeMenu` | `items(e, viewer)` returning `NodeMenuItem[]` or null; `title(e, viewer)` | actions for the clicked tip or clade at the click; keyboard (focus on the first item when opened by Enter, arrows, Escape, Tab out), closes on a press outside, a view change or a choice; a default action of `click`. `setItems`, `isOpen`, `close(refocusTree)` |
 
 `NodeMenuItem`: `{ id, label, hint?, disabled?, onSelect(e) }`.
@@ -271,12 +276,14 @@ Exceptions to the rule:
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
-Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `NODE_LABEL_GAP_PX` (3, support to its node, at least the marker's half size plus 1), `NODE_LABEL_PAD_PX` (3, free space each side of a node label within its branch), `NODE_LABEL_LIFT_PX` (2, branch line to the text's baseline) and `NODE_LABEL_MIN_SEG_PX` (10, a branch shorter than this gets no label) in `draw.ts`, `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
 The theme in force is `FALLBACK_THEME`, then the `--phylo-*` custom properties set on the target or any ancestor, then `setTheme`'s
-overrides. The viewer writes the colours and font in force back on its root, so the controls and popups (styled by `viewer.css` with the same
+overrides (`updateTheme` merges into them). The viewer re-reads the custom properties when it is created and, per the `themeObserver`
+option, when `prefers-color-scheme` changes (`'media'`, the default) and also when `class` or `data-theme` on `<html>` changes
+(`'document'`, a `MutationObserver`, disconnected by `destroy()`); `'none'` leaves it to `refreshTheme()`. The viewer writes the colours and font in force back on its root, so the controls and popups (styled by `viewer.css` with the same
 properties) follow a theme from JavaScript too. A dark mode is a set of custom properties:
 
 ```css
@@ -350,6 +357,7 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |
 | `ariaLabel` | `'Phylogenetic tree'` | label of the root element |
 | `softwareCanvas` | `false` | create the 2D contexts with `willReadFrequently` (CPU-backed canvas); read at construction only |
+| `themeObserver` | `'media'` | what makes the viewer re-read the `--phylo-*` custom properties: `'media'` a change of `prefers-color-scheme`; `'document'` that plus a change of `class` or `data-theme` on `document.documentElement` (dark mode switched by the page); `'none'` nothing, call `refreshTheme()` yourself. Changeable with `setOptions` (back from `'none'` it refreshes at once); another value throws `RangeError`. `'document'` reacts once per animation frame and does not see dark mode set on `<body>` or by `style` on `<html>` (call `refreshTheme()`) |
 | `dprCap` | `2` | cap on canvas pixels per CSS px (`Infinity` = native); hit-testing and events use CSS px |
 | `radialMaxNodes` | `2000` | radial only: most primitives per frame; small clades become fans (`Infinity` = only `drawBudget`) |
 | `interactionLOD` | `true` | draw reduced frames while wheeling, pinching or dragging |
@@ -377,17 +385,21 @@ with `setTheme`, `''` or `'none'` both do.
 
 ### Node labels
 
-`nodeLabels` draws a text on each internal node that is in the frame's draw list, from the same pass as tip labels, so a frame pays for the
-labels it draws, not for the nodes of the tree, and a 2M-tip tree costs what its draw list costs (at most 600 labels, 300 radial).
+`nodeLabels` draws a text on each internal node that is in the frame's draw list. It is its own loop over the draw list (after the markers,
+before the tip labels), so a frame pays for the entries of the list, not for the nodes of the tree, and a 2M-tip tree costs what its draw
+list costs (at most 600 labels, 300 radial).
 
-- **What.** `'support'` is the number at the start of the node's label (`95`, `0.98`, or the `98` of `98:Name`; a name gives none). `'length'`
+- **What.** `'support'` is the node's support: `tree.support[row]` when the tree has one (a `TreeModel`, a tree-ops result, anything with
+  the optional `TreeData.support` array), else the number at the start of the node's label (`95`, `0.98`, or the `98` of `98:Name`; a name gives
+  none). A partial source (`TreeSource` with stubs) has the labels only if it loads them, so `'support'` is the label there. `'length'`
   is `tree.length` of the node (none when missing). A function `(node, tree)` returns the text, a number (it goes through `formatNodeLabel` as
-  a support value) or null; `node` is the preorder id in the full tree, as for `cladeLabel`, and `tree` is the snapshot. Numbers go through
-  `formatNodeLabel(value, 'support' | 'length')`; a string from a function is drawn as it is.
-- **Where.** Support (and a function's text) is right-aligned just left of the node, above its branch. Length is centred on the branch,
-  above the line: in the rectangular layout on the visible part of the horizontal segment, in the radial layout along the branch, turned to
-  read upright on the left half like tip labels. The root has no branch, so no label. In a cladogram (`branchLengths: false`) a length is
-  still the node's real length, centred on the segment that is drawn.
+  a support value) or null; `node` is the preorder id in the full tree, as for `cladeLabel`, and `tree` is the snapshot. A value that is not
+  finite (NaN, Infinity) gives no label. Numbers go through `formatNodeLabel(value, 'support' | 'length')`; a string from a function is
+  drawn as it is.
+- **Where.** Support (and a function's text) is right-aligned just left of the node, above its branch, clear of the node marker
+  (`max(3, nodeMarkerSize / 2 + 1)` px). Length is centred on the branch, above the line: in the rectangular layout on the visible part of
+  the horizontal segment, in the radial layout along the branch, turned to read upright on the left half like tip labels. The root has no
+  branch, so no label. In a cladogram (`branchLengths: false`) a length is still the node's real length, centred on the segment that is drawn.
 - **Level of detail.** Only expanded internal nodes of the draw list get a label: none inside a summary (triangle, fan or slice), none for a
   collapsed-clade tip (so the length a collapse with `extend` gave it is never shown), none for a tip. A label needs room. Rectangular: tip
   rows at least `LABEL_MIN_PX[labelDensity]` apart (16, 11 or 8 px), and the text, with 3 px each side, fits the visible part of the horizontal
@@ -396,17 +408,16 @@ labels it draws, not for the nodes of the tree, and a 2M-tip tree costs what its
 - **Dimming.** With `highlightStyle` `'dim'` or `'both'`, the label of a dimmed node is drawn at `dimOpacity`, as its branch is.
 - **Looks.** `nodeLabelSize`, `supportColour`, `lengthColour` (theme, `--phylo-*`; `''` = `muted`). Labels are not DOM and are not hit-tested.
 - **Support that is not in the labels.** A BEAST MCC tree keeps its posterior in `[&posterior=0.98]`, which `@gbif-phylo/io` reads with
-  `{ annotations: true }`. Show it with the function form, which the viewer's `node` id indexes directly (the in-memory snapshot is the tree
-  you gave it, so the id is the node's index in your `TreeModel`):
+  `{ annotations: true }`. Copy it to where `tree.support` is, and `'support'` shows it:
 
   ```ts
-  const post = supportFrom(tree, 'posterior'); // Float64Array by node, NaN where there is none
-  viewer.setOptions({ nodeLabels: (node) => post[node], formatNodeLabel: (v) => v.toFixed(2) });
+  tree.support.set(supportFrom(tree, 'posterior')); // Float64Array by node, NaN where there is none
+  viewer.setOptions({ nodeLabels: 'support' });
   ```
 
-  For a tree-ops result, map the id first (`map[node]`). Or write the values where `tree.support` is read by tree-ops
-  (`tree.support.set(supportFrom(tree, 'posterior'))`) and use the function form with `tree.support[node]`: the viewer itself reads labels
-  (`'support'`), not `tree.support`, because it does not depend on `@gbif-phylo/io`.
+  Or leave `tree.support` alone and use the function form, which the viewer's `node` id indexes directly (for an in-memory tree it is the node's
+  index in your `TreeModel`; for a tree-ops result, map it first):
+  `nodeLabels: (node) => post[node]` with `post = supportFrom(tree, 'posterior')`.
 
 ### Dimming highlights
 
@@ -445,7 +456,7 @@ Detail and the invariants: [`types.ts`](../src/types.ts), [`source.ts`](../src/s
 [internals.md](internals.md).
 
 * `TreeData`: the tree as typed arrays in preorder: `nodeCount, tipCount, parent, firstChild, nextSibling, childCount, subtreeEnd, length` (NaN when
-  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, `heights()`, `tipIndex(label)`. `@gbif-phylo/io`'s
+  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, optional `support` (by node, NaN for none; `nodeLabels: 'support'` reads it), `heights()`, `tipIndex(label)`. `@gbif-phylo/io`'s
   `TreeModel` satisfies it.
 * `TreeSnapshot extends TreeData`: what the viewer reads each frame, over the rows currently loaded. Adds `stub` (1 = a clade whose rows are
   not loaded), `globalId` (row to preorder id of the full tree), `rollup` (`cumLength, maxCum, depth, maxDepth, row` per row), `toLocal(globalId)`.
@@ -463,7 +474,8 @@ Props (all optional, but one of `tree` / `source` is needed):
 
 | Prop | Meaning |
 |---|---|
-| `tree`, `source` | one of the two: a `TreeData` or a `TreeSource`; `source` wins. Changing either re-creates the viewer |
+| `tree`, `source` | one of the two: a `TreeData` or a `TreeSource`; `source` wins. A new one goes to the same viewer (`setTree`): the view is fitted, or kept with `treeMap`. Switching between `tree` and `source` re-creates the viewer |
+| `treeMap` | `Int32Array`, the `map` of the operation that produced the new `tree` (old node -> new node, -1 removed): the viewport stays on the same tips. Pass it in the same render as the new `tree`; without it a new `tree` is fitted |
 | `layout`, `branchLengths` | as the options of the same name (defaults `'rectangular'`, `true`). Like the `options` fields, applied when the prop changes: a layout chosen with the `LayoutToggle` control stays until the prop changes |
 | `clades` | `{nodeId: 'n<preorder id>', colour, label?}[]` |
 | `highlighted` | tip labels to highlight |
@@ -476,6 +488,7 @@ Props (all optional, but one of `tree` / `source` is needed):
 | `focus` | `{tipId, seq}`: centre that tip; acts when `seq` changes |
 | `options` | any `ViewerOptions` field except `layout`, `branchLengths`, `tipHref`; a key that is absent or `undefined` is the default; `softwareCanvas` re-creates the viewer |
 | `tooltip` | `true` (default tooltip), `false`, or `(e) => ReactNode` (rendered into the viewer's tooltip box) |
+| `tooltipBare` | the tooltip box without its chrome (the `bare` option of `Tooltip`), for a `tooltip` function whose content has its own |
 | `nodeMenu` | `(e) => NodeMenuItem[] \| null`: the actions of the node menu for the clicked tip or clade |
 | `width`, `height`, `className`, `style` | the wrapper's size (default 100%) and styling |
 | `onNodeClick`, `onTipClick`, `onHover`, `onViewportChange`, `onFrame`, `onReady` | callbacks; `onReady({layoutMs, tips})` fires two animation frames after creation |

@@ -281,8 +281,15 @@ await page.locator('input[data-setting=lengthColour]').fill('#ff0000');
 await settled();
 ok((await theme('lengthColour')) === '#ff0000', 'the Length colour text sets the token');
 await select('layout', 'radial');
-nl = await drawnNodeTexts();
-ok(nl.includes('0.3') && nl.includes('0.4'), `radial: lengths along the branches (${nl.length} labels)`);
+// the radial scale bar is drawn with the same baseline: what the labels add is the difference to a frame without them
+const withLabels = await drawnNodeTexts();
+await select('nodeLabels', 'none');
+const scaleBar = await drawnNodeTexts();
+for (const t of scaleBar) withLabels.splice(withLabels.indexOf(t), 1);
+ok(
+  withLabels.includes('0.3') && withLabels.includes('0.4') && withLabels.length === 3,
+  `radial: three lengths along the branches, the scale bar not counted (${withLabels.join(' ')})`,
+);
 await open();
 
 console.log('tree operations');

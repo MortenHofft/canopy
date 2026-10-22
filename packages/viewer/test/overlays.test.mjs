@@ -82,6 +82,11 @@ test('Overlay: pinned to a node, positioning and offset, kept inside, hidden off
 
 const tree = (v) => v.getTree();
 
+test('Tooltip: bare adds the phylo-tooltip--bare class, and only then', () => {
+  assert.ok(new Tooltip({ bare: true }).element.classList.contains('phylo-tooltip--bare'));
+  assert.ok(!new Tooltip().element.classList.contains('phylo-tooltip--bare'));
+});
+
 test('Tooltip: shown on hover as a default action, hidden by preventDefault, null hover and clicks; custom content', () => {
   const v = fakeViewer();
   const t = new Tooltip();

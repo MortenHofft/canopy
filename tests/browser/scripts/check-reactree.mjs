@@ -7,7 +7,7 @@
 // (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG, Newick and NEXUS downloads); the transparent
 // background leaves no trace of earlier frames; the innermost clade colour wins whatever the order;
 // node labels (support, length); aligned labels (one x for the label anchors, a click on one opens the inspector); the alignment track and its legend; dark mode reaches the canvas; the resize handle.
-/* global __v, __order, __tipAt, __clade -- helpers the page gets from HELPERS below, used inside page.evaluate */
+/* global __v, __order, __tipAt, __clade, __inView -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
@@ -73,7 +73,7 @@ await page.addInitScript(() => {
   const ft = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
     if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
-    // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout
+    // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout (the radial scale bar has it too)
     if (this.textBaseline === 'bottom') (window.__nodeTexts ??= []).push(String(text));
     return ft.call(this, text, ...rest);
   };
@@ -165,6 +165,11 @@ ok(
   pOpaque === 1 && Math.abs(pBack - p0) < 0.002,
   `opaque background at run time, then transparent again (${(pOpaque * 100).toFixed(1)}%, ${(pBack * 100).toFixed(2)}%)`,
 );
+// the renderer outlives edits now, so the theme set by hand above would stay: give the page's own overrides back (the font size slider
+// sets them again)
+await page.locator('input[aria-label="Font size"]').fill('1.5');
+await page.locator('input[aria-label="Font size"]').fill('2');
+await page.waitForTimeout(150);
 
 console.log('search');
 // how much the main canvas differs from its background colour: dimming what does not match removes most of it
@@ -321,6 +326,9 @@ ok((await page.locator('.rt-palette').count()) === 0, 'Escape leaves colour mode
 ok((await page.locator('.rt-color .rt-count').innerText()) === '1', 'Color shows the count');
 
 console.log('tree operations');
+// the earlier steps moved the view and an edit keeps it now: start from the whole tree
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
 await btn('Reroot').click();
 const rt = await ev(() => __v().getTree().tipLabels[5]);
@@ -343,6 +351,58 @@ await page.locator('.phylo-tree').focus();
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0, 'Ctrl+Z undoes');
+// a new tree keeps the renderer and the view: zoom into a clade, Flip a clade inside it, and the same tips are in view; Undo returns to the same view
+console.log('a new tree keeps the view');
+const zoomed = await ev(() => {
+  const t = __v().getTree();
+  let big = null;
+  for (let i = 1; i < t.nodeCount; i++) {
+    const c = t.leafEnd[i] - t.leafStart[i];
+    if (t.firstChild[i] >= 0 && c >= 30 && c <= 60) {
+      big = i;
+      break;
+    }
+  }
+  window.__viewer = __v();
+  window.__inView = () => {
+    const t = __v().getTree();
+    const w = __v().getViewport();
+    return t.tipLabels
+      .filter((_, r) => r + 0.5 >= w.y0 && r + 0.5 <= w.y1)
+      .sort()
+      .join(',');
+  };
+  __v().zoomToNode(big, false);
+  return big !== null;
+});
+await page.waitForTimeout(300);
+ok(zoomed, 'zoomed into a clade of 30 to 60 tips');
+const vw0 = await ev(() => __v().getViewport());
+const seen0 = await ev(() => __inView());
+ok(
+  vw0.y1 - vw0.y0 < 100 && seen0.split(',').length >= 30,
+  `the view is a part of the tree (${vw0.y0.toFixed(1)} to ${vw0.y1.toFixed(1)}, ${seen0.split(',').length} tips)`,
+);
+const orderZ = await ev(() => __order());
+await btn('Flip').click();
+await click(await ev(() => __clade(4, 12)));
+await page.waitForTimeout(300);
+ok((await ev(() => __order())) !== orderZ, 'Flip reversed a clade inside the view');
+ok(await ev(() => __v() === window.__viewer && !__v().isDestroyed()), 'the edit went to the same renderer (no new one)');
+ok((await ev(() => __inView())) === seen0, 'the same tips are still in view after the Flip');
+const vw1 = await ev(() => __v().getViewport());
+ok(Math.abs(vw1.y1 - vw1.y0 - (vw0.y1 - vw0.y0)) < 1e-6, 'at the same scale');
+await page.keyboard.press('Escape');
+await btn('Undo').click();
+await page.waitForTimeout(300);
+const vw2 = await ev(() => __v().getViewport());
+ok(
+  (await ev(() => __order())) === orderZ && ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(vw2[k] - vw0[k]) < 1e-6),
+  'Undo returns the tree and the same view',
+);
+ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(200);
 // swap: the two children of a binary node, then two tips that are not siblings
 const pair = await ev(() => {
   const t = __v().getTree();
@@ -387,6 +447,62 @@ const png = await (await d.createReadStream()).toArray();
 ok(d.suggestedFilename() === 'phylotree.png' && Buffer.concat(png).subarray(1, 4).toString() === 'PNG', 'PNG download');
 const img = PNG.sync.read(Buffer.concat(png));
 ok(img.data[3] === 255, 'the PNG is opaque (the pane colour under the transparent canvas)');
+const cssSize = await ev(() => ({ w: __v().size.width, h: __v().size.height, dpr: Math.min(window.devicePixelRatio, __v().options.dprCap) }));
+ok(
+  img.width === Math.round(cssSize.w * cssSize.dpr) && img.height === Math.round(cssSize.h * cssSize.dpr),
+  `the PNG is the view's size at the canvas scale (${img.width} x ${img.height})`,
+);
+const screenVsBlob = () =>
+  ev(async () => {
+    // the export equals the screen: the visible canvas (transparent background) against toBlob at the canvas scale, pixel by pixel
+    const v = __v();
+    v.renderNow();
+    const screen = v.treeElement.querySelector('canvas');
+    const bm = await createImageBitmap(await v.toBlob({ background: null }));
+    const read = (src) => {
+      const c = document.createElement('canvas');
+      c.width = screen.width;
+      c.height = screen.height;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(src, 0, 0);
+      return x.getImageData(0, 0, c.width, c.height).data;
+    };
+    const A = read(screen),
+      B = read(bm);
+    let diff = 0,
+      painted = 0;
+    for (let i = 0; i < A.length; i += 4) {
+      if (A[i + 3] > 0) painted++;
+      if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 2) diff++;
+    }
+    return { w: bm.width === screen.width && bm.height === screen.height, diff, painted };
+  });
+const same = await screenVsBlob();
+ok(
+  same.w && same.painted > 500 && same.diff === 0,
+  `toBlob at the canvas scale equals the screen (${same.painted} painted pixels, ${same.diff} differ)`,
+);
+const exp2 = await ev(async () => {
+  const b = await __v().toBlob({ scale: 2, background: null });
+  const bm = await createImageBitmap(b);
+  const c = document.createElement('canvas');
+  c.width = bm.width;
+  c.height = bm.height;
+  const x = c.getContext('2d');
+  x.drawImage(bm, 0, 0);
+  const d = x.getImageData(0, 0, 1, 1).data;
+  return { type: b.type, w: bm.width, h: bm.height, corner: d[3], W: __v().size.width, H: __v().size.height };
+});
+ok(exp2.type === 'image/png' && exp2.w === exp2.W * 2 && exp2.h === exp2.H * 2, `toBlob({ scale: 2 }) is twice the CSS size (${exp2.w} x ${exp2.h})`);
+ok(exp2.corner === 0, 'toBlob({ background: null }) is transparent');
+ok(
+  await ev(() => {
+    const el = document.querySelector('.phylo-tooltip');
+    const cs = getComputedStyle(el);
+    return el.classList.contains('phylo-tooltip--bare') && cs.paddingTop === '0px' && cs.boxShadow === 'none' && cs.borderTopStyle === 'none';
+  }),
+  'the tooltip box is bare (tooltipBare): no padding, border or shadow, and no CSS override in the example',
+);
 await btn('Export').click();
 dl = page.waitForEvent('download');
 await page.locator('.rt-menu button', { hasText: 'Newick' }).click();
@@ -433,7 +549,7 @@ const drawn = async () => {
 await open('edge-internal-support');
 await btn('No labels').click();
 await page.waitForTimeout(200);
-ok((await ev(() => typeof __v().options.nodeLabels)) === 'function', 'Bootstrap sets the nodeLabels option (no control of our own any more)');
+ok((await ev(() => __v().options.nodeLabels)) === 'support', "Bootstrap sets nodeLabels to 'support' (no control of our own any more)");
 let labels = await drawn();
 ok(labels.includes('100') && labels.includes('0.95'), `Bootstrap: support values drawn (${labels.join(' ')})`);
 ok(labels.length === 2, 'only the two numeric support values; node_EF and the root get none');
@@ -462,14 +578,23 @@ ok(
   labels.length > 0 && labels.every((l) => hcvLengths.includes(l)),
   `HCV: ${labels.length} branch lengths drawn, each the length of an internal node (${labels.slice(0, 6).join(' ')} ...)`,
 );
-// zoomed in on x the short branches get room for their text, so more labels are drawn
+// hcvZoomed in on x the short branches get room for their text, so more labels are drawn
 await ev(() => {
   const v = __v();
   v.setViewport({ ...v.getViewport(), x1: 0.12 });
 });
 await page.waitForTimeout(300);
-const zoomed = await drawn();
-ok(zoomed.length > labels.length && zoomed.every((l) => hcvLengths.includes(l)), `HCV zoomed in: ${zoomed.length} labels (${labels.length} before)`);
+const hcvZoomed = await drawn();
+ok(
+  hcvZoomed.length > labels.length && hcvZoomed.every((l) => hcvLengths.includes(l)),
+  `HCV zoomed in: ${hcvZoomed.length} labels (${labels.length} before)`,
+);
+// the export includes the node labels: toBlob equals the screen, labels and all (the same check as above, with labels on)
+const sameLabelled = await screenVsBlob();
+ok(
+  hcvZoomed.length > 0 && sameLabelled.w && sameLabelled.painted > 500 && sameLabelled.diff === 0,
+  `node labels on: toBlob equals the screen (${hcvZoomed.length} labels, ${sameLabelled.painted} painted pixels, ${sameLabelled.diff} differ)`,
+);
 // posterior on the BEAST MCC tree: the labels hold no support, the posterior is in [&posterior=...] (io annotations, supportFrom)
 await open('rich-fish-carangaria-135');
 ok((await drawn()).length === 0, 'Carangaria: no node labels by default');
@@ -536,6 +661,11 @@ ok(aligned.length > 5 && new Set(aligned).size === 1, `Align: the label anchors 
 ok(
   (await ev(() => __v().options.alignLabels)) === true && (await alignBtn.getAttribute('aria-pressed')) === 'true',
   'Align sets the option and shows as pressed',
+);
+const sameAligned = await screenVsBlob();
+ok(
+  sameAligned.w && sameAligned.painted > 500 && sameAligned.diff === 0,
+  `Align on: toBlob equals the screen, leaders included (${sameAligned.painted} painted pixels, ${sameAligned.diff} differ)`,
 );
 const lab = await page.evaluate(() => {
   const a = document.querySelector('.phylo-tree [data-tip-id]');

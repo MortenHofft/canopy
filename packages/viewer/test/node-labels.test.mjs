@@ -26,7 +26,7 @@ function nodeTexts(ctx) {
     else if (e[0] === 'globalAlpha=') alpha = e[1];
     else if (e[0] === 'textAlign=') align = e[1];
     else if (e[0] === 'setTransform') tf = e.slice(1);
-    else if (e[0] === 'fillText' && !TIPS.test(e[1]) && ctx.log.indexOf(e) > 0) out.push({ text: e[1], x: e[2], y: e[3], fill, alpha, align, tf });
+    else if (e[0] === 'fillText' && e[1] !== '' && !TIPS.test(e[1])) out.push({ text: e[1], x: e[2], y: e[3], fill, alpha, align, tf });
   }
   return out;
 }
@@ -232,4 +232,236 @@ test('a change of the option redraws', async () => {
   m.viewer.setOptions({ nodeLabels: 'support' });
   m.env.flush();
   assert.equal(texts(m.ctx()).length, 2);
+});
+
+// ---------------------------------------------------------------------------------------------------------------- more
+
+const { parseNewick } = await import('@gbif-phylo/io');
+const path = await import('node:path');
+const { fileURLToPath } = await import('node:url');
+const { partialSnapshot } = await import(path.join(path.dirname(fileURLToPath(import.meta.url)), 'partial-snapshot.mjs'));
+const { InMemorySource } = await import('../src/source.ts');
+
+/** A balanced binary tree with 2^depth tips, every branch of length 1 and (internal) support 90. */
+function balanced(depth) {
+  let n = 0;
+  const go = (d) => (d === 0 ? `t${n++}:1` : `(${go(d - 1)},${go(d - 1)})90:1`);
+  return `${go(depth)};`;
+}
+const lastValue = (ctx, prop) => ctx.log.filter((e) => e[0] === prop + '=').at(-1)?.[1];
+
+test("'support' reads tree.support when the snapshot has it, the label otherwise", async () => {
+  const t = parseNewick(TREE);
+  t.support[1] = 0.77; // the label says 95
+  const m = await make({ nodeLabels: 'support' }, { tree: t });
+  assert.deepEqual(texts(m.ctx()).sort(), ['0.5', '0.77']);
+  const u = parseNewick('((a:1,b:1)x:2,(c:1,d:1)y:3)r;');
+  u.support[1] = 0.6;
+  const n = await make({ nodeLabels: 'support' }, { tree: u });
+  assert.deepEqual(texts(n.ctx()), ['0.6'], 'a NaN in the array is no label, whatever the label says');
+});
+
+test('NaN, infinite and missing values give no label', async () => {
+  const m = await make({ nodeLabels: 'length' }, { tree: '((a:1,b:1)95,(c:1,d:1)0.5:3)r;' });
+  assert.deepEqual(texts(m.ctx()), ['3'], 'x has no length');
+  const n = await make({ nodeLabels: (node) => (node === 1 ? NaN : node === 4 ? Infinity : 'ok') });
+  assert.deepEqual(texts(n.ctx()), []);
+  const s = await make({ nodeLabels: 'support' }, { tree: '((a:1,b:1)Name:1,(c:1,d:1)0.5:3)r;' });
+  assert.deepEqual(texts(s.ctx()), ['0.5'], 'a name is no support');
+});
+
+test('the node marker is cleared: the gap grows with nodeMarkerSize', async () => {
+  const gapOf = async (theme) => {
+    const m = await make({ nodeLabels: 'support' }, { theme });
+    const l = nodeTexts(m.ctx()).find((x) => x.text === '95');
+    return m.viewer.nodePosition(1).x - l.x;
+  };
+  assert.equal(await gapOf({ nodeMarkerSize: 4 }), 3);
+  assert.equal(await gapOf({ nodeMarkerSize: 12 }), 7);
+});
+
+/** The room (px of the horizontal segment) of node 1 of TREE, set by the width of the viewport. */
+async function withRoom(options, room) {
+  const m = await make(options, { tree: '((a:30,b:30)95:1,(c:30,d:30)0.5:1)r;' });
+  for (let k = 0; k < 4; k++) {
+    const vp = m.viewer.getViewport();
+    const now = m.viewer.nodePosition(1).x - m.viewer.nodePosition(0).x;
+    m.viewer.setViewport({ ...vp, x1: vp.x0 + ((vp.x1 - vp.x0) * now) / room });
+    m.viewer.renderNow();
+  }
+  m.ctx().reset();
+  m.viewer.invalidate();
+  m.env.flush();
+  const got = m.viewer.nodePosition(1).x - m.viewer.nodePosition(0).x;
+  assert.ok(Math.abs(got - room) < 0.5, `room ${got}`);
+  return m;
+}
+
+test('the text must fit its branch with the padding: support needs width + gap + pad, length width + 2 pad (6 px per character)', async () => {
+  // '95': 12 px wide. Support: 12 + 3 + 3 = 18; length '2': 6 + 6 = 12
+  assert.ok(
+    texts((await withRoom({ nodeLabels: 'support' }, 15)).ctx()).every((t) => t !== '95'),
+    'room 15 < 18',
+  );
+  assert.ok(texts((await withRoom({ nodeLabels: 'support' }, 21)).ctx()).includes('95'), 'room 21 >= 18');
+  assert.ok(!texts((await withRoom({ nodeLabels: 'length' }, 10.5)).ctx()).includes('1'), 'room 10.5 < 12');
+  assert.ok(texts((await withRoom({ nodeLabels: 'length' }, 13.5)).ctx()).includes('1'), 'room 13.5 >= 12');
+});
+
+test('a node just past the right edge (the cut keeps it, 8 px of padding): no support, it would float; a length on the visible part of its branch', async () => {
+  const view = async (mode) => {
+    const m = await make({ nodeLabels: mode });
+    const T = m.viewer.proj.T;
+    // node 1 is at x = 1/2 of the tree's width; put it 4 px past the clip edge
+    m.viewer.setViewport({ x0: 0, x1: (T.kx * 0.5) / (T.clipR + 4 - T.ox), y0: 0, y1: 4 });
+    m.viewer.renderNow();
+    m.ctx().reset();
+    m.viewer.invalidate();
+    m.env.flush();
+    const p = { x: 0, y: 0 };
+    m.viewer.proj.nodeXY(1, p);
+    assert.ok(Math.abs(p.x - (m.viewer.proj.T.clipR + 4)) < 0.5, `node at ${p.x}, edge ${m.viewer.proj.T.clipR}`);
+    return m;
+  };
+  const s = await view('support');
+  assert.ok(!texts(s.ctx()).includes('95'));
+  const l = await view('length');
+  const e = nodeTexts(l.ctx()).find((x) => x.text === '2');
+  assert.ok(e && e.x < l.viewer.proj.T.clipR, 'length is centred on the part of the branch in view');
+});
+
+test('the size follows the row height: dense rows of 9 px give 8 px text, not nodeLabelSize', async () => {
+  const tips = Array.from({ length: 20 }, (_, i) => `t${i}:1`);
+  const tree = `(${Array.from({ length: 10 }, (_, i) => `(${tips[2 * i]},${tips[2 * i + 1]})90:1`).join(',')})r;`;
+  const m = await make({ nodeLabels: 'support', labelDensity: 'dense' }, { tree });
+  assert.ok(m.viewer.proj.tipPitch < 12.8);
+  const fonts = m
+    .ctx()
+    .log.filter((e) => e[0] === 'font=')
+    .map((e) => e[1]);
+  assert.ok(texts(m.ctx()).length === 10 && fonts.some((f) => /^8px /.test(f)) && !fonts.some((f) => /^10px /.test(f)), fonts.join('|'));
+});
+
+const R = { layout: 'radial', radialMaxNodes: Infinity, drawBudget: 100000 };
+
+test('radial: a length is centred on the middle of its branch; a support value ends gap px before the node, on the root side', async () => {
+  const m = await make({ nodeLabels: 'length', layout: 'radial' }, { init: { size: [500, 500] } });
+  const root = m.viewer.nodePosition(0);
+  for (const [node, text] of [
+    [1, '2'],
+    [4, '3'],
+  ]) {
+    const p = m.viewer.nodePosition(node);
+    const l = nodeTexts(m.ctx()).find((x) => x.text === text);
+    assert.ok(Math.abs(l.tf[4] - (p.x + root.x) / 2) < 1e-6 && Math.abs(l.tf[5] - (p.y + root.y) / 2) < 1e-6, `${text} sits at the middle`);
+    assert.equal(l.x, 0);
+    assert.equal(l.y, -2, 'above the branch line');
+  }
+  const s = await make({ nodeLabels: 'support', layout: 'radial' }, { init: { size: [500, 500] } });
+  for (const [node, text] of [
+    [1, '95'],
+    [4, '0.5'],
+  ]) {
+    const p = s.viewer.nodePosition(node);
+    const l = nodeTexts(s.ctx()).find((x) => x.text === text);
+    assert.ok(Math.abs(l.tf[4] - p.x) < 1e-6 && Math.abs(l.tf[5] - p.y) < 1e-6, 'anchored at the node');
+    const left = l.align === 'left'; // turned round: the text starts at the node and runs toward the root
+    assert.equal(l.x, left ? 3 : -3);
+    assert.equal(l.align, p.x < s.viewer.nodePosition(0).x ? 'left' : 'right');
+  }
+});
+
+test('radial: text on the left half is turned to read upright, on both halves, for support and length', async () => {
+  for (const mode of ['support', 'length']) {
+    const m = await make({ nodeLabels: mode, layout: 'radial' }, { tree: balanced(3), init: { size: [800, 800] } });
+    const t = nodeTexts(m.ctx());
+    const root = m.viewer.nodePosition(0);
+    assert.ok(t.length >= 6, `${t.length} labels`);
+    const dxs = t.map((l) => (mode === 'length' ? l.tf[4] : l.tf[4]) - root.x);
+    assert.ok(dxs.some((d) => d < -5) && dxs.some((d) => d > 5), 'nodes on both halves');
+    for (const l of t) assert.ok(l.tf[0] >= -1e-9, 'upright');
+    if (mode === 'length') {
+      // every label sits at the middle of the branch of one internal node, not only the ones on the vertical axis
+      const tr = m.viewer.getTree();
+      const mids = [];
+      for (let i = 1; i < tr.nodeCount; i++) {
+        if (tr.firstChild[i] < 0) continue;
+        // the branch runs along the node's own ray, from the parent's radius to the node's
+        const p = m.viewer.nodePosition(i),
+          q = m.viewer.nodePosition(tr.parent[i]);
+        const rp = Math.hypot(p.x - root.x, p.y - root.y),
+          rq = Math.hypot(q.x - root.x, q.y - root.y);
+        const k = (rp + rq) / 2 / rp;
+        mids.push([root.x + (p.x - root.x) * k, root.y + (p.y - root.y) * k]);
+      }
+      assert.equal(t.length, mids.length);
+      for (const [x, y] of mids)
+        assert.ok(
+          t.some((l) => Math.abs(l.tf[4] - x) < 1e-6 && Math.abs(l.tf[5] - y) < 1e-6),
+          `a label at ${x},${y}`,
+        );
+    }
+  }
+});
+
+test('radial: a node whose label would be off the canvas is skipped', async () => {
+  const m = await make({ nodeLabels: 'length', ...R }, { tree: balanced(5), init: { size: [600, 600] } });
+  m.ctx().reset();
+  m.viewer.setViewport({ x0: 0, x1: 1.2, y0: 0, y1: 1.2 });
+  m.env.flush();
+  const t = nodeTexts(m.ctx());
+  assert.ok(t.length > 0);
+  for (const l of t) assert.ok(l.tf[4] > -20 && l.tf[5] > -20 && l.tf[4] < 620 && l.tf[5] < 620, `origin ${l.tf[4]},${l.tf[5]}`);
+  const all = await make({ nodeLabels: 'length', ...R }, { tree: balanced(5), init: { size: [600, 600] } });
+  assert.ok(nodeTexts(all.ctx()).length > t.length, 'with the whole tree in view there are more');
+});
+
+test('radial: at most 300 labels, whatever the draw list holds; textAlign and alpha are reset', async () => {
+  const m = await make({ nodeLabels: 'length', ...R }, { tree: balanced(10), init: { size: [3000, 3000] } });
+  assert.equal(nodeTexts(m.ctx()).length, 300);
+  assert.equal(lastValue(m.ctx(), 'textAlign'), 'left');
+  assert.equal(lastValue(m.ctx(), 'globalAlpha'), 1);
+});
+
+test('rectangular: at most 600 labels', async () => {
+  const m = await make({ nodeLabels: 'length', lod: false }, { tree: balanced(11), init: { size: [800, 40000] } });
+  assert.equal(nodeTexts(m.ctx()).length, 600);
+});
+
+test('a function gets the full-tree id of a partial snapshot, never a stub, and its row is toLocal(id)', async () => {
+  const OFFSET = 1000;
+  const full = new InMemorySource(parseNewick('((a:1,b:1)x:2,((c:1,d:1)y:1,e:1)z:1,f:1)r;')).snapshot();
+  const { snap } = partialSnapshot(full, [4], OFFSET); // z (preorder 4) is not loaded
+  const source = {
+    nodeCount: full.nodeCount,
+    tipCount: full.tipCount,
+    hasLengths: true,
+    version: 0,
+    subscribe: () => () => {},
+    snapshot: () => snap,
+    ensureClade: async () => {},
+    tipLabels: async () => [],
+    destroy() {},
+  };
+  const seen = [];
+  const m = await make({ nodeLabels: (node, tree) => (seen.push([node, tree.toLocal(node)]), `n${node}`) }, { tree: source });
+  const ids = seen.map((s) => s[0]);
+  assert.ok(ids.length > 0 && ids.every((id) => id >= OFFSET), `ids ${ids}`);
+  assert.ok(!ids.includes(OFFSET + 4), 'the stub is a summary: no label');
+  assert.ok(ids.includes(OFFSET + 1), 'x is labelled');
+  assert.ok(seen.every(([id, row]) => row >= 0 && snap.globalId[row] === id));
+  assert.ok(texts(m.ctx()).includes(`n${OFFSET + 1}`));
+  // 'support' on a partial snapshot: no labels in the rows, so none
+  const s = await make({ nodeLabels: 'support' }, { tree: source });
+  assert.deepEqual(texts(s.ctx()), []);
+});
+
+test('the root has no branch: no label, even with a support value and a length of its own', async () => {
+  const tree = '((a:1,b:1)95:2,(c:1,d:1)0.5:3)77:5;';
+  for (const layout of ['rectangular', 'radial']) {
+    const s = await make({ nodeLabels: 'support', layout }, { tree, init: { size: [500, 500] } });
+    assert.deepEqual(texts(s.ctx()).sort(), ['0.5', '95'], layout);
+    const l = await make({ nodeLabels: 'length', layout }, { tree, init: { size: [500, 500] } });
+    assert.deepEqual(texts(l.ctx()).sort(), ['2', '3'], layout);
+  }
 });

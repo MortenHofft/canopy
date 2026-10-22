@@ -27,19 +27,19 @@ control and reads the result back from the viewer.
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
 | Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches with `highlightStyle: 'dim'` (what does not match fades to `--phylo-dim-opacity`; the columns stay at full strength) and `focus` to centre the current one |
-| Export | PNG from the viewer's canvas (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
+| Export | PNG from `viewer.toBlob({ background })` (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
 | Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
-| Fit | `fit()` |
+| Fit | `fit()`; `fitViewport()` gives the fitted window for the Width / Height sliders |
 | Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot`, `rotate` and `swap` (two siblings, also inside a polytomy) |
 | Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
 | Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
 | Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "<first tip> and N more", unique, where Reactree says "N taxa") and the `collapsed` prop; the tooltip says "N taxa" |
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
-| Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
-| Bootstrap / Length / No labels cycle | `options.nodeLabels`: a function over `tree.support` (Bootstrap), `'length'`, `'none'`; drawn by the viewer, with `--phylo-support-colour` / `--phylo-length-colour`. The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support`, so Bootstrap shows the posterior there |
+| Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content, with `tooltipBare` so the viewer's box adds no chrome |
+| Bootstrap / Length / No labels cycle | `options.nodeLabels`: `'support'`, read from `tree.support` (Bootstrap), `'length'`, `'none'`; drawn by the viewer, with `--phylo-support-colour` / `--phylo-length-colour`. The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support`, so Bootstrap shows the posterior there |
 | Align (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are the `--phylo-leader-*` theme tokens |
 | Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
-| Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
+| Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; the option `themeObserver: 'document'` watches `class` and `data-theme` on `<html>` |
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
 
@@ -74,5 +74,5 @@ Differences that follow from the design, not defects:
 - Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from
   CSS custom properties.
 
-Other follow-ups: API ergonomics [#23](https://github.com/MortenHofft/gbif-phylo/issues/23), duplicate tip labels [#18](https://github.com/MortenHofft/gbif-phylo/issues/18), TreeViewer unit tests and the alpha canvas cost
+Other follow-ups: API ergonomics [#23](https://github.com/MortenHofft/gbif-phylo/issues/23) (mostly done: `updateTheme`, `themeObserver`, `fitViewport`, `toBlob`, `tooltipBare`; stretch sliders and a draw-list iterator remain), duplicate tip labels [#18](https://github.com/MortenHofft/gbif-phylo/issues/18), TreeViewer unit tests and the alpha canvas cost
 [#25](https://github.com/MortenHofft/gbif-phylo/issues/25), this example's own open questions [#26](https://github.com/MortenHofft/gbif-phylo/issues/26).

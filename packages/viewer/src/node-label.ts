@@ -23,7 +23,7 @@ const SUPPORT_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::.*
 export function internalSupport(label: string): number {
   if (label === '') return NaN;
   const c = label.charCodeAt(0);
-  if (c > 57) return NaN; // a letter: a name (the common case), no regex. Digits, '.', '+', '-' and white space are all below 58
+  if (c > 57 && c < 128) return NaN; // an ASCII letter: a name (the common case), no regex. Digits, '.', '+', '-' and ASCII white space are below 58; Unicode white space (io accepts it) goes to the regex
   const m = SUPPORT_PREFIX.exec(label);
   return m ? Number(m[1]) : NaN;
 }

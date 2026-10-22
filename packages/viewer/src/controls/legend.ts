@@ -43,6 +43,7 @@ export class Legend extends BaseControl {
   protected attach(v: TreeViewer): void {
     this.listen(v.on('cladeschange', () => this.render(v)));
     this.listen(v.on('sourcechange', () => this.render(v)));
+    this.listen(v.on('treechange', () => this.render(v)));
     // formatLabel and cladeLabel change the names
     this.listen(v.on('optionschange', (e) => (e.changed.includes('formatLabel') || e.changed.includes('cladeLabel')) && this.render(v)));
     this.domListen(this.list, 'click', (e) => {

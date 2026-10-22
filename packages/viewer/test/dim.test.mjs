@@ -190,3 +190,15 @@ test('dim: radial layout dims the same rows', async () => {
   const strokes = alphas(ctx(), 'stroke').map((x) => x.alpha);
   assert.ok(strokes.includes(1) && strokes.includes(DIM));
 });
+
+test('dim after setTree: the dim prefix is built for the new tree, not the old length', async () => {
+  const { viewer, env, ctx } = await viewerWith('dim', ['a']);
+  assert.equal(viewer.hlPrefix.length, 5);
+  const { parseNewick } = await import('../../io/src/newick.ts');
+  viewer.setTree(parseNewick('((a,b)x,((c,d)y,(e,f)z)w)r;'), { highlighted: ['a', 'f'] });
+  assert.equal(viewer.hlPrefix, null, 'dropped with the tree');
+  ctx().reset();
+  env.flush();
+  assert.equal(viewer.hlPrefix.length, 7, 'rebuilt for six tips');
+  assert.deepEqual(labelAlpha(ctx()), { a: 1, b: DIM, c: DIM, d: DIM, e: DIM, f: 1 });
+});

@@ -137,6 +137,11 @@ export class FakeCanvas extends FakeElement {
     this._h = v;
     this.ctx?.resetState();
   }
+  /** Like a browser: calls back with a Blob whose type is the one asked for (`blobs` records every request). */
+  toBlob(cb, type = 'image/png') {
+    (this.blobs ??= []).push({ type, width: this._w, height: this._h });
+    queueMicrotask(() => cb(new Blob(['fake'], { type })));
+  }
   getContext(type, attrs) {
     if (type !== '2d') return null;
     this.contextAttrs.push(attrs);
@@ -184,6 +189,23 @@ export function installEnv() {
     disconnect() {
       this.targets = [];
       this.disconnected = true;
+    }
+  };
+
+  // MutationObserver: records what it observes; `env.mutate()` notifies the live ones, as a change of an attribute would
+  const mutationObservers = new Set();
+  g.MutationObserver = class {
+    constructor(cb) {
+      this.cb = cb;
+      this.observed = null;
+    }
+    observe(el, options) {
+      this.observed = { el, options };
+      mutationObservers.add(this);
+    }
+    disconnect() {
+      this.observed = null;
+      mutationObservers.delete(this);
     }
   };
 
@@ -239,6 +261,12 @@ export function installEnv() {
       for (const f of [...schemeListeners]) f({ matches: on });
     },
     schemeListenerCount: () => schemeListeners.size,
+    /** The live MutationObservers (not disconnected), with what each observes: `{ el, options }`. */
+    mutationObservers: () => [...mutationObservers].map((o) => o.observed),
+    /** Notify the live MutationObservers, as an attribute change on what they observe would. */
+    mutate() {
+      for (const o of [...mutationObservers]) o.cb([{ type: 'attributes' }], o);
+    },
     /** Set the `--phylo-*` custom properties of an element (what a stylesheet would); they are read by the next refreshTheme. */
     setCssVars(el, vars) {
       el.cssVars = { ...vars };

@@ -61,6 +61,7 @@ export class NodeMenu extends BaseControl {
     this.listen(v.on('click', (e) => this.openAt(v, e), { asDefault: true }));
     this.listen(v.on('hover', (e) => this.open && e?.preventDefault()));
     this.listen(v.on('viewchange', () => this.close(false)));
+    this.listen(v.on('treechange', () => this.close(false))); // it holds node ids of the old tree
     this.domListen(this.element, 'keydown', (e) => this.onKey(e));
     this.domListen(this.element, 'focusout', (e) => {
       if (this.open && !this.element.contains(e.relatedTarget as Node | null)) this.close(false);

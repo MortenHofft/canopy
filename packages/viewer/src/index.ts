@@ -1,6 +1,6 @@
 // Public surface of @gbif-phylo/viewer (no framework). Controls, overlays and column renderers have their own modules, re-exported here;
 // a bundler keeps only what an app imports (the package has no side effects except its CSS files).
-export { TreeViewer, type TreeViewerInit } from './viewer.ts';
+export { TreeViewer, type TreeViewerInit, type SetTreeOptions } from './viewer.ts';
 export { type TreeEvent, type ViewerEventMap, type ViewerEventType, type Listener, type ListenOptions } from './events.ts';
 export { computeLayout, type Layout } from './layout.ts';
 export * from './types.ts';
