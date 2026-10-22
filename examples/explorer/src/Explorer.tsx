@@ -7,7 +7,17 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
-import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
+import {
+  TreeView,
+  useTreeEvent,
+  useTreeTheme,
+  useTreeViewer,
+  useViewport,
+  type CladeProp,
+  type NodeMenuItem,
+  type TreeNodeEvent,
+  type TreeViewHandle,
+} from '@gbif-phylo/react';
 import {
   defaultControls,
   defaultFormatNodeLabel,
@@ -15,6 +25,7 @@ import {
   residueColours,
   residueGroups,
   type Column,
+  type TreeViewer,
   type Viewport,
 } from '@gbif-phylo/viewer';
 import * as I from './icons.tsx';
@@ -88,7 +99,9 @@ function UndoControls(p: { canUndo: boolean; undoOn: boolean; onUndo: () => void
   );
 }
 
-const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
+// clamped: a slider that follows the view (Width / Height) can be past its range after a wheel zoom
+const pct = (v: number, lo: number, hi: number) => `${Math.min(1, Math.max(0, (v - lo) / (hi - lo))) * 100}%`;
+const sameWindow = (a: Viewport, b: Viewport) => a.x0 === b.x0 && a.x1 === b.x1 && a.y0 === b.y0 && a.y1 === b.y1;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -207,6 +220,67 @@ function Slider(p: {
   );
 }
 
+/** Width / Height (Size in circular): Reactree stretches the drawing; here they are the visible window relative to the fitted one. They
+ *  are read from the viewport in force, so they follow a wheel zoom, a pinch, the keyboard and Fit as well as setting the window
+ *  themselves. Its own component, so that a pan or zoom (a `viewchange` per frame) renders the sliders and not the whole explorer. */
+function SizeSliders({ viewer, radial }: { viewer: TreeViewer | null; radial: boolean }) {
+  const vp = useViewport(viewer);
+  const [fitted, setFitted] = useState<Viewport | null>(null);
+  const readFit = useCallback(() => {
+    if (!viewer) return;
+    const f = viewer.fitViewport(); // the window fit() would go to, without moving
+    setFitted((prev) => (prev && sameWindow(prev, f) ? prev : f));
+  }, [viewer]);
+  // The fitted window moves with the rows (the tree shown, collapsing), the layout, the tree type, the label size, the columns and the
+  // pane's size. Read it again after every render (cheap, and an unchanged window is no new state) in a passive effect, which runs
+  // after the <TreeView>'s layout effects have applied those changes, wherever it sits in the page.
+  useEffect(readFit);
+  useTreeEvent(viewer, 'resize', readFit); // the pane's size
+  const hScale = fitted && vp ? (fitted.x1 - fitted.x0) / (vp.x1 - vp.x0) : 1;
+  const vScale = radial ? hScale : fitted && vp ? (fitted.y1 - fitted.y0) / (vp.y1 - vp.y0) : 1;
+  // an axis at 1x goes back to the fitted window's centre; one zoomed keeps the current centre
+  const setScales = (h: number, v: number) => {
+    const f = fitted;
+    if (!viewer || !f || !vp) return;
+    const cx = h === 1 ? (f.x0 + f.x1) / 2 : (vp.x0 + vp.x1) / 2;
+    const cy = v === 1 ? (f.y0 + f.y1) / 2 : (vp.y0 + vp.y1) / 2;
+    const w = (f.x1 - f.x0) / h;
+    const hh = (f.y1 - f.y0) / v;
+    viewer.setViewport({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - hh / 2, y1: cy + hh / 2 });
+  };
+  return (
+    <>
+      <Slider
+        icon={<I.IconWidth />}
+        label={radial ? 'Size' : 'Width'}
+        title="Width"
+        value={hScale}
+        min={0.3}
+        max={4}
+        step={0.05}
+        reset={1}
+        onChange={(h) => setScales(h, radial ? h : vScale)}
+      />
+      {!radial && (
+        <>
+          <div className="ex-divider" />
+          <Slider
+            icon={<I.IconHeight />}
+            title="Height"
+            label="Height"
+            value={vScale}
+            min={0.3}
+            max={4}
+            step={0.05}
+            reset={1}
+            onChange={(v) => setScales(hScale, v)}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 export function Explorer({
   published,
   fasta,
@@ -220,6 +294,10 @@ export function Explorer({
   undoBudget?: number;
 }) {
   const ref = useRef<TreeViewHandle>(null);
+  // the viewer as state, and the theme in force: React follows every theme change, whoever made it (the viewport is read by
+  // <SizeSliders> alone, so a pan or zoom renders only the sliders)
+  const viewer = useTreeViewer(ref);
+  const treeTheme = useTreeTheme(viewer);
   const outer = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
@@ -231,7 +309,6 @@ export function Explorer({
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>([]); // clades the user collapsed (ids of `tree`)
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Back and Up one level (tree-ops focus)
-  const [navTick, setNavTick] = useState(0); // bumped by Show only / Up / Back: the view is fitted, so "fitted" is read again
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
   const [ladderByChoice, setLadderBy] = useState<LadderBy>('tips');
@@ -245,8 +322,6 @@ export function Explorer({
   const dragFrom = useRef<{ x: number; y: number } | null>(null); // where a drag in the pane began (not on the resize grip)
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
-  const [hScale, setHScale] = useState(1);
-  const [vScale, setVScale] = useState(1);
   const [fontScale, setFontScale] = useState(1);
   const [strokeWidth, setStrokeWidth] = useState(1.5);
   const [layout, setLayout] = useState<Layout>('rectangular');
@@ -257,7 +332,6 @@ export function Explorer({
   const [alignLabels, setAlignLabels] = useState(false);
   // striped summaries (#59): the explorer's default; the library's is solid
   const [stripes, setStripes] = useState(true);
-  const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -427,18 +501,13 @@ export function Explorer({
     const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 'fill', values, alphabet };
     return { column, matched, sites, alphabet };
   }, [fasta, published]);
-  // the legend reads the residue colours of the theme in force, so it follows every theme change, whoever made it
-  useEffect(() => {
-    if (!showAlignment) return;
-    return ref.current?.renderer()?.on('themechange', () => setThemeTick((t) => t + 1));
-  }, [showAlignment, alignment]);
-  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group
+  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group. It reads the
+  // residue colours of the theme in force, so it follows every theme change, whoever made it
   const legend = useMemo(() => {
     if (!alignment) return [];
-    const colours = residueColours(ref.current?.renderer()?.getTheme() ?? {}, alignment.alphabet);
+    const colours = residueColours(treeTheme ?? {}, alignment.alphabet);
     return residueGroups(alignment.alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeTick: the theme changed
-  }, [alignment, themeTick, showAlignment]);
+  }, [alignment, treeTheme]);
   const columns = useMemo(
     () => (showAlignment && alignment && layout === 'rectangular' ? [alignment.column] : []),
     [showAlignment, alignment, layout],
@@ -461,49 +530,6 @@ export function Explorer({
     () => defaultControls({ zoom: false, fit: false, overview: showOverview, legend: showLegend }),
     [showOverview, showLegend],
   );
-
-  // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
-  const fitted = useRef<Viewport | null>(null);
-  const scales = useRef({ h: 1, v: 1 });
-  scales.current = { h: hScale, v: layout === 'radial' ? hScale : vScale };
-  const applyScales = useCallback(() => {
-    const r = ref.current?.renderer();
-    const f = fitted.current;
-    if (!r || !f) return;
-    const cur = r.getViewport();
-    const { h, v } = scales.current;
-    const cx = h === 1 ? (f.x0 + f.x1) / 2 : (cur.x0 + cur.x1) / 2;
-    const cy = v === 1 ? (f.y0 + f.y1) / 2 : (cur.y0 + cur.y1) / 2;
-    const w = (f.x1 - f.x0) / h;
-    const hh = (f.y1 - f.y0) / v;
-    r.setViewport({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - hh / 2, y1: cy + hh / 2 });
-  }, []);
-  const refit = useCallback(() => {
-    const r = ref.current?.renderer();
-    if (!r) return;
-    fitted.current = r.fitViewport();
-    applyScales();
-  }, [applyScales]);
-  // A new tree keeps the view (the viewer's setTree, through `treeMap`), but what "fitted" is has changed with it: read it back
-  // (fitViewport does not move the window), so the sliders go on working relative to the new fit.
-  useLayoutEffect(() => {
-    const r = ref.current?.renderer();
-    if (r && fitted.current) fitted.current = r.fitViewport();
-  }, [shown, collapsedIds]);
-  useEffect(applyScales, [hScale, vScale, applyScales]);
-  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is. After a switch of layout or tree
-  // type with a node selected the viewer has centred the new view on it: that stays, only the new fit is read for the sliders
-  const lastKind = useRef({ layout, phylogram });
-  useEffect(() => {
-    const switched = lastKind.current.layout !== layout || lastKind.current.phylogram !== phylogram;
-    lastKind.current = { layout, phylogram };
-    const id = requestAnimationFrame(() => {
-      const r = ref.current?.renderer();
-      if (switched && r && r.getSelected() !== null) fitted.current = r.fitViewport();
-      else refit();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [layout, phylogram, columns, height, navTick, refit]);
 
   // for the browser check (tests/browser/scripts/check-explorer.mjs): the viewer, to find where nodes are
   useEffect(() => {
@@ -611,7 +637,6 @@ export function Explorer({
   // ---- show only a clade: a navigation, not an edit, so it is not in the undo history. Back and Up one level come from tree-ops' focus.
   const navigate = (f: ops.Focus) => {
     setFocus(f);
-    setNavTick((t) => t + 1);
     deselect();
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
@@ -924,33 +949,7 @@ export function Explorer({
     <div className={`ex-outer ex-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="View">
-        <Slider
-          icon={<I.IconWidth />}
-          label={layout === 'radial' ? 'Size' : 'Width'}
-          title="Width"
-          value={hScale}
-          min={0.3}
-          max={4}
-          step={0.05}
-          reset={1}
-          onChange={setHScale}
-        />
-        {layout === 'rectangular' && (
-          <>
-            <div className="ex-divider" />
-            <Slider
-              icon={<I.IconHeight />}
-              label="Height"
-              title="Height"
-              value={vScale}
-              min={0.3}
-              max={4}
-              step={0.05}
-              reset={1}
-              onChange={setVScale}
-            />
-          </>
-        )}
+        <SizeSliders viewer={viewer} radial={layout === 'radial'} />
         <div className="ex-divider" />
         <Slider
           icon={<I.IconFont />}
@@ -1088,7 +1087,7 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onUndo={undo} onReset={() => back(0)} />}
-        <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
+        <button type="button" className="ex-btn" title="Fit tree" onClick={() => viewer?.fit(false)}>
           <J.IconFit />
           Fit
         </button>

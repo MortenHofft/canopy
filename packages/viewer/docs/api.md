@@ -671,6 +671,11 @@ Props (all optional, but one of `tree` / `source` is needed):
 `renderer()` (the underlying `TreeViewer` or `null`, for everything else: events, controls). `node` is a node id (a number); `tipId` a tip
 label (its first tip; `focusTip` warns when several tips carry it) or a node id of a tip, translated to its node and leaf rank. An unknown tip label is ignored or returns `null`; an id that is not a node, or is an internal node, also warns in `focusTip`.
 
+Hooks ([`hooks.ts`](../../react/src/hooks.ts), more in the [package README](../../react/README.md#hooks)): `useTreeViewer(ref)` is the
+`TreeViewer` behind the handle as React state (`null` until mounted, a new value when the viewer is re-created); `useViewport(viewer)` and
+`useTreeTheme(viewer)` are the viewport and the theme in force, following `viewchange` and `themechange`; `useTreeEvent(viewer, type,
+handler, opts?)` listens to any viewer event for the viewer's lifetime. They use only the viewer's public API and events.
+
 ## Naming clades
 
 One rule names an internal node in the legend, the node menu's default title, the default tooltip's detail line and the keyboard cursor's announcement:

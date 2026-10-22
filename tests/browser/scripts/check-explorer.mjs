@@ -1,7 +1,7 @@
 // Browser check of the explorer (examples/explorer; start it with `npm run dev` there, which serves on port 5309).
 //   node tests/browser/scripts/check-explorer.mjs [--port 5309] [--url <page URL, default http://127.0.0.1:<port>/>]
 // Every toolbar control is driven as a user would (clicks, the keyboard, the sliders) and its effect read back from the viewer
-// (window.__explorer() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
+// (window.__explorer() returns the TreeViewer): Width / Height zoom the window and follow a wheel zoom, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade, root; Escape closes it; a plain click collapses nothing)
 // and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, and Swap marks its first pick until the second click or Escape (#65); colour, erase and the innermost-colour-wins order; reroot, flip, swap
@@ -256,6 +256,21 @@ const p0 = await painted();
 const box = await page.locator('.phylo-tree').boundingBox();
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -300);
+await page.waitForTimeout(300);
+{
+  // the Width / Height sliders follow a zoom made on the tree itself (#31): they show the window against the fitted one
+  const want = await ev(() => {
+    const f = __v().fitViewport();
+    const p = __v().getViewport();
+    return { h: (f.x1 - f.x0) / (p.x1 - p.x0), v: (f.y1 - f.y0) / (p.y1 - p.y0) };
+  });
+  const shown = async (i) => parseFloat(await page.locator('.ex-slider-val').nth(i).innerText());
+  const [sh, sv] = [await shown(0), await shown(1)];
+  ok(
+    Math.max(want.h, want.v) > 1.2 && Math.abs(sh - want.h) < 0.051 && Math.abs(sv - want.v) < 0.051,
+    `Width / Height follow a wheel zoom (${sh}×, ${sv}× for a window ${want.h.toFixed(2)}× and ${want.v.toFixed(2)}× the fitted one)`,
+  );
+}
 await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2 - 100, { steps: 6 });
 await page.mouse.up();

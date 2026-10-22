@@ -142,6 +142,18 @@ const SCENARIOS = [
     forbid: ['controls/search.js', 'controls/legend.js', 'controls/defaults.js', 'controls/layout-toggle.js', 'packages/viewer/dist/overview.js'],
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   },
+  {
+    // the hooks build on the viewer's events only: no <TreeView>, no controls
+    name: 'react: hooks only',
+    code: `import { useTreeViewer, useViewport, useTreeEvent, useTreeTheme } from '@gbif-phylo/react'; console.log(useTreeViewer, useViewport, useTreeEvent, useTreeTheme);`,
+    forbid: [
+      'packages/react/dist/TreeView.js',
+      'packages/viewer/dist/viewer.js',
+      'packages/viewer/dist/controls/',
+      'packages/viewer/dist/overview.js',
+    ],
+    external: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
 ];
 for (const s of SCENARIOS) {
   const r = await esbuild.build({
