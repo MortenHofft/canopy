@@ -6,20 +6,58 @@ import type { OpResult, TreeInput } from './types.ts';
 export interface LadderiseOptions {
   /** 'increasing' (default): smaller clades first (top in a rectangular layout), as FigTree's "increasing" order. */
   order?: 'increasing' | 'decreasing';
+  /**
+   * What "smaller" means for a child (default 'tips'):
+   * - 'tips': number of descendant tips.
+   * - 'depth': the most nested path from the child down to a tip, in nodes (a tip is 0).
+   * - 'height': the longest path from the child down to a tip, in branch length (the child's own edge is not counted). Missing
+   *   or negative lengths count as 0; without lengths it equals 'depth'.
+   *
+   * Ties are broken deterministically: by the other measures in a fixed order ('depth': then tips, then height; 'height':
+   * then tips, then depth), and finally by the input order. For 'tips' they go straight to the input order, so the default
+   * output is unchanged from before `by` existed. `order: 'decreasing'` reverses the measures, not the input-order tie-break.
+   */
+  by?: 'tips' | 'depth' | 'height';
 }
 
-/** Sort the children of every node by number of descendant tips (stable on ties). Changes only the display order. */
+/** Sort the children of every node by a clade measure (tips, depth or height; see `by`). Changes only the display order. */
 export function ladderise(t: TreeInput, o: LadderiseOptions = {}): OpResult {
   const sign = o.order === 'decreasing' ? -1 : 1;
+  const by = o.by ?? 'tips';
+  if (by !== 'tips' && by !== 'depth' && by !== 'height') throw new RangeError(`unknown ladderise measure '${String(by)}'`);
   const d = draftOf(t);
-  const size = (i: number) => t.leafEnd[i] - t.leafStart[i];
+  const n = t.nodeCount;
+  const needDepth = by !== 'tips';
+  const needHeight = by === 'height' || (by === 'depth' && t.hasLengths);
+  // one reverse-preorder pass (children have larger indices than their parent), only for the measures in use
+  const dep = needDepth ? new Int32Array(n) : null;
+  const hei = needHeight ? new Float64Array(n) : null;
+  for (let v = n - 1; v > 0; v--) {
+    const p = t.parent[v];
+    if (dep && dep[v] + 1 > dep[p]) dep[p] = dep[v] + 1;
+    if (hei) {
+      const len = t.length[v];
+      const h = hei[v] + (len > 0 ? len : 0); // NaN and negative count as 0
+      if (h > hei[p]) hei[p] = h;
+    }
+  }
+  const tips = (i: number) => t.leafEnd[i] - t.leafStart[i];
+  const depthOf = (i: number) => (dep ? dep[i] : 0);
+  const heightOf = (i: number) => (hei ? hei[i] : 0);
+  // without lengths, height is depth: it adds nothing as a tie-break
+  const cmp =
+    by === 'tips'
+      ? (a: number, b: number) => sign * (tips(a) - tips(b)) || a - b
+      : by === 'depth'
+        ? (a: number, b: number) => sign * (depthOf(a) - depthOf(b)) || sign * (tips(a) - tips(b)) || sign * (heightOf(a) - heightOf(b)) || a - b
+        : (a: number, b: number) => sign * (heightOf(a) - heightOf(b)) || sign * (tips(a) - tips(b)) || sign * (depthOf(a) - depthOf(b)) || a - b;
   const kids: number[] = [];
   let moved = false;
-  for (let v = 0; v < t.nodeCount; v++) {
+  for (let v = 0; v < n; v++) {
     if (t.childCount[v] < 2) continue;
     kids.length = 0;
     for (let c = t.firstChild[v]; c >= 0; c = t.nextSibling[c]) kids.push(c);
-    kids.sort((a, b) => sign * (size(a) - size(b)) || a - b);
+    kids.sort(cmp);
     // siblings are numbered in preorder, so the original order is increasing
     for (let k = 1; k < kids.length && !moved; k++) if (kids[k] < kids[k - 1]) moved = true;
     d.firstChild[v] = kids[0];
