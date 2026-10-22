@@ -54,6 +54,7 @@ import {
   type FrameStats,
   type Hit,
   type NodeEvent,
+  type TipRef,
   type ViewerOptions,
   type TreeData,
   type TreeSnapshot,
@@ -147,8 +148,9 @@ export interface SetTreeOptions {
    *  that maps from it, so for colours that must follow their tips compute the new list with tree-ops' `followClades` and pass it here.
    *  Without a `map` the ids are kept as they are, which only fits a tree with the same node ids. */
   clades?: CladeColour[];
-  /** The highlighted tip labels for the new tree. Default: unchanged (labels, not ranks, so they follow the tips). */
-  highlighted?: string[];
+  /** The highlighted tips for the new tree, labels and node ids of it as `setHighlighted` takes them. Default: the current ones, labels
+   *  unchanged (they follow their tips) and node ids sent through `map` (tips that are gone dropped; without a `map` kept as they are). */
+  highlighted?: TipRef[];
   /** The nodes (ids of the new tree) that stand for collapsed clades; default as `clades`. */
   collapsed?: number[];
 }
@@ -207,7 +209,7 @@ export class TreeViewer {
   /** Highlighted tips before each rank (prefix sums, length tipCount + 1): a clade holds none when its range [leafStart, leafEnd) has equal
    *  ends, which is the dim state. Built on first use by a dimming frame (never in 'band' mode) and dropped when the highlights change. */
   private hlPrefix: Int32Array | null = null;
-  private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
+  private hlIds: TipRef[] = []; // what the last setHighlighted was given, to skip an identical call
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
   private collapsedMask: Uint8Array | null = null; // by row of the snapshot: 1 = a clade to collapse (what computeLayout reads), null = none
   private list = new DrawList();
@@ -697,7 +699,11 @@ export class TreeViewer {
       : map
         ? this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0))
         : false;
-    if (o.highlighted) this.hlIds = o.highlighted.slice();
+    if (o.highlighted) {
+      this.hlIds = o.highlighted.slice();
+      this.checkHighlighted('setTree highlighted', this.hlIds);
+    } else if (map && oldHl.some((x) => typeof x === 'number'))
+      this.hlIds = oldHl.filter((x) => typeof x !== 'number' || (Number.isInteger(x) && rm(x) >= 0)).map((x) => (typeof x === 'number' ? rm(x) : x));
     const hlChanged = this.hlIds.length !== oldHl.length || this.hlIds.some((id, i) => id !== oldHl[i]);
     this.applyClades();
     this.resolveHighlights(); // also drops the dim prefix, which is as long as the old tree
@@ -803,11 +809,28 @@ export class TreeViewer {
   getTree(): TreeSnapshot {
     return this.tree;
   }
-  /** Node id (preorder id of the full tree) of the tip with this label, or -1 when there is none or it is not loaded. */
+  /** Node id (preorder id of the full tree) of the first tip with this label, or -1 when there is none or it is not loaded. Labels need not
+   *  be unique: `tipNodes` gives every tip with the label. */
   tipNode(tipId: string): number {
     const row = this.tree.tipIndex(tipId);
     if (row < 0) return -1;
     return this.tree.globalId === null ? row : this.tree.globalId[row];
+  }
+  /** Node ids of every loaded tip with this label, in preorder (empty when there is none). */
+  tipNodes(tipId: string): number[] {
+    const t = this.tree;
+    const out: number[] = [];
+    this.eachTipRow(tipId, (row) => out.push(t.globalId === null ? row : t.globalId[row]));
+    return out;
+  }
+  /** The rows of the loaded tips with this label: all of them when the tree has `tipIndices`, else the one `tipIndex` finds. */
+  private eachTipRow(label: string, fn: (row: number) => void): void {
+    const t = this.tree;
+    const first = t.tipIndex(label);
+    if (first < 0) return;
+    const all = t.tipIndices?.(label);
+    if (!all) return fn(first);
+    for (let k = 0; k < all.length; k++) fn(all[k]);
   }
   /** The theme in force: `FALLBACK_THEME`, then the CSS custom properties (see theme.ts), then the overrides of `setTheme`. */
   getTheme(): Readonly<TreeTheme> {
@@ -1128,11 +1151,14 @@ export class TreeViewer {
     this.overlay.scheduleList();
   }
 
-  /** No-op when the ids equal (element-wise, in order) the last ones passed; the array is copied, so mutating it later cannot hide a change. */
-  setHighlighted(tipIds: string[]): void {
+  /** Highlight tips: a string highlights every tip with that label (labels need not be unique), a number the tip with that node id. Unknown
+   *  labels are ignored; a number that is not a node, or is an internal node, is ignored with a warning. No-op when the entries equal
+   *  (element-wise, in order) the last ones passed; the array is copied, so mutating it later cannot hide a change. */
+  setHighlighted(tips: readonly TipRef[]): void {
     const last = this.hlIds;
-    if (tipIds.length === last.length && tipIds.every((id, i) => id === last[i])) return;
-    this.hlIds = tipIds.slice();
+    if (tips.length === last.length && tips.every((id, i) => id === last[i])) return;
+    this.hlIds = tips.slice();
+    this.checkHighlighted('setHighlighted', this.hlIds);
     this.resolveHighlights();
     this.sceneVersion++;
     this.invalidate();
@@ -1143,10 +1169,17 @@ export class TreeViewer {
    *  a partial source a match whose rows are not loaded has no rank yet, so its clade counts as holding no match (and dims) until it loads. */
   private resolveHighlights(): void {
     const N = this.tree.tipCount;
+    const t = this.tree;
     const ranks: number[] = [];
+    const add = (row: number) => {
+      if (t.childCount[row] === 0 && t.tipRank[row] >= 0) ranks.push(t.tipRank[row]);
+    };
     for (const id of this.hlIds) {
-      const n = this.tree.tipIndex(id);
-      if (n >= 0) ranks.push(this.tree.tipRank[n]);
+      if (typeof id === 'string') this.eachTipRow(id, add);
+      else if (Number.isInteger(id)) {
+        const row = this.rowOf(id);
+        if (row >= 0) add(row);
+      }
     }
     ranks.sort((a, b) => a - b);
     const uniq = ranks.filter((r, k) => k === 0 || r !== ranks[k - 1]);
@@ -1170,8 +1203,32 @@ export class TreeViewer {
     return this.hlPrefix;
   }
 
-  /** The tip labels last passed to `setHighlighted` (unknown ones included). */
-  getHighlighted(): string[] {
+  /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
+   *  loaded. They stay in the list (`getHighlighted` gives back what was set) and highlight nothing. */
+  private checkHighlighted(where: string, ids: readonly TipRef[]): void {
+    const limit = this.nodeLimit();
+    let bad: unknown[] | null = null;
+    let inner: number[] | null = null;
+    for (const id of ids) {
+      if (typeof id === 'string') continue;
+      if (!isNodeOf(limit, id)) (bad ??= []).push(id);
+      else {
+        const row = this.rowOf(id);
+        if (row >= 0 && this.tree.childCount[row] > 0) (inner ??= []).push(id);
+      }
+    }
+    if (bad) warnUnknownNodes(where, bad, limit);
+    if (inner) {
+      const more = inner.length > 5 ? ` and ${inner.length - 5} more` : '';
+      console.warn(
+        `gbif-phylo: ${where}: ${inner.slice(0, 5).join(', ')}${more} ${inner.length === 1 ? 'is an internal node' : 'are internal nodes'}, ` +
+          'not tips (a number highlights the tip with that node id, a string every tip with that label); ignored',
+      );
+    }
+  }
+
+  /** What was last passed to `setHighlighted` (labels and node ids, unknown ones included). */
+  getHighlighted(): TipRef[] {
     return this.hlIds.slice();
   }
 

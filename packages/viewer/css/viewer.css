@@ -257,6 +257,12 @@
   white-space: nowrap;
 }
 
+.phylo-search__dup {
+  color: var(--phylo-muted, #6b7c8a);
+  font-style: normal;
+  font-size: 0.85em;
+}
+
 .phylo-search__option:hover,
 .phylo-search__option[aria-selected='true'] {
   background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));

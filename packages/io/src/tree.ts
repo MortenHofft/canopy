@@ -59,6 +59,7 @@ export class TreeModel {
   readonly maxDepth: number;
   readonly maxCumLength: number;
   private _tipIndex: Map<string, number> | null = null;
+  private _dupTips: Map<string, number[]> | null = null;
   private _heights: Int32Array | null = null;
 
   constructor(raw: RawTree) {
@@ -152,17 +153,48 @@ export class TreeModel {
   isTip(i: number): boolean {
     return this.childCount[i] === 0;
   }
-  /** label -> preorder node index (-1 if absent). Built lazily; labels are unique in the test trees. */
-  tipIndex(label: string): number {
-    if (!this._tipIndex) {
-      const m = new Map<string, number>();
-      for (let r = 0; r < this.tipCount; r++) m.set(this.tipLabels[r], this.tipNode[r]);
-      this._tipIndex = m;
+  // Tip labels are lookup keys, not the identity of a tip: a tree can carry the same label on several tips (several sequences of one
+  // species, labels made for display). The index maps each label to its first tip in preorder; the labels carried by more than one tip
+  // also get the list of all their tips, in a second map that stays empty for a tree without duplicates.
+  private buildTipIndex(): Map<string, number> {
+    if (this._tipIndex) return this._tipIndex;
+    const m = new Map<string, number>();
+    const dup = new Map<string, number[]>();
+    for (let r = 0; r < this.tipCount; r++) {
+      const l = this.tipLabels[r];
+      const k = this.tipNode[r];
+      const first = m.get(l);
+      if (first === undefined) m.set(l, k);
+      else {
+        const all = dup.get(l);
+        if (all) all.push(k);
+        else dup.set(l, [first, k]);
+      }
     }
-    const k = this._tipIndex.get(label);
+    this._tipIndex = m;
+    this._dupTips = dup;
+    return m;
+  }
+  /** label -> preorder node index of the FIRST tip with this label (-1 if absent). Built lazily. A label that several tips carry
+   *  (see `duplicateTipLabels`) names all of them; `tipIndices` returns every one. */
+  tipIndex(label: string): number {
+    const k = this.buildTipIndex().get(label);
     return k === undefined ? -1 : k;
   }
-  /** Node id of the tip with this label, or null. */
+  /** Preorder node indexes of every tip with this label, in preorder (empty if none). A new array on every call. */
+  tipIndices(label: string): number[] {
+    const k = this.buildTipIndex().get(label);
+    if (k === undefined) return [];
+    const all = this._dupTips!.get(label);
+    return all ? all.slice() : [k];
+  }
+  /** The tip labels that more than one tip carries, each with its tips' node indexes in preorder. Empty when the labels are unique, so an
+   *  app can warn about duplicates after parsing (`parseNewick(text).duplicateTipLabels().size`). Do not modify it. */
+  duplicateTipLabels(): ReadonlyMap<string, readonly number[]> {
+    this.buildTipIndex();
+    return this._dupTips!;
+  }
+  /** Node id of the (first) tip with this label, or null. */
   tipNodeId(label: string): string | null {
     const k = this.tipIndex(label);
     return k < 0 ? null : 'n' + k;
@@ -220,14 +252,15 @@ export class TreeModel {
     while (!(x <= y && y < this.subtreeEnd[x])) x = this.parent[x];
     return x;
   }
-  /** MRCA of a set of tip labels or node ids/indexes; returns a node index, or -1 for an empty set. */
+  /** MRCA of a set of tip labels or node ids/indexes; returns a node index, or -1 for an empty set. A label that several tips carry
+   *  counts all of them. */
   mrcaOf(items: (string | number)[]): number {
     let cur = -1;
     for (const it of items) {
       // a string is a tip label if one matches, otherwise a node id
-      const k = typeof it === 'number' ? it : this.tipIndex(it) >= 0 ? this.tipIndex(it) : this.isNodeId(it) ? this.nodeIndex(it) : -1;
-      if (k < 0) throw new Error(`unknown tip or node ${String(it)}`);
-      cur = cur < 0 ? k : this.mrca(cur, k);
+      const tips = typeof it === 'number' ? [it] : this.tipIndex(it) >= 0 ? this.tipIndices(it) : this.isNodeId(it) ? [this.nodeIndex(it)] : [];
+      if (!tips.length) throw new Error(`unknown tip or node ${String(it)}`);
+      for (const k of tips) cur = cur < 0 ? k : this.mrca(cur, k);
     }
     return cur;
   }
@@ -276,5 +309,6 @@ export class TreeModel {
       }
     }
     this._tipIndex = null;
+    this._dupTips = null;
   }
 }

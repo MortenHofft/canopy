@@ -1,6 +1,8 @@
 // Search: a text field that finds tips by label as you type (prefix matches first, then matches anywhere, case-insensitive, on the
 // displayed label), with a list of suggestions to pick from with the mouse or the arrow keys and Enter. Picking one focuses that tip
-// (animated); `highlight: true` also highlights it, and `onSelect` replaces the action entirely.
+// (animated); `highlight: true` also highlights it, and `onSelect` replaces the action entirely. Tip labels need not be unique: each tip
+// is a suggestion of its own, a label that several tips carry says which of them it is ('2 of 3'), and the chosen tip alone is focused and
+// highlighted (by node id).
 //
 // The lowercased labels are built once per tree and options (a large tree is scanned per keystroke, debounced, not re-lowercased).
 
@@ -14,8 +16,8 @@ export interface SearchOptions extends ControlOptions {
   maxResults?: number;
   /** Also highlight the chosen tip (replacing the highlighted tips). Default false. */
   highlight?: boolean;
-  /** What choosing a tip does instead of focusing it. */
-  onSelect?(tipId: string, viewer: TreeViewer): void;
+  /** What choosing a tip does instead of focusing it: its label and its node id (which tells tips with the same label apart). */
+  onSelect?(tipId: string, viewer: TreeViewer, node: number): void;
   icon?: string;
 }
 
@@ -126,7 +128,15 @@ export class Search extends BaseControl {
         li.setAttribute('role', 'option');
         li.setAttribute('aria-selected', String(k === this.active));
         li.dataset.rank = String(r);
-        li.textContent = fmt(t.tipLabels[r] ?? '');
+        const label = t.tipLabels[r] ?? '';
+        li.textContent = fmt(label);
+        const same = v.tipNodes(label);
+        if (same.length > 1) {
+          const dup = document.createElement('span');
+          dup.className = 'phylo-search__dup';
+          dup.textContent = ` ${same.indexOf(this.nodeOf(v, r)) + 1} of ${same.length}`;
+          li.append(dup);
+        }
         return li;
       }),
     );
@@ -156,13 +166,21 @@ export class Search extends BaseControl {
     }
   }
 
+  /** Node id of the tip of this rank, -1 when its row is not loaded. */
+  private nodeOf(v: TreeViewer, rank: number): number {
+    const t = v.getTree();
+    const row = t.tipNode[rank];
+    return row < 0 ? -1 : t.globalId === null ? row : t.globalId[row];
+  }
+
   private choose(v: TreeViewer, rank: number): void {
     const tipId = v.getTree().tipLabels[rank];
     if (tipId === undefined) return;
+    const node = this.nodeOf(v, rank);
     this.close();
     this.input.value = v.options.formatLabel(tipId);
-    if (this.opts.onSelect) return this.opts.onSelect(tipId, v);
-    if (this.opts.highlight) v.setHighlighted([tipId]);
+    if (this.opts.onSelect) return this.opts.onSelect(tipId, v, node);
+    if (this.opts.highlight) v.setHighlighted([node >= 0 ? node : tipId]); // the node: this tip, not every tip with its label
     v.focusTip(rank, true);
   }
 

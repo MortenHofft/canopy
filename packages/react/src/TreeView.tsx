@@ -5,7 +5,7 @@
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { changedKeys, liveTooltipEvent, stripUndefined, useShallowStable, useStable } from './props.ts';
+import { changedKeys, liveTooltipEvent, stripUndefined, tipRow, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
@@ -24,6 +24,7 @@ import {
   type Column,
   type FrameStats,
   type LayoutKind,
+  type TipRef,
   type TreeEvent,
   type ViewerOptions,
   type TreeData,
@@ -35,16 +36,18 @@ import {
  *  descendant tips as the rank range [tipStart, tipEnd) with `tipIds()` / `tipLabels()`, pointer position, and `preventDefault()`. */
 export type TreeNodeEvent = TreeEvent;
 
+/** Tips are named by label (a string) or by node id (a number). A label that several tips carry names the first of them here (and
+ *  `focusTip` / `focus` warn about it): pass the node id to reach another. `highlighted` highlights every tip with a label. */
 export interface TreeViewHandle {
   fit(): void;
-  focusTip(tipId: string): void;
+  focusTip(tip: TipRef): void;
   zoomToNode(node: number): void;
   getViewport(): Viewport;
   setViewport(v: Viewport): void;
-  locateTip(tipId: string): { x: number; y: number } | null;
+  locateTip(tip: TipRef): { x: number; y: number } | null;
   locateNode(node: number): { x: number; y: number } | null;
   nodeBounds(node: number): { x: number; y: number; width: number; height: number } | null;
-  columnCell(colId: string, tipId: string): { x: number; y: number; width: number; height: number } | null;
+  columnCell(colId: string, tip: TipRef): { x: number; y: number; width: number; height: number } | null;
   getStats(): ReturnType<TreeViewer['getStats']>;
   benchmark(n: number): ReturnType<TreeViewer['benchmark']>;
   renderer(): TreeViewer | null;
@@ -97,7 +100,8 @@ export interface TreeViewProps {
   layout?: LayoutKind;
   branchLengths?: boolean;
   clades?: CladeProp[];
-  highlighted?: string[];
+  /** Tips to highlight: a label (string) highlights every tip with it, a node id (number) that one tip. */
+  highlighted?: TipRef[];
   /** Clades to collapse, as node ids (preorder ids, numbers) of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
    *  one row, its tips hidden, and the tree is not changed (see `TreeViewer.setCollapsed`). Ids of tips are ignored. Clicks and hovers on
    *  a collapsed clade have `kind: 'summary'`, `node` = the clade and `collapsed: true`; the viewport keeps its scale. */
@@ -106,7 +110,7 @@ export interface TreeViewProps {
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
   tipHref?: ((tipId: string) => string) | null; // compared by identity
-  focus?: { tipId: string; seq: number } | null; // declarative "centre this tip" request; acts when seq changes
+  focus?: { tipId: TipRef; seq: number } | null; // declarative "centre this tip" request (a label or a node id); acts when seq changes
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
   /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
@@ -131,7 +135,7 @@ export interface TreeViewProps {
 }
 
 const EMPTY = {} as NonNullable<TreeViewProps['options']>;
-const EMPTY_IDS: string[] = [];
+const EMPTY_IDS: TipRef[] = [];
 const EMPTY_NODES: number[] = [];
 const EMPTY_CLADES: CladeColour[] = [];
 const EMPTY_COLUMNS: Column[] = [];
@@ -318,7 +322,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     const r = liveRenderer(R, rendRef);
     if (!f || !r) return;
     const snap = sourceRef.current.snapshot();
-    const n = snap.tipIndex(f.tipId);
+    const n = tipRow(snap, f.tipId, '<TreeView> focus');
     if (n >= 0) r.focusTip(snap.tipRank[n]);
   }, [R, rendRef, focusSeq]);
 
@@ -327,20 +331,21 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     () => ({
       fit: () => rendRef.current?.fit(true),
       focusTip: (id) => {
-        const n = source.snapshot().tipIndex(id);
+        const n = tipRow(source.snapshot(), id, 'TreeViewHandle.focusTip');
         if (n >= 0) rendRef.current?.focusTip(source.snapshot().tipRank[n], true);
       },
       zoomToNode: (node) => rendRef.current?.zoomToNode(node, true),
       getViewport: () => rendRef.current!.getViewport(),
       setViewport: (v) => rendRef.current?.setViewport(v),
       locateTip: (id) => {
-        const n = source.snapshot().tipIndex(id);
-        return n < 0 ? null : (rendRef.current?.locateNode(n) ?? null);
+        const snap = source.snapshot();
+        const n = tipRow(snap, id);
+        return n < 0 ? null : (rendRef.current?.locateNode(snap.globalId === null ? n : snap.globalId[n]) ?? null);
       },
       locateNode: (node) => rendRef.current?.locateNode(node) ?? null,
       nodeBounds: (node) => rendRef.current?.nodeBounds(node) ?? null,
       columnCell: (c, id) => {
-        const n = source.snapshot().tipIndex(id);
+        const n = tipRow(source.snapshot(), id);
         return n < 0 ? null : (rendRef.current?.columnCell(c, source.snapshot().tipRank[n]) ?? null);
       },
       getStats: () => rendRef.current!.getStats(),

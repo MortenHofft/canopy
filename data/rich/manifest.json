@@ -1592,11 +1592,11 @@
  ],
  "edge_cases": [
   {
-   "bytes": 1673,
+   "bytes": 2123,
    "hand_made": true,
    "licence": "CC0 1.0 (hand-made, not real data)",
    "path": "edge-cases/README.md",
-   "sha256": "2283cca9d73bde99acfe18b889850ce0223f2ccea4dafa92a7e30efd46178128"
+   "sha256": "be197d7c9f42ea8e62f4b4ef94a3e1223b19b61ad618219852ae6fa30568f941"
   },
   {
    "bytes": 1235,
@@ -1617,6 +1617,17 @@
    "sha256": "0ed4d713b2900f52dcdf28a21a4405a4ca0eb28dcc2764a5158e48f2afecaa44",
    "tips": [
     20000
+   ],
+   "trees": 1
+  },
+  {
+   "bytes": 222,
+   "hand_made": true,
+   "licence": "CC0 1.0 (hand-made, not real data)",
+   "path": "edge-cases/duplicate-tip-labels.nwk",
+   "sha256": "fef7a41c65ad943dbb28ec58f08f242c90cd1c65da9a01b1723a1effc0d95fb0",
+   "tips": [
+    9
    ],
    "trees": 1
   },

@@ -81,8 +81,9 @@ export interface CollapseOptions {
  * Collapse clades into single tips: each listed internal node becomes a tip that stands for its clade (its descendants are removed).
  * A viewer draws such tips as collapsed clades; with the input kept, expanding is collapsing fewer. Nodes inside another listed
  * clade are covered by it. The new tip's label is `label(node, tips)`, by default the clade's name with its tip count, or its first
- * tip and how many more ('Gezophiium_megaborealis and 7 more'), which is unique among disjoint clades. `map` sends each collapsed
- * node to its tip and its descendants to -1. O(n).
+ * tip and how many more ('Gezophiium_megaborealis and 7 more'), which is unique among disjoint clades. A `label` function need not
+ * give unique labels ('7 taxa' for two clades of seven): tip labels are lookup keys, not identities, and the viewer tells tips apart by
+ * node id (a label highlights every tip that carries it). `map` sends each collapsed node to its tip and its descendants to -1. O(n).
  *
  * The new tip's length is the node's own edge, so on a dated tree it ends at the clade's node and the shown tree is no longer
  * ultrametric. With `options.extend` it is the own edge plus the clade's height, so the tip ends at the present. The length of a

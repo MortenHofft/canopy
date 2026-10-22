@@ -310,6 +310,34 @@ ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');
 await open(); // the default tree again for the sections that follow
 
+console.log('duplicate tip labels (#18)');
+await open('?tree=edge-duplicate-labels');
+await page.locator('input[data-setting=find]').fill('homo');
+await settled();
+ok(
+  JSON.stringify(await ev(() => [...window.viewer.hlRanks])) === '[0,1,3]',
+  '"Highlight tips containing" a label on three tips highlights all three',
+);
+await page.locator('input[data-setting=find]').fill('');
+await settled();
+await page.locator('.phylo-search__input').fill('homo');
+await page.waitForTimeout(300);
+const dupOptions = await page.locator('.phylo-search__option').allInnerTexts();
+ok(
+  JSON.stringify(dupOptions.map((t) => t.replace(/\s+/g, ' ').trim())) ===
+    JSON.stringify(['Homo sapiens 1 of 3', 'Homo sapiens 2 of 3', 'Homo sapiens 3 of 3']),
+  `the Search lists each of the three tips and says which it is (${dupOptions.join(' | ')})`,
+);
+await page.locator('.phylo-search__input').press('ArrowDown');
+await page.locator('.phylo-search__input').press('ArrowDown');
+await page.locator('.phylo-search__input').press('Enter');
+await settled();
+ok(
+  JSON.stringify(await ev(() => window.viewer.getHighlighted())) === '[7]' && JSON.stringify(await ev(() => [...window.viewer.hlRanks])) === '[3]',
+  'choosing the third highlights that tip alone (node 7, rank 3), not every Homo_sapiens',
+);
+await open(); // the default tree again
+
 console.log('node labels');
 await open('?tree=edge-internal-support');
 ok((await opt('nodeLabels')) === 'none' && (await drawnNodeTexts()).length === 0, 'Node labels are off by default');

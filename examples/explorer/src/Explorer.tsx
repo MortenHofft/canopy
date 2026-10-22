@@ -255,8 +255,10 @@ export function Explorer({
     const q = query.trim();
     if (!q) return [];
     const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ _]/g, '[ _]'), 'i');
-    const out: string[] = [];
-    for (const l of shown.tipLabels) if (re.test(l) && out.push(l) >= MAX_MATCHES) break;
+    // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
+    const out: number[] = [];
+    const labels = shown.tipLabels;
+    for (let r = 0; r < labels.length; r++) if (re.test(labels[r]) && out.push(shown.tipNode[r]) >= MAX_MATCHES) break;
     return out;
   }, [query, shown]);
   const current = matches.length ? matches[((matchIdx % matches.length) + matches.length) % matches.length] : null;

@@ -50,3 +50,37 @@ export function changedKeys<T extends object>(prev: T, next: T): (keyof T)[] {
 export function liveTooltipEvent<E>(state: { e: E; of: unknown } | null, shown: unknown): E | null {
   return state !== null && state.of === shown ? state.e : null;
 }
+
+/** The part of the viewer's `TreeSnapshot` that `tipRow` reads. */
+interface TipLookup {
+  readonly nodeCount: number;
+  readonly childCount: Int32Array;
+  readonly globalId: Int32Array | null;
+  tipIndex(label: string): number;
+  tipIndices?(label: string): ArrayLike<number>;
+  toLocal(globalId: number): number;
+}
+
+/** Row of the snapshot for a tip named by label (a string: the first tip that carries it) or by node id (a number); -1 when there is no
+ *  such tip or its row is not loaded. With `where`, a label that several tips carry, a number that is not a node and an internal node are
+ *  each reported with a `console.warn` naming `where`. */
+export function tipRow(snap: TipLookup, tip: string | number, where?: string): number {
+  if (typeof tip === 'string') {
+    const row = snap.tipIndex(tip);
+    if (where && row >= 0) {
+      const n = snap.tipIndices?.(tip).length ?? 1;
+      if (n > 1)
+        console.warn(`gbif-phylo: ${where}: ${n} tips have the label ${JSON.stringify(tip)}; the first is used (pass a node id for another)`);
+    }
+    return row;
+  }
+  const inMemory = snap.globalId === null;
+  const node = Number.isInteger(tip) && tip >= 0 && (!inMemory || tip < snap.nodeCount);
+  const row = !node ? -1 : inMemory ? tip : snap.toLocal(tip);
+  if (where && !node) console.warn(`gbif-phylo: ${where}: ${String(tip)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
+  else if (row >= 0 && snap.childCount[row] > 0) {
+    if (where) console.warn(`gbif-phylo: ${where}: ${tip} is an internal node, not a tip; ignored`);
+    return -1;
+  }
+  return row;
+}
