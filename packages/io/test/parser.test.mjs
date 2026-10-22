@@ -343,10 +343,19 @@ test('writer: root edge, and what cannot be written', () => {
   const out = toNewick(t, { annotations: true });
   assert.equal(parseNewick(out, { annotations: true }).length[0], 3);
   assert.equal(toNewick(parseNewick('(A,B):3;')), '(A,B):3;');
-  t.annotations.node.set(1, { 'bad key': 1 });
-  assert.throws(() => toNewick(t, { annotations: true }), /key/);
-  t.annotations.node.set(1, { k: 'both \' and "' });
-  assert.throws(() => toNewick(t, { annotations: true }), /quote/);
+  // one unwritable entry is left out with one warning; the rest is written
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (m) => warnings.push(m);
+  try {
+    t.annotations.node.set(1, { 'bad key': 1, '"k"': 2, ok: 3, k: 'both \' and "', also: 4 });
+    const back = parseNewick(toNewick(t, { annotations: true }), { annotations: true });
+    assert.deepEqual({ ...back.annotations.node.get(1) }, { ok: 3, also: 4 });
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /not written/);
+  } finally {
+    console.warn = warn;
+  }
   t.annotations.node.set(1, { k: 'a,b=c]d[e', n: NaN });
   const rt = parseNewick(toNewick(t, { annotations: true }), { annotations: true });
   assert.equal(rt.annotations.get(1, 'k'), 'a,b=c]d[e');
@@ -396,4 +405,16 @@ test('quoted brackets in a NEXUS tree with annotations', () => {
   const t = parseNexus('#NEXUS\nbegin trees;\n tree t = ((A[&s="a;]b"]:1,B:2):1,C);\nend;', { annotations: true }).tree;
   assert.equal(t.annotations.get(2, 's'), 'a;]b');
   assert.equal(t.tipCount, 3);
+});
+
+test('NHX values are never quoted', () => {
+  const src = '((A:1[&&NHX:S=\'x:D=Y:B=5],B:2[&&NHX:S="q:T=1])n:1,C);';
+  const on = parseNewick(src, { annotations: true });
+  const off = parseNewick(src);
+  assert.deepEqual(on.tipLabels, off.tipLabels);
+  assert.equal(on.annotations.get(2, 'S'), "'x");
+  assert.equal(on.annotations.get(2, 'D'), 'Y');
+  assert.equal(on.annotations.get(2, 'B'), 5);
+  assert.equal(on.annotations.get(3, 'S'), '"q');
+  assert.equal(on.annotations.get(3, 'T'), 1);
 });

@@ -28,7 +28,7 @@ const isWs = (c: number) => c === 32 || c === 9 || c === 10 || c === 13;
  *  annotations, so the default skip does not do it. */
 function skipComment(text: string, p: number, quoted = false): number {
   const n = text.length;
-  if (quoted && text.charCodeAt(p + 1) === 38) return skipAnnotation(text, p, n);
+  if (quoted && text.charCodeAt(p + 1) === 38 && text.charCodeAt(p + 2) !== 38) return skipAnnotation(text, p, n); // not NHX: its values have no quotes
   let depth = 0;
   for (; p < n; p++) {
     const c = text.charCodeAt(p);
@@ -265,11 +265,16 @@ function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, in
   const withLen = o.lengths !== false;
   const withInt = o.internalLabels !== false;
   const ann = o.annotations === true ? t.annotations : null;
-  const nodeNote = (i: number): string => (ann ? writeAnnotations(ann.node.get(i)) : '');
+  let warned = false;
+  const skipped = (what: string): void => {
+    if (!warned) console.warn(`gbif-phylo io: annotations not written: ${what} (further skipped entries are not reported)`);
+    warned = true;
+  };
+  const nodeNote = (i: number): string => (ann ? writeAnnotations(ann.node.get(i), skipped) : '');
   // ':' + edge annotations + length; an edge with only annotations is written as ':[&...]'
   const edge = (i: number): string => {
     const l = t.length[i];
-    const e = ann ? writeAnnotations(ann.edge.get(i)) : '';
+    const e = ann ? writeAnnotations(ann.edge.get(i), skipped) : '';
     const hasLen = withLen && !Number.isNaN(l);
     return hasLen || e ? ':' + e + (hasLen ? l : '') : '';
   };

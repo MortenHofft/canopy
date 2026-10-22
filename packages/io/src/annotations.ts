@@ -136,8 +136,9 @@ function splitTop(s: string, sep: number): string[] {
   return out;
 }
 
-function value(raw: string): AnnotationValue {
+function value(raw: string, nhx: boolean): AnnotationValue {
   const v = raw.trim();
+  if (nhx) return NUMBER.test(v) ? Number(v) : v; // NHX values are never quoted or bracketed
   if (v.charCodeAt(0) === 123 && v.charCodeAt(v.length - 1) === 125) {
     const inner = v.slice(1, -1);
     return inner.trim() === '' ? [] : splitTop(inner, 44).map(scalar);
@@ -153,7 +154,8 @@ export function parseAnnotationComment(text: string, start: number, end: number)
   if (text.charCodeAt(start + 1) !== 38) return null; // '&'
   let body = text.slice(start + 2, end - 1);
   let parts: string[];
-  if (body.startsWith('&NHX')) {
+  const nhx = body.startsWith('&NHX');
+  if (nhx) {
     body = body.slice(4);
     parts = body.split(':'); // NHX values have no ':' of their own
   } else {
@@ -166,7 +168,7 @@ export function parseAnnotationComment(text: string, start: number, end: number)
     const key = part.slice(0, eq).trim();
     if (key === '') continue;
     rec ??= Object.create(null) as AnnotationRecord;
-    rec[key] = value(part.slice(eq + 1));
+    rec[key] = value(part.slice(eq + 1), nhx);
   }
   return rec;
 }
@@ -176,21 +178,25 @@ export function parseAnnotationComment(text: string, start: number, end: number)
 const BAD_KEY = /[\s[\]{},="']/;
 
 /** `[&k=v,k=v]` in BEAST syntax ('' for no annotations). Strings are double-quoted (single-quoted if they hold a `"`), ranges and
- *  sets are `{a,b}`. Throws for what the syntax cannot hold and parseAnnotationComment could not read back: a key with whitespace
- *  or `[ ] { } , = " '`, and a string with both kinds of quote. */
-export function writeAnnotations(r: AnnotationRecord | undefined): string {
+ *  sets are `{a,b}`. An entry the syntax cannot hold and parseAnnotationComment could not read back (a key with whitespace or
+ *  `[ ] { } , = " '`, a string with both kinds of quote) is left out and reported to `skipped`. */
+export function writeAnnotations(r: AnnotationRecord | undefined, skipped?: (what: string) => void): string {
   if (!r) return '';
   const one = (v: AnnotationScalar): string => {
     if (typeof v === 'number') return Object.is(v, -0) ? '-0' : String(v);
     if (!v.includes('"')) return '"' + v + '"';
     if (!v.includes("'")) return "'" + v + "'";
-    throw new Error(`annotation value ${JSON.stringify(v)} holds both quote characters and cannot be written`);
+    throw new Error(`value ${JSON.stringify(v)} holds both quote characters`);
   };
   const parts: string[] = [];
   for (const k in r) {
-    if (k === '' || BAD_KEY.test(k)) throw new Error(`annotation key ${JSON.stringify(k)} cannot be written`);
     const v = r[k];
-    parts.push(`${k}=${Array.isArray(v) ? '{' + v.map(one).join(',') + '}' : one(v)}`);
+    try {
+      if (k === '' || BAD_KEY.test(k)) throw new Error(`key ${JSON.stringify(k)} has whitespace or one of [ ] { } , = " '`);
+      parts.push(`${k}=${Array.isArray(v) ? '{' + v.map(one).join(',') + '}' : one(v)}`);
+    } catch (e) {
+      skipped?.((e as Error).message); // one bad entry does not cost the others
+    }
   }
   return parts.length ? `[&${parts.join(',')}]` : '';
 }
