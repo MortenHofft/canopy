@@ -699,11 +699,7 @@ export class TreeViewer {
       : map
         ? this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0))
         : false;
-    if (o.highlighted) {
-      this.hlIds = o.highlighted.slice();
-      this.checkHighlighted('setTree highlighted', this.hlIds);
-    } else if (map && oldHl.some((x) => typeof x === 'number'))
-      this.hlIds = oldHl.filter((x) => typeof x !== 'number' || (Number.isInteger(x) && rm(x) >= 0)).map((x) => (typeof x === 'number' ? rm(x) : x));
+    this.hlIds = this.highlightsAfterSetTree(o.highlighted, oldHl, map ? rm : null);
     const hlChanged = this.hlIds.length !== oldHl.length || this.hlIds.some((id, i) => id !== oldHl[i]);
     this.applyClades();
     this.resolveHighlights(); // also drops the dim prefix, which is as long as the old tree
@@ -1201,6 +1197,23 @@ export class TreeViewer {
       this.hlPrefix = pre;
     }
     return this.hlPrefix;
+  }
+
+  /** The highlight list of the new tree in `setTree`: the one passed (checked), else the old one with labels kept and node ids sent through
+   *  `rm` (tips that are gone dropped; without a map, `rm` null, kept as they are). */
+  private highlightsAfterSetTree(passed: TipRef[] | undefined, old: TipRef[], rm: ((n: number) => number) | null): TipRef[] {
+    if (passed) {
+      const ids = passed.slice();
+      this.checkHighlighted('setTree highlighted', ids);
+      return ids;
+    }
+    if (!rm || !old.some((x) => typeof x === 'number')) return old;
+    const out: TipRef[] = [];
+    for (const x of old) {
+      if (typeof x !== 'number') out.push(x);
+      else if (Number.isInteger(x) && rm(x) >= 0) out.push(rm(x));
+    }
+    return out;
   }
 
   /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are

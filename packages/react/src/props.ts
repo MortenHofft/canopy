@@ -65,22 +65,27 @@ interface TipLookup {
  *  such tip or its row is not loaded. With `where`, a label that several tips carry, a number that is not a node and an internal node are
  *  each reported with a `console.warn` naming `where`. */
 export function tipRow(snap: TipLookup, tip: string | number, where?: string): number {
-  if (typeof tip === 'string') {
-    const row = snap.tipIndex(tip);
-    if (where && row >= 0) {
-      const n = snap.tipIndices?.(tip).length ?? 1;
-      if (n > 1)
-        console.warn(`gbif-phylo: ${where}: ${n} tips have the label ${JSON.stringify(tip)}; the first is used (pass a node id for another)`);
-    }
-    return row;
-  }
+  return typeof tip === 'string' ? labelRow(snap, tip, where) : nodeRow(snap, tip, where);
+}
+
+/** `tipRow` of a label: its first tip, with a warning (given `where`) when several tips carry it. */
+function labelRow(snap: TipLookup, label: string, where?: string): number {
+  const row = snap.tipIndex(label);
+  const n = where && row >= 0 ? (snap.tipIndices?.(label).length ?? 1) : 1;
+  if (n > 1) console.warn(`gbif-phylo: ${where}: ${n} tips have the label ${JSON.stringify(label)}; the first is used (pass a node id for another)`);
+  return row;
+}
+
+/** `tipRow` of a node id: -1 (with a warning, given `where`) for a number that is not a node or is an internal node. */
+function nodeRow(snap: TipLookup, node: number, where?: string): number {
   const inMemory = snap.globalId === null;
-  const node = Number.isInteger(tip) && tip >= 0 && (!inMemory || tip < snap.nodeCount);
-  const row = !node ? -1 : inMemory ? tip : snap.toLocal(tip);
-  if (where && !node) console.warn(`gbif-phylo: ${where}: ${String(tip)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
-  else if (row >= 0 && snap.childCount[row] > 0) {
-    if (where) console.warn(`gbif-phylo: ${where}: ${tip} is an internal node, not a tip; ignored`);
+  const isNode = Number.isInteger(node) && node >= 0 && (!inMemory || node < snap.nodeCount);
+  if (!isNode) {
+    if (where) console.warn(`gbif-phylo: ${where}: ${String(node)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
     return -1;
   }
-  return row;
+  const row = inMemory ? node : snap.toLocal(node);
+  if (row < 0 || snap.childCount[row] === 0) return row;
+  if (where) console.warn(`gbif-phylo: ${where}: ${node} is an internal node, not a tip; ignored`);
+  return -1;
 }
