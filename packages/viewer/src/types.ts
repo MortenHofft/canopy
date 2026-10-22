@@ -7,6 +7,7 @@
 // the exceptions are in docs/api.md ("Theme or option").
 
 import type { CladeLabelFn } from './clade-name.ts';
+import { defaultFormatNodeLabel, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import { RESIDUE_THEME_KEYS, type Alphabet } from './residues.ts';
 
 export interface TreeData {
@@ -118,6 +119,11 @@ export interface TreeTheme extends ResidueTheme {
   dimOpacity: number;
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
+  /** Largest size of node labels (`nodeLabels`; they shrink with the row height, down to 8 px), CSS px. */
+  nodeLabelSize: number;
+  /** Colours of node labels: support values (and what a `nodeLabels` function returns) and branch lengths. '' = `muted`. */
+  supportColour: string;
+  lengthColour: string;
   axisFontSize: number;
   /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
    *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
@@ -149,6 +155,9 @@ export const FALLBACK_THEME: TreeTheme = {
   highlightOpacity: 0.16,
   dimOpacity: 0.25,
   labelSize: 13,
+  nodeLabelSize: 10,
+  supportColour: '',
+  lengthColour: '',
   axisFontSize: 10,
   leaderColour: '',
   leaderDash: '1 3',
@@ -263,6 +272,17 @@ export interface ViewerOptions {
    *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
    *  without branch lengths or in the radial layout. */
   alignLabels: boolean;
+  /**
+   * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
+   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
+   * `(node, tree)` returning the text or a number (null = none), placed and coloured like support; `node` is the preorder id in the full
+   * tree, as in `cladeLabel`. Only drawn internal nodes get one (never one inside a collapsed clade), and only where the branch is long
+   * enough for the text and rows (rectangular) or arcs (radial) are at least `labelDensity` apart. Colours and size: `supportColour`,
+   * `lengthColour`, `nodeLabelSize`.
+   */
+  nodeLabels: NodeLabelsOption;
+  /** Text of a number shown by `nodeLabels` ('support', 'length', or a number a function returned): `(value, 'support')` 0.95 or 95. */
+  formatNodeLabel: (value: number, kind: NodeLabelKind) => string;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
@@ -304,6 +324,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   showSummaries: true,
   labelDensity: 'normal',
   alignLabels: false,
+  nodeLabels: 'none',
+  formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
   rowHeight: null,
   axis: true,

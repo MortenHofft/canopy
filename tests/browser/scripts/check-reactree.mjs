@@ -73,6 +73,8 @@ await page.addInitScript(() => {
   const ft = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
     if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
+    // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout
+    if (this.textBaseline === 'bottom') (window.__nodeTexts ??= []).push(String(text));
     return ft.call(this, text, ...rest);
   };
 });
@@ -418,19 +420,77 @@ ok(Math.abs((await page.locator('.rt-pane').boundingBox()).height - h0 - 100) < 
 ok(Math.abs((await ev(() => __v().size.height)) - h0 - 100) < 2, 'and the viewer follows');
 
 // ---------------------------------------------------------------- support values, node labels
+// the viewer draws them on the canvas (the `nodeLabels` option): read the node label texts of a fresh frame off fillText
 console.log('node labels');
+const drawn = async () => {
+  await ev(() => {
+    window.__nodeTexts = [];
+    __v().invalidate();
+    __v().renderNow();
+  });
+  return ev(() => window.__nodeTexts);
+};
 await open('edge-internal-support');
 await btn('No labels').click();
 await page.waitForTimeout(200);
-let labels = await page.locator('.rt-node-label--bootstrap').allInnerTexts();
+ok((await ev(() => typeof __v().options.nodeLabels)) === 'function', 'Bootstrap sets the nodeLabels option (no control of our own any more)');
+let labels = await drawn();
 ok(labels.includes('100') && labels.includes('0.95'), `Bootstrap: support values drawn (${labels.join(' ')})`);
+ok(labels.length === 2, 'only the two numeric support values; node_EF and the root get none');
 await btn('Bootstrap').click();
 await page.waitForTimeout(200);
-labels = await page.locator('.rt-node-label--branchlength:visible').allInnerTexts();
-ok(labels.includes('0.3') && labels.includes('0.2'), 'Length: branch lengths drawn');
+ok((await ev(() => __v().options.nodeLabels)) === 'length', 'Length sets nodeLabels to length');
+labels = await drawn();
+ok(labels.includes('0.3') && labels.includes('0.4') && labels.includes('0.1'), `Length: branch lengths drawn (${labels.join(' ')})`);
 await btn('Length').click();
 await page.waitForTimeout(200);
-ok((await page.locator('.rt-node-label:visible').count()) === 0, 'No labels');
+ok((await drawn()).length === 0 && (await ev(() => __v().options.nodeLabels)) === 'none', 'No labels');
+// lengths on the HCV tree: every label is the length of an internal node
+await open('rich-hcv-19');
+for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'length'; k++) {
+  await page.locator('.rt-labels').click(); // None, (Bootstrap if the tree has support), Length
+  await page.waitForTimeout(150);
+}
+labels = await drawn();
+const hcvLengths = await ev(() => {
+  const t = __v().getTree();
+  const out = [];
+  for (let i = 1; i < t.nodeCount; i++) if (t.firstChild[i] >= 0 && !Number.isNaN(t.length[i])) out.push(String(Number(t.length[i].toPrecision(3))));
+  return out;
+});
+ok(
+  labels.length > 0 && labels.every((l) => hcvLengths.includes(l)),
+  `HCV: ${labels.length} branch lengths drawn, each the length of an internal node (${labels.slice(0, 6).join(' ')} ...)`,
+);
+// zoomed in on x the short branches get room for their text, so more labels are drawn
+await ev(() => {
+  const v = __v();
+  v.setViewport({ ...v.getViewport(), x1: 0.12 });
+});
+await page.waitForTimeout(300);
+const zoomed = await drawn();
+ok(zoomed.length > labels.length && zoomed.every((l) => hcvLengths.includes(l)), `HCV zoomed in: ${zoomed.length} labels (${labels.length} before)`);
+// posterior on the BEAST MCC tree: the labels hold no support, the posterior is in [&posterior=...] (io annotations, supportFrom)
+await open('rich-fish-carangaria-135');
+ok((await drawn()).length === 0, 'Carangaria: no node labels by default');
+await page.locator('.rt-labels').click();
+await page.waitForTimeout(150);
+ok((await page.locator('.rt-labels').innerText()).includes('Bootstrap'), 'the button offers Bootstrap on a tree whose support is an annotation');
+// 135 tips in one view are under the density threshold: show the top of the tree
+await ev(() => {
+  const v = __v();
+  const vp = v.getViewport();
+  v.setViewport({ ...vp, y0: 0, y1: 18 });
+});
+await page.waitForTimeout(300);
+labels = await drawn();
+const nums = labels.map(Number);
+ok(nums.length > 3 && nums.every((x) => x >= 0 && x <= 1), `Carangaria: posterior drawn (${labels.slice(0, 8).join(' ')} ...)`);
+ok(labels.includes('1') && labels.some((l) => /^0\.\d{1,2}$/.test(l)), 'both 1 and a fraction rounded to 2 decimals');
+// far zoomed out the labels would collide: none below the density threshold
+await ev(() => __v().fit(false));
+await page.waitForTimeout(200);
+ok((await drawn()).length === 0, 'Carangaria at the fitted view: rows closer than the density threshold, no node labels');
 await page.locator('.rt-outer').press('Control+f');
 await page.waitForTimeout(100);
 ok(

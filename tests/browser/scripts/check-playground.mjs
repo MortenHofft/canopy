@@ -44,6 +44,22 @@ const open = async (query = '') => {
   await ev(() => document.querySelectorAll('details.group').forEach((d) => (d.open = true))); // 'Level of detail' starts closed
 };
 const query = () => new URL(page.url()).searchParams;
+// node labels are the text drawn with the 'bottom' baseline (rectangular layout): remember them, read them off a fresh frame
+await page.addInitScript(() => {
+  const ft = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    if (this.textBaseline === 'bottom') (window.__nodeTexts ??= []).push(String(text));
+    return ft.call(this, text, ...rest);
+  };
+});
+const drawnNodeTexts = async () => {
+  await ev(() => {
+    window.__nodeTexts = [];
+    window.viewer.invalidate();
+    window.viewer.renderNow();
+  });
+  return ev(() => window.__nodeTexts);
+};
 
 console.log('defaults');
 await open();
@@ -240,6 +256,34 @@ await toggle('alignLabels', false);
 ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');
 await open(); // the default tree again for the sections that follow
+
+console.log('node labels');
+await open('?tree=edge-internal-support');
+ok((await opt('nodeLabels')) === 'none' && (await drawnNodeTexts()).length === 0, 'Node labels are off by default');
+await select('nodeLabels', 'support');
+ok((await opt('nodeLabels')) === 'support' && query().get('s.nodeLabels') === 'support', 'the Node labels select sets the option, kept in the URL');
+let nl = await drawnNodeTexts();
+ok(nl.includes('100') && nl.includes('0.95') && nl.length === 2, `support values drawn (${nl.join(' ')})`);
+await toggle('supportPercent', true);
+nl = await drawnNodeTexts();
+ok(nl.includes('100') && nl.includes('95') && !nl.includes('0.95'), `Support as percent: formatNodeLabel shows 0.95 as 95 (${nl.join(' ')})`);
+await toggle('supportPercent', false);
+await select('nodeLabels', 'length');
+nl = await drawnNodeTexts();
+ok(nl.includes('0.3') && nl.includes('0.4') && nl.includes('0.1'), `branch lengths drawn (${nl.join(' ')})`);
+ok(
+  (await theme('nodeLabelSize')) === 10 && (await theme('supportColour')) === '' && (await theme('lengthColour')) === '',
+  'the node label tokens are theme settings',
+);
+await setInput('nodeLabelSize', '14');
+ok((await theme('nodeLabelSize')) === 14 && query().get('s.nodeLabelSize') === '14', 'the Node label size slider sets the token and the URL');
+await page.locator('input[data-setting=lengthColour]').fill('#ff0000');
+await settled();
+ok((await theme('lengthColour')) === '#ff0000', 'the Length colour text sets the token');
+await select('layout', 'radial');
+nl = await drawnNodeTexts();
+ok(nl.includes('0.3') && nl.includes('0.4'), `radial: lengths along the branches (${nl.length} labels)`);
+await open();
 
 console.log('tree operations');
 await page.locator('input[data-setting=find]').fill('');

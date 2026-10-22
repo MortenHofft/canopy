@@ -5,6 +5,7 @@ import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, COLLAPSED_W, RADIAL_FAR_ARC_R } from './
 import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
+import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import type { LabelDensity, TreeTheme } from './types.ts';
 
 export interface Scene {
@@ -22,6 +23,8 @@ export interface Scene {
   density: LabelDensity;
   alignLabels: boolean; // the option; it acts only in a rectangular phylogram (see alignedX)
   format: (id: string) => string;
+  nodeLabels: NodeLabelsOption; // the option
+  formatNode: (value: number, kind: NodeLabelKind) => string; // formatNodeLabel
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
   measure: TextMeasurer; // label widths, owned by the renderer
@@ -615,6 +618,131 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       const a = proj.tip(i);
       labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0, gap);
     }
+  }
+  if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
+}
+
+// ------------------------------------------------------------------------------------------ node labels
+
+const NODE_LABEL_GAP_PX = 3; // a support value ends this far left of its node
+const NODE_LABEL_PAD_PX = 3; // free space the text keeps on each side within its branch
+const NODE_LABEL_LIFT_PX = 2; // from the branch line up to the text's baseline
+const NODE_LABEL_MIN_SEG_PX = 10; // a branch shorter than this is not looked at (no digit fits)
+
+let nodeKind: NodeLabelKind = 'support'; // set by nodeText: which colour the text takes
+
+/** The text of the internal node at snapshot row `row`, or null for none. 'support' and 'length' read the snapshot's arrays; a function
+ *  gets the node's full-tree id. Sets `nodeKind`. */
+function nodeText(S: Scene, row: number): string | null {
+  const t = S.proj.tree;
+  const mode = S.nodeLabels;
+  nodeKind = mode === 'length' ? 'length' : 'support';
+  if (mode === 'support' || mode === 'length') {
+    const v = mode === 'support' ? internalSupport(t.labels[row] ?? '') : t.length[row];
+    return Number.isNaN(v) ? null : S.formatNode(v, mode);
+  }
+  if (mode === 'none') return null;
+  const r = mode(t.globalId === null ? row : t.globalId[row], t);
+  if (typeof r === 'number') return Number.isNaN(r) ? null : S.formatNode(r, 'support');
+  return r ? r : null;
+}
+
+/** Node labels (`nodeLabels`) for the internal nodes of the draw list, which are expanded nodes, so never a node inside a summary, a run
+ *  or a collapsed tip. Shown only with room, by the label-density rule of tip labels: rectangular, tip rows at least `LABEL_MIN_PX` apart
+ *  and the text fits the visible part of the node's horizontal segment; radial, the node's arc at least that long and the text fits the
+ *  branch. Support sits left of the node above its branch; a length is centred on the branch (radial: rotated along it, upright on the
+ *  left half like tip labels). The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP) labels, found by one pass over
+ *  the draw list, with the text made only after the cheap geometry tests. */
+export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
+  const mode = S.nodeLabels;
+  if (mode === 'none') return;
+  const { proj, list, theme } = S;
+  const { tree, L, T } = proj;
+  const rect = proj.kind === 'rectangular';
+  const need = LABEL_MIN_PX[S.density];
+  if (rect && proj.tipPitch < need) return;
+  const size = Math.max(8, Math.min(theme.nodeLabelSize, rect ? Math.round(proj.tipPitch * 0.78) : Infinity));
+  const font = `${size}px ${theme.fontFamily}`;
+  ctx.font = font;
+  ctx.textBaseline = 'bottom';
+  const maxN = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
+  const sc = S.scale;
+  const colSupport = theme.supportColour || theme.muted,
+    colLength = theme.lengthColour || theme.muted;
+  const p: Pt = { x: 0, y: 0 },
+    q: Pt = { x: 0, y: 0 };
+  const { firstChild, parent } = tree;
+  let n = 0;
+  let lastFill = '';
+  let lastAlpha = 1;
+  let lastAlign = '';
+  for (let e = 0; e < list.count && n < maxN; e++) {
+    if (list.kind[e] !== K_NODE || list.last[e] >= 0) continue;
+    const i = list.node[e];
+    if (i === 0) continue;
+    let x0 = 0, // rectangular: the visible part of the segment; radial: the label's origin
+      y0 = 0,
+      room = 0,
+      c = 1,
+      sn = 0;
+    proj.nodeXY(i, p);
+    if (rect) {
+      proj.parentXY(i, q);
+      if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
+      x0 = Math.max(q.x, T.clipL);
+      room = (mode === 'length' ? Math.min(p.x, T.clipR) : p.x) - x0;
+      if (mode !== 'length' && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
+      y0 = p.y - NODE_LABEL_LIFT_PX;
+    } else {
+      const lc = L.LAST[i];
+      const r1 = proj.depth(i);
+      room = r1 - proj.depth(parent[i]);
+      if (room < NODE_LABEL_MIN_SEG_PX || proj.tipSpan(firstChild[i], lc) * r1 < need) continue; // no room along the branch or across
+      c = L.COS![i];
+      sn = L.SIN![i];
+      x0 = mode === 'length' ? p.x - (c * room) / 2 : p.x;
+      y0 = mode === 'length' ? p.y - (sn * room) / 2 : p.y;
+      if (x0 < -20 || y0 < -20 || x0 > T.W + 20 || y0 > T.H + 20) continue;
+    }
+    if (room < NODE_LABEL_MIN_SEG_PX) continue;
+    const text = nodeText(S, i);
+    if (text === null) continue;
+    const centred = nodeKind === 'length';
+    const w = S.measure.width(ctx, text, font);
+    if (w + (centred ? 2 * NODE_LABEL_PAD_PX : NODE_LABEL_GAP_PX + NODE_LABEL_PAD_PX) > room) continue;
+    const fill = centred ? colLength : colSupport;
+    if (fill !== lastFill) {
+      ctx.fillStyle = fill;
+      lastFill = fill;
+    }
+    const alpha = S.hlPrefix !== null && dimmed(S, e) ? theme.dimOpacity : 1;
+    if (alpha !== lastAlpha) {
+      ctx.globalAlpha = alpha;
+      lastAlpha = alpha;
+    }
+    if (rect) {
+      const al = centred ? 'center' : 'right';
+      if (al !== lastAlign) {
+        ctx.textAlign = al;
+        lastAlign = al;
+      }
+      ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - NODE_LABEL_GAP_PX, y0);
+    } else {
+      const left = c < 0; // the left half is read upside down otherwise: turn the text round
+      const cf = left ? -c : c,
+        sf = left ? -sn : sn;
+      ctx.setTransform(sc * cf, sc * sf, -sc * sf, sc * cf, sc * x0, sc * y0);
+      // support: its end at the node, which is the end of the branch away from the root (the start of the text when turned round)
+      const al = centred ? 'center' : left ? 'left' : 'right';
+      if (al !== lastAlign) {
+        ctx.textAlign = al;
+        lastAlign = al;
+      }
+      ctx.fillText(text, centred ? 0 : left ? NODE_LABEL_GAP_PX : -NODE_LABEL_GAP_PX, -NODE_LABEL_LIFT_PX);
+    }
+    n++;
   }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.textAlign = 'left';

@@ -12,5 +12,6 @@ export { BaseControl, makeButton, type Control, type ControlOptions, type Contro
 export * from './controls/index.ts';
 export * from './overlays/index.ts';
 export { cladeName, internalName, type CladeLabelFn } from './clade-name.ts';
+export { internalSupport, defaultFormatNodeLabel, type NodeLabelFn, type NodeLabelsOption, type NodeLabelKind } from './node-label.ts';
 export { themeFromCss, THEME_CSS_VARS } from './theme.ts';
 export { residueColours, residueGroups, detectAlphabet, type Alphabet, type ResolvedAlphabet, type ResidueGroup } from './residues.ts';

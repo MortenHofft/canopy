@@ -2,7 +2,7 @@
 
 [Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3) rebuilt on `@gbif-phylo`, as a test of the library's public API: the same
 two toolbar rows, icons, buttons, palette, search panel, inspector and export menu, with the drawing, the events and the edits coming from
-`<TreeView>`, a control of our own and `@gbif-phylo/tree-ops`. Three of the gaps it found were fixed in the packages (below).
+`<TreeView>` and `@gbif-phylo/tree-ops`. Three of the gaps it found were fixed in the packages (below).
 
 ```
 npm run dev -w examples/reactree    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
@@ -14,7 +14,6 @@ control and reads the result back from the viewer.
 | File | What |
 |---|---|
 | [`src/Reactree.tsx`](src/Reactree.tsx) | the component: toolbars, modes, panels, `<TreeView>` |
-| [`src/node-labels.ts`](src/node-labels.ts) | `NodeLabels`, a `BaseControl` that writes support values or branch lengths next to the nodes |
 | [`src/reactree.css`](src/reactree.css) | Reactree's look as `--rt-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
 | [`src/trees.ts`](src/trees.ts) | trees from `data/`, two with the alignment they were inferred from |
@@ -37,7 +36,7 @@ control and reads the result back from the viewer.
 | Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "<first tip> and N more", unique, where Reactree says "N taxa") and the `collapsed` prop; the tooltip says "N taxa" |
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
-| Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
+| Bootstrap / Length / No labels cycle | `options.nodeLabels`: a function over `tree.support` (Bootstrap), `'length'`, `'none'`; drawn by the viewer, with `--phylo-support-colour` / `--phylo-length-colour`. The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support`, so Bootstrap shows the posterior there |
 | Align (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are the `--phylo-leader-*` theme tokens |
 | Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
@@ -50,16 +49,18 @@ Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
 
 - **A transparent background smeared**: every frame was drawn over the last one, because the frame filled the background colour without
   clearing the canvas. Each frame now clears first, so the pane's dotted grid shows under the tree.
-- **`addControl` forced `pointer-events: auto`** on every control's element, so a control over the whole tree (as `NodeLabels`) swallowed
-  every click. It now keeps a `pointer-events` the element already has; `NodeLabels` sets `none` in its constructor.
+- **`addControl` forced `pointer-events: auto`** on every control's element, so a control over the whole tree (the example's own node-label control) swallowed
+  every click. It now keeps a `pointer-events` the element already has. (That control is gone: see the next list.)
 - **Nested clade colours: the later entry won.** Now the innermost clade wins whatever the order, which is Reactree's behaviour.
 - **No NEXUS writer.** `@gbif-phylo/io` now has `toNexus` (a TAXA block, a TRANSLATE table and the tree), and the export menu offers it.
 
+Node labels ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16)) were a control of our own that walked every node on each frame and put a
+length at the node, not on the branch. They are now the viewer's `nodeLabels` option, drawn from the draw list (none inside a collapsed
+clade, none for a collapsed tip, a length along the branch in the radial layout). Posterior values on the BEAST tree came with the
+annotations in `@gbif-phylo/io` ([#17](https://github.com/MortenHofft/gbif-phylo/issues/17)).
+
 Still open, found in the library:
 
-- **No node or branch labels** ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16); posterior values need [#17](https://github.com/MortenHofft/gbif-phylo/issues/17)). Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
-  frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
-  branch.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
 

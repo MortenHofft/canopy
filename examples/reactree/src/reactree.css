@@ -52,6 +52,9 @@
   --phylo-border: var(--rt-surface-30);
   --phylo-tip-radius: 2.6;
   --phylo-axis-font-size: 9px;
+  --phylo-node-label-size: 9.5px;
+  --phylo-support-colour: var(--rt-boot);
+  --phylo-length-colour: var(--rt-len);
 }
 
 :root[data-theme='dark'] {
@@ -584,20 +587,6 @@ body {
   border: 1px solid var(--rt-surface-30);
   box-shadow: var(--rt-pop-shadow);
   animation: rt-pop 0.18s ease;
-}
-
-/* node labels (our NodeLabels control) */
-.rt-node-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 0 2px 1px;
-  line-height: 1;
-}
-.rt-node-label--bootstrap {
-  color: var(--rt-boot);
-}
-.rt-node-label--branchlength {
-  color: var(--rt-len);
 }
 
 /* the viewer's tooltip box holds our content: make the box itself invisible */

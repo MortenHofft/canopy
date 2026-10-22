@@ -220,6 +220,8 @@ export class Overview {
       alignLabels: false,
       density: 'sparse',
       format: (id) => h.formatLabel(id),
+      nodeLabels: 'none',
+      formatNode: String,
       scale: h.dpr,
       thin: false,
       measure: h.measure,
