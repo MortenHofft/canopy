@@ -18,7 +18,7 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **Review fixes.** These come from an adversarial review of the branch.
   - The browser checks fall back to Playwright's own Chromium, as on a CI runner (`tests/browser/scripts/chromium.mjs`).
   - A control has one viewer: adding it to a second viewer removes it from the first.
-  - The wheel over a control or the overview zooms the tree instead of scrolling the page, except inside lists marked `data-phylo-scroll`.
+  - The wheel over a control zooms the tree instead of scrolling the page, except inside lists marked `data-phylo-scroll`. (The overview handles its own wheel, see #33.)
   - `<TreeView>` applies only the options whose prop changed, so a layout chosen with `LayoutToggle` is no longer reverted.
   - The viewer's element holds the `role="tree"` element and the control layer as siblings, so controls and popups are no longer inside the tree role. New `treeElement` and `focus()`.
   - A listener removed during an emit is no longer called by it.
@@ -34,4 +34,4 @@ These changes made the spike's custom renderer into the first library form. Noth
   - Nested clade colours: the innermost clade wins, whatever the order of `setClades` / the `clades` prop (it was the later entry).
   - `@gbif-phylo/io` has `toNexus`: a NEXUS file with a taxa block and the tree.
 - **`TreeViewer` unit tests** (#25). `test/viewer-harness.mjs` builds a real viewer in Node (`makeViewer(tree, init)`) over the fake DOM, with a recording 2D context, `requestAnimationFrame`, `ResizeObserver`, `matchMedia` and `getComputedStyle`. Tests cover `setClades`, `addControl`, the frame order on an opaque and an alpha canvas, the canvas swap on a theme change, and `setTheme` / `refreshTheme`.
-
+- **Overview wheel** (#33). The wheel over the overview zooms about the tree point under the pointer (it zoomed toward a corner of the window box). Zooming out clamps the anchor into the window, a zoom that cannot go further does not pan, and a horizontal swipe still pans. `ViewState.zoomAtWorld` holds the zoom arithmetic and `zoomBy` shares it.

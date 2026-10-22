@@ -369,6 +369,7 @@ export class TreeViewer {
         noteInput: () => this.noteInput(),
         cancelAnim: () => this.vs.cancelAnim(),
         setViewport: (v) => this.vs.setViewport(v),
+        zoomAtWorld: (fx, fy, wx, wy) => this.vs.zoomAtWorld(fx, fy, wx, wy),
       },
     );
   }

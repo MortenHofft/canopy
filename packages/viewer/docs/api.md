@@ -162,7 +162,7 @@ A control is any object with `element: HTMLElement`, optional `position` (`'top-
 `'bottom-right'`, or `'custom'`: put in the control layer as it is, positioned by itself), optional `target` (an element of the page: the
 control lives there instead of on the viewer) and `setViewer(viewer | null)`. `addControl` gives a control's element `pointer-events:
 auto` unless the element already has an inline `pointer-events`: a control that lays something over the whole tree (labels, say) sets
-`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control or the overview zooms the tree, except inside an element marked `data-phylo-scroll` (a list that
+`none` so clicks reach the tree. Pointer and key events inside the control layer never reach the tree; the wheel over a control zooms the tree, and over the overview zooms about the tree point under the pointer (the overview handles its own wheel), except inside an element marked `data-phylo-scroll` (a list that
 scrolls itself, as the legend and the search suggestions are).
 
 `BaseControl` is the base class of the built-ins: `new BaseControl(name, { position, target, className }, element?)` gives the element the

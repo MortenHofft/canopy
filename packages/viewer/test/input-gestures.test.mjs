@@ -121,10 +121,10 @@ test('wheel, rectangular: plain = zoom rows about the pointer; shift or ctrl = z
   assert.equal(prevented, 4, 'the page does not scroll');
 });
 
-test('wheel over the viewer UI zooms like over the tree (wheel() is what the viewer forwards); inside a list that scrolls it is left alone', () => {
+test('wheel over a control zooms like over the tree (wheel() is what the viewer forwards); inside a list that scrolls it is left alone', () => {
   const s = setup();
   let prevented = 0;
-  const ui = { closest: () => null }; // a control or the overview: not marked data-phylo-scroll
+  const ui = { closest: () => null }; // a control: not marked data-phylo-scroll
   s.input.wheel(wheel({ target: ui, deltaY: -100, preventDefault: () => prevented++ }));
   assert.deepEqual(names(s.take()), ['noteInput', 'zoomBy']);
   const list = { closest: (sel) => (sel === '[data-phylo-scroll]' ? {} : null) };
