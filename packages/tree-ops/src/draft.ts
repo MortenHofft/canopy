@@ -2,7 +2,7 @@
 // its child lists as linked lists and room for added nodes; operations rewire parent / child links, lengths and labels, and
 // build() renumbers the reachable nodes in preorder and recomputes subtree and tip ranges in two O(n) passes.
 
-import { supportPart } from './labels.ts';
+import { splitInternalLabel, supportPart } from './labels.ts';
 import type { OpResult, TreeArrays, TreeInput } from './types.ts';
 
 /** A tree under construction: any node numbering, children as linked lists. Nodes not reachable from `root` are dropped. */
@@ -85,7 +85,8 @@ function build(d: Draft, keepRoot: boolean): { tree: TreeArrays; index: Int32Arr
     length[k] = k === 0 && !keepRoot ? NaN : d.length[v];
     const isTip = d.firstChild[v] < 0;
     // a support value at the root describes no edge: keep only the name
-    const rootSupport = k === 0 && !keepRoot && !isTip && !Number.isNaN(d.support[v]);
+    // (in `support` or only in the label: both are read, as in reroot)
+    const rootSupport = k === 0 && !keepRoot && !isTip && (!Number.isNaN(d.support[v]) || !Number.isNaN(splitInternalLabel(d.label[v]).support));
     labels[k] = rootSupport ? supportPart(d.label[v], false).name : d.label[v];
     support[k] = rootSupport || isTip ? NaN : d.support[v];
     subtreeEnd[k] = k + 1;

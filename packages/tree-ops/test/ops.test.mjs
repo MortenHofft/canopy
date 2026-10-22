@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
 // Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
 // something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
-import { parseNewick, parseNexus, toNewick, TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, supportFrom, toNewick, TreeModel } from '@gbif-phylo/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const wrap =
@@ -375,6 +375,77 @@ test('random trees with one-child nodes: reroot on every node at 0, 0.5 and 1 ke
     }
     checkModel(midpointRoot(t).tree, unaryCount(t));
   }
+});
+
+/** Every reroot position keeps every split's support, which lives only in `tree.support` (the labels hold names or nothing). */
+function checkSupportOnlyInArray(t, what) {
+  const supBefore = splitSupports(t);
+  assert.ok(supBefore.size > 3, `${what}: has supports`);
+  const names = t.labels.filter((l, i) => t.childCount[i] > 0 && l !== '').sort();
+  let n = 0;
+  for (let v = 1; v < t.nodeCount; v++) {
+    for (const f of [0, 0.5, 1]) {
+      const { tree, changed } = reroot(t, v, { at: f });
+      if (!changed) continue;
+      const now = splitSupports(tree);
+      for (const [sp, val] of supBefore)
+        if (val !== AMBIGUOUS && now.has(sp)) assert.equal(now.get(sp), val, `${what}: reroot ${v} at ${f}: split ${sp}`);
+      // a split present before has its support after, unless the old root's edges merged into it
+      assert.ok(now.size >= supBefore.size - 1, `${what}: reroot ${v} at ${f}: ${now.size} of ${supBefore.size} splits keep a support`);
+      assert.deepEqual(
+        tree.labels.filter((l, i) => tree.childCount[i] > 0 && l !== '').sort(),
+        names.filter((x) => tree.labels.includes(x)),
+        `${what}: names stay`,
+      );
+      n++;
+    }
+  }
+  assert.ok(n > 10);
+}
+
+test('reroot: support that exists only in tree.support moves with the edges (labels without numbers)', () => {
+  const t = parseNewick('(((A:1,B:1)ab:1,C:1)abc:1,((D:1,E:1)de:1,(F:1,G:1)fg:1)defg:1,H:1);');
+  for (const [name, v] of [
+    ['ab', 0.91],
+    ['abc', 0.82],
+    ['de', 0.73],
+    ['fg', 0.64],
+    ['defg', 0.55],
+  ])
+    t.support[t.labels.indexOf(name)] = v;
+  checkSupportOnlyInArray(t, 'array-only');
+  const r = reroot(t, t.tipIndex('D'), { at: 0.5 });
+  assert.equal(r.tree.support[r.tree.mrcaOf(['A', 'B'])], 0.91);
+  assert.equal(r.tree.support[r.tree.mrcaOf(['F', 'G'])], 0.64);
+  assert.equal(r.tree.labels[r.tree.mrcaOf(['A', 'B'])], 'ab'); // the name stays, no number is written into it
+  // the array wins where label and array disagree; the label's number is used only where the array is NaN
+  const u = parseNewick('(((A,B)90:ab,C)80:abc,(D,E)70:de);');
+  u.support[u.mrcaOf(['A', 'B'])] = 0.5;
+  const abc = u.mrcaOf(['A', 'B', 'C']);
+  u.support[abc] = NaN;
+  u.labels[abc] = '80:abc'; // only the label has it
+  const w = reroot(u, u.tipIndex('D'), { at: 0.5 }).tree;
+  assert.equal(w.support[w.mrcaOf(['A', 'B'])], 0.5);
+  assert.equal(ops.splitInternalLabel(w.labels[w.mrcaOf(['A', 'B', 'C'])]).support, 80); // untouched node: label as it was
+});
+
+test('reroot: the fish MCC posterior (supportFrom) survives every reroot position and midpoint rooting', () => {
+  const t = parseNexus(fs.readFileSync(path.join(DATA, 'rich/fish-carangaria-mcc/Carangaria-MCC.tre'), 'utf8'), { annotations: true }).tree;
+  t.support.set(supportFrom(t, 'posterior'));
+  assert.ok(t.labels.every((l, i) => t.childCount[i] === 0 || Number.isNaN(ops.splitInternalLabel(l).support))); // no number in any label
+  const before = splitSupports(t);
+  checkSupportOnlyInArray(t, 'fish');
+  const m = midpointRoot(t).tree;
+  for (const [sp, val] of splitSupports(m)) if (before.get(sp) !== AMBIGUOUS) assert.equal(val, before.get(sp), `midpoint: split ${sp}`);
+});
+
+test('subtree and showFocus drop a root support kept only in the label, and keep the name', () => {
+  const t = parseNewick('((A,B)ab,C);');
+  const ab = t.labels.indexOf('ab');
+  t.labels[ab] = '90:ab';
+  t.support.fill(NaN);
+  const s = subtree(t, ab).tree;
+  assert.equal(s.labels[0], 'ab');
 });
 
 test('midpoint exactly on a node roots at that node (no zero-length edge)', () => {
