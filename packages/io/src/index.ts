@@ -8,6 +8,8 @@ export {
   NewickError,
   type NexusResult,
   type NexusWriteOptions,
+  type ParseOptions,
   type WriteOptions,
 } from './newick.ts';
 export { TreeModel, splitInternalLabel, type RawTree } from './tree.ts';
+export { Annotations, supportFrom, type AnnotationRecord, type AnnotationScalar, type AnnotationValue } from './annotations.ts';

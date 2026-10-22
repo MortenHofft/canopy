@@ -7,6 +7,8 @@
 // Not handled: double-quoted labels, NEXUS underscore-to-space conversion (underscores are kept so that tip ids
 // equal the text in the file).
 
+import { Annotations, parseAnnotationComment, writeAnnotations } from './annotations.ts';
+import type { AnnotationRecord } from './annotations.ts';
 import { TreeModel, splitInternalLabel } from './tree.ts';
 import type { RawTree } from './tree.ts';
 
@@ -21,10 +23,13 @@ export class NewickError extends Error {
 
 const isWs = (c: number) => c === 32 || c === 9 || c === 10 || c === 13;
 
-/** Position just after the comment that starts at `p` (text[p] === '['). Comments may nest. */
-function skipComment(text: string, p: number): number {
-  let depth = 0;
+/** Position just after the comment that starts at `p` (text[p] === '['). Comments may nest. With `quoted` (parsing annotations), a
+ *  quoted value in an annotation comment (`[&...]`) may hold brackets: `[&s="a]b"]`. It costs about 30% on a tree full of
+ *  annotations, so the default skip does not do it. */
+function skipComment(text: string, p: number, quoted = false): number {
   const n = text.length;
+  if (quoted && text.charCodeAt(p + 1) === 38 && text.charCodeAt(p + 2) !== 38) return skipAnnotation(text, p, n); // not NHX: its values have no quotes
+  let depth = 0;
   for (; p < n; p++) {
     const c = text.charCodeAt(p);
     if (c === 91) depth++;
@@ -33,7 +38,44 @@ function skipComment(text: string, p: number): number {
   throw new NewickError('unterminated [comment]', n);
 }
 
-export function parseNewick(text: string): TreeModel {
+/** A quote opens only at the start of a value, after '=', ',' or '{'. */
+function skipAnnotation(text: string, p: number, n: number): number {
+  let depth = 0;
+  let quote = 0;
+  let prev = 0; // last character outside quotes that is not whitespace
+  for (; p < n; p++) {
+    const c = text.charCodeAt(p);
+    if (quote) {
+      if (c === quote) quote = 0;
+      continue;
+    }
+    if (c === 91) depth++;
+    else if (c === 93 && --depth === 0) return p + 1;
+    else if ((c === 34 || c === 39) && (prev === 61 || prev === 44 || prev === 123)) quote = c;
+    if (!isWs(c)) prev = c;
+  }
+  throw new NewickError('unterminated [comment]', n);
+}
+
+export interface ParseOptions {
+  /** Keep the `[&key=value]` (BEAST) and `[&&NHX:...]` comments in `tree.annotations` instead of skipping them. Default false:
+   *  the comments are skipped as before and cost nothing extra. */
+  annotations?: boolean;
+}
+
+export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
+  const annot = o.annotations === true;
+  const nodeAnn = new Map<number, AnnotationRecord>();
+  const edgeAnn = new Map<number, AnnotationRecord>();
+  let afterColon = false; // the comment is after the ':' of the node, so BEAST means the edge (NHX comments are always the node's)
+  const note = (from: number, to: number, edge: boolean): void => {
+    if (cur < 0) return;
+    const rec = parseAnnotationComment(text, from, to);
+    if (!rec) return;
+    const into = edge && text.charCodeAt(from + 2) !== 38 ? edgeAnn : nodeAnn;
+    const old = into.get(cur);
+    into.set(cur, old ? Object.assign(old, rec) : rec);
+  };
   const n = text.length;
   let cap = 1;
   for (let i = 0; i < n; i++) {
@@ -68,6 +110,7 @@ export function parseNewick(text: string): TreeModel {
     subtreeEnd[i] = count;
     labels.push(label);
     closed = -1;
+    afterColon = false;
     return i;
   };
 
@@ -104,7 +147,9 @@ export function parseNewick(text: string): TreeModel {
     if (isWs(c)) {
       p++;
     } else if (c === 91) {
-      p = skipComment(text, p);
+      const e = skipComment(text, p, annot);
+      if (annot && !expect) note(p, e, afterColon);
+      p = e;
     } else if (c === 40) {
       if (!expect) throw new NewickError("unexpected '('", p);
       const i = count++;
@@ -115,6 +160,7 @@ export function parseNewick(text: string): TreeModel {
       labels.push('');
       stack[sp++] = i;
       closed = -1;
+      afterColon = false;
       expect = true;
       p++;
     } else if (c === 44) {
@@ -123,6 +169,7 @@ export function parseNewick(text: string): TreeModel {
       expect = true;
       cur = -1;
       closed = -1;
+      afterColon = false;
       p++;
     } else if (c === 41) {
       if (sp === 0) throw new NewickError("unbalanced ')'", p);
@@ -132,6 +179,7 @@ export function parseNewick(text: string): TreeModel {
       leafEnd[i] = tips;
       cur = i;
       closed = i;
+      afterColon = false;
       expect = false;
       p++;
     } else if (c === 59) {
@@ -143,7 +191,13 @@ export function parseNewick(text: string): TreeModel {
       }
       p++;
       // BEAST puts comments between ':' and the number: '1[&height=..]:[&rate=..]70.5'
-      while (p < n && (isWs(text.charCodeAt(p)) || text.charCodeAt(p) === 91)) p = text.charCodeAt(p) === 91 ? skipComment(text, p) : p + 1;
+      while (p < n && (isWs(text.charCodeAt(p)) || text.charCodeAt(p) === 91)) {
+        if (text.charCodeAt(p) === 91) {
+          const e = skipComment(text, p, annot);
+          if (annot) note(p, e, true);
+          p = e;
+        } else p++;
+      }
       const s = p;
       while (p < n) {
         const d = text.charCodeAt(p);
@@ -151,6 +205,7 @@ export function parseNewick(text: string): TreeModel {
         p++;
       }
       if (cur >= 0) length[cur] = s === p ? NaN : Number(text.slice(s, p));
+      afterColon = true;
     } else {
       const lab = readLabel();
       if (expect) {
@@ -181,6 +236,7 @@ export function parseNewick(text: string): TreeModel {
     leafStart: slice(leafStart),
     leafEnd: slice(leafEnd),
     labels,
+    annotations: annot ? new Annotations(count, nodeAnn, edgeAnn) : undefined,
   };
   return new TreeModel(raw);
 }
@@ -195,6 +251,8 @@ export function quoteLabel(l: string): string {
 export interface WriteOptions {
   lengths?: boolean; // default true
   internalLabels?: boolean; // default true
+  /** Write `tree.annotations` back in BEAST syntax (`name[&k=v]:[&k=v]length`). Default false. Needs a tree parsed with `annotations: true`. */
+  annotations?: boolean;
 }
 
 /** Serialise to Newick, iteratively. Missing lengths are omitted. */
@@ -206,14 +264,26 @@ export function toNewick(t: TreeModel, o: WriteOptions = {}): string {
 function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, internal: (l: string) => string): string {
   const withLen = o.lengths !== false;
   const withInt = o.internalLabels !== false;
+  const ann = o.annotations === true ? t.annotations : null;
+  let warned = false;
+  const skipped = (what: string): void => {
+    if (!warned) console.warn(`gbif-phylo io: annotations not written: ${what} (further skipped entries are not reported)`);
+    warned = true;
+  };
+  const nodeNote = (i: number): string => (ann ? writeAnnotations(ann.node.get(i), skipped) : '');
+  // ':' + edge annotations + length; an edge with only annotations is written as ':[&...]'
+  const edge = (i: number): string => {
+    const l = t.length[i];
+    const e = ann ? writeAnnotations(ann.edge.get(i), skipped) : '';
+    const hasLen = withLen && !Number.isNaN(l);
+    return hasLen || e ? ':' + e + (hasLen ? l : '') : '';
+  };
   const parts: string[] = [];
   const open: number[] = [];
   const suffix = (i: number): string => {
     let s = '';
     if (t.childCount[i] > 0 && withInt && t.labels[i] !== '') s += internal(t.labels[i]);
-    const l = t.length[i];
-    if (withLen && !Number.isNaN(l) && i > 0) s += ':' + l;
-    return s;
+    return s + nodeNote(i) + edge(i);
   };
   for (let i = 0; i < t.nodeCount; i++) {
     while (open.length && t.subtreeEnd[open[open.length - 1]] <= i) parts.push(')' + suffix(open.pop() as number));
@@ -222,7 +292,7 @@ function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, in
       parts.push('(');
       open.push(i);
     } else {
-      parts.push(tip(i) + (withLen && !Number.isNaN(t.length[i]) && i > 0 ? ':' + t.length[i] : ''));
+      parts.push(tip(i) + nodeNote(i) + edge(i));
     }
   }
   while (open.length) parts.push(')' + suffix(open.pop() as number));
@@ -269,12 +339,12 @@ export interface NexusResult {
 }
 
 /** Next ';'-terminated statement starting at p, respecting 'quotes' and [comments]; end = position after ';'. */
-function nexusStatement(text: string, p: number): { stmt: string; end: number } | null {
+function nexusStatement(text: string, p: number, quoted: boolean): { stmt: string; end: number } | null {
   const n = text.length;
   const s = p;
   while (p < n) {
     const c = text.charCodeAt(p);
-    if (c === 91) p = skipComment(text, p);
+    if (c === 91) p = skipComment(text, p, quoted);
     else if (c === 39) {
       p++;
       for (;;) {
@@ -342,13 +412,18 @@ function nexusTokens(s: string): string[] {
 }
 
 /** Read tree number `treeIndex` (0-based) from a NEXUS document, applying its TRANSLATE table. */
-export function parseNexus(text: string, treeIndex = 0): NexusResult {
+export function parseNexus(text: string, treeIndex?: number, o?: ParseOptions): NexusResult;
+export function parseNexus(text: string, o: ParseOptions & { treeIndex?: number }): NexusResult;
+export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex?: number }) = 0, b: ParseOptions = {}): NexusResult {
+  const obj = typeof a === 'object' && a !== null ? a : null; // null and undefined read as the defaults
+  const opts: ParseOptions = obj ?? b ?? {};
+  const treeIndex = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
   let p = 0;
   let block = '';
   const translate = new Map<string, string>();
   let seen = 0;
   for (;;) {
-    const st = nexusStatement(text, p);
+    const st = nexusStatement(text, p, opts.annotations === true);
     if (!st) break;
     p = st.end;
     const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');
@@ -382,7 +457,7 @@ export function parseNexus(text: string, treeIndex = 0): NexusResult {
         .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
         .trim()
         .replace(/^'(.*)'$/s, '$1');
-      const tree = parseNewick(st.stmt.slice(eq + 1) + ';');
+      const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
       if (translate.size) tree.relabelTips((l) => translate.get(l));
       return { tree, treeName: name, treesSeen: seen, translateEntries: translate.size };
     }

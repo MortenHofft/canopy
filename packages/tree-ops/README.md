@@ -34,7 +34,7 @@ The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate
 ## Contract
 
 - **In:** a `TreeInput` (see `src/types.ts`): preorder arrays (`parent`, `firstChild`, `nextSibling`, `childCount`, `length`, `support`, `labels`, tip ranges). `@gbif-phylo/io`'s `TreeModel` satisfies it structurally.
-- **Out:** `{ tree: TreeArrays, map, changed }`. `tree` holds the arrays a model is built from (`new TreeModel(result.tree)`). `map` maps old node index to new (-1 if removed), for carrying selections and colours across. `changed` is false when there was nothing to do; `tree` is then the input.
+- **Out:** `{ tree: TreeArrays, map, changed }`. `tree` holds the arrays a model is built from (`new TreeModel(result.tree)`). `map` maps old node index to new (-1 if removed), for carrying selections and colours across. For `@gbif-phylo/io` annotations use `tree.annotations.remap(result.map, tree, result.tree)`: node annotations follow `map`, edge annotations follow their undirected edge through a `reroot` (see the io README). `changed` is false when there was nothing to do; `tree` is then the input.
 - **Never mutates the input.** Undo and "reset to the published tree" mean keeping the old object.
 
 ## Conventions

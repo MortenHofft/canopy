@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once |
 | `@gbif-phylo/viewer/gbif.css` | optional: GBIF design tokens mapped to the `--phylo-*` properties |
 | `@gbif-phylo/react` | `<TreeView>` ([below](#treeview)) |
-| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`); `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io` | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`; `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
