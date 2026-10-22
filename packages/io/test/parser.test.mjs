@@ -6,6 +6,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { parseNewick, parseNexus, toNewick, toNexus } from '../src/newick.ts';
+import { supportFrom } from '../src/annotations.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const read = (p) => {
@@ -156,4 +157,121 @@ test('toNexus round trip, with and without TRANSLATE, keeps topology, labels and
   const back = parseNexus(toNexus(fish)).tree;
   assert.deepEqual(back.tipLabels, fish.tipLabels);
   assert.deepEqual(Array.from(back.parent), Array.from(fish.parent));
+});
+
+// ------------------------------------------------------------------------------------------ annotations (#17)
+
+test('annotations are off by default', () => {
+  const t = parseNewick('((A[&x=1]:1,B:2)[&posterior=0.9]:0.5,C);');
+  assert.equal(t.annotations, null);
+  assert.throws(() => supportFrom(t, 'posterior'), /annotations: true/);
+});
+
+test('BEAST annotations: numbers, strings, ranges, node versus edge', () => {
+  const t = parseNewick('((A[&rate=0.5,state="x,y"]:[&rate_95%_HPD={0.1,0.9}]1,B:2)n[&posterior=0.9,set={"u","v"}]:0.5,C)[&R][&posterior=1];', {
+    annotations: true,
+  });
+  const a = t.annotations;
+  assert.equal(a.get(2, 'rate'), 0.5);
+  assert.equal(a.get(2, 'state'), 'x,y');
+  assert.equal(a.get(2, 'rate'), 0.5);
+  assert.deepEqual(a.get(2, 'rate_95%_HPD', 'edge'), [0.1, 0.9]);
+  assert.equal(a.get(2, 'rate_95%_HPD'), undefined);
+  assert.equal(a.get(1, 'posterior'), 0.9);
+  assert.deepEqual(a.get(1, 'set'), ['u', 'v']);
+  assert.equal(t.labels[1], 'n');
+  assert.equal(a.get(0, 'posterior'), 1);
+  assert.equal(a.get(0, 'R'), undefined); // flags without a value are not annotations
+  assert.equal(t.length[2], 1);
+  assert.deepEqual(a.keys('edge'), ['rate_95%_HPD']);
+});
+
+test('NHX annotations on a committed file', () => {
+  const t = parseNewick(read('rich/edge-cases/tree.nhx'), { annotations: true });
+  const a = t.annotations;
+  assert.equal(t.tipCount, 3);
+  assert.equal(a.get(0, 'S'), 'Amniota');
+  assert.equal(a.get(0, 'D'), 'N');
+  assert.equal(a.get(1, 'S'), 'Euarchontoglires');
+  assert.equal(a.get(1, 'B'), 100);
+  assert.equal(a.get(2, 'S'), 'Homo sapiens');
+  assert.equal(a.get(2, 'T'), 9606);
+  assert.equal(a.edge.size, 0); // NHX comments after the length still belong to the node
+  assert.equal(t.length[2], 0.1);
+  assert.deepEqual(parseNewick(read('rich/edge-cases/tree.nhx')).tipLabels, t.tipLabels);
+});
+
+test('fish MCC tree: posterior on internal nodes, supportFrom leaves tree.support alone', () => {
+  const t = parseNexus(read('rich/fish-carangaria-mcc/Carangaria-MCC.tre'), { annotations: true }).tree;
+  const plain = parseNexus(read('rich/fish-carangaria-mcc/Carangaria-MCC.tre')).tree;
+  assert.equal(t.nodeCount, plain.nodeCount);
+  assert.deepEqual(t.length, plain.length);
+  const post = supportFrom(t, 'posterior');
+  assert.equal(post.length, t.nodeCount);
+  let internal = 0;
+  let withPost = 0;
+  for (let i = 0; i < t.nodeCount; i++) {
+    if (t.childCount[i] === 0) {
+      assert.ok(Number.isNaN(post[i]));
+      continue;
+    }
+    internal++;
+    if (!Number.isNaN(post[i])) {
+      withPost++;
+      assert.ok(post[i] >= 0 && post[i] <= 1);
+    }
+  }
+  assert.ok(withPost > internal * 0.9, `${withPost} of ${internal} internal nodes have a posterior`);
+  assert.ok(plain.support.every(Number.isNaN)); // the label-based support is untouched
+  assert.ok(t.support.every(Number.isNaN));
+  const hpd = t.annotations.get(0, 'height_95%_HPD');
+  assert.ok(Array.isArray(hpd) && hpd.length === 2 && hpd[0] <= hpd[1]);
+});
+
+test('BEAST discrete trait tree: quoted strings, sets and edge rates', () => {
+  const text = zlib.gunzipSync(fs.readFileSync(path.join(DATA, 'rich/beast-hcv-2k1b/2k1b_fullGenome_9GTR1clock_COO_BSSVSMJ.MCC.tree.gz'))).toString();
+  const t = parseNexus(text, { annotations: true }).tree;
+  const coo = t.annotations.column('COO.prob');
+  assert.ok(coo.some((v) => v === 1));
+  const tip = t.annotations.node.get(t.tipNode[0]);
+  assert.equal(typeof tip.COO, 'string');
+  assert.ok(!tip.COO.includes('"'));
+  assert.ok(Array.isArray(tip['COO.set']));
+  const flu = parseNexus(read('rich/beast-fluB-vic-ha/unified_global_vic.HA.mcc.tre.gz'), { annotations: true }).tree;
+  assert.ok(flu.annotations.node.size > 0);
+  assert.equal(typeof flu.annotations.get(flu.tipNode[0], 'location'), 'string'); // the HA annotation is in the TAXA block only
+  assert.ok(supportFrom(flu, 'posterior').some((v) => v > 0.9));
+});
+
+test('round trip through toNewick and toNexus keeps the annotations', () => {
+  const same = (a, b, n) => {
+    assert.equal(a.nodeCount, b.nodeCount);
+    assert.deepEqual([...b.annotations.node], [...a.annotations.node]);
+    assert.deepEqual([...b.annotations.edge], [...a.annotations.edge]);
+    assert.ok(a.annotations.node.size > 0 || n === 0);
+  };
+  const src = '((A[&rate=0.5,state="x,y"]:[&hpd={0.1,0.9}]1,B:2)n[&posterior=0.9,set={"u","v"}]:0.5,C)[&posterior=1];';
+  const t = parseNewick(src, { annotations: true });
+  same(t, parseNewick(toNewick(t, { annotations: true }), { annotations: true }));
+  assert.equal(parseNewick(toNewick(t)).annotations, null);
+  assert.ok(!toNewick(t).includes('['));
+  same(t, parseNexus(toNexus(t, { annotations: true }), { annotations: true }).tree);
+  same(t, parseNexus(toNexus(t, { annotations: true, translate: false }), { annotations: true }).tree);
+  for (const f of ['rich/fish-carangaria-mcc/Carangaria-MCC.tre', 'rich/edge-cases/tree.nhx']) {
+    const orig = f.endsWith('.nhx') ? parseNewick(read(f), { annotations: true }) : parseNexus(read(f), { annotations: true }).tree;
+    const back = parseNexus(toNexus(orig, { annotations: true }), { annotations: true }).tree;
+    same(orig, back);
+    assert.deepEqual(back.tipLabels, orig.tipLabels);
+  }
+});
+
+test('remap carries annotations over an edit', () => {
+  const t = parseNewick('((A[&x=1]:1,B[&x=2]:[&e=1]2)n[&x=3],C[&x=4]);', { annotations: true });
+  const map = Int32Array.from([0, -1, 1, 2, 3]); // pretend node 1 was removed
+  const m = t.annotations.remap(map, 4);
+  assert.equal(m.nodeCount, 4);
+  assert.deepEqual([...m.node.keys()].sort(), [1, 2, 3]); // the removed node's annotations are gone
+  assert.equal(m.get(1, 'x'), 1);
+  assert.equal(m.get(2, 'e', 'edge'), 1);
+  assert.equal(t.annotations.remap(map, 4, { stripEdges: true }).edge.size, 0);
 });
