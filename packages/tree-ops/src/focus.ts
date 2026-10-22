@@ -4,8 +4,9 @@
 // the first `focusOn`), like a browser's back button. All functions are pure: they return a new Focus.
 
 import { checkNode, identity } from './draft.ts';
+import { followClade } from './follow.ts';
 import { subtree } from './subset.ts';
-import type { OpResult, TreeInput } from './types.ts';
+import type { OpResult, TreeArrays, TreeInput } from './types.ts';
 
 export interface Focus {
   /** Views visited, oldest first; the last one is shown. -1 = the whole tree. Empty = the whole tree, nothing to go back to. */
@@ -54,13 +55,24 @@ export function showFocus(t: TreeInput, f: Focus): OpResult {
 }
 
 /**
- * Carry a focus over an operation on the tree (reroot, prune, ...): `keep(node)` returns where a focused clade went in the new tree
- * (-1 if it is gone or no longer a clade). Views that are gone are dropped from the stack, so back skips them.
+ * Carry a focus over an operation on the tree (reroot, prune, ...). `keep(node)` returns where a focused clade went in the new tree
+ * (-1 if it is gone or no longer a clade). Or pass the operation's `before`, `after` and `map` to follow each clade by its tips
+ * (`followClade`); a clade that ends up the root or a tip cannot be focused and counts as gone. Views that are gone are dropped
+ * from the stack, so back skips them.
  */
-export function remapFocus(f: Focus, keep: (node: number) => number): Focus {
+export function remapFocus(f: Focus, keep: (node: number) => number): Focus;
+export function remapFocus(f: Focus, before: TreeArrays, after: TreeArrays, map: Int32Array): Focus;
+export function remapFocus(f: Focus, a: ((node: number) => number) | TreeArrays, after?: TreeArrays, map?: Int32Array): Focus {
+  const fn =
+    typeof a === 'function'
+      ? a
+      : (k: number) => {
+          const m = followClade(a, after!, map!, k).node;
+          return m > 0 && !(after!.subtreeEnd[m] === m + 1) ? m : -1;
+        };
   const stack: number[] = [];
   for (const v of f.stack) {
-    const m = v < 0 ? -1 : keep(v);
+    const m = v < 0 ? -1 : fn(v);
     if (v >= 0 && m < 0) continue;
     if (stack[stack.length - 1] !== m && !(stack.length === 0 && m === -1)) stack.push(m); // a leading 'whole tree' is the start: no back step
   }

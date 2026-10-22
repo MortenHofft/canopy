@@ -13,6 +13,8 @@
  *   motion      --phylo-transition
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dark
+ *   residues    --phylo-residue-hydrophobic  -positive  -negative  -polar  -aromatic  -glycine  -proline  (protein groups)
+ *               --phylo-residue-a  -c  -g  -t  (nucleotides)  --phylo-residue-other   (canvas only; defaults follow --phylo-dark)
  *
  * Class names: .phylo-viewer (what the viewer adds to its target), .phylo-tree (the tree element, role=tree),
  * .phylo-controls--<corner>, .phylo-control and .phylo-<name> per control, .phylo-button,
@@ -285,6 +287,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.phylo-legend__detail {
+  color: var(--phylo-muted, #6b7c8a);
 }
 
 button.phylo-legend__label {

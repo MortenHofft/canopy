@@ -2,11 +2,14 @@
 // zooms to it. Hidden while there is nothing to show.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
+import { cladeName, type CladeLabelFn } from '../clade-name.ts';
 import type { TreeViewer } from '../viewer.ts';
 
 export interface LegendItem {
   colour: string;
   label: string;
+  /** Secondary text after the label, such as '12 tips'. */
+  detail?: string;
   /** Node id to zoom to when the entry is clicked. */
   node?: number;
 }
@@ -15,6 +18,8 @@ export interface LegendOptions extends ControlOptions {
   title?: string;
   /** A fixed list instead of the viewer's clade colours. */
   items?: LegendItem[];
+  /** Overrides the viewer's `cladeLabel` option (what names an internal node) for this legend. */
+  cladeLabel?: CladeLabelFn;
 }
 
 export class Legend extends BaseControl {
@@ -38,6 +43,8 @@ export class Legend extends BaseControl {
   protected attach(v: TreeViewer): void {
     this.listen(v.on('cladeschange', () => this.render(v)));
     this.listen(v.on('sourcechange', () => this.render(v)));
+    // formatLabel and cladeLabel change the names
+    this.listen(v.on('optionschange', (e) => (e.changed.includes('formatLabel') || e.changed.includes('cladeLabel')) && this.render(v)));
     this.domListen(this.list, 'click', (e) => {
       const b = (e.target as Element).closest('button');
       if (b?.dataset.node) v.zoomToNode(Number(b.dataset.node), true);
@@ -45,15 +52,19 @@ export class Legend extends BaseControl {
     this.render(v);
   }
 
-  /** The entries shown: the fixed items, or one per coloured clade (named by its label, the node's name, or its tip count). */
+  /** The entries shown: the fixed items, or one per coloured clade (named by its label, else the clade's name with its tip count as detail, else 'Clade of N tips'). */
   items(v: TreeViewer): LegendItem[] {
     if (this.opts.items) return this.opts.items;
     const t = v.getTree();
     return v.getClades().map((c) => {
       const row = t.globalId === null ? c.node : t.toLocal(c.node);
-      const name = row >= 0 ? (t.labels[row] ?? '') : '';
+      if (c.label !== undefined) return { colour: c.colour, label: c.label, node: c.node };
       const tips = row >= 0 ? t.leafEnd[row] - t.leafStart[row] : 0;
-      return { colour: c.colour, label: c.label ?? (name || `Clade of ${tips.toLocaleString('en')} tips`), node: c.node };
+      const n = `${tips.toLocaleString('en')} tips`;
+      const name = cladeName(t, row, { formatLabel: v.options.formatLabel, cladeLabel: this.opts.cladeLabel ?? v.options.cladeLabel });
+      const tip = row >= 0 && t.childCount[row] === 0;
+      if (name === null) return { colour: c.colour, label: tip ? 'Unnamed tip' : `Clade of ${n}`, node: c.node };
+      return tip ? { colour: c.colour, label: name, node: c.node } : { colour: c.colour, label: name, detail: n, node: c.node };
     });
   }
 
@@ -68,6 +79,12 @@ export class Legend extends BaseControl {
         const text = document.createElement(it.node === undefined ? 'span' : 'button');
         text.className = 'phylo-legend__label';
         text.textContent = it.label;
+        if (it.detail) {
+          const d = document.createElement('span');
+          d.className = 'phylo-legend__detail';
+          d.textContent = ` (${it.detail})`;
+          text.append(d);
+        }
         if (it.node !== undefined) {
           (text as HTMLButtonElement).type = 'button';
           text.dataset.node = String(it.node);

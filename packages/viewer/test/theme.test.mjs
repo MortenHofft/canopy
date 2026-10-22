@@ -4,10 +4,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const { THEME_CSS_VARS, themeFromCss, splitList, luminance } = await import('../src/theme.ts');
+const { RESIDUE_THEME_KEYS } = await import('../src/residues.ts');
 const { FALLBACK_THEME, themeEquals } = await import('../src/types.ts');
 
 test('every theme field has a --phylo- property in kebab case', () => {
-  assert.deepEqual(Object.keys(THEME_CSS_VARS).sort(), Object.keys(FALLBACK_THEME).sort());
+  // the residue colours are optional (their defaults depend on `dark`), so they are not in FALLBACK_THEME
+  const residue = RESIDUE_THEME_KEYS.map((k) => k);
+  assert.deepEqual(Object.keys(THEME_CSS_VARS).sort(), [...Object.keys(FALLBACK_THEME), ...residue].sort());
+  assert.equal(THEME_CSS_VARS.residueHydrophobic, '--phylo-residue-hydrophobic');
+  assert.equal(THEME_CSS_VARS.residueA, '--phylo-residue-a');
+  assert.equal(THEME_CSS_VARS.residueOther, '--phylo-residue-other');
   assert.equal(THEME_CSS_VARS.branchWidth, '--phylo-branch-width');
   assert.equal(THEME_CSS_VARS.fontFamily, '--phylo-font-family');
   assert.equal(THEME_CSS_VARS.background, '--phylo-background');

@@ -31,14 +31,14 @@ control and reads the result back from the viewer.
 | Export | PNG from the viewer's canvas (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
 | Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
 | Fit | `fit()` |
-| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot` and `rotate` (Swap of two siblings is `rotate` of their binary parent) |
+| Reroot, Flip, Swap modes | `onTipClick` / `onNodeClick` and tree-ops `reroot`, `rotate` and `swap` (two siblings, also inside a polytomy) |
 | Midpoint, Ladderize ↑ ↓ | tree-ops `midpointRoot`, `ladderise` |
 | Color mode, 12 swatches, Erase, Clear all | the `clades` prop (the innermost clade's colour wins, as in Reactree); colours are carried to the new tree after an edit by their tips |
 | Click a clade: collapse into a triangle; Expand all | tree-ops `collapseClades` (labelled "<first tip> and N more", unique, where Reactree says "N taxa") and the `collapsed` prop; the tooltip says "N taxa" |
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
 | Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
-| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) |
+| Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
 | Resize handle | the pane's height; the viewer follows its container |
@@ -63,14 +63,11 @@ Still open, found in the library:
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
 - **Search can highlight, not dim** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). Reactree dims the tips that do not match; the viewer has highlighting only.
-- **Alignment colours are a constant table** ([#21](https://github.com/MortenHofft/gbif-phylo/issues/21)) in `packages/viewer/src/columns.ts`, not theme tokens and not exported: the legend copies
-  them. Nucleotides use the amino-acid scheme, so A and C share a colour.
 
 Differences that follow from the design, not defects:
 
 - Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
   135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- Swap inside a polytomy is refused with a message: tree-ops has `rotate` (reverse the children) but no general reorder ([#20](https://github.com/MortenHofft/gbif-phylo/issues/20)).
 - Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)): the example passes `{ extend: true }` to `collapseClades` when the tree is ultrametric, so the triangle's tip ends at the present and the axis stays "time before tips". The tip's length is then the clade's edge plus its height, not the original edge.
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
   component.

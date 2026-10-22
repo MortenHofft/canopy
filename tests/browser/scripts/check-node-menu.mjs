@@ -354,6 +354,7 @@ ok(/root already is the midpoint/.test(await status()), `midpoint on a dated tre
     }
   }
   ok(hit !== null, 'found a clade to collapse');
+  await page.evaluate(() => (window.__axis = null)); // a stale title must not pass
   await openOn(hit);
   await act('collapse');
   ok(await page.getByRole('button', { name: /Expand all/ }).isEnabled(), 'the clade is collapsed (Expand all is offered)');

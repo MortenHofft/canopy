@@ -66,10 +66,10 @@ export type CladeDepth = 'max' | 'mean' | 'min';
 export interface CollapseOptions {
   /**
    * Lengthen each new tip's edge by the clade's height, so that the tip ends where the clade's tips did. On a dated (ultrametric)
-   * tree the shown tree then stays ultrametric. `true` means `'max'`; `'max'`, `'mean'` or `'min'` choose the clade's depth to its
+   * tree the shown tree then stays ultrametric. `true` means `'max'`; `'max'`, `'mean'` (over the clade's tips) or `'min'` choose the clade's depth to its
    * tips (they agree when the clade is ultrametric, up to rounding of the lengths in the file; on a clade that is not, `'max'` keeps the
-   * longest root-to-tip path of the shown tree equal to the original's). Missing lengths count as 0, and the
-   * edge stays as it was when the tree has no lengths or the clade has height 0. Default: off, the edge is kept as it is.
+   * longest root-to-tip path of the shown tree equal to the original's). Negative and missing lengths count as 0 (in the heights, and in the node's own edge when it is extended), and
+   * the edge stays as it was when the tree has no lengths or the clade has height 0. Default: off, the edge is kept as it is.
    */
   extend?: boolean | CladeDepth;
 }
@@ -83,8 +83,9 @@ export interface CollapseOptions {
  *
  * The new tip's length is the node's own edge, so on a dated tree it ends at the clade's node and the shown tree is no longer
  * ultrametric. With `options.extend` it is the own edge plus the clade's height, so the tip ends at the present. The length of a
- * collapsed tip then is not the original edge: the original is the new length minus the height (the root distance of the tip is
- * the depth of the clade's tips). Nothing is stored for it beyond the input tree, which the caller keeps.
+ * collapsed tip then is not the original edge: the original is the new length minus the height. Where the clade is ultrametric the
+ * tip's root distance is the depth of the clade's tips; otherwise it is the depth the rule gives ('mean' is the mean over the clade's
+ * tips, not over its children). Nothing is stored for it beyond the input tree, which the caller keeps.
  */
 export function collapseClades(
   t: TreeInput,
@@ -93,7 +94,11 @@ export function collapseClades(
   options: CollapseOptions = {},
 ): OpResult {
   const d = draftOf(t);
-  const rule: CladeDepth | null = options.extend === true ? 'max' : options.extend || null;
+  const ext = options.extend;
+  if (ext !== undefined && ext !== true && ext !== false && ext !== 'max' && ext !== 'mean' && ext !== 'min') {
+    throw new RangeError(`collapseClades: extend must be true, false, 'max', 'mean' or 'min', not ${JSON.stringify(ext)}`);
+  }
+  const rule: CladeDepth | null = ext === true ? 'max' : ext || null;
   let height: Float64Array | null = null; // lazily: the clade height of every node under `rule`
   let any = false;
   for (const v of nodes) {
@@ -102,7 +107,10 @@ export function collapseClades(
     const tips = t.leafEnd[v] - t.leafStart[v];
     if (rule) {
       height ??= cladeHeights(t, rule);
-      if (height[v] > 0) d.length[v] = addLen(d.length[v], height[v]);
+      if (height[v] > 0) {
+        const own = d.length[v];
+        d.length[v] = (own > 0 ? own : 0) + height[v]; // a negative or missing own edge counts as 0, as in the heights
+      }
     }
     d.firstChild[v] = -1; // the builder treats it as a tip; its subtree is no longer reached
     d.support[v] = NaN;

@@ -110,6 +110,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 |---|---|---|
 | `src/types.ts` | 298 | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats` |
 | `src/viewer.ts` | 1,323 | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
+| `src/clade-name.ts` | 42 | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement) |
 | `src/events.ts` | 124 | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`) |
 | `src/node-event.ts` | 69 | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault` |
 | `src/theme.ts` | 99 | `themeFromCss`, `THEME_CSS_VARS`: the theme from `--phylo-*` custom properties |

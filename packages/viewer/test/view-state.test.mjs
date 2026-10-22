@@ -134,6 +134,61 @@ for (const layout of ['rectangular', 'radial']) {
   });
 }
 
+for (const layout of ['rectangular', 'radial']) {
+  test(`zoomAtWorld keeps the world point at its relative place in the window (${layout})`, () => {
+    const { vs } = make({ layout });
+    vs.fit(false);
+    if (layout === 'radial') vs.zoomBy(3, 3, vs.area.ax + 100, vs.area.ay + 100);
+    else vs.zoomBy(1, 4, vs.area.ax + 100, vs.area.ay + 100);
+    const v = vs.view;
+    // a point inside the window, and the same zoom through the screen-point entry
+    const [rx, ry] = [0.25, 0.8];
+    const [wx, wy] = [v.x0 + rx * (v.x1 - v.x0), v.y0 + ry * (v.y1 - v.y0)];
+    const [fx, fy] = layout === 'radial' ? [2, 2] : [1.5, 2];
+    const viaScreen = vs.zoomedView(fx, fy, vs.area.ax + rx * vs.area.aw, vs.area.ay + ry * vs.area.ah);
+    vs.zoomAtWorld(fx, fy, wx, wy);
+    const n = vs.view;
+    near((wx - n.x0) / (n.x1 - n.x0), rx, 1e-9);
+    near((wy - n.y0) / (n.y1 - n.y0), ry, 1e-9);
+    near(n.x1 - n.x0, (v.x1 - v.x0) / fx, 1e-9);
+    for (const k of ['x0', 'x1', 'y0', 'y1']) near(n[k], vs.clampView(viaScreen)[k], 1e-9);
+  });
+
+  test(`zoomAtWorld on a point outside the window pulls the window toward it (${layout})`, () => {
+    const { vs } = make({ layout });
+    vs.fit(false);
+    if (layout === 'radial') vs.zoomBy(4, 4, vs.area.ax + 50, vs.area.ay + 50);
+    else vs.zoomBy(1, 6, vs.area.ax + 50, vs.area.ay + 50);
+    const v = vs.view;
+    // below the window (and right of it for radial)
+    const [wx, wy] = [v.x1 + (v.x1 - v.x0) * 0.5, v.y1 + (v.y1 - v.y0) * 0.5];
+    vs.zoomAtWorld(layout === 'radial' ? 2 : 1, 2, wx, wy);
+    const n = vs.view;
+    assert.ok(n.y0 > v.y0, 'the window moved down toward the point');
+    assert.ok(Math.abs(wy - (n.y0 + n.y1) / 2) < Math.abs(wy - (v.y0 + v.y1) / 2), 'the centre is nearer the point');
+  });
+}
+
+test('zoomAtWorld: zooming out about a point far outside the window anchors at the nearest point of the window (no push away)', () => {
+  const { vs } = make();
+  vs.fit(false);
+  vs.setViewport({ x0: 0, x1: 1, y0: 20, y1: 30 });
+  const v = { ...vs.view };
+  vs.zoomAtWorld(1, 0.5, 0.5, 58); // far below the window
+  assert.ok(vs.view.y1 - vs.view.y0 > v.y1 - v.y0, 'it zooms out');
+  near(vs.view.y1, v.y1, 1e-9); // the bottom edge, the nearest point to the anchor, stays put
+  near(vs.view.y0, v.y0 - (v.y1 - v.y0), 1e-9);
+});
+
+test('zoomAtWorld: at the zoom limit a wheel-in over a far point does not pan', () => {
+  const { vs } = make({ layout: 'radial' });
+  vs.fit(false);
+  vs.zoomBy(1e6, 1e6, vs.area.ax + 100, vs.area.ay + 100); // to the limit
+  const v = { ...vs.view };
+  vs.zoomAtWorld(2, 2, v.x0 + 40, v.y0 + 40);
+  assert.deepEqual(vs.view, v);
+});
+
 test('setViewport: ignores an empty window, skips an equal one, clamps, clears fitted', () => {
   const { vs, log } = make();
   vs.fit(false);

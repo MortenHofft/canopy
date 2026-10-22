@@ -21,6 +21,11 @@
     "path": "rich/edge-cases/internal-labels-support.nwk",
     "format": "newick"
   },
+  "edge-polytomy": {
+    "label": "Polytomy, missing lengths (10 tips)",
+    "path": "rich/edge-cases/polytomy-missing-lengths.nwk",
+    "format": "newick"
+  },
   "rich-corvoid-680": {
     "label": "Corvoid MCC (680 tips)",
     "path": "rich/corvoid-mcc-680/CC_MCC.tre.gz",

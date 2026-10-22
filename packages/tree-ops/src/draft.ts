@@ -52,7 +52,7 @@ export function linkChildren(d: Draft, order: ArrayLike<number>): void {
 }
 
 /** Draft -> TreeArrays in preorder. Returns the model and draft id -> new index (-1 when not reachable from the root). */
-function build(d: Draft): { tree: TreeArrays; index: Int32Array } {
+function build(d: Draft, keepRoot: boolean): { tree: TreeArrays; index: Int32Array } {
   const index = new Int32Array(d.n).fill(-1);
   let count = 0;
   // pass 1: preorder numbering (walk with firstChild / nextSibling / parent, no stack)
@@ -82,10 +82,10 @@ function build(d: Draft): { tree: TreeArrays; index: Int32Array } {
     const p = k === 0 ? -1 : index[d.parent[v]];
     parent[k] = p;
     depth[k] = p < 0 ? 0 : depth[p] + 1;
-    length[k] = k === 0 ? NaN : d.length[v];
+    length[k] = k === 0 && !keepRoot ? NaN : d.length[v];
     const isTip = d.firstChild[v] < 0;
     // a support value at the root describes no edge: keep only the name
-    const rootSupport = k === 0 && !isTip && !Number.isNaN(d.support[v]);
+    const rootSupport = k === 0 && !keepRoot && !isTip && !Number.isNaN(d.support[v]);
     labels[k] = rootSupport ? supportPart(d.label[v], false).name : d.label[v];
     support[k] = rootSupport || isTip ? NaN : d.support[v];
     subtreeEnd[k] = k + 1;
@@ -106,8 +106,9 @@ function build(d: Draft): { tree: TreeArrays; index: Int32Array } {
   return { tree: { nodeCount: count, tipCount: tips, parent, subtreeEnd, depth, length, support, leafStart, leafEnd, labels }, index };
 }
 
-export function result(t: TreeInput, d: Draft): OpResult {
-  const { tree, index } = build(d);
+/** `keepRoot`: the root keeps its label, support and length (order-only operations change nothing else). */
+export function result(t: TreeInput, d: Draft, keepRoot = false): OpResult {
+  const { tree, index } = build(d, keepRoot);
   return { tree, map: index.slice(0, t.nodeCount), changed: true };
 }
 
@@ -125,6 +126,6 @@ export function addLen(a: number, b: number): number {
   return a + b;
 }
 
-export function checkNode(t: TreeInput, v: number): void {
+export function checkNode(t: TreeArrays, v: number): void {
   if (!Number.isInteger(v) || v < 0 || v >= t.nodeCount) throw new RangeError(`node ${v} is not in the tree (0..${t.nodeCount - 1})`);
 }

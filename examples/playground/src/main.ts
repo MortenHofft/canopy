@@ -20,8 +20,11 @@ import {
   Tooltip,
   TreeViewer,
   Zoom,
+  type Alphabet,
   type CladeColour,
+  type CladeLabelFn,
   type Column,
+  internalName,
   type Control,
   type NodeMenuItem,
   type TreeEvent,
@@ -95,7 +98,7 @@ function computeView(t: TreeModel): View {
   let toView: Int32Array | null = null; // loaded -> shown, composed over the steps
   const step = (r: ops.OpResult) => {
     if (!r.changed) return false;
-    toView = toView ? toView.map((v) => (v >= 0 ? r.map[v] : -1)) : r.map;
+    toView = toView ? ops.composeMaps(toView, r.map) : r.map;
     shown = new TreeModel(r.tree);
     return true;
   };
@@ -104,7 +107,8 @@ function computeView(t: TreeModel): View {
   let collapsedTips: number[] = [];
   const inShown = collapsed.map(toShownNow).filter((v) => v > 0); // the shown root is never collapsed
   if (inShown.length) {
-    const r = ops.collapseClades(shown, inShown);
+    // on a dated (ultrametric) tree the collapsed tip is lengthened to the present, so the axis stays "time before tips"
+    const r = ops.collapseClades(shown, inShown, undefined, { extend: shown.isUltrametric(1e-3) });
     if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
   }
   const support = supportRange(t);
@@ -120,8 +124,7 @@ function computeView(t: TreeModel): View {
   }
   const map = toView as Int32Array | null;
   if (!map) return { tree: t, toShown: (v) => v, toFull: (v) => v, collapsedTips, supportCollapsed, support };
-  const back = new Int32Array(shown.nodeCount);
-  for (let i = 0; i < map.length; i++) if (map[i] >= 0) back[map[i]] = i;
+  const back = ops.invertMap(map, shown.nodeCount);
   return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedTips, supportCollapsed, support };
 }
 
@@ -139,19 +142,30 @@ function refreshView() {
 
 const SPACES = (s: string) => s.replace(/_/g, ' ');
 const RAW = (s: string) => s;
+// Open Tree of Life labels end in their taxon id ('Chelodina_ott235768'); this app shows the names only. The core has no such rule.
+const OTL_ID = /_ott\d+$/;
+const OTL_NAME = (s: string) => SPACES(s.replace(OTL_ID, ''));
+const isOtl = () => loaded?.tree.tipLabels.slice(0, 5).some((l) => OTL_ID.test(l)) === true;
+/** OTL's unnamed clades are labelled 'mrcaott99343ott3606205': no name, so the legend counts the tips instead. */
+const OTL_SYNTHETIC = /^mrcaott\d+ott\d+$/;
+const cladeLabel: CladeLabelFn = (node, t) => {
+  const name = internalName(t.labels[t.toLocal(node)]);
+  return OTL_SYNTHETIC.test(name) ? null : name;
+};
 const GBIF_HREF = (id: string) => `https://www.gbif.org/species/search?q=${encodeURIComponent(id.replace(/_/g, ' '))}`;
 
 function viewerOptions(): Partial<ViewerOptions> {
   const o: Record<string, unknown> = {};
   for (const s of SETTINGS) if (s.to === 'option') o[s.key ?? s.id] = toViewer(s, state[s.id]);
-  o.formatLabel = state.underscores ? SPACES : RAW;
+  o.formatLabel = state.underscores ? (isOtl() ? OTL_NAME : SPACES) : RAW;
+  o.cladeLabel = cladeLabel;
   o.tipHref = state.tipLinks ? GBIF_HREF : null;
   return o as Partial<ViewerOptions>;
 }
 
 function themeOverrides(): Partial<TreeTheme> {
   const t: Record<string, unknown> = {};
-  for (const s of SETTINGS) if (s.to === 'theme') t[s.key ?? s.id] = state[s.id];
+  for (const s of SETTINGS) if (s.to === 'theme' && state[s.id] !== '') t[s.key ?? s.id] = state[s.id]; // '' = not set (residue colours)
   if (state.transparent) t.background = 'transparent';
   return t as Partial<TreeTheme>;
 }
@@ -194,7 +208,7 @@ function columns(): Column[] {
     );
   }
   if (loaded.fasta && columnOn.get('alignment'))
-    out.push({ id: 'alignment', kind: 'alignment', header: 'Alignment', width: 260, values: loaded.fasta });
+    out.push({ id: 'alignment', kind: 'alignment', header: 'Alignment', width: 260, values: loaded.fasta, alphabet: state.alphabet as Alphabet });
   return out;
 }
 
@@ -289,9 +303,8 @@ const palette = () => viewer?.getTheme().categorical ?? ['#684393'];
 /** Colour a clade or tip (a node of the loaded tree), or remove its colour. */
 function toggleColour(node: number) {
   const has = clades.some((c) => c.node === node);
-  const t = loaded?.tree;
-  const label = t ? (t.childCount[node] ? `Clade of ${fmt(t.tipCountOf(node))} tips` : SPACES(t.labels[node])) : undefined;
-  clades = has ? clades.filter((c) => c.node !== node) : [...clades, { node, colour: palette()[clades.length % palette().length], label }];
+  // no label: the legend names the clade itself (its node name through formatLabel, or 'Clade of N tips')
+  clades = has ? clades.filter((c) => c.node !== node) : [...clades, { node, colour: palette()[clades.length % palette().length] }];
   apply();
 }
 

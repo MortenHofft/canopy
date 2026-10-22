@@ -8,6 +8,7 @@
 // default actions (the tooltip) are suppressed.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
+import { cladeName } from '../clade-name.ts';
 import type { TreeEvent } from '../events.ts';
 import type { TreeViewer } from '../viewer.ts';
 
@@ -22,7 +23,7 @@ export interface NodeMenuItem {
 
 export interface NodeMenuOptions extends Omit<ControlOptions, 'position' | 'target'> {
   items(e: TreeEvent, viewer: TreeViewer): NodeMenuItem[] | null | undefined;
-  /** The heading; default: the tip label, or the node's name, or 'Clade, N tips'. */
+  /** The heading; default: the tip label, or the clade's name (without support, through formatLabel), or 'Clade, N tips'. */
   title?(e: TreeEvent, viewer: TreeViewer): string;
 }
 
@@ -179,5 +180,5 @@ function defaultTitle(e: TreeEvent, v: TreeViewer): string {
   if (e.isTip) return v.options.formatLabel(e.tipId ?? '');
   const t = v.getTree();
   const row = t.globalId === null ? e.node : t.toLocal(e.node);
-  return (row >= 0 ? t.labels[row] : '') || `Clade, ${e.tipCount.toLocaleString('en')} tips`;
+  return cladeName(t, row, v.options) ?? `Clade, ${e.tipCount.toLocaleString('en')} tips`;
 }

@@ -6,6 +6,8 @@
 //  * Tips are ranked in preorder (= file order). The tips below node i are the contiguous rank range
 //    [leafStart[i], leafEnd[i]) so descendant tips are an O(size) slice, never a traversal.
 
+import type { Annotations } from './annotations.ts';
+
 export interface RawTree {
   nodeCount: number;
   tipCount: number;
@@ -17,6 +19,7 @@ export interface RawTree {
   leafStart: Int32Array;
   leafEnd: Int32Array;
   labels: string[]; // tip label for tips, internal node name ('' if none) for internal nodes
+  annotations?: Annotations; // from a parse with { annotations: true }
 }
 
 const NUMERIC_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::(.*))?$/s;
@@ -49,6 +52,8 @@ export class TreeModel {
   readonly tipNode: Int32Array; // tip rank -> node index
   readonly tipRank: Int32Array; // node index -> tip rank, -1 for internal nodes
   readonly labels: string[];
+  /** BEAST / NHX `[&...]` annotations, only when parsed with `{ annotations: true }`; null otherwise. */
+  readonly annotations: Annotations | null;
   readonly tipLabels: string[]; // by tip rank
   readonly hasLengths: boolean; // at least one edge has a length
   readonly maxDepth: number;
@@ -68,6 +73,9 @@ export class TreeModel {
     this.leafStart = raw.leafStart;
     this.leafEnd = raw.leafEnd;
     this.labels = raw.labels;
+    this.annotations = raw.annotations ?? null;
+    if (this.annotations && this.annotations.nodeCount !== n)
+      throw new Error(`annotations are for a tree of ${this.annotations.nodeCount} nodes, this one has ${n}`);
 
     const firstChild = new Int32Array(n).fill(-1);
     const nextSibling = new Int32Array(n).fill(-1);

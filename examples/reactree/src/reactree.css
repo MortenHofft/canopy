@@ -75,6 +75,7 @@
   --phylo-foreground: #e2e8f0;
   --phylo-branch: #cbd5e1;
   --phylo-summary: #a78bfa;
+  --phylo-dark: true; /* the background is transparent, so say it: the residue colours then use their dark defaults */
   color-scheme: dark;
 }
 

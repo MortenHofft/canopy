@@ -82,6 +82,7 @@ await setInput('branch', '#ff0000');
 ok((await theme('branch')) === '#ff0000' && query().get('s.branch') === '#ff0000', 'colour → theme.branch, and into the URL');
 await select('preset', 'dark');
 ok((await theme('background')) === '#0f172a' && (await theme('branch')) === '#cbd5e1', 'Dark preset sets the tokens');
+ok((await theme('dark')) === true, 'and the theme is dark (derived from the background), so the residue colours use their dark defaults');
 await toggle('transparent', true);
 ok(
   (await theme('background')) === 'transparent' && (await page.locator('.tree-card.dotted').count()) === 1,
@@ -89,6 +90,7 @@ ok(
 );
 ok(await page.locator('input[data-setting=background]').isDisabled(), 'the background colour is disabled meanwhile');
 await select('preset', 'default');
+ok((await theme('dark')) === false, 'Library default preset: not dark');
 ok((await theme('background')) === '#ffffff' && (await theme('labelSize')) === 13, 'Library default preset restores every token');
 
 console.log('controls');
@@ -103,6 +105,61 @@ ok(
   'the layout toggle control changes the layout and the panel follows',
 );
 await select('layout', 'rectangular');
+
+console.log('the wheel over the overview zooms about the tree point under the pointer');
+{
+  const ovBox = () => page.locator('.phylo-overview').boundingBox();
+  const mid = (v) => (v.y0 + v.y1) / 2;
+  // rectangular: zoomed into the top of the tree, a wheel-in over the bottom of the strip moves the window toward the bottom clades
+  const tips = await ev(() => window.viewer.getTree().tipCount);
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: n / 10 }), tips);
+  await settled();
+  let v0 = await ev(() => window.viewer.getViewport());
+  let b = await ovBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.9);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  let v1 = await ev(() => window.viewer.getViewport());
+  const row = tips * 0.9;
+  ok(v1.y1 - v1.y0 < v0.y1 - v0.y0, 'rectangular: it zooms');
+  ok(
+    mid(v1) > mid(v0) + tips * 0.1,
+    `rectangular: and the window moves toward the bottom clades (centre ${mid(v0).toFixed(1)} -> ${mid(v1).toFixed(1)}, row ${row.toFixed(0)})`,
+  );
+  // a pointer over a place inside the window: that tree row keeps its relative place in the window (nothing clamps it)
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: n * 0.4, y1: n * 0.6 }), tips);
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  const py = b.y + b.height * 0.55;
+  const rowAt = ((py - b.y) / b.height) * tips;
+  await page.mouse.move(b.x + b.width / 2, py);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  // (a tolerance of a pixel: the browser rounds the event's clientY to whole pixels)
+  const rel = (v) => (rowAt - v.y0) / (v.y1 - v.y0);
+  ok(
+    v1.y1 - v1.y0 < v0.y1 - v0.y0 && Math.abs(rel(v1) - rel(v0)) < 0.01,
+    `rectangular: the row under the pointer keeps its relative place (${rel(v0).toFixed(4)} -> ${rel(v1).toFixed(4)})`,
+  );
+  // radial: a wheel-in over the right edge of the disc moves the window right (x) of where it was
+  await select('layout', 'radial');
+  await ev(() => window.viewer.fit(false));
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  await page.mouse.move(b.x + b.width * 0.85, b.y + b.height * 0.5);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  ok(v1.x1 - v1.x0 < v0.x1 - v0.x0, 'radial: it zooms');
+  ok(
+    (v1.x0 + v1.x1) / 2 > (v0.x0 + v0.x1) / 2 + 0.05,
+    'radial: and the window moves toward the right of the tree, where the pointer is on the overview',
+  );
+  await select('layout', 'rectangular');
+}
 
 console.log('the URL keeps the settings');
 const before = page.url();
@@ -198,13 +255,13 @@ ok(
 );
 await open(new URL(page.url()).search);
 ok((await tips()) === afterCollapse && (await status()).includes('1 collapsed'), 'the focus and the collapsed clade survive a reload');
-await menu(
-  await ev(() => {
-    const t = window.viewer.getTree();
-    for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
-  }),
-  'Expand',
-);
+// the collapsed tip of a dated tree now ends at the present, in the tip column, where the first row sits under the Find control: click
+// the triangle itself, 40 px left of the tip
+const triPoint = await ev(() => {
+  const t = window.viewer.getTree();
+  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
+});
+await menu({ x: triPoint.x - 40, y: triPoint.y }, 'Expand');
 ok((await tips()) === big.tips && !query().has('collapsed'), 'Expand from the triangle’s menu');
 // a colour set inside the clade stays on it when going back out
 const inner = await cladeOf(3, 10);
@@ -271,6 +328,44 @@ await page.waitForTimeout(400);
 const cell = (id) => ev((id) => window.viewer.columnCell(id, 0), id);
 ok((await cell('m:occurrence_count')) !== null && (await cell('alignment')) !== null, 'occurrence bars and the alignment shown by default');
 ok((await page.locator('#data-columns .muted').innerText()).includes('of 1,000 tips have data'), 'says how many tips have data');
+// the alignment alphabet and the residue colour tokens: read the colours the column is drawn in
+const RESIDUE_TOKENS = ['Hydrophobic', 'Positive', 'Negative', 'Polar', 'Aromatic', 'Glycine', 'Proline', 'A', 'C', 'G', 'T', 'Other'].map(
+  (n) => 'residue' + n,
+);
+const alnColours = () =>
+  ev(() => {
+    const c = window.viewer.treeElement.querySelector('canvas');
+    const bb = c.getBoundingClientRect();
+    const k = c.width / bb.width;
+    const seen = new Set();
+    for (let row = 0; row < 8; row++) {
+      const r = window.viewer.columnCell('alignment', row);
+      if (!r) continue;
+      for (let i = 0; i < 100; i++) {
+        const d = c
+          .getContext('2d')
+          .getImageData(Math.round((r.x + ((i + 0.5) / 100) * r.width - bb.left) * k), Math.round((r.y + r.height / 2 - bb.top) * k), 1, 1).data;
+        seen.add([d[0], d[1], d[2]].join(','));
+      }
+    }
+    return [...seen];
+  });
+const colours0 = await alnColours();
+for (const t of RESIDUE_TOKENS) await setInput(t, '#010203');
+await settled();
+const painted = await alnColours();
+ok(
+  !colours0.includes('1,2,3') && painted.includes('1,2,3'),
+  `residue tokens reach the alignment (${painted.includes('1,2,3') ? 'now #010203' : 'unchanged'})`,
+);
+for (const t of RESIDUE_TOKENS) await setInput(t, '');
+await select('alphabet', 'protein');
+await settled();
+ok(
+  query().get('s.alphabet') === 'protein' && !(await alnColours()).includes('1,2,3'),
+  'tokens emptied: the defaults are back; alphabet protein is in the URL',
+);
+await select('alphabet', 'auto');
 await page.locator('[data-column=alignment]').setChecked(false);
 await page.locator('[data-column=country_code]').setChecked(true);
 await settled();
@@ -278,6 +373,52 @@ ok((await cell('alignment')) === null && (await cell('m:country_code')) !== null
 await toggle('columns', false);
 ok((await cell('m:occurrence_count')) === null, 'all columns off with the group switch');
 ok(query().get('tree') === 'syn-yule-1000', 'the tree is in the URL');
+
+console.log('legend names clades by their taxon names (Open Tree labels)');
+await page.selectOption('#tree-select', 'otl-10k-amphibia');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('10'), null, { timeout: 60000 });
+await page.waitForTimeout(500);
+await toggle('legend', true);
+await select('click', 'colour');
+// a clade of the shown tree whose label is `kind` ('named': Name_ott123; 'synthetic': mrcaott1ott2) and that is big enough to click
+const otlClade = (kind, skip = 0) =>
+  ev(
+    ([kind, skip]) => {
+      const v = window.viewer;
+      const t = v.getTree();
+      const re = kind === 'named' ? /^[A-Za-z_]+_ott\d+$/ : /^mrcaott\d+ott\d+$/;
+      for (let i = 1; i < t.nodeCount; i++) {
+        const c = t.leafEnd[i] - t.leafStart[i];
+        if (t.firstChild[i] >= 0 && c >= 40 && c <= 4000 && re.test(t.labels[i]) && skip-- <= 0) {
+          const q = v.locateNode(i);
+          if (q) return { node: i, tips: c, label: t.labels[i], x: q.x, y: q.y };
+        }
+      }
+      return null;
+    },
+    [kind, skip],
+  );
+const legendRows = () => page.locator('.phylo-legend__list li').allInnerTexts();
+const named = await otlClade('named');
+ok(named, 'the Open Tree tree has a clickable named clade');
+await page.mouse.click(named.x, named.y);
+await settled();
+const taxon = named.label.replace(/_ott\d+$/, '').replace(/_/g, ' ');
+const rows1 = await legendRows();
+ok(
+  rows1.length === 1 && rows1[0] === `${taxon} (${named.tips.toLocaleString('en')} tips)`,
+  `a named clade is listed by its taxon name and tip count (${JSON.stringify(rows1)}, wanted ${taxon})`,
+);
+ok(!/ott|_|Clade of/.test(rows1[0] ?? ''), 'without the Open Tree id, underscores or the generic text');
+const synth = await otlClade('synthetic');
+ok(synth, 'and a clickable synthetic mrcaott clade');
+await page.mouse.click(synth.x, synth.y);
+await settled();
+const rows2 = await legendRows();
+ok(
+  rows2[1] === `Clade of ${synth.tips.toLocaleString('en')} tips`,
+  `a synthetic mrcaott label is hidden: "Clade of N tips" (${JSON.stringify(rows2)})`,
+);
 
 console.log('own file, re-creation, benchmark');
 await page

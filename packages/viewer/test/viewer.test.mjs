@@ -364,3 +364,21 @@ test('the fake style keeps one property map and a canvas resize resets its conte
   c.width = 10;
   assert.equal(c.ctx.fillStyle, '#000000');
 });
+
+// ---------------------------------------------------------------- clade names
+
+test('the keyboard announcement names a clade as the legend does: name and locale-formatted count, or "Clade of N tips"', async () => {
+  const { viewer, env } = await makeViewer("((a,b)'95:Chelodina_ott1',(c,d)97,e)root;");
+  env.flush();
+  const t = viewer.getTree();
+  const say = (label) => {
+    viewer.setActive(t.labels.indexOf(label));
+    return viewer.overlay.live.textContent;
+  };
+  assert.equal(say('95:Chelodina_ott1'), 'Chelodina ott1, 2 tips');
+  assert.equal(say('97'), 'Clade of 2 tips');
+  viewer.setOptions({ cladeLabel: (node) => (node === t.labels.indexOf('97') ? 'Hidden' : null) });
+  assert.equal(say('97'), 'Hidden, 2 tips');
+  assert.equal(say('95:Chelodina_ott1'), 'Clade of 2 tips', 'null from cladeLabel: no name');
+  assert.equal(say('e'), 'e');
+});

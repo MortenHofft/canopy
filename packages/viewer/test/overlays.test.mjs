@@ -13,15 +13,15 @@ globalThis.removeEventListener = (t, f) => (winListeners[t] = (winListeners[t] ?
 globalThis.requestAnimationFrame ??= (f) => setTimeout(f, 0);
 document.createDocumentFragment = () => new FakeElement('#fragment');
 
-const { Overlay, Tooltip, NodeMenu } = await import('../src/overlays/index.ts');
+const { Overlay, Tooltip, NodeMenu, defaultTooltip } = await import('../src/overlays/index.ts');
 const { Emitter } = await import('../src/events.ts');
 const { InMemorySource } = await import('../src/source.ts');
 const { makeNodeEvent, toTreeEvent } = await import('../src/node-event.ts');
 const { DEFAULT_OPTIONS } = await import('../src/types.ts');
 
-function fakeViewer() {
+function fakeViewer(newick = '((A:1,B:1)AB:1,C:2)root;') {
   const em = new Emitter();
-  const source = new InMemorySource(parseNewick('((A:1,B:1)AB:1,C:2)root;'));
+  const source = new InMemorySource(parseNewick(newick));
   const tree = source.snapshot();
   const element = new FakeElement('div');
   element.w = 400;
@@ -148,6 +148,21 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
   assert.equal(m.isOpen(), false);
   assert.equal(m.element.getAttribute('role'), null);
   assert.equal(document.activeElement, v.element, 'focus goes back to the tree');
+});
+
+test('NodeMenu title and default tooltip name a clade without its support value, through formatLabel', () => {
+  const v = fakeViewer("((A:1,B:1)'95:Chelodina_ott1':1,(C:1,D:1)97:1)root;");
+  const m = new NodeMenu({ items: () => [{ id: 'a', label: 'A', onSelect() {} }] });
+  m.setViewer(v);
+  const title = () => m.element.querySelector('.phylo-node-menu__title').textContent;
+  v.emit('click', v.event(1));
+  assert.equal(title(), 'Chelodina ott1');
+  m.close?.(false);
+  v.emit('click', v.event(4));
+  assert.equal(title(), 'Clade, 2 tips', 'a support-only label is no name');
+  const detail = (e) => defaultTooltip(e, v).querySelector('.phylo-tooltip__detail')?.textContent;
+  assert.equal(detail(v.event(1)), 'Chelodina ott1');
+  assert.equal(detail(v.event(4)) ?? null, null);
 });
 
 test('NodeMenu: a click listener that prevents the default keeps it closed; view change, Escape and a press outside close it', () => {
