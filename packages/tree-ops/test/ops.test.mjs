@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
 // Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
@@ -778,3 +779,121 @@ test('remapFocus can follow the operation instead of a callback', () => {
   const f = ops.remapFocus({ stack: [clade(t, 'ab'), clade(t, 'abcd')] }, t, r.tree, r.map);
   assert.deepEqual(f.stack, [r.map[clade(t, 'ab')]]);
 });
+
+// ---- ladderise by: tips | depth | height (#49) ----
+
+const tipOrder = (t) => Array.from({ length: t.tipCount }, (_, i) => t.labels[t.tipNode[i]]).join('');
+
+test('ladderise by depth differs from tips: a deep thin clade next to a wide shallow polytomy', () => {
+  const t = parseNewick('((((a,b),c),d),(p,q,r,s,u));');
+  assert.equal(tipOrder(ladderise(t, { by: 'tips' }).tree), 'dcabpqrsu'); // 4 tips before 5; inside the thin clade d, c, (a,b)
+  const d = ladderise(t, { by: 'depth' });
+  assert.equal(d.changed, true);
+  assert.equal(tipOrder(d.tree), 'pqrsudcab'); // depth 1 before depth 3
+  assert.equal(tipOrder(ladderise(t, { by: 'depth', order: 'decreasing' }).tree), 'abcdpqrsu');
+  assert.deepEqual(splits(d.tree), splits(t));
+});
+
+test('ladderise by height differs from depth on a phylogram and equals it without lengths', () => {
+  const lens = parseNewick('(((a:1,b:1):1,c:1):1,(d:10,e:10):1);');
+  assert.equal(tipOrder(ladderise(lens, { by: 'depth' }).tree), 'decab'); // depth 1 before depth 2
+  assert.equal(tipOrder(ladderise(lens, { by: 'height' }).tree), 'cabde'); // height 2 before height 10
+  assert.equal(tipOrder(ladderise(lens, { by: 'height', order: 'decreasing' }).tree), 'deabc');
+  const bare = parseNewick('(((a,b),c),(d,e));');
+  assert.equal(bare.hasLengths, false);
+  assert.equal(tipOrder(ladderise(bare, { by: 'height' }).tree), tipOrder(ladderise(bare, { by: 'depth' }).tree));
+  // a wide shallow clade and a narrow deep one: depth and height put the deep one last, the tip count would not
+  const wide = parseNewick('((p,q,r,s),((a,b),c));');
+  assert.equal(tipOrder(ladderise(wide, { by: 'tips' }).tree), 'cabpqrs');
+  assert.equal(tipOrder(ladderise(wide, { by: 'depth' }).tree), 'pqrscab');
+  assert.equal(tipOrder(ladderise(wide, { by: 'height' }).tree), 'pqrscab'); // every edge counts 1, not 0
+  // missing and negative lengths count as 0
+  const odd = parseNewick('((a:-5,b:-5):1,(c,d):1,(e:0.5,f:0.5):1);');
+  assert.equal(tipOrder(ladderise(odd, { by: 'height' }).tree), 'abcdef'); // 0, 0, 0.5: input order, then ef last
+});
+
+test('ladderise ties are broken by the other measures, then by input order', () => {
+  // equal depth (1): the tip count decides under 'depth'
+  const t = parseNewick('((a,b,c),(d,e),(f,g));');
+  assert.equal(tipOrder(ladderise(t, { by: 'depth' }).tree), 'defgabc');
+  // equal tips (2) and depth (1): 'tips' ties go to the input order, the others look at height
+  const h = parseNewick('((a:5,b:5),(c:1,d:1),(e:1,f:1));');
+  assert.equal(tipOrder(ladderise(h, { by: 'tips' }).tree), 'abcdef');
+  assert.equal(tipOrder(ladderise(h, { by: 'depth' }).tree), 'cdefab'); // depth and tips tie, height 1 < 5
+  assert.equal(tipOrder(ladderise(h, { by: 'height' }).tree), 'cdefab');
+  // full ties keep the input order, in both directions, and repeat exactly
+  const same = parseNewick('((a,b),(c,d),(e,f));');
+  for (const by of ['tips', 'depth', 'height']) {
+    for (const order of ['increasing', 'decreasing']) {
+      const r = ladderise(same, { by, order });
+      assert.equal(r.changed, false);
+      assert.equal(r.tree, same);
+    }
+  }
+  const a = ladderise(t, { by: 'depth' }).tree,
+    b = ladderise(t, { by: 'depth' }).tree;
+  assert.equal(nwk(a), nwk(b));
+});
+
+test('ladderise by: changed is false on a tree already in that order, and the default equals by: tips', () => {
+  const t = parseNewick('(A:1,(B:1,C:1)X:1);');
+  for (const by of ['tips', 'depth', 'height']) {
+    assert.equal(ladderise(t, { by }).changed, false);
+    assert.equal(ladderise(t, { by, order: 'decreasing' }).changed, true);
+    const once = ladderise(parseNewick('((((a,b),c),d),(p,q,r,s,u));'), { by }).tree;
+    assert.equal(ladderise(once, { by }).changed, false);
+  }
+  // SHA-256 of the Newick written by ladderise on origin/workshift before `by` existed (captured once, 2026-10-22)
+  const r = readTree('real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz');
+  const gold = {
+    increasing: '59836a3b1374ea0d15713e551a1628281ca48d209482a6c8e65b0ed24607f9fc',
+    decreasing: '9a152f3b489929ce7d80983f0e992b3b8cab767bb78d4ee5932af85232ae6e9a',
+  };
+  for (const order of ['increasing', 'decreasing']) {
+    const hash = (o) =>
+      crypto
+        .createHash('sha256')
+        .update(nwk(new TreeModel(ops.ladderise(r, o).tree)))
+        .digest('hex');
+    assert.equal(hash({ order }), gold[order]);
+    assert.equal(hash({ order, by: 'tips' }), gold[order]);
+  }
+  assert.throws(() => ops.ladderise(t, { order: 'up' }), RangeError);
+  assert.throws(() => ops.ladderise(t, { by: 'width' }), RangeError);
+});
+
+test('ladderise by height: the definition and each step of the tie-break are pinned', () => {
+  const o = (nw, opt) => tipOrder(ladderise(parseNewick(nw), opt).tree);
+  // the child's own edge is not counted (crown height): 1 < 3 although 1 + 5 > 3 + 1
+  assert.equal(o('((a:1,b:1):5,(c:3,d:3):1);', { by: 'height' }), 'abcd');
+  // height ties: tips come before depth (3 tips, depth 2 before 4 tips, depth 1)
+  assert.equal(o('((a:1,b:1,c:1,d:1),((e:.5,f:.5):.5,g:1));', { by: 'height' }), 'gefabcd');
+  // depth ties: tips come before height (2 tips, height 5 before 3 tips, height 1)
+  assert.equal(o('((a:1,b:1,c:1),(d:5,e:5));', { by: 'depth' }), 'deabc');
+  // a negative length counts as 0, also in the middle of a path: x,y are 5 high whatever the -2 above them
+  assert.equal(o('(((x:5,y:5):-2,z:.5),(m:4,n:4));', { by: 'height' }), 'mnzxy');
+  // heights equal within 1e-6 of the greatest are ties (0.1 + 0.2 is 0.30000000000000004): tips, depth, then input order
+  assert.equal(o('(((x:0.2,y:0.2):0.1,w:0.3):1,((c:0.3,d:0.3):0,v:0.3):1);', { by: 'height' }), 'wxyvcd');
+  assert.equal(o('(((x:0.2,y:0.2):0.1,w:0.3):1,((c:0.3,d:0.3):0,v:0.3):1);', { by: 'height', order: 'decreasing' }), 'xywcdv');
+  assert.equal(o('(a:1,b:1.01);', { by: 'height' }), 'ab'); // a real difference still decides
+});
+
+test('ladderise by, decreasing: the tie-break measures are reversed too, the input order is not', () => {
+  const o = (nw, opt) => tipOrder(ladderise(parseNewick(nw), { order: 'decreasing', ...opt }).tree);
+  assert.equal(o('((d,e),(a,b,c));', { by: 'depth' }), 'abcde'); // depth ties, more tips first
+  assert.equal(o('((a:1,b:1),(c:5,d:5));', { by: 'depth' }), 'cdab'); // depth and tips tie, higher first
+  assert.equal(o('((c:5,d:5,e:5),(a:1,b:1,f:1));', { by: 'height' }), 'cdeabf');
+  assert.equal(o('((a,b),(c,d));', { by: 'depth' }), 'abcd'); // full tie: input order
+});
+
+for (const by of ['tips', 'depth', 'height']) {
+  test(`deep tree: a 100k-tip caterpillar ladderises by ${by} without recursion`, () => {
+    const N = 100000;
+    const parts = new Array(N);
+    parts[0] = '('.repeat(N - 1) + 't0:1';
+    for (let i = 1; i < N; i++) parts[i] = `,t${i}:1):1`;
+    const t = parseNewick(parts.join('').replace(/:1$/, '') + ';');
+    assert.equal(ladderise(t, { by }).tree.tipCount, N);
+    assert.equal(ladderise(t, { by, order: 'decreasing' }).tree.tipCount, N);
+  });
+}
