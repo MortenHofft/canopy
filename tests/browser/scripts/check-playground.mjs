@@ -44,6 +44,22 @@ const open = async (query = '') => {
   await ev(() => document.querySelectorAll('details.group').forEach((d) => (d.open = true))); // 'Level of detail' starts closed
 };
 const query = () => new URL(page.url()).searchParams;
+// node labels are the text drawn with the 'bottom' baseline (rectangular layout): remember them, read them off a fresh frame
+await page.addInitScript(() => {
+  const ft = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    if (this.textBaseline === 'bottom') (window.__nodeTexts ??= []).push(String(text));
+    return ft.call(this, text, ...rest);
+  };
+});
+const drawnNodeTexts = async () => {
+  await ev(() => {
+    window.__nodeTexts = [];
+    window.viewer.invalidate();
+    window.viewer.renderNow();
+  });
+  return ev(() => window.__nodeTexts);
+};
 
 console.log('defaults');
 await open();
@@ -171,6 +187,18 @@ console.log('the wheel over the overview zooms about the tree point under the po
 }
 
 await select('maxTipSpacing', 'auto');
+{
+  // at the default cap the overview wheel still zooms in from the fit, and stops at the cap
+  await ev(() => window.viewer.fit(false));
+  const span = () => ev(() => window.viewer.getViewport()).then((v) => v.y1 - v.y0);
+  const s0 = await span();
+  const b = await page.locator('.phylo-overview').boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.3);
+  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, -300);
+  await settled();
+  const s1 = await span();
+  ok(s1 < s0 * 0.9, `overview wheel zooms in at the default cap (${s0.toFixed(1)} -> ${s1.toFixed(1)} rows)`);
+}
 
 console.log('the URL keeps the settings');
 const before = page.url();
@@ -243,6 +271,41 @@ await toggle('alignLabels', false);
 ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');
 await open(); // the default tree again for the sections that follow
+
+console.log('node labels');
+await open('?tree=edge-internal-support');
+ok((await opt('nodeLabels')) === 'none' && (await drawnNodeTexts()).length === 0, 'Node labels are off by default');
+await select('nodeLabels', 'support');
+ok((await opt('nodeLabels')) === 'support' && query().get('s.nodeLabels') === 'support', 'the Node labels select sets the option, kept in the URL');
+let nl = await drawnNodeTexts();
+ok(nl.includes('100') && nl.includes('0.95') && nl.length === 2, `support values drawn (${nl.join(' ')})`);
+await toggle('supportPercent', true);
+nl = await drawnNodeTexts();
+ok(nl.includes('100') && nl.includes('95') && !nl.includes('0.95'), `Support as percent: formatNodeLabel shows 0.95 as 95 (${nl.join(' ')})`);
+await toggle('supportPercent', false);
+await select('nodeLabels', 'length');
+nl = await drawnNodeTexts();
+ok(nl.includes('0.3') && nl.includes('0.4') && nl.includes('0.1'), `branch lengths drawn (${nl.join(' ')})`);
+ok(
+  (await theme('nodeLabelSize')) === 10 && (await theme('supportColour')) === '' && (await theme('lengthColour')) === '',
+  'the node label tokens are theme settings',
+);
+await setInput('nodeLabelSize', '14');
+ok((await theme('nodeLabelSize')) === 14 && query().get('s.nodeLabelSize') === '14', 'the Node label size slider sets the token and the URL');
+await page.locator('input[data-setting=lengthColour]').fill('#ff0000');
+await settled();
+ok((await theme('lengthColour')) === '#ff0000', 'the Length colour text sets the token');
+await select('layout', 'radial');
+// the radial scale bar is drawn with the same baseline: what the labels add is the difference to a frame without them
+const withLabels = await drawnNodeTexts();
+await select('nodeLabels', 'none');
+const scaleBar = await drawnNodeTexts();
+for (const t of scaleBar) withLabels.splice(withLabels.indexOf(t), 1);
+ok(
+  withLabels.includes('0.3') && withLabels.includes('0.4') && withLabels.length === 3,
+  `radial: three lengths along the branches, the scale bar not counted (${withLabels.join(' ')})`,
+);
+await open();
 
 console.log('tree operations');
 await page.locator('input[data-setting=find]').fill('');
@@ -485,13 +548,13 @@ await select('maxTipSpacing', 'auto');
 ok((await opt('maxTipSpacing')) === 'auto', "'auto' reaches the option as the string");
 await ev(() => window.viewer.fit(false));
 const autoRow = await rowPx();
-ok(autoRow !== null && autoRow < 28.6, 'a tree with many tips is fitted below the cap (the fit is not changed)');
+ok(autoRow !== null && autoRow < 24, 'a tree with many tips is fitted below the cap (the fit is not changed)');
 await wheelIn(60);
 const autoCap = await rowPx();
-ok(Math.abs(autoCap - 2.2 * (await theme('labelSize'))) < 0.5, `auto cap = 2.2 x label size (${autoCap} px)`);
+ok(autoCap === 24 || Math.abs(autoCap - 24) < 1e-6, `auto cap = 24 px at label size 13 (${autoCap} px)`);
 await setInput('labelSize', '20');
 await wheelIn(60);
-ok(Math.abs((await rowPx()) - 44) < 0.5, `the auto cap follows the label size (${await rowPx()} px at 20)`);
+ok(Math.abs((await rowPx()) - 37) < 0.5, `the auto cap follows the label size (${await rowPx()} px at 20)`);
 
 // a narrow pane with the HCV alignment: the whole tree and the whole alignment column are on screen
 await page.setViewportSize({ width: 640, height: 700 });

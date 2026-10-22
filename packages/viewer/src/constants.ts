@@ -49,6 +49,9 @@ export const RADIAL_FIT_MIN_R_PX = 20;
 export const RADIAL_FIT_MARGIN_PX = 28;
 /** Radial: hard ceiling of the zoom, as a multiple of the fit scale, whatever `maxTipSpacing` says. */
 export const RADIAL_MAX_ZOOM = 20000;
+/** Radial: whatever `maxTipSpacing` says, zoom in is allowed up to this multiple of the fit scale, so short branches near the root of a
+ *  small tree can still be pulled apart (rectangular keeps its x zoom free for the same reason). */
+export const RADIAL_GEOMETRIC_ZOOM = 50;
 /** Radial: widest zoom-out, as a fraction of the fit scale. */
 export const RADIAL_MIN_ZOOM = 0.4;
 /** Radial: the view centre stays within this many radii of the root. */

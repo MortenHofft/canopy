@@ -9,6 +9,7 @@
 import type { CladeLabelFn } from './clade-name.ts';
 import { RECT_MAX_VIEW_W } from './constants.ts';
 import type { FontRelative, TreeWidth } from './sizes.ts';
+import { defaultFormatNodeLabel, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import { RESIDUE_THEME_KEYS, type Alphabet } from './residues.ts';
 
 export interface TreeData {
@@ -20,6 +21,9 @@ export interface TreeData {
   readonly childCount: Int32Array;
   readonly subtreeEnd: Int32Array; // subtree of i is the index range [i, subtreeEnd[i])
   readonly length: Float64Array; // NaN when missing
+  /** Support by node index (NaN for none), as `TreeModel.support` has it. Optional: `nodeLabels: 'support'` reads it when present and the
+   *  numeric prefix of the internal label otherwise (a partial source has only the labels). */
+  readonly support?: Float64Array;
   readonly leafStart: Int32Array; // descendant tips of i are the rank range [leafStart[i], leafEnd[i])
   readonly leafEnd: Int32Array;
   readonly tipNode: Int32Array; // rank -> node index
@@ -120,6 +124,11 @@ export interface TreeTheme extends ResidueTheme {
   dimOpacity: number;
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
+  /** Largest size of node labels (`nodeLabels`; they shrink with the row height, down to 8 px), CSS px. */
+  nodeLabelSize: number;
+  /** Colours of node labels: support values (and what a `nodeLabels` function returns) and branch lengths. '' = `muted`. */
+  supportColour: string;
+  lengthColour: string;
   axisFontSize: number;
   /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
    *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
@@ -151,6 +160,9 @@ export const FALLBACK_THEME: TreeTheme = {
   highlightOpacity: 0.16,
   dimOpacity: 0.25,
   labelSize: 13,
+  nodeLabelSize: 10,
+  supportColour: '',
+  lengthColour: '',
   axisFontSize: 10,
   leaderColour: '',
   leaderDash: '1 3',
@@ -270,13 +282,24 @@ export interface ViewerOptions {
    *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
    *  without branch lengths or in the radial layout. */
   alignLabels: boolean;
+  /**
+   * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
+   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
+   * `(node, tree)` returning the text or a number (null = none), placed and coloured like support; `node` is the preorder id in the full
+   * tree, as in `cladeLabel`. Only drawn internal nodes get one (never one inside a collapsed clade), and only where the branch is long
+   * enough for the text and rows (rectangular) or arcs (radial) are at least `labelDensity` apart. Colours and size: `supportColour`,
+   * `lengthColour`, `nodeLabelSize`.
+   */
+  nodeLabels: NodeLabelsOption;
+  /** Text of a number shown by `nodeLabels` ('support', 'length', or a number a function returned): `(value, 'support')` 0.95 or 95. */
+  formatNodeLabel: (value: number, kind: NodeLabelKind) => string;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
-  /** Fixed height per tip row at the fit view (rectangular): px, `'<n>em'` (n times the theme's `labelSize`), or `'auto'` (2.2 em).
+  /** Fixed height per tip row at the fit view (rectangular): px, `'<n>em'` (n times the theme's `labelSize`), or `'auto'` (1.85 em). em values are rounded to whole px.
    *  null = fit all tips into the height. */
   rowHeight: FontRelative | null;
   /** The most space between two neighbouring tips when zooming in: a row's height in px (rectangular) or the arc between tips on the
-   *  outer circle (radial). px, `'<n>em'` (n times `labelSize`, so it follows `--phylo-label-size`) or `'auto'` (2.2 em, about 29 px at
+   *  outer circle (radial). px, `'<n>em'` (n times `labelSize`, so it follows `--phylo-label-size`) or `'auto'` (1.85 em, 24 px at
    *  the default size: a label line, an alignment row and padding). `Infinity` = no cap beyond the hard ceilings (500 px per row, radial
    *  20000 times the fit scale). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
    *  zoom out. The x axis (rectangular) is not capped by this: zooming x stretches branch lengths and stays up to 5e6 px per unit. */
@@ -331,6 +354,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   showSummaries: true,
   labelDensity: 'normal',
   alignLabels: false,
+  nodeLabels: 'none',
+  formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
   rowHeight: null,
   maxTipSpacing: 'auto',

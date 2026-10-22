@@ -7,7 +7,7 @@
 // whole-tree actions (midpoint root, ladderise, collapse by support). Each action returns a new tree that replaces the one
 // shown; the tree as published is kept for undo and reset and never changed.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@gbif-phylo/viewer/viewer.css';
 import '@gbif-phylo/viewer/gbif.css';
@@ -16,7 +16,7 @@ import { gbifTheme } from './gbif-theme.ts';
 import { loadTree } from './trees.ts';
 import { TreeModel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
-import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent } from '@gbif-phylo/react';
+import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
 import { defaultControls, type Viewport } from '@gbif-phylo/viewer';
 
 /** What happens to a clade colour whose tips an operation splits (rerooting inside the clade puts its tips on both sides of the new
@@ -27,13 +27,15 @@ type SplitColour = 'remove' | 'node';
 function App() {
   const params = new URLSearchParams(location.search);
   // [as published, ...each action's result]; `clades` and `collapsed` are what the entry had when the next action was applied, so
-  // undo restores them exactly
-  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[]; collapsed: number[]; focus: ops.Focus }[]>([]);
+  // undo restores them exactly; `map` is the node map of the action that made the entry (the tree before -> this tree)
+  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[]; collapsed: number[]; focus: ops.Focus; map?: Int32Array }[]>([]);
   const tree = history[history.length - 1]?.tree ?? null;
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>([]); // clades shown collapsed (node ids of `tree`), a view like collapse by support
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with back and up (tree-ops' focus)
   const [hl, setHl] = useState<string[]>([]);
+  // the last change of `tree` with its node map (an action's map; for undo the inverse of the actions undone), to keep the view
+  const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
   const [last, setLast] = useState('click a tip or a clade for its actions');
   const [minSupport, setMinSupport] = useState(70);
@@ -97,6 +99,39 @@ function App() {
     if (!toView) return null;
     return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed, collapsedIds: collapsedTips.map((n) => 'n' + n) };
   }, [tree, focus, collapseOn, hasSupport, minSupport, collapsed]);
+  // What the viewers are told when what is shown changes, so they keep the view: shown (before) -> tree (before) -> tree (now) -> shown
+  // (now), each leg a node map. Changing the focus is a navigation: fitted, no map. The previous values are kept in a ref written after
+  // the commit.
+  const lastShown = useRef<{ shown: TreeModel; tree: TreeModel; focus: ops.Focus; toTree: Int32Array | null } | null>(null);
+  const treeMap = useMemo(() => {
+    const prev = lastShown.current;
+    if (!tree || !prev) return undefined;
+    const shown = view?.tree ?? tree;
+    if (prev.shown === shown) return undefined;
+    let leg: Int32Array | null = null;
+    if (prev.tree !== tree) {
+      if (!move || move.from !== prev.tree || move.to !== tree) return undefined;
+      leg = move.map;
+    } else if (prev.focus !== focus) return undefined;
+    const identity = (n: number) => Int32Array.from({ length: n }, (_, i) => i);
+    try {
+      return ops.composeMaps(
+        ops.composeMaps(prev.toTree ?? identity(prev.shown.nodeCount), leg ?? identity(tree.nodeCount)),
+        view?.toView ?? identity(tree.nodeCount),
+      );
+    } catch {
+      return undefined;
+    }
+  }, [tree, view, focus, move]);
+  useLayoutEffect(() => {
+    if (tree) lastShown.current = { shown: view?.tree ?? tree, tree, focus, toTree: view?.toTree ?? null };
+  }, [tree, view, focus]);
+  // for the browser check (tests/browser/scripts/check-node-menu.mjs): the two viewers
+  const leftPane = useRef<TreeViewHandle>(null);
+  const rightPane = useRef<TreeViewHandle>(null);
+  useEffect(() => {
+    (window as unknown as { __panes?: () => unknown }).__panes = () => [leftPane.current?.renderer() ?? null, rightPane.current?.renderer() ?? null];
+  }, []);
   const colouredTips = useMemo(() => {
     let n = 0;
     if (!tree) return { keep: new Uint8Array(0), n };
@@ -183,28 +218,33 @@ function App() {
     setClades(kept);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
-    setVp(undefined); // the new tree is fitted when its renderer mounts
+    setMove({ from: tree, to: next, map: r.map });
     setHistory((h) => [
       ...h.slice(0, -1),
-      { tree, clades, collapsed, focus },
-      { tree: next, clades: kept, collapsed: keptCollapsed, focus: keptFocus },
+      { ...h[h.length - 1], clades, collapsed, focus }, // keeps the map that made it
+      { tree: next, clades: kept, collapsed: keptCollapsed, focus: keptFocus, map: r.map },
     ]);
     setLast(
       `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${notes.map((n) => ` · ${n}`).join('')}`,
     );
   };
   const back = (to: number) => {
+    // the way back to entry `to - 1`: the actions undone, last first, each map turned around and chained
+    let way: Int32Array | null = null;
+    for (let k = history.length - 1; k >= to; k--) {
+      const inv = ops.invertMap(history[k].map!, history[k].tree.nodeCount);
+      way = way ? ops.composeMaps(way, inv) : inv;
+    }
+    if (way) setMove({ from: tree, to: history[to - 1].tree, map: way });
     setHistory((h) => h.slice(0, to));
     setClades(history[to - 1].clades);
     setCollapsed(history[to - 1].collapsed);
     setFocus(history[to - 1].focus);
-    setVp(undefined);
     setLast(to === 1 ? 'reset to the tree as published' : 'undone');
   };
   // focus (show only a clade): a navigation, so not in the undo history; Back and Up one level come from tree-ops' focus
   const navigate = (f: ops.Focus, msg: string) => {
     setFocus(f);
-    setVp(undefined);
     setLast(msg);
   };
   const focusMsg = (f: ops.Focus) => {
@@ -307,6 +347,7 @@ function App() {
     : clades;
   const common = {
     tree: shown,
+    treeMap,
     clades: shownClades,
     highlighted: hl,
     collapsed: view?.collapsedIds,
@@ -379,7 +420,6 @@ function App() {
             disabled={!hasSupport}
             onChange={(e) => {
               setCollapseOn(e.target.checked);
-              setVp(undefined);
             }}
           />
           Collapse support &lt;
@@ -392,7 +432,6 @@ function App() {
             disabled={!hasSupport}
             onChange={(e) => {
               setMinSupport(Number(e.target.value));
-              setVp(undefined);
             }}
             style={{ width: 72, font: 'inherit', padding: '4px 6px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-md)' }}
           />
@@ -441,10 +480,10 @@ function App() {
       </p>
       <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
-          <TreeView {...common} branchLengths controls={leftControls} />
+          <TreeView ref={leftPane} {...common} branchLengths controls={leftControls} />
         </div>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>
-          <TreeView {...common} branchLengths={false} />
+          <TreeView ref={rightPane} {...common} branchLengths={false} />
         </div>
       </div>
     </div>

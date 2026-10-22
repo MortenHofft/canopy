@@ -1,18 +1,19 @@
 // A look-alike of Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree pane, an inspector, a floating search, a colour
 // palette, an export menu), built only from the public API of @gbif-phylo: <TreeView> and its handle for the drawing, its props for
 // clades / highlights / collapsed clades / columns / theme, its callbacks for clicks and hovers, tree-ops for every edit and a
-// control of our own (NodeLabels) for the node labels. What could not be matched is listed in ../README.md.
+// `nodeLabels` option for the support values and branch lengths. What could not be matched is listed in ../README.md.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
 import { detectAlphabet, residueColours, residueGroups, type Column, type Control, type Viewport } from '@gbif-phylo/viewer';
-import { NodeLabels, type NodeLabelMode } from './node-labels.ts';
 import * as I from './icons.tsx';
 
 type Mode = 'none' | 'reroot' | 'flip' | 'swap' | 'color';
 type Layout = 'rectangular' | 'radial';
+type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
+const NO_CONTROLS: Control[] = []; // Reactree has its own toolbar: none of the viewer's buttons
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--rt-palette-<name>) in reactree.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
@@ -23,7 +24,12 @@ interface Step {
   tree: TreeModel;
   clades: CladeProp[];
   collapsed: number[];
+  /** The node map of the edit that made this step from the one before it (old tree -> this tree); none for the first. */
+  map?: Int32Array;
 }
+
+/** The ids 0..n-1 as a node map. */
+const identity = (n: number) => Int32Array.from({ length: n }, (_, i) => i);
 
 const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
@@ -79,6 +85,8 @@ export function Reactree({
   const outer = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
+  // the last change of `tree` and the map it came with (edit: the op's map; undo: its inverse), to keep the view across it
+  const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>([]);
 
@@ -132,6 +140,31 @@ export function Reactree({
         : clades,
     [clades, view],
   );
+
+  // What the viewer is told when `shown` changes, so it keeps the view: shown (before) -> tree (before) -> tree (now) -> shown (now),
+  // each leg a node map (collapsing a clade changes `shown` and not `tree`; an edit changes `tree`). The `shown` of the last commit is
+  // kept in a ref written after the commit.
+  const lastShown = useRef({ shown, tree, toTree: view?.toTree ?? null });
+  const treeMap = useMemo(() => {
+    const prev = lastShown.current;
+    if (prev.shown === shown) return undefined;
+    let leg: Int32Array | null = null;
+    if (prev.tree !== tree) {
+      if (!move || move.from !== prev.tree || move.to !== tree) return undefined; // not an edit we know the map of: fit
+      leg = move.map;
+    }
+    const a = prev.toTree ?? identity(prev.shown.nodeCount);
+    const b = leg ?? identity(tree.nodeCount);
+    const c = view?.toView ?? identity(tree.nodeCount);
+    try {
+      return ops.composeMaps(ops.composeMaps(a, b), c);
+    } catch {
+      return undefined;
+    }
+  }, [shown, tree, view, move]);
+  useLayoutEffect(() => {
+    lastShown.current = { shown, tree, toTree: view?.toTree ?? null };
+  }, [shown, tree, view]);
 
   const hasSupport = useMemo(() => tree.support.some((s) => !Number.isNaN(s)), [tree]);
   const hasTruncatable = useMemo(() => published.tipLabels.some((l) => l.length > TRUNCATE_AT), [published]);
@@ -187,12 +220,10 @@ export function Reactree({
     [showAlignment, alignment, layout],
   );
 
-  // ---- controls on the viewer: our node labels
-  const nodeLabels = useMemo(() => new NodeLabels(), []);
-  const controls = useMemo<Control[]>(() => [nodeLabels], [nodeLabels]);
-  useEffect(() => nodeLabels.setMode(labelMode), [nodeLabels, labelMode]);
-  const collapsedIds = view?.collapsedIds;
-  useEffect(() => nodeLabels.setSkipped(new Set((collapsedIds ?? []).map((id) => Number(id.slice(1))))), [nodeLabels, collapsedIds]);
+  // ---- node labels: the viewer draws them (`nodeLabels`). 'support' reads `support` of the shown tree, which is the same for a support in
+  // the labels (0.95, 100) and for one that load() copied there from an annotation (BEAST posterior); the shown tree is the collapsed
+  // view, whose collapsed tips are never labelled.
+  const nodeLabels = labelMode === 'bootstrap' ? 'support' : labelMode === 'branchlength' ? 'length' : 'none';
 
   // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
   const fitted = useRef<Viewport | null>(null);
@@ -216,6 +247,12 @@ export function Reactree({
     fitted.current = r.fitViewport();
     applyScales();
   }, [applyScales]);
+  // A new tree keeps the view (the viewer's setTree, through `treeMap`), but what "fitted" is has changed with it: read it back
+  // (fitViewport does not move the window), so the sliders go on working relative to the new fit.
+  useLayoutEffect(() => {
+    const r = ref.current?.renderer();
+    if (r && fitted.current) fitted.current = r.fitViewport();
+  }, [shown]);
   useEffect(applyScales, [hScale, vScale, applyScales]);
   // a new layout, tree type, label size or column changes what "fitted" is
   useEffect(() => {
@@ -261,13 +298,21 @@ export function Reactree({
       .map((f) => f.node)
       .filter((m) => m > 0 && next.childCount[m] > 0);
     if (keptClades.length < clades.length) flash(`${clades.length - keptClades.length} colour(s) removed: their tips are no longer one clade`);
-    setHistory((h) => [...h.slice(0, -1), { tree, clades, collapsed }, { tree: next, clades: keptClades, collapsed: keptCollapsed }]);
+    setHistory((h) => [
+      ...h.slice(0, -1),
+      { ...h[h.length - 1], clades, collapsed },
+      { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map },
+    ]);
+    setMove({ from: tree, to: next, map: r.map });
     setClades(keptClades);
     setCollapsed(keptCollapsed);
     setInfo(null);
   };
   const undo = () => {
     const prev = history[history.length - 2];
+    const undone = history[history.length - 1];
+    // the way back is the inverse of the edit's map (a tip stays the tip it was; an edit that added nodes has none to send back)
+    if (undone.map) setMove({ from: tree, to: prev.tree, map: ops.invertMap(undone.map, undone.tree.nodeCount) });
     setHistory((h) => h.slice(0, -1));
     setSwapFirst(null);
     setClades(prev.clades);
@@ -757,21 +802,21 @@ export function Reactree({
         <TreeView
           ref={ref}
           tree={shown}
+          treeMap={treeMap}
           layout={layout}
           branchLengths={phylogram}
           clades={shownClades}
           highlighted={matches}
           collapsed={view?.collapsedIds}
           columns={columns}
-          controls={controls}
+          controls={NO_CONTROLS}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, themeObserver: 'document' }}
+          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim', alignLabels, nodeLabels, themeObserver: 'document' }}
           tooltip={tooltip}
           tooltipBare
           onNodeClick={onClick}
           onTipClick={onClick}
-          onReady={refit}
         />
 
         {searchOpen && (

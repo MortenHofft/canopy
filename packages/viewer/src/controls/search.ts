@@ -63,6 +63,13 @@ export class Search extends BaseControl {
       this.lower = null;
     };
     this.listen(v.on('sourcechange', stale));
+    this.listen(
+      v.on('treechange', () => {
+        stale();
+        this.results = [];
+        this.close();
+      }),
+    );
     this.listen(v.on('optionschange', (e) => e.changed.includes('formatLabel') && stale()));
     this.domListen(this.input, 'input', () => {
       clearTimeout(this.timer);

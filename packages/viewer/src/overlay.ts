@@ -41,9 +41,16 @@ export class LabelOverlay {
     this.live.setAttribute('role', 'status');
   }
 
-  /** Drop all label elements (the font, the link mode or the theme changed: they are rebuilt on the next update). */
-  clear(): void {
-    for (const el of this.pool.values()) el.remove();
+  private refocus: string | null = null;
+
+  /** Drop all label elements (the font, the link mode or the theme changed: they are rebuilt on the next update). With `keepFocus`, DOM
+   *  focus on a label goes to the anchor of the same tip when it is drawn again (the tree was replaced). */
+  clear(keepFocus = false): void {
+    const active = document.activeElement as HTMLElement | null;
+    for (const el of this.pool.values()) {
+      if (keepFocus && el === active) this.refocus = el.dataset.tipId ?? null;
+      el.remove();
+    }
     this.pool.clear();
   }
 
@@ -97,6 +104,14 @@ export class LabelOverlay {
           : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
       }
       el.style.display = '';
+    }
+    if (this.refocus !== null) {
+      for (const el of this.pool.values())
+        if (el.dataset.tipId === this.refocus) {
+          el.focus({ preventScroll: true });
+          break;
+        }
+      this.refocus = null;
     }
     for (const [r, el] of this.pool) {
       if (used.has(r)) continue;

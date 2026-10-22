@@ -53,6 +53,7 @@ const world = (vs, px, py) => {
     v = vs.view;
   return { x: v.x0 + ((px - a.ax) / a.aw) * (v.x1 - v.x0), y: v.y0 + ((py - a.ay) / a.ah) * (v.y1 - v.y0) };
 };
+const K_FILL = 40;
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps * Math.max(1, Math.abs(a), Math.abs(b)), `${a} vs ${b}`);
 
 test('area: rectangular leaves room for overview, columns, head and foot; radial is the whole container', () => {
@@ -415,28 +416,26 @@ test('maxTipSpacing, rectangular: the fitted view of a small tree is not changed
 test('maxTipSpacing: a fixed row height is not capped below itself', () => {
   const { vs } = make({ maxTipSpacing: 10, rowHeight: 30 });
   const fit = vs.fitViewport();
-  assert.deepEqual(vs.clampView({ ...fit }), vs.clampView({ ...fit }));
+  assert.deepEqual(vs.clampView({ ...fit }), fit, 'the fit (30 px rows) survives a 10 px cap');
   const c = vs.clampView({ x0: 0, x1: 1, y0: 0, y1: 0.5 });
   near(vs.area.ah / (c.y1 - c.y0), 30, 1e-9);
 });
 
-test('maxTipSpacing, radial: the arc between neighbouring tips on the outer circle stops at the cap; never below the fit scale', () => {
-  const { vs } = make({ layout: 'radial', maxTipSpacing: 60 });
-  const scale = (v) => vs.area.aw / (v.x1 - v.x0);
-  const deep = vs.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 });
-  near((scale(deep) * 2 * Math.PI) / tree.tipCount, 60, 1e-12);
-  const { vs: low } = make({ layout: 'radial', maxTipSpacing: 24 }); // 60 tips already sit 28 px apart at the fit scale
-  near(
-    low.area.aw / (low.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 }).x1 - low.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 }).x0),
-    radialFitScale(800, 600),
-    1e-12,
-  );
-  const { vs: free } = make({ layout: 'radial', maxTipSpacing: Infinity });
-  near(
-    free.area.aw / (free.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 }).x1 - free.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 }).x0),
-    radialFitScale(800, 600) * K.RADIAL_MAX_ZOOM,
-    1e-9,
-  );
+test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap, but never below RADIAL_GEOMETRIC_ZOOM times the fit', () => {
+  const kfit = radialFitScale(800, 600);
+  const maxScale = (over, n) => {
+    const big = n ? { ...tree, tipCount: n } : tree;
+    const { vs } = make({ layout: 'radial', tree: big, ...over });
+    const c = vs.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 });
+    return vs.area.aw / (c.x1 - c.x0);
+  };
+  // 10000 tips: the tip cap (24 px) is 38197 per unit radius, above 50 x the fit scale
+  near((maxScale({ maxTipSpacing: 24 }, 10000) * 2 * Math.PI) / 10000, 24, 1e-12);
+  // 60 tips: the cap alone would be the fit scale; the geometric floor allows 50 x
+  near(maxScale({ maxTipSpacing: 24 }), kfit * K.RADIAL_GEOMETRIC_ZOOM, 1e-12);
+  near(maxScale({ maxTipSpacing: 1 }), kfit * K.RADIAL_GEOMETRIC_ZOOM, 1e-12);
+  near(maxScale({ maxTipSpacing: Infinity }), kfit * K.RADIAL_MAX_ZOOM, 1e-9);
+  assert.ok(maxScale({ maxTipSpacing: 24 }, 200) > kfit * 3.35, 'a 200-tip tree zooms well beyond the old 3.35 x');
 });
 
 test('maxTipSpacing: wheel zoom-in stops at the cap and does not pan; focusViewport respects it', () => {
@@ -444,12 +443,39 @@ test('maxTipSpacing: wheel zoom-in stops at the cap and does not pan; focusViewp
   vs.view = vs.clampView({ x0: 0.4, x1: 0.5, y0: 20, y1: 20 + vs.area.ah / 24 });
   const before = { ...vs.view };
   vs.zoomAtWorld(2, 2, 0.45, 25);
-  assert.deepEqual(vs.view.y1 - vs.view.y0, before.y1 - before.y0, 'already at the cap: y does not zoom further');
+  assert.equal(vs.view.y0, before.y0, 'at the cap y neither zooms nor pans');
+  assert.equal(vs.view.y1, before.y1);
+  near(vs.view.x1 - vs.view.x0, (before.x1 - before.x0) / 2, 1e-9); // x has no such limit and zooms
   const f = vs.focusViewport(tree.tipNode[7]);
   assert.ok(vs.area.ah / (f.y1 - f.y0) <= 24 + 1e-9, 'focusTip row height is min(26, cap)');
   const { vs: roomy } = make({ maxTipSpacing: 100 });
   const g = roomy.focusViewport(tree.tipNode[7]);
   near(roomy.area.ah / (g.y1 - g.y0), K.FOCUS_TIP_MIN_ROW_PX, 1e-12);
+});
+
+test('focusViewport, radial: the wanted tip pitch follows labelSize and the cap', () => {
+  const pitch = (over) => {
+    const { vs } = make({ layout: 'radial', ...over });
+    const f = vs.focusViewport(tree.tipNode[7]);
+    return (vs.area.aw / (f.x1 - f.x0)) * ((2 * Math.PI) / tree.tipCount);
+  };
+  near(pitch({ labelSize: 26 }), 48, 1e-9);
+  near(pitch({ labelSize: 26, maxTipSpacing: 30 }), 30, 1e-9);
+});
+
+test('treeWidth is clamped to leave the fixed columns and the fill minimums on screen; auto + fill keeps a minimum tree', () => {
+  const placed = [];
+  const over = { hasColumns: true, placeColumns: (l, f) => placed.push([l, f]) };
+  const wide = make({ ...over, columnsWidth: 266, treeWidth: 1000 });
+  assert.equal(wide.vs.area.clipR, 800 - 266, 'px wider than the container');
+  const full = make({ ...over, columnsWidth: 266, treeWidth: '100%', fillColumns: 1 });
+  assert.equal(full.vs.area.clipR, 800 - 266 - K_FILL, 'the fill column keeps its minimum');
+  const narrow = make({ ...over, W: 400, columnsWidth: 312, fillColumns: 1 });
+  assert.equal(narrow.vs.area.clipR, 120, 'never under 120 px');
+  const roomy = make({ ...over, W: 1000, columnsWidth: 100, fillColumns: 1 });
+  assert.equal(roomy.vs.area.clipR, 450, 'half of what the fixed columns leave');
+  const mid = make({ ...over, W: 500, columnsWidth: 100, fillColumns: 1 });
+  assert.equal(mid.vs.area.clipR, 240, 'not less than 240 px while the fill column keeps 40 px');
 });
 
 test('focusViewport: the minimum row height follows labelSize (26 px at 13)', () => {

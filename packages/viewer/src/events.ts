@@ -42,6 +42,9 @@ export interface ViewerEventMap {
   highlightchange: readonly string[];
   /** The rows of a partial tree source changed (a clade was loaded or dropped). */
   sourcechange: { version: number };
+  /** After `setTree` replaced the tree: the node map it was given (old node -> new node, -1 removed), null without one. The controls
+   *  that hold something of the old tree (search index, legend) rebuild on it; a listener of yours that keeps node ids should too. */
+  treechange: { map: Int32Array | null };
   /** The first frame was drawn. */
   ready: { layoutMs: number; tips: number };
   /** `destroy()` ran; the viewer is dead after the listeners return. */
