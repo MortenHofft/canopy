@@ -142,6 +142,34 @@ test("setTree view 'keep' without a map matches tips by label", async () => {
   near(viewer.getViewport().y0, 5, 'y0');
 });
 
+test("setTree view 'keep' without a map matches the k-th tip of a repeated label to the k-th", async () => {
+  const labels = ['a', 'H', 'b', 'c', 'H', 'd', 'e', 'H', 'f', 'g'];
+  const a = ladder(labels.concat(names(0, 30)));
+  const { viewer, env } = await makeViewer(a, { options: { maxTipSpacing: Infinity } });
+  env.flush();
+  // the window on the second H (rank 4)
+  viewer.setViewport({ x0: 0, x1: 1, y0: 4, y1: 5 });
+  // the same tips in a different order, with two other tips moved before the first H, so the second H is at rank 6
+  const moved = ['x1', 'x2', 'a', 'H', 'b', 'c', 'H', 'd', 'e', 'H', 'f', 'g'];
+  viewer.setTree(ladder(moved.concat(names(2, 30))), { view: 'keep' });
+  env.flush();
+  const v = viewer.getViewport();
+  assert.ok(v.y0 <= 6 + 1e-9 && v.y1 >= 7 - 1e-9 && v.y1 <= 7.5, `window ${v.y0}..${v.y1} should frame rank 6`);
+});
+
+test("setTree view 'keep' leaves out a repeated-label tip with no k-th match", async () => {
+  const a = ladder(['a', 'H', 'b', 'H', 'c', 'H', 'd'].concat(names(0, 30)));
+  const { viewer, env } = await makeViewer(a, { options: { maxTipSpacing: Infinity } });
+  env.flush();
+  // the third H (rank 5) and the tip after it
+  viewer.setViewport({ x0: 0, x1: 1, y0: 5, y1: 7 });
+  viewer.setTree(ladder(['a', 'H', 'b', 'H', 'c', 'd'].concat(names(0, 30))), { view: 'keep' });
+  env.flush();
+  const v = viewer.getViewport();
+  // c and d are at ranks 4 and 5; the first H (rank 1) is not framed
+  assert.ok(v.y0 >= 3.5 && v.y1 <= 7, `window ${v.y0}..${v.y1} should frame c and d, not the first H`);
+});
+
 test('setTree keeps a fitted view fitted', async () => {
   const a = ladder(names(0, 40));
   const { viewer, env } = await makeViewer(a);
