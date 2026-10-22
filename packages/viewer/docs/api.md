@@ -391,12 +391,13 @@ a level-of-detail summary: it stays solid, with its label, unless `stripeCollaps
 
 - **Rectangular:** horizontal stripes, from the triangle's sloping side (the band's left edge) to its outer edge, about one per hidden tip row
   (the row pitch at the current zoom) and never closer than `summaryStripeGap` px. Only the visible rows are generated.
-- **Radial:** stripes along the rays from the root through the wedge, spaced by angle, never closer than `summaryStripeGap` px along the arc at the
-  outer radius and at most 256 per fan. A fan's ray starts where it meets the fan's side, a polytomy's ring segment's at its inner arc. When the
-  view is zoomed in, the rays are spent on the visible angles only (the window the cut uses), so a fan far larger than the screen still shows
-  a dense set; if even 256 rays would be more than twice the gap apart on screen, the fan stays solid.
+- **Radial:** stripes along the rays from the root through the wedge, spaced by angle, one per hidden tip and never closer than `summaryStripeGap` px along the
+  arc at the outer radius (closer toward the apex, where the rays converge). A fan's rays form one grid over its whole angular extent, so panning
+  moves the rays and never re-spaces them; only the rays at visible angles (the window the cut uses, also when it wraps through angle 0) are drawn.
+  Beyond 256 visible rays the fan draws every 2nd, 4th, ... ray of the same grid (the step is a power of two, so it changes only when the visible
+  part doubles or halves). A fan's ray starts where it meets the fan's side, a polytomy's ring segment's at its inner arc.
 - **Too small stays solid.** A summary with room for fewer than two stripes (under two gaps tall, or wide along the arc, or with fewer than two
-  hidden tips) is filled solid: nothing would show. The level of detail summarises clades smaller than `minCladePx`, so a summary is at most
+  hidden tips) is filled solid: nothing would show. So is a summary whose stripes would be more than eight gaps apart (a few hidden tips over a tall triangle, such as a collapsed clade with `stripeCollapsed` in a zoomed-in row; or a radial fan thinned that far): stripes that far apart are bands, not a texture. The level of detail summarises clades smaller than `minCladePx`, so a summary is at most
   about `minCladePx` px tall (bands of polytomies and of runs excepted): with the default 3 px only those bands carry stripes, and a
   `minCladePx` of 12 or more (or a draw budget that raises the threshold) gives most summaries some. The explorer sets 14 while its stripes are on.
 - **Darkness.** The stripes cover about `width / pitch` of a summary, so their width and alpha are set to make the mean darkness that of the solid

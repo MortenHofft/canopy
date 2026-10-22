@@ -414,35 +414,170 @@ test('the overview strip stays solid even where it has room for stripes (a polyt
 });
 
 test('one stripe per hidden tip when the rows are wider than the gap (not one per gap)', async () => {
-  const m = await make('rectangular', { minCladePx: 100 }, balanced(3)); // 8 tips, 37 px rows: the cherries are 75 px summaries
+  const m = await make('rectangular', { minCladePx: 100 }, balanced(3), { theme: { summaryStripeGap: 6 } }); // 8 tips, 37 px rows: the cherries are 75 px summaries
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 2, 'a cherry has two hidden tips, so two stripes');
 });
 
-test('radial: a fan wider than 256 gaps gets 256 rays, and is solid where those would be more than two gaps apart', async () => {
-  const m = await makeViewer(`(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`, {
+const TWO_POLY = `(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`; // two bands of 800 tips: one fan each at fit
+const twoPoly = () =>
+  makeViewer(TWO_POLY, {
     options: { layout: 'radial', summaryStyle: 'striped' },
     theme: { summaryStripeColour: STRIPE },
     size: [900, 900],
   });
+const solidFills = (m) => fillAlphas(m.ctx()).filter((a) => a === m.viewer.theme.summaryOpacity).length;
+/** The angle (0..2pi) of a ray's outer end seen from the root of the frame. */
+const rayAngle = (m, x) => {
+  const { cx, cy } = m.viewer.proj.T;
+  const a = Math.atan2(x.y1 - cy, x.x1 - cx);
+  return a < 0 ? a + 2 * Math.PI : a;
+};
+
+test('radial: a fan with more than 256 rays in view draws every 2nd, 4th, ... ray of its grid (at most 256, evenly spaced)', async () => {
+  const m = await twoPoly();
   m.env.flush();
   const gs = groups(stripes(m.ctx()));
-  assert.ok(gs.length >= 1);
-  assert.equal(Math.max(...gs.map((g) => g.length)), 256, 'capped at 256');
-  const gap = m.viewer.theme.summaryStripeGap;
-  m.ctx().reset();
-  m.viewer.setViewport({ x0: -0.05, x1: 0.05, y0: -0.05, y1: 0.05 }); // far in: the fan is much larger than the screen
-  m.env.flush();
-  for (const g of groups(stripes(m.ctx()))) {
-    const q = g.map((x) => Math.atan2(x.y1 - 450, x.x1 - 450)).sort((a, b) => a - b);
-    const r = Math.hypot(g[0].x1 - 450, g[0].y1 - 450);
-    assert.ok(((q[q.length - 1] - q[0]) / (q.length - 1)) * r <= 2 * gap + 1e-6 || r > 5e4, 'rays are not more than two gaps apart on screen');
+  assert.equal(gs.length, 2);
+  for (const g of gs) {
+    assert.ok(g.length <= 256 && g.length > 128, 'rays per fan ' + g.length);
+    const a = g.map((x) => rayAngle(m, x)).sort((p, q) => p - q);
+    const step = a[1] - a[0];
+    for (let k = 2; k < a.length; k++) assert.ok(Math.abs(a[k] - a[k - 1] - step) < 1e-6, 'even spacing');
   }
 });
 
+test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary stays solid', async () => {
+  const sparse = `(${poly(10, 'p')}P,${poly(10, 'q')}Q)r;`;
+  const m = await makeViewer(sparse, {
+    options: { layout: 'radial', summaryStyle: 'striped', minCladePx: 300 },
+    theme: { summaryStripeColour: STRIPE },
+    size: [500, 500],
+  });
+  m.env.flush();
+  assert.ok(m.viewer.getStats().summaries >= 2, 'the polytomies are summarised');
+  assert.equal(stripes(m.ctx()).length, 0);
+  assert.ok(solidFills(m) >= 1, 'filled solid instead');
+  m.ctx().reset();
+  m.viewer.setTheme({ summaryStripeColour: STRIPE, summaryStripeGap: 30 }); // the same fan with a gap that makes ten rays fit
+  m.env.flush();
+  assert.ok(stripes(m.ctx()).length >= 10, 'striped when the pitch is within eight gaps');
+});
+
+test('radial, window through angle 0: the rays of both visible intervals are drawn, as many as the grid puts there', async () => {
+  const m = await twoPoly();
+  m.viewer.setViewport({ x0: 0.3, x1: 1.5, y0: -0.6, y1: 0.6 });
+  m.env.flush();
+  const p = m.viewer.proj;
+  assert.ok(p.wrap && !p.all, 'the window wraps');
+  const gs = groups(stripes(m.ctx()));
+  assert.equal(gs.length, 2);
+  const [lowFan, highFan] = gs; // P covers the angles 0..pi, Q pi..2pi
+  const a1 = lowFan.map((x) => rayAngle(m, x)).sort((u, v) => u - v);
+  const a2 = highFan.map((x) => rayAngle(m, x)).sort((u, v) => u - v);
+  assert.ok(a1.length > 20 && a1.every((a) => a <= p.hi + 1e-6), 'P: rays at angles up to hi');
+  assert.ok(a2.length > 20 && a2.every((a) => a >= p.lo - 1e-6), 'Q: rays at angles from lo');
+  for (const [a, from, to] of [
+    [a1, 0, p.hi],
+    [a2, p.lo, 2 * Math.PI],
+  ]) {
+    const step = (a[a.length - 1] - a[0]) / (a.length - 1);
+    const expected = (to - from) / step;
+    assert.ok(Math.abs(a.length - expected) <= 2, `${a.length} rays, the visible angle holds ${expected.toFixed(1)}`);
+  }
+});
+
+const FOUR_K = `(${poly(4000, 'p')}P,${poly(4000, 'q')}Q)r;`;
+const fourK = () =>
+  makeViewer(FOUR_K, { options: { layout: 'radial', summaryStyle: 'striped' }, theme: { summaryStripeColour: STRIPE }, size: [900, 900] });
+
+test('radial, window not through angle 0: only rays at visible angles are drawn', async () => {
+  const m = await fourK();
+  m.viewer.setViewport({ x0: -0.3, x1: 0.3, y0: 0.5, y1: 1.1 });
+  m.env.flush();
+  const p = m.viewer.proj;
+  assert.ok(!p.wrap && !p.all);
+  const rays = groups(stripes(m.ctx())).flat();
+  assert.ok(rays.length > 50);
+  for (const x of rays) {
+    const a = rayAngle(m, x);
+    assert.ok(a >= p.lo - 1e-6 && a <= p.hi + 1e-6, `angle ${a} outside ${p.lo}..${p.hi}`);
+  }
+});
+
+for (const [name, vp] of [
+  ['one ray per grid step', { x0: -0.3, x1: 0.3, y0: 0.5, y1: 1.1 }],
+  ['every other ray of the grid', { x0: -0.6, x1: 0.6, y0: 0.3, y1: 1.5 }],
+]) {
+  test(`radial: panning a partly visible fan moves its rays, it does not re-space them (${name})`, async () => {
+    const m = await fourK();
+    const frame = (dx, dy) => {
+      m.ctx().reset();
+      m.viewer.setViewport({ x0: vp.x0 + dx, x1: vp.x1 + dx, y0: vp.y0 + dy, y1: vp.y1 + dy });
+      m.env.flush();
+      return groups(stripes(m.ctx())).map((g) => g.map((x) => rayAngle(m, x)));
+    };
+    const spacing = (a) => Math.min(...a.slice(1).map((v, k) => v - a[k]));
+    const before = frame(0, 0);
+    assert.ok(before.length >= 1);
+    let shared = 0;
+    for (const [dx, dy] of [
+      [0.0031, 0.002],
+      [0.0057, 0.004],
+      [0.01, 0.007],
+      [0.0137, 0.001],
+    ]) {
+      const after = frame(dx, dy); // a small pan
+      assert.equal(after.length, before.length);
+      assert.ok(Math.abs(spacing(after[0]) - spacing(before[0])) < 1e-6, 'same spacing after the pan');
+      for (let g = 0; g < before.length; g++) {
+        const lo = Math.min(...after[g]),
+          hi = Math.max(...after[g]);
+        for (const a of before[g]) {
+          if (a <= lo + 1e-9 || a >= hi - 1e-9) continue; // inside the second frame's angles
+          shared++;
+          assert.ok(
+            after[g].some((b) => Math.abs(a - b) < 1e-6),
+            `ray at ${a} is not in the frame panned by ${dx}`,
+          );
+        }
+      }
+    }
+    assert.ok(shared > 100, 'rays compared: ' + shared);
+  });
+}
+
+test('rectangular, zoomed into a summary much taller than the screen: only the stripes of the visible rows are drawn', async () => {
+  const m = await make('rectangular', { minCladePx: 4000 }, balanced(11)); // clades of 1024 tips are summaries; 100 rows fill the screen
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 400 });
+  m.ctx().reset();
+  m.env.flush();
+  const s = stripes(m.ctx());
+  const gap = m.viewer.theme.summaryStripeGap;
+  assert.ok(s.length > 50, 'striped: ' + s.length);
+  assert.ok(s.length <= 330 / gap + 4, 'only the visible rows: ' + s.length);
+});
+
+test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px stays solid, one in a row of 60 px is striped', async () => {
+  const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', {
+    options: { summaryStyle: 'striped', stripeCollapsed: true },
+    theme: { summaryStripeColour: STRIPE },
+    size: [500, 300],
+  });
+  m.viewer.setCollapsed([1]);
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 1.5 });
+  m.env.flush();
+  assert.equal(stripes(m.ctx()).length, 0, 'three stripes 66 px apart would be bands');
+  assert.ok(solidFills(m) >= 1);
+  m.ctx().reset();
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
+  m.env.flush();
+  assert.equal(groups(stripes(m.ctx())).length >= 1, true, 'striped at 60 px per row (20 px stripes)');
+});
+
 test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {
-  const m = await make('radial', { minCladePx: 400 }, balanced(3));
+  const m = await make('radial', { minCladePx: 400 }, balanced(3), { theme: { summaryStripeGap: 24 } });
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 4, 'a clade of four tips: four rays');

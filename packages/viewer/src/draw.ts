@@ -80,7 +80,8 @@ export const RADIAL_LABEL_CAP = 300;
 const MAX_RECT_LABELS = 600;
 const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
 const FILL_CHUNK = 32; // fans per fill() call, same reason
-const MAX_RADIAL_STRIPES = 256; // rays per fan: a fan zoomed far past the screen gets coarser stripes, not more of them
+const MAX_RADIAL_STRIPES = 256; // rays per fan: a fan zoomed far past the screen draws every 2nd, 4th, ... ray of its grid, not more of them
+const MAX_PITCH_GAPS = 8; // stripes further apart than this many gaps (a few hidden tips over a tall summary) are not drawn: the summary stays solid
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
@@ -132,7 +133,7 @@ const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX 
 let stripeBuf = new Float32Array(4096);
 let stripeN = 0; // floats used
 let groupEnd = new Int32Array(256); // per summary: the end of its segments in stripeBuf
-let groupPitch = new Float32Array(256); // and the distance between its stripes (px, for the radial ones at the fan's mean radius)
+let groupPitch = new Float32Array(256); // and the distance between its stripes (px; radial ones at the fan's mean radius, where it is not the gap but about its share of it)
 let groupN = 0;
 
 function pushStripe(x0: number, y0: number, x1: number, y1: number): void {
@@ -162,8 +163,10 @@ function endGroup(pitch: number): void {
 }
 
 /** Stripes for the summary of node `i` (a run first=i..last when lm >= 0), geometry from `proj.d0..t1` set by summaryExtent. `gap` is at
- *  least 1. Returns false (nothing pushed) when the summary should be solid: fewer than two hidden tips, no room for two stripes `gap` px
- *  apart, or (radial) so far zoomed in that 256 rays would be more than twice the gap apart. True with nothing pushed: it is off screen. */
+ *  least 1. Rectangular stripes are at least a gap apart; radial rays are a gap apart at the outer edge and closer toward the apex (below
+ *  1 px there, which only makes them merge). Returns false (nothing pushed) when the summary should be solid: no room for two stripes `gap`
+ *  px apart, or the stripes would be more than MAX_PITCH_GAPS gaps apart (a few hidden tips over a tall summary, or a radial fan zoomed
+ *  so far in that its visible rays are thinned that much). True with nothing pushed: it is off screen. */
 function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): boolean {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
@@ -176,6 +179,7 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
     const n = Math.min(hidden, Math.floor(h / gap));
     if (n < 2) return false;
     const pitch = h / n;
+    if (pitch > MAX_PITCH_GAPS * gap) return false;
     const sx = proj.d0,
       sy = proj.tip(i),
       xm = Math.max(sx + 2, proj.d1);
@@ -214,17 +218,24 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
       v1 = a1;
     }
   }
-  const len1 = u1 > u0 ? u1 - u0 : 0,
-    len2 = v1 > v0 ? v1 - v0 : 0;
-  const vis = len1 + len2;
-  if (vis <= 0) return true; // off screen
-  const arc = vis * r1;
-  const byRows = Math.ceil((hidden * vis) / (a1 - a0));
-  const byGap = Math.floor(arc / gap);
-  if (Math.min(byRows, byGap) < 2) return false;
-  const n = Math.min(byRows, byGap, MAX_RADIAL_STRIPES);
-  if (n === MAX_RADIAL_STRIPES && arc / n > 2 * gap) return false;
-  const da = vis / n;
+  if (!(u1 > u0) && !(v1 > v0)) return true; // off screen
+  // the ray grid belongs to the whole fan (rays at a0 + (k + 0.5) * da), not to what is visible, so a pan moves the rays and never
+  // re-spaces them; only the rays inside the visible angles are drawn
+  const nFull = Math.min(hidden, Math.floor(((a1 - a0) * r1) / gap));
+  if (nFull < 2) return false;
+  const da = (a1 - a0) / nFull;
+  const k0 = u1 > u0 ? Math.max(0, Math.ceil((u0 - a0) / da - 0.5)) : 0,
+    k1 = u1 > u0 ? Math.min(nFull - 1, Math.floor((u1 - a0) / da - 0.5)) : -1;
+  const m0 = v1 > v0 ? Math.max(0, Math.ceil((v0 - a0) / da - 0.5)) : 0,
+    m1 = v1 > v0 ? Math.min(nFull - 1, Math.floor((v1 - a0) / da - 0.5)) : -1;
+  const visible = (k1 >= k0 ? k1 - k0 + 1 : 0) + (m1 >= m0 ? m1 - m0 + 1 : 0);
+  if (visible === 0) return true;
+  // more than MAX_RADIAL_STRIPES visible: every 2nd, 4th, ... ray of the same grid (the stride is a power of two, so it changes only when
+  // the visible part doubles or halves)
+  let stride = 1;
+  while ((visible + 2) / stride > MAX_RADIAL_STRIPES) stride *= 2;
+  const pitchAngle = da * stride;
+  if (pitchAngle * r1 > MAX_PITCH_GAPS * gap) return false; // zoomed so far in that the rays would be too far apart, or too few hidden tips
   const phi = solidShape ? 0 : proj.tip(i); // the node's own angle, where the fan's apex lies
   const { cx, cy } = proj.T;
   // a fan's ray starts where it meets the fan's side (the segment from the apex to the edge's end), a ring segment's at r0
@@ -234,23 +245,26 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
     e0y = r1 * Math.sin(a0) - ay,
     e1x = r1 * Math.cos(a1) - ax,
     e1y = r1 * Math.sin(a1) - ay;
-  for (let k = 0; k < n; k++) {
-    const pos = (k + 0.5) * da;
-    const a = pos < len1 ? u0 + pos : v0 + (pos - len1);
-    const c = Math.cos(a),
-      sn = Math.sin(a);
-    let rs = r0;
-    if (!solidShape) {
-      const ex = a < phi ? e0x : e1x,
-        ey = a < phi ? e0y : e1y;
-      const den = c * ey - sn * ex;
-      let t = den !== 0 ? (sn * ax - c * ay) / den : 0;
-      t = t < 0 ? 0 : t > 1 ? 1 : t;
-      rs = c * (ax + t * ex) + sn * (ay + t * ey);
+  for (let iv = 0; iv < 2; iv++) {
+    const first = iv === 0 ? k0 : m0,
+      last = iv === 0 ? k1 : m1;
+    for (let k = Math.ceil(first / stride) * stride; k <= last; k += stride) {
+      const a = a0 + (k + 0.5) * da;
+      const c = Math.cos(a),
+        sn = Math.sin(a);
+      let rs = r0;
+      if (!solidShape) {
+        const ex = a < phi ? e0x : e1x,
+          ey = a < phi ? e0y : e1y;
+        const den = c * ey - sn * ex;
+        let t = den !== 0 ? (sn * ax - c * ay) / den : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        rs = c * (ax + t * ex) + sn * (ay + t * ey);
+      }
+      pushStripe(cx + rs * c, cy + rs * sn, cx + r1 * c, cy + r1 * sn);
     }
-    pushStripe(cx + rs * c, cy + rs * sn, cx + r1 * c, cy + r1 * sn);
   }
-  endGroup(da * (solidShape ? (r0 + r1) / 2 : r0 + ((r1 - r0) * 2) / 3));
+  endGroup(pitchAngle * (solidShape ? (r0 + r1) / 2 : r0 + ((r1 - r0) * 2) / 3));
   return true;
 }
 
