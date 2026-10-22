@@ -105,8 +105,8 @@ await sleep(150);
 let ev = await page.evaluate(() => window.__spike.getEvents());
 const hov = ev.filter((e) => e.type === 'nodeHover').pop();
 ok(
-  hov && hov.nodeId === 'n' + target.node && hov.tipIds.length === target.tips,
-  `hover on a summary: ${hov?.nodeId}, ${hov?.tipIds.length} tips (expected n${target.node}, ${target.tips})`,
+  hov && hov.node === target.node && hov.tipIds.length === target.tips,
+  `hover on a summary: ${hov?.node}, ${hov?.tipIds.length} tips (expected ${target.node}, ${target.tips})`,
 );
 
 // ---- hover and selection never redraw the tree layer
@@ -130,10 +130,10 @@ await page.mouse.click(px, py);
 await sleep(150);
 ev = await page.evaluate(() => window.__spike.getEvents());
 const clk = ev.filter((e) => e.type === 'nodeClick').pop();
-ok(clk && clk.nodeId === 'n' + target.node && clk.tipIds.length === target.tips, `click on a summary: ${clk?.nodeId}, ${clk?.tipIds.length} tips`);
+ok(clk && clk.node === target.node && clk.tipIds.length === target.tips, `click on a summary: ${clk?.node}, ${clk?.tipIds.length} tips`);
 const lastEvent = await page.locator('[data-testid=last-event]').textContent();
 ok(
-  new RegExp('(nodeClick|nodeHover) n' + target.node + ' ').test(lastEvent ?? ''),
+  new RegExp('(nodeClick|nodeHover) ' + target.node + ' ').test(lastEvent ?? ''),
   `React state shows the event (a hover can follow the click): ${(lastEvent ?? '').slice(0, 60)}`,
 );
 
@@ -143,7 +143,7 @@ const before = await rd(({ x, y }) => {
   const d = c.getImageData(Math.round(x * (devicePixelRatio || 1)), Math.round(y * (devicePixelRatio || 1)), 1, 1).data;
   return [d[0], d[1], d[2]];
 }, target);
-await page.evaluate((id) => window.__spike.setColouredClades([{ nodeId: id, colour: '#e00000' }]), 'n' + target.node);
+await page.evaluate((node) => window.__spike.setColouredClades([{ node, colour: '#e00000' }]), target.node);
 await sleep(100);
 const after = await rd(({ x, y }) => {
   const c = window.__customTree.handle().renderer().ctx;
@@ -231,7 +231,7 @@ if (where) {
   await sleep(100);
   ev = await page.evaluate(() => window.__spike.getEvents());
   const c2 = ev.filter((e) => e.type === 'tipClick' || e.type === 'nodeClick').pop();
-  ok(!!c2, `click right after wheel input produced an event (${c2?.type} ${c2?.nodeId})`);
+  ok(!!c2, `click right after wheel input produced an event (${c2?.type} ${c2?.node})`);
 }
 
 // ================================================================ the renderer driven directly
@@ -612,7 +612,7 @@ const mountOpts = (layout, size) => ({ treeId: 'syn-yule-10000', newick: text, l
   await page.evaluate((o) => window.__spike2.mount(o), mountOpts('rectangular', { width: 640, height: 420 }));
   const two = await counts();
   ok(two.treeviews === 2, `two instances: ${two.treeviews} tree views`);
-  const at = (api) => page.evaluate((a) => window[a].locate({ kind: 'node', id: 'n1' }), api);
+  const at = (api) => page.evaluate((a) => window[a].locate({ kind: 'node', id: 1 }), api);
   const zoomOf = () => page.evaluate(async () => (await window.__spike2.getStats()).custom);
   const before0 = await at('__spike'),
     before1 = await at('__spike2'),

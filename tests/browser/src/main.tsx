@@ -20,7 +20,7 @@ interface MountOptions {
 }
 interface TestEvent {
   type: 'tipClick' | 'tipHover' | 'nodeClick' | 'nodeHover' | 'branchClick';
-  nodeId: string;
+  node: number;
   isTip: boolean;
   tipIds: string[];
   source: 'adapter-derived';
@@ -52,7 +52,7 @@ interface PaneApi {
   setColouredClades(c: CladeProp[]): Promise<void>;
   highlightTips(ids: string[]): Promise<void>;
   focusTip(id: string): Promise<void>;
-  locate(t: { kind: 'tip' | 'node'; id: string }): Promise<{ x: number; y: number } | null>;
+  locate(t: { kind: 'tip'; id: string } | { kind: 'node'; id: number }): Promise<{ x: number; y: number } | null>;
   getEvents(): Promise<TestEvent[]>;
   clearEvents(): Promise<void>;
   getStats(): Promise<{ domNodes: number; canvases: number; custom?: Record<string, number> }>;
@@ -81,7 +81,7 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
           : 'nodeClick';
     const ev: TestEvent = {
       type,
-      nodeId: e.nodeId,
+      node: e.node,
       isTip: e.isTip,
       tipIds: e.isTip ? [e.tipId as string] : e.tipIds(),
       source: 'adapter-derived',
@@ -112,7 +112,7 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
     },
     async setColouredClades(c) {
       const t = need();
-      for (const x of c) if (!t.isNodeId(x.nodeId)) throw new Error(`unknown node ${x.nodeId}`);
+      for (const x of c) if (!Number.isInteger(x.node) || x.node < 0 || x.node >= t.nodeCount) throw new Error(`unknown node ${x.node}`);
       set({ clades: c.map((x) => ({ ...x })) });
       await nextPaint();
     },
@@ -130,8 +130,8 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
       const tree = state.current.tree;
       const h = view.current;
       if (!tree || !h) return null;
-      const id = t.kind === 'tip' ? tree.tipNodeId(t.id) : tree.isNodeId(t.id) ? t.id : null;
-      return id ? h.locateNode(id) : null;
+      if (t.kind === 'tip') return h.locateTip(t.id);
+      return Number.isInteger(t.id) && t.id >= 0 && t.id < tree.nodeCount ? h.locateNode(t.id) : null;
     },
     async getEvents() {
       return events.current.slice();
@@ -193,8 +193,8 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
       </div>
       <dl>
         <dt>Last event</dt>
-        <dd data-testid={`last-event${sfx}`} data-type={e?.type ?? ''} data-node-id={e?.nodeId ?? ''}>
-          {e ? `${e.type} ${e.nodeId} tips=${e.tipIds.length} source=${e.source}` : 'none'}
+        <dd data-testid={`last-event${sfx}`} data-type={e?.type ?? ''} data-node={e?.node ?? ''}>
+          {e ? `${e.type} ${e.node} tips=${e.tipIds.length} source=${e.source}` : 'none'}
         </dd>
       </dl>
     </section>

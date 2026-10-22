@@ -52,13 +52,12 @@ export function makeNodeEvent(
   };
 }
 
-/** The event listeners receive: the node event plus the 'n<id>' form of the node id, tip helpers that read through `source`, and the
+/** The event listeners receive: the node event plus tip helpers that read through `source`, and the
  *  default-action switch. One small object per click or hover, never per frame. */
 export function toTreeEvent(e: NodeEvent, source: TreeSource): TreeEvent {
   let prevented = false;
   return {
     ...e,
-    nodeId: 'n' + e.node,
     tipCount: e.tipEnd - e.tipStart,
     tipIds: () => source.snapshot().tipLabels.slice(e.tipStart, e.tipEnd),
     tipLabels: () => source.tipLabels(e.tipStart, e.tipEnd),

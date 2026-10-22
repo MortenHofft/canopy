@@ -9,8 +9,6 @@ import type { CladeColour, FrameStats, NodeEvent, TreeTheme, Viewport, ViewerOpt
 
 /** A node event as listeners receive it: `NodeEvent` plus ids and helpers of the public API, and the default-action switch. */
 export interface TreeEvent extends NodeEvent {
-  /** 'n<node>': the string form of `node`, the id scheme of `@gbif-phylo/io`'s TreeModel and of `<TreeView>`. */
-  readonly nodeId: string;
   readonly tipCount: number;
   /** The tip labels below the target (for a tip, its own): a slice of the loaded labels, allocated on each call. */
   tipIds(): string[];

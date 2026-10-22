@@ -31,19 +31,19 @@ import {
   type Viewport,
 } from '@gbif-phylo/viewer';
 
-/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): node id as 'n<preorder index>' and number, tip or not, what was hit, the
+/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): the node (its preorder id, a number), tip or not, what was hit, the
  *  descendant tips as the rank range [tipStart, tipEnd) with `tipIds()` / `tipLabels()`, pointer position, and `preventDefault()`. */
 export type TreeNodeEvent = TreeEvent;
 
 export interface TreeViewHandle {
   fit(): void;
   focusTip(tipId: string): void;
-  zoomToNode(nodeId: string): void;
+  zoomToNode(node: number): void;
   getViewport(): Viewport;
   setViewport(v: Viewport): void;
   locateTip(tipId: string): { x: number; y: number } | null;
-  locateNode(nodeId: string): { x: number; y: number } | null;
-  nodeBounds(nodeId: string): { x: number; y: number; width: number; height: number } | null;
+  locateNode(node: number): { x: number; y: number } | null;
+  nodeBounds(node: number): { x: number; y: number; width: number; height: number } | null;
   columnCell(colId: string, tipId: string): { x: number; y: number; width: number; height: number } | null;
   getStats(): ReturnType<TreeViewer['getStats']>;
   benchmark(n: number): ReturnType<TreeViewer['benchmark']>;
@@ -54,8 +54,9 @@ export interface TreeViewHandle {
  *  whether it changes the tree) is the page's business, so the viewer and this component stay free of tree operations. */
 export type NodeMenuItem = ViewerMenuItem;
 
+/** A coloured clade: `node` is the preorder id of its root in the tree you pass (a number, as in the events). */
 export interface CladeProp {
-  nodeId: string;
+  node: number;
   colour: string;
   /** Name in a legend (see the Legend control). */
   label?: string;
@@ -97,10 +98,10 @@ export interface TreeViewProps {
   branchLengths?: boolean;
   clades?: CladeProp[];
   highlighted?: string[];
-  /** Clades to collapse, as `'n<id>'` ids of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
+  /** Clades to collapse, as node ids (preorder ids, numbers) of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
    *  one row, its tips hidden, and the tree is not changed (see `TreeViewer.setCollapsed`). Ids of tips are ignored. Clicks and hovers on
    *  a collapsed clade have `kind: 'summary'`, `node` = the clade and `collapsed: true`; the viewport keeps its scale. */
-  collapsed?: string[];
+  collapsed?: number[];
   columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled
   theme?: Partial<TreeTheme>;
@@ -129,21 +130,11 @@ export interface TreeViewProps {
   onReady?(info: { layoutMs: number; tips: number }): void;
 }
 
-const NODE_ID = /^n(\d+)$/;
 const EMPTY = {} as NonNullable<TreeViewProps['options']>;
 const EMPTY_IDS: string[] = [];
+const EMPTY_NODES: number[] = [];
+const EMPTY_CLADES: CladeColour[] = [];
 const EMPTY_COLUMNS: Column[] = [];
-
-function nodeIndexOf(nodeCount: number, id: string): number {
-  const m = NODE_ID.exec(id);
-  if (!m) return -1;
-  const k = Number(m[1]);
-  return k < nodeCount ? k : -1;
-}
-
-function toCladeColours(nodeCount: number, clades: CladeProp[] | undefined): CladeColour[] {
-  return (clades ?? []).map((c) => ({ node: nodeIndexOf(nodeCount, c.nodeId), colour: c.colour, label: c.label })).filter((c) => c.node >= 0);
-}
 
 /** Create the renderer in a layout effect and destroy it in the cleanup (strict-mode safe: the cleanup undoes everything the effect did).
  *  `make` builds the renderer over the host element and returns it with an extra cleanup; it is read from a ref, so it may close over
@@ -286,22 +277,21 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     r.setTree(source, {
       map: treeMap,
       view: treeMap ? 'keep' : 'fit',
-      clades: toCladeColours(source.nodeCount, clades),
+      clades: clades ?? EMPTY_CLADES,
       highlighted: highlighted ?? EMPTY_IDS,
-      collapsed: (collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0),
+      collapsed: collapsed ?? EMPTY_NODES,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- treeMap, clades, highlighted and collapsed are read for this change of `source` only
   }, [R, rendRef, source]);
-  // `source` is in the dependency list of the next two only because their bodies read it; the new viewer's first run is triggered by `R`
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setClades(toCladeColours(source.nodeCount, clades));
-  }, [R, rendRef, source, clades]);
+    liveRenderer(R, rendRef)?.setClades(clades ?? EMPTY_CLADES);
+  }, [R, rendRef, clades]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
   }, [R, rendRef, highlighted]);
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setCollapsed((collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0));
-  }, [R, rendRef, source, collapsed]);
+    liveRenderer(R, rendRef)?.setCollapsed(collapsed ?? EMPTY_NODES);
+  }, [R, rendRef, collapsed]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setColumns(columns ?? EMPTY_COLUMNS);
   }, [R, rendRef, columns]);
@@ -340,24 +330,15 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
         const n = source.snapshot().tipIndex(id);
         if (n >= 0) rendRef.current?.focusTip(source.snapshot().tipRank[n], true);
       },
-      zoomToNode: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        if (k >= 0) rendRef.current?.zoomToNode(k, true);
-      },
+      zoomToNode: (node) => rendRef.current?.zoomToNode(node, true),
       getViewport: () => rendRef.current!.getViewport(),
       setViewport: (v) => rendRef.current?.setViewport(v),
       locateTip: (id) => {
         const n = source.snapshot().tipIndex(id);
         return n < 0 ? null : (rendRef.current?.locateNode(n) ?? null);
       },
-      locateNode: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        return k < 0 ? null : (rendRef.current?.locateNode(k) ?? null);
-      },
-      nodeBounds: (id) => {
-        const k = nodeIndexOf(source.nodeCount, id);
-        return k < 0 ? null : (rendRef.current?.nodeBounds(k) ?? null);
-      },
+      locateNode: (node) => rendRef.current?.locateNode(node) ?? null,
+      nodeBounds: (node) => rendRef.current?.nodeBounds(node) ?? null,
       columnCell: (c, id) => {
         const n = source.snapshot().tipIndex(id);
         return n < 0 ? null : (rendRef.current?.columnCell(c, source.snapshot().tipRank[n]) ?? null);

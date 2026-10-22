@@ -16,7 +16,7 @@ function Tree({ tree, onPick }) {
       tree={tree}
       controls={controls}
       highlighted={['Canis_lupus']}
-      nodeMenu={(e) => (e.isTip ? null : [{ id: 'zoom', label: 'Zoom to clade', onSelect: () => onPick(e.nodeId) }])}
+      nodeMenu={(e) => (e.isTip ? null : [{ id: 'zoom', label: 'Zoom to clade', onSelect: () => onPick(e.node) }])}
       onTipClick={(e) => onPick(e.tipId)}
     />
   );

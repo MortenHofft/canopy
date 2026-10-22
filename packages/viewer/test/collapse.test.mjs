@@ -251,7 +251,6 @@ test('hit-test and click on the triangle give the clade: kind summary, node = th
   v.on('click', (e) => (ev = e));
   v.inputHost().click(h, 11, 22);
   assert.equal(ev.node, x);
-  assert.equal(ev.nodeId, 'n' + x);
   assert.equal(ev.kind, 'summary');
   assert.equal(ev.collapsed, true);
   assert.equal(ev.isTip, false);

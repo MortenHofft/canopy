@@ -163,10 +163,7 @@ export function Explorer({
   const supportActive = supportOn && hasSupport;
   // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
   // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
-  const protectedNodes = useMemo(
-    () => (supportActive ? [...collapsed, ...clades.map((c) => Number(c.nodeId.slice(1)))] : NO_NODES),
-    [supportActive, collapsed, clades],
-  );
+  const protectedNodes = useMemo(() => (supportActive ? [...collapsed, ...clades.map((c) => c.node)] : NO_NODES), [supportActive, collapsed, clades]);
   // a dated tree stays dated: the contracted edge's length goes to its children, so the time axis does not change
   const dated = useMemo(() => supportActive && tree.hasLengths && tree.isUltrametric(1e-3), [supportActive, tree]);
   const view = useMemo(() => {
@@ -200,15 +197,15 @@ export function Explorer({
     () =>
       view
         ? clades.flatMap((c) => {
-            const k = view.toView[Number(c.nodeId.slice(1))];
-            return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
+            const k = view.toView[c.node];
+            return k >= 0 ? [{ ...c, node: k }] : [];
           })
         : clades,
     [view, clades],
   );
   // the collapsed clades in the shown tree's ids (a clade that focus left out, or that collapse by support contracted into its parent, has none)
   const collapsedIds = useMemo(
-    () => (view ? collapsed.map((v) => view.toView[v]) : collapsed).filter((k) => k > 0 && k < shown.nodeCount).map((k) => 'n' + k),
+    () => (view ? collapsed.map((v) => view.toView[v]) : collapsed).filter((k) => k > 0 && k < shown.nodeCount),
     [collapsed, view, shown],
   );
 
@@ -387,11 +384,11 @@ export function Explorer({
       tree,
       next,
       r.map,
-      clades.map((c) => Number(c.nodeId.slice(1))),
+      clades.map((c) => c.node),
     );
     const keptClades = clades.flatMap((c, i) => {
       const m = followedClades[i].node;
-      return m >= 0 ? [{ ...c, nodeId: 'n' + m }] : [];
+      return m >= 0 ? [{ ...c, node: m }] : [];
     });
     const keptCollapsed = ops
       .followClades(tree, next, r.map, collapsed)
@@ -459,9 +456,8 @@ export function Explorer({
   const colourOf = (name: string) => cssVar(`--ex-palette-${name.toLowerCase()}`);
   /** Paint (or with ERASE, unpaint) the clade `v` of `tree`. The label is left out: the legend then names the clade by its node. */
   const paint = (v: number, name: string) => {
-    const nodeId = 'n' + v;
-    const rest = clades.filter((c) => c.nodeId !== nodeId);
-    setClades(name === ERASE ? rest : [...rest, { nodeId, colour: colourOf(name) }]);
+    const rest = clades.filter((c) => c.node !== v);
+    setClades(name === ERASE ? rest : [...rest, { node: v, colour: colourOf(name) }]);
   };
   /** Put text on the clipboard: the async API where there is one, else a hidden textarea and execCommand('copy'). */
   const copyText = async (text: string): Promise<boolean> => {
@@ -1427,7 +1423,7 @@ export function Explorer({
             <button
               type="button"
               className="ex-erase"
-              disabled={!clades.some((c) => c.nodeId === 'n' + pickAt.node)}
+              disabled={!clades.some((c) => c.node === pickAt.node)}
               onClick={() => {
                 paint(pickAt.node, ERASE);
                 closePick();
