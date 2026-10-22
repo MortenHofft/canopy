@@ -116,7 +116,7 @@ export function Explorer({
   const [navTick, setNavTick] = useState(0); // bumped by Show only / Up / Back: the view is fitted, so "fitted" is read again
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
-  const [ladderBy, setLadderBy] = useState<LadderBy>('tips');
+  const [ladderByChoice, setLadderBy] = useState<LadderBy>('tips');
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
@@ -178,6 +178,7 @@ export function Explorer({
   const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
   const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
   const supportActive = supportOn && hasSupport;
+  const ladderBy: LadderBy = ladderByChoice === 'height' && !tree.hasLengths ? 'tips' : ladderByChoice; // 'height' is not on offer without lengths
   // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
   // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
   const protectedNodes = useMemo(() => (supportActive ? [...collapsed, ...clades.map((c) => c.node)] : NO_NODES), [supportActive, collapsed, clades]);
@@ -1096,47 +1097,49 @@ export function Explorer({
           <select aria-label="Ladderize by" value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
             <option value="tips">tips</option>
             <option value="depth">depth</option>
-            <option value="height" disabled={!tree.hasLengths}>
-              height
-            </option>
+            {tree.hasLengths && <option value="height">height</option>}
           </select>
         </label>
-        <div className="ex-divider" />
-        <div className="ex-support">
-          <button
-            type="button"
-            className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
-            aria-label="Collapse by support"
-            aria-pressed={supportActive}
-            disabled={!hasSupport}
-            title={
-              hasSupport
-                ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
-                : 'This tree has no support values'
-            }
-            onClick={() => setSupportOn((o) => !o)}
-          >
-            <J.IconSupport />
-            Support
-          </button>
-          {supportActive && (
-            <>
-              <input
-                className="ex-num"
-                type="number"
-                aria-label="Minimum support"
-                title={`Support below this is collapsed (the tree's support runs ${supportRange!.lo} to ${supportRange!.hi})`}
-                value={threshold}
-                min={0}
-                step={supportStep}
-                onChange={(e) => e.target.value !== '' && setMinSupport(Number(e.target.value))}
-              />
-              <span className="ex-support-n" role="status">
-                {view?.supportCollapsed ? `${view.supportCollapsed.toLocaleString('en')} collapsed` : 'none below'}
-              </span>
-            </>
-          )}
-        </div>
+        {hasSupport && (
+          <>
+            <div className="ex-divider" />
+            <div className="ex-support">
+              <button
+                type="button"
+                className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
+                aria-label="Collapse by support"
+                aria-pressed={supportActive}
+                disabled={!hasSupport}
+                title={
+                  hasSupport
+                    ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
+                    : 'This tree has no support values'
+                }
+                onClick={() => setSupportOn((o) => !o)}
+              >
+                <J.IconSupport />
+                Support
+              </button>
+              {supportActive && (
+                <>
+                  <input
+                    className="ex-num"
+                    type="number"
+                    aria-label="Minimum support"
+                    title={`Support below this is collapsed (the tree's support runs ${supportRange!.lo} to ${supportRange!.hi})`}
+                    value={threshold}
+                    min={0}
+                    step={supportStep}
+                    onChange={(e) => e.target.value !== '' && setMinSupport(Number(e.target.value))}
+                  />
+                  <span className="ex-support-n" role="status">
+                    {view?.supportCollapsed ? `${view.supportCollapsed.toLocaleString('en')} collapsed` : 'none below'}
+                  </span>
+                </>
+              )}
+            </div>
+          </>
+        )}
         {collapsed.length > 0 && (
           <>
             <div className="ex-divider" />
