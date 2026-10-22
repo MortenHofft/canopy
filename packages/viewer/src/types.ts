@@ -110,7 +110,7 @@ export interface TreeTheme extends ResidueTheme {
   foreground: string; // labels, axis text
   muted: string; // axis lines, gridlines, headers
   branch: string;
-  highlight: string; // selection, highlight bands, focus ring
+  highlight: string; // hover and keyboard rings, highlight bands, focus ring
   summary: string; // fill of collapsed clades without own colour
   fontFamily: string;
   /** Style of tip labels, `--phylo-label-font-style`: 'italic' (scientific names) or 'normal'. */
@@ -151,6 +151,11 @@ export interface TreeTheme extends ResidueTheme {
   leaderOpacity: number;
   /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep a quarter of the row free. */
   alignRowGap: number;
+  /** The ring around the selected node (`setSelected`): colour ('' = `foreground`), line width and radius (CSS px). It is drawn on a halo of
+   *  `background`, so it stands out over branches. A width of 0 draws no ring. */
+  selectionColour: string;
+  selectionWidth: number;
+  selectionRadius: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -184,6 +189,9 @@ export const FALLBACK_THEME: TreeTheme = {
   leaderWidth: 1,
   leaderOpacity: 0.7,
   alignRowGap: 0,
+  selectionColour: '',
+  selectionWidth: 2.5,
+  selectionRadius: 7,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */

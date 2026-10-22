@@ -29,6 +29,7 @@ import {
   drawMarkers,
   drawRing,
   drawScaleBar,
+  drawSelectionRing,
   LabelList,
   TextMeasurer,
   type Scene,
@@ -221,6 +222,9 @@ export class TreeViewer {
   private hoverKind: Hit['kind'] | '' = '';
   private hoverRun = -1; // first member of the hovered run of small siblings, -1 for none (hoverNode is then their parent)
   private activeNode = -1;
+  /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
+   *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
+  private selected = -1;
   private raf = 0;
   private dirty = true;
   private topDirty = true;
@@ -354,6 +358,9 @@ export class TreeViewer {
       },
     });
     this.fit(false);
+    // a click (or Enter on the keyboard cursor) selects its node; a default action, so an app can preventDefault() it. A run of small
+    // siblings is not one node: it selects nothing
+    this.events.on('click', (e) => (e.run ? undefined : this.select(this.shownNode(e.node))), { asDefault: true });
     for (const c of init.controls ?? []) this.addControl(c);
     this.invalidate();
     // web fonts arrive after the first frame
@@ -566,6 +573,17 @@ export class TreeViewer {
     return this.tree.globalId === null ? (node >= 0 && node < this.tree.nodeCount ? node : -1) : this.tree.toLocal(node);
   }
 
+  /** Node id of the public API for a row of the snapshot. */
+  private idOf(row: number): number {
+    return this.tree.globalId === null ? row : this.tree.globalId[row];
+  }
+
+  /** The node, or the collapsed clade that hides it (node ids of the public API). */
+  private shownNode(id: number): number {
+    const row = this.rowOf(id);
+    return row >= 0 && this.L.hidden?.[row] ? this.idOf(this.L.rowNode![this.L.rowStart[row]]) : id;
+  }
+
   // ================================================================= public API
 
   // ---- events
@@ -667,6 +685,7 @@ export class TreeViewer {
     const oldClades = this.clades;
     const oldCollapsed = this.collapsedNodes;
     const oldHl = this.hlIds;
+    const oldSelected = this.selected;
     const hadHover = this.hoverNode >= 0;
 
     // ---- swap the source
@@ -712,6 +731,7 @@ export class TreeViewer {
       ).columns;
     }
     this.activeNode = -1;
+    this.selected = this.selectionAfterSetTree(oldSelected, map, rm);
     this.pendingHover = null;
     this.clearHover();
     this.root.style.cursor = 'grab';
@@ -780,6 +800,7 @@ export class TreeViewer {
     this.events.emit('treechange', { map });
     if (cladesChanged) this.events.emit('cladeschange', this.getClades());
     if (hlChanged) this.events.emit('highlightchange', this.hlIds.slice());
+    this.emitSelectionSince(oldSelected);
     if (hadHover) this.emitNode('hover', null);
   }
 
@@ -886,13 +907,20 @@ export class TreeViewer {
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    if (refit) {
-      this.activeNode = -1;
-      if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
-    } else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
+    if (refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
     this.events.emit('optionschange', { options: this.opts, changed });
+  }
+
+  /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
+   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before, and the cursor
+   *  is announced again. */
+  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
+    if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
+      this.fit(false);
+    if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
 
   /** Set the theme overrides: these fields over the theme read from CSS custom properties, over `FALLBACK_THEME` (a field left out,
@@ -1071,8 +1099,9 @@ export class TreeViewer {
    *  `nodeIds` are the preorder ids of the full tree, the same ids as everywhere in the API: colours, highlights, events and `zoomToNode`
    *  keep speaking them, and the tree is not changed. Ids of tips are ignored, ids that are not nodes of the tree are ignored with a warning,
    *  and a clade inside a collapsed one is hidden by it. A click or hover on a collapsed clade reports `kind: 'summary'`, `node` = the clade and
-   *  `collapsed: true`. The window keeps its scale and the clades in it; a view that fits the whole tree is fitted again. Selection of
-   *  the keyboard cursor and hover are reset. No-op for the same ids in the same order. A partially loaded source cannot collapse clades.
+   *  `collapsed: true`. The window keeps its scale and the clades in it; a view that fits the whole tree is fitted again. The hover is
+   *  reset; the keyboard cursor and the selection stay, and one that a collapsed clade now hides moves to that clade. No-op for the same
+   *  ids in the same order. A partially loaded source cannot collapse clades.
    *  Collapsing only draws less: `focusTip` on a tip inside a collapsed clade focuses the clade, columns draw nothing on its row. */
   setCollapsed(nodeIds: number[]): void {
     if (!this.storeCollapsed(this.knownNodes('setCollapsed', nodeIds, (n) => n))) return;
@@ -1113,7 +1142,10 @@ export class TreeViewer {
     const vs = this.vs;
     const rect = this.opts.layout === 'rectangular';
     const v = { ...vs.view };
-    this.activeNode = -1;
+    const hidden = this.L.hidden;
+    if (this.activeNode >= 0 && hidden?.[this.activeNode]) this.activeNode = this.L.rowNode![this.L.rowStart[this.activeNode]];
+    const wasSelected = this.selected;
+    if (this.selected >= 0) this.selected = this.shownNode(this.selected);
     this.pendingHover = null;
     this.clearHover();
     this.hit.invalidate();
@@ -1145,6 +1177,7 @@ export class TreeViewer {
     this.hit.invalidate();
     this.invalidate(true);
     this.overlay.scheduleList();
+    this.emitSelectionSince(wasSelected);
   }
 
   /** Highlight tips: a string highlights every tip with that label (labels need not be unique), a number the tip with that node id. Unknown
@@ -1216,6 +1249,13 @@ export class TreeViewer {
     return out;
   }
 
+  /** The selection of the new tree in `setTree`: the old one sent through `rm` (gone: none; inside a clade collapsed now: the clade).
+   *  Without a map the new tree's ids name other nodes, so it is dropped. */
+  private selectionAfterSetTree(old: number, map: Int32Array | null, rm: (n: number) => number): number {
+    const sel = map && old >= 0 ? rm(old) : -1;
+    return sel >= 0 && isNodeOf(this.nodeLimit(), sel) ? this.shownNode(sel) : -1;
+  }
+
   /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
    *  loaded. They stay in the list (`getHighlighted` gives back what was set) and highlight nothing. */
   private checkHighlighted(where: string, ids: readonly TipRef[]): void {
@@ -1243,6 +1283,55 @@ export class TreeViewer {
   /** What was last passed to `setHighlighted` (labels and node ids, unknown ones included). */
   getHighlighted(): TipRef[] {
     return this.hlIds.slice();
+  }
+
+  /** Select a node (a node id, any tip or internal node), or nothing with null. The selected node gets a ring (theme `selectionColour`,
+   *  `selectionWidth`, `selectionRadius`); a click selects its node by default (`preventDefault()` in a `click` listener stops it). The
+   *  selection is kept across layout, branch-length and theme changes, across `setTree` through its `map` (dropped without one) and across
+   *  collapsing: a node inside a collapsed clade selects the clade. A switch of layout or branch lengths centres the new view on the
+   *  selected tip, or frames the selected clade, instead of fitting. A number that is not a node is ignored with a warning. Emits
+   *  `selectionchange` when the selection changed. */
+  setSelected(node: number | null): void {
+    if (node === null || node === undefined) return this.select(-1);
+    if (this.knownNode('setSelected', node)) this.select(this.shownNode(node));
+  }
+
+  /** The selected node's id, null when nothing is selected. */
+  getSelected(): number | null {
+    return this.selected < 0 ? null : this.selected;
+  }
+
+  private select(id: number): void {
+    if (id === this.selected) return;
+    this.selected = id;
+    this.topDirty = true;
+    this.schedule();
+    this.emitSelection();
+  }
+
+  private emitSelection(): void {
+    this.events.emit('selectionchange', { node: this.selected < 0 ? null : this.selected });
+  }
+
+  /** `selectionchange` when the selection is no longer `old`. */
+  private emitSelectionSince(old: number): void {
+    if (this.selected !== old) this.emitSelection();
+  }
+
+  /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
+   *  selected clade (as `zoomToNode`), worked out from the new layout's fit view. False when nothing is selected, or its row is not loaded. */
+  private frameSelection(): boolean {
+    const row = this.selected >= 0 ? this.rowOf(this.selected) : -1;
+    if (row < 0) return false;
+    const vs = this.vs;
+    vs.cancelAnim();
+    vs.computeArea();
+    vs.view = vs.fitViewport(); // the targets keep the current scale where they can: the new layout's fit, not the old layout's window
+    vs.fitted = true;
+    const target = this.tree.childCount[row] === 0 ? vs.focusViewport(row) : vs.cladeViewport(row);
+    if (viewportEquals(target, vs.view)) this.fit(false);
+    else vs.setViewport(target);
+    return true;
   }
 
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
@@ -1273,7 +1362,7 @@ export class TreeViewer {
   }
 
   /** The view as an image (the canvas only: DOM controls, overlays and label anchors are not in it): what `render` draws now, drawn again into an offscreen canvas with the same code (the visible canvas is not
-   *  read), without hover and keyboard rings. `type` is an image MIME type (default 'image/png'); `scale` the backing pixels per CSS
+   *  read), without the selection, hover and keyboard rings. `type` is an image MIME type (default 'image/png'); `scale` the backing pixels per CSS
    *  pixel (default the canvas's own, `devicePixelRatio` capped by `dprCap`), so the image is `width * scale` by `height * scale`;
    *  `background` a CSS colour, or null for a transparent image (default: the theme's background). Rejects when the canvas cannot
    *  make the image, and with `RangeError` over 16384 px a side or 2^26 px in all. A browser that cannot encode `type` gives a PNG:
@@ -1693,7 +1782,7 @@ export class TreeViewer {
     } else this.overlay.follow(this.labels, T.kind); // the focus outline must move with the canvas
     this.reducedFrame = reduced;
     if (!reduced && tree.stub !== null) this.detail.request(tree, this.list, T, L, rect, vs.fitted, this.srcVersion);
-    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.topHad) this.topDirty = true;
+    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.selected >= 0 || this.topHad) this.topDirty = true;
 
     const frameMs = performance.now() - t0;
     const st = this.stats;
@@ -1798,17 +1887,19 @@ export class TreeViewer {
     }
   }
 
-  /** Hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
+  /** The selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
   private topHad = false;
   private drawTop(): void {
     this.topDirty = false;
-    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0;
+    const sel = this.selected >= 0 ? this.rowOf(this.selected) : -1;
+    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0 || sel >= 0;
     const c = this.topCtx;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const proj = this.proj;
-    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode)
+    if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
+    if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
       drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
     if (this.activeNode >= 0) {
       drawRing(c, proj, this.activeNode, 10, this.theme.highlight, 2.5);
@@ -1896,6 +1987,15 @@ export class TreeViewer {
 
   // ================================================================= keyboard cursor, focus
 
+  /** What the live region says for the cursor on row `node`. */
+  private describe(node: number): string {
+    const tip = this.tree.childCount[node] === 0;
+    const name = cladeName(this.tree, node, this.opts);
+    const tips = `${(this.tree.leafEnd[node] - this.tree.leafStart[node]).toLocaleString('en')} tips`;
+    const col = this.L.collapsed?.[node] === 1 ? ', collapsed' : '';
+    return (tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`) + col;
+  }
+
   private setActive(node: number, announce = true): void {
     this.activeNode = node;
     const target = this.vs.visibleViewport(node);
@@ -1904,10 +2004,7 @@ export class TreeViewer {
     this.renderNow();
     if (announce && node >= 0) {
       const tip = this.tree.childCount[node] === 0;
-      const name = cladeName(this.tree, node, this.opts);
-      const tips = `${(this.tree.leafEnd[node] - this.tree.leafStart[node]).toLocaleString('en')} tips`;
-      const col = this.L.collapsed?.[node] === 1 ? ', collapsed' : '';
-      this.overlay.announce((tip ? (name ?? 'Unnamed tip') : name ? `${name}, ${tips}` : `Clade of ${tips}`) + col);
+      this.overlay.announce(this.describe(node));
       // move DOM focus with the cursor when it sits on a label anchor
       if (tip && this.root.contains(document.activeElement) && document.activeElement !== this.root)
         this.overlay.focusAnchor(this.tree.tipRank[node]);

@@ -15,6 +15,7 @@
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
  *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *               --phylo-node-label-size  --phylo-support-colour  --phylo-length-colour
+ *               --phylo-selection-colour  --phylo-selection-width  --phylo-selection-radius
  *   residues    --phylo-residue-hydrophobic  -positive  -negative  -polar  -aromatic  -glycine  -proline  (protein groups)
  *               --phylo-residue-a  -c  -g  -t  (nucleotides)  --phylo-residue-other   (canvas only; defaults follow --phylo-dark)
  *

@@ -638,6 +638,15 @@ export function drawRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, 
   ctx.stroke();
 }
 
+/** The ring of the selected node (row `node`): `selectionColour` ('' = `foreground`) `selectionWidth` px wide at `selectionRadius`, over a
+ *  halo of the background 2 px wider, so it reads over branches and is told apart from the hover and keyboard rings. */
+export function drawSelectionRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, node: number, theme: TreeTheme): void {
+  const w = theme.selectionWidth;
+  if (!(w > 0)) return;
+  drawRing(ctx, proj, node, theme.selectionRadius, theme.background, w + 2);
+  drawRing(ctx, proj, node, theme.selectionRadius, theme.selectionColour || theme.foreground, w);
+}
+
 /** Where aligned labels start (CSS px, before the gap): right of the farthest tip (a collapsed clade's triangle ends at its tips, so it
  *  is never farther), so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
  *  at the area's right edge (where the farthest tip is at the fit view): the labels stay readable, and the branches of the tips beyond it

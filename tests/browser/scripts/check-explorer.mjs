@@ -4,7 +4,7 @@
 // (window.__explorer() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade, root; Escape closes it; a plain click collapses nothing)
-// and Collapse, Expand and Info are its items; colour, erase and the innermost-colour-wins order; reroot, flip, swap
+// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); colour, erase and the innermost-colour-wins order; reroot, flip, swap
 // (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); show only a clade, Up one level
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
@@ -313,7 +313,56 @@ ok(
   ),
   'nothing in the inspector or toolbar is bolder than 600',
 );
+// the selection (#61): the tip Info was opened on is selected, and it stays across Layout and Phylo/Clado switches, centred in view with its ring
+{
+  const id = await ev((l) => __v().tipNode(l), tip0);
+  ok((await ev(() => __v().getSelected())) === id, "the clicked tip is the viewer's selection");
+  // the ring: some pixel of the overlay canvas on the circle of selectionRadius around the tip
+  const ring = () =>
+    ev((n) => {
+      const v = __v();
+      const p = v.locateNode(n);
+      if (!p) return { inView: false, ring: false };
+      const top = v.treeElement.querySelectorAll('canvas')[1];
+      const r = top.getBoundingClientRect();
+      const k = top.width / r.width;
+      const rad = v.getTheme().selectionRadius;
+      const data = top.getContext('2d').getImageData(0, 0, top.width, top.height).data;
+      let hits = 0;
+      for (let a = 0; a < 16; a++) {
+        const x = Math.round((p.x - r.left + rad * Math.cos((a * Math.PI) / 8)) * k);
+        const y = Math.round((p.y - r.top + rad * Math.sin((a * Math.PI) / 8)) * k);
+        if (data[(y * top.width + x) * 4 + 3] > 100) hits++;
+      }
+      const pane = v.treeElement.getBoundingClientRect();
+      return { inView: true, ring: hits >= 12, dx: (p.x - pane.left) / pane.width, dy: (p.y - pane.top) / pane.height };
+    }, id);
+  const keeps = async (what) => {
+    await page.waitForTimeout(300);
+    const r = await ring();
+    const name = (await page.locator('.ex-info-name').count()) ? await page.locator('.ex-info-name').innerText() : '';
+    ok(
+      (await ev(() => __v().getSelected())) === id && name === tip0.replace(/_/g, ' ') && r.inView && r.ring,
+      `${what}: the inspector still shows the tip, which is in view (at ${r.dx?.toFixed(2)}, ${r.dy?.toFixed(2)} of the pane) with its ring`,
+    );
+  };
+  await keeps('selected');
+  await page.locator('button[title=Circular]').click();
+  await keeps('Circular');
+  const c = await ring();
+  ok(Math.abs(c.dx - 0.5) < 0.05 && Math.abs(c.dy - 0.5) < 0.05, 'Circular: the view is centred on the selected tip');
+  await page.locator('button[title=Rectangular]').click();
+  await keeps('back to Rectangular');
+  await page.locator('button[title^=Cladogram]').click();
+  await keeps('Cladogram');
+  await page.locator('button[title^=Phylogram]').click();
+  await keeps('back to Phylogram');
+  await page.locator('.ex-btn[title="Fit tree"]').click();
+  await page.waitForTimeout(200);
+}
 await page.locator('.ex-info-head button').click();
+await ev(() => __v().setSelected(null));
+ok((await page.locator('.ex-info').count()) === 0, 'closing the inspector');
 // a clade: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade
 const rows = () => ev(() => __v().layout.rows);
 const before = await rows();
@@ -1379,6 +1428,11 @@ const colMe = await weak(2, 12, 1);
 await click(colMe);
 await page.locator('.ex-outer').press('Escape');
 ok((await ev(() => __v().getClades().length)) === 1, `a clade of ${colMe.tips} tips coloured (support ${colMe.support})`);
+// a selected clade that collapse by support contracts: the selection moves to the clade that holds it, and the inspector stays open (#61)
+const selMe = await weak(2, 12, 2);
+await openMenu(selMe);
+await act('info');
+ok((await page.locator('.ex-info').count()) === 1 && (await ev(() => __v().getSelected())) === selMe.node, 'a weak clade selected, Info open');
 await page.locator('button[aria-label="Collapse by support"]').click();
 await page.waitForTimeout(300);
 const thr = page.locator('input[aria-label="Minimum support"]');
@@ -1393,6 +1447,14 @@ ok(
   `the clade collapsed by hand is still collapsed, with its ${keepMe.tips} tips, and a node of its own`,
 );
 ok((await ev(() => __v().getClades().length)) === 1, 'the coloured clade below the threshold is not contracted away');
+{
+  const sel = await ev(() => __v().getSelected());
+  ok(
+    (await page.locator('.ex-info').count()) === 1 && sel !== null && sel < (await nodeCount()),
+    `the selected clade was contracted: the inspector stays open on the clade that holds it (node ${sel})`,
+  );
+  await page.locator('.ex-info-head button').click();
+}
 // a dated tree stays dated: the contracted lengths go to the children, so the axis keeps "time before tips" and every tip stays at 0
 ok(
   await ev(() => {
