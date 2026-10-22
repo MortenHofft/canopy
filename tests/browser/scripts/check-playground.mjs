@@ -52,6 +52,23 @@ await page.addInitScript(() => {
     return ft.call(this, text, ...rest);
   };
 });
+// the radial scale rings (#45) and the scale bar: while window.__paths is an array, every stroked or filled path is recorded with its
+// line width and opacity (arcs as ['arc', x, y, r, a0, a1, ccw], moves and lines as ['M' | 'L', x, y])
+await page.addInitScript(() => {
+  const P = CanvasRenderingContext2D.prototype;
+  const wrap = (name, fn) => {
+    const f = P[name];
+    P[name] = function (...a) {
+      if (window.__paths) fn(this, a);
+      return f.apply(this, a);
+    };
+  };
+  wrap('beginPath', (c) => (c.__path = []));
+  wrap('arc', (c, a) => c.__path?.push(['arc', ...a]));
+  wrap('moveTo', (c, a) => c.__path?.push(['M', ...a]));
+  wrap('lineTo', (c, a) => c.__path?.push(['L', ...a]));
+  for (const op of ['stroke', 'fill']) wrap(op, (c) => window.__paths.push({ op, lw: c.lineWidth, alpha: c.globalAlpha, path: c.__path ?? [] }));
+});
 const drawnNodeTexts = async () => {
   await ev(() => {
     window.__nodeTexts = [];
@@ -163,6 +180,106 @@ console.log('radial opening and rotation (#41)');
   await ev(() => window.viewer.setSelected(null)); // the clicks selected a tip: a layout switch would centre the view on it
   await select('click', 'menu');
   await select('layout', 'rectangular');
+}
+
+console.log('radial scale rings (#45)');
+{
+  await select('layout', 'radial');
+  await toggle('branchLengths', true); // turned off under 'options'; the rings and the scale bar need branch lengths
+  await ev(() => window.viewer.setOptions({ maxTipSpacing: Infinity })); // room to zoom in on 135 tips
+  ok(
+    (await opt('radialRings')) === 'none' && (await page.locator('select[data-setting=radialRings]').count()) === 1,
+    'the rings setting, off by default',
+  );
+  await select('radialRings', 'lines');
+  await setInput('ringWidth', '0.7');
+  await setInput('ringOpacity', '0.35');
+  await setInput('ringStripeOpacity', '0.2');
+  ok(
+    (await opt('radialRings')) === 'lines' &&
+      (await theme('ringWidth')) === 0.7 &&
+      (await theme('ringOpacity')) === 0.35 &&
+      (await theme('ringStripeOpacity')) === 0.2,
+    'the option and the ring tokens reach the viewer',
+  );
+  // one frame's rings (the path at ringWidth and ringOpacity, or the fill at ringStripeOpacity) and the scale bar (the last path at
+  // 1.5 px: its one horizontal segment)
+  const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+  const measure = () =>
+    ev(() => {
+      window.__paths = [];
+      window.viewer.invalidate();
+      window.viewer.renderNow();
+      const paths = window.__paths;
+      window.__paths = null;
+      const t = window.viewer.getTheme();
+      const ring = (p) =>
+        p.op === 'stroke'
+          ? Math.abs(p.lw - t.ringWidth) < 1e-6 && Math.abs(p.alpha - t.ringOpacity) < 1e-6
+          : Math.abs(p.alpha - t.ringStripeOpacity) < 1e-6;
+      const rings = paths
+        .filter(ring)
+        .flatMap((p) => p.path.filter((e) => e[0] === 'arc').map((e) => ({ op: p.op, x: e[1], y: e[2], r: e[3], ccw: !!e[6] })));
+      const bar = paths.filter((p) => p.op === 'stroke' && Math.abs(p.lw - 1.5) < 1e-6).at(-1).path;
+      let w = 0;
+      for (let i = 1; i < bar.length; i++)
+        if (bar[i][0] === 'L' && bar[i - 1][0] === 'M' && bar[i][2] === bar[i - 1][2]) w = bar[i][1] - bar[i - 1][1];
+      const v = window.viewer;
+      const tree = v.getTree();
+      const vp = v.getViewport();
+      return { rings, w, root: v.nodePosition(0), tip: v.nodePosition(tree.tipNode[0]), dated: v.layout.ultrametric, span: vp.x1 - vp.x0 };
+    });
+  const spacing = (m, what) => {
+    const radii = m.rings.map((g) => g.r).sort((a, b) => a - b);
+    const gaps = radii.slice(1).map((r, i) => r - radii[i]);
+    ok(
+      radii.length >= 2 && m.w > 0 && gaps.every((g) => near(g, m.w, 0.01)),
+      `${what}: ${radii.length} rings ${gaps.map((g) => g.toFixed(2)).join(', ')} px apart, the scale bar ${m.w.toFixed(2)} px`,
+    );
+  };
+  let m = await measure();
+  ok(
+    m.rings.every((g) => g.op === 'stroke' && near(g.x, m.root.x) && near(g.y, m.root.y)),
+    'lines: stroked circles about the root',
+  );
+  spacing(m, 'fit');
+  // the default tree, the Carangaria MCC, is dated: the rings count back from its tips
+  ok(query().get('tree') === 'rich-fish-carangaria-135' && m.dated && m.tip !== null, 'the fish MCC tree is loaded, dated, with a tip in view');
+  if (m.tip) {
+    const k = Math.hypot(m.tip.x - m.root.x, m.tip.y - m.root.y);
+    ok(near(Math.max(...m.rings.map((g) => g.r)), k, 0.01), 'a dated tree: the outermost ring runs through the tips (age 0)');
+  }
+  await ev((p) => window.viewer.zoomBy(3, 3, p.x, p.y), m.root);
+  await settled();
+  const z = await measure();
+  spacing(z, 'zoomed in 3x about the root');
+  const f = m.span / z.span; // the zoom factor
+  ok(
+    f > 2.5 && z.w / (f * m.w) < 0.75,
+    `zoomed in ${f.toFixed(2)}x, the rings subdivide: the step is ${(z.w / (f * m.w)).toFixed(2)} of what it was`,
+  );
+  await select('radialRings', 'stripes');
+  m = await measure();
+  const outer = m.rings.filter((g) => !g.ccw),
+    inner = m.rings.filter((g) => g.ccw);
+  ok(
+    m.rings.length >= 2 && m.rings.every((g) => g.op === 'fill') && outer.every((g, i) => near(g.r - inner[i].r, m.w, 0.01) || inner[i].r === 0),
+    `stripes: ${outer.length} bands filled at ringStripeOpacity, each one scale bar wide`,
+  );
+  await select('radialRings', 'none');
+  m = await measure();
+  ok(m.rings.length === 0, "'none': no rings");
+  for (const [k, v] of [
+    ['ringWidth', '1'],
+    ['ringOpacity', '0.3'],
+    ['ringStripeOpacity', '0.08'],
+  ])
+    await setInput(k, v);
+  await ev(() => window.viewer.setOptions({ maxTipSpacing: 'auto' }));
+  await ev(() => window.viewer.fit(false));
+  await toggle('branchLengths', false);
+  await select('layout', 'rectangular');
+  ok(!query().has('s.radialRings') && !query().has('s.ringWidth'), 'back to the defaults: out of the URL');
 }
 
 console.log('summaries');

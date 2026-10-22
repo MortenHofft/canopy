@@ -29,6 +29,7 @@ import {
   drawMarkers,
   drawRing,
   drawRootPath,
+  drawRings,
   drawScaleBar,
   drawSelectionRing,
   drawMarkRings,
@@ -1950,6 +1951,7 @@ export class TreeViewer {
     ctx.beginPath();
     ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
     ctx.clip();
+    if (opts.axis) drawRings(ctx, S, opts.radialRings); // radial only; with the scale bar, their one label without an opening
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, this.theme.branchWidth);
     drawLeaders(ctx, S);

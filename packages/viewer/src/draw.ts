@@ -7,7 +7,7 @@ import { MARKER_PX } from './hit.ts';
 import { labelMinPx } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
 import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
-import type { LabelDensity, TreeTheme } from './types.ts';
+import type { LabelDensity, RadialRings, TreeTheme } from './types.ts';
 
 export interface Scene {
   proj: LayoutProjection; // the frame's tree, layout and transform (proj.tree, proj.L, proj.T) and where nodes and clades are on screen
@@ -1241,13 +1241,103 @@ export function drawAxis(ctx: CanvasRenderingContext2D, S: Scene, x0v: number, x
   ctx.restore();
 }
 
-/** Radial: a scale bar of a round length at the bottom left. */
+/** The radial scale step in tree units at `pxPerUnit`: a round length (1, 2 or 5 x 10^n) of about 90 px, the scale bar's length and
+ *  the spacing of the rings. */
+export const radialStep = (pxPerUnit: number): number => niceStep(90 / pxPerUnit);
+
+/** Radius (px) of ring j at `w` px per step: counted back from the tips (radius k) on a dated tree, out from the root otherwise. */
+const ringRadius = (dated: boolean, k: number, w: number, j: number): number => (dated ? k - j * w : j * w);
+
+/** Radial, option `radialRings`: circles about the root at the scale bar's step, behind the tree. On a dated tree they count back from
+ *  the tips (ring j at radius k - j * step px, age j * step), otherwise out from the root (radius j * step px); only radii 0..k, where the
+ *  tree is. Only the rings between the viewport's nearest and farthest radius are drawn, over the angles it covers (proj.rMin, rMax,
+ *  lo, hi): O(rings in view), nothing per node. 'lines' strokes them; 'stripes' shades the odd bands (band j between ring j and j + 1),
+ *  so the band at the tips (dated) or the root stays clear. With an opening, ring labels go along its middle where the gap fits them. */
+export function drawRings(ctx: CanvasRenderingContext2D, S: Scene, mode: RadialRings): void {
+  const proj = S.proj;
+  const { L, T } = proj;
+  if (mode === 'none' || proj.kind !== 'radial' || !L.usedLengths) return;
+  const { theme } = S;
+  const k = T.k;
+  const pxPerUnit = k / L.maxLen;
+  const step = radialStep(pxPerUnit);
+  const w = step * pxPerUnit;
+  const dated = L.ultrametric;
+  const lo = Math.max(0, proj.rMin),
+    hi = Math.min(k, proj.rMax);
+  if (lo > hi) return;
+  // the rings with a radius in lo..hi (ringRadius)
+  const eps = 1e-9;
+  const jLo = Math.ceil((dated ? k - hi : lo) / w - eps),
+    jHi = Math.floor((dated ? k - lo : hi) / w + eps);
+  const a0 = proj.all ? 0 : proj.lo,
+    a1 = proj.all ? 2 * Math.PI : proj.wrap ? proj.hi + 2 * Math.PI : proj.hi;
+  const { cx, cy } = T;
+  ctx.save();
+  ctx.fillStyle = theme.muted;
+  ctx.strokeStyle = theme.muted;
+  ctx.beginPath();
+  if (mode === 'stripes') {
+    // the bands touching lo..hi: one below jLo (it reaches up to ring jLo) through jHi
+    for (let j = Math.max(0, jLo - 1); j <= jHi; j++) {
+      if ((j & 1) === 0) continue;
+      const r0 = Math.max(0, Math.min(k, ringRadius(dated, k, w, j))),
+        r1 = Math.max(0, Math.min(k, ringRadius(dated, k, w, j + 1)));
+      ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
+      ctx.arc(cx, cy, r0, a0, a1);
+      ctx.arc(cx, cy, r1, a1, a0, true);
+      ctx.closePath();
+    }
+    ctx.globalAlpha = theme.ringStripeOpacity;
+    ctx.fill();
+  } else {
+    for (let j = jLo; j <= jHi; j++) {
+      const r = ringRadius(dated, k, w, j);
+      if (r <= 0) continue;
+      ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+      ctx.arc(cx, cy, r, a0, a1);
+    }
+    ctx.globalAlpha = theme.ringOpacity;
+    ctx.lineWidth = theme.ringWidth;
+    ctx.stroke();
+  }
+  ringLabels(ctx, S, jLo, jHi, w, step);
+  ctx.restore();
+}
+
+/** The labels of rings jLo..jHi along the middle of the radial opening (none without one): the distance or age of each, where the
+ *  opening is wider than the text at its radius, just outside its ring so the ring's line does not run through the text. */
+function ringLabels(ctx: CanvasRenderingContext2D, S: Scene, jLo: number, jHi: number, w: number, step: number): void {
+  const { theme } = S;
+  const { L, T } = S.proj;
+  const gap = 2 * Math.PI - L.fan.span; // the opening's angle
+  if (gap < 1e-6) return;
+  const mid = L.fan.start + L.fan.span / 2 + Math.PI;
+  const c = Math.cos(mid),
+    s = Math.sin(mid);
+  ctx.globalAlpha = 1;
+  ctx.font = `${theme.axisFontSize}px ${theme.fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let j = Math.max(0, jLo); j <= jHi; j++) {
+    const r = ringRadius(L.ultrametric, T.k, w, j);
+    if (r <= 0) continue;
+    const text = fmtTick(j * step, step);
+    const tw = ctx.measureText(text).width;
+    if (r * gap < tw + 6) continue;
+    // out along the ray by half the text box's extent in that direction, plus 2 px
+    const out = r + (Math.abs(c) * tw + Math.abs(s) * theme.axisFontSize) / 2 + 2;
+    ctx.fillText(text, T.cx + out * c, T.cy + out * s);
+  }
+}
+
+/** Radial: a scale bar of a round length at the bottom right. */
 export function drawScaleBar(ctx: CanvasRenderingContext2D, S: Scene): void {
   const { theme } = S;
   const { L, T } = S.proj;
   if (T.kind !== 'radial' || !L.usedLengths) return;
   const pxPerUnit = T.k / L.maxLen;
-  const step = niceStep(90 / pxPerUnit);
+  const step = radialStep(pxPerUnit);
   const w = step * pxPerUnit;
   const x = Math.max(14, T.W - w - 18),
     y = T.H - 18;

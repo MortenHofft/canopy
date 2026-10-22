@@ -146,6 +146,11 @@ export interface TreeTheme extends ResidueTheme {
   supportColour: string;
   lengthColour: string;
   axisFontSize: number;
+  /** The radial scale rings (option `radialRings`), in `muted`: line width (CSS px) and opacity of 'lines', and the opacity of the
+   *  shaded bands of 'stripes'. Their labels use `axisFontSize`. */
+  ringWidth: number;
+  ringOpacity: number;
+  ringStripeOpacity: number;
   /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
    *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
   leaderColour: string;
@@ -203,6 +208,9 @@ export const FALLBACK_THEME: TreeTheme = {
   supportColour: '',
   lengthColour: '',
   axisFontSize: 10,
+  ringWidth: 1,
+  ringOpacity: 0.3,
+  ringStripeOpacity: 0.08,
   leaderColour: '',
   leaderDash: '1 3',
   leaderWidth: 1,
@@ -336,6 +344,9 @@ export type LabelDensity = 'sparse' | 'normal' | 'dense';
  *  at the theme's `dimOpacity`; 'both' = both. */
 export type HighlightStyle = 'band' | 'dim' | 'both';
 
+/** Scale rings of the radial layout (option `radialRings`): none, circles, or every other band between them shaded. */
+export type RadialRings = 'none' | 'lines' | 'stripes';
+
 /** What is shown and how the viewer behaves (see the header: looks are `TreeTheme`). */
 export interface ViewerOptions {
   layout: LayoutKind;
@@ -417,6 +428,12 @@ export interface ViewerOptions {
    *  circle is an arch open at the bottom. With `radialOpening: 0` and `radialRotation: 0` the angles are those of a full circle from
    *  3 o'clock, as before the options existed. */
   radialRotation: number;
+  /** Radial layout with branch lengths and `axis` on only (the scale bar labels the rings): circles about the root behind the tree, at the scale bar's step (so the bar is one band
+   *  wide; zooming in subdivides them, zooming out merges them). On a dated tree (ultrametric) they count back from the tips, which are
+   *  age 0, otherwise out from the root. 'lines' draws the circles, 'stripes' shades every other band between them (theme `ringWidth`,
+   *  `ringOpacity`, `ringStripeOpacity`, colour `muted`). With an opening (`radialOpening`), each ring is labelled with its distance or
+   *  age along the middle of the opening where there is room. Default 'none'. */
+  radialRings: RadialRings;
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
@@ -459,6 +476,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   themeObserver: 'media',
   radialOpening: 0.05,
   radialRotation: 90,
+  radialRings: 'none',
   radialMaxNodes: 2000,
   interactionLOD: 'auto',
   refineMs: 120,
