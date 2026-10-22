@@ -56,7 +56,7 @@ Fixed in the packages after building this (2026-10-22; see the CHANGELOG):
 
 Node labels ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16)) were a control of our own that walked every node on each frame and put a
 length at the node, not on the branch. They are now the viewer's `nodeLabels` option, drawn from the draw list (none inside a collapsed
-clade, none for a collapsed tip, a length along the branch in the radial layout). Posterior values on the BEAST tree came with the
+clade, a collapsed clade shows its own value on its stem, a length along the branch in the radial layout). Posterior values on the BEAST tree came with the
 annotations in `@gbif-phylo/io` ([#17](https://github.com/MortenHofft/gbif-phylo/issues/17)).
 
 Still open, found in the library:
