@@ -19,9 +19,34 @@ import re
 import sys
 
 TOKEN = re.compile(r"[(),;]|[^(),;\s]+")
-NAME = re.compile(r"^(yule|birthdeath|balanced|caterpillar|bushy|mixed)_(\d+)(_nobl|_ids|_support|_nodenames)?\.nwk$")
+NAME = re.compile(r"^(yule|birthdeath|balanced|caterpillar|bushy|mixed)_(\d+)(_nobl|_ids|_support|_bootstrap|_nodenames)?\.nwk$")
+POLY = re.compile(r"^(polytomy_demo|polytomy_mixed)_(\d+)(_support)?\.nwk$")   # make_polytomy*.py
+LABEL_KIND = {"_support": "support", "_bootstrap": "support_percent", "_nodenames": "names"}
 BINOMIAL = re.compile(r"^[A-Z][a-z]+_[a-z]+$")
-COMMIT_RAW_MAX, COMMIT_GZ_MAX = 1000, 10000   # 10k: only the main (no-suffix) files, gzipped
+COMMIT_RAW_MAX, COMMIT_GZ_MAX = 1000, 10000   # 10k: the main (no-suffix) files and GZ_VARIANTS, gzipped
+GZ_VARIANTS = {"yule_10000_support.nwk", "caterpillar_10000_support.nwk"}   # used by the examples' catalogue
+
+
+def label_kind(intlabels, internal):
+    """The kind of the internal labels ('none', 'names', 'support' 0 to 1, 'support_percent' 0 to 100 when any value is above 1),
+    and for support its range and the share of values below 0.7 of the scale."""
+    if not intlabels:
+        return "none", {}
+    if len(intlabels) != internal:
+        raise ValueError("only some internal nodes labelled")
+    try:
+        vals = [float(x) for x in intlabels]
+    except ValueError:
+        if len(set(intlabels)) != len(intlabels):
+            raise ValueError("duplicate internal names")
+        return "names", {}
+    lo, hi = min(vals), max(vals)
+    if lo < 0.0 or hi > 100.0:
+        raise ValueError("support outside [0, 100]")
+    scale = 1.0 if hi <= 1.0 else 100.0
+    low = sum(1 for v in vals if v < 0.7 * scale)
+    return ("support" if scale == 1.0 else "support_percent",
+            {"support_min": lo, "support_max": hi, "support_below_0_7": round(low / len(vals), 3)})
 
 
 def scan_newick(text):
@@ -120,21 +145,7 @@ def scan_newick(text):
         raise ValueError("missing ';' or unbalanced parentheses")
     if tips == 0:
         raise ValueError("no tips")
-    kind = "none"
-    if intlabels:
-        if len(intlabels) != internal:
-            raise ValueError("only some internal nodes labelled")
-        try:
-            vals = [float(x) for x in intlabels]
-            if not all(0.0 <= v <= 1.0 for v in vals):
-                raise ValueError("support outside [0,1]")
-            kind = "support"
-        except ValueError as e:
-            if "support" in str(e):
-                raise
-            if len(set(intlabels)) != len(intlabels):
-                raise ValueError("duplicate internal names")
-            kind = "names"
+    kind, support = label_kind(intlabels, internal)
     # root is unlabelled unless internal labels exist; edge count is nodes-1 (+root if it has one)
     has_bl = nlen >= nnodes - 1 and nlen > 0
     ultra = None
@@ -146,7 +157,7 @@ def scan_newick(text):
     return {"tips": tips, "internal_nodes": internal, "nodes": nnodes, "max_depth": maxd,
             "max_degree": maxdeg, "polytomies": polytomies, "branch_lengths": has_bl,
             "ultrametric": ultra, "internal_labels": kind,
-            "tip_labels": "species" if species else "ids" if ids else "other"}, tiplabels
+            "tip_labels": "species" if species else "ids" if ids else "other", **support}, tiplabels
 
 
 def expect(cond, msg):
@@ -154,11 +165,27 @@ def expect(cond, msg):
         raise ValueError(msg)
 
 
+def check_support(suf, st):
+    """Support files: the scale the suffix names, skewed towards its top, with a tail below 0.7 of it (so that collapsing by
+    support at 0.7 changes the tree, and still keeps most of it)."""
+    expect(st["internal_labels"] == LABEL_KIND.get(suf, "none"), "internal label kind " + st["internal_labels"])
+    if st["internal_labels"].startswith("support"):
+        scale = 100.0 if st["internal_labels"] == "support_percent" else 1.0
+        expect(st["support_max"] >= 0.9 * scale, "support should reach the top of its scale")
+        expect(0.05 <= st["support_below_0_7"] <= 0.6, "share of support below 0.7 of the scale: %s" % st["support_below_0_7"])
+
+
+def check_polytomy(n, suf, st):
+    expect(st["tips"] == n, "tip count %d != %d" % (st["tips"], n))
+    expect(st["branch_lengths"] and st["max_degree"] >= 3000 and st["polytomies"] > 0, "expected a wide polytomy")
+    check_support(suf, st)
+
+
 def check_shape(shape, n, suf, st):
     expect(st["tips"] == n, "tip count %d != %d" % (st["tips"], n))
     expect(st["tip_labels"] == ("ids" if suf == "_ids" else "species"), "tip label kind " + st["tip_labels"])
     expect(st["branch_lengths"] == (suf != "_nobl"), "branch length presence")
-    expect(st["internal_labels"] == {"_support": "support", "_nodenames": "names"}.get(suf, "none"), "internal label kind")
+    check_support(suf, st)
     if shape in ("yule", "birthdeath", "balanced", "caterpillar"):
         expect(st["internal_nodes"] == n - 1 and st["max_degree"] == 2, "not fully binary")
     if shape in ("yule", "birthdeath", "balanced", "caterpillar") and st["branch_lengths"]:
@@ -190,6 +217,38 @@ def file_entry(rel, data, gzpath):
             g = f.read()
         e["gz_bytes"] = len(g)
         e["gz_sha256_gzip9n"] = hashlib.sha256(g).hexdigest()
+    return e
+
+
+def storage(f, shape, n, suf):
+    """How a file is kept: committed raw or gzipped, or generated on demand (see README)."""
+    if shape.startswith("polytomy"):
+        return "gz"
+    if n <= COMMIT_RAW_MAX:
+        return "raw"
+    return "gz" if n <= COMMIT_GZ_MAX and (not suf or f in GZ_VARIANTS) else "generate-on-demand"
+
+
+def check_newick(nd, f):
+    """Check one newick/ file by what its name says, and return its manifest entry."""
+    m = NAME.match(f) or POLY.match(f)
+    expect(m, "unexpected file name " + f)
+    shape, n, suf = m.group(1), int(m.group(2)), m.group(3) or ""
+    data, gz = read_bytes(os.path.join(nd, f))
+    text = data.decode("ascii")
+    expect(text.endswith(";\n") and text.count("\n") == 1, f + ": expected one line ending in ';'")
+    try:
+        st, _ = scan_newick(text)
+        if shape.startswith("polytomy"):
+            check_polytomy(n, suf, st)
+        else:
+            check_shape(shape, n, suf, st)
+    except ValueError as err:
+        raise ValueError("%s: %s" % (f, err))
+    e = {"shape": shape, "variant": suf or "main"}
+    e.update(st)
+    e.update(file_entry(f, data, gz))
+    e["storage"] = storage(f, shape, n, suf)
     return e
 
 
@@ -230,20 +289,7 @@ def main():
             if f.endswith(".nwk") or f.endswith(".nwk.gz"):
                 names.add(f[:-3] if f.endswith(".gz") else f)
     for f in sorted(names):
-        m = NAME.match(f)
-        expect(m, "unexpected file name " + f)
-        shape, n, suf = m.group(1), int(m.group(2)), m.group(3) or ""
-        data, gz = read_bytes(os.path.join(nd, f))
-        text = data.decode("ascii")
-        expect(text.endswith(";\n") and text.count("\n") == 1, f + ": expected one line ending in ';'")
-        st, _ = scan_newick(text)
-        check_shape(shape, n, suf, st)
-        e = {"shape": shape, "variant": suf or "main"}
-        e.update(st)
-        e.update(file_entry(f, data, gz))
-        e["storage"] = ("raw" if n <= COMMIT_RAW_MAX else
-                        "gz" if n <= COMMIT_GZ_MAX and not suf else "generate-on-demand")
-        res["newick/" + f] = e
+        res["newick/" + f] = check_newick(nd, f)
     for sub, ext in (("nexus", ".nex"), ("meta", ".tsv"), ("align", ".fasta")):
         d = os.path.join(a.root, sub)
         if not os.path.isdir(d):

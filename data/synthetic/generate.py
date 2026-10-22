@@ -361,6 +361,8 @@ def internal_labels(kids, kind, shape, n):
     if kind == "names":
         return ["n%d" % i if ch else "" for i, ch in enumerate(kids)]
     rng = Rng("support", shape, n)
+    if kind == "bootstrap":   # the same draws as "support", on a 0 to 100 scale (whole numbers, as bootstrap percentages)
+        return ["%d" % int(100.0 * (1.0 - rng.u() ** 3) + 0.5) if ch else "" for ch in kids]
     return ["%.2f" % (1.0 - rng.u() ** 3) if ch else "" for ch in kids]
 
 
@@ -507,6 +509,9 @@ def run(out, sizes, shapes, timings):
                 write_text(os.path.join(out, "newick", "%s_%d%s.nwk" % (shape, n, suf)), body + ";\n")
                 tm("write:%s_%d%s" % (shape, n, suf), t1)
             lab = tip_labels(kids, names_sp)
+            if (shape, n) == ("yule", 1000):   # one file with support as 0 to 100 instead of 0 to 1
+                write_text(os.path.join(out, "newick", "yule_1000_bootstrap.nwk"),
+                           newick_body(kids, t, lab, True, internal_labels(kids, "bootstrap", shape, n)) + ";\n")
             if shape == "yule" and n in (1000, 10000):
                 write_metadata(os.path.join(out, "meta", "yule_%d.meta.tsv" % n), shape, n, kids, t, lab)
             if shape == "yule" and n in (200, 1000):

@@ -748,6 +748,53 @@ await page.selectOption('#tree-select', 'rich-fish-carangaria-135');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
 ok(await page.locator('input[data-setting=supportCollapse]').isDisabled(), 'no support values: the switch is off');
 
+console.log('support on every synthetic tree (#55)');
+const resume = new URL(page.url()).search; // the page as it is, to come back to
+const synthetic = await ev(() => [...document.querySelectorAll('#tree-select optgroup[label=synthetic] option')].map((o) => o.value));
+ok(synthetic.length >= 4, `the synthetic trees: ${synthetic.join(', ')}`);
+for (const id of synthetic) {
+  await open(`?tree=${id}&s.nodeLabels=support`);
+  await page.waitForFunction(() => / tips/.test(document.querySelector('#tree-info').textContent), null, { timeout: 60000 });
+  await page.waitForTimeout(300);
+  const note = await page.locator('#support-note').innerText();
+  // labels need room: frame a clade of a few dozen tips, then stretch x (Shift + wheel) until a branch is long enough for one
+  const at = await ev(() => {
+    const t = window.viewer.getTree();
+    for (let i = 1; i < t.nodeCount; i++) {
+      const c = t.leafEnd[i] - t.leafStart[i];
+      if (t.firstChild[i] >= 0 && c >= 12 && c <= 40) {
+        window.viewer.zoomToNode(i);
+        return window.viewer.locateNode(i);
+      }
+    }
+    return null;
+  });
+  let texts = await drawnNodeTexts();
+  for (let k = 0; at && k < 30 && texts.length === 0; k++) {
+    await ev(({ x, y }) => {
+      const wheel = { deltaY: -300, shiftKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true };
+      document.querySelector('#tree canvas').dispatchEvent(new WheelEvent('wheel', wheel));
+    }, at);
+    texts = await drawnNodeTexts();
+  }
+  const hi = id.endsWith('-bootstrap') ? 100 : 1;
+  ok(
+    note.startsWith('Support in this tree') && texts.length > 0 && texts.every((s) => Number(s) >= 0 && Number(s) <= hi),
+    `${id}: support values drawn (${texts.slice(0, 6).join(' ')}; ${note})`,
+  );
+  const before = await nodes();
+  await toggle('supportCollapse', true);
+  await setInput('minSupport', '70');
+  await page.waitForFunction((n) => window.viewer.getTree().nodeCount < n, before, { timeout: 30000 }).catch(() => {});
+  const after = await nodes();
+  ok(
+    after < before && (await status()).includes('with low support collapsed'),
+    `${id}: collapse by support below ${hi === 1 ? 0.7 : 70} (70% of the scale) changes the tree (${before} → ${after} nodes)`,
+  );
+}
+await open(resume);
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
+
 console.log('data columns');
 await page.selectOption('#tree-select', 'syn-yule-1000');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('1,000 tips'), null, { timeout: 30000 });

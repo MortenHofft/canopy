@@ -12,7 +12,7 @@ const TREES: Record<string, { path: string; format: 'newick' | 'nexus' }> = {
   'otl-1k': { path: 'real-ladder/trees/otl-1k-testudines.nwk.gz', format: 'newick' },
   'otl-91k': { path: 'real-ladder/trees/otl-100k-vertebrata.nwk.gz', format: 'newick' },
   'gtdb-10k': { path: 'real-ladder/trees/gtdb-10k-archaea.nwk.gz', format: 'newick' },
-  'syn-yule-10000': { path: 'synthetic/newick/yule_10000.nwk.gz', format: 'newick' },
+  'syn-yule-10000': { path: 'synthetic/newick/yule_10000_support.nwk.gz', format: 'newick' },
 };
 
 export const treeIds = Object.keys(TREES);

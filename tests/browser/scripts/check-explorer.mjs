@@ -1619,6 +1619,55 @@ ok(
   'a tree with support: the control is back',
 );
 
+// every synthetic tree of the catalogue carries support (#55): Bootstrap draws values, and collapse by support at the default
+// threshold (0.7, or 70 on a 0 to 100 scale) contracts branches
+console.log('support on every synthetic tree');
+{
+  const catalogue = JSON.parse(
+    fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/shared/catalogue.json'), 'utf8'),
+  );
+  const synthetic = Object.keys(catalogue.synthetic);
+  ok(synthetic.length >= 4, `the synthetic trees: ${synthetic.join(', ')}`);
+  for (const id of synthetic) {
+    await open(id);
+    for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'support'; k++) {
+      await page.locator('.ex-labels').click(); // None, Bootstrap (the tree has support), Length
+      await page.waitForTimeout(150);
+    }
+    // labels need room: frame a clade of a few dozen tips, then stretch x (Shift + wheel) until a branch is long enough for one
+    const at = await ev(() => {
+      const t = __v().getTree();
+      for (let i = 1; i < t.nodeCount; i++) {
+        const c = t.leafEnd[i] - t.leafStart[i];
+        if (t.firstChild[i] >= 0 && c >= 12 && c <= 40) {
+          __v().zoomToNode(i);
+          return __v().locateNode(i);
+        }
+      }
+      return null;
+    });
+    let texts = await drawn();
+    for (let k = 0; at && k < 30 && texts.length === 0; k++) {
+      await ev(({ x, y }) => {
+        const wheel = { deltaY: -300, shiftKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true };
+        document.querySelector('.ex-outer canvas').dispatchEvent(new WheelEvent('wheel', wheel));
+      }, at);
+      texts = await drawn();
+    }
+    const hi = id.endsWith('-bootstrap') ? 100 : 1;
+    ok(
+      texts.length > 0 && texts.every((s) => Number(s) >= 0 && Number(s) <= hi),
+      `${id}: Bootstrap draws support values (${texts.slice(0, 6).join(' ')})`,
+    );
+    const n0 = await nodeCount();
+    await page.locator('button[aria-label="Collapse by support"]').click();
+    await page.waitForFunction((n) => __v().getTree().nodeCount < n, n0, { timeout: 30000 }).catch(() => {});
+    const thr = await page.locator('input[aria-label="Minimum support"]').inputValue();
+    const n1 = await nodeCount();
+    ok(thr === (hi === 1 ? '0.7' : '70') && n1 < n0, `${id}: collapse by support below ${thr} changes the tree (${n0} → ${n1} nodes)`);
+  }
+}
+
 // ---------------------------------------------------------------- ladderise by tips / depth / height
 console.log('ladderise by');
 await open('rich-fish-carangaria-135');
@@ -2029,7 +2078,7 @@ await open('edge-internal-support');
   const ids = new Set(groups.flatMap((g) => g[1]));
   const wanted = Object.values(catalogue).flatMap((g) => Object.keys(g));
   ok(
-    wanted.length === 20 && wanted.every((id) => ids.has(id)),
+    wanted.length === 21 && wanted.every((id) => ids.has(id)),
     `the picker lists all ${wanted.length} trees of the playground catalogue (${ids.size} in all)`,
   );
   ok(
