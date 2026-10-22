@@ -443,6 +443,24 @@ body {
   cursor: not-allowed;
 }
 
+/* the "ladderize by" select as the last segment of a group: same height and look as the buttons */
+.ex-group-select {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 8px;
+  color: var(--ex-text-2);
+  background: var(--ex-surface-10);
+  border-left: 1px solid var(--ex-surface-30);
+}
+.ex-group-select:hover:has(select:not(:disabled)) {
+  background: var(--ex-tonal);
+  color: var(--ex-primary);
+}
+.ex-group-select:focus-within {
+  outline: 2px solid var(--ex-primary);
+  outline-offset: -2px;
+}
+
 /* a group button with text, the clade chip, the selects and the number input of the newer controls */
 .ex-group button {
   gap: 5px;
@@ -480,7 +498,8 @@ body {
   border-radius: 7px;
   background: var(--ex-surface-10);
 }
-.ex-select select {
+.ex-select select,
+.ex-group-select select {
   font: inherit;
   font-size: 11.5px;
   font-weight: 500;

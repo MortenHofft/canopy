@@ -71,10 +71,10 @@ export const IconHighlight = () => (
     <path d="M4 9.5l.6-2.4 5-4.6 1.9 1.9-4.6 5z" {...s} strokeWidth="1.3" />
   </svg>
 );
-/** Ladderise by: bars of different lengths, ordered. */
-export const IconLadderBy = () => (
+/** Ladderise: bars of growing length. Ascending puts the short bar (the smallest clade) at the top; descending is the same icon mirrored vertically. */
+export const IconLadderBy = ({ descending = false }: { descending?: boolean }) => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M2 3h3M2 7h6M2 11h10" {...s} strokeWidth="1.6" />
+    <path d={descending ? 'M2 3h10M2 7h6M2 11h3' : 'M2 3h3M2 7h6M2 11h10'} {...s} strokeWidth="1.6" />
   </svg>
 );
 /** Fit to view: four corners, the geometry of the viewer's built-in fit control (its `ICONS.fit`, which the viewer does not export). */

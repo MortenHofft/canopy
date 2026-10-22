@@ -1598,6 +1598,32 @@ console.log('ladderise by');
 await open('rich-fish-carangaria-135');
 const sel = page.locator('select[aria-label="Ladderize by"]');
 ok((await sel.locator('option').allInnerTexts()).join() === 'tips,depth,height', 'Ladderize by: tips, depth, height');
+// one segmented group: ascending, descending and the "by" select, with no icon in front of the select
+ok(
+  (await page.locator('.ex-group:has(button[title^="Ladderize ascending"])').evaluate((g) => {
+    const kids = [...g.children].map((c) => c.tagName + (c.querySelector('svg') ? '+svg' : ''));
+    return kids.join() === 'BUTTON+svg,BUTTON+svg,LABEL' && g.querySelector('select[aria-label="Ladderize by"]') !== null;
+  })) === true,
+  'Ladderize: ascending, descending and the type select are one .ex-group, the select without an icon',
+);
+await sel.selectOption('tips');
+const firstClade = () =>
+  ev(() => {
+    const t = __v().getTree();
+    let n = t.tipNode[0]; // the clade under the root that holds the first tip
+    while (t.parent[n] > 0) n = t.parent[n];
+    return t.leafEnd[n] - t.leafStart[n];
+  });
+await page.locator('button[title^="Ladderize descending by"]').click();
+await page.waitForTimeout(250);
+const bigFirst = await firstClade();
+await page.locator('button[title^="Ladderize ascending by"]').click();
+await page.waitForTimeout(250);
+const smallFirst = await firstClade();
+ok(smallFirst < bigFirst, `ascending puts a smaller top-level clade first than descending (${smallFirst} < ${bigFirst})`);
+await btn('Undo').click();
+await btn('Undo').click();
+await page.waitForTimeout(250);
 const base = await ev(() => __order());
 const by = {};
 for (const k of ['tips', 'depth', 'height']) {

@@ -156,11 +156,6 @@ export const IconEraser = () => (
     <path d="M2 11h9" {...s} strokeWidth="1.4" />
   </svg>
 );
-export const IconLadderize = ({ asc }: { asc: boolean }) => (
-  <svg width="14" height="13" viewBox="0 0 14 13" fill="none">
-    <path d={asc ? 'M1 11h2M1 7.5h5M1 4h8M1 1h12' : 'M1 1h2M1 4.5h5M1 8h8M1 11h12'} {...s} strokeWidth="1.4" />
-  </svg>
-);
 export const IconExpandAll = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
     <path d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11" {...s} strokeWidth="1.4" />

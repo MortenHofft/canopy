@@ -41,7 +41,7 @@ Each control and the API behind it.
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
 | **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels, at most 5,000 matches kept |
 | **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the columns stay at full strength) |
-| Midpoint, **Ladderize ↑ ↓ by tips / depth / height** | tree-ops `midpointRoot`, `ladderise(t, { order, by })` |
+| Midpoint, **Ladderize ↑ ↓ and by tips / depth / height** (one segmented group: ascending, descending, type) | tree-ops `midpointRoot`, `ladderise(t, { order, by })` |
 | Reroot, Flip, Swap, Undo (⌘Z) | tree-ops `reroot`, `rotate`, `swap`; a history of trees, each edit a function returning a new tree. Colours, collapsed clades and the focus follow the tips (`followClades`, `remapFocus`) and the view stays (`treeMap`, the op's node map) |
 | Color mode, 12 swatches, Erase, Clear all; **Colour…** in the menu | the `clades` prop (the innermost clade's colour wins). No label is set, so the legend names a clade by its node |
 | **Bootstrap / Length / No labels**, **As percent** | `options.nodeLabels` (`'support'` reads `tree.support`, `'length'`) and `options.formatNodeLabel` (0.95 as 95; a support above 1 is left alone). The Carangaria MCC tree keeps its support as `[&posterior=…]`: `trees.json` sets `supportKey` and `trees.ts` parses it with `{ annotations: true }` and copies `supportFrom(tree, 'posterior')` into `tree.support` |

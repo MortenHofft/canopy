@@ -1152,23 +1152,22 @@ export function Explorer({
             title={`Ladderize ascending by ${ladderBy} — smallest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy }), 'Ladderize')}
           >
-            <I.IconLadderize asc />
+            <J.IconLadderBy />
           </button>
           <button
             type="button"
             title={`Ladderize descending by ${ladderBy} — largest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy, order: 'decreasing' }), 'Ladderize')}
           >
-            <I.IconLadderize asc={false} />
+            <J.IconLadderBy descending />
           </button>
+          <label
+            className="ex-group-select"
+            title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
+          >
+            <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
+          </label>
         </div>
-        <label
-          className="ex-select"
-          title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
-        >
-          <J.IconLadderBy />
-          <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
-        </label>
         <SupportGroup
           range={supportRange}
           step={supportStep}
