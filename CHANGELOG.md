@@ -10,6 +10,7 @@ These changes made the spike's custom renderer into the first library form. Noth
 - **Controls.** A control layer, and `BaseControl` for your own. Built in: `Zoom`, `Fit`, `LayoutToggle`, `Search`, `Legend`, `OverviewControl` and `defaultControls()`. The `overview` option is removed; the overview is now a control.
 - **Overlays.** `Overlay` pins an element to a node. `Tooltip` and `NodeMenu` moved from React into the core.
 - **Custom columns.** `kind: 'custom'` with a `ColumnRenderer`.
+- **tree-ops: `swap(t, a, b)` and `reorder(t, node, order)`.** Exchange two sibling branches, or give a node's children in any order (a permutation of them; `RangeError` otherwise). `rotate` stays. `examples/reactree`'s Swap now works inside polytomies, and its tree list has `edge-polytomy`.
 - **Theme.** Canvas sizes and opacities are now tokens. The theme can come from `--phylo-*` CSS custom properties (`themeFromCss`, `refreshTheme`). There is `viewer.css` for the DOM and an optional `gbif.css`.
 - **`<TreeView>`.** New `controls` prop. `theme` holds overrides only. `TreeNodeEvent` is the viewer's `TreeEvent`, so `tipRange` is now `tipStart` / `tipEnd`.
 - **No build step.** Single-file browser builds `@gbif-phylo/viewer/browser` and `@gbif-phylo/io/browser`, and `examples/no-build`, a plain HTML page with an import map, plus its browser check.

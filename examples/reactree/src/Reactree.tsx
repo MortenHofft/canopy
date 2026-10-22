@@ -322,11 +322,8 @@ export function Reactree({
         const a = swapFirst;
         setSwapFirst(null);
         if (a === v) return;
-        const p = tree.parent[v];
-        if (tree.parent[a] !== p) return flash('Swap needs two sibling branches');
-        // tree-ops reverses the children of a node; for two children that is the swap. It has no general reorder (yet).
-        if (tree.childCount[p] !== 2) return flash(`Swap inside a polytomy (${tree.childCount[p]} branches) needs a reorder tree-ops does not have`);
-        return apply((t) => ops.rotate(t, p), 'Swap');
+        if (tree.parent[a] !== tree.parent[v]) return flash('Swap needs two sibling branches');
+        return apply((t) => ops.swap(t, a, v), 'Swap');
       }
       case 'color': {
         const nodeId = 'n' + v;

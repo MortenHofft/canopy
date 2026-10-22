@@ -40,3 +40,40 @@ export function rotate(t: TreeInput, node: number): OpResult {
   for (let k = 0; k < kids.length; k++) d.nextSibling[kids[k]] = k + 1 < kids.length ? kids[k + 1] : -1;
   return result(t, d);
 }
+
+/**
+ * Give the children of `node` in the order listed. `order` must be a permutation of the node's current children (their
+ * indices in `t`); anything else throws a RangeError. Display only. `changed` is false when the order is already that one.
+ */
+export function reorder(t: TreeInput, node: number, order: ArrayLike<number>): OpResult {
+  checkNode(t, node);
+  const k = t.childCount[node];
+  if (order.length !== k) throw new RangeError(`order lists ${order.length} nodes, node ${node} has ${k} children`);
+  const seen = new Set<number>();
+  let same = true;
+  let c = t.firstChild[node];
+  for (let i = 0; i < k; i++, c = t.nextSibling[c]) {
+    const v = order[i];
+    if (!Number.isInteger(v) || v < 0 || v >= t.nodeCount || t.parent[v] !== node) throw new RangeError(`${v} is not a child of node ${node}`);
+    if (seen.has(v)) throw new RangeError(`${v} is listed twice`);
+    seen.add(v);
+    if (v !== c) same = false;
+  }
+  if (same) return identity(t);
+  const d = draftOf(t);
+  d.firstChild[node] = order[0];
+  for (let i = 0; i < k; i++) d.nextSibling[order[i]] = i + 1 < k ? order[i + 1] : -1;
+  return result(t, d);
+}
+
+/** Exchange two sibling branches `a` and `b` (same parent, different nodes); the others keep their places. Display only. */
+export function swap(t: TreeInput, a: number, b: number): OpResult {
+  checkNode(t, a);
+  checkNode(t, b);
+  if (a === b) throw new RangeError(`cannot swap node ${a} with itself`);
+  const p = t.parent[a];
+  if (p < 0 || t.parent[b] !== p) throw new RangeError(`nodes ${a} and ${b} are not siblings`);
+  const order: number[] = [];
+  for (let c = t.firstChild[p]; c >= 0; c = t.nextSibling[c]) order.push(c === a ? b : c === b ? a : c);
+  return reorder(t, p, order);
+}

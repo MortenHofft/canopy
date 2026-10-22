@@ -20,7 +20,9 @@ const wrap =
 const reroot = wrap(ops.reroot),
   midpointRoot = wrap(ops.midpointRoot),
   ladderise = wrap(ops.ladderise),
-  rotate = wrap(ops.rotate);
+  rotate = wrap(ops.rotate),
+  swap = wrap(ops.swap),
+  reorder = wrap(ops.reorder);
 const collapseClades = wrap(ops.collapseClades);
 const collapseBySupport = wrap(ops.collapseBySupport),
   collapseShortBranches = wrap(ops.collapseShortBranches),
@@ -198,6 +200,32 @@ test('ladderise and rotate change only the order', () => {
     const s = l.tree.children(i).map((c) => l.tree.tipCountOf(c));
     for (let k = 1; k < s.length; k++) assert.ok(s[k - 1] <= s[k]);
   }
+});
+
+test('swap and reorder', () => {
+  const b = parseNewick('((A:1,B:2):1,C:1);');
+  assert.equal(nwk(swap(b, tip(b, 'A'), tip(b, 'B')).tree), nwk(rotate(b, b.parent[tip(b, 'A')]).tree)); // binary: swap = rotate
+  const t = parseNewick('(a:1,b:2,(c:1,d:1)X:3,e:4,f:5)R;');
+  const [a, , x, e] = t.children(0);
+  const s = swap(t, a, e);
+  assert.equal(nwk(s.tree), '(e:4,b:2,(c:1,d:1)X:3,a:1,f:5)R;'); // exactly two branches move
+  assert.equal(s.changed, true);
+  checkModel(s.tree);
+  assert.deepEqual(splits(s.tree), splits(t));
+  assert.equal(s.tree.labels[s.map[a]], 'a'); // the map follows the nodes
+  assert.equal(swap(t, a, x).tree.children(0).length, 5);
+  const kids = t.children(0);
+  const r = reorder(t, 0, [kids[4], kids[0], kids[1], kids[2], kids[3]]);
+  assert.equal(nwk(r.tree), '(f:5,a:1,b:2,(c:1,d:1)X:3,e:4)R;');
+  assert.equal(reorder(t, 0, kids).changed, false);
+  assert.equal(reorder(t, 0, kids).tree, t);
+  assert.throws(() => reorder(t, 0, kids.slice(1)), RangeError); // too short
+  assert.throws(() => reorder(t, 0, [kids[0], kids[0], ...kids.slice(2)]), RangeError); // duplicate
+  assert.throws(() => reorder(t, 0, [...kids.slice(0, 4), x + 1]), RangeError); // not a child
+  assert.throws(() => reorder(t, 99, kids), RangeError);
+  assert.throws(() => swap(t, a, a), RangeError);
+  assert.throws(() => swap(t, a, x + 1), RangeError); // not siblings
+  assert.throws(() => swap(t, 0, a), RangeError); // the root has no siblings
 });
 
 test('collapse by support and by length', () => {
