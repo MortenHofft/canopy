@@ -92,7 +92,8 @@ for (const e of examples) {
   if (!fs.existsSync(path.join(dir, 'index.html'))) die(`${e.id}: no index.html in ${e.dir}`);
   // absolute base: Vercel (trailingSlash: false) serves /id/ as /id, where a relative ./assets would resolve from the site root
   viteBuild(dir, `/${e.id}/`, path.join(out, e.id));
-  if (e.data) files.push(...dataFiles(JSON.parse(fs.readFileSync(path.join(dir, e.data), 'utf8'))));
+  // `data`: the catalogue JSON of the page, or a list of them (the explorer reads the playground's catalogue and its own extras)
+  for (const d of [e.data ?? []].flat()) files.push(...dataFiles(JSON.parse(fs.readFileSync(path.join(dir, d), 'utf8'))));
 }
 
 // 3. the data they load

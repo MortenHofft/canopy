@@ -20,7 +20,7 @@ Examples:
 - [`examples/vanilla`](examples/vanilla): no framework, with controls, events, a custom popup and a custom column.
 - [`examples/react`](examples/react): `<TreeView>` with tree operations.
 - [`examples/playground`](examples/playground): every option, theme token and built-in control in a side panel, on any tree.
-- [`examples/explorer`](examples/explorer): the tree explorer, a styled example of the full API and an alternative to the playground (its look started from Reactree), with what could not be matched.
+- [`examples/explorer`](examples/explorer): the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree), with a table of which control uses which API.
 - [`examples/no-build`](examples/no-build): plain HTML with an import map; no bundler and no npm on the page's side. Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
 [`data/`](data); see [data/README.md](data/README.md) for what each tree is for and its licence. Design notes and the measurements behind
 the viewer are in [`docs/design`](docs/design).

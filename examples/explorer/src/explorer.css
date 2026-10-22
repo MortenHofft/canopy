@@ -44,8 +44,8 @@
   --phylo-muted: var(--ex-muted);
   --phylo-branch: var(--ex-text-2);
   --phylo-highlight: var(--ex-accent);
-  --phylo-summary: #a78bfa;
-  --phylo-summary-opacity: 0.35;
+  --phylo-summary: var(--ex-text-2); /* collapsed clades: the branch grey, faint: more tree here, not a selection or a colour */
+  --phylo-summary-opacity: 0.28;
   --phylo-highlight-opacity: 0.14;
   --phylo-font-family: var(--ex-font);
   --phylo-surface: var(--ex-surface-0);
@@ -78,7 +78,8 @@
   --ex-pop-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
   --phylo-foreground: #e2e8f0;
   --phylo-branch: #cbd5e1;
-  --phylo-summary: #a78bfa;
+  --phylo-summary: var(--ex-text-2);
+  --phylo-summary-opacity: 0.3;
   --phylo-dark: true; /* the background is transparent, so say it: the residue colours then use their dark defaults */
   color-scheme: dark;
 }
@@ -170,8 +171,8 @@ body {
   padding: 6px 12px;
   background: var(--ex-surface-0);
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow-x: auto; /* narrower than the toolbar: it scrolls sideways, keeping the two rows (thin bar, so it can be seen) */
+  scrollbar-width: thin;
   min-width: 0;
 }
 .ex-row:first-child {
@@ -208,7 +209,7 @@ body {
 .ex-slider {
   appearance: none;
   -webkit-appearance: none;
-  width: 96px;
+  width: 72px;
   height: 4px;
   border-radius: 4px;
   outline: none;
@@ -435,6 +436,103 @@ body {
   color: white;
 }
 .ex-group button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* a group button with text, the clade chip, the selects and the number input of the newer controls */
+.ex-group button {
+  gap: 5px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ex-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  color: var(--ex-violet);
+  background: color-mix(in srgb, var(--ex-violet) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ex-violet) 30%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ex-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 0 4px 0 8px;
+  color: var(--ex-text-2);
+  border: 1px solid var(--ex-surface-30);
+  border-radius: 7px;
+  background: var(--ex-surface-10);
+}
+.ex-select select {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 5px 2px;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+.ex-select select:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.ex-select:focus-within {
+  outline: 2px solid var(--ex-accent);
+  outline-offset: 1px;
+}
+.ex-select--bare {
+  padding: 0 2px 0 6px;
+  border-color: transparent;
+  background: var(--ex-surface-20);
+}
+.ex-support {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ex-num {
+  width: 58px;
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 6px;
+  color: var(--ex-text);
+  background: var(--ex-surface-10);
+  border: 1px solid var(--ex-surface-30);
+  border-radius: 7px;
+}
+.ex-num:focus-visible {
+  outline: 2px solid var(--ex-accent);
+  outline-offset: 1px;
+}
+.ex-support-n {
+  font-size: 11px;
+  color: var(--ex-muted);
+  white-space: nowrap;
+}
+.ex-note {
+  margin: 0;
+  padding: 7px 14px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ex-text-2);
+  background: color-mix(in srgb, var(--ex-violet) 7%, var(--ex-surface-0));
+  border-bottom: 1px solid var(--ex-surface-30);
+}
+.ex-swatch:disabled,
+.ex-erase:disabled {
   opacity: 0.38;
   cursor: not-allowed;
 }

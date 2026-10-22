@@ -6,15 +6,15 @@
     "title": "Playground",
     "description": "The plain viewer with every option, theme token and built-in control in one panel. Show only a clade, collapse clades or weakly supported branches. Try it on trees from 6 tips to 2.4 million, or on a file of your own. The URL keeps your settings, so a view can be shared.",
     "tags": ["@gbif-phylo/viewer", "tree-ops", "no framework", "all options"],
-    "data": "src/catalogue.json"
+    "data": "../shared/catalogue.json"
   },
   {
     "id": "explorer",
     "dir": "examples/explorer",
     "kind": "showcase",
     "title": "Tree explorer",
-    "description": "A styled example of the full API, an alternative to the playground: toolbars, modes, panels and export built on <TreeView>, tree-ops for every edit, a control of our own for node labels, and a theme made only of CSS custom properties. Its README lists what could not be matched.",
+    "description": "The styled showcase of the library, an alternative to the playground: toolbars, tools, a node menu on click, show only a clade, collapse by support, ladderise, search, overview, alignment and export, built on <TreeView> and tree-ops, with a theme made only of CSS custom properties. Every tree of the playground, up to 2.4 million tips.",
     "tags": ["React", "tree-ops", "custom theme"],
-    "data": "src/trees.json"
+    "data": ["src/trees.json", "../shared/catalogue.json"]
   }
 ]

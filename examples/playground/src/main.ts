@@ -111,7 +111,7 @@ function computeView(t: TreeModel): View {
     const before = shown.nodeCount;
     const threshold = Number(state.minSupport) * (support.hi <= 1 ? 0.01 : 1);
     const keep = collapsed.map((v) => (toView ? (toView as Int32Array)[v] : v)).filter((k) => k > 0);
-    const r = ops.collapseBySupport(shown, threshold, { keep }); // a clade the viewer collapses keeps its node
+    const r = ops.collapseBySupport(shown, threshold, { keep, extend: shown.hasLengths && shown.isUltrametric(1e-3) }); // a clade the viewer collapses keeps its node
     if (step(r)) supportCollapsed = before - shown.nodeCount;
   }
   const map = toView as Int32Array | null;

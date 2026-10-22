@@ -20,6 +20,28 @@ export interface OverlayOptions {
   readonly formatLabel: (id: string) => string;
 }
 
+/** Size and position an anchor over label `k` of the frame. */
+function place(el: HTMLElement, labels: LabelList, k: number, rect: boolean): void {
+  const h = labels.h[k];
+  const fs = Math.max(8, h - 2);
+  el.style.fontSize = fs + 'px';
+  el.style.height = h + 'px';
+  el.style.lineHeight = h + 'px';
+  if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
+  else {
+    const deg = (labels.ang[k] * 180) / Math.PI;
+    el.style.transform = labels.flip[k]
+      ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-${labels.gap[k]}px)`
+      : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
+  }
+  el.style.display = '';
+}
+
+/** Move an anchor that keeps DOM focus out of the view. */
+function park(el: HTMLElement): void {
+  el.style.transform = 'translate(-9999px,0)';
+}
+
 export class LabelOverlay {
   readonly layer: HTMLDivElement;
   readonly srList: HTMLUListElement;
@@ -58,12 +80,12 @@ export class LabelOverlay {
   update(labels: LabelList, tree: TreeSnapshot, opts: OverlayOptions, theme: TreeTheme, kind: LayoutKind): void {
     const mode = opts.tipHref ? 'a' : 'span';
     if (mode !== this.poolMode) {
-      this.clear();
+      this.clear(true);
       this.poolMode = mode;
     }
     const key = theme.fontFamily + '|' + theme.labelFontStyle;
     if (key !== this.lastKey) {
-      this.clear();
+      this.clear(true);
       this.lastKey = key;
     }
     const used = new Set<number>();
@@ -78,6 +100,7 @@ export class LabelOverlay {
       if (!el) {
         el = document.createElement(mode);
         el.dataset.tipId = id;
+        el.dataset.rank = String(r);
         el.textContent = opts.formatLabel(id);
         el.tabIndex = 0;
         el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
@@ -92,18 +115,7 @@ export class LabelOverlay {
         this.layer.appendChild(el);
         this.pool.set(r, el);
       }
-      const h = labels.h[k];
-      const fs = Math.max(8, h - 2);
-      el.style.fontSize = fs + 'px';
-      el.style.height = h + 'px';
-      el.style.lineHeight = h + 'px';
-      if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
-      else {
-        const deg = (labels.ang[k] * 180) / Math.PI;
-        el.style.transform = labels.flip[k]
-          ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-${labels.gap[k]}px)`
-          : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
-      }
+      place(el, labels, k, rect);
       el.style.display = '';
     }
     if (this.refocus !== null) {
@@ -117,13 +129,28 @@ export class LabelOverlay {
     for (const [r, el] of this.pool) {
       if (used.has(r)) continue;
       if (el === active) {
-        // keep focus alive until it moves
-        el.style.transform = 'translate(-9999px,0)';
+        // keep focus alive until it moves; off screen, so the focus outline is not left at the old place
+        park(el);
         continue;
       }
       el.remove();
       this.pool.delete(r);
     }
+  }
+
+  /** Reduced (interaction) frames skip `update`; this keeps the focused anchor, the only one with a visible outline, over its label. The
+   *  label of the frame is found by tip rank; when it is not drawn (left the view, or folded into a summary) the anchor is parked off
+   *  screen. The pool is not touched otherwise. */
+  follow(labels: LabelList, kind: LayoutKind): void {
+    const rank = (document.activeElement as HTMLElement | null)?.dataset?.rank;
+    if (rank === undefined) return; // focus is not on a label anchor
+    const r = +rank;
+    const el = this.pool.get(r);
+    if (!el || el !== document.activeElement) return;
+    let k = 0;
+    while (k < labels.count && labels.rank[k] !== r) k++;
+    if (k < labels.count) place(el, labels, k, kind === 'rectangular');
+    else park(el);
   }
 
   /** Move DOM focus to the anchor of tip `rank` when it exists (the keyboard cursor follows focus on a label). */

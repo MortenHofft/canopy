@@ -253,6 +253,23 @@ test('collapse by support and by length', () => {
   checkModel(collapseBySupport(t, 70).tree);
 });
 
+test('collapse with { extend }: the contracted length goes to the children, tip distances stay, a dated tree stays ultrametric', () => {
+  const t = parseNewick('(((A:1,B:1)95:0.5,C:1.5)40:0.25,(D:1.75,E:1.75)60:0);');
+  assert.equal(nwk(collapseBySupport(t, 50, { extend: true }).tree), '((A:1,B:1)95:0.75,C:1.75,(D:1.75,E:1.75)60:0);');
+  assert.equal(nwk(collapseBySupport(t, 99, { extend: true }).tree), '(A:1.75,B:1.75,C:1.75,D:1.75,E:1.75);', 'a chain of contractions accumulates');
+  assert.equal(nwk(collapseShortBranches(t, 0.3, { extend: true }).tree), '((A:1,B:1)95:0.75,C:1.75,D:1.75,E:1.75);');
+  assert.equal(nwk(collapseBySupport(t, 50).tree), '((A:1,B:1)95:0.5,C:1.5,(D:1.75,E:1.75)60:0);', 'without it the length is lost');
+  const f = parseNexus(fs.readFileSync(path.join(DATA, 'rich/fish-carangaria-mcc/Carangaria-MCC.tre'), 'utf8'), { annotations: true }).tree;
+  f.support.set(supportFrom(f, 'posterior'));
+  assert.ok(f.isUltrametric(1e-3), 'the MCC tree is dated');
+  const lost = new TreeModel(collapseBySupport(f, 0.9).tree);
+  const kept = new TreeModel(collapseBySupport(f, 0.9, { extend: true }).tree);
+  assert.ok(kept.nodeCount < f.nodeCount && kept.nodeCount === lost.nodeCount);
+  assert.ok(kept.isUltrametric(1e-3), 'collapse by support with extend keeps the MCC tree ultrametric');
+  assert.ok(!lost.isUltrametric(1e-3), 'and without it the tree is no longer ultrametric');
+  checkModel(collapseBySupport(f, 0.9, { extend: true }).tree);
+});
+
 test('prune: unary nodes merged, edges above the new root dropped, distances kept', () => {
   const t = parseNewick('((A:1,(B:1,C:1):2):3,(D:1,E:1):4);');
   const keep = (names) => (r) => names.includes(t.tipLabels[r]);
