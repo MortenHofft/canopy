@@ -240,3 +240,23 @@ test('radial: the same rule along the branch, at 1.01x steps', async () => {
   }
   assert.ok(seen > 30, `radial labels checked: ${seen}`);
 });
+
+// A clade the level of detail cuts as a stub while its node is in view has no stem label: only a stub pushed out of view to the right
+// does (see above). `minCladePx` above the clades' height cuts all three clades; their stems are long, so room is not what leaves them out.
+const CUT = '((a:1,b:1)x:60,(c:1,d:1)y:40,(e:50,f:50)z:20)r;';
+test('a stub cut by size, node in view: no length (with or without summaries)', async () => {
+  assert.deepEqual((await make({}, CUT).then(frame)).labels.map((l) => l.text).sort(), ['20', '40', '60'], 'uncut: all three are labelled');
+  for (const showSummaries of [false, true]) {
+    const m = await make({ showSummaries, minCladePx: 150 }, CUT);
+    const texts = frame(m).labels.map((l) => l.text);
+    assert.deepEqual(texts, [], `showSummaries ${showSummaries}: cut clades have no stem label`);
+  }
+});
+
+test('radial: a stub never gets the rectangular stub-path label', async () => {
+  const m = await make({ layout: 'radial', showSummaries: false, minCladePx: 150 }, CUT);
+  assert.deepEqual(
+    frame(m).labels.map((l) => l.text),
+    [],
+  );
+});

@@ -677,6 +677,7 @@ const lengthLabelsOff = async (vp) =>
 for (const [name, vp] of [
   ['top of the tree', { x0: 0, x1: 1, y0: 0, y1: 18 }],
   ['x zoomed in 2.5x on the right', { x0: 0.6, x1: 1, y0: 20, y1: 38 }],
+  ['x zoomed in 1.7x on the left (long stems end past the plot)', { x0: 0, x1: 0.6, y0: 0, y1: 18 }],
 ]) {
   const r = await lengthLabelsOff(vp);
   ok(
