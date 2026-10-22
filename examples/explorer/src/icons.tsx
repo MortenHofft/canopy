@@ -186,6 +186,11 @@ export const IconAlignLabels = () => (
     <path d="M11 2h3M11 5.5h3M11 9h3" {...s} strokeWidth="1.5" />
   </svg>
 );
+export const IconStripes = () => (
+  <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+    <path d="M1 1.5L13 1.5M3 4.5L13 4.5M5 7.5L13 7.5M7 10.5L13 10.5" {...s} strokeWidth="1.4" />
+  </svg>
+);
 export const IconBootstrap = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />

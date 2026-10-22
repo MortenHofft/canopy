@@ -26,6 +26,7 @@ const NUMBERS = [
   'tipRadius',
   'nodeMarkerSize',
   'summaryOpacity',
+  'summaryStripeGap',
   'markerOpacity',
   'highlightOpacity',
   'dimOpacity',
@@ -36,7 +37,7 @@ const NUMBERS = [
   'leaderOpacity',
   'alignRowGap',
 ] as const;
-const STRINGS = ['fontFamily', 'leaderColour', 'leaderDash', 'supportColour', 'lengthColour'] as const;
+const STRINGS = ['fontFamily', 'summaryStripeColour', 'leaderColour', 'leaderDash', 'supportColour', 'lengthColour'] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(

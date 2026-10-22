@@ -221,6 +221,8 @@ export class Overview {
       nodeLabels: 'none',
       formatNode: String,
       scale: h.dpr,
+      striped: false, // the strip is small: summaries stay solid
+      stripeCollapsed: false,
       thin: false,
       measure: h.measure,
     };

@@ -91,6 +91,44 @@ ok(
   'tip links → tipHref to GBIF',
 );
 
+console.log('striped summaries');
+// the playground shows the library's default (solid); the select compares solid and striped
+ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
+await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
+await select('summaryStyle', 'striped');
+ok((await opt('summaryStyle')) === 'striped' && query().get('s.summaryStyle') === 'striped', 'Striped: options.summaryStyle, and into the URL');
+await setInput('summaryStripeColour', '#ff0000');
+const redPixels = () =>
+  ev(() => {
+    const c = document.querySelector('.phylo-tree canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 170 && d[i + 2] < 170 && Math.abs(d[i + 1] - d[i + 2]) < 20) n++;
+    return n;
+  });
+const stripedRed = await redPixels();
+ok(stripedRed > 100, `striped: the summaries are stroked in the stripe colour (${stripedRed} red pixels)`);
+await select('summaryStyle', 'solid');
+ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'Solid: options.summaryStyle, out of the URL again');
+ok((await redPixels()) === 0, 'solid: no stripe colour on the canvas');
+await select('summaryStyle', 'striped');
+ok((await redPixels()) > 100, 'striped again');
+await setInput('summaryStripeGap', '10');
+ok(
+  (await theme('summaryStripeGap')) === 10 && (await redPixels()) < stripedRed,
+  'the gap token reaches the theme, and a wider gap draws fewer stripes',
+);
+await setInput('summaryStripeGap', '3');
+await toggle('stripeCollapsed', true);
+ok((await opt('stripeCollapsed')) === true, 'stripeCollapsed toggle → options.stripeCollapsed');
+await toggle('stripeCollapsed', false);
+await select('layout', 'radial');
+ok((await redPixels()) > 100, 'radial: striped too');
+await select('layout', 'rectangular');
+await select('summaryStyle', 'solid');
+await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
+await setInput('summaryStripeColour', '');
+
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');
