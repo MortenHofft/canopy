@@ -12,7 +12,7 @@ viewers, ran a spike with a test harness, and recorded measurements and the reco
 |---|---|
 | [`@gbif-phylo/viewer`](packages/viewer) | The viewer: Canvas 2D, level-of-detail rendering, rectangular and radial layouts, aligned columns, events and an imperative API. No framework. |
 | [`@gbif-phylo/react`](packages/react) | `<TreeView>`, a React component over the viewer. |
-| [`@gbif-phylo/tree-ops`](packages/tree-ops) | Tree operations a user applies: reroot, midpoint root, ladderise, rotate, collapse, prune, subtree. No rendering. |
+| [`@gbif-phylo/tree-ops`](packages/tree-ops) | Tree operations a user applies: reroot, midpoint root, ladderise, rotate, swap, reorder, collapse, prune, subtree. No rendering. |
 | [`@gbif-phylo/io`](packages/io) | Newick and NEXUS parsers, a Newick writer and the `TreeModel` they produce. |
 
 Examples:

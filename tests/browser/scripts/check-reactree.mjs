@@ -400,6 +400,24 @@ ok(
   'Ctrl+F opens the search',
 );
 
+// ---------------------------------------------------------------- swap inside a polytomy
+console.log('swap in a polytomy');
+await open('edge-polytomy');
+const tipOrder = () => ev(() => __order().split(','));
+ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'the 5-way polytomy starts as A B C D E');
+await btn('Swap').click();
+await click(await ev(() => __tipAt('A')));
+await click(await ev(() => __tipAt('D')));
+await page.waitForTimeout(200);
+const swapped = await tipOrder();
+ok(swapped.slice(0, 5).join('') === 'DBCAE', 'Swap of A and D in the polytomy moves only those two');
+ok(swapped.slice(5).join() === 'F,G,H,I,J', 'the rest of the tree is unchanged');
+await page.keyboard.press('Escape');
+await page.locator('.phylo-tree').focus();
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(200);
+ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'Ctrl+Z undoes the swap');
+
 // ---------------------------------------------------------------- alignment
 console.log('alignment');
 await open('rich-hcv-19');

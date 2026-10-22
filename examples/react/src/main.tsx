@@ -178,7 +178,7 @@ function App() {
       .map((f) => f.node)
       .filter((m) => m >= 0 && next.childCount[m] > 0);
     // so does the focus (a focused clade the operation split is left: back skips it)
-    const keptFocus = ops.remapFocus(focus, { before: tree, after: next, map: r.map });
+    const keptFocus = ops.remapFocus(focus, tree, next, r.map);
     setClades(kept);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);

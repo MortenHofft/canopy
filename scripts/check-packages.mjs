@@ -80,6 +80,17 @@ const SCENARIOS = [
     forbid: ['packages/tree-ops/dist/rooting.js', 'packages/tree-ops/dist/collapse.js', 'packages/tree-ops/dist/subset.js'],
   },
   {
+    name: 'tree-ops: followClade, composeMaps only',
+    code: `import { followClade, composeMaps } from '@gbif-phylo/tree-ops'; console.log(followClade, composeMaps);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+    ],
+  },
+  {
     name: 'viewer: TreeViewer',
     code: `import { TreeViewer } from '@gbif-phylo/viewer'; console.log(TreeViewer);`,
     forbid: [
