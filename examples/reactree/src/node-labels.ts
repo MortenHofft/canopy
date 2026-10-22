@@ -14,7 +14,6 @@ const MIN_ROW_PX = 11; // rectangular: no labels while tip rows are closer than 
 export class NodeLabels extends BaseControl {
   private mode: NodeLabelMode = 'none';
   private pool: HTMLSpanElement[] = [];
-  private skipped: ReadonlySet<number> = new Set();
 
   constructor() {
     super('rt-node-labels', { position: 'custom' });
@@ -24,12 +23,6 @@ export class NodeLabels extends BaseControl {
 
   setMode(mode: NodeLabelMode): void {
     this.mode = mode;
-    this.place();
-  }
-
-  /** Tips of the shown tree that stand for collapsed clades: they get no length (it is the clade's edge plus its height, not an original edge). */
-  setSkipped(nodes: ReadonlySet<number>): void {
-    this.skipped = nodes;
     this.place();
   }
 
@@ -61,7 +54,7 @@ export class NodeLabels extends BaseControl {
             text = String(Math.round(sup * 100) / 100);
           } else {
             const len = t.length[i];
-            if (Number.isNaN(len) || this.skipped.has(i)) continue;
+            if (Number.isNaN(len)) continue;
             text = len.toPrecision(3).replace(/\.?0+$/, '');
           }
           const id = t.globalId ? t.globalId[i] : i;

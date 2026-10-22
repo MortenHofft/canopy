@@ -162,7 +162,7 @@ export class Overview {
       b.border = `1.5px solid ${theme.highlight}`;
       b.background = `color-mix(in srgb, ${theme.highlight} 14%, transparent)`;
     }
-    const r = overviewBox(h.layout, g, h.view, h.tree.tipCount);
+    const r = overviewBox(h.layout, g, h.view, h.L.rows);
     b.left = r.x + 'px';
     b.top = r.y + 'px';
     b.width = r.w + 'px';
@@ -187,7 +187,7 @@ export class Overview {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, g.w, g.h);
     const rect = h.layout === 'rectangular';
-    const N = h.tree.tipCount;
+    const N = h.L.rows; // rows: the overview shows the collapsed clades as the viewer does
     const area: Area = rect
       ? { ax: 2, ay: 0, aw: g.w - 4, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h }
       : { ax: 0, ay: 0, aw: g.w, ah: g.h, clipL: 0, clipT: 0, clipR: g.w, clipB: g.h };
@@ -213,11 +213,11 @@ export class Overview {
       classOf: h.classOf,
       highlight: null,
       hlPrefix: null,
-      collapsed: null,
       hlRanks: new Int32Array(0),
       alignLabels: false,
       density: 'sparse',
       format: (id) => h.formatLabel(id),
+      cladeText: null,
       scale: h.dpr,
       thin: false,
       measure: h.measure,
@@ -226,7 +226,8 @@ export class Overview {
     const hlRanks = h.hlRanks;
     if (rect && hlRanks.length) {
       ctx.fillStyle = h.theme.highlight;
-      for (let k = 0; k < hlRanks.length && k < 2000; k++) ctx.fillRect(0, (hlRanks[k] / N) * g.h - 1, g.w, 2.5);
+      const rowOf = h.L.rowOfRank;
+      for (let k = 0; k < hlRanks.length && k < 2000; k++) ctx.fillRect(0, ((rowOf ? rowOf[hlRanks[k]] : hlRanks[k]) / N) * g.h - 1, g.w, 2.5);
     }
   }
 
@@ -249,7 +250,7 @@ export class Overview {
     const g = this.geom();
     if (!g) return;
     const r = this.wrap.getBoundingClientRect();
-    h.setViewport(overviewTarget(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.view, h.tree.tipCount));
+    h.setViewport(overviewTarget(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.view, h.L.rows));
   }
 
   private onDown = (e: PointerEvent) => {
@@ -277,7 +278,7 @@ export class Overview {
     e.stopPropagation(); // the control layer would forward it to the tree's wheel, which anchors at the pointer in the plot
     h.noteInput();
     const r = this.wrap.getBoundingClientRect();
-    const p = overviewWorldPoint(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.tree.tipCount);
+    const p = overviewWorldPoint(h.layout, g, e.clientX - r.left, e.clientY - r.top, h.L.rows);
     h.zoomAtWorld(z.fx, z.fy, p.x, p.y);
   };
   private onUp = (e: PointerEvent) => {

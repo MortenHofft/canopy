@@ -35,7 +35,7 @@ import {
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { InputController, type InputHost } from './input.ts';
-import { computeLayout, ensureTrig, type Layout } from './layout.ts';
+import { computeLayout, ensureTrig, remapRow, type Layout } from './layout.ts';
 import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
@@ -192,7 +192,7 @@ export class TreeViewer {
   private hlPrefix: Int32Array | null = null;
   private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
-  private collapsedRank: Uint8Array | null = null; // by tip rank: 1 = the tip stands for a collapsed clade
+  private collapsedMask: Uint8Array | null = null; // by row of the snapshot: 1 = a clade to collapse (what computeLayout reads), null = none
   private list = new DrawList();
   private seen = new Seen();
   private hit: HitIndex;
@@ -365,7 +365,6 @@ export class TreeViewer {
         axis: () => this.opts.axis,
         rowHeight: () => this.opts.rowHeight,
         alignLabels: () => this.opts.alignLabels,
-        hasCollapsed: () => this.collapsedRank !== null,
         W: () => this.W,
         H: () => this.H,
         tree: () => this.tree,
@@ -429,6 +428,7 @@ export class TreeViewer {
         area: () => this.vs.area,
         view: () => this.vs.view,
         tree: () => this.tree,
+        L: () => this.L,
         activeNode: () => this.activeNode,
         hovering: () => this.hoverNode >= 0,
       },
@@ -451,7 +451,7 @@ export class TreeViewer {
           this.activeNode = -1;
           this.topDirty = true;
           this.schedule();
-          this.emitNode('click', makeNodeEvent(this.tree, h.node, h.kind, 'pointer', clientX, clientY, h.run));
+          this.emitNode('click', makeNodeEvent(this.tree, h.node, h.kind, 'pointer', clientX, clientY, h.run, this.L.collapsed));
         },
         hover: (p) => {
           this.pendingHover = p;
@@ -467,7 +467,8 @@ export class TreeViewer {
           const tree = this.tree; // after renderNow: it may have picked up a new snapshot
           this.proj.nodeXY(node, p);
           const r = this.root.getBoundingClientRect();
-          this.emitNode('click', makeNodeEvent(tree, node, tree.childCount[node] === 0 ? 'tip' : 'node', 'keyboard', r.left + p.x, r.top + p.y));
+          const kind = tree.childCount[node] === 0 ? 'tip' : this.L.collapsed?.[node] === 1 ? 'summary' : 'node';
+          this.emitNode('click', makeNodeEvent(tree, node, kind, 'keyboard', r.left + p.x, r.top + p.y, undefined, this.L.collapsed));
         },
       },
     );
@@ -487,12 +488,12 @@ export class TreeViewer {
     if (v === this.srcVersion || this.destroyed) return;
     this.srcVersion = v;
     this.tree = this.source.snapshot();
+    this.applyCollapsed(); // the mask first: the layout reads it
     this.layouts.clear();
     this.L = this.layoutFor(this.opts.branchLengths);
     this.rebuildProj();
     this.hit = new HitIndex();
     this.applyClades();
-    this.applyCollapsed();
     this.resolveHighlights(); // tips that were not loaded when the ids were passed may be now (and the dim state follows)
     this.activeNode = -1;
     this.clearHover();
@@ -621,27 +622,28 @@ export class TreeViewer {
       this.invalidate();
     });
     this.detail = new DetailLoader(this.source, () => this.invalidate());
-    this.layouts.clear();
-    this.L = this.layoutFor(this.opts.branchLengths);
-    this.rebuildProj();
-    this.hit = new HitIndex();
     this.vs.cancelAnim();
     this.vs.resetLabelReserve();
     this.input.endGesture(); // a drag started on the old tree would go on moving the new one
 
     // ---- what is keyed by node or rank
     const rm = (n: number) => (map ? (n >= 0 && n < map.length ? map[n] : -1) : n);
+    // the collapsed clades first: the layout of the new tree reads them
+    if (o.collapsed) this.storeCollapsed(o.collapsed);
+    else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
+    this.applyCollapsed();
+    this.layouts.clear();
+    this.L = this.layoutFor(this.opts.branchLengths);
+    this.rebuildProj();
+    this.hit = new HitIndex();
     const cladesChanged = o.clades
       ? this.storeClades(o.clades)
       : map
         ? this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0))
         : false;
-    if (o.collapsed) this.storeCollapsed(o.collapsed);
-    else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
     if (o.highlighted) this.hlIds = o.highlighted.slice();
     const hlChanged = this.hlIds.length !== oldHl.length || this.hlIds.some((id, i) => id !== oldHl[i]);
     this.applyClades();
-    this.applyCollapsed();
     this.resolveHighlights(); // also drops the dim prefix, which is as long as the old tree
     if (this.columns.length) {
       this.columns = updateColumns(
@@ -970,14 +972,17 @@ export class TreeViewer {
     this.colours = colours;
   }
 
-  /** Tips (node ids) that stand for collapsed clades, drawn as a triangle instead of a dot with the label moved past it. Collapsing
-   *  itself happens in the data (the page replaces the clade by one tip, e.g. with tree-ops' collapseClades); this only marks such
-   *  tips. Ids that are not tips are ignored. No-op for the same ids in the same order. */
-  setCollapsed(nodes: number[]): void {
-    if (!this.storeCollapsed(nodes)) return;
-    this.applyCollapsed();
-    this.sceneVersion++;
-    this.invalidate();
+  /** Collapse these clades in the view: each is drawn as one triangle on ONE row of its own (the rows of its tips are freed), at the clade's
+   *  place in the tree, its depth ending at its deepest tip (so a dated tree keeps its axis), and is never opened by the level of detail.
+   *  `nodeIds` are the preorder ids of the full tree, the same ids as everywhere in the API: colours, highlights, events and `zoomToNode`
+   *  keep speaking them, and the tree is not changed. Ids that are not internal nodes (tips, unknown ids) are ignored, and a clade inside a
+   *  collapsed one is hidden by it. A click or hover on a collapsed clade reports `kind: 'summary'`, `node` = the clade and
+   *  `collapsed: true`. The window keeps its scale and the clades in it; a view that fits the whole tree is fitted again. Selection of
+   *  the keyboard cursor and hover are reset. No-op for the same ids in the same order. A partially loaded source cannot collapse clades.
+   *  Collapsing only draws less: `focusTip` on a tip inside a collapsed clade focuses the clade, columns draw nothing on its row. */
+  setCollapsed(nodeIds: number[]): void {
+    if (!this.storeCollapsed(nodeIds)) return;
+    this.relayoutCollapsed();
   }
 
   private storeCollapsed(nodes: number[]): boolean {
@@ -987,16 +992,65 @@ export class TreeViewer {
     return true;
   }
 
+  /** The mask of `collapsedNodes` by row of the snapshot (the layout reads it): internal nodes only, none for a partially loaded tree. */
   private applyCollapsed(): void {
     const t = this.tree;
-    let marks: Uint8Array | null = null;
-    for (const n of this.collapsedNodes) {
-      const r = this.rowOf(n);
-      if (r < 0 || t.childCount[r] !== 0) continue;
-      marks ??= new Uint8Array(t.tipCount);
-      marks[t.tipRank[r]] = 1;
+    let mask: Uint8Array | null = null;
+    if (t.rollup === null && t.stub === null)
+      for (const n of this.collapsedNodes) {
+        const r = this.rowOf(n);
+        if (r < 0 || t.childCount[r] === 0) continue;
+        mask ??= new Uint8Array(t.nodeCount);
+        mask[r] = 1;
+      }
+    this.collapsedMask = mask;
+  }
+
+  /** The collapsed set changed: new layout, and the window carried over to it. */
+  private relayoutCollapsed(): void {
+    const before = this.L;
+    this.applyCollapsed();
+    this.layouts.clear();
+    this.L = this.layoutFor(this.opts.branchLengths);
+    if (before.collapsed === null && this.L.collapsed === null) {
+      this.rebuildProj();
+      return; // nothing collapsed before or after (e.g. only tips passed)
     }
-    this.collapsedRank = marks;
+    const vs = this.vs;
+    const rect = this.opts.layout === 'rectangular';
+    const v = { ...vs.view };
+    this.activeNode = -1;
+    this.pendingHover = null;
+    this.clearHover();
+    this.hit.invalidate();
+    this.minPxHint = 0;
+    this.sceneVersion++;
+    if (vs.fitted) this.fit(false);
+    else if (rect) {
+      // same scale (rows in view) around the place the centre was at: the same clade stays in the middle
+      const h = v.y1 - v.y0;
+      const yc = remapRow((v.y0 + v.y1) / 2, before, this.L);
+      vs.setViewport({ ...v, y0: yc - h / 2, y1: yc + h / 2 });
+    } else {
+      // the angle of the window's centre follows its row; the scale and the radius stay
+      const cx = (v.x0 + v.x1) / 2,
+        cy = (v.y0 + v.y1) / 2;
+      const rho = Math.hypot(cx, cy);
+      if (rho > 1e-6) {
+        const full = 2 * Math.PI;
+        const th = (Math.atan2(cy, cx) + full) % full;
+        const th2 = (remapRow((th / full) * before.rows, before, this.L) / this.L.rows) * full;
+        const nx = rho * Math.cos(th2),
+          ny = rho * Math.sin(th2);
+        vs.setViewport({ x0: nx - (cx - v.x0), x1: nx + (v.x1 - cx), y0: ny - (cy - v.y0), y1: ny + (v.y1 - cy) });
+      }
+    }
+    // the transform of the last frame counts rows too (the radial angle step): positions asked before the next frame use the new ones
+    if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, vs.view, vs.area, this.L.rows);
+    this.rebuildProj();
+    this.hit.invalidate();
+    this.invalidate(true);
+    this.overlay.scheduleList();
   }
 
   /** No-op when the ids equal (element-wise, in order) the last ones passed; the array is copied, so mutating it later cannot hide a change. */
@@ -1114,10 +1168,13 @@ export class TreeViewer {
     this.vs.zoomBy(fx, fy, px, py);
   }
 
+  /** Bring the tip of this rank into view at a readable size. A tip inside a collapsed clade is not drawn: the clade is brought into view
+   *  instead (nothing is expanded). */
   focusTip(rank: number, animate = false): void {
     if (rank < 0 || rank >= this.tree.tipCount) return;
-    const node = this.tree.tipNode[rank];
+    let node = this.tree.tipNode[rank];
     if (node < 0) return; // the tip's row is not loaded
+    if (this.L.rowNode && this.L.rowOfRank) node = this.L.rowNode[this.L.rowOfRank[rank]]; // inside a collapsed clade: the clade
     this.activeNode = -1;
     this.vs.setViewport(this.vs.focusViewport(node), animate);
   }
@@ -1140,6 +1197,7 @@ export class TreeViewer {
     const e = this.findInList(i);
     const isTip = this.tree.childCount[i] === 0;
     if (e < 0 && !isTip) return null;
+    if (this.L.hidden?.[i]) return null; // inside a collapsed clade: not drawn
     const p = { x: 0, y: 0 };
     this.proj.nodeXY(i, p);
     const m = isTip ? 0 : 1; // a tip row at the very edge of the fit view still counts as in view
@@ -1150,10 +1208,11 @@ export class TreeViewer {
 
   /** Where node `id` is under the current view, in px relative to the viewer element, without drawing a frame (so it is cheap enough
    *  for a `frame` or `viewchange` listener); null when the node is not loaded, there is no frame yet, or it lies outside the plot area.
-   *  Unlike `locateNode`, an internal node hidden inside a collapsed summary still gets its position. */
+   *  Unlike `locateNode`, an internal node that the level of detail summarised still gets its position. A node inside a clade the app
+   *  collapsed (`setCollapsed`) has none: null. */
   nodePosition(id: number): { x: number; y: number } | null {
     const i = this.rowOf(id);
-    if (i < 0 || !this.T || !this.proj) return null;
+    if (i < 0 || !this.T || !this.proj || this.L.hidden?.[i]) return null;
     const p = { x: 0, y: 0 };
     this.proj.nodeXY(i, p);
     const T = this.T;
@@ -1165,7 +1224,7 @@ export class TreeViewer {
   nodeBounds(id: number): { x: number; y: number; width: number; height: number } | null {
     this.renderNow();
     const i = this.rowOf(id);
-    if (i < 0) return null;
+    if (i < 0 || this.L.hidden?.[i]) return null;
     const T = this.T;
     let x0: number, y0: number, x1: number, y1: number;
     const isTip = this.tree.childCount[i] === 0;
@@ -1179,11 +1238,11 @@ export class TreeViewer {
     } else if (T.kind === 'rectangular') {
       x0 = T.ox + this.L.X[i] * T.kx;
       x1 = T.ox + this.L.XMAX[i] * T.kx;
-      y0 = T.oy + this.tree.leafStart[i] * T.ky;
-      y1 = T.oy + this.tree.leafEnd[i] * T.ky;
+      y0 = T.oy + this.L.rowStart[i] * T.ky;
+      y1 = T.oy + this.L.rowEnd[i] * T.ky;
     } else {
       const bb = new Float64Array(4);
-      sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, this.tree.leafStart[i] * T.da, this.tree.leafEnd[i] * T.da, bb);
+      sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, this.L.rowStart[i] * T.da, this.L.rowEnd[i] * T.da, bb);
       x0 = bb[0];
       y0 = bb[1];
       x1 = bb[2];
@@ -1202,7 +1261,7 @@ export class TreeViewer {
     this.renderNow();
     const c = this.columns.find((k) => k.spec.id === colId);
     if (!c) return null;
-    const rc = cellRect(c, rank, this.T);
+    const rc = cellRect(c, rank, this.T, this.L.rowOfRank, this.L.rankOfRow);
     if (!rc) return null;
     const r = this.root.getBoundingClientRect();
     return { x: r.left + rc.x, y: r.top + rc.y, width: rc.width, height: rc.height };
@@ -1337,7 +1396,7 @@ export class TreeViewer {
     let L = this.layouts.get(lengths);
     if (!L) {
       if (this.layouts.size >= 2) this.layouts.delete([...this.layouts.keys()][0]);
-      L = computeLayout(this.tree, lengths);
+      L = computeLayout(this.tree, lengths, this.collapsedMask);
       this.layouts.set(lengths, L);
     }
     return L;
@@ -1440,7 +1499,7 @@ export class TreeViewer {
     if (!rect) ensureTrig(L);
     const vs = this.vs;
     vs.computeArea();
-    this.T = makeTransform(opts.layout, W, H, vs.view, vs.area, tree.tipCount);
+    this.T = makeTransform(opts.layout, W, H, vs.view, vs.area, L.rows);
     this.proj = projectionFor(tree, L, this.T);
     const T = this.T;
     const ctx = this.ctx;
@@ -1531,10 +1590,10 @@ export class TreeViewer {
       highlight: bands ? this.hl : null,
       hlRanks: bands ? this.hlRanks : NO_RANKS,
       hlPrefix: dimming ? this.dimPrefix() : null,
-      collapsed: this.collapsedRank,
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
       format: opts.formatLabel,
+      cladeText: (row) => cladeName(tree, row, opts) ?? `${(tree.leafEnd[row] - tree.leafStart[row]).toLocaleString('en')} tips`,
       scale,
       thin: !rect && this.list.count >= THIN_PRIMS,
       measure: this.measurer,
@@ -1551,7 +1610,7 @@ export class TreeViewer {
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle, rankOfRow: this.L.rankOfRow });
       if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
     } else if (opts.axis) drawScaleBar(ctx, S);
   }
@@ -1598,8 +1657,8 @@ export class TreeViewer {
         c.globalAlpha = 0.5;
         c.lineWidth = 1;
         const ky = this.T.ky;
-        const y0 = this.T.oy + this.tree.leafStart[this.activeNode] * ky,
-          y1 = this.T.oy + this.tree.leafEnd[this.activeNode] * ky;
+        const y0 = this.T.oy + this.L.rowStart[this.activeNode] * ky,
+          y1 = this.T.oy + this.L.rowEnd[this.activeNode] * ky;
         if (y1 - y0 > 3 && this.tree.childCount[this.activeNode] > 0)
           c.strokeRect(p.x, Math.max(this.T.clipT, y0), Math.max(4, this.T.clipR - p.x - 4), Math.min(this.T.clipB, y1) - Math.max(this.T.clipT, y0));
         c.globalAlpha = 1;
@@ -1618,9 +1677,8 @@ export class TreeViewer {
     const L = this.labels;
     if (this.T.kind === 'rectangular') {
       for (let k = 0; k < L.count; k++) {
-        // from 2 px before the text, or from the tip when a collapsed-clade triangle sits between them
-        const from = L.gap[k] > 8 ? L.x[k] - L.gap[k] : L.x[k] - 2;
-        if (x >= from && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2) return { node: this.tree.tipNode[L.rank[k]], kind: 'tip' };
+        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2)
+          return L.rank[k] >= 0 ? { node: this.tree.tipNode[L.rank[k]], kind: 'tip' } : { node: -L.rank[k] - 1, kind: 'summary' }; // a collapsed clade's label is the clade
       }
     }
     return this.hit.query(x, y, this.proj);
@@ -1655,7 +1713,7 @@ export class TreeViewer {
     this.hoverKind = h ? h.kind : '';
     this.root.style.cursor = h ? 'pointer' : 'grab';
     this.topDirty = true;
-    this.emitNode('hover', h ? makeNodeEvent(this.tree, h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y, h.run) : null);
+    this.emitNode('hover', h ? makeNodeEvent(this.tree, h.node, h.kind, 'pointer', r.left + p.x, r.top + p.y, h.run, this.L.collapsed) : null);
   }
 
   /** Clear the hover (the pointer left, or a drag started). */

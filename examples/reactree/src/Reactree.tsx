@@ -27,9 +27,6 @@ interface Step {
   map?: Int32Array;
 }
 
-/** The ids 0..n-1 as a node map. */
-const identity = (n: number) => Int32Array.from({ length: n }, (_, i) => i);
-
 const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -116,54 +113,21 @@ export function Reactree({
   const [toast, setToast] = useState<string | null>(null);
   const [height, setHeight] = useState(defaultHeight);
 
-  // ---- what is shown: the current tree with its collapsed clades replaced by one tip each (a view; edits apply to `tree`)
-  const view = useMemo(() => {
-    const live = collapsed.filter((v) => v > 0 && v < tree.nodeCount);
-    if (!live.length) return null;
-    // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
-    // on a dated (ultrametric) tree the triangle's tip is lengthened to the present, so the shown tree stays dated and the axis stays
-    const r = ops.collapseClades(tree, live, undefined, { extend: tree.isUltrametric(1e-3) });
-    const shown = new TreeModel(r.tree);
-    return { tree: shown, toView: r.map, toTree: ops.invertMap(r.map, shown.nodeCount), collapsedIds: live.map((v) => 'n' + r.map[v]) };
-  }, [tree, collapsed]);
-  const shown = view?.tree ?? tree;
-  const toTree = useCallback((n: number) => (view ? view.toTree[n] : n), [view]);
-  // where clades nest the viewer lets the innermost colour win, as Reactree does
-  const shownClades = useMemo(
-    () =>
-      view
-        ? clades.flatMap((c) => {
-            const k = view.toView[Number(c.nodeId.slice(1))];
-            return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
-          })
-        : clades,
-    [clades, view],
-  );
+  // ---- what is shown: the current tree, as it is. Collapsing is the viewer's (`collapsed` below, ids of `tree`), so a click, a tooltip
+  // and a colour all speak the ids of `tree`, and collapsing does not touch the zoom.
+  const collapsedIds = useMemo(() => collapsed.filter((v) => v > 0 && v < tree.nodeCount).map((v) => 'n' + v), [collapsed, tree]);
 
-  // What the viewer is told when `shown` changes, so it keeps the view: shown (before) -> tree (before) -> tree (now) -> shown (now),
-  // each leg a node map (collapsing a clade changes `shown` and not `tree`; an edit changes `tree`). The `shown` of the last commit is
-  // kept in a ref written after the commit.
-  const lastShown = useRef({ shown, tree, toTree: view?.toTree ?? null });
+  // What the viewer is told when `tree` changes, so it keeps the view: the node map of the edit (Undo: its inverse). The `tree` of the
+  // last commit is kept in a ref written after the commit.
+  const lastTree = useRef(tree);
   const treeMap = useMemo(() => {
-    const prev = lastShown.current;
-    if (prev.shown === shown) return undefined;
-    let leg: Int32Array | null = null;
-    if (prev.tree !== tree) {
-      if (!move || move.from !== prev.tree || move.to !== tree) return undefined; // not an edit we know the map of: fit
-      leg = move.map;
-    }
-    const a = prev.toTree ?? identity(prev.shown.nodeCount);
-    const b = leg ?? identity(tree.nodeCount);
-    const c = view?.toView ?? identity(tree.nodeCount);
-    try {
-      return ops.composeMaps(ops.composeMaps(a, b), c);
-    } catch {
-      return undefined;
-    }
-  }, [shown, tree, view, move]);
+    const prev = lastTree.current;
+    if (prev === tree) return undefined;
+    return move && move.from === prev && move.to === tree ? move.map : undefined; // not an edit we know the map of: fit
+  }, [tree, move]);
   useLayoutEffect(() => {
-    lastShown.current = { shown, tree, toTree: view?.toTree ?? null };
-  }, [shown, tree, view]);
+    lastTree.current = tree;
+  }, [tree]);
 
   const hasSupport = useMemo(() => tree.support.some((s) => !Number.isNaN(s)), [tree]);
   const hasTruncatable = useMemo(() => published.tipLabels.some((l) => l.length > TRUNCATE_AT), [published]);
@@ -179,8 +143,8 @@ export function Reactree({
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return shown.tipLabels.filter((l) => l.replace(/_/g, ' ').toLowerCase().includes(q));
-  }, [query, shown]);
+    return tree.tipLabels.filter((l) => l.replace(/_/g, ' ').toLowerCase().includes(q));
+  }, [query, tree]);
   const current = matches.length ? matches[((matchIdx % matches.length) + matches.length) % matches.length] : null;
   const [focusSeq, setFocusSeq] = useState(0);
   useEffect(() => setFocusSeq((s) => s + 1), [current]);
@@ -223,8 +187,6 @@ export function Reactree({
   const nodeLabels = useMemo(() => new NodeLabels(), []);
   const controls = useMemo<Control[]>(() => [nodeLabels], [nodeLabels]);
   useEffect(() => nodeLabels.setMode(labelMode), [nodeLabels, labelMode]);
-  const collapsedIds = view?.collapsedIds;
-  useEffect(() => nodeLabels.setSkipped(new Set((collapsedIds ?? []).map((id) => Number(id.slice(1))))), [nodeLabels, collapsedIds]);
 
   // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
   const fitted = useRef<Viewport | null>(null);
@@ -253,7 +215,7 @@ export function Reactree({
   useLayoutEffect(() => {
     const r = ref.current?.renderer();
     if (r && fitted.current) fitted.current = r.fitViewport();
-  }, [shown]);
+  }, [tree, collapsedIds]);
   useEffect(applyScales, [hScale, vScale, applyScales]);
   // a new layout, tree type, label size or column changes what "fitted" is
   useEffect(() => {
@@ -333,15 +295,15 @@ export function Reactree({
   // ---- clicks: what a click does depends on the mode, as in Reactree
   const onClick = (e: TreeNodeEvent) => {
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
-    const v = toTree(e.node);
-    const isCollapsed = e.isTip && tree.childCount[v] > 0;
-    const name = e.isTip ? shown.labels[e.node] : `${tree.tipCountOf(v)} taxa`;
+    const v = e.node;
+    const isCollapsed = e.collapsed;
+    const name = e.isTip ? tree.labels[v] : `${tree.tipCountOf(v)} taxa`;
     switch (mode) {
       case 'reroot':
         if (v === 0) return flash('Already the root');
         return apply((t) => ops.reroot(t, v), 'Reroot');
       case 'flip':
-        if (e.isTip && !isCollapsed) return flash('Flip needs an internal node');
+        if (e.isTip) return flash('Flip needs an internal node');
         return apply((t) => ops.rotate(t, v), 'Flip');
       case 'swap': {
         if (v === 0) return flash('The root has no sibling');
@@ -370,9 +332,9 @@ export function Reactree({
   // the hover box says what a click would do
   const tooltip = (e: TreeNodeEvent) => {
     if (e.run) return null;
-    const v = toTree(e.node);
-    const isCollapsed = e.isTip && tree.childCount[v] > 0;
-    const name = e.isTip && !isCollapsed ? formatLabel(shown.labels[e.node]) : `${tree.tipCountOf(v)} taxa`;
+    const v = e.node;
+    const isCollapsed = e.collapsed;
+    const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} taxa`;
     const tag = (cls: string, icon: React.ReactNode, text: React.ReactNode) => (
       <span className={`rt-tip rt-tip--${cls}`}>
         {icon}
@@ -802,13 +764,13 @@ export function Reactree({
       <div className="rt-pane" style={{ height }}>
         <TreeView
           ref={ref}
-          tree={shown}
+          tree={tree}
           treeMap={treeMap}
           layout={layout}
           branchLengths={phylogram}
-          clades={shownClades}
+          clades={clades}
           highlighted={matches}
-          collapsed={view?.collapsedIds}
+          collapsed={collapsedIds}
           columns={columns}
           controls={controls}
           theme={theme}

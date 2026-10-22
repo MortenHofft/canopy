@@ -71,6 +71,7 @@ export class LabelOverlay {
     const rect = kind === 'rectangular';
     for (let k = 0; k < labels.count; k++) {
       const r = labels.rank[k];
+      if (r < 0) continue; // the label of a collapsed clade: canvas text only, the clade is reached by its triangle
       used.add(r);
       let el = this.pool.get(r);
       const id = tree.tipLabels[r] ?? '';

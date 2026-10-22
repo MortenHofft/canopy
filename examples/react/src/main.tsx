@@ -24,6 +24,8 @@ import { defaultControls, type Viewport } from '@gbif-phylo/viewer';
  *  (tree-ops' `onSplit: 'drop'` and `'keep'`). */
 type SplitColour = 'remove' | 'node';
 
+const NO_NODES: number[] = [];
+
 function App() {
   const params = new URLSearchParams(location.search);
   // [as published, ...each action's result]; `clades` and `collapsed` are what the entry had when the next action was applied, so
@@ -31,7 +33,7 @@ function App() {
   const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[]; collapsed: number[]; focus: ops.Focus; map?: Int32Array }[]>([]);
   const tree = history[history.length - 1]?.tree ?? null;
   const [clades, setClades] = useState<CladeProp[]>([]);
-  const [collapsed, setCollapsed] = useState<number[]>([]); // clades shown collapsed (node ids of `tree`), a view like collapse by support
+  const [collapsed, setCollapsed] = useState<number[]>([]); // clades shown collapsed (node ids of `tree`): the viewer collapses them
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with back and up (tree-ops' focus)
   const [hl, setHl] = useState<string[]>([]);
   // the last change of `tree` with its node map (an action's map; for undo the inverse of the actions undone), to keep the view
@@ -62,10 +64,11 @@ function App() {
     return lo <= hi ? { lo, hi } : null;
   }, [tree]);
   const hasSupport = supportRange !== null;
-  // What is shown is a VIEW of the current tree, not a step in its history: collapse by support (recomputed when the threshold
-  // changes, so a lower one brings branches back), then the collapsed clades (each replaced by one tip, drawn as a triangle;
-  // expanding brings it back). Colours, collapsed clades and menu actions stay in `tree`'s node ids; `toView` maps a node of
-  // `tree` to the view (-1: hidden), `toTree` the other way; `collapsedTips` are the view's tips that stand for collapsed clades.
+  // What is shown is a VIEW of the current tree, not a step in its history: the clade shown alone (focus), then collapse by support
+  // (recomputed when the threshold changes, so a lower one brings branches back). Both make a different tree, so node ids shift:
+  // `toView` maps a node of `tree` to the view (-1: hidden), `toTree` the other way. Collapsed clades are NOT part of it: the viewer
+  // collapses them on the tree it is given (`collapsed` below), so a click on one reports the node it is.
+  const protectedNodes = collapseOn && hasSupport ? collapsed : NO_NODES; // changes only when it matters, so a collapse alone does not rebuild the view
   const view = useMemo(() => {
     if (!tree) return null;
     const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
@@ -76,29 +79,22 @@ function App() {
       return true;
     };
     step(ops.showFocus(tree, focus));
-    // collapsed clades before collapse by support: a collapsed clade is then a tip, which the support collapse never removes (the
-    // other way round, a collapsed node with low support was contracted first and its triangle lost)
-    const toShown = (v: number) => (acc.toView ? acc.toView[v] : v);
-    const inShown = collapsed.map(toShown).filter((v) => v > 0); // the shown root is not collapsed
-    let collapsedTips: number[] = [];
-    if (inShown.length) {
-      // on a dated (ultrametric) tree the collapsed tip is lengthened to the present, so the shown tree stays dated and the axis stays
-      const r = ops.collapseClades(acc.shown, inShown, undefined, { extend: acc.shown.isUltrametric(1e-3) });
-      if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
-    }
     let supportCollapsed = 0;
     if (collapseOn && hasSupport) {
       const before = acc.shown.nodeCount;
-      const r = ops.collapseBySupport(acc.shown, minSupport);
-      if (step(r)) {
-        supportCollapsed = before - acc.shown.nodeCount;
-        collapsedTips = collapsedTips.map((v) => r.map[v]); // tips are kept
+      // a clade the viewer collapses keeps its node: its support counts as missing, which collapse by support leaves alone
+      const support = acc.shown.support.slice();
+      for (const v of protectedNodes) {
+        const k = acc.toView ? acc.toView[v] : v;
+        if (k > 0) support[k] = NaN;
       }
+      const r = ops.collapseBySupport({ ...acc.shown, support }, minSupport);
+      if (step(r)) supportCollapsed = before - acc.shown.nodeCount;
     }
     const { shown, toView } = acc;
     if (!toView) return null;
-    return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed, collapsedIds: collapsedTips.map((n) => 'n' + n) };
-  }, [tree, focus, collapseOn, hasSupport, minSupport, collapsed]);
+    return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed };
+  }, [tree, focus, collapseOn, hasSupport, minSupport, protectedNodes]);
   // What the viewers are told when what is shown changes, so they keep the view: shown (before) -> tree (before) -> tree (now) -> shown
   // (now), each leg a node map. Changing the focus is a navigation: fitted, no map. The previous values are kept in a ref written after
   // the commit.
@@ -267,10 +263,10 @@ function App() {
   // per-node actions: what the node menu offers for the clicked tip or clade
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] => {
     if (e.run) return []; // a run of small siblings is not one node
-    const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its view
+    const v = view ? view.toTree[e.node] : e.node; // actions work on the tree, not on its view (focus and support only)
     const nodeId = 'n' + v;
-    const isCollapsed = e.isTip && tree.childCount[v] > 0; // a tip of the view that stands for a collapsed clade
-    const isTip = e.isTip && !isCollapsed;
+    const isCollapsed = e.collapsed;
+    const isTip = e.isTip;
     const what = isTip ? 'tip' : 'clade';
     const tips = tree.tipCountOf(v);
     const coloured = clades.some((c) => c.nodeId === nodeId);
@@ -310,7 +306,7 @@ function App() {
         disabled: e.node === 0, // already the clade shown
         onSelect: () => navigate(ops.focusOn(tree, focus, v), `showing only a clade of ${tips.toLocaleString('en')} tips`),
       });
-    if (!e.isTip)
+    if (!e.isTip && !isCollapsed)
       items.push({
         id: 'collapse',
         label: 'Collapse',
@@ -345,12 +341,15 @@ function App() {
         return k >= 0 ? [{ ...c, nodeId: 'n' + k }] : [];
       })
     : clades;
+  // the collapsed clades in the shown tree's ids (the same as `tree`'s while no view is on; a clade that focus left out, or that collapse
+  // by support contracted into its parent, has none)
+  const shownCollapsed = view ? collapsed.map((v) => view.toView[v]).filter((k) => k > 0) : collapsed;
   const common = {
     tree: shown,
     treeMap,
     clades: shownClades,
     highlighted: hl,
-    collapsed: view?.collapsedIds,
+    collapsed: shownCollapsed.map((k) => 'n' + k),
     viewport: vp,
     onViewportChange: setVp,
     onNodeClick: onClick,

@@ -97,8 +97,9 @@ export interface TreeViewProps {
   branchLengths?: boolean;
   clades?: CladeProp[];
   highlighted?: string[];
-  /** Node ids of tips that stand for collapsed clades (the page replaced each clade by one tip, e.g. with tree-ops' collapseClades):
-   *  drawn as a triangle instead of a dot, with the label moved past it. */
+  /** Clades to collapse, as `'n<id>'` ids of the tree you pass (the same ids as `clades` and the events): each is drawn as one triangle on
+   *  one row, its tips hidden, and the tree is not changed (see `TreeViewer.setCollapsed`). Ids of tips are ignored. Clicks and hovers on
+   *  a collapsed clade have `kind: 'summary'`, `node` = the clade and `collapsed: true`; the viewport keeps its scale. */
   collapsed?: string[];
   columns?: Column[]; // see the identity rules above: `values` by reference
   viewport?: Viewport; // controlled; omit for uncontrolled

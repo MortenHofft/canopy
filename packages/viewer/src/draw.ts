@@ -1,7 +1,7 @@
 // Canvas2D drawing of one frame's draw list. Everything here reads typed arrays and the draw list; nothing
 // allocates per node. Strokes are batched into one path per colour class.
 
-import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, COLLAPSED_W, RADIAL_FAR_ARC_R } from './constants.ts';
+import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
 import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
@@ -14,12 +14,13 @@ export interface Scene {
   colours: string[]; // colour by class; class 0 = default branch colour
   classOf: Uint8Array | null;
   highlight: Uint8Array | null; // by tip rank
-  collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
   density: LabelDensity;
   alignLabels: boolean; // the option; it acts only in a rectangular phylogram (see alignedX)
   format: (id: string) => string;
+  /** The label of a collapsed clade (node = row of the snapshot): its name, else its size. null: collapsed clades get no label. */
+  cladeText: ((node: number) => string) | null;
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
   measure: TextMeasurer; // label widths, owned by the renderer
@@ -27,14 +28,14 @@ export interface Scene {
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
 export class LabelList {
-  rank = new Int32Array(512);
+  rank = new Int32Array(512); // the tip's rank; a collapsed clade's label has -(node + 1)
   x = new Float32Array(512); // start of the text (CSS px)
   y = new Float32Array(512); // vertical centre
   w = new Float32Array(512);
   h = new Float32Array(512);
   ang = new Float32Array(512); // radial: rotation in rad (0 for rectangular)
   flip = new Uint8Array(512);
-  gap = new Float32Array(512); // distance from the tip to the text (8 px, more past a collapsed-clade triangle)
+  gap = new Float32Array(512); // distance from the tip (or the far edge of a collapsed clade's triangle) to the text
   count = 0;
   clear(): void {
     this.count = 0;
@@ -75,7 +76,6 @@ const FILL_CHUNK = 32; // fans per fill() call, same reason
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
-const COLLAPSED_MIN_PX = 3; // below this row pitch the triangle is not drawn (the branch alone shows the tip)
 
 /** Text widths by font and text. One per renderer, so renderers with different fonts do not clear each other's entries; bounded by
  *  clearing when the font family changes or the table passes MAX entries (checked when the font changes). */
@@ -183,7 +183,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
           y1 = m + 0.75;
         }
         const xm = Math.max(sx + 2, proj.d1);
-        if (lm >= 0 || isSlice(tree, i)) {
+        if (lm >= 0 || isSlice(tree, i, L.collapsed)) {
           ctx.rect(sx, y0, xm - sx, y1 - y0);
           continue;
         } // polytomy of tips: a band, not a triangle
@@ -300,7 +300,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
           a0 = m - h;
           a1 = m + h;
         } // keep slivers visible
-        if (lm >= 0 || isSlice(tree, i)) {
+        if (lm >= 0 || isSlice(tree, i, L.collapsed)) {
           // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
           const len0 = (a1 - a0) * r1;
           ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
@@ -357,7 +357,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
         const kind = list.kind[e];
         const i = list.node[e];
         if (kind === K_TIP) {
-          if (!dots || (S.collapsed && S.collapsed[proj.tree.tipRank[i]])) continue;
+          if (!dots) continue;
           proj.nodeXY(i, p);
           ctx.moveTo(p.x + rTip, p.y);
           ctx.arc(p.x, p.y, rTip, 0, 6.2832);
@@ -371,46 +371,6 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       }
       if (any) ctx.fill();
     }
-  ctx.globalAlpha = 1;
-  if (S.collapsed) drawCollapsedTips(ctx, S);
-}
-
-/** Collapsed-clade tips: a triangle with its apex at the tip, opening along the branch (outwards in radial), filled with the summary
- *  colour and outlined in the branch or clade colour. Few per frame (one per collapsed clade in view), so drawn one by one. */
-function drawCollapsedTips(ctx: CanvasRenderingContext2D, S: Scene): void {
-  const { proj, list, theme, colours, classOf } = S;
-  const marks = S.collapsed!;
-  const pitch = proj.tipPitch;
-  if (pitch < COLLAPSED_MIN_PX) return;
-  const half = Math.min(8, Math.max(2.5, pitch * 0.4));
-  const rect = proj.kind === 'rectangular';
-  const { L } = proj;
-  const p: Pt = { x: 0, y: 0 };
-  ctx.lineWidth = 1.5;
-  ctx.lineJoin = 'round';
-  for (let e = 0; e < list.count; e++) {
-    if (list.kind[e] !== K_TIP) continue;
-    const i = list.node[e];
-    if (!marks[proj.tree.tipRank[i]]) continue;
-    proj.nodeXY(i, p);
-    const c = rect ? 1 : L.COS![i],
-      sn = rect ? 0 : L.SIN![i]; // direction away from the root
-    const bx = p.x + c * COLLAPSED_W,
-      by = p.y + sn * COLLAPSED_W;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(bx - sn * half, by + c * half);
-    ctx.lineTo(bx + sn * half, by - c * half);
-    ctx.closePath();
-    const cl = classOf ? classOf[i] : 0;
-    const k = dimmed(S, e) ? theme.dimOpacity : 1;
-    ctx.globalAlpha = 0.35 * k;
-    ctx.fillStyle = cl ? colours[cl] : theme.summary;
-    ctx.fill();
-    ctx.globalAlpha = k;
-    ctx.strokeStyle = cl ? colours[cl] : theme.branch;
-    ctx.stroke();
-  }
   ctx.globalAlpha = 1;
 }
 
@@ -427,7 +387,7 @@ export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdg
     const r = hlRanks[k];
     const node = tree.tipNode[r];
     if (rect) {
-      const y = T.oy + r * T.ky;
+      const y = T.oy + (L.rowOfRank ? L.rowOfRank[r] : r) * T.ky; // a tip below a collapsed clade is marked on the clade's row
       if (y + T.ky < T.clipT || y > T.clipB) continue;
       ctx.globalAlpha = theme.highlightOpacity;
       ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
@@ -467,8 +427,8 @@ export function drawRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, 
   ctx.stroke();
 }
 
-/** Where aligned labels start (CSS px, before the gap): right of the farthest tip, and of the triangle of a collapsed clade when
- *  there is one, so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
+/** Where aligned labels start (CSS px, before the gap): right of the farthest tip (a collapsed clade's triangle ends at its tips, so it
+ *  is never farther), so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
  *  at the area's right edge (where the farthest tip is at the fit view): the labels stay readable, and the branches of the tips beyond it
  *  run on under the text. NaN when labels are not aligned: the option is off, or the layout has no tips that end at
  *  different x (radial, cladogram, tree without lengths). */
@@ -476,7 +436,29 @@ export function alignedX(S: Scene): number {
   const { proj } = S;
   if (!S.alignLabels || proj.kind !== 'rectangular' || !proj.L.usedLengths) return NaN;
   const { T, L } = proj;
-  return Math.min(T.ox + L.XMAX[0] * T.kx, T.area.ax + T.area.aw) + (S.collapsed ? COLLAPSED_W : 0);
+  return Math.min(T.ox + L.XMAX[0] * T.kx, T.area.ax + T.area.aw);
+}
+
+/** Draw-list entry `e` is a clade the app collapsed (a summary of its own, not a run and not a clade the level of detail summarised). */
+function isCollapsedEntry(S: Scene, e: number): boolean {
+  const c = S.proj.L.collapsed;
+  return c !== null && S.list.kind[e] === K_SUMMARY && S.list.last[e] < 0 && c[S.list.node[e]] === 1;
+}
+
+/** Where draw-list entry `e` is labelled from, into `p`: a tip's dot, or the outer edge of a collapsed clade's triangle on its row. */
+function labelAnchor(S: Scene, e: number, collapsed: boolean, p: Pt): void {
+  const { proj } = S;
+  const i = S.list.node[e];
+  if (!collapsed) return proj.nodeXY(i, p);
+  proj.summaryExtent(i, -1, 0);
+  const d = Math.max(proj.d0 + 2, proj.d1);
+  if (proj.kind === 'rectangular') {
+    p.x = d;
+    p.y = proj.tip(i);
+  } else {
+    p.x = proj.T.cx + d * proj.L.COS![i];
+    p.y = proj.T.cy + d * proj.L.SIN![i];
+  }
 }
 
 /** The rectangular label of the tip at (x, y) is not drawn: its row is out of view, or (aligned) the column is. */
@@ -484,15 +466,16 @@ function labelCulled(T: Scene['proj']['T'], x: number, y: number, ax: number): b
   return y < T.clipT - 4 || y > T.clipB + 4 || (Number.isNaN(ax) ? x > T.clipR : ax + LABEL_GAP_PX > T.clipR);
 }
 
-/** Leader lines of aligned labels: a dotted line from each tip (past the triangle of a collapsed clade) to just before its label.
+/** Leader lines of aligned labels: a dotted line from each tip (from the end of the triangle of a collapsed clade) to just before its label.
  *  Drawn for the tips that get a label (same density rule, cap and culling as drawLabels), below the dots. Dimmed tips' leaders are drawn
  *  at dimOpacity. Batched into one path per chunk, as the branches are. */
 export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
   const ax = alignedX(S);
   if (Number.isNaN(ax)) return;
   const { proj, list, theme } = S;
-  const { tree, T } = proj;
+  const { T } = proj;
   if (proj.tipPitch < LABEL_MIN_PX[S.density]) return;
+  const hasCollapsed = S.cladeText !== null && proj.L.collapsed !== null; // collapsed clades are labelled
   const endX = ax + LABEL_GAP_PX - LEADER_END_GAP_PX;
   const p: Pt = { x: 0, y: 0 };
   ctx.strokeStyle = theme.leaderColour || theme.muted;
@@ -505,13 +488,13 @@ export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
     let n = 0,
       labelled = 0;
     for (let e = 0; e < list.count && labelled < MAX_RECT_LABELS; e++) {
-      if (list.kind[e] !== K_TIP) continue;
-      const i = list.node[e];
-      proj.nodeXY(i, p);
+      const col = list.kind[e] !== K_TIP;
+      if (col && !(hasCollapsed && isCollapsedEntry(S, e))) continue;
+      labelAnchor(S, e, col, p);
       if (labelCulled(T, p.x, p.y, ax)) continue;
       labelled++;
       if (passes > 1 && dimmed(S, e) !== pass) continue;
-      const x0 = p.x + (S.collapsed && S.collapsed[tree.tipRank[i]] ? COLLAPSED_W : 0);
+      const x0 = p.x;
       if (x0 >= endX) continue; // at or past the column (pinned): nothing to lead over
       ctx.moveTo(endX, p.y); // from the column leftward, so the dash pattern lines up at the labels
       ctx.lineTo(x0, p.y);
@@ -548,6 +531,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const pitch = proj.tipPitch;
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
+  const hasCollapsed = S.cladeText !== null && L.collapsed !== null; // collapsed clades are labelled
   const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
   const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';
   const fontN = `${style}${size}px ${theme.fontFamily}`;
@@ -563,20 +547,21 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   let lastAlign = 'left';
   let lastAlpha = 1;
   for (let e = 0; e < list.count && labels.count < MAXL; e++) {
-    if (list.kind[e] !== K_TIP) continue;
+    const col = list.kind[e] !== K_TIP; // a collapsed clade is labelled like a tip, at the end of its triangle
+    if (col && !(hasCollapsed && isCollapsedEntry(S, e))) continue;
     const i = list.node[e];
-    const r = tree.tipRank[i];
-    proj.nodeXY(i, p);
+    const r = col ? -1 : tree.tipRank[i];
+    labelAnchor(S, e, col, p);
     if (rect) {
       if (labelCulled(T, p.x, p.y, ax)) continue;
     } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
-    const hl = highlight ? highlight[r] === 1 : false;
+    const hl = highlight && r >= 0 ? highlight[r] === 1 : false;
     const f = hl ? fontH : fontN;
     if (f !== lastFont) {
       ctx.font = f;
       lastFont = f;
     }
-    const text = S.format(tree.tipLabels[r] ?? '');
+    const text = col ? S.cladeText!(i) : S.format(tree.tipLabels[r] ?? '');
     const w = S.measure.width(ctx, text, f);
     if (f !== lastFont) {
       ctx.font = f;
@@ -588,17 +573,18 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.fillStyle = fill;
       lastFill = fill;
     }
-    const alpha = S.hlPrefix && S.hlPrefix[r + 1] === S.hlPrefix[r] ? theme.dimOpacity : 1;
+    const alpha = S.hlPrefix && (col ? dimmed(S, e) === 1 : S.hlPrefix[r + 1] === S.hlPrefix[r]) ? theme.dimOpacity : 1;
     if (alpha !== lastAlpha) {
       ctx.globalAlpha = alpha;
       lastAlpha = alpha;
     }
-    // past the triangle of a collapsed clade; aligned: the column already clears the triangles, the text starts at the column
-    const gap = !Number.isNaN(ax) ? LABEL_GAP_PX : S.collapsed && S.collapsed[r] ? LABEL_GAP_PX + COLLAPSED_W : LABEL_GAP_PX;
+    // aligned: the text starts at the column, which is right of every tip and every triangle
+    const gap = LABEL_GAP_PX;
+    const key = col ? -(i + 1) : r;
     if (rect) {
       const x = Number.isNaN(ax) ? p.x + gap : ax + gap;
       ctx.fillText(text, x, p.y + 0.5);
-      labels.add(r, x, p.y, w, size + 2, 0, 0, gap);
+      labels.add(key, x, p.y, w, size + 2, 0, 0, gap);
     } else {
       const left = L.COS![i] < 0;
       const c = left ? -L.COS![i] : L.COS![i],
@@ -611,7 +597,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       }
       ctx.fillText(text, left ? -gap : gap, 0.5);
       const a = proj.tip(i);
-      labels.add(r, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0, gap);
+      labels.add(key, p.x, p.y, w, size + 2, left ? a + Math.PI : a, left ? 1 : 0, gap);
     }
   }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);

@@ -153,14 +153,14 @@ test('the tokens colour, dash and size the leaders', async () => {
   assert.ok(leaders(ctx).every((l) => l.alpha === 0.5));
 });
 
-test('labelReserve grows by the triangle width only while there are collapsed tips; zoomToNode still zooms on x', async () => {
+test('collapsing a clade leaves the label reserve alone (its triangle ends at its tips); zoomToNode still zooms on x', async () => {
   const LONG = '((aaaaaaaaaaaa:1,b:4)x:1,(c:2,d:6)y:1)r;'; // under 8 characters the reserve sits at its floor
   const m = await make(LONG);
   const off = await make(LONG, { alignLabels: false });
   assert.equal(m.viewer.vs.labelReserve(), off.viewer.vs.labelReserve());
-  m.viewer.setCollapsed([m.viewer.tree.tipNode[1]]);
+  m.viewer.setCollapsed([m.viewer.tree.firstChild[0]]);
   m.env.flush();
-  assert.equal(m.viewer.vs.labelReserve(), off.viewer.vs.labelReserve() + 14);
+  assert.equal(m.viewer.vs.labelReserve(), off.viewer.vs.labelReserve());
   const n = m.viewer.tree.firstChild[0];
   const v = m.viewer.vs.cladeViewport(n);
   const w = off.viewer.vs.cladeViewport(n);
@@ -168,17 +168,32 @@ test('labelReserve grows by the triangle width only while there are collapsed ti
   assert.ok(Math.abs(v.x1 - v.x0 - (w.x1 - w.x0)) < 0.1);
 });
 
-test('collapsed tip: its leader starts at the base of the triangle', async () => {
+test('a collapsed clade is labelled in the column, with a leader from the end of its triangle', async () => {
   const m = await make(PHYLO);
-  m.viewer.setCollapsed([m.viewer.tree.tipNode[0]]); // a
+  const x = m.viewer.tree.firstChild[0];
+  m.viewer.setCollapsed([x]);
   m.ctx().reset();
   m.env.flush();
-  const p = { x: 0, y: 0 };
-  m.viewer.proj.nodeXY(m.viewer.tree.tipNode[0], p);
+  const T = m.viewer.T;
   const ls = leaders(m.ctx());
-  assert.equal(ls.length, 4);
-  const mine = ls.find((l) => Math.abs(l.y - p.y) < 1e-9);
-  assert.equal(mine.x0, p.x + 14);
+  assert.equal(ls.length, 3, 'the collapsed clade, c and d');
+  const mine = ls.find((l) => Math.abs(l.y - (T.oy + m.viewer.L.ROW[x] * T.ky)) < 1e-9);
+  assert.ok(mine, 'a leader on the clade row');
+  // the triangle ends at the clade's deepest tip (b, at 5 of 7), not at a fixed width past the node
+  assert.ok(Math.abs(mine.x0 - (T.ox + m.viewer.L.XMAX[x] * T.kx)) < 1e-9);
+  const texts = m
+    .ctx()
+    .calls('fillText')
+    .map((e) => e[1]);
+  assert.ok(texts.includes('x'), 'labelled with its name');
+  assert.ok(!texts.includes('a') && !texts.includes('b'), 'its tips have no labels');
+  const xs = Object.fromEntries(
+    m
+      .ctx()
+      .calls('fillText')
+      .map((e) => [e[1], e[2]]),
+  );
+  assert.equal(xs.x, xs.c, 'the label shares the column with the tips');
 });
 
 /** A caterpillar-free comb of n tips with different lengths. */

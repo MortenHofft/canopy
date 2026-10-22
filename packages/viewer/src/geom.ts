@@ -34,7 +34,7 @@ export interface Transform {
   clipB: number;
 }
 
-export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewport, a: Area, tips: number): Transform {
+export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewport, a: Area, rows: number): Transform {
   const kx = a.aw / (v.x1 - v.x0);
   const ky = a.ah / (v.y1 - v.y0);
   return {
@@ -49,7 +49,7 @@ export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewpor
     k: kx,
     cx: a.ax - v.x0 * kx,
     cy: a.ay - v.y0 * kx,
-    da: (2 * Math.PI) / Math.max(1, tips),
+    da: (2 * Math.PI) / Math.max(1, rows),
     clipL: a.clipL,
     clipT: a.clipT,
     clipR: a.clipR,

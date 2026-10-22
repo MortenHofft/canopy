@@ -11,7 +11,6 @@ import {
   FOCUS_TIP_MAX_ROW_PX,
   FOCUS_TIP_MIN_ROW_PX,
   FOCUS_TIP_RADIAL_PITCH_PX,
-  COLLAPSED_W,
   OVERSCROLL_FRAC,
   OVERSCROLL_KEEP_FRAC,
   OVERVIEW_STRIP_W_PX,
@@ -46,8 +45,6 @@ export interface ViewEnv {
   readonly rowHeight: number | null;
   /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
   readonly alignLabels: boolean;
-  /** Some tip stands for a collapsed clade (drawn as a triangle). */
-  readonly hasCollapsed: boolean;
   /** Container size in CSS px. */
   readonly W: number;
   readonly H: number;
@@ -117,8 +114,7 @@ export class ViewState {
     return this.env.alignLabels && this.env.layout === 'rectangular' && this.env.L.usedLengths;
   }
 
-  /** Room right of the tips for labels: from the longest label, capped (rectangular layout). Aligned, the column also clears the
-   *  triangle of a collapsed clade. */
+  /** Room right of the tips for labels: from the longest label, capped (rectangular layout). */
   labelReserve(): number {
     if (this.maxChars < 0) {
       let m = 0;
@@ -128,7 +124,7 @@ export class ViewState {
       else for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
       this.maxChars = m;
     }
-    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14 + (this.alignsLabels() && this.env.hasCollapsed ? COLLAPSED_W : 0)));
+    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14));
   }
 
   /** The plotting area for the current container size, options and columns; places the columns as a side effect (they follow the clip). */
@@ -157,7 +153,7 @@ export class ViewState {
   fitViewport(): Viewport {
     const a = this.area;
     if (this.env.layout === 'rectangular') {
-      const rows = this.env.rowHeight ? a.ah / this.env.rowHeight : this.env.tree.tipCount;
+      const rows = this.env.rowHeight ? a.ah / this.env.rowHeight : this.env.L.rows;
       return { x0: 0, x1: 1, y0: 0, y1: Math.max(1, rows) };
     }
     const k = radialFitScale(this.env.W, this.env.H);
@@ -168,9 +164,8 @@ export class ViewState {
    *  inside the window when zoomed out and may overscroll by 15% when zoomed in. Radial: scale between the limits, centre near the root. */
   clampView(v: Viewport): Viewport {
     const a = this.area;
-    const tree = this.env.tree;
     if (this.env.layout === 'rectangular') {
-      const N = tree.tipCount;
+      const N = this.env.L.rows;
       const wmax = RECT_MAX_VIEW_W,
         wmin = a.aw / RECT_MAX_ZOOM_X;
       let w = v.x1 - v.x0;
@@ -284,7 +279,7 @@ export class ViewState {
 
   /** The window that brings tip node `node` (a row of the snapshot) into view at a readable size. Recomputes the area first. */
   focusViewport(node: number): Viewport {
-    const { L, tree } = this.env;
+    const { L } = this.env;
     this.computeArea();
     const v = this.view;
     const a = this.area;
@@ -302,8 +297,8 @@ export class ViewState {
       }
       return { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     }
-    const k = Math.max(a.aw / (v.x1 - v.x0), (FOCUS_TIP_RADIAL_PITCH_PX * tree.tipCount) / (2 * Math.PI));
-    const ang = L.ROW[node] * ((2 * Math.PI) / tree.tipCount);
+    const k = Math.max(a.aw / (v.x1 - v.x0), (FOCUS_TIP_RADIAL_PITCH_PX * L.rows) / (2 * Math.PI));
+    const ang = L.ROW[node] * ((2 * Math.PI) / L.rows);
     const px = L.X[node] * Math.cos(ang),
       py = L.X[node] * Math.sin(ang);
     return { x0: px - a.aw / 2 / k, x1: px + a.aw / 2 / k, y0: py - a.ah / 2 / k, y1: py + a.ah / 2 / k };
@@ -311,11 +306,11 @@ export class ViewState {
 
   /** The window that shows the clade below `node` (a row of the snapshot) with room around it. Recomputes the area first. */
   cladeViewport(node: number): Viewport {
-    const { L, tree } = this.env;
+    const { L } = this.env;
     this.computeArea();
     const a = this.area;
-    const ls = tree.leafStart[node],
-      le = tree.leafEnd[node];
+    const ls = L.rowStart[node],
+      le = L.rowEnd[node];
     if (this.env.layout === 'rectangular') {
       const rows = Math.max(le - ls, 6);
       const mid = (ls + le) / 2;
@@ -327,7 +322,7 @@ export class ViewState {
       return { x0, x1: x0 + w, y0: mid - h / 2, y1: mid + h / 2 };
     }
     const bb = new Float64Array(4);
-    sectorBBox(0, 0, L.X[node], L.XMAX[node], ls * ((2 * Math.PI) / tree.tipCount), le * ((2 * Math.PI) / tree.tipCount), bb);
+    sectorBBox(0, 0, L.X[node], L.XMAX[node], ls * ((2 * Math.PI) / L.rows), le * ((2 * Math.PI) / L.rows), bb);
     const cx = (bb[0] + bb[2]) / 2,
       cy = (bb[1] + bb[3]) / 2;
     const half = Math.max((bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2, 1e-4) * ZOOM_NODE_RADIAL_PAD;
@@ -363,11 +358,11 @@ export class ViewState {
       return y0 !== v.y0 || x0 !== v.x0 ? { x0, x1, y0, y1 } : null;
     }
     const p = { x: 0, y: 0 };
-    projectionFor(tree, L, makeTransform('radial', W, H, v, a, tree.tipCount)).nodeXY(node, p);
+    projectionFor(tree, L, makeTransform('radial', W, H, v, a, L.rows)).nodeXY(node, p);
     const pad = 30;
     if (!(p.x < pad || p.y < pad || p.x > W - pad || p.y > H - pad)) return null;
     const k = a.aw / (v.x1 - v.x0);
-    const ang = L.ROW[node] * ((2 * Math.PI) / tree.tipCount);
+    const ang = L.ROW[node] * ((2 * Math.PI) / L.rows);
     const wx = L.X[node] * Math.cos(ang),
       wy = L.X[node] * Math.sin(ang);
     return { x0: wx - a.aw / 2 / k, x1: wx + a.aw / 2 / k, y0: wy - a.ah / 2 / k, y1: wy + a.ah / 2 / k };

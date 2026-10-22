@@ -6,7 +6,9 @@
 //             pixel per residue) and only the visible rows are blitted; very large alignments fall back to
 //             drawing runs for visible rows only
 //  custom     the app's ColumnRenderer: prepare() when the values change, draw() once per frame with the visible rows
-// Values are looked up by tip label once, when the columns change, into arrays by tip rank.
+// Values are looked up by tip label once, when the columns change, into arrays by tip rank. The columns are drawn in ROWS: with collapsed
+// clades a row is no longer a rank (layout.ts), and the row of a collapsed clade is blank (a clade has no single value; the clade's tips
+// are not summarised).
 
 import type { Transform } from './geom.ts';
 import { detectAlphabet, residueTable, type ResolvedAlphabet } from './residues.ts';
@@ -182,6 +184,14 @@ const BLOCK_ROW_PX = 1.5; // blocks need rows at least this tall, below it the r
 
 export interface ColumnDrawOptions {
   alignStyle: 'residues' | 'blocks';
+  /** Layout.rankOfRow: row -> first tip rank (length rows + 1). null / left out: a row is a tip rank. A row that holds more than one tip is a
+   *  collapsed clade and is drawn blank. */
+  rankOfRow?: Int32Array | null;
+}
+
+/** The tip rank shown in row `r`, or -1 for a collapsed clade (blank). */
+function rankAt(rk: Int32Array | null, r: number): number {
+  return rk === null ? r : rk[r + 1] - rk[r] === 1 ? rk[r] : -1;
 }
 
 /** Start/end pairs (alignment columns) of the stretches without gaps in the sequence of rank r, cached on the column. */
@@ -215,6 +225,7 @@ const FRAME: { -readonly [K in keyof ColumnFrame]: ColumnFrame[K] } = {
   r1: -1,
   oy: 0,
   rowHeight: 1,
+  rankOfRow: null,
   theme: null as unknown as TreeTheme,
 };
 
@@ -236,7 +247,8 @@ export function drawColumns(
   opts: ColumnDrawOptions = { alignStyle: 'residues' },
 ): void {
   if (!cols.length || T.kind !== 'rectangular') return;
-  const N = tree.tipCount;
+  const rk = opts.rankOfRow ?? null;
+  const N = rk === null ? tree.tipCount : rk.length - 1; // rows
   const { oy, ky, area } = T;
   const top = area.ay,
     bottom = area.ay + area.ah;
@@ -264,6 +276,7 @@ export function drawColumns(
       f.r1 = r1;
       f.oy = oy;
       f.rowHeight = ky;
+      f.rankOfRow = rk;
       f.theme = theme;
       try {
         c.spec.renderer.draw(ctx, f, c.data);
@@ -281,7 +294,8 @@ export function drawColumns(
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let r = r0; r <= r1; r++) {
-        if (!c.has[r] || ky < GAP_ROW_PX) continue;
+        const k = rankAt(rk, r);
+        if (k < 0 || !c.has[k] || ky < GAP_ROW_PX) continue;
         const ym = Math.round(oy + (r + 0.5) * ky) + 0.5;
         ctx.moveTo(c.x, ym);
         ctx.lineTo(c.x + w, ym);
@@ -290,8 +304,9 @@ export function drawColumns(
       ctx.fillStyle = theme.summary;
       ctx.beginPath();
       for (let r = r0; r <= r1; r++) {
-        if (!c.has[r]) continue;
-        const runs = runsOf(c, r);
+        const k = rankAt(rk, r);
+        if (k < 0 || !c.has[k]) continue;
+        const runs = runsOf(c, k);
         const y = oy + r * ky + inset / 2;
         for (let k = 0; k < runs.length; k += 2) {
           const x0 = c.x + runs[k] * cw,
@@ -305,10 +320,26 @@ export function drawColumns(
       // residues with a gap between sequences: one blit per visible row, a little shorter than the row
       ctx.imageSmoothingEnabled = false;
       const g = Math.min(theme.alignRowGap, ky - 1);
-      for (let r = r0; r <= r1; r++) ctx.drawImage(c.bitmap, 0, r, c.seqLen, 1, c.x, oy + r * ky + g / 2, w, ky - g);
+      for (let r = r0; r <= r1; r++) {
+        const k = rankAt(rk, r);
+        if (k >= 0) ctx.drawImage(c.bitmap, 0, k, c.seqLen, 1, c.x, oy + r * ky + g / 2, w, ky - g);
+      }
     } else if (c.spec.kind === 'alignment' && c.bitmap) {
       ctx.imageSmoothingEnabled = ky < 1;
-      ctx.drawImage(c.bitmap, 0, r0, c.seqLen, r1 - r0 + 1, c.x, oy + r0 * ky, w, (r1 - r0 + 1) * ky);
+      if (rk === null) ctx.drawImage(c.bitmap, 0, r0, c.seqLen, r1 - r0 + 1, c.x, oy + r0 * ky, w, (r1 - r0 + 1) * ky);
+      else
+        // one blit per stretch of rows whose tips are consecutive (the rows between collapsed clades), the clades' rows left blank
+        for (let r = r0; r <= r1;) {
+          const k = rankAt(rk, r);
+          if (k < 0) {
+            r++;
+            continue;
+          }
+          let e = r;
+          while (e < r1 && rankAt(rk, e + 1) === k + (e + 1 - r)) e++;
+          ctx.drawImage(c.bitmap, 0, k, c.seqLen, e - r + 1, c.x, oy + r * ky, w, (e - r + 1) * ky);
+          r = e + 1;
+        }
     } else if (ky < 1.5) {
       // bin rows per pixel row; mean value for bars, presence for the others
       const H = Math.ceil(bottom - top) + 2;
@@ -317,10 +348,11 @@ export function drawColumns(
         any = new Uint8Array(H);
       for (let r = r0; r <= r1; r++) {
         const p = Math.floor(oy + r * ky - top);
-        if (p < 0 || p >= H || !c.has[r]) continue;
+        const k = rankAt(rk, r);
+        if (p < 0 || p >= H || k < 0 || !c.has[k]) continue;
         any[p] = 1;
         if (c.num) {
-          sum[p] += c.num[r];
+          sum[p] += c.num[k];
           cnt[p]++;
         }
       }
@@ -334,18 +366,27 @@ export function drawColumns(
       ctx.globalAlpha = 1;
     } else if (c.spec.kind === 'bar' && c.num) {
       ctx.fillStyle = barColour;
-      for (let r = r0; r <= r1; r++) if (c.has[r]) ctx.fillRect(c.x + 2, oy + r * ky + ky * 0.1, barWidth(c.num[r], c.max, w), Math.max(1, ky * 0.8));
+      for (let r = r0; r <= r1; r++) {
+        const k = rankAt(rk, r);
+        if (k >= 0 && c.has[k]) ctx.fillRect(c.x + 2, oy + r * ky + ky * 0.1, barWidth(c.num[k], c.max, w), Math.max(1, ky * 0.8));
+      }
     } else if (c.spec.kind === 'text' && c.txt) {
       const fs = Math.min(12, ky * 0.7);
       if (ky >= TEXT_ROW_PX) {
         ctx.fillStyle = theme.foreground;
         ctx.font = `${fs}px ${theme.fontFamily}`;
         ctx.textBaseline = 'middle';
-        for (let r = r0; r <= r1; r++) if (c.has[r]) ctx.fillText(c.txt[r]!, c.x + 2, oy + (r + 0.5) * ky, w - 4);
+        for (let r = r0; r <= r1; r++) {
+          const k = rankAt(rk, r);
+          if (k >= 0 && c.has[k]) ctx.fillText(c.txt[k]!, c.x + 2, oy + (r + 0.5) * ky, w - 4);
+        }
       } else {
         ctx.fillStyle = barColour;
         ctx.globalAlpha = 0.35;
-        for (let r = r0; r <= r1; r++) if (c.has[r]) ctx.fillRect(c.x + 2, oy + r * ky, w - 4, Math.max(1, ky));
+        for (let r = r0; r <= r1; r++) {
+          const k = rankAt(rk, r);
+          if (k >= 0 && c.has[k]) ctx.fillRect(c.x + 2, oy + r * ky, w - 4, Math.max(1, ky));
+        }
         ctx.globalAlpha = 1;
       }
     } else if (c.spec.kind === 'alignment' && c.txt) {
@@ -353,7 +394,8 @@ export function drawColumns(
       const tab = c.table!;
       const cw = w / Math.max(1, c.seqLen);
       for (let r = r0; r <= r1; r++) {
-        const s = c.txt[r];
+        const k = rankAt(rk, r);
+        const s = k < 0 ? undefined : c.txt[k];
         if (s === undefined) continue;
         const y = oy + r * ky;
         let run = 0;
@@ -374,10 +416,19 @@ export function drawColumns(
   ctx.restore();
 }
 
-/** Drawn extent of the cell for tip rank r, in container px (same geometry as drawColumns). */
-export function cellRect(c: CompiledColumn, r: number, T: Transform): { x: number; y: number; width: number; height: number } | null {
+/** Drawn extent of the cell for tip rank r, in container px (same geometry as drawColumns). `rowOfRank` (Layout.rowOfRank) puts the tip
+ *  on its row; null for a tip below a collapsed clade (its row is blank). */
+export function cellRect(
+  c: CompiledColumn,
+  r: number,
+  T: Transform,
+  rowOfRank: Int32Array | null = null,
+  rankOfRow: Int32Array | null = null,
+): { x: number; y: number; width: number; height: number } | null {
   if (T.kind !== 'rectangular' || r < 0 || !c.has[r]) return null;
-  const y = T.oy + r * T.ky;
+  const row = rowOfRank === null ? r : rowOfRank[r];
+  if (rankAt(rankOfRow, row) !== r) return null;
+  const y = T.oy + row * T.ky;
   if (y + T.ky < T.area.ay || y > T.area.ay + T.area.ah) return null;
   const w = c.spec.width;
   if (c.spec.kind === 'bar' && c.num) {

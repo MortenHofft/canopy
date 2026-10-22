@@ -100,16 +100,19 @@ test('dim: node markers and tip dots are filled at markerOpacity, dimmed ones at
   assert.ok(fills.includes(mo * DIM), 'the dimmed markers');
 });
 
-test('dim: the triangle of a collapsed tip is dimmed unless the tip matches', async () => {
+test('dim: the triangle of a collapsed clade is dimmed unless one of its tips matches', async () => {
   const { viewer, env, ctx } = await viewerWith('dim', ['a']);
-  viewer.setCollapsed([2, 5]); // the tips a and c
+  viewer.setCollapsed([1, 4]); // the clades x (holds a) and y
   ctx().reset();
   env.flush();
+  const so = FALLBACK_THEME.summaryOpacity;
   const fills = alphas(ctx(), 'fill').map((x) => x.alpha);
-  assert.ok(fills.includes(0.35), 'a, the match');
-  assert.ok(fills.includes(0.35 * DIM), 'c');
-  const strokes = alphas(ctx(), 'stroke').map((x) => x.alpha);
-  assert.ok(strokes.includes(DIM));
+  assert.ok(fills.includes(so), 'x, a tip of it matches');
+  assert.ok(fills.includes(so * DIM), 'y');
+  const labels = alphas(ctx(), 'fillText')
+    .filter((x) => x.arg === 'x' || x.arg === 'y')
+    .map((x) => x.alpha);
+  assert.deepEqual(labels, [1, DIM], 'the labels of the clades follow their triangles');
 });
 
 // runs: siblings drawn as one slice. Its tips are [leafStart of the first member, leafEnd of the last], so a match at either end, in the

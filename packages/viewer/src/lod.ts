@@ -1,7 +1,7 @@
 // Viewport cut: which nodes are drawn this frame, and how.
 //
 // The traversal is a single forward scan over the preorder arrays (no stack, no child lists): a node that is
-// culled (outside the viewport) or collapsed (a clade smaller than `minPx` in either direction) is skipped
+// culled (outside the viewport) or collapsed (a clade smaller than `minPx` in either direction, or one the app collapsed) is skipped
 // together with its whole subtree by jumping to subtreeEnd[i]. Cost is O(nodes visited), which is bounded by
 // the viewport for bushy trees, and the number of PRIMITIVES emitted is bounded by the draw budget:
 //   rule A/B  collapse a clade whose pixel height (radial: arc length at the tips) is < minPx, or whose width is
@@ -11,13 +11,15 @@
 //   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
 //             than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
 //             primitive per run, while its large children stay their own entries (issue 13)
+//   user      a clade the app collapsed (Layout.collapsed, one Uint8Array lookup per visited node) is always a summary and never opened;
+//             its tips share one row (Layout.rowStart / rowEnd are in rows, the tip ranks stay in tree.leafStart / leafEnd)
 //   rule D    if the list still exceeds the budget, minPx is raised and the cut is redone (cheap: the aborted
 //             pass stops as soon as the budget is exceeded); the search is searchCut below
 //
 // There is one loop per layout (cutRect, cutRadial) with the per-node work inline (see `cut` for why); they share the draw list, the dedupe
 // set, the result and the per-frame values of the layout projection (projection.ts: dedupe anchors, radial window, the run's dedupe key).
 //
-// Radial culling (2026-10, in cutRadial): a node is skipped when its annular sector (radius X[parent]..XMAX, angle leafStart..leafEnd)
+// Radial culling (2026-10, in cutRadial): a node is skipped when its annular sector (radius X[parent]..XMAX, angle rowStart..rowEnd)
 // cannot touch the padded clip rectangle: a radius-range test (distance from the root to the nearest and the farthest
 // point of the rectangle) and an angle-range test (the angular interval the rectangle subtends as seen from the root).
 // Survivors then get the sector's exact bounding box test (cached boundary cos/sin, no trigonometry per node): the cheap tests
@@ -41,15 +43,18 @@ export const K_RUN = 4;
  *  node's depth to the longest tip over the clade's angles (radial) or rows (rectangular), not as a fan or triangle. */
 export const SLICE_MIN_CHILDREN = 16;
 
-export function isSlice(tree: TreeSnapshot, i: number): boolean {
+export function isSlice(tree: TreeSnapshot, i: number, collapsed: Uint8Array | null = null): boolean {
   const c = tree.childCount[i];
   return (
-    c >= SLICE_MIN_CHILDREN && tree.leafEnd[i] - tree.leafStart[i] === c && (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0)
+    c >= SLICE_MIN_CHILDREN &&
+    tree.leafEnd[i] - tree.leafStart[i] === c &&
+    (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0) &&
+    (collapsed === null || collapsed[i] === 0) // a clade the app collapsed is a triangle, whatever its children are
   );
 }
 
 /** A run (rule R) is a K_SUMMARY entry with last >= 0: `node` is its first member, `last` its last member (siblings, adjacent in
- *  preorder, so its tips are exactly [leafStart[node], leafEnd[last]) and its parent is parent[node]) and `xmax` the largest
+ *  preorder, so its tips are exactly [leafStart[node], leafEnd[last]) (in rows [rowStart[node], rowEnd[last]); its parent is parent[node]) and `xmax` the largest
  *  XMAX of the members. The slice spans from the parent's depth to xmax. Every other entry has last = -1. */
 export class DrawList {
   node = new Int32Array(8192);
@@ -187,7 +192,8 @@ export function cut(proj: LayoutProjection, P: CutParams, classOf: Uint8Array | 
 function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen, res: CutResult): CutResult {
   const { tree, L, T } = proj;
   const n = L.n;
-  const { X, ROW, XMAX, LAST } = L;
+  const { X, ROW, XMAX, LAST, rowStart, rowEnd } = L;
+  const collapsed = L.collapsed;
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
   const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { ox, oy, kx, ky, clipL, clipR, clipT, clipB } = T;
@@ -248,8 +254,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
       if (i >= n) break;
     }
     visited++;
-    const yTop = oy + leafStart[i] * ky;
-    const yBot = oy + leafEnd[i] * ky;
+    const yTop = oy + rowStart[i] * ky;
+    const yBot = oy + rowEnd[i] * ky;
     if (yBot < clipT - PAD || yTop > clipB + PAD) {
       i = subtreeEnd[i];
       continue;
@@ -272,6 +278,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     else if (stub !== null && stub[i] === 1)
       kind = P.summaries ? K_SUMMARY : K_STUB; // clade not loaded: a triangle, never opened
     else if (sx > clipR + PAD) kind = K_STUB;
+    else if (collapsed !== null && collapsed[i] === 1)
+      kind = K_SUMMARY; // the app collapsed it: a triangle whatever the zoom and the options, never opened
     else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx)))
       kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
@@ -284,7 +292,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         i > 0 &&
         px < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))
+        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -339,8 +347,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         d = cell(oys + ROW[firstChild[i]] * ky);
         e = cell(oys + ROW[LAST[i]] * ky);
       } else if (kind === K_SUMMARY) {
-        d = cell(oys + leafStart[i] * ky);
-        e = cell(oys + leafEnd[i] * ky);
+        d = cell(oys + rowStart[i] * ky);
+        e = cell(oys + rowEnd[i] * ky);
       } else {
         d = cell(oys + ROW[i] * ky);
         e = d;
@@ -356,7 +364,12 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (minPx > base && (stub === null || stub[i] === 0) && !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base)))
+        if (
+          minPx > base &&
+          (stub === null || stub[i] === 0) &&
+          (collapsed === null || collapsed[i] === 0) &&
+          !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base))
+        )
           forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
@@ -368,7 +381,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
 function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | null, out: DrawList, seen: Seen, res: CutResult): CutResult {
   const { tree, L, T } = proj;
   const n = L.n;
-  const { X, ROW, XMAX, LAST } = L;
+  const { X, ROW, XMAX, LAST, rowStart, rowEnd } = L;
+  const collapsed = L.collapsed;
   const COS = L.COS!,
     SIN = L.SIN!,
     BC = L.BC!,
@@ -438,8 +452,8 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       i = subtreeEnd[i];
       continue;
     }
-    const a0 = leafStart[i] * da;
-    const a1 = leafEnd[i] * da;
+    const a0 = rowStart[i] * da;
+    const a1 = rowEnd[i] * da;
     if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) {
       i = subtreeEnd[i];
       continue;
@@ -447,8 +461,8 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     // exact enough: the sector's bounding box against the padded clip rectangle (corner points from the cached boundary
     // cos/sin, plus the axis crossings), after the cheap radius and angle tests above
     {
-      const ls = leafStart[i],
-        le = leafEnd[i];
+      const ls = rowStart[i],
+        le = rowEnd[i];
       const c0 = BC[ls],
         s0 = BS[ls],
         c1 = BC[le],
@@ -485,6 +499,8 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     let descend = false;
     if (childCount[i] === 0) kind = K_TIP;
     else if (stub !== null && stub[i] === 1) kind = P.summaries ? K_SUMMARY : K_STUB;
+    else if (collapsed !== null && collapsed[i] === 1)
+      kind = K_SUMMARY; // the app collapsed it: a fan whatever the zoom and the options, never opened
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
     else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i])))
       kind = P.summaries ? K_SUMMARY : K_STUB;
@@ -497,7 +513,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         i > 0 &&
         arc < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0)))
+        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -565,6 +581,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         if (
           minPx > base &&
           (stub === null || stub[i] === 0) &&
+          (collapsed === null || collapsed[i] === 0) &&
           !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))
         )
           forced++;

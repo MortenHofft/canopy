@@ -9,6 +9,7 @@
 
 import { DRAG_START_PX, PINCH_MIN_AXIS_PX, WHEEL_ZOOM_RATE } from './constants.ts';
 import type { Area } from './geom.ts';
+import type { Layout } from './layout.ts';
 import { defaultActiveNode, isNavigationKey, navigate, pageRows } from './keyboard.ts';
 import type { Hit, LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
@@ -39,6 +40,8 @@ export interface InputHost {
   readonly area: Area;
   readonly view: Viewport;
   readonly tree: TreeSnapshot;
+  /** The layout in force: the keyboard cursor moves over its rows (a collapsed clade is one). Without it a row is a tip. */
+  readonly L?: Layout;
   /** Keyboard cursor, -1 for none. */
   readonly activeNode: number;
   /** A node is hovered (the pointer cursor is shown). */
@@ -288,10 +291,10 @@ export class InputController {
     if (e.altKey || e.metaKey || fromUi(e)) return;
     const h = this.host;
     const tree = h.tree;
-    let node = h.activeNode >= 0 ? h.activeNode : defaultActiveNode(tree, h.layout, h.view);
+    let node = h.activeNode >= 0 ? h.activeNode : defaultActiveNode(tree, h.layout, h.view, h.L);
     if (node < 0) node = 0; // partial tree: the tip row at the view centre is not loaded
     if (isNavigationKey(e.key)) {
-      const next = navigate(tree, node, e.key, pageRows(h.layout, h.view));
+      const next = navigate(tree, node, e.key, pageRows(h.layout, h.view), h.L);
       e.preventDefault();
       if (next >= 0) h.setActive(next);
       return;

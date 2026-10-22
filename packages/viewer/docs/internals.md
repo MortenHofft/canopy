@@ -43,10 +43,11 @@ Test trees are under `data/` (see `data/README.md`); large ones are git-ignored 
 ```
 TreeSource.snapshot()            source.ts   TreeSnapshot: typed arrays over the rows that are loaded (+ stub, globalId, rollup
    |                                         for a partial tree). A new source.version -> syncSource() rebuilds what depends on rows.
-computeLayout(snapshot, lengths) layout.ts   Layout: X, ROW, XMAX, LAST (cached per branchLengths flag); COS/SIN/BC/BS for radial,
-   |                                         built on first use (ensureTrig)
+computeLayout(snapshot, lengths, layout.ts   Layout: X, ROW, XMAX, LAST, the rows (rowStart/rowEnd, and the rank <-> row tables with
+   collapsedMask)                            collapsed clades); cached per branchLengths flag; COS/SIN/BC/BS for radial, built on first use
+   |                                         (ensureTrig)
 makeTransform(kind, W, H, view,  geom.ts     Transform: the viewport window mapped to CSS px (rect: ox, oy, kx, ky; radial: centre,
-   area, tips)                               scale k, angle step da) and the clip rectangle
+   area, rows)                               scale k, angle step da) and the clip rectangle
    |
 projectionFor(snapshot, L, T)    projection.ts  RectProjection | RadialProjection, built per frame: node and branch positions, clade
    |                                         extents, summary/run geometry, and the per-frame values the cut precomputes
@@ -61,7 +62,7 @@ searchCut(proj, ...) -> cut      lod.ts      DrawList (node, kind, cls, last, xm
 ```
 
 `TreeViewer.render()` (`viewer.ts`) runs from the transform down once per drawn frame. The snapshot is re-read only when `source.version` changed, and
-the layout is cached per `branchLengths` flag and recomputed only then (or on a new snapshot). Frames are scheduled with `requestAnimationFrame` only when
+the layout is cached per `branchLengths` flag and recomputed only then (or on a new snapshot, or when `setCollapsed` changes the collapsed clades). Frames are scheduled with `requestAnimationFrame` only when
 something changed.
 
 Where the three adaptive mechanisms sit:
@@ -98,6 +99,46 @@ no lint rule enforces them. Per-frame allocation of a few objects (a projection,
 Related, from the measured work: the two cut loops in `lod.ts` are separate on purpose (see below), and several helpers there (`cell`, the
 `K_*` kinds) are defined in the loops' module because an import binding measured slower (the comment on `cell` in `lod.ts` gives 10-25% slower on a polytomy; `90f1671`).
 
+## Collapsed clades
+
+`setCollapsed(nodeIds)` makes a clade one row and one summary, on the full tree (issue #29: the app no longer collapses a copy of the tree and
+translates ids). The tree arrays are not touched. What changes is the **layout**, and with it the meaning of "row". These are the invariants:
+
+* **Rows and ranks.** A *row* is a place across the tips (rect: y in rows, radial: angle = row * 2pi / rows). A *rank* is a tip's index in the
+  tree. Without collapsed clades they are the same number and `Layout.rowOfRank`, `rankOfRow`, `rowNode`, `collapsed` and `hidden` are all `null`;
+  `rowStart` / `rowEnd` are then the very arrays `tree.leafStart` / `leafEnd`, `rows === tips`, so nothing is copied and the cut reads the same
+  memory as before (the cut goldens did not change). `computeLayout(tree, lengths, mask)` builds the tables in O(n) (one preorder scan that jumps
+  over the collapsed clades, one scan over the tips, one reverse pass for the node rows), no recursion; `setCollapsed` recomputes the layout.
+* **Tables.** `rowOfRank[r]`: the row of tip `r` (the clade's row for a hidden tip). `rankOfRow[row]`: the first rank of the row, length
+  `rows + 1`, ending with `tips`; a row holds the ranks `[rankOfRow[row], rankOfRow[row + 1])`: one for a tip, more for a collapsed clade (so
+  "this row is a collapsed clade" is `rankOfRow[row + 1] - rankOfRow[row] !== 1`). `rowNode[row]`: the node that stands for the row, the tip
+  or the clade. Every node has `rowStart` / `rowEnd` in rows, and `ROW` is the middle of its children's: a hidden node has its clade's one row
+  (`rowStart = row`, `rowEnd = row + 1`, `ROW = row + 0.5`), which is what lets `focusTip`, the highlight bands and the view-keeping treat a
+  hidden tip as "on the clade's row" without a special case.
+* **What is in rows and what in ranks.** Geometry is in rows: the viewport `y`, `ROW`, `rowStart` / `rowEnd` (cut, hit, projections),
+  `makeTransform`'s last argument, `tipPitch`, the fit and limits of `ViewState`, the overview. Identity and counting are in ranks: highlights
+  and the dim prefix (`hlRanks`, `hl`, `hlPrefix`: a collapsed clade is dimmed only when none of its tip RANGE `[leafStart, leafEnd)` is
+  highlighted, which is exactly the rule for any summary), the columns' data (by rank; `drawColumns` reads it through `rankOfRow`), tip counts
+  in events and the label list's `rank`. Code that mixes the two is the bug to look for: a loop over `0..tipCount` that draws or positions
+  something must go through `rowOfRank`.
+* **The cut.** A node with `Layout.collapsed[i] === 1` is a `K_SUMMARY` and is never descended into; it is one `Uint8Array` read per visited
+  node, in both loops (`cutRect`, `cutRadial`, changed together), only when the layout has a mask (`collapsed !== null`). It is not taken into
+  a run of small siblings (rule R), and is never a slice (`isSlice(tree, i, collapsed)` is false for it): it is a triangle or fan whatever its
+  children are. `forced` does not count it. Only the *outermost* of nested collapsed clades is marked; the rest is `hidden`, which is also what
+  `nodePosition`, `locateNode` and `nodeBounds` use to answer `null`.
+* **The axis** does not depend on collapsing: `X` and `XMAX` are those of the full tree, so the triangle ends at the clade's deepest tip and a
+  dated tree stays dated (`ultrametric`, the "time before tips" axis).
+* **The window.** `ViewState` keeps `y` in rows. When the set changes, `viewer.relayoutCollapsed()` carries the window across with
+  `remapRow(y, oldLayout, newLayout)` (through the rank: the row of a tip in the old layout is the row of that tip in the new): same height in
+  rows (the scale), same place of the centre; a fitted window is fitted again; the radial window turns with its centre. `keptViewport`
+  (`setTree` with a map) converts rows to ranks on the old layout and back on the new one the same way.
+* **Keyboard.** The cursor moves over rows (`keyboard.ts`, with `Layout.rowNode`), so a collapsed clade is one stop; its children are hidden
+  and Right does not enter it. The cursor and the hover are dropped when the set changes.
+* **Label.** A collapsed clade's label is drawn with the tip labels (`drawLabels`, `Scene.cladeText`), anchored at the end of its triangle, with
+  `LabelList.rank = -(node + 1)`; the DOM overlay skips such entries.
+* **Events.** `NodeEvent.collapsed` is true for a node with `Layout.collapsed[node] === 1` (`makeNodeEvent`).
+* **Not supported:** a snapshot with stubs or rollups (partial source). `applyCollapsed` leaves the mask empty there.
+
 ## Module map
 
 Line counts are `wc -l` of the files at the date below; they include comments. `viewer.ts` is over a
@@ -118,7 +159,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/controls/` | 471 | built-in controls, one module each: zoom, fit, layout toggle, search, legend, overview (+ `defaults.ts`, `icons.ts`) |
 | `src/overlays/` | 379 | `Overlay` (pinned to a node), `Tooltip`, `NodeMenu` |
 | `src/source.ts` | 97 | `TreeSource` interface, `InMemorySource` |
-| `src/layout.ts` | 159 | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); cos/sin cache |
+| `src/layout.ts` | 270 | `computeLayout`: X, ROW, XMAX, LAST in linear passes (or from rollups for a partial snapshot); the rows and rank <-> row tables of collapsed clades; `remapRow`; cos/sin cache |
 | `src/geom.ts` | 95 | `makeTransform` (viewport to px), sector bounding boxes |
 | `src/projection.ts` | 316 | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values |
 | `src/lod.ts` | 655 | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R |
