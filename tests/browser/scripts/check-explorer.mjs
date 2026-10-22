@@ -159,6 +159,25 @@ await page.locator('input[aria-label="Branch width"]').fill('3');
 await page.waitForTimeout(150);
 const th = await ev(() => __v().getTheme());
 ok(th.labelSize === 23 && th.branchWidth === 3, `font and branch width reach the theme (${th.labelSize}, ${th.branchWidth})`);
+ok(th.supportColour !== '' && th.supportColour === th.lengthColour, `light: support and length labels share one colour (${th.supportColour})`);
+{
+  // one variable, --ex-node-label, sets both (#70)
+  await ev(() => {
+    document.documentElement.style.setProperty('--ex-node-label', 'rgb(1, 2, 3)');
+    __v().refreshTheme();
+  });
+  await page.waitForTimeout(250);
+  const t = await ev(() => __v().getTheme());
+  ok(
+    t.supportColour === t.lengthColour && /1, ?2, ?3|#010203/.test(t.supportColour),
+    `--ex-node-label sets both label colours (${t.supportColour}, ${t.lengthColour})`,
+  );
+  await ev(() => {
+    document.documentElement.style.removeProperty('--ex-node-label');
+    __v().refreshTheme();
+  });
+  await page.waitForTimeout(250);
+}
 await page.locator('button[title=Circular]').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'radial', 'Circular: radial layout');
@@ -826,6 +845,10 @@ await page.waitForTimeout(200);
 const fg2 = await ev(() => __v().getTheme().branch);
 ok(fg2 !== fg, `dark mode reaches the canvas (branches ${fg} → ${fg2})`);
 ok(await ev(() => __v().getTheme().dark === true), 'dark is derived from the opaque dark background (no --phylo-dark by hand)');
+{
+  const t = await ev(() => __v().getTheme());
+  ok(t.supportColour !== '' && t.supportColour === t.lengthColour, `dark: support and length labels share one colour (${t.supportColour})`);
+}
 const h0 = (await page.locator('.ex-pane').boundingBox()).height;
 const g = await page.locator('.ex-resize').boundingBox();
 await page.mouse.move(g.x + g.width / 2, g.y + 7);
@@ -1493,6 +1516,21 @@ const selMe = await weak(2, 12, 2);
 await openMenu(selMe);
 await act('info');
 ok((await page.locator('.ex-info').count()) === 1 && (await ev(() => __v().getSelected())) === selMe.node, 'a weak clade selected, Info open');
+// the bootstrap value is styled like the other values of the inspector (#70)
+{
+  const ddStyles = await ev(() =>
+    [...document.querySelectorAll('.ex-info-rows dd')].map((d) => {
+      const c = getComputedStyle(d);
+      return { dt: d.previousElementSibling.textContent, colour: c.color, font: c.fontFamily, weight: c.fontWeight };
+    }),
+  );
+  const boot = ddStyles.find((d) => d.dt === 'Bootstrap');
+  ok(boot !== undefined && ddStyles.length >= 2, `the inspector of a clade shows Bootstrap (${ddStyles.map((d) => d.dt).join(', ')})`);
+  ok(
+    boot !== undefined && ddStyles.every((d) => d.colour === boot.colour && d.font === boot.font && d.weight === boot.weight),
+    `and its value has the colour, font and weight of the others (${boot && boot.colour})`,
+  );
+}
 await page.locator('button[aria-label="Collapse by support"]').click();
 await page.waitForTimeout(300);
 const thr = page.locator('input[aria-label="Minimum support"]');
