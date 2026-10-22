@@ -72,5 +72,9 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   (`@gbif-phylo/viewer/browser`, 33.6 kB gzip with every control; `@gbif-phylo/io/browser`, 3.4 kB) do this in two requests through an import
   map, with `viewer.css` as a stylesheet. `examples/no-build` does exactly that, and `tests/browser/scripts/check-no-build.mjs` checks it from a
   plain static server.
+* **Opaque canvas by default.** The main canvas is created with `alpha: false`, which lets a browser skip blending when it composites it; it
+  gets an alpha channel only while `--phylo-background` is not opaque. The opaque default is kept. The cost of alpha against opaque (frame and
+  composite time at 10k and 190k tips) was never measured: **unverified**, pending testing in a real browser with a GPU (#2). The order of
+  the frame (`clearRect` before the background fill only on an alpha canvas) is unit-tested (`packages/viewer/test/viewer.test.mjs`).
 * **Only partly tested.** As in the spike, the browser tests ran in headless Chromium without a GPU. Other browsers, touch devices and screen
   readers were not tested with the new controls and popups (**unverified**).

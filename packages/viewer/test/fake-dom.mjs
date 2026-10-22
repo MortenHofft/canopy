@@ -27,11 +27,37 @@ class ClassList {
   }
 }
 
+/** An inline style declaration: `cssText` is kept as written and also parsed into camelCase properties (`pointer-events:none` sets
+ *  `pointerEvents`), as a browser does; properties can be set directly too. */
+class StyleDecl {
+  constructor() {
+    this._css = '';
+  }
+  get cssText() {
+    return this._css;
+  }
+  set cssText(v) {
+    this._css = String(v);
+    for (const d of this._css.split(';')) {
+      const i = d.indexOf(':');
+      if (i < 0) continue;
+      const k = d.slice(0, i).trim();
+      if (k) this.setProperty(k, d.slice(i + 1).trim());
+    }
+  }
+  setProperty(k, v) {
+    this[k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase())] = String(v);
+  }
+  getPropertyValue(k) {
+    return this[k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase())] ?? '';
+  }
+}
+
 export class FakeElement {
   constructor(tag) {
     this.tagName = tag.toUpperCase();
     this.attrs = {};
-    this.style = { cssText: '' };
+    this.style = new StyleDecl();
     this.dataset = {};
     this.children = [];
     this.parentNode = null;
@@ -99,6 +125,28 @@ export class FakeElement {
     if (!this.parentNode) return;
     const p = this.parentNode;
     p.children = p.children.filter((x) => x !== this);
+    this.parentNode = null;
+  }
+  /** A copy with the same attributes, class names, style and size (not listeners or contexts); children too when `deep`. */
+  cloneNode(deep = false) {
+    const c = new this.constructor(this.tagName.toLowerCase());
+    c.attrs = { ...this.attrs };
+    c.dataset = { ...this.dataset };
+    c.classList.set = new Set(this.classList.set);
+    c.style.cssText = this.style.cssText;
+    for (const k of Object.keys(this.style)) if (k !== '_css') c.style[k] = this.style[k];
+    c.w = this.w;
+    c.h = this.h;
+    if (deep) for (const k of this.children) c.appendChild(k.cloneNode(true));
+    return c;
+  }
+  replaceWith(n) {
+    const p = this.parentNode;
+    if (!p) return;
+    n.remove();
+    const k = p.children.indexOf(this);
+    p.children[k] = n;
+    n.parentNode = p;
     this.parentNode = null;
   }
   /** This element and its parents, innermost first. */
