@@ -24,6 +24,7 @@ These changes made the spike's custom renderer into the first library form. Noth
   - `TreeTheme.dark` is documented as informational.
   - Builds clean `dist/` first, and the package check fails on output without a source.
   - `<TreeView>`'s default controls no longer bundle every control: 31.4 kB gzip instead of 34.3 kB.
+- **tree-ops map helpers.** `followClade` / `followClades` find where a clade went after an operation by its surviving tips (`TreeInput` only, with `onSplit: 'drop' | 'keep'`), `invertMap` and `composeMaps` turn and chain node maps, and `remapFocus` can take the operation instead of a callback. `examples/react` and `examples/reactree` use them instead of their own `moveColour` / `moveNode` and inline map inversions.
 - **Demo site** (2026-10-22). A hub page (`site/`) linking a playground with every option, theme token and control
   (`examples/playground`, which also shows only a clade, collapses clades and collapses by support with tree-ops) and the Reactree look-alike, built with their data by `npm run build:site` for Vercel (`vercel.json`), and
   checked as served (`check-site.mjs`). The large OTL trees come from the `data/otl-large` branch at build time.

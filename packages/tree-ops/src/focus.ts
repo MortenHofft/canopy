@@ -4,6 +4,7 @@
 // the first `focusOn`), like a browser's back button. All functions are pure: they return a new Focus.
 
 import { checkNode, identity } from './draft.ts';
+import { followClade } from './follow.ts';
 import { subtree } from './subset.ts';
 import type { OpResult, TreeInput } from './types.ts';
 
@@ -53,14 +54,30 @@ export function showFocus(t: TreeInput, f: Focus): OpResult {
   return v < 0 ? identity(t) : subtree(t, v);
 }
 
+/** An operation on a tree, as `ops.reroot` etc. return it: the tree before and after, and the node map. */
+export interface FocusOperation {
+  before: TreeInput;
+  after: TreeInput;
+  map: Int32Array;
+}
+
 /**
- * Carry a focus over an operation on the tree (reroot, prune, ...): `keep(node)` returns where a focused clade went in the new tree
- * (-1 if it is gone or no longer a clade). Views that are gone are dropped from the stack, so back skips them.
+ * Carry a focus over an operation on the tree (reroot, prune, ...). `keep(node)` returns where a focused clade went in the new tree
+ * (-1 if it is gone or no longer a clade), or pass the operation itself (`{ before, after, map }`) to follow each clade by its tips
+ * (`followClade`); a clade that ends up the root or a tip cannot be focused and counts as gone. Views that are gone are dropped
+ * from the stack, so back skips them.
  */
-export function remapFocus(f: Focus, keep: (node: number) => number): Focus {
+export function remapFocus(f: Focus, keep: ((node: number) => number) | FocusOperation): Focus {
+  const fn =
+    typeof keep === 'function'
+      ? keep
+      : (k: number) => {
+          const m = followClade(keep.before, keep.after, keep.map, k).node;
+          return m > 0 && keep.after.childCount[m] > 0 ? m : -1;
+        };
   const stack: number[] = [];
   for (const v of f.stack) {
-    const m = v < 0 ? -1 : keep(v);
+    const m = v < 0 ? -1 : fn(v);
     if (v >= 0 && m < 0) continue;
     if (stack[stack.length - 1] !== m && !(stack.length === 0 && m === -1)) stack.push(m); // a leading 'whole tree' is the start: no back step
   }
