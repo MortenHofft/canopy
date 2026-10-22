@@ -78,6 +78,14 @@ ok(
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');
+ok((await theme('labelFontStyle')) === 'italic', 'labels are italic by default');
+await select('labelFontStyle', 'normal');
+ok(
+  (await theme('labelFontStyle')) === 'normal' && query().get('s.labelFontStyle') === 'normal',
+  'Label style select → theme.labelFontStyle, and into the URL',
+);
+await select('labelFontStyle', 'italic');
+ok((await theme('labelFontStyle')) === 'italic' && !query().has('s.labelFontStyle'), 'back to italic, out of the URL again');
 await setInput('branch', '#ff0000');
 ok((await theme('branch')) === '#ff0000' && query().get('s.branch') === '#ff0000', 'colour → theme.branch, and into the URL');
 await select('preset', 'dark');

@@ -3,6 +3,7 @@
  * reach the canvas without any colour in the code. Dark mode is data-theme="dark" on <html>, as in Reactree. */
 
 :root {
+  --phylo-label-font-style: normal; /* the tip labels are not scientific names here */
   --rt-primary: #0071f2;
   --rt-primary-hover: #3472e5;
   --rt-primary-soft: #5775cc;

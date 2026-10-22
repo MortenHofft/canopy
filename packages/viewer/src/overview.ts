@@ -218,7 +218,6 @@ export class Overview {
       hoverNode: -1,
       activeNode: -1,
       density: 'sparse',
-      italic: false,
       format: (id) => h.formatLabel(id),
       scale: h.dpr,
       thin: false,

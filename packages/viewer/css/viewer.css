@@ -123,7 +123,7 @@
 
 .phylo-tooltip__title--tip,
 .phylo-node-menu__title--tip {
-  font-style: italic;
+  font-style: var(--phylo-label-font-style, italic);
 }
 
 .phylo-node-menu {
@@ -225,7 +225,7 @@
 .phylo-search__option {
   padding: 5px 8px;
   border-radius: var(--phylo-control-radius, 4px);
-  font-style: italic;
+  font-style: var(--phylo-label-font-style, italic);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;

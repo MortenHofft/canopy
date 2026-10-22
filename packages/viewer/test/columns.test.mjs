@@ -210,7 +210,9 @@ test('cellRect: null without a value, for a bad rank, for the radial layout, and
 /** A tree of n tips (a star) for the binned paths. Tip i is t<i>. */
 const star = (n) => snap(`(${Array.from({ length: n }, (_, i) => `t${i}:1`).join(',')})root;`);
 const theme = FALLBACK_THEME;
-const draw = (ctx, cols, t, T, opts) => drawColumns(ctx, cols, t, T, theme, 12, '#336699', opts);
+// opts.alignRowGap is a theme value now: the helper keeps the old call shape
+const draw = (ctx, cols, t, T, opts) =>
+  drawColumns(ctx, cols, t, T, opts?.alignRowGap == null ? theme : { ...theme, alignRowGap: opts.alignRowGap }, 12, '#336699', opts);
 
 test('drawColumns, bar rows >= 1.5 px: a header, then one rect per row with a value, inside its row', () => {
   const cols = compileColumns(tree, [bar({ A: 10, B: 3, F: 1 })]);

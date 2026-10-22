@@ -223,7 +223,7 @@ CustomColumn:  { id, kind: 'custom', header, width, values: Record<tipLabel, V>,
 
 `values` (and `renderer`) are compared by reference when columns are set again: pass the same object while the data is unchanged and a new
 one when it changed; never mutate in place. Built-in kinds: log-scaled bars (binned per pixel row below 1.5 px per row), text (tinted bands
-below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and `alignRowGap`).
+below 9 px), alignments (residue colours or ETE-style blocks, see `alignStyle` and the theme's `alignRowGap`).
 
 An alignment column has two colour schemes, chosen by its `alphabet`: `'protein'` (Clustal-like groups) and `'nucleotide'` (A, C, G, T/U each
 their own colour). `'auto'`, the default, takes `'nucleotide'` when more than 90% of a sample of the residues (the first 400 non-gap
@@ -249,6 +249,30 @@ A `ColumnRenderer` draws a custom column:
 The viewer draws the header. A renderer that throws is reported once and the frame goes on. See the heat strip in
 [`examples/vanilla/src/main.ts`](../../../examples/vanilla/src/main.ts).
 
+## Theme or option
+
+Every setting is one or the other, by this rule:
+
+* **Theme** (`TreeTheme`): how things look. Colours, sizes and widths in px, opacities, font family and style. Each is a `--phylo-*` custom
+  property too, so a stylesheet themes the viewer (light/dark, GBIF tokens) without JavaScript.
+* **Options** (`ViewerOptions`): what is shown and how the viewer behaves. Layout, which elements appear, density and level-of-detail
+  thresholds, functions (`formatLabel`, `tipHref`), performance knobs.
+
+Test for a new setting: would a designer set it in CSS, or does it change what is drawn or how the viewer works? A switch that adds or removes
+an element is an option; the colour, size and font of that element are theme. Settings added by other work follow the same rule, for example
+a switch for a kind of label or highlight (option) and the colours and opacities that go with it (theme).
+
+Exceptions to the rule:
+
+| Setting | Lives in | Why |
+|---|---|---|
+| `dark` | theme | derived from the background; informational for apps, and used by the drawing code only to choose light or dark residue defaults |
+| `rowHeight` | option | a size in px, but it sets the layout (how many tips fit), not how a row is painted |
+
+Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
+
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `draw.ts`), the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
 The theme in force is `FALLBACK_THEME`, then the `--phylo-*` custom properties set on the target or any ancestor, then `setTheme`'s
@@ -269,6 +293,8 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through; the canvas is opaque, which is faster, whenever this colour is), labels and axis text, axis lines and headers |
 | `branch`, `highlight`, `summary` | `--phylo-branch`, ... | `#44576a`, `#4c9b45`, `#9aa7b3` | branches, selection and focus, collapsed clades |
 | `fontFamily` | `--phylo-font-family` | `system-ui, sans-serif` | labels and axis |
+| `labelFontStyle` | `--phylo-label-font-style` | `italic` | `italic` or `normal` (`oblique` reads as italic, case ignored): tip labels on the canvas and in the DOM (tooltip, node menu, search list) |
+| `alignRowGap` | `--phylo-align-row-gap` | 0 | alignment columns: empty px between sequences (rows at least 4 px tall); blocks keep at least a quarter of the row free |
 | `categorical` | `--phylo-categorical` (comma list) | 5 colours | palette for categories; the second colours bar columns |
 | `branchWidth`, `cladeBranchWidth` | `--phylo-branch-width`, ... | 1.3, 2 | line widths (px) |
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
@@ -312,10 +338,8 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
-| `italicLabels` | `true` | italic tip labels |
 | `minCladePx` | `3` | collapse clades smaller than this many px (the base threshold of the cut) |
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
-| `alignRowGap` | `0` | alignment columns: empty px between sequences (rows at least 4 px tall) |
 | `formatLabel` | underscores to spaces | `(tipId) => string`, the displayed tip label |
 | `cladeLabel` | `null` | `(node, tree) => string \| null`, the name of an internal node (`node`: preorder id in the full tree; `tree`: the snapshot, label at `tree.labels[tree.toLocal(node)]`); null = none. See Naming clades |
 | `tipHref` | `null` | `(tipId) => url`; makes visible labels real links (`<a href data-tip-id>`) |

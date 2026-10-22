@@ -108,7 +108,6 @@ export const SETTINGS: Setting[] = [
       ['both', 'Both'],
     ],
   },
-  { id: 'italicLabels', label: 'Italic labels', group: 'Layout and labels', to: 'option', kind: 'toggle', default: O.italicLabels },
   {
     id: 'underscores',
     label: 'Underscores as spaces',
@@ -160,6 +159,18 @@ export const SETTINGS: Setting[] = [
   { id: 'highlight', label: 'Highlight', group: 'Theme', to: 'theme', kind: 'colour', default: T.highlight },
   { id: 'summary', label: 'Collapsed clades', group: 'Theme', to: 'theme', kind: 'colour', default: T.summary },
   { id: 'labelSize', label: 'Label size (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.labelSize, min: 8, max: 24, step: 0.5 },
+  {
+    id: 'labelFontStyle',
+    label: 'Label style',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'select',
+    default: T.labelFontStyle,
+    options: [
+      ['italic', 'Italic'],
+      ['normal', 'Normal'],
+    ],
+  },
   { id: 'branchWidth', label: 'Branch width (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.branchWidth, min: 0.5, max: 5, step: 0.1 },
   {
     id: 'cladeBranchWidth',
@@ -218,6 +229,17 @@ export const SETTINGS: Setting[] = [
     step: 0.05,
   },
   { id: 'axisFontSize', label: 'Axis text (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.axisFontSize, min: 6, max: 16, step: 0.5 },
+  {
+    id: 'alignRowGap',
+    label: 'Alignment row gap (px)',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'range',
+    default: T.alignRowGap,
+    min: 0,
+    max: 4,
+    step: 1,
+  },
 
   // ---- built-in controls
   { id: 'zoom', label: 'Zoom buttons', group: 'Controls', to: 'control', kind: 'toggle', default: true },
@@ -310,17 +332,6 @@ export const SETTINGS: Setting[] = [
       ['residues', 'Residues'],
       ['blocks', 'Blocks (gaps as lines)'],
     ],
-  },
-  {
-    id: 'alignRowGap',
-    label: 'Alignment row gap (px)',
-    group: 'Data and interaction',
-    to: 'option',
-    kind: 'range',
-    default: O.alignRowGap,
-    min: 0,
-    max: 4,
-    step: 1,
   },
 
   // ---- residue colours of alignment columns: unset (empty) means the default for a light or a dark theme, so these are text, not pickers

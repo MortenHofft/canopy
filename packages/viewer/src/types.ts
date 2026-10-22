@@ -1,5 +1,10 @@
 // Public types of the viewer core. No React: `TreeData` is the structural subset of @gbif-phylo/io's `TreeModel` that the core
 // reads, so any tree model with preorder ids and leaf-contiguous subtree ranges can be shown.
+//
+// Option or theme? `ViewerOptions` is what is shown and how the viewer behaves: layout, which elements appear, density and
+// level-of-detail thresholds, functions (`formatLabel`, `tipHref`), performance knobs. `TreeTheme` is how things look: colours,
+// sizes and widths in px, opacities, font family and style, all settable as `--phylo-*`. Put a new setting by that test; the rule and
+// the exceptions are in docs/api.md ("Theme or option").
 
 import type { CladeLabelFn } from './clade-name.ts';
 import { RESIDUE_THEME_KEYS, type Alphabet } from './residues.ts';
@@ -94,6 +99,8 @@ export interface TreeTheme extends ResidueTheme {
   highlight: string; // selection, highlight bands, focus ring
   summary: string; // fill of collapsed clades without own colour
   fontFamily: string;
+  /** Style of tip labels, `--phylo-label-font-style`: 'italic' (scientific names) or 'normal'. */
+  labelFontStyle: 'normal' | 'italic';
   /** Colours for categories (clade colours picked by an app, column bars use the second). */
   categorical: string[];
   /** Branch line width, CSS px. */
@@ -112,6 +119,8 @@ export interface TreeTheme extends ResidueTheme {
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
   axisFontSize: number;
+  /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep a quarter of the row free. */
+  alignRowGap: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -123,6 +132,7 @@ export const FALLBACK_THEME: TreeTheme = {
   highlight: '#4c9b45',
   summary: '#9aa7b3',
   fontFamily: 'system-ui, sans-serif',
+  labelFontStyle: 'italic',
   categorical: ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8'],
   branchWidth: 1.3,
   cladeBranchWidth: 2,
@@ -134,6 +144,7 @@ export const FALLBACK_THEME: TreeTheme = {
   dimOpacity: 0.25,
   labelSize: 13,
   axisFontSize: 10,
+  alignRowGap: 0,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
@@ -230,6 +241,7 @@ export type LabelDensity = 'sparse' | 'normal' | 'dense';
  *  at the theme's `dimOpacity`; 'both' = both. */
 export type HighlightStyle = 'band' | 'dim' | 'both';
 
+/** What is shown and how the viewer behaves (see the header: looks are `TreeTheme`). */
 export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
@@ -241,13 +253,10 @@ export interface ViewerOptions {
   highlightStyle: HighlightStyle;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
   axis: boolean; // scale bar / time axis
-  italicLabels: boolean;
   minCladePx: number; // collapse clades smaller than this many pixels (either direction)
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
   alignStyle: 'residues' | 'blocks';
-  /** Alignment columns: empty px between neighbouring sequences (rows at least 4 px tall); blocks always keep at least a quarter of the row free. */
-  alignRowGap: number;
   formatLabel: (tipId: string) => string;
   /**
    * What names an internal node, for the legend, the node menu title, the default tooltip and the keyboard announcement: `(node, tree)`
@@ -283,10 +292,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   highlightStyle: 'band',
   rowHeight: null,
   axis: true,
-  italicLabels: true,
   minCladePx: 3,
   alignStyle: 'residues',
-  alignRowGap: 0,
   formatLabel: (s) => s.replace(/_/g, ' '),
   cladeLabel: null,
   tipHref: null,
