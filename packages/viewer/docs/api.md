@@ -276,7 +276,7 @@ Exceptions to the rule:
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
-Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `NODE_LABEL_GAP_PX` (3, support to its node, at least the marker's half size plus 1), `NODE_LABEL_PAD_PX` (3, free space each side of a node label within its branch), `NODE_LABEL_LIFT_PX` (2, branch line to the text's baseline) and `NODE_LABEL_MIN_SEG_PX` (10, a branch shorter than this gets no label) in `draw.ts`, `COLLAPSED_W` (length of a collapsed clade's triangle, `constants.ts`), `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`) and the font size of text columns (`columns.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
@@ -309,6 +309,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `dimOpacity` | `--phylo-dim-opacity` | 0.25 | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity |
 | `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity` | `--phylo-leader-colour`, `-dash`, `-width`, `-opacity` | `''` (= `muted`), `1 3`, 1, 0.7 | leader lines of aligned labels: colour, dash pattern (px, separated by spaces or commas; `''` or `none` = solid), width (px), opacity (times `dimOpacity` for a dimmed tip) |
 | `labelSize`, `axisFontSize` | `--phylo-label-size`, ... | 13, 10 | largest label size (labels shrink with the rows, down to 8), axis text (px) |
+| `nodeLabelSize`, `supportColour`, `lengthColour` | `--phylo-node-label-size`, `-support-colour`, `-length-colour` | 10, `''` (= `muted`), `''` (= `muted`) | node labels (`nodeLabels`): largest size (they shrink with the rows, down to 8; px), colour of support values (and of what a `nodeLabels` function returns), colour of branch lengths |
 | `dark` | `--phylo-dark` | from the background's luminance (an opaque background; a translucent one leaves it `false`), also after `setTheme({ background })`, unless `--phylo-dark` or `setTheme({ dark })` says | the background is dark: for apps and custom controls; the drawing code reads it only to pick the default residue colours (below) |
 | `residueHydrophobic`, `residuePositive`, `residueNegative`, `residuePolar`, `residueAromatic`, `residueGlycine`, `residueProline` | `--phylo-residue-hydrophobic`, `-positive`, `-negative`, `-polar`, `-aromatic`, `-glycine`, `-proline` | light and dark sets (below) | protein residues of alignment columns by group: AILMFWVC, KR, ED, NQSTU, HY, G, P |
 | `residueA`, `residueC`, `residueG`, `residueT` | `--phylo-residue-a`, `-c`, `-g`, `-t` | light and dark sets (below) | nucleotides of alignment columns; U is drawn like T |
@@ -344,6 +345,8 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `showSummaries` | `true` | draw collapsed clades as triangles (otherwise only their branch) |
 | `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
 | `alignLabels` | `false` | rectangular phylogram: every tip label starts in one column right of the farthest tip, with a dotted leader line from each tip to it (see "Aligned labels"). No effect in a cladogram, without branch lengths or in the radial layout |
+| `nodeLabels` | `'none'` | labels on internal nodes, drawn by the viewer: `'support'`, `'length'` or `(node, tree) => string \| number \| null` (see "Node labels") |
+| `formatNodeLabel` | `defaultFormatNodeLabel` | `(value, kind: 'support' \| 'length') => string`, the text of a number shown by `nodeLabels`: support to 2 decimals (`0.95`, `100`), lengths to 3 significant digits. Show 0.95 as 95 with `(v, kind) => kind === 'support' && v <= 1 ? String(Math.round(v * 100)) : String(v)` |
 | `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
@@ -380,6 +383,42 @@ nothing there.
 previous stroke colour). `leaderDash` as a CSS custom property: only `none` (not an empty value, which the viewer ignores) gives a solid line;
 with `setTheme`, `''` or `'none'` both do.
 
+### Node labels
+
+`nodeLabels` draws a text on each internal node that is in the frame's draw list. It is its own loop over the draw list (after the markers,
+before the tip labels), so a frame pays for the entries of the list, not for the nodes of the tree, and a 2M-tip tree costs what its draw
+list costs (at most 600 labels, 300 radial).
+
+- **What.** `'support'` is the node's support: `tree.support[row]` when the tree has one (a `TreeModel`, a tree-ops result, anything with
+  the optional `TreeData.support` array), else the number at the start of the node's label (`95`, `0.98`, or the `98` of `98:Name`; a name gives
+  none). A partial source (`TreeSource` with stubs) has the labels only if it loads them, so `'support'` is the label there. `'length'`
+  is `tree.length` of the node (none when missing). A function `(node, tree)` returns the text, a number (it goes through `formatNodeLabel` as
+  a support value) or null; `node` is the preorder id in the full tree, as for `cladeLabel`, and `tree` is the snapshot. A value that is not
+  finite (NaN, Infinity) gives no label. Numbers go through `formatNodeLabel(value, 'support' | 'length')`; a string from a function is
+  drawn as it is.
+- **Where.** Support (and a function's text) is right-aligned just left of the node, above its branch, clear of the node marker
+  (`max(3, nodeMarkerSize / 2 + 1)` px). Length is centred on the branch, above the line: in the rectangular layout on the visible part of
+  the horizontal segment, in the radial layout along the branch, turned to read upright on the left half like tip labels. The root has no
+  branch, so no label. In a cladogram (`branchLengths: false`) a length is still the node's real length, centred on the segment that is drawn.
+- **Level of detail.** Only expanded internal nodes of the draw list get a label: none inside a summary (triangle, fan or slice), none for a
+  collapsed-clade tip (so the length a collapse with `extend` gave it is never shown), none for a tip. A label needs room. Rectangular: tip
+  rows at least `LABEL_MIN_PX[labelDensity]` apart (16, 11 or 8 px), and the text, with 3 px each side, fits the visible part of the horizontal
+  segment. Radial: the node's arc (radius times the angle its tips span) at least that long, and the text fits the branch. A label that
+  does not fit is left out; nothing is shrunk or moved.
+- **Dimming.** With `highlightStyle` `'dim'` or `'both'`, the label of a dimmed node is drawn at `dimOpacity`, as its branch is.
+- **Looks.** `nodeLabelSize`, `supportColour`, `lengthColour` (theme, `--phylo-*`; `''` = `muted`). Labels are not DOM and are not hit-tested.
+- **Support that is not in the labels.** A BEAST MCC tree keeps its posterior in `[&posterior=0.98]`, which `@gbif-phylo/io` reads with
+  `{ annotations: true }`. Copy it to where `tree.support` is, and `'support'` shows it:
+
+  ```ts
+  tree.support.set(supportFrom(tree, 'posterior')); // Float64Array by node, NaN where there is none
+  viewer.setOptions({ nodeLabels: 'support' });
+  ```
+
+  Or leave `tree.support` alone and use the function form, which the viewer's `node` id indexes directly (for an in-memory tree it is the node's
+  index in your `TreeModel`; for a tree-ops result, map it first):
+  `nodeLabels: (node) => post[node]` with `post = supportFrom(tree, 'posterior')`.
+
 ### Dimming highlights
 
 With `highlightStyle: 'dim'` (or `'both'`), `setHighlighted` dims what is not highlighted instead of (or as well as) banding what is. The dim
@@ -388,7 +427,7 @@ state is a prefix sum over tip ranks, so a frame reads two entries per drawn pri
 - A clade is dimmed only when **none** of its tips is highlighted. A clade with some highlighted tips (a mixed clade, the path from the root to
   a match, a collapsed triangle or slice that holds a match) is drawn at full strength; its unmatched tips, branches and labels inside are dimmed
   on their own. A connector (the vertical bar of a node) takes the state of its node, so it is not dimmed when any tip below it matches.
-- Dimmed: branches, tip dots, node markers, collapsed-clade triangles, fans and slices, collapsed-tip triangles and tip labels.
+- Dimmed: branches, tip dots, node markers, node labels, collapsed-clade triangles, fans and slices, collapsed-tip triangles and tip labels.
 - In `'dim'` the matches are not banded, ringed, bold or recoloured; in `'both'` they are.
 - Columns are **not** dimmed. Their cells carry data (colours, bars, alignments) that the person reads next to the label, and a custom
   `ColumnRenderer` has no row state to dim with; the row of a dimmed tip still shows its full-strength column.
@@ -417,7 +456,7 @@ Detail and the invariants: [`types.ts`](../src/types.ts), [`source.ts`](../src/s
 [internals.md](internals.md).
 
 * `TreeData`: the tree as typed arrays in preorder: `nodeCount, tipCount, parent, firstChild, nextSibling, childCount, subtreeEnd, length` (NaN when
-  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, `heights()`, `tipIndex(label)`. `@gbif-phylo/io`'s
+  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, optional `support` (by node, NaN for none; `nodeLabels: 'support'` reads it), `heights()`, `tipIndex(label)`. `@gbif-phylo/io`'s
   `TreeModel` satisfies it.
 * `TreeSnapshot extends TreeData`: what the viewer reads each frame, over the rows currently loaded. Adds `stub` (1 = a clade whose rows are
   not loaded), `globalId` (row to preorder id of the full tree), `rollup` (`cumLength, maxCum, depth, maxDepth, row` per row), `toLocal(globalId)`.

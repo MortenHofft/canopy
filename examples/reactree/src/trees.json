@@ -2,7 +2,8 @@
   "rich-fish-carangaria-135": {
     "label": "Carangaria MCC (135 tips, dated)",
     "path": "rich/fish-carangaria-mcc/Carangaria-MCC.tre",
-    "format": "nexus"
+    "format": "nexus",
+    "supportKey": "posterior"
   },
   "rich-hcv-19": {
     "label": "HCV 2k IQ-TREE (19 tips, nucleotides)",

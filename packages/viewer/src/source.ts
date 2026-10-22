@@ -47,6 +47,7 @@ function snapshotOf(t: TreeData): TreeSnapshot {
     childCount: t.childCount,
     subtreeEnd: t.subtreeEnd,
     length: t.length,
+    support: t.support,
     leafStart: t.leafStart,
     leafEnd: t.leafEnd,
     tipNode: t.tipNode,

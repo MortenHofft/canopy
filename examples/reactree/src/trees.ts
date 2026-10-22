@@ -1,7 +1,7 @@
 // The trees this example can show (?tree=<id>), from the repository's data/ folder (served at /data/ by the dev server), some with
 // the alignment the tree was inferred from (list in trees.json). Gzipped files are inflated here with DecompressionStream.
 
-import { parseNewick, parseNexus, type TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, supportFrom, type TreeModel } from '@gbif-phylo/io';
 import trees from './trees.json';
 
 interface Entry {
@@ -9,6 +9,8 @@ interface Entry {
   path: string; // under data/
   format: 'newick' | 'nexus';
   fasta?: string;
+  /** The node annotation that holds the support (a BEAST tree: 'posterior'); copied into `tree.support` when the labels give none. */
+  supportKey?: string;
 }
 
 /** In a JSON file so the site build (scripts/build-site.mjs) can copy exactly these files from data/. */
@@ -43,6 +45,10 @@ export async function loadTree(id: string): Promise<{ tree: TreeModel; fasta: Re
   const t = TREES[id];
   if (!t) throw new Error(`unknown tree ${JSON.stringify(id)}; known: ${Object.keys(TREES).join(', ')}`);
   const [src, fa] = await Promise.all([text(t.path), t.fasta ? text(t.fasta) : Promise.resolve(null)]);
-  const tree = t.format === 'nexus' ? parseNexus(src).tree : parseNewick(src);
+  const o = { annotations: t.supportKey !== undefined };
+  const tree = t.format === 'nexus' ? parseNexus(src, o).tree : parseNewick(src, o);
+  // a BEAST MCC tree keeps its support as [&posterior=0.98], not as an internal label: copy it to where tree.support is read (the
+  // bootstrap labels, the inspector, collapse by support), as supportFrom's documentation says
+  if (t.supportKey && !tree.support.some((v) => !Number.isNaN(v))) tree.support.set(supportFrom(tree, t.supportKey));
   return { tree, fasta: fa === null ? null : parseFasta(fa) };
 }
