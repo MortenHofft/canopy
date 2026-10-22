@@ -14,13 +14,14 @@
 // many live locals spill around each one. Draw and hit run per drawn primitive (thousands), where the calls are cheap.
 //
 // Two coordinates describe a point of either layout. DEPTH is the distance from the root in px along the branch axis (rect:
-// screen x, radial: radius). The TIP AXIS is where a node sits across the tips (rect: screen y in px, radial: angle in rad).
+// screen x, radial: radius). The TIP AXIS is where a node sits across the tips (rect: screen y in px, radial: canvas angle in rad, in the
+// fan's range of angles: fan.start .. fan.start + span for the rows, see RadialFan in layout.ts).
 // A clade occupies [d0, d1] x [t0, t1] (see summaryExtent; the tip axis is in ROWS, see layout.ts); the pixel size of the tip-axis extent (rect: rows, radial: arc
 // length at the clade's outer radius) is what the collapse rules compare against minPx.
 
 import { CULL_PAD_PX } from './constants.ts';
 import type { Layout } from './layout.ts';
-import { ensureTrig } from './layout.ts';
+import { ensureTrig, fanTheta, sameFan } from './layout.ts';
 import type { Transform } from './geom.ts';
 import { K_RUN, cell, type Seen } from './lod.ts';
 import type { LayoutKind, TreeSnapshot } from './types.ts';
@@ -154,7 +155,8 @@ export class RadialProjection implements ProjectionCore {
   t0 = 0;
   t1 = 0;
   readonly tipPitch: number;
-  // the viewport as seen from the root (angles in 0..2pi): radius range, angle interval (lo..hi, or its complement when wrap)
+  // the viewport as seen from the root: radius range, angle interval lo..hi (or, when wrap, the angles from lo up and from hi down: the
+  // window is across the middle of the fan's opening), in the fan's range of angles (fanTheta), where the rows are a0..a0 + span
   rMin = 0;
   rMax = 0;
   all = true;
@@ -165,6 +167,8 @@ export class RadialProjection implements ProjectionCore {
   private readonly cy: number;
   private readonly k: number;
   private readonly da: number;
+  /** Canvas angle of row position 0 (the fan's start). */
+  readonly a0: number;
   // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
   // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
   // frame, so which of two close clades survives does not flicker
@@ -186,6 +190,8 @@ export class RadialProjection implements ProjectionCore {
     readonly L: Layout,
     readonly T: Transform,
   ) {
+    // the fan is the layout's (setLayoutFan); the projection only reads it, and a transform made for another fan is a caller's mistake
+    if (!sameFan(T.fan, L.fan)) throw new Error("makeTransform was given a radial fan other than the layout's (pass L.fan)");
     ensureTrig(L);
     this.X = L.X;
     this.ROW = L.ROW;
@@ -199,7 +205,8 @@ export class RadialProjection implements ProjectionCore {
     this.cy = T.cy;
     this.k = T.k;
     this.da = T.da;
-    this.tipPitch = (2 * Math.PI * T.k) / Math.max(1, L.rows);
+    this.a0 = L.fan.start;
+    this.tipPitch = T.da * T.k;
     const fq = Math.pow(2, Math.floor(Math.log2(T.k))) / T.k;
     this.fq = fq;
     this.ou = Math.floor(((T.clipL + T.clipR) / 2 - T.cx) * fq);
@@ -215,20 +222,21 @@ export class RadialProjection implements ProjectionCore {
     this.rMin = Math.hypot(dxMin, dyMin);
     this.rMax = Math.hypot(Math.max(Math.abs(cx - L), Math.abs(cx - R)), Math.max(Math.abs(cy - T), Math.abs(cy - B)));
     this.all = dxMin === 0 && dyMin === 0; // the root is inside the window: every angle is visible
+    const fan = this.L.fan;
+    const base = fan.start + (fan.span / 2 - Math.PI); // the lowest angle of the fan's range (the middle of the opening, see fanTheta)
     if (this.all) {
-      this.lo = 0;
-      this.hi = TWO_PI;
+      this.lo = base;
+      this.hi = base + TWO_PI;
       this.wrap = false;
       return;
     }
     // the rectangle subtends less than pi seen from an outside point: its angular interval is the complement of the
     // largest gap between the four corner angles
     const c = this.corner;
-    c[0] = Math.atan2(T - cy, L - cx);
-    c[1] = Math.atan2(T - cy, R - cx);
-    c[2] = Math.atan2(B - cy, L - cx);
-    c[3] = Math.atan2(B - cy, R - cx);
-    for (let q = 0; q < 4; q++) if (c[q] < 0) c[q] += TWO_PI;
+    c[0] = fanTheta(fan, Math.atan2(T - cy, L - cx));
+    c[1] = fanTheta(fan, Math.atan2(T - cy, R - cx));
+    c[2] = fanTheta(fan, Math.atan2(B - cy, L - cx));
+    c[3] = fanTheta(fan, Math.atan2(B - cy, R - cx));
     c.sort(); // typed arrays sort numerically
     let gap = c[0] + TWO_PI - c[3],
       at = 3;
@@ -252,11 +260,11 @@ export class RadialProjection implements ProjectionCore {
   }
 
   dedupeRun(seen: Seen, first: number, last: number, xmax: number): boolean {
-    const { X, parent, rowStart, rowEnd, k, da, fq, ou, ov } = this;
+    const { X, parent, rowStart, rowEnd, k, da, a0, fq, ou, ov } = this;
     const rq = xmax * k,
       rp = X[parent[first]] * k;
-    const sa0 = rowStart[first] * da,
-      sa1 = rowEnd[last] * da,
+    const sa0 = a0 + rowStart[first] * da,
+      sa1 = a0 + rowEnd[last] * da,
       mid = (sa0 + sa1) / 2,
       cm = Math.cos(mid),
       sm = Math.sin(mid);
@@ -286,7 +294,7 @@ export class RadialProjection implements ProjectionCore {
   }
 
   tip(j: number): number {
-    return this.ROW[j] * this.da;
+    return this.a0 + this.ROW[j] * this.da;
   }
 
   /** Angle from node a to node b (as tip(b) - tip(a), without the origin's rounding; the sagitta test of a connector arc). */
@@ -303,8 +311,8 @@ export class RadialProjection implements ProjectionCore {
     const run = last >= 0;
     this.d0 = X[run ? parent[i] : i] * this.k;
     this.d1 = (run ? xmax : XMAX[i]) * this.k;
-    this.t0 = rowStart[i] * this.da;
-    this.t1 = rowEnd[run ? last : i] * this.da;
+    this.t0 = this.a0 + rowStart[i] * this.da;
+    this.t1 = this.a0 + rowEnd[run ? last : i] * this.da;
   }
 }
 

@@ -2,7 +2,7 @@
 // viewport, so test/keyboard.test.mjs can walk a tiny tree. The cursor itself (the active node, scrolling it into view, announcing it)
 // lives in the renderer; key events are read by input.ts.
 
-import type { Layout } from './layout.ts';
+import { FULL_FAN, fanRow, type Layout } from './layout.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
 /** Keys that move the cursor (and are handled by navigate()). */
@@ -40,7 +40,7 @@ export function defaultActiveNode(tree: TreeSnapshot, layout: LayoutKind, view: 
   else {
     const cx = (view.x0 + view.x1) / 2,
       cy = (view.y0 + view.y1) / 2;
-    if (Math.hypot(cx, cy) > 0.02) row = Math.floor((((Math.atan2(cy, cx) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI)) * N);
+    if (Math.hypot(cx, cy) > 0.02) row = Math.floor(fanRow(L ? L.fan : FULL_FAN, N, Math.atan2(cy, cx))); // in the opening: the nearer end
   }
   return nodeOfRow(tree, L, row);
 }

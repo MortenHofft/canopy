@@ -412,6 +412,15 @@ export interface ViewerOptions {
    *  'document' that and a change of the `class` or `data-theme` attribute of `document.documentElement` (sites that switch dark
    *  mode that way); 'none' nothing (call `refreshTheme()` yourself). */
   themeObserver: 'media' | 'document' | 'none';
+  /** Radial layout only: the share of the circle left empty between the last and the first tip, from 0 (the tips close the circle)
+   *  to below 1 (clamped to 0.99). The tips are spread over `(1 - radialOpening) * 360` degrees; 0.5 is a half circle. Default 0.05, so
+   *  the two ends of the tip order do not look like neighbours. A layout option, not a theme token: it moves the tips. */
+  radialOpening: number;
+  /** Radial layout only: where the middle of the opening sits, in degrees clockwise from 3 o'clock (the positive x axis). Default 90:
+   *  the opening at the bottom, so the tips run clockwise from just left of the bottom over the top to just right of it, and a half
+   *  circle is an arch open at the bottom. With `radialOpening: 0` and `radialRotation: 0` the angles are those of a full circle from
+   *  3 o'clock, as before the options existed. */
+  radialRotation: number;
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
@@ -452,6 +461,8 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   softwareCanvas: false,
   dprCap: 2,
   themeObserver: 'media',
+  radialOpening: 0.05,
+  radialRotation: 90,
   radialMaxNodes: 2000,
   interactionLOD: true,
   refineMs: 120,

@@ -19,8 +19,8 @@
 // There is one loop per layout (cutRect, cutRadial) with the per-node work inline (see `cut` for why); they share the draw list, the dedupe
 // set, the result and the per-frame values of the layout projection (projection.ts: dedupe anchors, radial window, the run's dedupe key).
 //
-// Radial culling (2026-10, in cutRadial): a node is skipped when its annular sector (radius X[parent]..XMAX, angle rowStart..rowEnd)
-// cannot touch the padded clip rectangle: a radius-range test (distance from the root to the nearest and the farthest
+// Radial culling (2026-10, in cutRadial): a node is skipped when its annular sector (radius X[parent]..XMAX, angle rowStart..rowEnd, on
+// the layout's fan from fan.start: cutRect has no angles, so the fan has no counterpart there) cannot touch the padded clip rectangle: a radius-range test (distance from the root to the nearest and the farthest
 // point of the rectangle) and an angle-range test (the angular interval the rectangle subtends as seen from the root).
 // Survivors then get the sector's exact bounding box test (cached boundary cos/sin, no trigonometry per node): the cheap tests
 // alone keep more off-screen primitives in the list than a bounding box does when the window is wide and off-centre.
@@ -390,6 +390,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
   const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { cx, cy, k, da, clipL, clipR, clipT, clipB } = T;
+  const fa0 = L.fan.start; // the angle of row 0: angles below are canvas angles, in the projection's range (lo, hi and the quadrant test)
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = CULL_PAD_PX;
@@ -452,8 +453,8 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       i = subtreeEnd[i];
       continue;
     }
-    const a0 = rowStart[i] * da;
-    const a1 = rowEnd[i] * da;
+    const a0 = fa0 + rowStart[i] * da;
+    const a1 = fa0 + rowEnd[i] * da;
     if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) {
       i = subtreeEnd[i];
       continue;

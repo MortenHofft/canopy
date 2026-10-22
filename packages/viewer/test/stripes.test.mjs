@@ -61,9 +61,13 @@ const fillAlphas = (ctx) => {
   return out;
 };
 
+// the radial tests measure angles from 3 o'clock (0..2pi) and name the window through angle 0: they run on the whole circle from there
+// (radialOpening 0, radialRotation 0); the fan's opening is covered by radial-opening.test.mjs
+const CIRCLE = { radialOpening: 0, radialRotation: 0 };
+
 async function make(layout, options = {}, tree = TREE, extra = {}) {
   const m = await makeViewer(tree, {
-    options: { layout, minCladePx: 20, summaryStyle: 'striped', ...options },
+    options: { layout, minCladePx: 20, summaryStyle: 'striped', ...(layout === 'radial' ? CIRCLE : {}), ...options },
     theme: { summaryStripeColour: STRIPE, ...extra.theme },
     size: layout === 'radial' ? [500, 500] : [500, 300],
   });
@@ -423,7 +427,7 @@ test('one stripe per hidden tip when the rows are wider than the gap (not one pe
 const TWO_POLY = `(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`; // two bands of 800 tips: one fan each at fit
 const twoPoly = () =>
   makeViewer(TWO_POLY, {
-    options: { layout: 'radial', summaryStyle: 'striped' },
+    options: { layout: 'radial', summaryStyle: 'striped', ...CIRCLE },
     theme: { summaryStripeColour: STRIPE },
     size: [900, 900],
   });
@@ -490,7 +494,7 @@ test('radial, window through angle 0: the rays of both visible intervals are dra
 
 const FOUR_K = `(${poly(4000, 'p')}P,${poly(4000, 'q')}Q)r;`;
 const fourK = () =>
-  makeViewer(FOUR_K, { options: { layout: 'radial', summaryStyle: 'striped' }, theme: { summaryStripeColour: STRIPE }, size: [900, 900] });
+  makeViewer(FOUR_K, { options: { layout: 'radial', summaryStyle: 'striped', ...CIRCLE }, theme: { summaryStripeColour: STRIPE }, size: [900, 900] });
 
 test('radial, window not through angle 0: only rays at visible angles are drawn', async () => {
   const m = await fourK();

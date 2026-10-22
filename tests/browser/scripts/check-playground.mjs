@@ -91,6 +91,80 @@ ok(
   'tip links → tipHref to GBIF',
 );
 
+console.log('radial opening and rotation (#41)');
+{
+  await select('layout', 'radial');
+  await select('click', 'nothing'); // events only: no node menu over the next tip
+  ok(
+    (await opt('radialOpening')) === 0.05 && (await opt('radialRotation')) === 90 && !query().has('s.radialOpening'),
+    'the radial opening (0.05) and rotation (90) are at their defaults, not in the URL',
+  );
+  await ev(() => {
+    window.__clicked = [];
+    window.viewer.on('click', (e) => window.__clicked.push(e.node));
+  });
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  // the first and the last tip: on either side of the opening, which is at the bottom
+  const ends = () =>
+    ev(() => {
+      const v = window.viewer;
+      const t = v.getTree();
+      const first = t.tipNode[0],
+        last = t.tipNode[t.tipCount - 1];
+      return {
+        root: v.nodePosition(0),
+        first,
+        last,
+        a: v.nodePosition(first),
+        b: v.nodePosition(last),
+        la: t.tipLabels[0],
+        lb: t.tipLabels[t.tipCount - 1],
+      };
+    });
+  const hoverAndClick = async (p, node, label, name) => {
+    await page.mouse.move(box.x + p.x, box.y + p.y);
+    await settled();
+    const hovered = await page.locator('#hover').innerText();
+    await page.mouse.click(box.x + p.x, box.y + p.y);
+    await settled();
+    const clicked = await ev(() => window.__clicked.at(-1));
+    ok(hovered === label && clicked === node, `${name}: hovered "${hovered}" (want "${label}"), click on node ${clicked} (want ${node})`);
+  };
+  let e = await ends();
+  ok(
+    e.a && e.b && e.a.y > e.root.y && e.b.y > e.root.y && e.a.x < e.root.x && e.b.x > e.root.x,
+    'default: the first tip left of the bottom, the last right of it',
+  );
+  await hoverAndClick(e.a, e.first, e.la, 'default opening, first tip');
+  await hoverAndClick(e.b, e.last, e.lb, 'default opening, last tip');
+  await setInput('radialOpening', '0.5');
+  ok((await opt('radialOpening')) === 0.5 && query().get('s.radialOpening') === '0.5', 'Radial opening → options.radialOpening, and into the URL');
+  e = await ends();
+  ok(
+    e.a && e.b && Math.abs(e.a.y - e.root.y) < 30 && Math.abs(e.b.y - e.root.y) < 30,
+    'a half circle: the ends of the tip order are level with the root',
+  );
+  await hoverAndClick(e.a, e.first, e.la, 'half circle, first tip');
+  await hoverAndClick(e.b, e.last, e.lb, 'half circle, last tip');
+  await setInput('radialRotation', '0');
+  ok((await opt('radialRotation')) === 0 && query().get('s.radialRotation') === '0', 'Radial rotation → options.radialRotation, and into the URL');
+  e = await ends();
+  // the opening from 12 to 6 o'clock through 3: the tips run clockwise from the bottom over 9 o'clock to the top
+  ok(
+    e.a && e.b && e.a.y > e.root.y && e.b.y < e.root.y && Math.max(e.a.x, e.b.x) < e.root.x + 30,
+    "rotation 0: the opening at 3 o'clock, the arch open to the right",
+  );
+  await setInput('radialRotation', '90');
+  await setInput('radialOpening', '0.05');
+  await page.mouse.move(2, 2);
+  await ev(() => window.viewer.setSelected(null)); // the clicks selected a tip: a layout switch would centre the view on it
+  await select('click', 'menu');
+  await select('layout', 'rectangular');
+}
+
 console.log('striped summaries');
 // the playground shows the library's default (solid); the select compares solid and striped
 ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
