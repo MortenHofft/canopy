@@ -211,7 +211,7 @@ const ink = () =>
     return n;
   });
 const inkBefore = await ink();
-await page.locator('button[aria-label="Search taxa"]').click();
+await page.locator('button[aria-label="Search tips"]').click();
 await page.keyboard.type('bothus');
 await page.waitForTimeout(200);
 ok((await ev(() => __v().options.highlightStyle)) === 'dim', 'search uses the dim highlight style');
@@ -921,7 +921,7 @@ const c60 = await ev(() => __clade(20, 60));
 await openMenu(c60);
 await act('subtree');
 ok((await tipCount()) === c60.tips, `Show only this clade shows its ${c60.tips} tips (${await tipCount()})`);
-ok((await page.locator('.ex-chip').innerText()).includes(`${c60.tips} taxa`), 'and a chip says which clade');
+ok((await page.locator('.ex-chip').innerText()).includes(`${c60.tips} tips`), 'and a chip says which clade');
 ok((await btn('Back').isEnabled()) && (await btn('Up one level').isEnabled()), 'Back and Up one level are enabled');
 await page.waitForTimeout(300);
 const rootPos = await ev(() => {
@@ -970,7 +970,7 @@ console.log('Show only, Up, Back with hover, colours, collapse and support: no p
   await click(await ev(() => __clade(20, 40)));
   await page.locator('.ex-outer').press('Escape');
   await collapseAt(await ev(() => __clade(4, 10)));
-  await btn('Collapse by support').click();
+  await page.locator('button[aria-label="Collapse by support"]').click();
   await page.waitForTimeout(300);
   for (const co of [false, true]) {
     const c = await ev((co) => {
@@ -997,6 +997,136 @@ console.log('Show only, Up, Back with hover, colours, collapse and support: no p
   ok(failures === errorsBefore, 'no page error or console.error during Show only, Up and Back');
 }
 
+// the tooltip function was called on every render with the last hover event, also after the tree had changed and the box was hidden
+console.log('a visible tooltip while the tree changes: no page errors');
+{
+  const errorsBefore = failures;
+  await open('rich-fish-carangaria-135');
+  const lastTip = () =>
+    ev(() => {
+      const v = __v();
+      const t = v.getTree();
+      const q = v.locateNode(t.tipNode[t.tipCount - 1]);
+      return { x: q.x, y: q.y };
+    });
+  const hoverUntilTooltip = async (p) => {
+    await page.mouse.move(p.x - 30, p.y);
+    await page.mouse.move(p.x, p.y, { steps: 4 });
+    await page.waitForSelector('.phylo-tooltip:not([hidden])', { timeout: 3000 });
+  };
+  // the keyboard changes the tree while the pointer stays on the tip, so the tooltip is still showing when it does
+  const pressOnButton = async (selector) => {
+    await ev((sel) => document.querySelector(sel).focus(), selector);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+  };
+  await hoverUntilTooltip(await lastTip());
+  ok((await page.locator('.phylo-tooltip').innerText()).includes('Click for actions'), 'the tooltip of the last tip is showing');
+  await pressOnButton('button[aria-label="Collapse by support"]'); // it crashed with 'replace' of undefined
+  ok((await ev(() => __v().getTree().nodeCount)) > 0, 'collapse by support with the tooltip showing');
+  await pressOnButton('button[aria-label="Collapse by support"]');
+  const c = await ev(() => __clade(20, 60));
+  await page.mouse.move(c.x, c.y);
+  await openMenu(c);
+  await act('subtree');
+  await page.waitForTimeout(300);
+  const inClade = await ev(() => {
+    const v = __v();
+    const t = v.getTree();
+    const q = v.locateNode(t.tipNode[2]);
+    return { x: q.x, y: q.y };
+  });
+  await hoverUntilTooltip(inClade);
+  await pressOnButton('.ex-group[aria-label="Clade shown"] button:last-child'); // Up one level, with the tooltip showing
+  await hoverUntilTooltip(await lastTip().catch(() => inClade)).catch(() => {});
+  await pressOnButton('.ex-group[aria-label="Clade shown"] button:first-child'); // Back
+  ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during collapse by support, Up and Back');
+}
+
+// Reroot inside a clade shown alone would split it: the menu leaves it out, the tool says why, and the view is kept
+console.log('reroot inside a clade shown alone');
+{
+  await open('rich-fish-carangaria-135');
+  const c = await ev(() => __clade(20, 60));
+  await openMenu(c);
+  await act('subtree');
+  await page.waitForTimeout(400);
+  const inner = await ev(() => __clade(3, 8));
+  await openMenu(inner);
+  ok(!(await menuItems()).includes('Reroot here'), `no Reroot here for a node strictly inside the clade shown (${(await menuItems()).join(' | ')})`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  await btn('Reroot').click();
+  await click(inner);
+  ok(
+    (await toast()).includes('would split it') && (await tipCount()) === c.tips,
+    'the Reroot tool says why it does nothing, and the clade stays shown',
+  );
+  await page.keyboard.press('Escape');
+  // the root of the clade shown may be rooted on
+  await openMenu(
+    await ev(() => {
+      const q = __v().locateNode(0);
+      return { x: q.x, y: q.y };
+    }),
+  );
+  ok((await menuItems()).includes('Reroot here'), 'the root of the clade shown still offers Reroot here');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  // Undo does not undo navigation: Flip inside the clade, Back to the whole tree, Undo: still the whole tree
+  await openMenu(await ev(() => __clade(3, 8)));
+  await act('flip');
+  await page.waitForTimeout(300);
+  await btn('Back').click();
+  await page.waitForTimeout(300);
+  const wholeTips = await tipCount();
+  await btn('Undo').click();
+  await page.waitForTimeout(400);
+  ok((await tipCount()) === wholeTips && wholeTips > c.tips, `Undo leaves the navigation alone (the whole tree stays shown, ${wholeTips} tips)`);
+}
+
+// Colour… opens its palette where the click was and moves focus into it
+console.log('Colour… palette');
+{
+  await open('rich-fish-carangaria-135');
+  const c = await ev(() => __clade(4, 10));
+  await openMenu(c);
+  await act('colour');
+  const pal = await page.locator('.ex-palette--near').boundingBox();
+  const out = await page.locator('.ex-outer').boundingBox();
+  ok(
+    Math.abs(pal.x - Math.min(c.x, out.x + out.width - 262)) < 30 && pal.y > c.y - 40 - 0 && pal.y < c.y + 80,
+    `the palette is near the click (palette ${Math.round(pal.x)},${Math.round(pal.y)}; click ${Math.round(c.x)},${Math.round(c.y)})`,
+  );
+  ok(await ev(() => document.activeElement?.closest('.ex-palette') !== null), 'focus is inside the palette');
+  await page.keyboard.press('Escape');
+  ok((await page.locator('.ex-palette').count()) === 0, 'Escape closes it');
+}
+
+// Copy Newick without the clipboard API: the fallback copies, or the Newick is offered as a file; never an unhandled error
+console.log('Copy Newick without navigator.clipboard');
+{
+  await open('rich-fish-carangaria-135');
+  await ev(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }));
+  await openMenu(await ev(() => __clade(4, 10)));
+  const dl = page.waitForEvent('download', { timeout: 2500 }).catch(() => null);
+  await act('copy');
+  await page.waitForTimeout(500);
+  const t = await toast();
+  ok(t.startsWith('Copied') || (t.includes('downloaded') && (await dl) !== null), `without the clipboard API: "${t}"`);
+}
+
+// the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
+console.log('toolbar rows');
+for (const w of [1280, 1024, 600]) {
+  await page.setViewportSize({ width: w, height: 860 });
+  await open('rich-fish-carangaria-135');
+  await page.waitForTimeout(200);
+  const rows = await page.locator('.ex-row').evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect().height)));
+  ok(rows.length === 2 && rows.every((h) => h < 50), `${w} px: two single-line rows (${rows.join(', ')} px)`);
+}
+await page.setViewportSize({ width: 1280, height: 860 });
+
 // ---------------------------------------------------------------- collapse by support
 console.log('collapse by support');
 await open('rich-fish-carangaria-135');
@@ -1009,15 +1139,43 @@ const collapsedTips = () =>
     return out;
   });
 const n0 = await nodeCount();
-const keepMe = await ev(() => __clade(4, 10));
+// a clade whose own support is BELOW the threshold used below, so it is contracted unless it is kept (a clade with high support
+// would survive with or without `keep`)
+const weak = (lo, hi, skip = 0) =>
+  ev(
+    ([lo, hi, skip]) => {
+      const v = __v();
+      const t = v.getTree();
+      const sup = window.__explorerTree().support; // the page's tree: the viewer's snapshot has no support
+      for (let i = 1; i < t.nodeCount; i++) {
+        const c = t.leafEnd[i] - t.leafStart[i];
+        if (!v.layout.collapsed?.[i] && t.firstChild[i] >= 0 && c >= lo && c <= hi && sup[i] < 0.9 && skip-- <= 0) {
+          const q = v.locateNode(i);
+          if (q) return { node: i, tips: c, support: sup[i], x: q.x, y: q.y };
+        }
+      }
+      return null;
+    },
+    [lo, hi, skip],
+  );
+const keepMe = await weak(2, 12);
+ok(keepMe !== null && keepMe.support < 0.9, `the clade collapsed by hand has support ${keepMe?.support} (below the threshold)`);
 await collapseAt(keepMe);
 const rowsKept = await ev(() => __v().layout.rows);
 ok((await collapsedTips()).join() === String(keepMe.tips), 'a clade collapsed by hand');
 ok(
-  (await btn('Collapse by support').isEnabled()) && (await page.locator('input[aria-label="Minimum support"]').count()) === 0,
+  (await page.locator('button[aria-label="Collapse by support"]').isEnabled()) &&
+    (await page.locator('input[aria-label="Minimum support"]').count()) === 0,
   'Collapse by support is available on a tree with posterior support',
 );
-await btn('Collapse by support').click();
+// a coloured clade below the threshold must stay a node too
+await btn('Color').click();
+await page.locator('button[aria-label=Teal]').click();
+const colMe = await weak(2, 12, 1);
+await click(colMe);
+await page.locator('.ex-outer').press('Escape');
+ok((await ev(() => __v().getClades().length)) === 1, `a clade of ${colMe.tips} tips coloured (support ${colMe.support})`);
+await page.locator('button[aria-label="Collapse by support"]').click();
 await page.waitForTimeout(300);
 const thr = page.locator('input[aria-label="Minimum support"]');
 ok((await thr.inputValue()) === '0.7', 'the threshold starts at 0.7 on a 0 to 1 support scale');
@@ -1030,11 +1188,30 @@ ok(
   (await collapsedTips()).join() === String(keepMe.tips),
   `the clade collapsed by hand is still collapsed, with its ${keepMe.tips} tips, and a node of its own`,
 );
+ok((await ev(() => __v().getClades().length)) === 1, 'the coloured clade below the threshold is not contracted away');
+// a dated tree stays dated: the contracted lengths go to the children, so the axis keeps "time before tips" and every tip stays at 0
+ok(
+  await ev(() => {
+    const t = __v().getTree();
+    const d = new Float64Array(t.nodeCount); // distance from the root, preorder
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 1; i < t.nodeCount; i++) {
+      d[i] = d[t.parent[i]] + (t.length[i] || 0);
+      if (t.firstChild[i] < 0) {
+        lo = Math.min(lo, d[i]);
+        hi = Math.max(hi, d[i]);
+      }
+    }
+    return hi - lo <= 1e-3 * hi;
+  }),
+  'collapse by support keeps the dated tree ultrametric (every tip at the same distance from the root)',
+);
 await thr.fill('0.5');
 await page.waitForTimeout(400);
 const n2 = await nodeCount();
 ok(n2 > n1 && n2 <= n0, `a lower threshold brings branches back (${n1} → ${n2})`);
-await btn('Collapse by support').click();
+await page.locator('button[aria-label="Collapse by support"]').click();
 await page.waitForTimeout(400);
 ok(
   (await nodeCount()) === n0 && (await ev(() => __v().layout.rows)) === rowsKept,
@@ -1042,13 +1219,13 @@ ok(
 );
 ok((await page.locator('input[aria-label="Minimum support"]').count()) === 0, 'the threshold hides with it');
 await open('rich-hcv-19');
-ok(await btn('Collapse by support').isDisabled(), 'a tree without support: Collapse by support is disabled');
+ok(await page.locator('button[aria-label="Collapse by support"]').isDisabled(), 'a tree without support: Collapse by support is disabled');
 
 // ---------------------------------------------------------------- ladderise by tips / depth / height
 console.log('ladderise by');
 await open('rich-fish-carangaria-135');
 const sel = page.locator('select[aria-label="Ladderize by"]');
-ok((await sel.locator('option').allInnerTexts()).join() === 'by tips,by depth,by height', 'Ladderize by: tips, depth, height');
+ok((await sel.locator('option').allInnerTexts()).join() === 'tips,depth,height', 'Ladderize by: tips, depth, height');
 const base = await ev(() => __order());
 const by = {};
 for (const k of ['tips', 'depth', 'height']) {
@@ -1072,7 +1249,7 @@ ok((await page.locator('select[aria-label="Ladderize by"] option[value=height]')
 // ---------------------------------------------------------------- highlight style
 console.log('highlight style');
 await open('rich-fish-carangaria-135');
-await page.locator('button[aria-label="Search taxa"]').click();
+await page.locator('button[aria-label="Search tips"]').click();
 await page.keyboard.type('bothus');
 await page.waitForTimeout(200);
 const hs = page.locator('select[aria-label="Highlight style"]');
@@ -1095,11 +1272,11 @@ const drawnNow = async () => {
   });
   return ev(() => window.__nodeTexts);
 };
-ok((await page.locator('button', { hasText: 'As percent' }).count()) === 0, 'As percent shows only with support labels on');
+ok((await page.locator('button[aria-label="Support as percent"]').count()) === 0, 'As percent shows only with support labels on');
 await page.locator('.ex-labels').click();
 await page.waitForTimeout(200);
 ok((await drawnNow()).includes('0.95'), 'support 0.95 by default');
-await page.locator('button', { hasText: 'As percent' }).click();
+await page.locator('button[aria-label="Support as percent"]').click();
 await page.waitForTimeout(200);
 {
   const t = await drawnNow();
@@ -1125,7 +1302,7 @@ await page.waitForTimeout(200);
 // ---------------------------------------------------------------- overview and legend
 console.log('overview and legend');
 await open('rich-fish-carangaria-135');
-const tog = (t) => page.locator('.ex-outer button', { hasText: t }).first();
+const tog = (t) => page.locator(`.ex-outer button[aria-label="${t}"]`);
 ok((await page.locator('.phylo-overview').count()) === 0, 'no overview at first');
 await tog('Overview').click();
 await page.waitForTimeout(300);
@@ -1170,7 +1347,7 @@ await page.waitForTimeout(400);
 // ---------------------------------------------------------------- the playground's catalogue
 console.log('every tree of the playground catalogue, one from each group');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const catalogue = JSON.parse(fs.readFileSync(path.join(here, '../../../examples/playground/src/catalogue.json'), 'utf8'));
+const catalogue = JSON.parse(fs.readFileSync(path.join(here, '../../../examples/shared/catalogue.json'), 'utf8'));
 await open('edge-internal-support');
 {
   const groups = await page
@@ -1246,7 +1423,7 @@ for (const [id, tipsWanted] of [
   );
   ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
   // search is capped
-  await page.locator('button[aria-label="Search taxa"]').click();
+  await page.locator('button[aria-label="Search tips"]').click();
   await page.keyboard.type('a');
   await page.waitForTimeout(800);
   ok(

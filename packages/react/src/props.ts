@@ -42,3 +42,11 @@ export function changedKeys<T extends object>(prev: T, next: T): (keyof T)[] {
   const keys = new Set([...Object.keys(prev), ...Object.keys(next)] as (keyof T)[]);
   return [...keys].filter((k) => !Object.is(prev[k], next[k]));
 }
+
+/**
+ * The hover event a `tooltip` function may be called with: the stored one only while it belongs to the source shown now. A new tree
+ * renders before the viewer's `treechange` hides the box, and the stored event's node ids are the old tree's.
+ */
+export function liveTooltipEvent<E>(state: { e: E; of: unknown } | null, shown: unknown): E | null {
+  return state !== null && state.of === shown ? state.e : null;
+}

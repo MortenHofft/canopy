@@ -26,6 +26,8 @@ type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
 type LadderBy = 'tips' | 'depth' | 'height';
 type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
+/** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
+const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up one level or Back to the whole tree first';
 const MAX_MATCHES = 5000;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
@@ -37,8 +39,6 @@ interface Step {
   tree: TreeModel;
   clades: CladeProp[];
   collapsed: number[];
-  /** The clade shown alone (tree-ops focus) when this step was the current one. */
-  focus: ops.Focus;
   /** The node map of the edit that made this step from the one before it (old tree -> this tree); none for the first. */
   map?: Int32Array;
 }
@@ -95,7 +95,7 @@ export function Explorer({
 }) {
   const ref = useRef<TreeViewHandle>(null);
   const outer = useRef<HTMLDivElement>(null);
-  const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [], focus: ops.NO_FOCUS }]);
+  const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
   // the last change of `tree` and the map it came with (edit: the op's map; undo: its inverse), to keep the view across it
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
@@ -127,7 +127,8 @@ export function Explorer({
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
   const [activeColor, setActiveColor] = useState('Red');
   const [hoveredSwatch, setHoveredSwatch] = useState<string | null>(null);
-  const [pick, setPick] = useState<number | null>(null); // node (of `tree`) the node menu's Colour… is choosing a colour for
+  const [pickAt, setPick] = useState<{ node: number; x: number; y: number } | null>(null); // the node (of `tree`) the menu's Colour… is for, and where the palette opens (px in the component)
+  const pick = pickAt?.node ?? null;
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -157,7 +158,14 @@ export function Explorer({
   const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
   const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
   const supportActive = supportOn && hasSupport;
-  const protectedNodes = supportActive ? collapsed : NO_NODES; // changes only when it matters, so a collapse alone does not rebuild the view
+  // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
+  // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
+  const protectedNodes = useMemo(
+    () => (supportActive ? [...collapsed, ...clades.map((c) => Number(c.nodeId.slice(1)))] : NO_NODES),
+    [supportActive, collapsed, clades],
+  );
+  // a dated tree stays dated: the contracted edge's length goes to its children, so the time axis does not change
+  const dated = useMemo(() => supportActive && tree.hasLengths && tree.isUltrametric(1e-3), [supportActive, tree]);
   const view = useMemo(() => {
     const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
     const step = (r: ops.OpResult) => {
@@ -172,12 +180,12 @@ export function Explorer({
       const before = acc.shown.nodeCount;
       // a clade the viewer collapses keeps its node (tree-ops' `keep`), in the ids of what is shown
       const keep = protectedNodes.map((v) => (acc.toView ? acc.toView[v] : v)).filter((k) => k > 0);
-      if (step(ops.collapseBySupport(acc.shown, threshold, { keep }))) supportCollapsed = before - acc.shown.nodeCount;
+      if (step(ops.collapseBySupport(acc.shown, threshold, { keep, extend: dated }))) supportCollapsed = before - acc.shown.nodeCount;
     }
     const { shown, toView } = acc;
     if (!toView) return null;
     return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed };
-  }, [tree, focus, supportActive, threshold, protectedNodes]);
+  }, [tree, focus, supportActive, threshold, protectedNodes, dated]);
   const shown = view?.tree ?? tree;
   // a node of what is shown -> the node of `tree` an action works on; -1 for an id the shown tree does not have. The hover box is rendered
   // with the last hover event, which can hold an id of the tree shown BEFORE Show only / Up / Back changed it.
@@ -218,12 +226,11 @@ export function Explorer({
       if (!move || move.from !== prev.tree || move.to !== tree) return undefined; // not an edit we know the map of: fit
       leg = move.map;
     } else if (prev.focus !== focus) return undefined;
-    const identity = (n: number) => Int32Array.from({ length: n }, (_, i) => i);
+    // compose only the legs there are (a missing one is the identity: no array of the tree's size is made for it)
+    const legs = [prev.toTree, leg, view?.toView ?? null].filter((m): m is Int32Array => m !== null);
+    if (legs.length === 0) return undefined;
     try {
-      return ops.composeMaps(
-        ops.composeMaps(prev.toTree ?? identity(prev.shown.nodeCount), leg ?? identity(tree.nodeCount)),
-        view?.toView ?? identity(tree.nodeCount),
-      );
+      return legs.reduce((a, b) => ops.composeMaps(a, b));
     } catch {
       return undefined;
     }
@@ -347,6 +354,12 @@ export function Explorer({
   useEffect(() => {
     (window as unknown as { __explorer?: () => unknown }).__explorer = () => ref.current?.renderer() ?? null;
   }, []);
+  // ... and the tree with its support (the viewer's snapshot has none), to pick a clade by its support
+  const treeNow = useRef(tree);
+  treeNow.current = tree;
+  useEffect(() => {
+    (window as unknown as { __explorerTree?: () => TreeModel }).__explorerTree = () => treeNow.current;
+  }, []);
 
   const flash = (msg: string) => setToast(msg);
   useEffect(() => {
@@ -381,13 +394,19 @@ export function Explorer({
       .followClades(tree, next, r.map, collapsed)
       .map((f) => f.node)
       .filter((m) => m > 0 && next.childCount[m] > 0);
-    // so does the focus (a focused clade the edit split is left: Back skips it)
-    const keptFocus = ops.remapFocus(focus, tree, next, r.map);
-    if (keptClades.length < clades.length) flash(`${clades.length - keptClades.length} colour(s) removed: their tips are no longer one clade`);
+    // so does the focus: navigation is not in the history, so Undo leaves it as it is (remapped through the inverse map). A focused
+    // clade the edit split is gone from it (Back skips it)
+    const remapped = ops.remapFocus(focus, tree, next, r.map);
+    const keptFocus = remapped.stack.length === focus.stack.length && remapped.stack.every((v, i) => v === focus.stack[i]) ? focus : remapped; // same object while nothing changed
+    const notes: string[] = [];
+    if (keptClades.length < clades.length) notes.push(`${clades.length - keptClades.length} colour(s) removed: their tips are no longer one clade`);
+    if (ops.focusedNode(focus) >= 0 && ops.focusedNode(keptFocus) < 0)
+      notes.push('the clade shown alone is no longer one clade after this edit: showing the whole tree');
+    if (notes.length) flash(notes.join(' · '));
     setHistory((h) => [
       ...h.slice(0, -1),
-      { ...h[h.length - 1], clades, collapsed, focus },
-      { tree: next, clades: keptClades, collapsed: keptCollapsed, focus: keptFocus, map: r.map },
+      { ...h[h.length - 1], clades, collapsed },
+      { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map },
     ]);
     setMove({ from: tree, to: next, map: r.map });
     setClades(keptClades);
@@ -399,16 +418,23 @@ export function Explorer({
     const prev = history[history.length - 2];
     const undone = history[history.length - 1];
     // the way back is the inverse of the edit's map (a tip stays the tip it was; an edit that added nodes has none to send back)
-    if (undone.map) setMove({ from: tree, to: prev.tree, map: ops.invertMap(undone.map, undone.tree.nodeCount) });
+    if (undone.map) {
+      const inverse = ops.invertMap(undone.map, undone.tree.nodeCount);
+      setMove({ from: tree, to: prev.tree, map: inverse });
+      setFocus((f) => (ops.canGoBack(f) || ops.canGoUp(f) ? ops.remapFocus(f, tree, prev.tree, inverse) : f)); // navigation stays; it follows the tips
+    }
     setHistory((h) => h.slice(0, -1));
     setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
-    setFocus(prev.focus);
     setInfo(null);
     setPick(null);
   };
 
+  const closePick = () => {
+    setPick(null);
+    ref.current?.renderer()?.focus(); // back to the tree
+  };
   const exitModes = () => {
     setMode('none');
     setSwapFirst(null);
@@ -425,7 +451,7 @@ export function Explorer({
     setNavTick((t) => t + 1);
     setInfo(null);
     const v = ops.focusedNode(f);
-    flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} taxa`);
+    flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
   };
   const colourOf = (name: string) => cssVar(`--ex-palette-${name.toLowerCase()}`);
   /** Paint (or with ERASE, unpaint) the clade `v` of `tree`. The label is left out: the legend then names the clade by its node. */
@@ -434,13 +460,36 @@ export function Explorer({
     const rest = clades.filter((c) => c.nodeId !== nodeId);
     setClades(name === ERASE ? rest : [...rest, { nodeId, colour: colourOf(name) }]);
   };
+  /** Put text on the clipboard: the async API where there is one, else a hidden textarea and execCommand('copy'). */
+  const copyText = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text); // throws when there is no clipboard API (insecure page) or it is refused
+      return true;
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+      document.body.append(ta);
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch {
+        ok = false;
+      }
+      ta.remove();
+      return ok;
+    }
+  };
   const copyNewick = (v: number) => {
     const text = toNewick(new TreeModel(ops.subtree(tree, v).tree));
     const n = tree.tipCountOf(v).toLocaleString('en');
-    navigator.clipboard.writeText(text).then(
-      () => flash(`Copied the Newick of a clade of ${n} taxa`),
-      () => flash('Copy failed: the browser did not allow the clipboard'),
-    );
+    void copyText(text).then((ok) => {
+      if (ok) return flash(`Copied the Newick of a clade of ${n} tips`);
+      download(new Blob([text], { type: 'text/plain' }), 'clade.nwk'); // the clipboard is not available: offer the text as a file
+      flash('The clipboard is not available here: downloaded the Newick of the clade as clade.nwk instead');
+    });
   };
 
   // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
@@ -451,6 +500,7 @@ export function Explorer({
     switch (mode) {
       case 'reroot':
         if (v === 0) return flash('Already the root');
+        if (ops.canGoUp(focus) && e.node !== 0) return flash(REROOT_IN_FOCUS);
         return apply((t) => ops.reroot(t, v), 'Reroot');
       case 'flip':
         if (e.isTip) return flash('Flip needs an internal node');
@@ -477,25 +527,25 @@ export function Explorer({
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
     const trueRoot = v === 0;
-    const taxa = tree.tipCountOf(v).toLocaleString('en');
+    const tips = tree.tipCountOf(v).toLocaleString('en');
     const what = isTip ? 'tip' : 'clade';
     const info: NodeMenuItem = { id: 'info', label: 'Info', hint: 'branch length, root distance, depth, support', onSelect: () => setInfo(v) };
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
-      hint: `show its ${taxa} taxa again`,
+      hint: `show its ${tips} tips again`,
       onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)),
     };
     const collapse: NodeMenuItem = {
       id: 'collapse',
       label: 'Collapse',
-      hint: `draw its ${taxa} taxa as one triangle`,
+      hint: `draw its ${tips} tips as one triangle`,
       onSelect: () => setCollapsed((cs) => [...cs, v]),
     };
     const only: NodeMenuItem = {
       id: 'subtree',
       label: 'Show only this clade',
-      hint: `${taxa} taxa; Back or Up one level return`,
+      hint: `${tips} tips; Back or Up one level return`,
       onSelect: () => navigate(ops.focusOn(tree, focus, v)),
     };
     const reroot: NodeMenuItem = {
@@ -520,10 +570,20 @@ export function Explorer({
         setSwapFirst(v);
       },
     };
-    const colour: NodeMenuItem = { id: 'colour', label: 'Colour…', hint: `pick a colour for this ${what}`, onSelect: () => setPick(v) };
-    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick of this clade', hint: `${taxa} taxa`, onSelect: () => copyNewick(v) };
+    const colour: NodeMenuItem = {
+      id: 'colour',
+      label: 'Colour…',
+      hint: `pick a colour for this ${what}`,
+      onSelect: (ev) => {
+        const r = outer.current?.getBoundingClientRect();
+        setPick({ node: v, x: r ? ev.clientX - r.left : 16, y: r ? ev.clientY - r.top : 92 });
+      },
+    };
+    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick of this clade', hint: `${tips} tips`, onSelect: () => copyNewick(v) };
     if (isCollapsed) return [expand, info, only, colour];
-    if (isTip) return [info, reroot, swap, colour];
+    // inside a clade shown alone a reroot would split it (REROOT_IN_FOCUS): the menu leaves it out there
+    const canReroot = !ops.canGoUp(focus) || shownRoot;
+    if (isTip) return canReroot ? [info, reroot, swap, colour] : [info, swap, colour];
     const items: NodeMenuItem[] = [];
     // the root of a clade shown alone leads out of it
     if (shownRoot && ops.canGoUp(focus)) {
@@ -539,7 +599,8 @@ export function Explorer({
     if (trueRoot) return [...items, flip, colour];
     // the root of what is shown is not collapsed or shown alone again
     if (!shownRoot) items.push(collapse, only);
-    items.push(reroot, flip, swap, colour, copy);
+    if (canReroot) items.push(reroot);
+    items.push(flip, swap, colour, copy);
     return items;
   };
 
@@ -547,7 +608,7 @@ export function Explorer({
   const tooltip = (e: TreeNodeEvent) => {
     const v = toTree(e.node);
     if (e.run || v < 0) return null;
-    const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} taxa`;
+    const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} tips`;
     const tag = (cls: string, icon: React.ReactNode, text: React.ReactNode) => (
       <span className={`ex-tip ex-tip--${cls}`}>
         {icon}
@@ -595,7 +656,7 @@ export function Explorer({
       e.preventDefault();
       undo();
     } else if (e.key === 'Escape') {
-      if (pick !== null) setPick(null);
+      if (pick !== null) closePick();
       else if (mode !== 'none') exitModes();
       else if (searchOpen) closeSearch();
       else setInfo(null);
@@ -665,7 +726,7 @@ export function Explorer({
     const isTip = tree.childCount[info] === 0;
     const sup = isTip ? (info > 0 ? tree.support[tree.parent[info]] : NaN) : tree.support[info];
     return {
-      name: isTip ? tree.labels[info] : splitInternalLabel(tree.labels[info]).name || `Clade of ${tree.tipCountOf(info)} taxa`,
+      name: isTip ? tree.labels[info] : splitInternalLabel(tree.labels[info]).name || `Clade of ${tree.tipCountOf(info)} tips`,
       raw: tree.labels[info],
       branch: Number.isNaN(tree.length[info]) ? null : tree.length[info],
       root: any ? root : null,
@@ -799,8 +860,8 @@ export function Explorer({
         <button
           type="button"
           className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
-          aria-label="Search taxa"
-          title="Search taxa (⌘F)"
+          aria-label="Search tips"
+          title="Search tips (⌘F)"
           onClick={() => {
             if (searchOpen) return closeSearch();
             setSearchOpen(true);
@@ -812,22 +873,22 @@ export function Explorer({
         <button
           type="button"
           className={`ex-btn ex-toggle${showOverview ? ' active' : ''}`}
+          aria-label="Overview"
           aria-pressed={showOverview}
           title="Overview: the whole tree in small, with the window you are looking at"
           onClick={() => setShowOverview((o) => !o)}
         >
           <J.IconOverview />
-          Overview
         </button>
         <button
           type="button"
           className={`ex-btn ex-toggle${showLegend ? ' active' : ''}`}
+          aria-label="Legend"
           aria-pressed={showLegend}
           title="Legend: the coloured clades, by name (appears when a clade is coloured)"
           onClick={() => setShowLegend((l) => !l)}
         >
           <J.IconLegend />
-          Legend
         </button>
         <div className="ex-divider" />
         <div className="ex-export" ref={exportRef}>
@@ -885,7 +946,7 @@ export function Explorer({
             </div>
             <span className="ex-chip" title="Only this clade is shown">
               <J.IconSubtree />
-              {ops.canGoUp(focus) ? `Clade of ${shown.tipCount.toLocaleString('en')} taxa` : 'Whole tree'}
+              {ops.canGoUp(focus) ? `Clade of ${shown.tipCount.toLocaleString('en')} tips` : 'Whole tree'}
             </span>
           </>
         )}
@@ -981,10 +1042,10 @@ export function Explorer({
         >
           <J.IconLadderBy />
           <select aria-label="Ladderize by" value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
-            <option value="tips">by tips</option>
-            <option value="depth">by depth</option>
+            <option value="tips">tips</option>
+            <option value="depth">depth</option>
             <option value="height" disabled={!tree.hasLengths}>
-              by height
+              height
             </option>
           </select>
         </label>
@@ -993,6 +1054,7 @@ export function Explorer({
           <button
             type="button"
             className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
+            aria-label="Collapse by support"
             aria-pressed={supportActive}
             disabled={!hasSupport}
             title={
@@ -1003,7 +1065,7 @@ export function Explorer({
             onClick={() => setSupportOn((o) => !o)}
           >
             <J.IconSupport />
-            Collapse by support
+            Support
           </button>
           {supportActive && (
             <>
@@ -1084,12 +1146,12 @@ export function Explorer({
           <button
             type="button"
             className={`ex-btn ex-toggle${supportPercent ? ' active' : ''}`}
+            aria-label="Support as percent"
             aria-pressed={supportPercent}
             title={supportPercent ? 'Support shown as a percentage (95)' : 'Show support as a percentage (0.95 as 95)'}
             onClick={() => setSupportPercent((p) => !p)}
           >
-            <J.IconPercent />
-            As percent
+            <J.IconPercent />%
           </button>
         )}
       </div>
@@ -1136,8 +1198,8 @@ export function Explorer({
               ref={searchInput}
               autoFocus
               type="text"
-              aria-label="Search taxa"
-              placeholder="Search taxa…"
+              aria-label="Search tips"
+              placeholder="Search tips…"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -1298,25 +1360,34 @@ export function Explorer({
       )}
 
       {/* ── The node menu's Colour…: one colour for one clade ── */}
-      {pick !== null && pick < tree.nodeCount && (
-        <div className="ex-palette" role="dialog" aria-label="Colour this clade">
+      {pickAt !== null && pickAt.node < tree.nodeCount && (
+        <div
+          className="ex-palette ex-palette--near"
+          role="dialog"
+          aria-label="Colour this clade"
+          // opens where the click was, kept inside the component (the palette is about 240 x 150 px)
+          style={{ left: Math.max(8, Math.min(pickAt.x, (outer.current?.clientWidth ?? 1000) - 262)), top: Math.max(8, pickAt.y), right: 'auto' }}
+        >
           <div className="ex-palette-head">
             <I.IconPalette />
-            <span>Colour this {tree.childCount[pick] === 0 ? 'tip' : `clade of ${tree.tipCountOf(pick).toLocaleString('en')} taxa`}</span>
+            <span>
+              Colour this {tree.childCount[pickAt.node] === 0 ? 'tip' : `clade of ${tree.tipCountOf(pickAt.node).toLocaleString('en')} tips`}
+            </span>
             <span className="ex-palette-tip">Esc to close</span>
           </div>
           <div className="ex-palette-grid">
-            {PALETTE.map((name) => (
+            {PALETTE.map((name, k) => (
               <button
                 key={name}
                 type="button"
                 title={name}
                 aria-label={name}
                 className="ex-swatch"
+                autoFocus={k === 0} // focus moves into the palette; Esc closes it
                 style={{ ['--sw' as string]: `var(--ex-palette-${name.toLowerCase()})` }}
                 onClick={() => {
-                  paint(pick, name);
-                  setPick(null);
+                  paint(pickAt.node, name);
+                  closePick();
                 }}
               />
             ))}
@@ -1326,10 +1397,10 @@ export function Explorer({
             <button
               type="button"
               className="ex-erase"
-              disabled={!clades.some((c) => c.nodeId === 'n' + pick)}
+              disabled={!clades.some((c) => c.nodeId === 'n' + pickAt.node)}
               onClick={() => {
-                paint(pick, ERASE);
-                setPick(null);
+                paint(pickAt.node, ERASE);
+                closePick();
               }}
             >
               <I.IconEraser /> Erase

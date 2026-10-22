@@ -20,7 +20,7 @@ Chromium).
 | [`src/explorer.css`](src/explorer.css) | the look as `--ex-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
 | [`src/icons-ours.tsx`](src/icons-ours.tsx) | icons drawn for this repository, in the same style (14 px, `currentColor`) |
-| [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../playground/src/catalogue.json`, shared) plus this example's `extras` and `overrides` |
+| [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../shared/catalogue.json`, shared) plus this example's `extras` and `overrides` |
 
 ## What the explorer demonstrates
 
@@ -28,12 +28,12 @@ Each control and the API behind it.
 
 | Control | API |
 |---|---|
-| **Tree picker**: every tree of the playground's catalogue (19, in its four groups) and two of our own, from 6 tips to 2.4 million | `catalogue.json` shared with the playground; `fetchText` of the playground's `data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees) |
+| **Tree picker**: every tree of the playground's catalogue (19, in its four groups) and two of our own, from 6 tips to 2.4 million | `catalogue.json` shared with the playground; `fetchText` of `examples/shared/data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees) |
 | **Click (no tool)**: the node menu | `<TreeView nodeMenu>`: the core `NodeMenu`, with items for what was clicked. Internal node: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade. Collapsed clade: Expand, Info, Show only, Colour…. Tip: Info, Reroot here, Swap with…, Colour…. Root: Info, Flip, Colour…. Enter on the keyboard cursor opens it too. The hover box says "Click for actions" |
 | **Tools** (Reroot, Flip, Swap, Color): a click acts at once | `onNodeClick` / `onTipClick`, and `nodeMenu` returns `null` while a tool is active, so the menu stays out of the way. *Swap with…* in the menu starts Swap with the node picked |
 | **Show only this clade**, **Back**, **Up one level** | tree-ops `focusOn`, `focusBack`, `focusUp`, `showFocus`. A navigation, not an edit: not in Undo; an edit carries the focus over with `remapFocus` |
 | **Collapse** a clade, **Expand all** | the `collapsed` prop (`viewer.setCollapsed`, a view in the viewer: the tree is not changed and ids are the full tree's) |
-| **Collapse by support** with a threshold | tree-ops `collapseBySupport(tree, x, { keep })`, a view over the focused tree; `keep` is the clades collapsed by hand, so they stay collapsed. Composed with the focus by `composeMaps` / `invertMap`, as in `examples/react` |
+| **Collapse by support** with a threshold | tree-ops `collapseBySupport(tree, x, { keep })`, a view over the focused tree; `keep` is the clades collapsed by hand, so they stay collapsed, and so do the coloured clades; `extend: true` on a dated tree keeps it ultrametric (the time axis does not change). Composed with the focus by `composeMaps` / `invertMap`, as in `examples/react` |
 | Width, Height (Size in circular) | `setViewport` on the handle's `renderer()`: the window is the fitted one (`fitViewport()`) divided by the scale |
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
@@ -66,7 +66,8 @@ keystroke takes about half a second. Measurements of the whole-tree actions are 
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG, Newick and NEXUS, not SVG or PDF.
 - **Labels only where they fit.** The viewer shows labels only where they fit (`labelDensity`), so a 135-tip tree at the fitted view has none
   until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- **Undo** is a history of trees owned by this component; it is being reworked in [#44](https://github.com/MortenHofft/gbif-phylo/issues/44).
-  Only a `focus` field was added to each step so that Undo returns to the clade that was shown.
+- **Undo** is a history of trees owned by this component; it is being reworked in [#44](https://github.com/MortenHofft/gbif-phylo/issues/44). It was not changed, except that Undo keeps the clade shown (it follows the tips through the inverse map).
 - **Colour… is a palette, not a submenu.** `NodeMenuItem` is a flat list (`id`, `label`, `hint`, `disabled`, `onSelect`), so *Colour…* opens the
-  explorer's own palette for that one clade.
+  explorer's own palette for that one clade, at the click, with focus in it.
+- **Copy Newick** uses `navigator.clipboard`; without it (an insecure page) a hidden textarea and `execCommand('copy')`, and if that fails the Newick is downloaded as `clade.nwk`.
+- **Toolbar width.** Two rows down to about 1250 px; narrower, a row scrolls sideways (Overview and Legend are icon-only).

@@ -37,6 +37,7 @@ npm workspaces (Node >= 22.7):
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
 - `examples/explorer`: the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree; its README is a table of control to API), checked by
   `tests/browser/scripts/check-explorer.mjs`.
+- `examples/shared`: the tree catalogue (`catalogue.json`) and the loading helpers (fetch, gzip, `remote`, FASTA) of the playground and the explorer. A folder, not a package.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.
 - `site`: the demo site's hub. `npm run build:site` (`scripts/build-site.mjs`) builds it with the pages in `site/src/examples.json` and

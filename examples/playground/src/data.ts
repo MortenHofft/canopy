@@ -1,22 +1,10 @@
-// Loading for the playground: the catalogue of trees in data/ (served at /data/ by the dev server and copied there by the site build),
-// a tree file of the user's own, and the per-tip extras some trees have (a TSV keyed by tip label, a FASTA alignment).
+// Loading for the playground: the catalogue of trees (examples/shared), a tree file of the user's own, and the per-tip extras some trees
+// have (a TSV keyed by tip label, a FASTA alignment).
 
-import { parseNewick, parseNexus, type TreeModel } from '@gbif-phylo/io';
-import catalogue from './catalogue.json';
+import type { TreeModel } from '@gbif-phylo/io';
+import { ENTRIES, GROUPS, type Entry, decode, fetchText, parseFasta, parseTree } from '../../shared/data.ts';
 
-export interface Entry {
-  label: string;
-  path: string; // under data/
-  format: 'newick' | 'nexus';
-  meta?: string; // TSV: first column the tip label, the others per-tip values
-  fasta?: string;
-  /** Where the file lives when it is too large for main (the data/otl-large branch): used when /data/<path> is not there. */
-  remote?: string;
-}
-
-/** Catalogue groups (shown as <optgroup>) of entries by id. In JSON so the site build can copy exactly these files. */
-export const GROUPS = catalogue as Record<string, Record<string, Entry>>;
-export const ENTRIES: Record<string, Entry> = Object.assign({}, ...Object.values(GROUPS));
+export { ENTRIES, GROUPS, type Entry };
 
 export interface Loaded {
   tree: TreeModel;
@@ -25,26 +13,6 @@ export interface Loaded {
   /** Per-tip values by column name (first TSV column = tip label); numeric columns hold numbers. */
   meta: { columns: { name: string; numeric: boolean; values: Record<string, number | string> }[]; rows: number } | null;
   fasta: Record<string, string> | null;
-}
-
-export async function fetchText(path: string, remote?: string): Promise<{ text: string; bytes: number }> {
-  let r = await fetch(`/data/${path}`);
-  if (r.status === 404 && remote) r = await fetch(remote);
-  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
-  return decode(new Uint8Array(await r.arrayBuffer()));
-}
-
-/** Text from bytes, inflating gzip by its magic number (a host may already have inflated a .gz sent with Content-Encoding). */
-async function decode(bytes: Uint8Array<ArrayBuffer>): Promise<{ text: string; bytes: number }> {
-  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return { text: new TextDecoder().decode(bytes), bytes: bytes.length };
-  const text = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-  return { text, bytes: bytes.length };
-}
-
-/** NEXUS when the text says so, otherwise Newick. */
-export function parseTree(text: string, format?: 'newick' | 'nexus'): TreeModel {
-  const nexus = format ? format === 'nexus' : /^\s*#NEXUS/i.test(text);
-  return nexus ? parseNexus(text).tree : parseNewick(text);
 }
 
 function parseTsv(text: string): Loaded['meta'] {
@@ -63,21 +31,6 @@ function parseTsv(text: string): Loaded['meta'] {
   }
   for (const c of cols) if (c.numeric) for (const k in c.values) c.values[k] = Number(c.values[k]);
   return { columns: cols, rows: lines.length - 1 };
-}
-
-export function parseFasta(src: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  let id = '';
-  let seq: string[] = [];
-  for (const line of src.split(/\r?\n/)) {
-    if (line.startsWith('>')) {
-      if (id) out[id] = seq.join('');
-      id = line.slice(1).trim().split(/\s+/)[0];
-      seq = [];
-    } else if (id) seq.push(line.trim());
-  }
-  if (id) out[id] = seq.join('');
-  return out;
 }
 
 export async function loadEntry(id: string): Promise<Loaded> {

@@ -170,8 +170,9 @@ body {
   gap: 8px;
   padding: 6px 12px;
   background: var(--ex-surface-0);
-  flex-wrap: wrap; /* the second row has grown past one line: it wraps instead of hiding controls */
-  row-gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto; /* narrower than the toolbar: it scrolls sideways, keeping the two rows (thin bar, so it can be seen) */
+  scrollbar-width: thin;
   min-width: 0;
 }
 .ex-row:first-child {
@@ -208,7 +209,7 @@ body {
 .ex-slider {
   appearance: none;
   -webkit-appearance: none;
-  width: 96px;
+  width: 72px;
   height: 4px;
   border-radius: 4px;
   outline: none;
