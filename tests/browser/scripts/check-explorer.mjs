@@ -1717,6 +1717,23 @@ await open('rich-hcv-19');
   await page.waitForTimeout(150);
   ok((await page.locator('.ex-hint').count()) === 0, 'a drag removes it');
 }
+await open('rich-hcv-19');
+{
+  const b = await ev(() => document.querySelector('.ex-pane').getBoundingClientRect().toJSON());
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 2, b.y + b.height / 2 + 1);
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  ok((await page.locator('.ex-hint').count()) === 1, 'a jittery click does not remove it');
+  await page.locator('.phylo-tree').focus();
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(100);
+  ok((await page.locator('.ex-hint').count()) === 1, 'an arrow key (it moves the active node) does not');
+  await page.keyboard.press('+');
+  await page.waitForTimeout(150);
+  ok((await page.locator('.ex-hint').count()) === 0, 'the zoom key removes it');
+}
 
 // ---------------------------------------------------------------- the alignment fills the width
 console.log('alignment column fills the width');
