@@ -11,7 +11,7 @@
     "packages/react",
     "examples/react",
     "examples/vanilla",
-    "examples/reactree",
+    "examples/explorer",
     "examples/playground",
     "site",
     "tests/browser"

@@ -9,11 +9,11 @@
     "data": "src/catalogue.json"
   },
   {
-    "id": "reactree",
-    "dir": "examples/reactree",
+    "id": "explorer",
+    "dir": "examples/explorer",
     "kind": "showcase",
-    "title": "Custom styling: a Reactree look-alike",
-    "description": "The Reactree viewer's toolbars, icons, modes and look, rebuilt on the public API: <TreeView>, tree-ops for every edit, a control of our own for node labels, and a theme made only of CSS custom properties. Its README lists what could not be matched.",
+    "title": "Tree explorer",
+    "description": "A styled example of the full API, an alternative to the playground: toolbars, modes, panels and export built on <TreeView>, tree-ops for every edit, a control of our own for node labels, and a theme made only of CSS custom properties. Its README lists what could not be matched.",
     "tags": ["React", "tree-ops", "custom theme"],
     "data": "src/trees.json"
   }

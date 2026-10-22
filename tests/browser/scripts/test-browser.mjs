@@ -3,11 +3,11 @@
 //   test      this workspace's test page            scripts/check-radial-ui.mjs
 //   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
-//   reactree  examples/reactree (a Reactree look-alike) scripts/check-reactree.mjs
+//   explorer  examples/explorer (the styled explorer)    scripts/check-explorer.mjs
 //   playground examples/playground (every setting)     scripts/check-playground.mjs
 //   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
 //   site      the demo site as Vercel serves it        scripts/check-site.mjs (runs scripts/build-site.mjs, serves site-dist itself)
-//   node scripts/test-browser.mjs [--only test,vanilla,react,reactree,playground,no-build,site] [--no-build]
+//   node scripts/test-browser.mjs [--only test,vanilla,react,explorer,playground,no-build,site] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -114,9 +114,9 @@ const SUITES = [
   },
   { name: 'react', dir: path.join(repo, 'examples/react'), check: 'check-node-menu.mjs', args: (port) => ['--url', `http://127.0.0.1:${port}/`] },
   {
-    name: 'reactree',
-    dir: path.join(repo, 'examples/reactree'),
-    check: 'check-reactree.mjs',
+    name: 'explorer',
+    dir: path.join(repo, 'examples/explorer'),
+    check: 'check-explorer.mjs',
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
   {

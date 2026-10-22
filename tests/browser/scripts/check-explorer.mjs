@@ -1,7 +1,7 @@
-// Browser check of the Reactree look-alike (examples/reactree; start it with `npm run dev` there, which serves on port 5309).
-//   node tests/browser/scripts/check-reactree.mjs [--port 5309] [--url <page URL, default http://127.0.0.1:<port>/>]
+// Browser check of the explorer (examples/explorer; start it with `npm run dev` there, which serves on port 5309).
+//   node tests/browser/scripts/check-explorer.mjs [--port 5309] [--url <page URL, default http://127.0.0.1:<port>/>]
 // Every toolbar control is driven as a user would (clicks, the keyboard, the sliders) and its effect read back from the viewer
-// (window.__reactree() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
+// (window.__explorer() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights and steps; a tip click opens the inspector, a clade
 // click collapses it and a click on the triangle expands it; colour, erase and the innermost-colour-wins order; reroot, flip, swap
 // (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG, Newick and NEXUS downloads); the transparent
@@ -32,7 +32,7 @@ page.on('pageerror', (e) => {
 
 // in-page helpers: the viewer, the tip order, where to click a tip or the first visible clade of a size
 const HELPERS = () => {
-  const v = () => window.__reactree();
+  const v = () => window.__explorer();
   window.__v = v;
   window.__order = () => v().getTree().tipLabels.join(',');
   window.__tipAt = (label) => {
@@ -55,8 +55,8 @@ const HELPERS = () => {
 };
 const open = async (tree, extra = '') => {
   await page.goto(`${url}?tree=${tree}${extra}`);
-  await page.waitForSelector('.rt-outer canvas', { timeout: 60000 });
-  await page.waitForFunction(() => typeof window.__reactree === 'function' && window.__reactree() !== null);
+  await page.waitForSelector('.ex-outer canvas', { timeout: 60000 });
+  await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
   await page.evaluate(HELPERS);
   await page.waitForTimeout(400);
 };
@@ -65,8 +65,8 @@ const click = async (p) => {
   await page.mouse.click(p.x, p.y);
   await page.waitForTimeout(150);
 };
-const btn = (text) => page.locator('.rt-outer button', { hasText: text }).first();
-const toast = async () => ((await page.locator('.rt-toast').count()) ? page.locator('.rt-toast').innerText() : '');
+const btn = (text) => page.locator('.ex-outer button', { hasText: text }).first();
+const toast = async () => ((await page.locator('.ex-toast').count()) ? page.locator('.ex-toast').innerText() : '');
 
 // ---------------------------------------------------------------- Carangaria (135 tips, dated)
 // the axis label is canvas text: remember the last axis title drawn
@@ -82,7 +82,7 @@ await page.addInitScript(() => {
 
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
-ok((await page.locator('.rt-row').count()) === 2, 'two toolbar rows');
+ok((await page.locator('.ex-row').count()) === 2, 'two toolbar rows');
 const span = () =>
   ev(() => {
     const p = __v().getViewport();
@@ -97,8 +97,8 @@ ok(
   Math.abs(z.w / fit.w - 0.5) < 0.02 && Math.abs(z.h / fit.h - 0.5) < 0.02,
   `Width / Height 2× halve the window (${(z.w / fit.w).toFixed(3)}, ${(z.h / fit.h).toFixed(3)})`,
 );
-await page.locator('.rt-slider-val').nth(0).click();
-await page.locator('.rt-slider-val').nth(1).click();
+await page.locator('.ex-slider-val').nth(0).click();
+await page.locator('.ex-slider-val').nth(1).click();
 await page.waitForTimeout(150);
 const back = await span();
 ok(Math.abs(back.w - fit.w) < 1e-6 && Math.abs(back.h - fit.h) < 1e-6, 'clicking the values resets to the fitted window');
@@ -111,7 +111,7 @@ await page.locator('button[title=Circular]').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'radial', 'Circular: radial layout');
 ok(
-  (await page.locator('input[aria-label=Height]').count()) === 0 && (await page.locator('.rt-slider-label', { hasText: 'Size' }).count()) === 1,
+  (await page.locator('input[aria-label=Height]').count()) === 0 && (await page.locator('.ex-slider-label', { hasText: 'Size' }).count()) === 1,
   'radial: Size slider, no Height',
 );
 await page.locator('button[title=Rectangular]').click();
@@ -140,7 +140,7 @@ const painted = () =>
     for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
     return n / (c.width * c.height); // the painted share of the canvas
   });
-await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
 const p0 = await painted();
 const box = await page.locator('.phylo-tree').boundingBox();
@@ -150,7 +150,7 @@ await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2 - 100, { steps: 6 });
 await page.mouse.up();
 await page.waitForTimeout(300);
-await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(300);
 const p1 = await painted();
 ok(p0 > 0 && p0 < 0.5, `the canvas is see-through where nothing is drawn (${(p0 * 100).toFixed(1)}% painted)`);
@@ -189,21 +189,21 @@ await page.waitForTimeout(200);
 ok((await ev(() => __v().options.highlightStyle)) === 'dim', 'search uses the dim highlight style');
 const inkDim = await ink();
 ok(inkDim < inkBefore * 0.6, `the tips that do not match are dimmed (canvas ink ${inkBefore} → ${inkDim})`);
-ok((await page.locator('.rt-search-count').innerText()) === '1 / 2', 'two matches, the first current');
+ok((await page.locator('.ex-search-count').innerText()) === '1 / 2', 'two matches, the first current');
 ok((await ev(() => __v().getHighlighted().length)) === 2, 'matches highlighted');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(400);
-ok((await page.locator('.rt-search-count').innerText()) === '2 / 2', 'Enter: next match');
+ok((await page.locator('.ex-search-count').innerText()) === '2 / 2', 'Enter: next match');
 const cur = await ev(() => __v().getHighlighted()[1]);
 const vp = await ev(() => __v().getViewport());
 const rank = await ev((l) => __v().getTree().tipLabels.indexOf(l), cur);
 ok(rank >= vp.y0 && rank <= vp.y1, 'the current match is in view');
 await page.keyboard.press('Escape');
 ok(
-  (await page.locator('.rt-search').count()) === 0 && (await ev(() => __v().getHighlighted().length)) === 0,
+  (await page.locator('.ex-search').count()) === 0 && (await ev(() => __v().getHighlighted().length)) === 0,
   'Escape closes the search and clears the highlight',
 );
-await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(300);
 ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back at full strength after the search');
 
@@ -211,16 +211,16 @@ console.log('inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);
 await page.locator('input[aria-label=Height]').fill('4');
 await page.waitForTimeout(200);
-await page.locator('.rt-btn[title="Fit tree"]').click();
-await page.locator('.rt-slider-val').nth(1).click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-slider-val').nth(1).click();
 await page.waitForTimeout(200);
 await click(await ev((l) => __tipAt(l), tip0));
 ok(
-  (await page.locator('.rt-info-name').count()) === 1 && (await page.locator('.rt-info-name').innerText()) === tip0.replace(/_/g, ' '),
+  (await page.locator('.ex-info-name').count()) === 1 && (await page.locator('.ex-info-name').innerText()) === tip0.replace(/_/g, ' '),
   'a tip click opens the inspector',
 );
-ok((await page.locator('.rt-info-rows dt', { hasText: 'Root distance' }).count()) === 1, 'inspector: root distance');
-await page.locator('.rt-info-head button').click();
+ok((await page.locator('.ex-info-rows dt', { hasText: 'Root distance' }).count()) === 1, 'inspector: root distance');
+await page.locator('.ex-info-head button').click();
 // collapsing is the viewer's: the tree is the same object with the same tips, and the collapsed clade is one row
 const rows = () => ev(() => __v().layout.rows);
 const before = await rows();
@@ -231,7 +231,7 @@ await page.waitForTimeout(200);
 const after = await rows();
 ok(after === before - c1.tips + 1, `a clade click collapses it (${before} → ${after} rows)`);
 ok((await ev(() => __v().getTree().tipCount)) === tips, 'and the tree still has all its tips');
-ok((await btn('Expand all').count()) === 1 && (await page.locator('.rt-expand .rt-count').innerText()) === '1', 'Expand all appears with the count');
+ok((await btn('Expand all').count()) === 1 && (await page.locator('.ex-expand .ex-count').innerText()) === '1', 'Expand all appears with the count');
 const tri = await ev((n) => {
   const b = __v().nodeBounds(n);
   return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
@@ -271,13 +271,13 @@ ok((await rows()) === before, 'Expand all');
   );
   ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
   await btn('Expand all').click();
-  await page.locator('.rt-slider-val').nth(1).click();
+  await page.locator('.ex-slider-val').nth(1).click();
   await page.waitForTimeout(150);
 }
 
 console.log('colour');
 await btn('Color').click();
-ok((await page.locator('.rt-palette .rt-swatch').count()) === 12, 'palette with 12 swatches');
+ok((await page.locator('.ex-palette .ex-swatch').count()) === 12, 'palette with 12 swatches');
 await page.locator('button[aria-label=Pink]').click();
 const big = await ev(() => __clade(20, 40));
 await click(big);
@@ -319,7 +319,7 @@ const inner = () =>
   }, small);
 let px = await inner();
 ok(px.teal > 0 && px.teal > px.pink, `the inner colour shows (teal ${px.teal}, pink ${px.pink})`);
-await page.locator('.rt-erase').click();
+await page.locator('.ex-erase').click();
 await click(small);
 cl = await ev(() => __v().getClades());
 ok(cl.length === 1 && cl[0].node === big.node, 'Erase removes a clade colour');
@@ -333,15 +333,15 @@ cl = await ev(() => __v().getClades());
 ok(cl.length === 2 && cl[0].node === small.node && cl[1].node === big.node, 'inner clade first, outer last');
 px = await inner();
 ok(px.teal > 0 && px.teal > px.pink, `the innermost colour still wins (teal ${px.teal}, pink ${px.pink})`);
-await page.locator('.rt-erase').click();
+await page.locator('.ex-erase').click();
 await click(small);
-await page.locator('.rt-outer').press('Escape');
-ok((await page.locator('.rt-palette').count()) === 0, 'Escape leaves colour mode');
-ok((await page.locator('.rt-color .rt-count').innerText()) === '1', 'Color shows the count');
+await page.locator('.ex-outer').press('Escape');
+ok((await page.locator('.ex-palette').count()) === 0, 'Escape leaves colour mode');
+ok((await page.locator('.ex-color .ex-count').innerText()) === '1', 'Color shows the count');
 
 console.log('tree operations');
 // the earlier steps moved the view and an edit keeps it now: start from the whole tree
-await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
 await btn('Reroot').click();
@@ -349,7 +349,7 @@ const rt = await ev(() => __v().getTree().tipLabels[5]);
 await click(await ev((l) => __tipAt(l), rt));
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'reroot on a tip changes the tree, Undo appears');
-await page.locator('.rt-outer').press('Escape');
+await page.locator('.ex-outer').press('Escape');
 await btn('Undo').click();
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0 && (await btn('Undo').count()) === 0, 'Undo restores the tree');
@@ -415,7 +415,7 @@ ok(
   'Undo returns the tree and the same view',
 );
 ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
-await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
 // swap: the two children of a binary node, then two tips that are not siblings
 const pair = await ev(() => {
@@ -432,7 +432,7 @@ const pair = await ev(() => {
 });
 await btn('Swap').click();
 await click(pair[0]);
-ok((await page.locator('.rt-steps .done').count()) === 1, 'Swap: step 1 done');
+ok((await page.locator('.ex-steps .done').count()) === 1, 'Swap: step 1 done');
 await click(pair[1]);
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) !== o0, 'Swap of two siblings');
@@ -453,9 +453,9 @@ ok(o3 !== o2 && (await ev(() => __order())) !== o3, 'Ladderize both ways');
 
 console.log('export');
 await btn('Export').click();
-ok((await page.locator('.rt-menu button').allInnerTexts()).map((s) => s.split('\n')[0]).join(',') === 'PNG,Newick,NEXUS', 'menu: PNG, Newick, NEXUS');
+ok((await page.locator('.ex-menu button').allInnerTexts()).map((s) => s.split('\n')[0]).join(',') === 'PNG,Newick,NEXUS', 'menu: PNG, Newick, NEXUS');
 let dl = page.waitForEvent('download');
-await page.locator('.rt-menu button', { hasText: 'PNG' }).click();
+await page.locator('.ex-menu button', { hasText: 'PNG' }).click();
 let d = await dl;
 const png = await (await d.createReadStream()).toArray();
 ok(d.suggestedFilename() === 'phylotree.png' && Buffer.concat(png).subarray(1, 4).toString() === 'PNG', 'PNG download');
@@ -519,13 +519,13 @@ ok(
 );
 await btn('Export').click();
 dl = page.waitForEvent('download');
-await page.locator('.rt-menu button', { hasText: 'Newick' }).click();
+await page.locator('.ex-menu button', { hasText: 'Newick' }).click();
 d = await dl;
 const nwk = Buffer.concat(await (await d.createReadStream()).toArray()).toString();
 ok(nwk.startsWith('(') && nwk.trim().endsWith(';') && nwk.includes(tl[0]), 'Newick download of the current tree');
 await btn('Export').click();
 dl = page.waitForEvent('download');
-await page.locator('.rt-menu button', { hasText: 'NEXUS' }).click();
+await page.locator('.ex-menu button', { hasText: 'NEXUS' }).click();
 d = await dl;
 const nex = Buffer.concat(await (await d.createReadStream()).toArray()).toString();
 ok(
@@ -539,14 +539,14 @@ await page.locator('.theme-toggle').click();
 await page.waitForTimeout(200);
 const fg2 = await ev(() => __v().getTheme().branch);
 ok(fg2 !== fg, `dark mode reaches the canvas (branches ${fg} → ${fg2})`);
-const h0 = (await page.locator('.rt-pane').boundingBox()).height;
-const g = await page.locator('.rt-resize').boundingBox();
+const h0 = (await page.locator('.ex-pane').boundingBox()).height;
+const g = await page.locator('.ex-resize').boundingBox();
 await page.mouse.move(g.x + g.width / 2, g.y + 7);
 await page.mouse.down();
 await page.mouse.move(g.x + g.width / 2, g.y + 107, { steps: 5 });
 await page.mouse.up();
 await page.waitForTimeout(300);
-ok(Math.abs((await page.locator('.rt-pane').boundingBox()).height - h0 - 100) < 2, 'the resize handle makes the pane taller');
+ok(Math.abs((await page.locator('.ex-pane').boundingBox()).height - h0 - 100) < 2, 'the resize handle makes the pane taller');
 ok(Math.abs((await ev(() => __v().size.height)) - h0 - 100) < 2, 'and the viewer follows');
 
 // ---------------------------------------------------------------- support values, node labels
@@ -578,7 +578,7 @@ ok((await drawn()).length === 0 && (await ev(() => __v().options.nodeLabels)) ==
 // lengths on the HCV tree: every label is the length of an internal node
 await open('rich-hcv-19');
 for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'length'; k++) {
-  await page.locator('.rt-labels').click(); // None, (Bootstrap if the tree has support), Length
+  await page.locator('.ex-labels').click(); // None, (Bootstrap if the tree has support), Length
   await page.waitForTimeout(150);
 }
 labels = await drawn();
@@ -612,9 +612,9 @@ ok(
 // posterior on the BEAST MCC tree: the labels hold no support, the posterior is in [&posterior=...] (io annotations, supportFrom)
 await open('rich-fish-carangaria-135');
 ok((await drawn()).length === 0, 'Carangaria: no node labels by default');
-await page.locator('.rt-labels').click();
+await page.locator('.ex-labels').click();
 await page.waitForTimeout(150);
-ok((await page.locator('.rt-labels').innerText()).includes('Bootstrap'), 'the button offers Bootstrap on a tree whose support is an annotation');
+ok((await page.locator('.ex-labels').innerText()).includes('Bootstrap'), 'the button offers Bootstrap on a tree whose support is an annotation');
 // 135 tips in one view are under the density threshold: show the top of the tree
 await ev(() => {
   const v = __v();
@@ -630,10 +630,10 @@ ok(labels.includes('1') && labels.some((l) => /^0\.\d{1,2}$/.test(l)), 'both 1 a
 await ev(() => __v().fit(false));
 await page.waitForTimeout(200);
 ok((await drawn()).length === 0, 'Carangaria at the fitted view: rows closer than the density threshold, no node labels');
-await page.locator('.rt-outer').press('Control+f');
+await page.locator('.ex-outer').press('Control+f');
 await page.waitForTimeout(100);
 ok(
-  (await page.locator('.rt-search input').count()) === 1 && (await ev(() => document.activeElement?.closest('.rt-search') !== null)),
+  (await page.locator('.ex-search input').count()) === 1 && (await ev(() => document.activeElement?.closest('.ex-search') !== null)),
   'Ctrl+F opens the search',
 );
 
@@ -658,7 +658,7 @@ ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'Ctrl+Z undoes the swap'
 // ---------------------------------------------------------------- aligned labels
 console.log('aligned labels');
 await open('rich-hcv-19');
-const alignBtn = page.locator('.rt-outer button', { hasText: /^\s*Align\s*$/ }); // not 'Alignment'
+const alignBtn = page.locator('.ex-outer button', { hasText: /^\s*Align\s*$/ }); // not 'Alignment'
 const anchorXs = () =>
   ev(() => [...document.querySelectorAll('.phylo-tree [data-tip-id]')].map((a) => Math.round(a.getBoundingClientRect().left * 10) / 10));
 await page.waitForTimeout(300);
@@ -689,10 +689,10 @@ const lab = await page.evaluate(() => {
 await page.mouse.click(lab.x, lab.y);
 await page.waitForTimeout(300);
 ok(
-  (await page.locator('.rt-info-name').count()) === 1 && (await page.locator('.rt-info-name').innerText()) === lab.id.replace(/_/g, ' '),
+  (await page.locator('.ex-info-name').count()) === 1 && (await page.locator('.ex-info-name').innerText()) === lab.id.replace(/_/g, ' '),
   'clicking an aligned label opens the inspector of its tip',
 );
-await page.locator('.rt-info-head button').click();
+await page.locator('.ex-info-head button').click();
 await alignBtn.click();
 await page.waitForTimeout(300);
 ok(new Set(await anchorXs()).size > 3, 'Align off: the labels follow their tips again');
@@ -704,13 +704,13 @@ await btn('Alignment').click();
 await page.waitForTimeout(300);
 const cell = await ev(() => __v().columnCell('alignment', 0));
 ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
-ok((await page.locator('.rt-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
+ok((await page.locator('.ex-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
 // the legend is the canvas's own table: in dark mode, every swatch is a colour the cells are drawn in (and the cells use no other)
 if ((await ev(() => document.documentElement.dataset.theme)) !== 'dark') {
   await page.locator('.theme-toggle').click();
   await page.waitForTimeout(300);
 }
-const swatches = await ev(() => [...document.querySelectorAll('.rt-legend-dot')].map((d) => getComputedStyle(d).backgroundColor));
+const swatches = await ev(() => [...document.querySelectorAll('.ex-legend-dot')].map((d) => getComputedStyle(d).backgroundColor));
 ok(swatches.length === 4 && new Set(swatches).size === 4, `the nucleotide legend has four distinct swatches (${swatches.join(' ')})`);
 ok(swatches[0] === 'rgb(74, 222, 128)', 'in dark mode they are the dark defaults (A is #4ade80)');
 const cellColours = await ev(() => {
@@ -737,7 +737,7 @@ ok(
 );
 await btn('Alignment').click();
 await page.waitForTimeout(200);
-ok((await ev(() => __v().columnCell('alignment', 0))) === null && (await page.locator('.rt-legend').count()) === 0, 'Alignment off');
+ok((await ev(() => __v().columnCell('alignment', 0))) === null && (await page.locator('.ex-legend').count()) === 0, 'Alignment off');
 
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks pass');
