@@ -126,7 +126,7 @@ const painted = () =>
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     let n = 0;
     for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
-    return n;
+    return n / (c.width * c.height); // the painted share of the canvas
   });
 await page.locator('.rt-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
@@ -141,7 +141,19 @@ await page.waitForTimeout(300);
 await page.locator('.rt-btn[title="Fit tree"]').click();
 await page.waitForTimeout(300);
 const p1 = await painted();
-ok(p0 > 0 && Math.abs(p1 - p0) / p0 < 0.02, `no trace of earlier frames (${p0} painted pixels before zoom and pan, ${p1} after)`);
+ok(p0 > 0 && p0 < 0.5, `the canvas is see-through where nothing is drawn (${(p0 * 100).toFixed(1)}% painted)`);
+ok(Math.abs(p1 - p0) < 0.002, `no trace of earlier frames (${(p0 * 100).toFixed(2)}% painted before zoom and pan, ${(p1 * 100).toFixed(2)}% after)`);
+// switching to an opaque background and back at run time (the viewer changes canvas)
+// setTheme replaces the page's overrides (font, branch width): pass the theme in force, only the background changed
+const themeNow = await ev(() => __v().getTheme());
+await ev((t) => __v().setTheme({ ...t, background: '#ffffff' }), themeNow);
+const pOpaque = await painted();
+await ev((t) => __v().setTheme(t), themeNow);
+const pBack = await painted();
+ok(
+  pOpaque === 1 && Math.abs(pBack - p0) < 0.002,
+  `opaque background at run time, then transparent again (${(pOpaque * 100).toFixed(1)}%, ${(pBack * 100).toFixed(2)}%)`,
+);
 
 console.log('search');
 await page.locator('button[aria-label="Search taxa"]').click();

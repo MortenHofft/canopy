@@ -253,7 +253,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 
 | Field | CSS property | Default | Meaning |
 |---|---|---|---|
-| `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through), labels and axis text, axis lines and headers |
+| `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through; the canvas is opaque, which is faster, whenever this colour is), labels and axis text, axis lines and headers |
 | `branch`, `highlight`, `summary` | `--phylo-branch`, ... | `#44576a`, `#4c9b45`, `#9aa7b3` | branches, selection and focus, collapsed clades |
 | `fontFamily` | `--phylo-font-family` | `system-ui, sans-serif` | labels and axis |
 | `categorical` | `--phylo-categorical` (comma list) | 5 colours | palette for categories; the second colours bar columns |

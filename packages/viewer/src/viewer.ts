@@ -103,6 +103,8 @@ export class TreeViewer {
   private canvas: HTMLCanvasElement;
   private top: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  /** The main canvas has an alpha channel: only while the background is not opaque (an opaque canvas composites faster). */
+  private canvasAlpha = false;
   private topCtx: CanvasRenderingContext2D;
   private notice: HTMLDivElement;
   private ro: ResizeObserver | null = null;
@@ -263,8 +265,8 @@ export class TreeViewer {
       this.schemeQuery.addEventListener?.('change', this.onScheme);
     }
     this.host.appendChild(this.container);
-    const cc = { alpha: false, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
-    this.ctx = this.canvas.getContext('2d', cc)!;
+    this.canvasAlpha = !isOpaque(this.theme.background);
+    this.ctx = this.mainContext();
     this.topCtx = this.top.getContext('2d', { willReadFrequently: this.opts.softwareCanvas })!;
 
     this.input = new InputController(this.root, this.inputHost());
@@ -643,9 +645,26 @@ export class TreeViewer {
       s.setProperty(THEME_CSS_VARS[k], t[k]);
   }
 
+  private mainContext(): CanvasRenderingContext2D {
+    const cc = { alpha: this.canvasAlpha, willReadFrequently: this.opts.softwareCanvas } as CanvasRenderingContext2DSettings;
+    return this.canvas.getContext('2d', cc)!;
+  }
+
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
     this.theme = next;
+    // an opaque canvas cannot show the page through a transparent background (it clears to black): change canvas when that changes
+    const alpha = !isOpaque(next.background);
+    if (alpha !== this.canvasAlpha) {
+      this.canvasAlpha = alpha;
+      const old = this.canvas;
+      this.canvas = old.cloneNode(false) as HTMLCanvasElement; // same style, attributes and size
+      this.canvas.width = old.width;
+      this.canvas.height = old.height;
+      old.replaceWith(this.canvas);
+      old.width = old.height = 0; // release its backing store
+      this.ctx = this.mainContext();
+    }
     this.syncCssVars();
     this.sceneVersion++;
     this.overlay.clear();
@@ -1127,8 +1146,8 @@ export class TreeViewer {
 
     // ---- draw
     const td = performance.now();
-    // cleared first: a background that is not opaque (transparent, rgba) would otherwise show the frames before this one
-    ctx.clearRect(0, 0, W, H);
+    // a background that is not opaque (transparent, rgba) would otherwise show the frames before this one
+    if (this.canvasAlpha) ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
     const S: Scene = {
@@ -1359,4 +1378,27 @@ export class TreeViewer {
     this.topDirty = true;
     this.schedule();
   };
+}
+
+/** Whether a CSS colour is fully opaque: drawn on a 1×1 canvas and read back (exact for any syntax the browser knows: transparent,
+ *  rgba, #rgba, hsl(… / a), color-mix). Without a 2D canvas (tests, workers) only 'transparent' counts as not opaque. */
+let probe: CanvasRenderingContext2D | null | undefined;
+function isOpaque(colour: string): boolean {
+  if (colour.trim().toLowerCase() === 'transparent') return false;
+  if (probe === undefined) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 1;
+      probe = c.getContext('2d', { willReadFrequently: true }) ?? null;
+      if (probe && typeof probe.getImageData !== 'function') probe = null;
+    } catch {
+      probe = null;
+    }
+  }
+  if (!probe) return true;
+  probe.clearRect(0, 0, 1, 1);
+  probe.fillStyle = '#000';
+  probe.fillStyle = colour;
+  probe.fillRect(0, 0, 1, 1);
+  return probe.getImageData(0, 0, 1, 1).data[3] === 255;
 }
