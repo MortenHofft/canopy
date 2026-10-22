@@ -594,6 +594,18 @@ export const SETTINGS: Setting[] = [
     step: 1,
   },
   {
+    id: 'collapseTo',
+    label: 'Collapse to N clades (0 = off)',
+    hint: 'tree-ops autoCollapse: at most N rows (tips and collapsed clades), the largest clades opened first; run again when the shown clade changes, and Expand or Collapse from the menu still work',
+    group: 'Tree operations',
+    to: 'app',
+    kind: 'range',
+    default: 0,
+    min: 0,
+    max: 200,
+    step: 5,
+  },
+  {
     id: 'hoverPath',
     label: 'Hover path',
     hint: 'hovering a node highlights its path to the root (with nothing hovered, the keyboard cursor’s)',

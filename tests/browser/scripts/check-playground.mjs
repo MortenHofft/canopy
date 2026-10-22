@@ -675,6 +675,58 @@ ok(
   (await tips()) === whole && !query().has('focus') && (await ev(() => window.viewer.getClades().length)) === 0,
   'Reset all: the whole tree, no colours',
 );
+// Collapse to N clades (tree-ops autoCollapse): at most N rows, run again inside a clade shown alone and on Back
+const N = 20;
+await setInput('collapseTo', String(N));
+await page.waitForTimeout(300);
+const overviewRows = await rows();
+ok(
+  overviewRows <= N && overviewRows >= N - 5 && (await tips()) === whole && query().get('s.collapseTo') === String(N) && query().has('collapsed'),
+  `Collapse to ${N} clades: ${whole} tips in ${overviewRows} rows, in the URL`,
+);
+// the largest collapsed clade, and its triangle
+const largest = await ev((ids) => {
+  const t = window.viewer.getTree();
+  const size = (n) => t.leafEnd[n] - t.leafStart[n];
+  const best = ids.reduce((a, b) => (size(b) > size(a) ? b : a));
+  return { node: best, tips: size(best) };
+}, query().get('collapsed').split(',').map(Number)); // the whole tree is shown: ids of the loaded tree are the viewer's
+await menu(await triAt(largest.node), 'Show only this clade');
+const insideRows = await rows();
+ok(
+  (await tips()) === largest.tips &&
+    insideRows <= N &&
+    (largest.tips <= N ? insideRows === largest.tips : insideRows >= Math.min(N - 5, largest.tips)),
+  `Show only the largest collapsed clade (${largest.tips} tips): collapsed again to ${insideRows} rows`,
+);
+await page.locator('#ops-back').click();
+await page.waitForTimeout(300);
+ok((await tips()) === whole && (await rows()) === overviewRows, 'Back: the whole tree, collapsed to the same rows');
+await setInput('collapseTo', '0');
+await page.waitForTimeout(300);
+ok((await rows()) === whole && !query().has('collapsed') && !query().has('s.collapseTo'), 'Collapse to 0 clades: everything open');
+// a polytomy wider than N shown alone: its clades are collapsed, one row per child, not every tip opened
+await page.selectOption('#tree-select', 'syn-polytomy-22800');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('22,800 tips'), null, { timeout: 30000 });
+await page.waitForTimeout(300);
+await setInput('collapseTo', String(N));
+await page.waitForTimeout(300);
+ok((await rows()) <= N, `polytomies: collapsed to ${await rows()} rows`);
+const wide = await ev((ids) => {
+  const t = window.viewer.getTree();
+  const best = ids.reduce((a, b) => (t.childCount[b] > t.childCount[a] ? b : a));
+  return { node: best, children: t.childCount[best], tips: t.leafEnd[best] - t.leafStart[best] };
+}, query().get('collapsed').split(',').map(Number));
+await menu(await triAt(wide.node), 'Show only this clade');
+const wideRows = await rows();
+ok(
+  wide.children > N && (await tips()) === wide.tips && wideRows === wide.children,
+  `Show only a polytomy of ${wide.children} children (${wide.tips} tips): ${wideRows} rows, one per child`,
+);
+await setInput('collapseTo', '0');
+await page.selectOption('#tree-select', 'rich-fish-carangaria-135');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
+await page.waitForTimeout(300);
 // collapse by support: 0.95 and 100 on one tree (two scales in one file), so the threshold is in % of the scale 0..100
 await page.selectOption('#tree-select', 'edge-internal-support');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('6 tips'), null, { timeout: 30000 });

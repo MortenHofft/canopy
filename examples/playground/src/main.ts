@@ -122,11 +122,30 @@ function computeView(t: TreeModel): View {
   return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedShown, supportCollapsed, support };
 }
 
-/** The view changed (focus, collapsed clades, support threshold): rebuild it and the viewer when the shown tree is a different one. */
-function refreshView() {
+/** "Collapse to N clades": the shown tree's overview (tree-ops autoCollapse, at most N rows, or one row per child of the shown root
+ *  when more than N) becomes the collapsed clades. Off at 0. */
+function overview(vw: View) {
+  const n = Number(state.collapseTo);
+  if (!n) return;
+  const t = vw.tree;
+  let shown = ops.autoCollapse(t, { maxRows: n });
+  // the shown root is never collapsed: when not even its children fit in N rows (a wide polytomy), collapse them, one row each
+  if (shown.length === 1 && shown[0] === 0) {
+    shown = [];
+    for (let c = t.firstChild[0]; c >= 0; c = t.nextSibling[c]) if (t.childCount[c] > 0) shown.push(c);
+  }
+  collapsed = shown.map(vw.toFull);
+  vw.collapsedShown = shown;
+  log('collapse', `to ${n} rows: ${shown.length} clades`);
+}
+
+/** The view changed (focus, collapsed clades, support threshold): rebuild it and the viewer when the shown tree is a different one.
+ *  `auto`: the shown clade or the overview setting changed, so "Collapse to N clades" runs again. */
+function refreshView(auto = false) {
   if (!loaded) return;
   const before = view?.tree;
   view = computeView(loaded.tree);
+  if (auto) overview(view);
   renderOpsBar();
   if (view.tree !== before) create();
   else apply();
@@ -254,17 +273,17 @@ const tipsOf = (full: number) => loaded!.tree.tipCountOf(full);
 function showOnly(full: number) {
   focus = ops.focusOn(loaded!.tree, focus, full);
   log('show', `only a clade of ${fmt(tipsOf(full))} tips`);
-  refreshView();
+  refreshView(true);
 }
 function goUp() {
   focus = ops.focusUp(loaded!.tree, focus);
   log('show', ops.canGoUp(focus) ? `up to a clade of ${fmt(tipsOf(ops.focusedNode(focus)))} tips` : 'the whole tree');
-  refreshView();
+  refreshView(true);
 }
 function goBack() {
   focus = ops.focusBack(focus);
   log('show', 'back');
-  refreshView();
+  refreshView(true);
 }
 function setCollapsed(full: number, on: boolean) {
   collapsed = on ? [...collapsed.filter((c) => c !== full), full] : collapsed.filter((c) => c !== full);
@@ -480,8 +499,10 @@ function control(s: Setting): HTMLElement {
     if (s.id === 'preset') applyPreset(String(state.preset));
     syncInputs();
     if (s.rebuild && before !== state[s.id]) create();
-    else if (s.group === 'Tree operations') refreshView();
-    else apply();
+    else if (s.group === 'Tree operations') {
+      if (s.id === 'collapseTo' && !state.collapseTo) collapsed = []; // the overview turned off: everything open again
+      refreshView(s.id === 'collapseTo');
+    } else apply();
   });
   inputs.set(s.id, input);
   if (s.kind === 'toggle') row.append(input, name);
@@ -526,7 +547,7 @@ function buildPanel() {
       const how = document.createElement('p');
       how.className = 'muted';
       how.textContent =
-        'Show only a clade and collapse or expand one from the node menu (or set the click action below). Back, Up one level and Expand all are above the tree.';
+        'Show only a clade and collapse or expand one from the node menu (or set the click action below). Back, Up one level and Expand all are above the tree. Collapse to N clades runs again in a clade shown alone.';
       box.append(note, how);
     }
     if (g === 'Data and interaction') {
@@ -634,6 +655,7 @@ async function show(p: Promise<Loaded>, name: string) {
   focus = fromUrlTree && urlFocus.every(internal) ? { stack: urlFocus } : ops.NO_FOCUS;
   collapsed = fromUrlTree ? urlCollapsed.filter(internal) : [];
   view = computeView(t);
+  if (!(fromUrlTree && urlCollapsed.length)) overview(view); // collapsed clades in the URL win over the overview
   renderOpsBar();
   info.textContent =
     `${fmt(t.tipCount)} tips · ${fmt(t.nodeCount)} nodes · ${t.hasLengths ? (t.isUltrametric(1e-3) ? 'dated (ultrametric)' : 'branch lengths') : 'no branch lengths'}` +

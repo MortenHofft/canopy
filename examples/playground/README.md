@@ -18,6 +18,11 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from .
   - **Show only this clade** (node menu, or the click action) with **← Back** and **↑ Up one level** above the tree, and in the
     shown root's menu (tree-ops' focus functions).
   - **Collapse** a clade into a triangle and **Expand** it again (the viewer's `setCollapsed` on the shown tree), and **Expand all**.
+  - **Collapse to N clades** (`autoCollapse`, 0 = off): the shown tree in at most N rows, its largest clades opened first. When the
+    shown root has more than N children (a wide polytomy shown alone), each of its clades is collapsed, one row per child. It runs
+    again when the setting or the shown clade changes (not for the low-support settings), so Show only this clade on a collapsed clade
+    drills down into it with the same overview, and Back returns to the one before; Expand and Collapse from the menu still work on top
+    of it. Collapsed clades in the URL win over it on load.
   - **Collapse branches with low support** (`collapseBySupport`), with the threshold in % of the tree's scale, because files use 0–1
     or 0–100. The panel shows the tree's range.
 

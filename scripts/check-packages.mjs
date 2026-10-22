@@ -89,6 +89,7 @@ const SCENARIOS = [
       'packages/tree-ops/dist/collapse.js',
       'packages/tree-ops/dist/subset.js',
       'packages/tree-ops/dist/bytes.js',
+      'packages/tree-ops/dist/auto-collapse.js',
     ],
   },
   {
@@ -101,6 +102,7 @@ const SCENARIOS = [
       'packages/tree-ops/dist/subset.js',
       'packages/tree-ops/dist/focus.js',
       'packages/tree-ops/dist/follow.js',
+      'packages/tree-ops/dist/auto-collapse.js',
     ],
   },
   {
@@ -112,6 +114,19 @@ const SCENARIOS = [
       'packages/tree-ops/dist/collapse.js',
       'packages/tree-ops/dist/subset.js',
       'packages/tree-ops/dist/focus.js',
+    ],
+  },
+  {
+    name: 'tree-ops: autoCollapse only',
+    code: `import { autoCollapse } from '@gbif-phylo/tree-ops'; console.log(autoCollapse);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+      'packages/tree-ops/dist/follow.js',
+      'packages/tree-ops/dist/bytes.js',
     ],
   },
   {
