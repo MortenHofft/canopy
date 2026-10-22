@@ -1173,12 +1173,26 @@ console.log('Copy Newick without navigator.clipboard');
   await ev(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }));
   await openMenu(await ev(() => __clade(4, 10)));
   const dl = page.waitForEvent('download', { timeout: 2500 }).catch(() => null);
+  // what has the focus when the fallback runs (execCommand('copy') is called with it): the element that must get it back
+  await ev(() => {
+    const exec = document.execCommand.bind(document);
+    document.execCommand = (...a) => {
+      const el = document.activeElement;
+      window.__focusBefore = el && el.tagName === 'TEXTAREA' ? window.__lastNonTextarea : el;
+      return exec(...a);
+    };
+    document.addEventListener('focusin', (e) => e.target.tagName !== 'TEXTAREA' && (window.__lastNonTextarea = e.target), true);
+  });
   await act('copy');
   await page.waitForTimeout(500);
   const t = await toast();
   ok(t.startsWith('Copied') || (t.includes('downloaded') && (await dl) !== null), `without the clipboard API: "${t}"`);
-  const focused = await ev(() => document.activeElement?.tagName);
-  ok(focused !== 'BODY' && focused !== 'TEXTAREA', `the keyboard focus is not lost to the fallback's textarea (on ${focused})`);
+  const back = await ev(() => ({
+    same: window.__focusBefore === document.activeElement,
+    tag: document.activeElement?.tagName,
+    had: window.__focusBefore?.tagName,
+  }));
+  ok(back.same && back.tag !== 'BODY', `the keyboard focus returns to the element that had it (${back.had})`);
 }
 
 // the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
@@ -1239,6 +1253,41 @@ await page.mouse.click(
 );
 ok((await page.locator('.ex-menu').count()) === 1, '1024 px: a real click on Export (after scrolling) opens the menu');
 await page.keyboard.press('Escape');
+await page.setViewportSize({ width: 1280, height: 860 });
+
+// Tab through the View row at 600 px: a focused control is scrolled clear of the pinned Search / Export group, inside the row
+console.log('keyboard focus in the scrolling toolbar');
+await page.setViewportSize({ width: 600, height: 860 });
+await open('rich-fish-carangaria-135');
+await page.locator('.ex-row').first().locator('button, input').first().focus();
+const hidden = [];
+let visited = 0;
+for (let i = 0; i < 40; i++) {
+  await page.waitForTimeout(60);
+  const st = await ev(() => {
+    const a = document.activeElement;
+    const row = document.querySelector('.ex-row');
+    if (!a || !row.contains(a) || a.closest('.ex-pinned')) return null;
+    const r = a.getBoundingClientRect(),
+      p = document.querySelector('.ex-pinned').getBoundingClientRect(),
+      w = row.getBoundingClientRect();
+    const label = a.getAttribute('aria-label') || a.title || a.textContent;
+    return {
+      label,
+      geo: [r.left, r.right, p.left, p.right, w.left, w.right],
+      clash: r.left < p.right && r.right > p.left,
+      outside: r.left < w.left - 0.5 || r.right > w.right + 0.5,
+    };
+  });
+  if (st === null) break;
+  visited++;
+  if (st.clash || st.outside) hidden.push(st.label + JSON.stringify(st.geo));
+  await page.keyboard.press('Tab');
+}
+ok(
+  visited >= 8 && hidden.length === 0,
+  `600 px: Tab through the View row keeps every control clear of Search and Export (${visited} controls${hidden.length ? ', hidden: ' + hidden.join(', ') : ''})`,
+);
 await page.setViewportSize({ width: 1280, height: 860 });
 
 // ---------------------------------------------------------------- collapse by support
