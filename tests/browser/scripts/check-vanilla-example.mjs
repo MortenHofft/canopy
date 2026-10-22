@@ -310,6 +310,176 @@ const owner = await ev(async () => {
 ok(!owner.inA && owner.inB && owner.elementInB, `adding a control to a second viewer moves it (${JSON.stringify(owner)})`);
 ok(owner.zooms, 'destroying the first viewer leaves the control working on the second');
 
+// ---- a focused label anchor (its focus outline is the only visible part) follows its label while the view moves (#62)
+// Focus by click and by keyboard, then pan by drag, wheel and keyboard, reading the anchor right after the next frames, inside the
+// interaction-LOD window where only reduced frames are drawn. Rectangular: the anchor stays at a fixed offset to its tip (1 px); once the
+// tip is out of the plot it is hidden or off screen. No outline after a mouse click (:focus-visible only).
+{
+  await ev(() => {
+    window.__example.card.setPosition(null);
+  });
+  const tipId = await ev(() => window.__example.viewer.getTree().tipLabels[300]);
+  const frames = () => ev(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const state = (follow = false) =>
+    ev(
+      ([t0, follow]) => {
+        const v = window.__example.viewer;
+        const t = follow ? (document.activeElement?.dataset?.tipId ?? t0) : t0; // arrow keys move focus to the neighbouring tip
+        const el = [...v.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t);
+        if (!el) return { anchor: false };
+        const b = el.getBoundingClientRect();
+        const r = v.element.getBoundingClientRect();
+        const p = v.nodePosition(v.tipNode(t));
+        return {
+          anchor: true,
+          focused: document.activeElement === el,
+          outline: el.style.outline,
+          cy: b.top + b.height / 2,
+          left: b.left,
+          right: b.right,
+          top: b.top,
+          bottom: b.bottom,
+          shown: getComputedStyle(el).display !== 'none',
+          tip: p && { x: r.left + p.x, y: r.top + p.y },
+          root: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+        };
+      },
+      [tipId, follow],
+    );
+  let off = null; // anchor left edge minus tip x, from the first measurement
+  const follows = async (what, follow = false) => {
+    await frames();
+    const s = await state(follow);
+    if (!s.anchor || !s.focused) return ok(false, `${what}: the anchor exists and keeps focus (${JSON.stringify(s)})`);
+    if (s.tip) {
+      if (off === null) off = s.left - s.tip.x;
+      const dy = Math.abs(s.cy - s.tip.y),
+        dx = Math.abs(s.left - s.tip.x - off);
+      ok(dy <= 1 && dx <= 1, `${what}: the anchor stays on its label (dy ${dy.toFixed(1)}, dx ${dx.toFixed(1)})`);
+    } else {
+      const gone = !s.shown || s.right <= s.root.left || s.left >= s.root.right || s.bottom <= s.root.top || s.top >= s.root.bottom;
+      ok(gone, `${what}: the label left the plot and the anchor is hidden or off screen (${Math.round(s.left)},${Math.round(s.top)})`);
+    }
+    return s;
+  };
+  for (const how of ['click', 'keyboard']) {
+    await ev(() => window.__example.viewer.focusTip(300));
+    await sleep(700);
+    off = null;
+    const s0 = await state();
+    ok(s0.anchor && !!s0.tip, `${how}: the tip label is drawn with an anchor`);
+    if (!s0.anchor || !s0.tip) continue;
+    const focusAnchor = async () => {
+      if (how === 'click') {
+        const s = await state();
+        await page.mouse.click(s.left + 4, s.cy);
+        await sleep(150);
+        await ev(() => window.__example.card.setPosition(null));
+      } else {
+        await ev(() => document.activeElement?.blur?.());
+        await page.keyboard.press('Tab'); // keyboard modality, so :focus-visible matches
+        await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t).focus(), tipId);
+      }
+    };
+    await focusAnchor();
+    const s1 = await state();
+    ok(s1.focused, `${how}: the anchor has DOM focus`);
+    if (how === 'click') ok(s1.outline === '', `click: no focus outline after a mouse click (${s1.outline})`);
+    else ok(/solid/.test(s1.outline), `keyboard: focus outline shown (${s1.outline})`);
+    await follows(`${how}, before panning`);
+    // drag: pan up and down on empty canvas (right of the labels), measuring while the button is down
+    const box = await ev(() => {
+      const r = window.__example.viewer.element.getBoundingClientRect();
+      return { x: r.left + r.width * 0.9, y: r.top + r.height * 0.5, h: r.height };
+    });
+    await page.mouse.move(box.x, box.y);
+    await page.mouse.down();
+    // a mouse press on the canvas moves focus to the tree (the old outline goes with it); put it back to test a pan with focus kept
+    ok(!(await state()).focused && (await state()).outline === '', `${how}: pressing the canvas takes focus off the anchor and clears its outline`);
+    await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t).focus(), tipId);
+    for (const dy of [-40, -90, -160, 200, 420]) {
+      await page.mouse.move(box.x, box.y + dy, { steps: 3 });
+      await follows(`${how}, drag ${dy}`);
+    }
+    await page.mouse.up();
+    await sleep(300);
+    await follows(`${how}, drag released`);
+    await ev(() => window.__example.viewer.focusTip(300));
+    await sleep(700);
+    await focusAnchor();
+    // wheel: zoom about a point away from the tip, then back
+    await page.mouse.move(box.x, box.y);
+    for (const dy of [-120, -120, 120, 120]) {
+      await page.mouse.wheel(0, dy);
+      await follows(`${how}, wheel ${dy}`);
+    }
+    await sleep(300);
+    await ev(() => window.__example.viewer.focusTip(300));
+    await sleep(700);
+    await focusAnchor();
+    // keyboard pan: the view follows the cursor with arrow keys
+    for (const key of ['+', '+', '-', '-']) {
+      await page.keyboard.press(key);
+      await follows(`${how}, key ${key}`);
+    }
+    off = null;
+    for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp']) {
+      await page.keyboard.press(key);
+      await follows(`${how}, key ${key}`, true);
+    }
+    // pan the tip out of the plot with the drag, then check, then back
+    await ev(() => window.__example.viewer.focusTip(300));
+    await sleep(700);
+    await page.mouse.move(box.x, box.y);
+    await page.mouse.down();
+    await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t).focus(), tipId);
+    await page.mouse.move(box.x, box.y + box.h * 0.9, { steps: 6 });
+    await follows(`${how}, dragged far`);
+    await page.mouse.up();
+    await sleep(300);
+    await follows(`${how}, dragged far, settled`);
+    await ev(() => window.__example.viewer.fit(false));
+    await ev(() => document.activeElement?.blur?.());
+    await sleep(300);
+  }
+  // radial: the rotated anchor stays next to its tip (the label is 140 px wide at most) through a drag and wheel steps
+  await ev(() => window.__example.viewer.setOptions({ layout: 'radial' }));
+  await ev(() => window.__example.viewer.focusTip(300));
+  await sleep(900);
+  await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t)?.focus(), tipId);
+  const near = async (what) => {
+    await frames();
+    const s = await ev((t) => {
+      const v = window.__example.viewer;
+      const el = [...v.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t);
+      const p = v.nodePosition(v.tipNode(t));
+      if (!el || !p) return { missing: !el, tip: !!p, focused: el === document.activeElement };
+      const b = el.getBoundingClientRect();
+      const r = v.element.getBoundingClientRect();
+      const d = Math.hypot(b.left + b.width / 2 - (r.left + p.x), b.top + b.height / 2 - (r.top + p.y));
+      return { d, focused: el === document.activeElement, tip: true };
+    }, tipId);
+    if (!s.tip) return;
+    ok(s.focused && s.d < 90, `radial, ${what}: the anchor is next to its tip (${s.d?.toFixed(0)} px)`);
+  };
+  await near('before panning');
+  const rc = await ev(() => {
+    const r = window.__example.viewer.element.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.5 };
+  });
+  await page.mouse.move(rc.x, rc.y);
+  await page.mouse.down();
+  await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t)?.focus(), tipId);
+  for (const d of [30, 70, 120]) {
+    await page.mouse.move(rc.x + d, rc.y - d / 2, { steps: 3 });
+    await near(`drag ${d}`);
+  }
+  await page.mouse.up();
+  await sleep(300);
+  await ev(() => window.__example.viewer.setOptions({ layout: 'rectangular' }));
+  await sleep(300);
+}
+
 await browser.close();
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

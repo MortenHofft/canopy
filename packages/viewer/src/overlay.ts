@@ -20,6 +20,28 @@ export interface OverlayOptions {
   readonly formatLabel: (id: string) => string;
 }
 
+/** Size and position an anchor over label `k` of the frame. */
+function place(el: HTMLElement, labels: LabelList, k: number, rect: boolean): void {
+  const h = labels.h[k];
+  const fs = Math.max(8, h - 2);
+  el.style.fontSize = fs + 'px';
+  el.style.height = h + 'px';
+  el.style.lineHeight = h + 'px';
+  if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
+  else {
+    const deg = (labels.ang[k] * 180) / Math.PI;
+    el.style.transform = labels.flip[k]
+      ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-${labels.gap[k]}px)`
+      : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
+  }
+  el.style.display = '';
+}
+
+/** Move an anchor that keeps DOM focus out of the view. */
+function park(el: HTMLElement): void {
+  el.style.transform = 'translate(-9999px,0)';
+}
+
 export class LabelOverlay {
   readonly layer: HTMLDivElement;
   readonly srList: HTMLUListElement;
@@ -92,18 +114,7 @@ export class LabelOverlay {
         this.layer.appendChild(el);
         this.pool.set(r, el);
       }
-      const h = labels.h[k];
-      const fs = Math.max(8, h - 2);
-      el.style.fontSize = fs + 'px';
-      el.style.height = h + 'px';
-      el.style.lineHeight = h + 'px';
-      if (rect) el.style.transform = `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px)`;
-      else {
-        const deg = (labels.ang[k] * 180) / Math.PI;
-        el.style.transform = labels.flip[k]
-          ? `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(-100%) translateX(-${labels.gap[k]}px)`
-          : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
-      }
+      place(el, labels, k, rect);
       el.style.display = '';
     }
     if (this.refocus !== null) {
@@ -117,12 +128,28 @@ export class LabelOverlay {
     for (const [r, el] of this.pool) {
       if (used.has(r)) continue;
       if (el === active) {
-        // keep focus alive until it moves
-        el.style.transform = 'translate(-9999px,0)';
+        // keep focus alive until it moves; off screen, so the focus outline is not left at the old place
+        park(el);
         continue;
       }
       el.remove();
       this.pool.delete(r);
+    }
+  }
+
+  /** Reduced (interaction) frames skip `update`; this keeps the focused anchor, the only one with a visible outline, over its label. The
+   *  label of the frame is found by tip rank; when it is not drawn (left the view, or folded into a summary) the anchor is parked off
+   *  screen. The pool is not touched otherwise. */
+  follow(labels: LabelList, kind: LayoutKind): void {
+    const active = document.activeElement;
+    if (!active) return;
+    for (const [r, el] of this.pool) {
+      if (el !== active) continue;
+      let k = 0;
+      while (k < labels.count && labels.rank[k] !== r) k++;
+      if (k < labels.count) place(el, labels, k, kind === 'rectangular');
+      else park(el);
+      return;
     }
   }
 

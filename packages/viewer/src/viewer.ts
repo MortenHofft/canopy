@@ -140,6 +140,14 @@ export interface SetTreeOptions {
 
 const CORNERS: Exclude<ControlPosition, 'custom'>[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
+function focusVisible(el: HTMLElement): boolean {
+  try {
+    return el.matches(':focus-visible');
+  } catch {
+    return true; // no :focus-visible support: show the ring
+  }
+}
+
 export class TreeViewer {
   // ------------------------------------------------------------- DOM
   /** The tree element: role="tree", focusable, the canvases, labels and screen-reader list; the input controller listens on it. */
@@ -1578,7 +1586,7 @@ export class TreeViewer {
     if (!reduced) {
       this.overlay.update(this.labels, tree, opts, this.theme, T.kind);
       this.updateNotice(!rect && opts.summaryNotice && opts.lod && res.forced > 0, res.forced);
-    }
+    } else this.overlay.follow(this.labels, T.kind); // the focus outline must move with the canvas
     this.reducedFrame = reduced;
     if (!reduced && tree.stub !== null) this.detail.request(tree, this.list, T, L, rect, vs.fitted, this.srcVersion);
     if (this.hoverNode >= 0 || this.activeNode >= 0 || this.topHad) this.topDirty = true;
@@ -1804,8 +1812,10 @@ export class TreeViewer {
   private onFocusIn = (e: FocusEvent) => {
     const t = e.target as HTMLElement;
     if (t !== this.root && t.closest('[data-phylo-ui]')) return; // controls and popups style their own focus
-    if (t !== this.root) t.style.outline = `2px solid ${this.theme.highlight}`;
-    else this.root.style.boxShadow = `inset 0 0 0 2px ${this.theme.highlight}`;
+    // a label anchor shows the ring for keyboard focus only (:focus-visible), not after a click
+    if (t !== this.root) {
+      if (focusVisible(t)) t.style.outline = `2px solid ${this.theme.highlight}`;
+    } else this.root.style.boxShadow = `inset 0 0 0 2px ${this.theme.highlight}`;
     this.topDirty = true;
     this.schedule();
   };
