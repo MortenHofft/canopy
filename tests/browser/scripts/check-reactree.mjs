@@ -385,6 +385,62 @@ const png = await (await d.createReadStream()).toArray();
 ok(d.suggestedFilename() === 'phylotree.png' && Buffer.concat(png).subarray(1, 4).toString() === 'PNG', 'PNG download');
 const img = PNG.sync.read(Buffer.concat(png));
 ok(img.data[3] === 255, 'the PNG is opaque (the pane colour under the transparent canvas)');
+const cssSize = await ev(() => ({ w: __v().size.width, h: __v().size.height, dpr: Math.min(window.devicePixelRatio, __v().options.dprCap) }));
+ok(
+  img.width === Math.round(cssSize.w * cssSize.dpr) && img.height === Math.round(cssSize.h * cssSize.dpr),
+  `the PNG is the view's size at the canvas scale (${img.width} x ${img.height})`,
+);
+const screenVsBlob = () =>
+  ev(async () => {
+    // the export equals the screen: the visible canvas (transparent background) against toBlob at the canvas scale, pixel by pixel
+    const v = __v();
+    v.renderNow();
+    const screen = v.treeElement.querySelector('canvas');
+    const bm = await createImageBitmap(await v.toBlob({ background: null }));
+    const read = (src) => {
+      const c = document.createElement('canvas');
+      c.width = screen.width;
+      c.height = screen.height;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(src, 0, 0);
+      return x.getImageData(0, 0, c.width, c.height).data;
+    };
+    const A = read(screen),
+      B = read(bm);
+    let diff = 0,
+      painted = 0;
+    for (let i = 0; i < A.length; i += 4) {
+      if (A[i + 3] > 0) painted++;
+      if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 2) diff++;
+    }
+    return { w: bm.width === screen.width && bm.height === screen.height, diff, painted };
+  });
+const same = await screenVsBlob();
+ok(
+  same.w && same.painted > 500 && same.diff === 0,
+  `toBlob at the canvas scale equals the screen (${same.painted} painted pixels, ${same.diff} differ)`,
+);
+const exp2 = await ev(async () => {
+  const b = await __v().toBlob({ scale: 2, background: null });
+  const bm = await createImageBitmap(b);
+  const c = document.createElement('canvas');
+  c.width = bm.width;
+  c.height = bm.height;
+  const x = c.getContext('2d');
+  x.drawImage(bm, 0, 0);
+  const d = x.getImageData(0, 0, 1, 1).data;
+  return { type: b.type, w: bm.width, h: bm.height, corner: d[3], W: __v().size.width, H: __v().size.height };
+});
+ok(exp2.type === 'image/png' && exp2.w === exp2.W * 2 && exp2.h === exp2.H * 2, `toBlob({ scale: 2 }) is twice the CSS size (${exp2.w} x ${exp2.h})`);
+ok(exp2.corner === 0, 'toBlob({ background: null }) is transparent');
+ok(
+  await ev(() => {
+    const el = document.querySelector('.phylo-tooltip');
+    const cs = getComputedStyle(el);
+    return el.classList.contains('phylo-tooltip--bare') && cs.paddingTop === '0px' && cs.boxShadow === 'none' && cs.borderTopStyle === 'none';
+  }),
+  'the tooltip box is bare (tooltipBare): no padding, border or shadow, and no CSS override in the example',
+);
 await btn('Export').click();
 dl = page.waitForEvent('download');
 await page.locator('.rt-menu button', { hasText: 'Newick' }).click();
@@ -476,6 +532,11 @@ ok(aligned.length > 5 && new Set(aligned).size === 1, `Align: the label anchors 
 ok(
   (await ev(() => __v().options.alignLabels)) === true && (await alignBtn.getAttribute('aria-pressed')) === 'true',
   'Align sets the option and shows as pressed',
+);
+const sameAligned = await screenVsBlob();
+ok(
+  sameAligned.w && sameAligned.painted > 500 && sameAligned.diff === 0,
+  `Align on: toBlob equals the screen, leaders included (${sameAligned.painted} painted pixels, ${sameAligned.diff} differ)`,
 );
 const lab = await page.evaluate(() => {
   const a = document.querySelector('.phylo-tree [data-tip-id]');

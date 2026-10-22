@@ -170,10 +170,13 @@ export function themeEquals(a: TreeTheme, b: TreeTheme): boolean {
   return true;
 }
 
-/** A copy of `o` without its undefined values, so spreading it over defaults never puts an undefined in. */
+/** A copy of `o` (array values copied too) without its undefined values, so spreading it over defaults never puts an undefined in. */
 export function stripUndefined<T extends object>(o: T): Partial<T> {
   const r: Partial<T> = {};
-  for (const k of Object.keys(o) as (keyof T)[]) if (o[k] !== undefined) r[k] = o[k];
+  for (const k of Object.keys(o) as (keyof T)[]) {
+    const v = o[k];
+    if (v !== undefined) r[k] = (Array.isArray(v) ? v.slice() : v) as T[keyof T]; // arrays (`categorical`) are copied: no aliasing with the caller's
+  }
   return r;
 }
 
@@ -285,6 +288,10 @@ export interface ViewerOptions {
   /** Cap on the canvas backing-store pixel ratio (device pixels per CSS pixel): the canvas is min(devicePixelRatio, dprCap)
    *  times the CSS size. Infinity = native. Hit-testing, overlay and events always use CSS pixels. */
   dprCap: number;
+  /** What makes the viewer read the `--phylo-*` custom properties again: 'media' (default) a change of `prefers-color-scheme`;
+   *  'document' that and a change of the `class` or `data-theme` attribute of `document.documentElement` (sites that switch dark
+   *  mode that way); 'none' nothing (call `refreshTheme()` yourself). */
+  themeObserver: 'media' | 'document' | 'none';
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
@@ -315,6 +322,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   ariaLabel: 'Phylogenetic tree',
   softwareCanvas: false,
   dprCap: 2,
+  themeObserver: 'media',
   radialMaxNodes: 2000,
   interactionLOD: true,
   refineMs: 120,

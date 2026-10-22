@@ -118,6 +118,16 @@
   line-height: 1.35;
 }
 
+/* Tooltip({ bare: true }): the content brings its own box */
+.phylo-tooltip.phylo-tooltip--bare {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  max-width: none;
+}
+
 .phylo-tooltip__title {
   font-weight: 600;
 }
