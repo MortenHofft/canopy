@@ -2,6 +2,7 @@
 
 ## Unreleased (2026-10-21: the library replaces the research on `main`; the research is on the `research` branch)
 
+- **Theme or option** (#32). The rule is written down in `docs/api.md` and the headers of `types.ts` and `theme.ts`: the theme is how things look (colours, px sizes, opacities, font family and style, all `--phylo-*`), options are what is shown and how the viewer behaves. Every existing field was checked against it, and the exceptions are listed with their reason. `italicLabels` moved to the theme as `labelFontStyle` (`'italic'` by default, `--phylo-label-font-style`). The playground sets it under Theme.
 - **Clade names** (#34). The legend names a coloured clade by its node's name (the label without its support value, through `formatLabel`) with the tip count after it, and falls back to "Clade of N tips" when there is none. The viewer has a `cladeLabel(node, tree)` option (node: full-tree id) for what counts as a name (hide OTL's `mrcaott…` labels, look a name up); `Legend` may override it. The node menu title, the default tooltip and the keyboard announcement use the same rule (`cladeName` and `internalName` are exported). The legend follows `formatLabel` changes. The playground no longer passes its own label, and strips `_ott\d+` on OTL trees.
 
 These changes made the spike's custom renderer into the first library form. Nothing is published yet, and the package names are placeholders.

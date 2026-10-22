@@ -1,3 +1,8 @@
+// Theme or option? The theme is how things look: colours, sizes and widths in px, opacities, font family and style. Everything in it
+// can be a --phylo-* property, so a stylesheet (light/dark, GBIF tokens) sets it without JavaScript. Options (ViewerOptions in
+// types.ts) are what is shown and how the viewer behaves: layout, which elements appear, density and level-of-detail thresholds,
+// functions, performance knobs. The rule and the exceptions are in docs/api.md ("Theme or option").
+//
 // The canvas theme from CSS: every TreeTheme field can be given as a custom property, --phylo-<field in kebab case> (THEME_CSS_VARS),
 // on the viewer's target or any ancestor. The viewer reads them when it is created, on `refreshTheme()` and when the colour scheme
 // preference changes, so one stylesheet themes both the canvas and the DOM (controls, popups; see css/viewer.css).
@@ -27,7 +32,7 @@ const NUMBERS = [
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(
-  (['dark', ...COLOURS, 'fontFamily', 'categorical', ...NUMBERS] as (keyof TreeTheme)[]).map((k) => [k, '--phylo-' + kebab(k)]),
+  (['dark', ...COLOURS, 'fontFamily', 'labelFontStyle', 'categorical', ...NUMBERS] as (keyof TreeTheme)[]).map((k) => [k, '--phylo-' + kebab(k)]),
 ) as Record<keyof TreeTheme, string>;
 
 /** The theme fields set as custom properties on `el` (or inherited from its ancestors). Fields that are not set are absent. */
@@ -42,6 +47,8 @@ export function themeFromCss(el: Element): Partial<TreeTheme> {
   }
   const font = get('fontFamily');
   if (font) out.fontFamily = font;
+  const fontStyle = get('labelFontStyle');
+  if (fontStyle === 'italic' || fontStyle === 'normal') out.labelFontStyle = fontStyle;
   const cat = splitList(get('categorical'));
   if (cat.length) out.categorical = cat;
   for (const k of NUMBERS) {

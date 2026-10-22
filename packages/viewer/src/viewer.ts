@@ -1164,7 +1164,6 @@ export class TreeViewer {
       hoverNode: this.hoverNode,
       activeNode: this.activeNode,
       density: opts.labelDensity,
-      italic: opts.italicLabels,
       format: opts.formatLabel,
       scale: dpr,
       thin: !rect && this.list.count >= THIN_PRIMS,

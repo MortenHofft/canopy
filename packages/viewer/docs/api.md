@@ -236,6 +236,29 @@ A `ColumnRenderer` draws a custom column:
 The viewer draws the header. A renderer that throws is reported once and the frame goes on. See the heat strip in
 [`examples/vanilla/src/main.ts`](../../../examples/vanilla/src/main.ts).
 
+## Theme or option
+
+Every setting is one or the other, by this rule:
+
+* **Theme** (`TreeTheme`): how things look. Colours, sizes and widths in px, opacities, font family and style. Each is a `--phylo-*` custom
+  property too, so a stylesheet themes the viewer (light/dark, GBIF tokens) without JavaScript.
+* **Options** (`ViewerOptions`): what is shown and how the viewer behaves. Layout, which elements appear, density and level-of-detail
+  thresholds, functions (`formatLabel`, `tipHref`), performance knobs.
+
+Test for a new setting: would a designer set it in CSS, or does it change what is drawn or how the viewer works? A switch that adds or removes
+an element is an option; the colour, size and font of that element are theme. Settings added by other work follow the same rule, for example
+a switch for a kind of label or highlight (option) and the colours and opacities that go with it (theme).
+
+Exceptions, and why they are as they are:
+
+| Setting | Lives in | Why |
+|---|---|---|
+| `dark` | theme | not a look value: it says whether the background is dark, for apps and custom controls; the drawing code does not read it |
+| `categorical` | theme | a list of colours, so a comma list in CSS; an app picks from it |
+| `rowHeight`, `minCladePx`, `alignRowGap` | options | sizes in px, but they set layout geometry or the level-of-detail threshold, which changes what is shown, not how it is painted |
+| `alignStyle` | options | residues or blocks changes what is drawn; the colours of what is drawn are theme |
+| `ariaLabel` | option | text for assistive technology, not a look |
+
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
 The theme in force is `FALLBACK_THEME`, then the `--phylo-*` custom properties set on the target or any ancestor, then `setTheme`'s
@@ -256,6 +279,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `background`, `foreground`, `muted` | `--phylo-background`, ... | `#ffffff`, `#162d3d`, `#6b7c8a` | canvas (may be `transparent` or translucent: the page shows through; the canvas is opaque, which is faster, whenever this colour is), labels and axis text, axis lines and headers |
 | `branch`, `highlight`, `summary` | `--phylo-branch`, ... | `#44576a`, `#4c9b45`, `#9aa7b3` | branches, selection and focus, collapsed clades |
 | `fontFamily` | `--phylo-font-family` | `system-ui, sans-serif` | labels and axis |
+| `labelFontStyle` | `--phylo-label-font-style` | `italic` | `italic` or `normal`, the style of tip labels |
 | `categorical` | `--phylo-categorical` (comma list) | 5 colours | palette for categories; the second colours bar columns |
 | `branchWidth`, `cladeBranchWidth` | `--phylo-branch-width`, ... | 1.3, 2 | line widths (px) |
 | `tipRadius`, `nodeMarkerSize` | `--phylo-tip-radius`, ... | 3.2, 4 | largest tip dot radius, node marker side (px) |
@@ -284,7 +308,6 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
 | `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
-| `italicLabels` | `true` | italic tip labels |
 | `minCladePx` | `3` | collapse clades smaller than this many px (the base threshold of the cut) |
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
 | `alignRowGap` | `0` | alignment columns: empty px between sequences (rows at least 4 px tall) |

@@ -38,6 +38,7 @@ test('themeFromCss reads colours, font, the list and numbers; leaves out what is
       '--phylo-background': ' #0f172a ',
       '--phylo-branch': 'rgb(148, 163, 184)',
       '--phylo-font-family': "'Rubik', sans-serif",
+      '--phylo-label-font-style': 'normal',
       '--phylo-categorical': '#684393, #6985bd',
       '--phylo-branch-width': '1.5px',
       '--phylo-summary-opacity': '0.4',
@@ -49,12 +50,18 @@ test('themeFromCss reads colours, font, the list and numbers; leaves out what is
     background: '#0f172a',
     branch: 'rgb(148, 163, 184)',
     fontFamily: "'Rubik', sans-serif",
+    labelFontStyle: 'normal',
     categorical: ['#684393', '#6985bd'],
     branchWidth: 1.5,
     summaryOpacity: 0.4,
     dark: true,
   });
   assert.ok(!themeEquals({ ...FALLBACK_THEME, ...t }, FALLBACK_THEME));
+  assert.deepEqual(
+    withStyle({ '--phylo-label-font-style': 'oblique' }, () => themeFromCss({})),
+    {},
+    'only italic and normal are read',
+  );
   assert.deepEqual(
     withStyle({}, () => themeFromCss({})),
     {},

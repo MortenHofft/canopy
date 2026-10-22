@@ -86,7 +86,6 @@ export const SETTINGS: Setting[] = [
       ['dense', 'Dense (rows ≥ 8 px)'],
     ],
   },
-  { id: 'italicLabels', label: 'Italic labels', group: 'Layout and labels', to: 'option', kind: 'toggle', default: O.italicLabels },
   {
     id: 'underscores',
     label: 'Underscores as spaces',
@@ -138,6 +137,18 @@ export const SETTINGS: Setting[] = [
   { id: 'highlight', label: 'Highlight', group: 'Theme', to: 'theme', kind: 'colour', default: T.highlight },
   { id: 'summary', label: 'Collapsed clades', group: 'Theme', to: 'theme', kind: 'colour', default: T.summary },
   { id: 'labelSize', label: 'Label size (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.labelSize, min: 8, max: 24, step: 0.5 },
+  {
+    id: 'labelFontStyle',
+    label: 'Label style',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'select',
+    default: T.labelFontStyle,
+    options: [
+      ['italic', 'Italic'],
+      ['normal', 'Normal'],
+    ],
+  },
   { id: 'branchWidth', label: 'Branch width (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.branchWidth, min: 0.5, max: 5, step: 0.1 },
   {
     id: 'cladeBranchWidth',

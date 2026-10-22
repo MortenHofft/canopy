@@ -477,7 +477,7 @@ export function Reactree({
   const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
   const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
   const theme = useMemo(
-    () => ({ labelSize: 11.5 * fontScale, branchWidth: strokeWidth, cladeBranchWidth: strokeWidth + 0.7 }),
+    () => ({ labelSize: 11.5 * fontScale, labelFontStyle: 'normal' as const, branchWidth: strokeWidth, cladeBranchWidth: strokeWidth + 0.7 }),
     [fontScale, strokeWidth],
   );
   const activeHex = activeColor === ERASE ? 'var(--rt-muted)' : `var(--rt-palette-${activeColor.toLowerCase()})`;
@@ -788,7 +788,7 @@ export function Reactree({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, italicLabels: false, labelDensity: 'dense' }}
+          options={{ formatLabel, labelDensity: 'dense' }}
           tooltip={tooltip}
           onNodeClick={onClick}
           onTipClick={onClick}

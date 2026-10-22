@@ -19,7 +19,6 @@ export interface Scene {
   hoverNode: number;
   activeNode: number;
   density: LabelDensity;
-  italic: boolean;
   format: (id: string) => string;
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
@@ -448,8 +447,9 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
   const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
-  const fontN = `${S.italic ? 'italic ' : ''}${size}px ${theme.fontFamily}`;
-  const fontH = `${S.italic ? 'italic ' : ''}600 ${size}px ${theme.fontFamily}`;
+  const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';
+  const fontN = `${style}${size}px ${theme.fontFamily}`;
+  const fontH = `${style}600 ${size}px ${theme.fontFamily}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   const p: Pt = { x: 0, y: 0 };
