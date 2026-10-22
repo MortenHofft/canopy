@@ -676,6 +676,134 @@ export function drawMarkRings(ctx: CanvasRenderingContext2D, proj: LayoutProject
   ctx.setLineDash([]);
 }
 
+/** The polyline of `drawRootPath`, drawn as it is walked: corners less than a pixel from the last one drawn are merged into the next, and
+ *  a stretch with both ends beyond one side of the box (x0..x1 x y0..y1) is skipped, so the canvas calls are about one per pixel of path on
+ *  screen whatever the depth (a 100k-level caterpillar at the fit view: about 1,100). `x` / `y` is where the path is now (drawn or not), `pend` that it has not been drawn yet, `pen` that the canvas's current point
+ *  is the last corner drawn. */
+class RootPathPen {
+  x = 0;
+  y = 0;
+  private lx = 0;
+  private ly = 0;
+  private pen = false;
+  private pend = false;
+  constructor(
+    private readonly ctx: CanvasRenderingContext2D,
+    private readonly x0: number,
+    private readonly y0: number,
+    private readonly x1: number,
+    private readonly y1: number,
+  ) {}
+  start(x: number, y: number): void {
+    this.x = this.lx = x;
+    this.y = this.ly = y;
+    this.pen = this.pend = false;
+  }
+  to(x: number, y: number): void {
+    const { lx, ly } = this;
+    this.x = x;
+    this.y = y;
+    if ((lx < this.x0 && x < this.x0) || (lx > this.x1 && x > this.x1) || (ly < this.y0 && y < this.y0) || (ly > this.y1 && y > this.y1)) {
+      this.start(x, y); // out of view: the next stretch in view starts here
+      return;
+    }
+    if (!this.pen) this.ctx.moveTo(lx, ly);
+    this.pen = true;
+    if (Math.abs(x - lx) < 1 && Math.abs(y - ly) < 1) {
+      this.pend = true;
+      return;
+    }
+    this.ctx.lineTo(x, y);
+    this.lx = x;
+    this.ly = y;
+    this.pend = false;
+  }
+  /** Draw up to where the path is now (before an arc, and at the end). */
+  flush(): void {
+    if (this.pend) this.ctx.lineTo(this.x, this.y);
+    this.lx = this.x;
+    this.ly = this.y;
+    this.pend = false;
+  }
+}
+
+/** The path from row `node` up to the root (the hover path, #40): every ancestor's branch and its part of the parent's connector, as one
+ *  stroke in `hoverPathColour` ('' = `highlight`), `hoverPathWidth` px wide (0 = none). Straight from `parent[]`, no allocation per node;
+ *  the walk is O(depth), the canvas calls are bounded by what is on screen (see RootPathPen). Radial connectors are arcs where they are
+ *  visibly curved and their circle crosses the view; far-off ones are clipped to the visible angles, as the branches are. */
+export function drawRootPath(ctx: CanvasRenderingContext2D, proj: LayoutProjection, node: number, theme: TreeTheme): void {
+  const w = theme.hoverPathWidth;
+  if (!(w > 0) || node < 0) return;
+  const { T } = proj;
+  const parent = proj.tree.parent;
+  const rect = proj.kind === 'rectangular';
+  const pad = w + 2;
+  // the tree's clip of the main canvas (rect: not over the axis or the columns)
+  const cx0 = 0,
+    cy0 = rect ? T.clipT - 6 : 0,
+    cx1 = rect ? T.clipR : T.W,
+    cy1 = rect ? T.clipB + 6 : T.H;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cx0, cy0, cx1 - cx0, cy1 - cy0);
+  ctx.clip();
+  ctx.strokeStyle = theme.hoverPathColour || theme.highlight;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  const pen = new RootPathPen(ctx, cx0 - pad, cy0 - pad, cx1 + pad, cy1 + pad);
+  const p: Pt = { x: 0, y: 0 };
+  proj.nodeXY(node, p);
+  pen.start(p.x, rect ? clampY(p.y, T.H) : p.y);
+  for (let i = node; i > 0; i = parent[i]) {
+    proj.parentXY(i, p);
+    if (rect) {
+      pen.to(p.x, clampY(p.y, T.H)); // the branch
+      pen.to(p.x, clampY(proj.tip(parent[i]), T.H)); // the connector, to the parent
+    } else {
+      pen.to(p.x, p.y);
+      rootPathArc(ctx, proj, pen, i, parent[i], pad, p);
+    }
+  }
+  pen.flush();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Radial: the connector of `drawRootPath` from child `i` (the pen is at its branch's start) to its parent `pa`, at the parent's radius. A
+ *  connector shorter than a pixel, or one differing from its chord by under 0.3 px, is a straight corner of the pen; one whose circle is
+ *  out of view only moves the pen. */
+function rootPathArc(ctx: CanvasRenderingContext2D, proj: RadialProjection, pen: RootPathPen, i: number, pa: number, pad: number, p: Pt): void {
+  const r = proj.depth(pa);
+  const a0 = proj.tip(i),
+    a1 = proj.tip(pa);
+  const len = Math.abs(a1 - a0) * r;
+  proj.nodeXY(pa, p);
+  if (len < 1 || len * len <= ARC_SAGITTA_K * r) return pen.to(p.x, p.y);
+  if (r < proj.rMin - pad || r > proj.rMax + pad) return pen.start(p.x, p.y);
+  pen.flush();
+  const lo = Math.min(a0, a1),
+    hi = Math.max(a0, a1);
+  if (proj.all || r <= RADIAL_FAR_ARC_R) arcPiece(ctx, proj, r, lo, hi);
+  else if (!proj.wrap) arcPiece(ctx, proj, r, Math.max(lo, proj.lo), Math.min(hi, proj.hi));
+  else {
+    // far off: only the visible angles; a wrapped window (lo..2pi and 0..hi) can show both ends
+    arcPiece(ctx, proj, r, Math.max(lo, proj.lo), hi);
+    arcPiece(ctx, proj, r, lo, Math.min(hi, proj.hi));
+  }
+  pen.start(p.x, p.y);
+}
+
+function arcPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r: number, a0: number, a1: number): void {
+  if (!(a1 > a0)) return;
+  const { cx, cy } = proj.T;
+  ctx.moveTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0));
+  ctx.arc(cx, cy, r, a0, a1);
+}
+
 /** Where aligned labels start (CSS px, before the gap): right of the farthest tip (a collapsed clade's triangle ends at its tips, so it
  *  is never farther), so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
  *  at the area's right edge (where the farthest tip is at the fit view): the labels stay readable, and the branches of the tips beyond it

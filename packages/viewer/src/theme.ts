@@ -40,6 +40,7 @@ const NUMBERS = [
   'selectionRadius',
   'markWidth',
   'markRadius',
+  'hoverPathWidth',
 ] as const;
 const STRINGS = [
   'fontFamily',
@@ -51,6 +52,7 @@ const STRINGS = [
   'selectionColour',
   'markColour',
   'markDash',
+  'hoverPathColour',
 ] as const;
 
 /** The custom property of each theme field. */

@@ -129,6 +129,74 @@ await select('summaryStyle', 'solid');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
 await setInput('summaryStripeColour', '');
 
+console.log('hover path');
+// hover a tip below the root's first child: its path ends with the root's first child's branch and the root's connector, so a
+// point on them (rect: halfway along the root's vertical line; radial: halfway along the child's branch from the centre) is empty on the
+// top canvas until the hover
+const pathProbe = () =>
+  ev(() => {
+    const v = window.viewer;
+    const t = v.getTree();
+    const tip = t.tipNode[(t.leafStart[1] + t.leafEnd[1]) >> 1]; // a middle tip, clear of the controls in the corners
+    const root = v.nodePosition(0),
+      child = v.nodePosition(1);
+    const rect = v.options.layout === 'rectangular';
+    const px = rect ? root.x : (root.x + child.x) / 2,
+      py = (root.y + child.y) / 2;
+    return { tip: v.nodePosition(tip), px, py };
+  });
+const topPixel = (x, y) =>
+  ev(
+    ([x, y]) => {
+      const c = window.viewer.treeElement.querySelectorAll('canvas')[1];
+      const s = c.width / c.getBoundingClientRect().width;
+      const d = c.getContext('2d').getImageData(Math.round(x * s) - 1, Math.round(y * s) - 1, 3, 3).data;
+      let best = [0, 0, 0, 0];
+      for (let i = 0; i < d.length; i += 4) if (d[i + 3] > best[3]) best = [d[i], d[i + 1], d[i + 2], d[i + 3]];
+      return best;
+    },
+    [x, y],
+  );
+const hoverAt = async (p) => {
+  const box = await ev(() => {
+    const r = window.viewer.treeElement.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  await page.mouse.move(box.x + p.x, box.y + p.y);
+  await settled();
+};
+const isRed = (px) => px[3] > 200 && px[0] > 200 && px[1] < 60 && px[2] < 60;
+ok(
+  (await opt('hoverPath')) === true && (await theme('hoverPathColour')) === '' && (await theme('hoverPathWidth')) === 2,
+  'hoverPath on by default, tokens at their defaults',
+);
+await setInput('hoverPathColour', '#ff0000');
+ok(
+  (await theme('hoverPathColour')) === '#ff0000' && query().get('s.hoverPathColour') === '#ff0000',
+  'the colour token reaches the theme and the URL',
+);
+for (const layout of ['rectangular', 'radial']) {
+  await select('layout', layout);
+  await page.mouse.move(2, 2); // nothing hovered
+  await settled();
+  const pr = await pathProbe();
+  const before = await topPixel(pr.px, pr.py);
+  ok(before[3] === 0, `${layout}: the root's connector is empty on the top canvas before the hover`);
+  await hoverAt(pr.tip);
+  const after = await topPixel(pr.px, pr.py);
+  ok(isRed(after), `${layout}: after hovering a tip it is the path colour (${after})`);
+  await toggle('hoverPath', false);
+  await hoverAt({ x: pr.tip.x + 0.5, y: pr.tip.y });
+  ok((await opt('hoverPath')) === false && (await topPixel(pr.px, pr.py))[3] === 0, `${layout}: the toggle turns the path off`);
+  await toggle('hoverPath', true);
+}
+await setInput('hoverPathWidth', '0');
+ok((await theme('hoverPathWidth')) === 0, 'the width token reaches the theme');
+await setInput('hoverPathWidth', '2');
+await setInput('hoverPathColour', '');
+await select('layout', 'rectangular');
+await page.mouse.move(2, 2);
+
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');
