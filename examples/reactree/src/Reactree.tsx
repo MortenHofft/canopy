@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
-import type { Column, Control, Viewport } from '@gbif-phylo/viewer';
+import { detectAlphabet, residueColours, residueGroups, type Column, type Control, type Viewport } from '@gbif-phylo/viewer';
 import { NodeLabels, type NodeLabelMode } from './node-labels.ts';
 import * as I from './icons.tsx';
 
@@ -18,23 +18,6 @@ type Layout = 'rectangular' | 'radial';
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
 const ERASE = 'reset';
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
-
-/** The residue colours the viewer's alignment column uses (a constant table in packages/viewer/src/columns.ts, not exported), for
- *  the legend under the alignment. */
-const AA_LEGEND = [
-  { colour: '#80a0f0', label: 'Hydrophobic' },
-  { colour: '#f01505', label: 'Positive' },
-  { colour: '#c048c0', label: 'Negative' },
-  { colour: '#15c015', label: 'Polar' },
-  { colour: '#15a4a4', label: 'Aromatic' },
-  { colour: '#f09048', label: 'Glycine' },
-  { colour: '#c0c000', label: 'Proline' },
-];
-const NT_LEGEND = [
-  { colour: '#80a0f0', label: 'A / C' },
-  { colour: '#f09048', label: 'G' },
-  { colour: '#15c015', label: 'T / U' },
-];
 
 interface Step {
   tree: TreeModel;
@@ -108,6 +91,7 @@ export function Reactree({
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
+  const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -173,24 +157,29 @@ export function Reactree({
     const values: Record<string, string> = {};
     let matched = 0;
     let sites = 0;
-    let nt = 0;
-    let all = 0;
     for (const l of published.tipLabels) {
-      const s = fasta[l];
-      if (s === undefined) continue;
-      values[l] = s;
+      const sq = fasta[l];
+      if (sq === undefined) continue;
+      values[l] = sq;
       matched++;
-      sites = Math.max(sites, s.length);
-      for (let i = 0; i < Math.min(s.length, 400); i++) {
-        const c = s[i].toUpperCase();
-        if (c === '-' || c === '.') continue;
-        all++;
-        if ('ACGTUN'.includes(c)) nt++;
-      }
+      sites = Math.max(sites, sq.length);
     }
-    const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 320, values };
-    return { column, matched, sites, amino: nt < all * 0.9 };
+    const alphabet = detectAlphabet(Object.values(values)); // the column would pick the same; it is passed so the legend cannot disagree
+    const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 320, values, alphabet };
+    return { column, matched, sites, alphabet };
   }, [fasta, published]);
+  // the legend reads the residue colours of the theme in force, so it follows every theme change, whoever made it
+  useEffect(() => {
+    if (!showAlignment) return;
+    return ref.current?.renderer()?.on('themechange', () => setThemeTick((t) => t + 1));
+  }, [showAlignment, alignment]);
+  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group
+  const legend = useMemo(() => {
+    if (!alignment) return [];
+    const colours = residueColours(ref.current?.renderer()?.getTheme() ?? {}, alignment.alphabet);
+    return residueGroups(alignment.alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeTick: the theme changed
+  }, [alignment, themeTick, showAlignment]);
   const columns = useMemo(
     () => (showAlignment && alignment && layout === 'rectangular' ? [alignment.column] : []),
     [showAlignment, alignment, layout],
@@ -897,12 +886,12 @@ export function Reactree({
 
       {columns.length > 0 && alignment && (
         <div className="rt-legend">
-          <span className={`rt-legend-type${alignment.amino ? ' aa' : ''}`}>{alignment.amino ? 'AA' : 'NT'}</span>
+          <span className={`rt-legend-type${alignment.alphabet === 'protein' ? ' aa' : ''}`}>{alignment.alphabet === 'protein' ? 'AA' : 'NT'}</span>
           <span className="rt-legend-meta">
             {alignment.sites.toLocaleString('en')} sites · {alignment.matched} of {published.tipCount} tips matched
           </span>
           <span className="rt-legend-divider" />
-          {(alignment.amino ? AA_LEGEND : NT_LEGEND).map((l) => (
+          {legend.map((l) => (
             <span key={l.label} className="rt-legend-item">
               <span className="rt-legend-dot" style={{ background: l.colour }} />
               {l.label}

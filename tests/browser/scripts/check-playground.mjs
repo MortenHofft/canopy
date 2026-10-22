@@ -82,6 +82,7 @@ await setInput('branch', '#ff0000');
 ok((await theme('branch')) === '#ff0000' && query().get('s.branch') === '#ff0000', 'colour → theme.branch, and into the URL');
 await select('preset', 'dark');
 ok((await theme('background')) === '#0f172a' && (await theme('branch')) === '#cbd5e1', 'Dark preset sets the tokens');
+ok((await theme('dark')) === true, 'and the theme is dark (derived from the background), so the residue colours use their dark defaults');
 await toggle('transparent', true);
 ok(
   (await theme('background')) === 'transparent' && (await page.locator('.tree-card.dotted').count()) === 1,
@@ -89,6 +90,7 @@ ok(
 );
 ok(await page.locator('input[data-setting=background]').isDisabled(), 'the background colour is disabled meanwhile');
 await select('preset', 'default');
+ok((await theme('dark')) === false, 'Library default preset: not dark');
 ok((await theme('background')) === '#ffffff' && (await theme('labelSize')) === 13, 'Library default preset restores every token');
 
 console.log('controls');
@@ -326,6 +328,44 @@ await page.waitForTimeout(400);
 const cell = (id) => ev((id) => window.viewer.columnCell(id, 0), id);
 ok((await cell('m:occurrence_count')) !== null && (await cell('alignment')) !== null, 'occurrence bars and the alignment shown by default');
 ok((await page.locator('#data-columns .muted').innerText()).includes('of 1,000 tips have data'), 'says how many tips have data');
+// the alignment alphabet and the residue colour tokens: read the colours the column is drawn in
+const RESIDUE_TOKENS = ['Hydrophobic', 'Positive', 'Negative', 'Polar', 'Aromatic', 'Glycine', 'Proline', 'A', 'C', 'G', 'T', 'Other'].map(
+  (n) => 'residue' + n,
+);
+const alnColours = () =>
+  ev(() => {
+    const c = window.viewer.treeElement.querySelector('canvas');
+    const bb = c.getBoundingClientRect();
+    const k = c.width / bb.width;
+    const seen = new Set();
+    for (let row = 0; row < 8; row++) {
+      const r = window.viewer.columnCell('alignment', row);
+      if (!r) continue;
+      for (let i = 0; i < 100; i++) {
+        const d = c
+          .getContext('2d')
+          .getImageData(Math.round((r.x + ((i + 0.5) / 100) * r.width - bb.left) * k), Math.round((r.y + r.height / 2 - bb.top) * k), 1, 1).data;
+        seen.add([d[0], d[1], d[2]].join(','));
+      }
+    }
+    return [...seen];
+  });
+const colours0 = await alnColours();
+for (const t of RESIDUE_TOKENS) await setInput(t, '#010203');
+await settled();
+const painted = await alnColours();
+ok(
+  !colours0.includes('1,2,3') && painted.includes('1,2,3'),
+  `residue tokens reach the alignment (${painted.includes('1,2,3') ? 'now #010203' : 'unchanged'})`,
+);
+for (const t of RESIDUE_TOKENS) await setInput(t, '');
+await select('alphabet', 'protein');
+await settled();
+ok(
+  query().get('s.alphabet') === 'protein' && !(await alnColours()).includes('1,2,3'),
+  'tokens emptied: the defaults are back; alphabet protein is in the URL',
+);
+await select('alphabet', 'auto');
 await page.locator('[data-column=alignment]').setChecked(false);
 await page.locator('[data-column=country_code]').setChecked(true);
 await settled();
