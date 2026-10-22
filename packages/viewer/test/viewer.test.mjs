@@ -574,6 +574,23 @@ test('toBlob: background null draws no fill; a colour is used as given; type is 
   }
 });
 
+test('toBlob: the export canvas is opaque exactly when its background is, like the screen (Chromium antialiases text by it)', async () => {
+  const alphaOf = async (h, o) => {
+    const made = spyCanvases(h.env);
+    await h.viewer.toBlob(o);
+    return made[0].contextAttrs[0]?.alpha;
+  };
+  const opaque = await makeViewer('((a,b),(c,d));');
+  opaque.env.flush();
+  assert.equal(await alphaOf(opaque), false, 'the default theme background is opaque');
+  assert.equal(await alphaOf(opaque, { background: null }), true, 'background null: a transparent image');
+  assert.equal(await alphaOf(opaque, { background: 'transparent' }), true, 'a transparent background');
+  const clear = await makeViewer('((a,b),(c,d));', { theme: { background: 'transparent' } });
+  clear.env.flush();
+  assert.equal(await alphaOf(clear), true, 'a transparent theme');
+  assert.equal(await alphaOf(clear, { background: '#ff0000' }), false, 'an opaque background over a transparent theme');
+});
+
 test('toBlob: a bad scale or a size over the limit rejects; a destroyed viewer rejects', async () => {
   const h = await makeViewer('((a,b),(c,d));');
   await assert.rejects(h.viewer.toBlob({ scale: 0 }), RangeError);
