@@ -68,6 +68,15 @@ const btn = (text) => page.locator('.rt-outer button', { hasText: text }).first(
 const toast = async () => ((await page.locator('.rt-toast').count()) ? page.locator('.rt-toast').innerText() : '');
 
 // ---------------------------------------------------------------- Carangaria (135 tips, dated)
+// the axis label is canvas text: remember the last axis title drawn
+await page.addInitScript(() => {
+  const ft = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
+    return ft.call(this, text, ...rest);
+  };
+});
+
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
 ok((await page.locator('.rt-row').count()) === 2, 'two toolbar rows');
@@ -215,6 +224,19 @@ ok(new Set(labs).size === labs.length, 'collapsed clades of the same size get di
 await btn('Expand all').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().getTree().tipCount)) === before, 'Expand all');
+
+// the tree is dated, so a collapsed clade is lengthened to the present (tree-ops collapseClades { extend }) and the axis keeps its
+// title; without it the tip ends at the clade's node and the axis flips to "distance from root" (issue #19)
+{
+  const axis = () => ev(() => window.__axis);
+  ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
+  await click(await ev(() => __clade(4, 10)));
+  await page.waitForTimeout(200);
+  ok((await ev(() => __v().getTree().tipCount)) < before, 'a clade is collapsed');
+  ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
+  await btn('Expand all').click();
+  await page.waitForTimeout(150);
+}
 
 console.log('colour');
 await btn('Color').click();

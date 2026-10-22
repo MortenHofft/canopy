@@ -142,7 +142,8 @@ export function Reactree({
     const live = collapsed.filter((v) => v > 0 && v < tree.nodeCount);
     if (!live.length) return null;
     // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
-    const r = ops.collapseClades(tree, live);
+    // on a dated (ultrametric) tree the triangle's tip is lengthened to the present, so the shown tree stays dated and the axis stays
+    const r = ops.collapseClades(tree, live, undefined, { extend: tree.isUltrametric(1e-3) });
     const shown = new TreeModel(r.tree);
     const toTree = new Int32Array(shown.nodeCount);
     for (let i = 0; i < r.map.length; i++) if (r.map[i] >= 0) toTree[r.map[i]] = i;

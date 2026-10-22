@@ -60,26 +60,82 @@ export function subtree(t: TreeInput, node: number): OpResult {
   return result(t, d);
 }
 
+/** How `collapseClades({ extend })` measures a clade's height: the depth from its node to its tips, taken as the longest, the mean or the shortest. */
+export type CladeDepth = 'max' | 'mean' | 'min';
+
+export interface CollapseOptions {
+  /**
+   * Lengthen each new tip's edge by the clade's height, so that the tip ends where the clade's tips did. On a dated (ultrametric)
+   * tree the shown tree then stays ultrametric. `true` means `'max'`; `'max'`, `'mean'` or `'min'` choose the clade's depth to its
+   * tips (they agree when the clade is ultrametric, up to rounding of the lengths in the file; on a clade that is not, `'max'` keeps the
+   * longest root-to-tip path of the shown tree equal to the original's). Missing lengths count as 0, and the
+   * edge stays as it was when the tree has no lengths or the clade has height 0. Default: off, the edge is kept as it is.
+   */
+  extend?: boolean | CladeDepth;
+}
+
 /**
- * Collapse clades into single tips: each listed internal node becomes a tip that stands for its clade (its descendants are removed,
- * its edge length kept). A viewer draws such tips as collapsed clades; with the input kept, expanding is collapsing fewer. Nodes
- * inside another listed clade are covered by it. The new tip's label is `label(node, tips)`, by default the clade's name with its
- * tip count, or its first tip and how many more ('Gezophiium_megaborealis and 7 more'), which is unique among disjoint clades.
- * `map` sends each collapsed node to its tip and its descendants to -1. O(n).
+ * Collapse clades into single tips: each listed internal node becomes a tip that stands for its clade (its descendants are removed).
+ * A viewer draws such tips as collapsed clades; with the input kept, expanding is collapsing fewer. Nodes inside another listed
+ * clade are covered by it. The new tip's label is `label(node, tips)`, by default the clade's name with its tip count, or its first
+ * tip and how many more ('Gezophiium_megaborealis and 7 more'), which is unique among disjoint clades. `map` sends each collapsed
+ * node to its tip and its descendants to -1. O(n).
+ *
+ * The new tip's length is the node's own edge, so on a dated tree it ends at the clade's node and the shown tree is no longer
+ * ultrametric. With `options.extend` it is the own edge plus the clade's height, so the tip ends at the present. The length of a
+ * collapsed tip then is not the original edge: the original is the new length minus the height (the root distance of the tip is
+ * the depth of the clade's tips). Nothing is stored for it beyond the input tree, which the caller keeps.
  */
-export function collapseClades(t: TreeInput, nodes: Iterable<number>, label?: (node: number, tips: number) => string): OpResult {
+export function collapseClades(
+  t: TreeInput,
+  nodes: Iterable<number>,
+  label?: (node: number, tips: number) => string,
+  options: CollapseOptions = {},
+): OpResult {
   const d = draftOf(t);
+  const rule: CladeDepth | null = options.extend === true ? 'max' : options.extend || null;
+  let height: Float64Array | null = null; // lazily: the clade height of every node under `rule`
   let any = false;
   for (const v of nodes) {
     checkNode(t, v);
     if (v === 0 || t.childCount[v] === 0) continue; // a tip is already a single leaf; the root would leave a one-node tree
     const tips = t.leafEnd[v] - t.leafStart[v];
+    if (rule) {
+      height ??= cladeHeights(t, rule);
+      if (height[v] > 0) d.length[v] = addLen(d.length[v], height[v]);
+    }
     d.firstChild[v] = -1; // the builder treats it as a tip; its subtree is no longer reached
     d.support[v] = NaN;
     d.label[v] = label ? label(v, tips) : defaultCollapsedLabel(t, v, tips);
     any = true;
   }
   return any ? result(t, d) : identity(t);
+}
+
+/** For every node, the depth to its tips (longest, mean or shortest path; missing lengths are 0). Reverse preorder, no recursion. */
+function cladeHeights(t: TreeInput, rule: CladeDepth): Float64Array {
+  const n = t.nodeCount;
+  const h = new Float64Array(n);
+  if (rule === 'mean') {
+    const sum = new Float64Array(n); // sum of the distances to the node's tips
+    for (let i = n - 1; i > 0; i--) {
+      const p = t.parent[i];
+      const l = t.length[i] > 0 ? t.length[i] : 0;
+      sum[p] += sum[i] + l * (t.leafEnd[i] - t.leafStart[i]);
+    }
+    for (let i = 0; i < n; i++) h[i] = t.childCount[i] === 0 ? 0 : sum[i] / (t.leafEnd[i] - t.leafStart[i]);
+    return h;
+  }
+  const max = rule === 'max';
+  const seen = new Uint8Array(n); // has a child set h yet (min needs a first value)
+  for (let i = n - 1; i > 0; i--) {
+    const p = t.parent[i];
+    const l = t.length[i] > 0 ? t.length[i] : 0;
+    const x = h[i] + l;
+    if (!seen[p] || (max ? x > h[p] : x < h[p])) h[p] = x;
+    seen[p] = 1;
+  }
+  return h;
 }
 
 function defaultCollapsedLabel(t: TreeInput, v: number, tips: number): string {
