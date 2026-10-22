@@ -29,13 +29,15 @@ export const CLAMP_Y_PAD_PX = 64;
 
 // ---- view limits (TreeViewer.clampView)
 
-/** Rectangular: widest x window, in tree widths (the tree spans x 0..1, so zooming out leaves up to 60% empty). */
+/** Rectangular: default for the `maxViewWidth` option, the widest x window in tree widths (the tree spans x 0..1, so zooming out leaves up
+ *  to 60% empty). */
 export const RECT_MAX_VIEW_W = 1.6;
 /** Rectangular: deepest x zoom; the window is never narrower than the area width divided by this (px per unit of tree width). */
 export const RECT_MAX_ZOOM_X = 5e6;
 /** Rectangular: tallest y window, in tip rows, as a multiple of the tip count (zoomed out beyond the tree). */
 export const RECT_MAX_VIEW_H_FACTOR = 1.6;
-/** Rectangular: deepest y zoom; the window is never shorter than the area height divided by this (at most 500 px per row). */
+/** Rectangular: hard ceiling of the y zoom (px per row) whatever `maxTipSpacing` says: the window is never shorter than the area height
+ *  divided by this. `maxTipSpacing: Infinity` leaves only this. */
 export const RECT_MAX_ZOOM_Y = 500;
 /** Zoomed in, the window may run this fraction of its own size past either edge of the tree (overscroll), ... */
 export const OVERSCROLL_FRAC = 0.15;
@@ -45,7 +47,7 @@ export const OVERSCROLL_KEEP_FRAC = 0.85;
 export const RADIAL_FIT_MIN_R_PX = 20;
 /** Radial: the fit circle leaves this margin (px) inside the smaller container side, for labels and the scale bar. */
 export const RADIAL_FIT_MARGIN_PX = 28;
-/** Radial: deepest zoom, as a multiple of the fit scale. */
+/** Radial: hard ceiling of the zoom, as a multiple of the fit scale, whatever `maxTipSpacing` says. */
 export const RADIAL_MAX_ZOOM = 20000;
 /** Radial: widest zoom-out, as a fraction of the fit scale. */
 export const RADIAL_MIN_ZOOM = 0.4;
@@ -54,7 +56,8 @@ export const RADIAL_PAN_LIMIT = 1.3;
 
 // ---- navigation targets (TreeViewer.focusTip, zoomToNode)
 
-/** focusTip, rectangular: row height (px) is kept between these two when a tip is brought into view. */
+/** focusTip, rectangular: row height (px) is kept between these two when a tip is brought into view. The minimum is the value at the
+ *  default `labelSize` (13, i.e. 2 em); it scales with the label size and never exceeds `maxTipSpacing`. */
 export const FOCUS_TIP_MIN_ROW_PX = 26;
 export const FOCUS_TIP_MAX_ROW_PX = 400;
 /** focusTip, radial: wanted distance (px) between neighbouring tips on the outer circle, so labels are readable. */

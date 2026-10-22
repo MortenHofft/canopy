@@ -21,12 +21,12 @@ import {
   RADIAL_MIN_ZOOM,
   RADIAL_PAN_LIMIT,
   RECT_MAX_VIEW_H_FACTOR,
-  RECT_MAX_VIEW_W,
   RECT_MAX_ZOOM_X,
   RECT_MAX_ZOOM_Y,
   ZOOM_NODE_RADIAL_PAD,
 } from './constants.ts';
 import { COL_GAP } from './columns.ts';
+import { resolveTreeWidth, scaledPx, type TreeWidth } from './sizes.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Area } from './geom.ts';
 import type { Layout } from './layout.ts';
 import { projectionFor } from './projection.ts';
@@ -42,8 +42,16 @@ export interface ViewEnv {
   readonly layout: LayoutKind;
   readonly overview: boolean;
   readonly axis: boolean;
-  /** Fixed row height in px, null (or 0) = fit all tips into the height. */
+  /** Fixed row height in px (the option resolved against the label size), null (or 0) = fit all tips into the height. */
   readonly rowHeight: number | null;
+  /** Most px between two neighbouring tips (the option resolved against the label size); Infinity = only the hard ceilings. */
+  readonly maxTipSpacing: number;
+  /** The theme's label size (px): the font-relative minimums scale with it. */
+  readonly labelSize: number;
+  /** Widest x window in tree widths (rectangular). */
+  readonly maxViewWidth: number;
+  /** The `treeWidth` option (rectangular). */
+  readonly treeWidth: TreeWidth;
   /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
   readonly alignLabels: boolean;
   /** Some tip stands for a collapsed clade (drawn as a triangle). */
@@ -53,11 +61,13 @@ export interface ViewEnv {
   readonly H: number;
   readonly tree: TreeSnapshot;
   readonly L: Layout;
-  /** Total width of the data columns (px), 0 without columns. */
+  /** Width of the data columns that have one (px) plus a gap per column, 0 without columns. */
   readonly columnsWidth: number;
+  /** How many columns are `'fill'` (they share what the tree and the other columns leave). */
+  readonly fillColumns: number;
   readonly hasColumns: boolean;
-  /** Place the columns' left edge (they sit right of the clip rectangle). */
-  placeColumns(left: number): void;
+  /** Place the columns' left edge (they sit right of the clip rectangle); each fill column gets `fillWidth` px. */
+  placeColumns(left: number, fillWidth: number): void;
 }
 
 /** How a ViewState reports. All three are called synchronously from the method that caused them. */
@@ -139,14 +149,18 @@ export class ViewState {
     } else {
       const ovG = this.env.overview ? OVERVIEW_STRIP_W_PX + 8 : 0;
       const colsW = this.env.columnsWidth;
-      const clipR = Math.max(120, W - ovG - colsW);
+      const avail = W - ovG;
+      const nf = this.env.fillColumns;
+      // 'auto': the columns keep their widths and the tree takes the rest; with fill columns the tree and they split what the fixed ones leave
+      const fixedTree = resolveTreeWidth(this.env.treeWidth, avail);
+      const clipR = Math.max(120, fixedTree ?? (nf > 0 ? (avail - colsW) / 2 : avail - colsW));
       const head = this.env.hasColumns ? HEAD_H : MIN_HEAD;
       const foot = this.env.axis && this.env.L.usedLengths ? FOOT_H : MIN_HEAD;
       const ax = 10;
       const labelW = Math.min(this.labelReserve(), clipR * 0.4);
       const aw = Math.max(40, clipR - ax - labelW);
       this.area = { ax, ay: head, aw, ah: Math.max(40, H - head - foot), clipL: 0, clipT: head, clipR, clipB: head + Math.max(40, H - head - foot) };
-      this.env.placeColumns(clipR + COL_GAP);
+      this.env.placeColumns(clipR + COL_GAP, nf > 0 ? (avail - clipR - colsW) / nf : 0);
     }
     return this.area;
   }
@@ -171,12 +185,14 @@ export class ViewState {
     const tree = this.env.tree;
     if (this.env.layout === 'rectangular') {
       const N = tree.tipCount;
-      const wmax = RECT_MAX_VIEW_W,
+      const wmax = Math.max(1, this.env.maxViewWidth),
         wmin = a.aw / RECT_MAX_ZOOM_X;
       let w = v.x1 - v.x0;
       w = Math.min(wmax, Math.max(wmin, w));
+      // the cap never forces the view below the fitted one: most px per row = max(fit, min(cap, ceiling)); fit is the y span of fitViewport
+      const hfit = this.env.rowHeight ? a.ah / this.env.rowHeight : N;
       const hmax = Math.max(N * RECT_MAX_VIEW_H_FACTOR, a.ah / 4),
-        hmin = a.ah / RECT_MAX_ZOOM_Y;
+        hmin = Math.min(Math.max(1, hfit), a.ah / Math.min(RECT_MAX_ZOOM_Y, this.env.maxTipSpacing));
       let h = v.y1 - v.y0;
       h = Math.min(hmax, Math.max(hmin, h));
       let x0 = v.x0,
@@ -188,7 +204,9 @@ export class ViewState {
     }
     const kfit = radialFitScale(this.env.W, this.env.H);
     let k = a.aw / (v.x1 - v.x0);
-    k = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_MIN_ZOOM, k));
+    // outer-circle arc between neighbouring tips = k * 2 PI / N (radius 1), at most maxTipSpacing; never below the fit
+    const kcap = Math.max(kfit, Math.min(kfit * RADIAL_MAX_ZOOM, (this.env.maxTipSpacing * tree.tipCount) / (2 * Math.PI)));
+    k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
       cy = (v.y0 + v.y1) / 2;
     cx = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cx));
@@ -289,7 +307,8 @@ export class ViewState {
     const a = this.area;
     if (this.env.layout === 'rectangular') {
       const kyNow = a.ah / (v.y1 - v.y0);
-      const ky = Math.min(FOCUS_TIP_MAX_ROW_PX, Math.max(kyNow, FOCUS_TIP_MIN_ROW_PX));
+      const minRow = Math.min(scaledPx(FOCUS_TIP_MIN_ROW_PX, this.env.labelSize), this.env.maxTipSpacing);
+      const ky = Math.min(FOCUS_TIP_MAX_ROW_PX, Math.max(kyNow, minRow));
       const h = a.ah / ky;
       const row = L.ROW[node];
       let { x0, x1 } = v;
@@ -301,7 +320,7 @@ export class ViewState {
       }
       return { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     }
-    const k = Math.max(a.aw / (v.x1 - v.x0), (FOCUS_TIP_RADIAL_PITCH_PX * tree.tipCount) / (2 * Math.PI));
+    const k = Math.max(a.aw / (v.x1 - v.x0), (Math.min(FOCUS_TIP_RADIAL_PITCH_PX, this.env.maxTipSpacing) * tree.tipCount) / (2 * Math.PI));
     const ang = L.ROW[node] * ((2 * Math.PI) / tree.tipCount);
     const px = L.X[node] * Math.cos(ang),
       py = L.X[node] * Math.sin(ang);

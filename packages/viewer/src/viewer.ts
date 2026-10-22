@@ -15,7 +15,7 @@
 
 import { cladeName } from './clade-name.ts';
 import type { Control, ControlPosition } from './control.ts';
-import { cellRect, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
+import { cellRect, columnsFixed, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
@@ -61,6 +61,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
+import { resolveSize } from './sizes.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
@@ -340,17 +341,25 @@ export class TreeViewer {
         layout: () => this.opts.layout,
         overview: () => this.overviewReserved,
         axis: () => this.opts.axis,
-        rowHeight: () => this.opts.rowHeight,
+        rowHeight: () => (this.opts.rowHeight === null ? null : resolveSize(this.opts.rowHeight, this.theme.labelSize)),
+        maxTipSpacing: () => {
+          const m = resolveSize(this.opts.maxTipSpacing, this.theme.labelSize);
+          return m > 0 ? m : Infinity; // a bad value is no cap
+        },
+        labelSize: () => this.theme.labelSize,
+        maxViewWidth: () => this.opts.maxViewWidth,
+        treeWidth: () => this.opts.treeWidth,
         alignLabels: () => this.opts.alignLabels,
         hasCollapsed: () => this.collapsedRank !== null,
         W: () => this.W,
         H: () => this.H,
         tree: () => this.tree,
         L: () => this.L,
-        columnsWidth: () => columnsWidth(this.columns),
+        columnsWidth: () => columnsFixed(this.columns).fixed,
+        fillColumns: () => columnsFixed(this.columns).fills,
         hasColumns: () => this.columns.length > 0,
       },
-      { placeColumns: (left) => layoutColumns(this.columns, left) },
+      { placeColumns: (left, fillW) => layoutColumns(this.columns, left, fillW) },
     );
   }
 
@@ -623,7 +632,11 @@ export class TreeViewer {
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit =
-      lengthsChanged || layoutChanged || (p.axis !== undefined && p.axis !== o.axis) || (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight);
+      lengthsChanged ||
+      layoutChanged ||
+      (p.axis !== undefined && p.axis !== o.axis) ||
+      (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight) ||
+      (p.treeWidth !== undefined && p.treeWidth !== o.treeWidth);
     // the pooled label elements take their text (formatLabel) and link (tipHref) when they are created, so a change of either rebuilds them
     const labelsChanged = (p.tipHref !== undefined && p.tipHref !== o.tipHref) || (p.formatLabel !== undefined && p.formatLabel !== o.formatLabel);
     this.opts = { ...o, ...p };
@@ -643,8 +656,8 @@ export class TreeViewer {
     if (labelsChanged) this.overlay.clear();
     if (refit) {
       this.activeNode = -1;
-      if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined) this.fit(false);
-    }
+      if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
+    } else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
     this.events.emit('optionschange', { options: this.opts, changed });
@@ -735,6 +748,7 @@ export class TreeViewer {
 
   private applyTheme(next: TreeTheme): void {
     if (themeEquals(next, this.theme)) return;
+    const prevLabelSize = this.theme.labelSize;
     this.theme = next;
     this.columns = recolourColumns(this.tree, this.columns, next); // residue tokens: the alignment bitmaps hold the colours
     // an opaque canvas cannot show the page through a transparent background (it clears to black): change canvas when that changes
@@ -750,10 +764,24 @@ export class TreeViewer {
       this.ctx = this.mainContext();
     }
     this.syncCssVars();
+    // font-relative sizes (rowHeight, maxTipSpacing) follow the label size
+    if (next.labelSize !== prevLabelSize) {
+      const o = this.opts;
+      if (typeof o.rowHeight === 'string' && this.vs.fitted) this.fit(false);
+      else this.reclampView();
+    }
     this.sceneVersion++;
     this.overlay.clear();
     this.invalidate(true);
     this.events.emit('themechange', this.theme);
+  }
+
+  /** The view again within the zoom limits (they follow options and the label size). */
+  private reclampView(): void {
+    if (this.W <= 0 || this.vs.fitted) return;
+    this.vs.computeArea();
+    const c = this.vs.clampView(this.vs.view);
+    if (!viewportEquals(c, this.vs.view, 1e-12)) this.vs.view = c;
   }
 
   /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`. Where clades nest
@@ -873,11 +901,12 @@ export class TreeViewer {
 
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
   setColumns(cols: Column[]): void {
-    const hadW = columnsWidth(this.columns);
+    const had = columnsFixed(this.columns);
     const next = updateColumns(this.tree, this.columns, cols, this.theme);
     if (next.same) return;
     this.columns = next.columns;
-    const changed = columnsWidth(this.columns) !== hadW || this.columns.length > 0 !== hadW > 0;
+    const now = columnsFixed(this.columns);
+    const changed = now.fixed !== had.fixed || now.fills !== had.fills;
     if (changed && this.vs.fitted) this.fit(false);
     this.hit.invalidate();
     this.invalidate();

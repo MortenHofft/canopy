@@ -115,7 +115,7 @@ await page.mouse.click(5, 5);
 ok(!(await menuOpen()), 'outside click closes it');
 await openOn(ef);
 await page.mouse.move(ef.x - 20, ef.y - 80); // wheel zoom: a viewport change without a pointer press
-await page.mouse.wheel(0, -200);
+await page.mouse.wheel(0, 200); // out: a 6-tip tree already fits at more than maxTipSpacing per row, so it cannot zoom in
 await page.waitForTimeout(300);
 ok(!(await menuOpen()), 'zooming (a viewport change) closes it');
 const pb = await pane.boundingBox();

@@ -56,7 +56,7 @@ State: setters (each is a no-op for input equal to the current one) and getters
 
 | Method | Meaning |
 |---|---|
-| `setOptions(patch)` | change options (undefined and unchanged values are ignored). Refits for `layout`, `branchLengths` or `rowHeight`; for `axis` only while the view is still fitted. A change of `tipHref` or `formatLabel` rebuilds the DOM label anchors. Emits `optionschange` |
+| `setOptions(patch)` | change options (undefined and unchanged values are ignored). Refits for `layout`, `branchLengths`, `rowHeight` or `treeWidth`; a new `maxTipSpacing` or `maxViewWidth` clamps a zoomed view; for `axis` only while the view is still fitted. A change of `tipHref` or `formatLabel` rebuilds the DOM label anchors. Emits `optionschange` |
 | `setTheme(overrides)` | theme fields over the CSS theme; REPLACES the overrides of an earlier call (`setTheme({})` clears them). Emits `themechange` |
 | `updateTheme(patch)` | MERGES the fields into the current overrides (a field that is `undefined` is dropped, so it goes back to the CSS value). For controls that each own one token, such as a font-size slider and a branch-width slider. Emits `themechange` |
 | `refreshTheme()` | read the `--phylo-*` custom properties again (the viewer does this itself when created, and on what the `themeObserver` option watches) |
@@ -220,9 +220,13 @@ All three are controls with position `'custom'`: add them with `addControl`.
 
 ```ts
 type Column = BuiltinColumn | CustomColumn;
-BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width, values: Record<tipLabel, number | string>, alphabet?: 'auto' | 'protein' | 'nucleotide' }
-CustomColumn:  { id, kind: 'custom', header, width, values: Record<tipLabel, V>, renderer: ColumnRenderer<V, D> }
+BuiltinColumn: { id, kind: 'bar' | 'text' | 'alignment', header, width: number | 'fill', values: Record<tipLabel, number | string>, alphabet?: 'auto' | 'protein' | 'nucleotide' }
+CustomColumn:  { id, kind: 'custom', header, width: number | 'fill', values: Record<tipLabel, V>, renderer: ColumnRenderer<V, D> }
 ```
+
+`width` is CSS px, or `'fill'`: the column takes the width left after the tree area and the fixed columns (several fill columns share it
+equally; never under 40 px). An alignment is scaled to its width, so a `'fill'` alignment shows all its columns of residues in whatever room
+the tree split leaves (see `treeWidth`). Columns are rectangular-only, so `treeWidth` and `'fill'` do nothing in the radial layout.
 
 `values` (and `renderer`) are compared by reference when columns are set again: pass the same object while the data is unchanged and a new
 one when it changed; never mutate in place. Built-in kinds: log-scaled bars (binned per pixel row below 1.5 px per row), text (tinted bands
@@ -270,7 +274,7 @@ Exceptions to the rule:
 | Setting | Lives in | Why |
 |---|---|---|
 | `dark` | theme | derived from the background; informational for apps, and used by the drawing code only to choose light or dark residue defaults |
-| `rowHeight` | option | a size in px, but it sets the layout (how many tips fit), not how a row is painted |
+| `rowHeight`, `maxTipSpacing`, `treeWidth` | option | sizes, but they set the layout and the zoom limits (how many tips fit, how far one can zoom, where the columns start), not how something is painted. They are in px, or follow the theme's `labelSize` (`'2.2em'`) |
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
@@ -340,10 +344,13 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 | `lod` | `true` | viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives |
 | `drawBudget` | `20000` | most primitives per frame; the collapse threshold is raised until the cut fits (min 500; LOD off: 600,000) |
 | `showSummaries` | `true` | draw collapsed clades as triangles (otherwise only their branch) |
-| `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label (`LABEL_MIN_PX` in `draw.ts`: 16, 11, 8 px) |
+| `labelDensity` | `'normal'` | `'sparse'`, `'normal'` or `'dense'`: minimum tip pitch for a label: 16, 11, 8 px at the default 13 px `labelSize`, scaled with the theme's `labelSize` (`labelMinPx` in `sizes.ts`) |
 | `alignLabels` | `false` | rectangular phylogram: every tip label starts in one column right of the farthest tip, with a dotted leader line from each tip to it (see "Aligned labels"). No effect in a cladogram, without branch lengths or in the radial layout |
 | `highlightStyle` | `'band'` | how `setHighlighted` shows its tips: `'band'` (row band, ring, bold label), `'dim'` (everything outside the set is drawn at the theme's `dimOpacity`, the matches look normal) or `'both'`. See below |
-| `rowHeight` | `null` | fixed px per tip row at fit (rectangular); `null` fits all tips into the height |
+| `rowHeight` | `null` | fixed height per tip row at fit (rectangular): px, `'<n>em'` (n times the theme's `labelSize`) or `'auto'` (2.2 em); `null` fits all tips into the height |
+| `maxTipSpacing` | `'auto'` | the most space between neighbouring tips when zooming in: a row's height (rectangular) or the arc between tips on the outer circle (radial). Same forms as `rowHeight`; `'auto'` is 2.2 em, 28.6 px at the default 13 px label size. See "Zoom limits" |
+| `maxViewWidth` | `1.6` | rectangular: the widest x window in tree widths. Raise it to let the tree get narrower than 62% of the plot. See "Zoom limits" |
+| `treeWidth` | `'auto'` | rectangular: width of the tree area against the columns: `'auto'`, px, or `'<n>%'`. See "Tree and columns" |
 | `axis` | `true` | scale bar (radial) or time/length axis (rectangular) |
 | `minCladePx` | `3` | collapse clades smaller than this many px (the base threshold of the cut) |
 | `alignStyle` | `'residues'` | alignment columns: coloured cells, or `'blocks'` (grey gap-free stretches joined by a line) |
@@ -362,6 +369,41 @@ DOM only (`viewer.css`): `--phylo-surface` (control and popup background), `--ph
 The overview is a control (`OverviewControl`), not an option.
 
 ### Aligned labels
+
+### Zoom limits
+
+`maxTipSpacing` replaces the old fixed limits (500 px per row, 20,000 times the fit scale in radial), which stay only as hard ceilings.
+Every way of zooming in goes through `clampView`, so the wheel, pinch, buttons, keyboard, the overview, `setViewport`, `focusTip` and
+`zoomToNode` all stop at it.
+
+* **Default.** `'auto'` is 2.2 times the theme's `labelSize`: room for a label line, an alignment row and some padding, the way a
+  spreadsheet row is. It follows `--phylo-label-size` without any JavaScript. The 2.2 and the 20-24 px of a spreadsheet row are an
+  estimate by the owner (issue #38), not a measurement. Give px for a fixed value, `'<n>em'` for another multiple, `Infinity` to keep only the hard ceilings.
+* **Never below the fit.** The limit is `max(fit, cap)`: a 6-tip tree that fits at 100 px per row stays at that and can only be zoomed
+  out. `rowHeight` is the fit then, so the cap does not apply below it.
+* **Radial.** The cap is the arc between neighbouring tips on the outer circle (the measure `focusTip` uses), so the scale stops at
+  `cap * tipCount / (2 PI)` px per unit radius, or the fit scale if that is larger.
+* **The x axis is not capped** (`RECT_MAX_ZOOM_X`, 5e6 px per tree width): zooming x stretches branch lengths, which helps with very short
+  branches.
+* **Font-relative minimums.** The label thresholds of `labelDensity` and the least row height `focusTip` brings a tip to (26 px, never more than the cap) are
+  the old values at the default 13 px `labelSize` and scale with it, so labels, focus and maximum zoom stay consistent when the font changes.
+  `focusTip` and `zoomToNode` in the radial layout use `min(24, maxTipSpacing)` as the wanted tip pitch.
+
+`maxViewWidth` is the widest x window in tree widths (default 1.6, at least 1). The wheel zooms rows only; Shift or Ctrl and the wheel
+zooms along x.
+
+### Tree and columns
+
+`treeWidth` fixes the width of the tree area, which holds the branches and the tip labels (the labels take up to 40% of it). `'auto'`
+is the old behaviour: the columns keep their widths and the tree takes the rest. A number is px, `'<n>%'` is a share of the container
+minus the overview strip; the least is 120 px. The columns then sit right of it, and `'fill'` columns share what is left. With `'auto'` and a
+`'fill'` column the tree and the fill columns split what the fixed columns leave, half each. The fit, hit-testing, the label overlay, the overview and
+the column positions all follow this one split. Not done (issue #39): a draggable divider, and letting the label column truncate with an
+ellipsis and a tooltip; wide labels are still capped by the 40% reserve.
+
+```ts
+new TreeViewer({ target, tree, options: { treeWidth: '30%', maxViewWidth: 6 }, columns: [{ id: 'aln', kind: 'alignment', header: 'Alignment', width: 'fill', values }] });
+```
 
 `alignLabels: true` puts the tip labels of a rectangular phylogram in one column: the text starts 8 px right of the farthest tip (and right of the
 triangle of a collapsed clade, when the tree has any), and a dotted leader line runs from each tip to 3 px before its label. The leaders are drawn

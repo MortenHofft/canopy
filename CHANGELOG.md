@@ -2,6 +2,13 @@
 
 ## Unreleased (2026-10-21: the library replaces the research on `main`; the research is on the `research` branch)
 
+- **Zoom limits and the tree/columns split** (#38, #39).
+  - New option `maxTipSpacing` (default `'auto'`, 2.2 em) replaces the fixed 500 px per row and 20,000 times fit scale; the view never goes below the fit; `Infinity` leaves only the old values as hard ceilings. **Default behaviour changes:** rows can no longer be zoomed beyond about 29 px at the default label size. The x limit is unchanged.
+  - `rowHeight` accepts `'auto'` and `'<n>em'`. The label density thresholds and `focusTip`'s least row height scale with `labelSize` (unchanged at the default 13 px).
+  - New options `maxViewWidth` (default 1.6) and `treeWidth` (`'auto' | px | '<n>%'`); columns take `width: 'fill'`.
+  - Playground: Max tip spacing, Max horizontal zoom-out, Tree width, Alignment fills the width.
+  - Not done: a draggable divider, label ellipsis.
+
 - **API ergonomics from the Reactree look-alike** (#23; items 1, 2, 3, 5, 6 and 8).
   - `updateTheme(patch)` merges into the theme overrides; `setTheme` still replaces them.
   - New option `themeObserver: 'media' | 'document' | 'none'` (default `'media'`, as before). `'document'` also watches `class` and `data-theme` on `<html>` and calls `refreshTheme()`.

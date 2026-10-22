@@ -4,6 +4,7 @@
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, COLLAPSED_W, RADIAL_FAR_ARC_R } from './constants.ts';
 import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
+import { labelMinPx } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
 import type { LabelDensity, TreeTheme } from './types.ts';
 
@@ -67,7 +68,6 @@ export class LabelList {
   }
 }
 
-export const LABEL_MIN_PX: Record<LabelDensity, number> = { sparse: 16, normal: 11, dense: 8 };
 export const RADIAL_LABEL_CAP = 300;
 const MAX_RECT_LABELS = 600;
 const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
@@ -492,7 +492,7 @@ export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
   if (Number.isNaN(ax)) return;
   const { proj, list, theme } = S;
   const { tree, T } = proj;
-  if (proj.tipPitch < LABEL_MIN_PX[S.density]) return;
+  if (proj.tipPitch < labelMinPx(S.density, S.theme.labelSize)) return;
   const endX = ax + LABEL_GAP_PX - LEADER_END_GAP_PX;
   const p: Pt = { x: 0, y: 0 };
   ctx.strokeStyle = theme.leaderColour || theme.muted;
@@ -546,7 +546,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   labels.clear();
   const rect = proj.kind === 'rectangular';
   const pitch = proj.tipPitch;
-  const need = LABEL_MIN_PX[S.density];
+  const need = labelMinPx(S.density, S.theme.labelSize);
   if (pitch < need) return;
   const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
   const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';

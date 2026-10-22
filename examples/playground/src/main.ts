@@ -208,7 +208,14 @@ function columns(): Column[] {
     );
   }
   if (loaded.fasta && columnOn.get('alignment'))
-    out.push({ id: 'alignment', kind: 'alignment', header: 'Alignment', width: 260, values: loaded.fasta, alphabet: state.alphabet as Alphabet });
+    out.push({
+      id: 'alignment',
+      kind: 'alignment',
+      header: 'Alignment',
+      width: state.fillAlignment ? 'fill' : 260,
+      values: loaded.fasta,
+      alphabet: state.alphabet as Alphabet,
+    });
   return out;
 }
 
