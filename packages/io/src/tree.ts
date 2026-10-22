@@ -1,5 +1,5 @@
 // TreeModel: a rooted tree on typed arrays. Nodes are numbered in preorder (children in file order),
-// so node id 'n<k>' means preorder index k and the root is n0. Every query is iterative.
+// so a node is named by its preorder index k and the root is 0. Every query is iterative.
 //
 // Invariants (checked by test/parser.test.mjs, 'structural invariants on a real tree'):
 //  * parent[i] < i for i > 0; the subtree of i is exactly the index range [i, subtreeEnd[i]).
@@ -127,25 +127,6 @@ export class TreeModel {
     this.tipLabels = tipLabels;
   }
 
-  // ---- ids
-  nodeId(i: number): string {
-    return 'n' + i;
-  }
-  /** 'n12' -> 12; throws for anything that is not a valid node id of this tree. */
-  nodeIndex(id: string): number {
-    if (id.length < 2 || id.charCodeAt(0) !== 110) throw new Error(`bad node id ${JSON.stringify(id)}`);
-    const k = Number(id.slice(1));
-    if (!Number.isInteger(k) || k < 0 || k >= this.nodeCount || 'n' + k !== id) throw new Error(`bad node id ${JSON.stringify(id)}`);
-    return k;
-  }
-  isNodeId(id: string): boolean {
-    try {
-      this.nodeIndex(id);
-      return true;
-    } catch {
-      return false;
-    }
-  }
   /** Name of an internal node without a leading support value ('' if none); tips return their label. */
   nodeName(i: number): string {
     return this.childCount[i] === 0 ? this.labels[i] : splitInternalLabel(this.labels[i]).name;
@@ -194,37 +175,24 @@ export class TreeModel {
     this.buildTipIndex();
     return this._dupTips!;
   }
-  /** Node id of the (first) tip with this label, or null. */
-  tipNodeId(label: string): string | null {
-    const k = this.tipIndex(label);
-    return k < 0 ? null : 'n' + k;
-  }
-  /** Accepts a node id ('n5') or a node index. */
-  private idx(a: string | number): number {
-    return typeof a === 'number' ? a : this.nodeIndex(a);
-  }
 
   // ---- tips below a node
   /** Number of descendant tips (1 for a tip). */
-  tipCountOf(a: string | number): number {
-    const i = this.idx(a);
+  tipCountOf(i: number): number {
     return this.leafEnd[i] - this.leafStart[i];
   }
   /** Contiguous tip-rank range [start, end) of the descendant tips. */
-  tipRange(a: string | number): [number, number] {
-    const i = this.idx(a);
+  tipRange(i: number): [number, number] {
     return [this.leafStart[i], this.leafEnd[i]];
   }
   /** Labels of the descendant tips in leaf order (a tip returns its own label). */
-  descendantTips(a: string | number): string[] {
-    const i = this.idx(a);
+  descendantTips(i: number): string[] {
     return this.tipLabels.slice(this.leafStart[i], this.leafEnd[i]);
   }
-  /** De-duplicated union of the descendant tips of several nodes (ids or indexes), in leaf order. */
-  tipsOf(ids: (string | number)[]): string[] {
+  /** De-duplicated union of the descendant tips of several nodes, in leaf order. */
+  tipsOf(nodes: number[]): string[] {
     const mark = new Uint8Array(this.tipCount);
-    for (const a of ids) {
-      const i = this.idx(a);
+    for (const i of nodes) {
       for (let r = this.leafStart[i]; r < this.leafEnd[i]; r++) mark[r] = 1;
     }
     const out: string[] = [];
@@ -232,42 +200,40 @@ export class TreeModel {
     return out;
   }
   /** True if node b lies in the subtree of node a (a counts as its own subtree). */
-  contains(a: string | number, b: string | number): boolean {
-    const ia = this.idx(a);
-    const ib = this.idx(b);
-    return ia <= ib && ib < this.subtreeEnd[ia];
+  contains(a: number, b: number): boolean {
+    return a <= b && b < this.subtreeEnd[a];
   }
-  children(a: string | number): number[] {
-    const i = this.idx(a);
+  children(i: number): number[] {
     const out: number[] = [];
     for (let c = this.firstChild[i]; c >= 0; c = this.nextSibling[c]) out.push(c);
     return out;
   }
 
   // ---- ancestry
-  /** Most recent common ancestor of two nodes (ids or indexes); returns a node index. */
-  mrca(a: string | number, b: string | number): number {
-    let x = this.idx(a);
-    const y = this.idx(b);
-    while (!(x <= y && y < this.subtreeEnd[x])) x = this.parent[x];
+  /** Throws a RangeError unless `i` is a node number of this tree (the walks up from a bad one would never end). */
+  private checkNode(i: number): void {
+    if (!Number.isInteger(i) || i < 0 || i >= this.nodeCount) throw new RangeError(`not a node of this tree: ${String(i)}`);
+  }
+  /** Most recent common ancestor of two nodes; returns a node index. */
+  mrca(a: number, b: number): number {
+    this.checkNode(a);
+    this.checkNode(b);
+    let x = a;
+    while (!(x <= b && b < this.subtreeEnd[x])) x = this.parent[x];
     return x;
   }
-  /** MRCA of a set of tip labels or node ids/indexes; returns a node index, or -1 for an empty set. A label that several tips carry
-   *  counts all of them. */
-  mrcaOf(items: (string | number)[]): number {
+  /** MRCA of a set of nodes; returns a node index, or -1 for an empty set. A tip label goes through `tipIndex` (or `tipIndices`, for a
+   *  label that several tips carry) first. */
+  mrcaOf(nodes: number[]): number {
     let cur = -1;
-    for (const it of items) {
-      // a string is a tip label if one matches, otherwise a node id
-      const tips = typeof it === 'number' ? [it] : this.tipIndex(it) >= 0 ? this.tipIndices(it) : this.isNodeId(it) ? [this.nodeIndex(it)] : [];
-      if (!tips.length) throw new Error(`unknown tip or node ${String(it)}`);
-      for (const k of tips) cur = cur < 0 ? k : this.mrca(cur, k);
-    }
+    for (const k of nodes) cur = cur < 0 ? (this.checkNode(k), k) : this.mrca(cur, k);
     return cur;
   }
   /** Node indexes from the node up to the root (inclusive). */
-  ancestors(a: string | number): number[] {
+  ancestors(a: number): number[] {
+    this.checkNode(a);
     const out: number[] = [];
-    for (let i = this.idx(a); i >= 0; i = this.parent[i]) out.push(i);
+    for (let i = a; i >= 0; i = this.parent[i]) out.push(i);
     return out;
   }
 

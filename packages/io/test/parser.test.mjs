@@ -21,8 +21,8 @@ test('basic topology, lengths, labels', () => {
   assert.equal(t.tipCount, 5);
   assert.equal(t.nodeCount, 8);
   assert.deepEqual(t.tipLabels, ['A', 'B', 'C', 'D', 'E']);
-  assert.deepEqual(t.descendantTips('n0'), ['A', 'B', 'C', 'D', 'E']);
-  assert.deepEqual(t.descendantTips('n1'), ['A', 'B']);
+  assert.deepEqual(t.descendantTips(0), ['A', 'B', 'C', 'D', 'E']);
+  assert.deepEqual(t.descendantTips(1), ['A', 'B']);
   assert.equal(t.labels[0], 'root');
   assert.equal(t.labels[1], 'AB');
   assert.equal(t.length[2], 1);
@@ -31,10 +31,16 @@ test('basic topology, lengths, labels', () => {
   assert.equal(t.childCount[0], 3);
   assert.equal(t.mrca(t.tipIndex('A'), t.tipIndex('B')), 1);
   assert.equal(t.mrca(t.tipIndex('A'), t.tipIndex('D')), 0);
-  assert.equal(t.nodeId(t.tipIndex('E')), 'n7');
-  assert.deepEqual(t.tipsOf(['n1', 'n4']), ['A', 'B', 'C', 'D']);
-  assert.equal(t.nodeIndex('n7'), 7);
-  assert.throws(() => t.nodeIndex('n99'));
+  assert.equal(t.tipIndex('E'), 7);
+  assert.deepEqual(t.tipsOf([1, 4]), ['A', 'B', 'C', 'D']);
+  assert.equal(t.mrcaOf([t.tipIndex('A'), t.tipIndex('D')]), 0);
+  assert.equal(t.mrcaOf([]), -1);
+  assert.throws(() => t.mrcaOf([0, -1]), RangeError);
+  assert.throws(() => t.mrcaOf([t.tipIndex('nope')]), RangeError);
+  assert.throws(() => t.mrca(0, -1), RangeError);
+  assert.throws(() => t.mrca(0, 99), RangeError);
+  assert.throws(() => t.ancestors(1.5), RangeError);
+  assert.equal('nodeId' in t || 'nodeIndex' in t || 'isNodeId' in t || 'tipNodeId' in t, false, 'no string form of a node id (#78)');
 });
 
 test('quoted labels with commas, parentheses, quotes, comments', () => {
@@ -86,7 +92,7 @@ test('1,000,000-deep caterpillar does not overflow the stack', () => {
   assert.equal(t.nodeCount, 2 * n - 1);
   assert.equal(t.maxDepth, n - 1);
   assert.equal(t.subtreeEnd[0], t.nodeCount);
-  assert.equal(t.descendantTips('n0').length, n);
+  assert.equal(t.descendantTips(0).length, n);
   assert.equal(t.mrca(t.tipIndex('t0'), t.tipIndex('t' + (n - 1))), 0);
   const back = toNewick(t);
   assert.equal(parseNewick(back).tipCount, n);

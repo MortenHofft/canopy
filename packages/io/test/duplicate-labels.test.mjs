@@ -24,7 +24,7 @@ test('the edge-case tree keeps every tip and reports the duplicated labels with 
 test('tipIndex is the first tip with the label, tipIndices all of them; a unique label has one, an unknown none', () => {
   const t = parseNewick(text);
   assert.equal(t.tipIndex('Homo_sapiens'), 3, 'the first in preorder, not the last');
-  assert.equal(t.tipNodeId('3 taxa'), 'n12');
+  assert.equal(t.tipIndex('3 taxa'), 12);
   assert.deepEqual(t.tipIndices('Homo_sapiens'), [3, 4, 7]);
   assert.deepEqual(t.tipIndices('Pan_troglodytes'), [5]);
   assert.deepEqual(t.tipIndices('Nope'), []);
@@ -39,11 +39,11 @@ test('a tree with unique labels reports no duplicates', () => {
   assert.deepEqual(t.tipIndices('C'), [t.tipIndex('C')]);
 });
 
-test('mrcaOf counts every tip of a duplicated label', () => {
+test('mrcaOf of tipIndices(label) counts every tip of a duplicated label', () => {
   const t = parseNewick(text);
-  assert.equal(t.mrcaOf(['Homo_sapiens']), 0, 'Homo_sapiens is in Hominini and in its sister clade: the MRCA is the root');
-  assert.equal(t.mrcaOf(['3 taxa']), 9);
-  assert.equal(t.mrcaOf(['Pan_troglodytes', 3]), 1);
+  assert.equal(t.mrcaOf(t.tipIndices('Homo_sapiens')), 0, 'Homo_sapiens is in Hominini and in its sister clade: the MRCA is the root');
+  assert.equal(t.mrcaOf(t.tipIndices('3 taxa')), 9);
+  assert.equal(t.mrcaOf([...t.tipIndices('Pan_troglodytes'), 3]), 1);
 });
 
 test('NEXUS: duplicates made by TRANSLATE are reported too, and relabelling rebuilds the index', () => {

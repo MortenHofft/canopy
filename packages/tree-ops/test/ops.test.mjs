@@ -12,6 +12,15 @@ import * as ops from '../src/index.ts';
 import { parseNewick, parseNexus, supportFrom, toNewick, TreeModel } from '@gbif-phylo/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
+// MRCA of tips named by label: the labels go through tipIndices (TreeModel.mrcaOf takes node numbers only)
+const tipsMrca = (t, labels) =>
+  t.mrcaOf(
+    labels.flatMap((l) => {
+      const k = t.tipIndices(l);
+      assert.ok(k.length, `no tip ${l}`);
+      return k;
+    }),
+  );
 const wrap =
   (fn) =>
   (...a) => {
@@ -122,7 +131,7 @@ test('reroot: support moves with the edge, names stay, GTDB-style labels recompo
   assert.equal(s.get('B,C,D,E'), ''); // the edge above A: a trivial split
   assert.equal(s.get('C,D,E'), '90:g__X');
   assert.equal(s.get('D,E'), '70:n1');
-  assert.equal(tree.support[tree.mrcaOf(['C', 'D', 'E'])], 90);
+  assert.equal(tree.support[tipsMrca(tree, ['C', 'D', 'E'])], 90);
 });
 
 test('reroot on a child of a binary root only moves the root along the root edge', () => {
@@ -437,18 +446,18 @@ test('reroot: support that exists only in tree.support moves with the edges (lab
     t.support[t.labels.indexOf(name)] = v;
   checkSupportOnlyInArray(t, 'array-only');
   const r = reroot(t, t.tipIndex('D'), { at: 0.5 });
-  assert.equal(r.tree.support[r.tree.mrcaOf(['A', 'B'])], 0.91);
-  assert.equal(r.tree.support[r.tree.mrcaOf(['F', 'G'])], 0.64);
-  assert.equal(r.tree.labels[r.tree.mrcaOf(['A', 'B'])], 'ab'); // the name stays, no number is written into it
+  assert.equal(r.tree.support[tipsMrca(r.tree, ['A', 'B'])], 0.91);
+  assert.equal(r.tree.support[tipsMrca(r.tree, ['F', 'G'])], 0.64);
+  assert.equal(r.tree.labels[tipsMrca(r.tree, ['A', 'B'])], 'ab'); // the name stays, no number is written into it
   // the array wins where label and array disagree; the label's number is used only where the array is NaN
   const u = parseNewick('(((A,B)90:ab,C)80:abc,(D,E)70:de);');
-  u.support[u.mrcaOf(['A', 'B'])] = 0.5;
-  const abc = u.mrcaOf(['A', 'B', 'C']);
+  u.support[tipsMrca(u, ['A', 'B'])] = 0.5;
+  const abc = tipsMrca(u, ['A', 'B', 'C']);
   u.support[abc] = NaN;
   u.labels[abc] = '80:abc'; // only the label has it
   const w = reroot(u, u.tipIndex('D'), { at: 0.5 }).tree;
-  assert.equal(w.support[w.mrcaOf(['A', 'B'])], 0.5);
-  assert.equal(ops.splitInternalLabel(w.labels[w.mrcaOf(['A', 'B', 'C'])]).support, 80); // untouched node: label as it was
+  assert.equal(w.support[tipsMrca(w, ['A', 'B'])], 0.5);
+  assert.equal(ops.splitInternalLabel(w.labels[tipsMrca(w, ['A', 'B', 'C'])]).support, 80); // untouched node: label as it was
 });
 
 test('reroot: the fish MCC posterior (supportFrom) survives every reroot position and midpoint rooting', () => {
@@ -463,29 +472,29 @@ test('reroot: the fish MCC posterior (supportFrom) survives every reroot positio
 
 test('reroot: a moved edge carries its label text; the array wins for the value, a disagreeing label stays as written', () => {
   const t = parseNewick("(((A,B)'90:ab',C)'80:abc',((D,E)'70:de',F)'60:def',G);");
-  const de = t.mrcaOf(['D', 'E']),
-    def = t.mrcaOf(['D', 'E', 'F']);
+  const de = tipsMrca(t, ['D', 'E']),
+    def = tipsMrca(t, ['D', 'E', 'F']);
   t.support[de] = 0.5; // the label says 70, the array 0.5
   t.support[def] = 0.4; // the label says 60
   // rooting on D reverses de and def: de's edge now sits above the node named def, def's edge above the old root
   const r = reroot(t, t.tipIndex('D'), { at: 0.5 }).tree;
-  const efabcg = r.mrcaOf(['F', 'A', 'B', 'C', 'G']),
-    abcg = r.mrcaOf(['A', 'B', 'C', 'G']);
+  const efabcg = tipsMrca(r, ['F', 'A', 'B', 'C', 'G']),
+    abcg = tipsMrca(r, ['A', 'B', 'C', 'G']);
   assert.equal(r.support[efabcg], 0.5);
   assert.equal(r.labels[efabcg], '70:def'); // the number as written on the old node, the name of the new one
   assert.equal(r.support[abcg], 0.4);
   assert.equal(r.labels[abcg], '60'); // the old root has no name
   // untouched nodes keep both
-  assert.equal(r.support[r.mrcaOf(['A', 'B'])], 90);
-  assert.equal(r.labels[r.mrcaOf(['A', 'B'])], '90:ab');
+  assert.equal(r.support[tipsMrca(r, ['A', 'B'])], 90);
+  assert.equal(r.labels[tipsMrca(r, ['A', 'B'])], '90:ab');
   // the text is carried as written: '98.0' and '.95' are not renormalised
   const x = parseNewick("(((A,B)'98.0:ab',C)'.95:abc',D);");
-  x.support[x.mrcaOf(['A', 'B'])] = 0.7;
+  x.support[tipsMrca(x, ['A', 'B'])] = 0.7;
   const w = reroot(x, x.tipIndex('D'), { at: 0.5 }).tree;
-  assert.equal(w.labels[w.mrcaOf(['A', 'B', 'C'])], '.95:abc');
+  assert.equal(w.labels[tipsMrca(w, ['A', 'B', 'C'])], '.95:abc');
   const y = parseNewick("((A,B)'98.0:ab',(C,D)'.95:cd',E);");
   const wy = reroot(y, y.tipIndex('C'), { at: 0.5 }).tree;
-  assert.equal(wy.labels[wy.mrcaOf(['A', 'B', 'E'])], '.95'); // cd's edge, as written, without cd's name
+  assert.equal(wy.labels[tipsMrca(wy, ['A', 'B', 'E'])], '.95'); // cd's edge, as written, without cd's name
 });
 
 test('subtree and showFocus drop a root support kept only in the label and keep the name', () => {
@@ -567,9 +576,9 @@ test('midpoint: within 1e-6 of the diameter counts as on a node (lengths rounded
 
 test('collapseClades: a clade becomes one tip that stands for it; nested and repeated nodes are covered', () => {
   const t = parseNewick('(((A:1,B:1)95:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
-  const ab = t.mrcaOf(['A', 'B']),
-    fam = t.mrcaOf(['A', 'C']),
-    ef = t.mrcaOf(['E', 'F']);
+  const ab = tipsMrca(t, ['A', 'B']),
+    fam = tipsMrca(t, ['A', 'C']),
+    ef = tipsMrca(t, ['E', 'F']);
   let r = collapseClades(t, [ab]);
   assert.equal(nwk(r.tree), "(('A and 1 more':2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);");
   checkModel(r.tree);
@@ -587,8 +596,8 @@ test('collapseClades: a clade becomes one tip that stands for it; nested and rep
 
 test("collapseClades extend: the new tip ends where the clade's tips did (own edge + the clade's height)", () => {
   const t = parseNewick('(((A:1,B:3)95:2,C:1)Fam:1,(D:1,(E:2,F:4):1):1);');
-  const ab = t.mrcaOf(['A', 'B']),
-    fam = t.mrcaOf(['A', 'C']);
+  const ab = tipsMrca(t, ['A', 'B']),
+    fam = tipsMrca(t, ['A', 'C']);
   const len = (r, node) => r.tree.length[r.map[node]];
   assert.equal(len(collapseClades(t, [ab]), ab), 2); // default: the edge is kept
   assert.equal(len(collapseClades(t, [ab], undefined, { extend: false }), ab), 2);
@@ -606,15 +615,15 @@ test("collapseClades extend: the new tip ends where the clade's tips did (own ed
   assert.equal(r.map[ab], -1);
   // missing lengths count as 0 in the height; no lengths at all: nothing to extend
   const m = parseNewick('((A,B:2)x:1,C);');
-  assert.equal(len(collapseClades(m, [m.mrcaOf(['A', 'B'])], undefined, { extend: true }), m.mrcaOf(['A', 'B'])), 3);
+  assert.equal(len(collapseClades(m, [tipsMrca(m, ['A', 'B'])], undefined, { extend: true }), tipsMrca(m, ['A', 'B'])), 3);
   const u = parseNewick('((A,B)x,C);');
-  assert.equal(nwk(collapseClades(u, [u.mrcaOf(['A', 'B'])], undefined, { extend: true }).tree), "('x (2 tips)',C);");
-  assert.ok(Number.isNaN(collapseClades(u, [u.mrcaOf(['A', 'B'])], undefined, { extend: true }).tree.length[1]));
+  assert.equal(nwk(collapseClades(u, [tipsMrca(u, ['A', 'B'])], undefined, { extend: true }).tree), "('x (2 tips)',C);");
+  assert.ok(Number.isNaN(collapseClades(u, [tipsMrca(u, ['A', 'B'])], undefined, { extend: true }).tree.length[1]));
 });
 
 test('collapseClades extend: validates the option and counts a negative own edge as 0', () => {
   const t = parseNewick('((A:1,B:3)x:-2,C:1);');
-  const x = t.mrcaOf(['A', 'B']);
+  const x = tipsMrca(t, ['A', 'B']);
   for (const bad of ['median', 1, null, {}]) assert.throws(() => ops.collapseClades(t, [x], undefined, { extend: bad }), RangeError);
   assert.equal(collapseClades(t, [x], undefined, { extend: undefined }).tree.length[1], -2);
   const r = collapseClades(t, [x], undefined, { extend: true });
@@ -635,7 +644,7 @@ test('collapseClades extend: any clade of the dated Carangaria MCC tree collapse
     assert.ok(checked > 100);
   }
   // without the option the shown tree is not ultrametric (the issue)
-  const inner = t.mrcaOf(t.tipLabels.slice(0, 2));
+  const inner = tipsMrca(t, t.tipLabels.slice(0, 2));
   assert.ok(!collapseClades(t, [inner]).tree.isUltrametric(1e-3));
   // all the root's clades at once
   const kids = [];
