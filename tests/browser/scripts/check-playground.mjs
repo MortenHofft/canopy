@@ -104,6 +104,61 @@ ok(
 );
 await select('layout', 'rectangular');
 
+console.log('the wheel over the overview zooms about the tree point under the pointer');
+{
+  const ovBox = () => page.locator('.phylo-overview').boundingBox();
+  const mid = (v) => (v.y0 + v.y1) / 2;
+  // rectangular: zoomed into the top of the tree, a wheel-in over the bottom of the strip moves the window toward the bottom clades
+  const tips = await ev(() => window.viewer.getTree().tipCount);
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: n / 10 }), tips);
+  await settled();
+  let v0 = await ev(() => window.viewer.getViewport());
+  let b = await ovBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.9);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  let v1 = await ev(() => window.viewer.getViewport());
+  const row = tips * 0.9;
+  ok(v1.y1 - v1.y0 < v0.y1 - v0.y0, 'rectangular: it zooms');
+  ok(
+    mid(v1) > mid(v0) + tips * 0.1,
+    `rectangular: and the window moves toward the bottom clades (centre ${mid(v0).toFixed(1)} -> ${mid(v1).toFixed(1)}, row ${row.toFixed(0)})`,
+  );
+  // a pointer over a place inside the window: that tree row keeps its relative place in the window (nothing clamps it)
+  await ev((n) => window.viewer.setViewport({ x0: 0, x1: 1, y0: n * 0.4, y1: n * 0.6 }), tips);
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  const py = b.y + b.height * 0.55;
+  const rowAt = ((py - b.y) / b.height) * tips;
+  await page.mouse.move(b.x + b.width / 2, py);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  // (a tolerance of a pixel: the browser rounds the event's clientY to whole pixels)
+  const rel = (v) => (rowAt - v.y0) / (v.y1 - v.y0);
+  ok(
+    v1.y1 - v1.y0 < v0.y1 - v0.y0 && Math.abs(rel(v1) - rel(v0)) < 0.01,
+    `rectangular: the row under the pointer keeps its relative place (${rel(v0).toFixed(4)} -> ${rel(v1).toFixed(4)})`,
+  );
+  // radial: a wheel-in over the right edge of the disc moves the window right (x) of where it was
+  await select('layout', 'radial');
+  await ev(() => window.viewer.fit(false));
+  await settled();
+  v0 = await ev(() => window.viewer.getViewport());
+  b = await ovBox();
+  await page.mouse.move(b.x + b.width * 0.85, b.y + b.height * 0.5);
+  await page.mouse.wheel(0, -200);
+  await settled();
+  v1 = await ev(() => window.viewer.getViewport());
+  ok(v1.x1 - v1.x0 < v0.x1 - v0.x0, 'radial: it zooms');
+  ok(
+    (v1.x0 + v1.x1) / 2 > (v0.x0 + v0.x1) / 2 + 0.05,
+    'radial: and the window moves toward the right of the tree, where the pointer is on the overview',
+  );
+  await select('layout', 'rectangular');
+}
+
 console.log('the URL keeps the settings');
 const before = page.url();
 await open(new URL(before).search);
