@@ -32,6 +32,11 @@ const ok = (c, m) => {
 const browser = await chromium.launch({ executablePath: chromiumPath(), headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 }, acceptDownloads: true });
 page.setDefaultTimeout(8000);
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  console.log('CONSOLE.ERROR', m.text().slice(0, 300));
+  failures++;
+});
 page.on('pageerror', (e) => {
   console.log('PAGEERR', e.message);
   failures++;
@@ -904,6 +909,45 @@ await btn('Undo').click();
 await page.waitForTimeout(300);
 ok((await tipCount()) === c60.tips, 'and so does Undo');
 
+// the crash path: the hover box is rendered with the last hover event, which held a node id of the tree shown before the change.
+// Hover, then Show only / Up / Back with colours, a collapsed clade, collapse by support and the pointer moving over the new tree
+// (any page error or console.error fails the run, see the handlers at the top)
+console.log('Show only, Up, Back with hover, colours, collapse and support: no page errors');
+{
+  const errorsBefore = failures;
+  await open('rich-fish-carangaria-135');
+  await btn('Color').click();
+  await page.locator('button[aria-label=Teal]').click();
+  await click(await ev(() => __clade(20, 40)));
+  await page.locator('.ex-outer').press('Escape');
+  await collapseAt(await ev(() => __clade(4, 10)));
+  await btn('Collapse by support').click();
+  await page.waitForTimeout(300);
+  for (const co of [false, true]) {
+    const c = await ev((co) => {
+      const v = __v();
+      const t = v.getTree();
+      for (let i = 1; i < t.nodeCount; i++)
+        if (t.firstChild[i] >= 0 && t.leafEnd[i] - t.leafStart[i] >= 3 && !!v.layout.collapsed?.[i] === co) {
+          const q = v.locateNode(i);
+          if (q) return q;
+        }
+      return null;
+    }, co);
+    if (!c) continue;
+    await page.mouse.move(c.x, c.y);
+    await page.waitForTimeout(150);
+    await openMenu(c);
+    await act('subtree');
+    for (const step of [null, 'Up one level', 'Back', 'Back']) {
+      if (step) await btn(step).click();
+      for (let k = 0; k < 6; k++) await page.mouse.move(300 + k * 90, 300 + k * 20);
+      await page.waitForTimeout(250);
+    }
+  }
+  ok(failures === errorsBefore, 'no page error or console.error during Show only, Up and Back');
+}
+
 // ---------------------------------------------------------------- collapse by support
 console.log('collapse by support');
 await open('rich-fish-carangaria-135');
@@ -1121,10 +1165,10 @@ for (const [id, tipsWanted] of [
   ok(n === tipsWanted, `${id}: ${n} tips shown (${ms} ms)`);
 }
 {
-  // a large tree: the Open Tree vertebrates, 91k tips, still with every feature; then the 190k-tip GTDB bacteria, over the limit for whole-tree operations
+  // a large tree: the Open Tree vertebrates, 91k tips; then the 190k-tip GTDB bacteria. Nothing is disabled on either
   const ms = await loadVia('otl-100k-vertebrata');
   const n = await tipCount();
-  ok(n > 90000 && (await page.locator('.ex-note').count()) === 0, `otl-100k-vertebrata: ${n} tips (${ms} ms), all features on`);
+  ok(n > 90000 && (await page.locator('.ex-note').count()) === 0, `otl-100k-vertebrata: ${n} tips (${ms} ms), `);
   await openMenu(
     await ev(() => {
       const t = __v().getTree();
@@ -1144,15 +1188,22 @@ for (const [id, tipsWanted] of [
   const ms2 = await loadVia('gtdb-190k-bacteria');
   const n2 = await tipCount();
   ok(n2 > 150000, `gtdb-190k-bacteria: ${n2} tips (${ms2} ms)`);
-  ok((await page.locator('.ex-note').innerText()).includes('Large tree'), 'a note says whole-tree operations are off');
   ok(
-    (await btn('Collapse by support').isDisabled()) &&
-      (await btn('Midpoint').isDisabled()) &&
-      (await page.locator('select[aria-label="Ladderize by"]').isDisabled()) &&
-      (await page.locator('button[title^="Ladderize ascending"]').isDisabled()),
-    'collapse by support, midpoint root and ladderize are disabled',
+    (await page.locator('.ex-note').count()) === 0 &&
+      (await btn('Midpoint').isEnabled()) &&
+      (await page.locator('select[aria-label="Ladderize by"]').isEnabled()) &&
+      (await page.locator('button[title^="Ladderize ascending"]').isEnabled()),
+    'nothing is disabled on a large tree',
   );
-  ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'while the tools that touch one node stay on');
+  ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
+  // search is capped
+  await page.locator('button[aria-label="Search taxa"]').click();
+  await page.keyboard.type('a');
+  await page.waitForTimeout(800);
+  ok(
+    (await page.locator('.ex-search-count').innerText()).includes('5,000'),
+    `search says when the 5,000-match cap is hit (${await page.locator('.ex-search-count').innerText()})`,
+  );
 }
 
 await browser.close();

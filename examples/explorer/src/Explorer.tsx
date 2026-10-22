@@ -26,8 +26,6 @@ type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
 type LadderBy = 'tips' | 'depth' | 'height';
 type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
-/** Above this many nodes the whole-tree operations are off: each one builds a new tree (and keeps the old one for Undo). */
-const BIG_NODES = 250_000;
 const MAX_MATCHES = 5000;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
@@ -112,7 +110,6 @@ export function Explorer({
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
-  const big = published.nodeCount > BIG_NODES;
 
   const [hScale, setHScale] = useState(1);
   const [vScale, setVScale] = useState(1);
@@ -159,7 +156,7 @@ export function Explorer({
   const hasSupport = supportRange !== null;
   const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
   const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
-  const supportActive = supportOn && hasSupport && !big;
+  const supportActive = supportOn && hasSupport;
   const protectedNodes = supportActive ? collapsed : NO_NODES; // changes only when it matters, so a collapse alone does not rebuild the view
   const view = useMemo(() => {
     const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
@@ -182,7 +179,12 @@ export function Explorer({
     return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed };
   }, [tree, focus, supportActive, threshold, protectedNodes]);
   const shown = view?.tree ?? tree;
-  const toTree = (k: number) => (view ? view.toTree[k] : k); // a node of what is shown -> the node of `tree` an action works on
+  // a node of what is shown -> the node of `tree` an action works on; -1 for an id the shown tree does not have. The hover box is rendered
+  // with the last hover event, which can hold an id of the tree shown BEFORE Show only / Up / Back changed it.
+  const toTree = (k: number) => {
+    const v = view ? view.toTree[k] : k;
+    return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
+  };
   const shownClades = useMemo(
     () =>
       view
@@ -445,6 +447,7 @@ export function Explorer({
   const onClick = (e: TreeNodeEvent) => {
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
+    if (v < 0) return;
     switch (mode) {
       case 'reroot':
         if (v === 0) return flash('Already the root');
@@ -468,8 +471,8 @@ export function Explorer({
 
   // the node menu: what a click on this tip or clade offers. Not while a tool is active, which acts on the click itself.
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] | null => {
-    if (mode !== 'none' || e.run) return null;
     const v = toTree(e.node);
+    if (mode !== 'none' || e.run || v < 0) return null;
     const isTip = e.isTip;
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
@@ -542,8 +545,8 @@ export function Explorer({
 
   // the hover box says what a click would do
   const tooltip = (e: TreeNodeEvent) => {
-    if (e.run) return null;
     const v = toTree(e.node);
+    if (e.run || v < 0) return null;
     const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} taxa`;
     const tag = (cls: string, icon: React.ReactNode, text: React.ReactNode) => (
       <span className={`ex-tip ex-tip--${cls}`}>
@@ -906,14 +909,8 @@ export function Explorer({
         <button
           type="button"
           className="ex-btn ex-tool"
-          disabled={!tree.hasLengths || big}
-          title={
-            big
-              ? 'Off on a large tree: it builds a new tree'
-              : tree.hasLengths
-                ? 'Midpoint root — place root at the midpoint of the longest path'
-                : 'Midpoint root requires branch lengths'
-          }
+          disabled={!tree.hasLengths}
+          title={tree.hasLengths ? 'Midpoint root — place root at the midpoint of the longest path' : 'Midpoint root requires branch lengths'}
           onClick={() => {
             exitModes();
             apply(ops.midpointRoot, 'Midpoint');
@@ -965,7 +962,6 @@ export function Explorer({
         <div className="ex-group">
           <button
             type="button"
-            disabled={big}
             title={`Ladderize ascending by ${ladderBy} — smallest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy }), 'Ladderize')}
           >
@@ -973,7 +969,6 @@ export function Explorer({
           </button>
           <button
             type="button"
-            disabled={big}
             title={`Ladderize descending by ${ladderBy} — largest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy, order: 'decreasing' }), 'Ladderize')}
           >
@@ -985,7 +980,7 @@ export function Explorer({
           title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
         >
           <J.IconLadderBy />
-          <select aria-label="Ladderize by" disabled={big} value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
+          <select aria-label="Ladderize by" value={ladderBy} onChange={(e) => setLadderBy(e.target.value as LadderBy)}>
             <option value="tips">by tips</option>
             <option value="depth">by depth</option>
             <option value="height" disabled={!tree.hasLengths}>
@@ -999,13 +994,11 @@ export function Explorer({
             type="button"
             className={`ex-btn ex-toggle${supportActive ? ' active' : ''}`}
             aria-pressed={supportActive}
-            disabled={!hasSupport || big}
+            disabled={!hasSupport}
             title={
-              big
-                ? 'Off on a large tree: it builds a new tree'
-                : hasSupport
-                  ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
-                  : 'This tree has no support values'
+              hasSupport
+                ? 'Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed.'
+                : 'This tree has no support values'
             }
             onClick={() => setSupportOn((o) => !o)}
           >
@@ -1101,13 +1094,6 @@ export function Explorer({
         )}
       </div>
 
-      {big && (
-        <p className="ex-note" role="note">
-          Large tree ({published.tipCount.toLocaleString('en')} tips): collapse by support, ladderize and midpoint root are off, because each builds a
-          whole new tree. Show only this clade, collapse, search, colour and export work on what the viewer draws.
-        </p>
-      )}
-
       {/* ── Body: the tree ── */}
       <div className="ex-pane" style={{ height }}>
         <TreeView
@@ -1168,8 +1154,17 @@ export function Explorer({
               }}
             />
             {query.trim() && (
-              <span className={`ex-search-count${matches.length ? '' : ' none'}`}>
-                {matches.length ? `${matches.indexOf(current!) + 1} / ${matches.length}${matches.length >= MAX_MATCHES ? '+' : ''}` : 'No match'}
+              <span
+                className={`ex-search-count${matches.length ? '' : ' none'}`}
+                title={
+                  matches.length >= MAX_MATCHES
+                    ? `Showing the first ${MAX_MATCHES.toLocaleString('en')} matches; type more to narrow them`
+                    : undefined
+                }
+              >
+                {matches.length
+                  ? `${matches.indexOf(current!) + 1} / ${matches.length}${matches.length >= MAX_MATCHES ? '+ (first 5,000)' : ''}`
+                  : 'No match'}
               </span>
             )}
             {matches.length > 1 && (

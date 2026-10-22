@@ -38,7 +38,7 @@ Each control and the API behind it.
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
-| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels, at most 5,000 matches kept (a keystroke on 2.4 million tips takes about half a second) |
+| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels, at most 5,000 matches kept |
 | **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the columns stay at full strength) |
 | Midpoint, **Ladderize ↑ ↓ by tips / depth / height** | tree-ops `midpointRoot`, `ladderise(t, { order, by })` |
 | Reroot, Flip, Swap, Undo (⌘Z) | tree-ops `reroot`, `rotate`, `swap`; a history of trees, each edit a function returning a new tree. Colours, collapsed clades and the focus follow the tips (`followClades`, `remapFocus`) and the view stays (`treeMap`, the op's node map) |
@@ -55,10 +55,8 @@ Each control and the API behind it.
 
 ### Large trees
 
-Above 250,000 nodes (the 190k-tip GTDB bacteria tree, the 1.5M and 2.4M OTL trees) the controls that build a whole new tree are off, and a
-note above the pane says so: **collapse by support**, **ladderize** and **midpoint root**. Reroot, Flip and Swap stay (one edit at a time),
-and so do Show only this clade, collapse, colour, search and export, which work on what the viewer draws or on one clade. The 2.4M-tip tree
-loads in about 3 s in headless Chromium without a GPU (parse included); Show only on its largest clade takes about 1 s.
+Nothing is switched off on a large tree. Search is capped at 5,000 matches (the count says so, and its tooltip); on 2.4 million tips a
+keystroke takes about half a second. Measurements of the whole-tree actions are in the CHANGELOG entry for #54.
 
 ## Notes
 
