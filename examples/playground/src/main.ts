@@ -95,7 +95,7 @@ function computeView(t: TreeModel): View {
   let toView: Int32Array | null = null; // loaded -> shown, composed over the steps
   const step = (r: ops.OpResult) => {
     if (!r.changed) return false;
-    toView = toView ? toView.map((v) => (v >= 0 ? r.map[v] : -1)) : r.map;
+    toView = toView ? ops.composeMaps(toView, r.map) : r.map;
     shown = new TreeModel(r.tree);
     return true;
   };
@@ -120,8 +120,7 @@ function computeView(t: TreeModel): View {
   }
   const map = toView as Int32Array | null;
   if (!map) return { tree: t, toShown: (v) => v, toFull: (v) => v, collapsedTips, supportCollapsed, support };
-  const back = new Int32Array(shown.nodeCount);
-  for (let i = 0; i < map.length; i++) if (map[i] >= 0) back[map[i]] = i;
+  const back = ops.invertMap(map, shown.nodeCount);
   return { tree: shown, toShown: (v) => map[v] ?? -1, toFull: (v) => back[v], collapsedTips, supportCollapsed, support };
 }
 

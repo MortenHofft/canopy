@@ -491,3 +491,132 @@ test('focus: show a clade alone, up one level, back', () => {
   // a stack that comes down to 'whole tree' alone is empty: nothing to go back to
   assert.deepEqual(ops.remapFocus({ stack: [id('ab'), -1] }, () => -1).stack, []);
 });
+
+// ---- map helpers: followClade, followClades, invertMap, composeMaps
+const NEWICK = '((((A:1,B:1)ab:1,C:1)abc:1,D:1)abcd:1,(E:1,F:1)ef:1);';
+const clade = (t, l) => t.labels.indexOf(l);
+
+test('followClade: reroot inside a clade splits it, elsewhere keeps it', () => {
+  const t = parseNewick(NEWICK);
+  const r = reroot(t, clade(t, 'abc'), { at: 0.5 }); // on the edge above abc: ab, abc stay clades
+  const f = ops.followClade(t, r.tree, r.map, clade(t, 'ab'));
+  assert.equal(f.split, false);
+  assert.deepEqual([f.tipsBefore, f.tipsAfter], [2, 2]);
+  assert.equal(r.tree.labels[f.node], 'ab');
+  // rooting on a tip of abcd splits abcd (its tips lie on both sides of the new root)
+  const s = reroot(t, t.tipIndex('D'), { at: 0.5 });
+  const g = ops.followClade(t, s.tree, s.map, clade(t, 'abcd'));
+  assert.equal(g.split, true);
+  assert.equal(g.node, -1);
+  assert.deepEqual([g.tipsBefore, g.tipsAfter], [4, 4]);
+  assert.equal(ops.followClade(t, s.tree, s.map, clade(t, 'abcd'), { onSplit: 'keep' }).node, s.map[clade(t, 'abcd')]);
+});
+
+test('followClade: pruning all the tips gives -1, some gives the clade they form', () => {
+  const t = parseNewick(NEWICK);
+  const r = prune(t, (k) => t.labels[t.tipNode[k]] !== 'A' && t.labels[t.tipNode[k]] !== 'B');
+  const gone = ops.followClade(t, r.tree, r.map, clade(t, 'ab'));
+  assert.deepEqual(gone, { node: -1, split: false, tipsBefore: 2, tipsAfter: 0 });
+  const abc = ops.followClade(t, r.tree, r.map, clade(t, 'abc'));
+  assert.equal(abc.tipsAfter, 1);
+  assert.equal(r.tree.labels[abc.node], 'C'); // one surviving tip is a clade of its own
+  assert.throws(() => ops.followClade(t, r.tree, r.map, 99), RangeError);
+});
+
+test('followClade: ladderise, rotate and a reroot elsewhere keep every clade, though a clade node may not survive', () => {
+  const t = parseNewick('(((A:1,B:2)x:1,(C:1,D:3)y:1)z:1,((E:1,F:2)u:1,(G:1,(H:1,I:1)v:1)w:1)q:1);');
+  const rs = [ladderise(t, { order: 'decreasing' }), rotate(t, clade(t, 'z')), reroot(t, clade(t, 'u'), { at: 0.5 })];
+  for (const r of rs) {
+    assert.ok(r.changed);
+    // the answer is by tips: it names the same tip set, whatever the operation did to node ids
+    for (let v = 1; v < t.nodeCount; v++) {
+      const f = ops.followClade(t, r.tree, r.map, v);
+      if (f.split) continue;
+      assert.ok(f.node >= 0);
+      assert.deepEqual(tipSet(r.tree, f.node), tipSet(t, v));
+    }
+  }
+  // rooting on the edge above u removes the old root (map[0] is -1), yet the whole tree is still one clade: the new root
+  const r = rs[2];
+  assert.equal(r.map[0], -1);
+  const all = ops.followClade(t, r.tree, r.map, 0);
+  assert.deepEqual([all.node, all.split], [0, false]);
+});
+
+const tipSet = (t, v) => {
+  const out = [];
+  for (let rk = t.leafStart[v]; rk < t.leafEnd[v]; rk++) out.push(t.labels[t.tipNode[rk]]);
+  return out.sort();
+};
+
+test('followClade across collapseClades: a collapsed clade follows to its tip, a clade holding one to its clade', () => {
+  const t = parseNewick('(((A,B)ab,C)abc,(D,E)de,F);');
+  const r = collapseClades(t, [clade(t, 'ab')]);
+  const self = ops.followClade(t, r.tree, r.map, clade(t, 'ab'));
+  assert.equal(self.node, r.map[clade(t, 'ab')]);
+  assert.equal(self.split, false);
+  const outer = ops.followClade(t, r.tree, r.map, clade(t, 'abc'));
+  assert.equal(outer.split, false);
+  assert.equal(outer.node, r.map[clade(t, 'abc')]);
+  assert.equal(outer.tipsAfter, 2); // the collapsed tip and C
+  // a tip inside the collapsed clade has no tip of its own any more
+  assert.equal(ops.followClade(t, r.tree, r.map, t.tipIndex('A')).node, -1);
+  const many = ops.followClades(t, r.tree, r.map, [clade(t, 'ab'), clade(t, 'abc')]);
+  assert.deepEqual(
+    many.map((m) => m.node),
+    [self.node, outer.node],
+  );
+});
+
+test('followClades equals followClade for each node, including after a split and a prune', () => {
+  const t = parseNewick(NEWICK);
+  const nodes = [...Array(t.nodeCount).keys()];
+  for (const r of [reroot(t, t.tipIndex('D')), prune(t, (k) => k % 2 === 0), collapseClades(t, [clade(t, 'ab'), clade(t, 'ef')])]) {
+    for (const o of [undefined, { onSplit: 'keep' }]) {
+      const many = ops.followClades(t, r.tree, r.map, nodes, o);
+      nodes.forEach((v, i) => {
+        const { node, split } = ops.followClade(t, r.tree, r.map, v, o);
+        assert.deepEqual(many[i], { node, split });
+      });
+    }
+  }
+});
+
+test('invertMap undoes a map on the surviving nodes and marks added nodes -1', () => {
+  const t = parseNewick(NEWICK);
+  const r = reroot(t, t.tipIndex('E'), { at: 0.5 });
+  const inv = ops.invertMap(r.map, r.tree.nodeCount);
+  assert.equal(inv.length, r.tree.nodeCount);
+  let added = 0;
+  for (let i = 0; i < t.nodeCount; i++) if (r.map[i] >= 0) assert.equal(inv[r.map[i]], i);
+  for (const o of inv) if (o < 0) added++;
+  assert.equal(added, r.tree.nodeCount - r.map.filter((v) => v >= 0).length);
+  assert.ok(added >= 1); // the new root
+});
+
+test('invertMap and composeMaps throw on entries out of range', () => {
+  assert.throws(() => ops.invertMap(Int32Array.of(0, 5), 3), RangeError);
+  assert.throws(() => ops.composeMaps(Int32Array.of(0, 5), Int32Array.of(0, 1)), RangeError);
+  assert.deepEqual([...ops.composeMaps(Int32Array.of(-1, 1), Int32Array.of(0, -1))], [-1, -1]);
+});
+
+test('composeMaps equals applying two operations in turn', () => {
+  const t = parseNewick(NEWICK);
+  const a = reroot(t, clade(t, 'ef'), { at: 0.5 });
+  const b = prune(a.tree, (k) => a.tree.labels[a.tree.tipNode[k]] !== 'C');
+  const ab = ops.composeMaps(a.map, b.map);
+  assert.equal(ab.length, t.nodeCount);
+  for (let i = 0; i < t.nodeCount; i++) assert.equal(ab[i], a.map[i] >= 0 ? b.map[a.map[i]] : -1);
+  assert.equal(ab[t.tipIndex('C')], -1);
+  assert.ok(ab[t.tipIndex('A')] >= 0);
+  // a composed map follows clades like the two steps do
+  const direct = ops.followClade(t, b.tree, ab, clade(t, 'ab'));
+  assert.equal(b.tree.labels[direct.node], 'ab');
+});
+
+test('remapFocus can follow the operation instead of a callback', () => {
+  const t = parseNewick(NEWICK);
+  const r = reroot(t, t.tipIndex('D'), { at: 0.5 }); // splits abcd, keeps ab
+  const f = ops.remapFocus({ stack: [clade(t, 'ab'), clade(t, 'abcd')] }, t, r.tree, r.map);
+  assert.deepEqual(f.stack, [r.map[clade(t, 'ab')]]);
+});

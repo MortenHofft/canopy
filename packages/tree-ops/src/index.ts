@@ -7,3 +7,4 @@ export { collapseBySupport, collapseShortBranches } from './collapse.ts';
 export { collapseClades, prune, subtree } from './subset.ts';
 export { splitInternalLabel } from './labels.ts';
 export { NO_FOCUS, canGoBack, canGoUp, focusBack, focusOn, focusUp, focusedNode, remapFocus, showFocus, type Focus } from './focus.ts';
+export { followClade, followClades, invertMap, composeMaps, type FollowOptions, type Followed, type FollowedClade } from './follow.ts';
