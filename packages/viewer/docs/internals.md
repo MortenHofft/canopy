@@ -104,7 +104,7 @@ Related, from the measured work: the two cut loops in `lod.ts` are separate on p
 `setCollapsed(nodeIds)` makes a clade one row and one summary, on the full tree (issue #29: the app no longer collapses a copy of the tree and
 translates ids). The tree arrays are not touched. What changes is the **layout**, and with it the meaning of "row". These are the invariants:
 
-- **Rows and ranks.** A _row_ is a place across the tips (rect: y in rows, radial: angle = row * 2pi / rows). A _rank_ is a tip's index in the
+- **Rows and ranks.** A _row_ is a place across the tips (rect: y in rows, radial: angle = fan.start + row * fan.span / rows, see `RadialFan` in `layout.ts`). A _rank_ is a tip's index in the
   tree. Without collapsed clades they are the same number and `Layout.rowOfRank`, `rankOfRow`, `rowNode`, `collapsed` and `hidden` are all `null`;
   `rowStart` / `rowEnd` are then the very arrays `tree.leafStart` / `leafEnd`, `rows === tips`, so nothing is copied and the cut reads the same
   memory as before (the cut goldens did not change). `computeLayout(tree, lengths, mask)` builds the tables in O(n) (one preorder scan that jumps

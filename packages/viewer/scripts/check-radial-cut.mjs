@@ -1,5 +1,7 @@
 // Regression check of the radial cut (level of detail, budget, culling, summaries, hit-testing). Plain Node, no browser:
-//   node --experimental-transform-types packages/viewer/scripts/check-radial-cut.mjs [--tips 10000] [--budget 2000]
+//   node --experimental-transform-types packages/viewer/scripts/check-radial-cut.mjs [--tips 10000] [--budget 2000] [--opening 0.05] [--rotation 90]
+// --opening and --rotation are the fan of the radial layout (options radialOpening, radialRotation; default the options' defaults);
+// test/radial-cut.test.mjs runs it with openings 0, 0.05 and 0.5.
 // Run with: node --experimental-transform-types packages/viewer/scripts/check-radial-cut.mjs (Node >= 22.7; the core is TypeScript).
 // Runs the real core modules on the committed 10,000-tip Yule tree (data/synthetic/newick/yule_10000.nwk.gz; other sizes are
 // generated with data/synthetic/generate.py into a temp dir) laid out radially in a 1100 x 640 container, and checks, at the fit view and at 4x and 16x zoom:
@@ -40,7 +42,11 @@ const TIPS = Number(args.tips || 10000);
 const BUDGET = Number(args.budget || 2000);
 
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
-const { computeLayout, ensureTrig } = await import(path.join(root, 'packages/viewer/src/layout.ts'));
+const { computeLayout, ensureTrig, fanAngle, radialFan } = await import(path.join(root, 'packages/viewer/src/layout.ts'));
+const { DEFAULT_OPTIONS } = await import(path.join(root, 'packages/viewer/src/types.ts'));
+const OPENING = args.opening !== undefined ? Number(args.opening) : DEFAULT_OPTIONS.radialOpening;
+const ROTATION = args.rotation !== undefined ? Number(args.rotation) : DEFAULT_OPTIONS.radialRotation;
+const FAN = radialFan(OPENING, ROTATION);
 const { makeTransform } = await import(path.join(root, 'packages/viewer/src/geom.ts'));
 const { DrawList, Seen, searchCut, K_TIP, K_SUMMARY, isSlice, SLICE_MIN_CHILDREN } = await import(path.join(root, 'packages/viewer/src/lod.ts'));
 const { HitIndex } = await import(path.join(root, 'packages/viewer/src/hit.ts'));
@@ -58,9 +64,9 @@ function loadNewick() {
 }
 const tree = parseNewick(loadNewick());
 const L = computeLayout(tree, true);
-ensureTrig(L);
+ensureTrig(L, FAN);
 const N = tree.tipCount;
-console.log(`tree: ${N} tips, ${tree.nodeCount} nodes; budget ${BUDGET}`);
+console.log(`tree: ${N} tips, ${tree.nodeCount} nodes; budget ${BUDGET}; radial opening ${OPENING}, rotation ${ROTATION}`);
 
 // ---- the viewport, as the renderer's fit and zoom
 const W = 1100,
@@ -95,7 +101,7 @@ const lo = new DrawList(),
   seen2 = new Seen();
 let prev = null;
 for (const [name, vp] of views) {
-  const T = makeTransform('radial', W, H, vp, area, N);
+  const T = makeTransform('radial', W, H, vp, area, N, FAN);
   const { res, minPx, retries } = searchCut(projectionFor(tree, L, T), null, list, seen, {
     lod: true,
     base: 3,
@@ -181,7 +187,7 @@ for (const [name, vp] of views) {
       r0n = L.X[i] * k,
       arc = (tree.leafEnd[i] - tree.leafStart[i]) * T.da * r1;
     if (arc < 1.5 || r1 - r0n < 4) continue;
-    const a = ((tree.leafStart[i] + tree.leafEnd[i]) / 2) * T.da;
+    const a = T.fan.start + ((tree.leafStart[i] + tree.leafEnd[i]) / 2) * T.da;
     const rr = r1 - 2;
     const x = T.cx + rr * Math.cos(a),
       y = T.cy + rr * Math.sin(a);
@@ -196,7 +202,7 @@ for (const [name, vp] of views) {
 
 // budgets 500..20000 at fit: never above the budget
 for (const b of [500, 1000, 2000, 5000, 20000]) {
-  const T = makeTransform('radial', W, H, fitView, area, N);
+  const T = makeTransform('radial', W, H, fitView, area, N, FAN);
   const { res } = searchCut(projectionFor(tree, L, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
   console.log(`budget ${b}: drawn ${list.count}${res.overflow ? ' TRUNCATED' : ''}`);
   ok(!res.overflow && list.count <= b, `budget ${b}: drawn ${list.count}`);
@@ -236,7 +242,7 @@ function panCheck(label, tr, Lr, Nr) {
         [4.25, 2.75],
         [9.3, 0],
       ]) {
-        const T = makeTransform(kind, W, H, mk(dx, dy), area, Nr);
+        const T = makeTransform(kind, W, H, mk(dx, dy), area, Nr, FAN);
         searchCut(projectionFor(tr, Lr, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
         const cur = summarySet(list);
         if (!ref) {
@@ -264,7 +270,7 @@ const skipOtl = (what) => {
 if (fs.existsSync(otlFile)) {
   const otl = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const Lo = computeLayout(otl, true);
-  ensureTrig(Lo);
+  ensureTrig(Lo, FAN);
   panCheck('OTL 91k', otl, Lo, otl.tipCount);
 } else skipOtl('8 sub-pixel pan on the OTL 91k tree');
 // 9 a star of 10,000 tips next to two balanced 1,000-tip clades
@@ -274,7 +280,7 @@ if (fs.existsSync(otlFile)) {
   const star = Array.from({ length: STAR }, (_, j) => `s${j}:1`).join(',');
   const st = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${star}):10);`);
   const Ls = computeLayout(st, true);
-  ensureTrig(Ls);
+  ensureTrig(Ls, FAN);
   const Ns = st.tipCount;
   const starNode = (() => {
     for (let i = 0; i < st.nodeCount; i++) if (st.childCount[i] === STAR) return i;
@@ -283,11 +289,11 @@ if (fs.existsSync(otlFile)) {
   ok(starNode >= 0 && isSlice(st, starNode), 'star: the polytomy node is not recognised as a slice');
   const mid = st.tipNode[st.leafStart[starNode] + STAR / 2];
   const rr = Ls.X[mid],
-    aa = Ls.ROW[mid] * ((2 * Math.PI) / Ns);
+    aa = fanAngle(FAN, Ns, Ls.ROW[mid]);
   for (const b of [500, 2000]) {
     for (const z of [3, 8, 20]) {
       const vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
-      const T = makeTransform('radial', W, H, vp, area, Ns);
+      const T = makeTransform('radial', W, H, vp, area, Ns, FAN);
       const { res, minPx } = searchCut(projectionFor(st, Ls, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint: 0 });
       let kids = 0,
         sliceDrawn = 0,
@@ -298,9 +304,9 @@ if (fs.existsSync(otlFile)) {
         else if (i === starNode && list.kind[e] === K_SUMMARY) sliceDrawn++;
         else other++;
       }
-      const dense = ((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k < 3; // children closer than the 3 px base threshold
+      const dense = (FAN.span / Ns) * Ls.XMAX[mid] * T.k < 3; // children closer than the 3 px base threshold
       console.log(
-        `star ${STAR}, budget ${b}, zoom ${z}x: tip pitch ${(((2 * Math.PI) / Ns) * Ls.XMAX[mid] * T.k).toFixed(2)} px, children drawn ${kids}, slice ${sliceDrawn}, other primitives ${other}, minPx ${minPx.toFixed(2)}, forced ${res.forced}`,
+        `star ${STAR}, budget ${b}, zoom ${z}x: tip pitch ${((FAN.span / Ns) * Ls.XMAX[mid] * T.k).toFixed(2)} px, children drawn ${kids}, slice ${sliceDrawn}, other primitives ${other}, minPx ${minPx.toFixed(2)}, forced ${res.forced}`,
       );
       if (dense) {
         ok(kids === 0, `star ${b} ${z}x: ${kids} children of the polytomy drawn individually`);
@@ -343,7 +349,7 @@ if (fs.existsSync(otlFile)) {
   }
   const poly = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${kids.join(',')}):10);`);
   const Lp = computeLayout(poly, true);
-  ensureTrig(Lp);
+  ensureTrig(Lp, FAN);
   const Np = poly.tipCount;
   const P = (() => {
     for (let i = 0; i < poly.nodeCount; i++) if (poly.childCount[i] === kids.length) return i;
@@ -410,7 +416,7 @@ if (fs.existsSync(otlFile)) {
   ]) {
     for (const b of [500, 2000]) {
       const vp = rect ? { x0: -0.03, x1: 1.03, y0: -1, y1: Np + 1 } : fitView;
-      const T = makeTransform(kind, W, H, vp, area, Np);
+      const T = makeTransform(kind, W, H, vp, area, Np, FAN);
       const r = checkCut(`polytomy ${kind} fit`, T, b, () => true);
       const total = r.tipsDrawn + r.res.summaryTips + r.res.mergedTips;
       ok(
@@ -420,7 +426,7 @@ if (fs.existsSync(otlFile)) {
     }
   }
   // zoomed on the polytomy
-  const aa = Lp.ROW[midTip] * ((2 * Math.PI) / Np),
+  const aa = fanAngle(FAN, Np, Lp.ROW[midTip]),
     rr = Lp.X[midTip];
   const midRow = Lp.ROW[midTip];
   for (const [kind, rect] of [
@@ -434,8 +440,8 @@ if (fs.existsSync(otlFile)) {
           const h = (Np + 2) / z;
           vp = { x0: -0.03, x1: 1.03, y0: midRow - h / 2, y1: midRow + h / 2 };
         } else vp = zoomView(z, rr * Math.cos(aa), rr * Math.sin(aa));
-        const T = makeTransform(kind, W, H, vp, area, Np);
-        const pitch = rect ? T.ky : ((2 * Math.PI) / Np) * Lp.XMAX[midTip] * T.k;
+        const T = makeTransform(kind, W, H, vp, area, Np, FAN);
+        const pitch = rect ? T.ky : (FAN.span / Np) * Lp.XMAX[midTip] * T.k;
         const vis = rect
           ? (c) => {
               const y = T.oy + ((poly.leafStart[c] + poly.leafEnd[c]) / 2) * T.ky;
@@ -477,7 +483,7 @@ if (fs.existsSync(otlFile)) {
               y = T.oy + ((poly.leafStart[i] + poly.leafEnd[lm]) / 2) * T.ky;
               if (x1 - x0 < 8 || (poly.leafEnd[lm] - poly.leafStart[i]) * T.ky < 6) continue;
             } else {
-              const a = ((poly.leafStart[i] + poly.leafEnd[lm]) / 2) * T.da,
+              const a = T.fan.start + ((poly.leafStart[i] + poly.leafEnd[lm]) / 2) * T.da,
                 r1 = list.xmax[e] * T.k,
                 r0 = Lp.X[P] * T.k;
               if (r1 - r0 < 8 || (poly.leafEnd[lm] - poly.leafStart[i]) * T.da * r1 < 6) continue;
@@ -502,7 +508,7 @@ if (fs.existsSync(otlFile)) {
 if (fs.existsSync(otlFile)) {
   const otl2 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const Lz = computeLayout(otl2, true);
-  ensureTrig(Lz);
+  ensureTrig(Lz, FAN);
   const Nz = otl2.tipCount;
   for (const b of [500, 2000]) {
     let changed = 0,
@@ -522,7 +528,7 @@ if (fs.existsSync(otlFile)) {
       for (let z = 2; z <= 30; z *= 1.02) {
         const w = W / kfit / z,
           h = H / kfit / z;
-        const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz);
+        const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, Nz, FAN);
         const { minPx } = searchCut(projectionFor(otl2, Lz, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
         hint = minPx;
         const cur = new Set();
@@ -549,7 +555,7 @@ if (fs.existsSync(otlFile)) {
 if (fs.existsSync(otlFile)) {
   const otl3 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const L3 = computeLayout(otl3, true);
-  ensureTrig(L3);
+  ensureTrig(L3, FAN);
   const N3 = otl3.tipCount;
   for (const b of [500, 2000]) {
     const a = (200 * Math.PI) / 180,
@@ -563,7 +569,7 @@ if (fs.existsSync(otlFile)) {
     for (let z = 1.5; z <= 40; z *= 1.03) {
       const w = W / kfit / z,
         h = H / kfit / z;
-      const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3);
+      const T = makeTransform('radial', W, H, { x0: px - w / 2, x1: px + w / 2, y0: py - h / 2, y1: py + h / 2 }, area, N3, FAN);
       const { minPx } = searchCut(projectionFor(otl3, L3, T), null, list, seen, { lod: true, base: 3, budget: b, summaries: true, hint });
       hint = minPx;
       if (prevM && minPx > prevM * 1.001) rises++;

@@ -83,7 +83,7 @@ const target = await rd(() => {
       r0 = L.X[i] * T.k,
       arc = (tree.leafEnd[i] - tree.leafStart[i]) * T.da * r1;
     if (arc < 2.5 || r1 - r0 < 10 || tree.leafEnd[i] - tree.leafStart[i] < 3) continue;
-    const a = ((tree.leafStart[i] + tree.leafEnd[i]) / 2) * T.da,
+    const a = T.fan.start + ((tree.leafStart[i] + tree.leafEnd[i]) / 2) * T.da,
       rr = r1 - 3;
     const x = T.cx + rr * Math.cos(a),
       y = T.cy + rr * Math.sin(a);

@@ -9,11 +9,13 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const script = path.join(here, '..', 'scripts', 'check-radial-cut.mjs');
 
-test('radial cut regression script (scripts/check-radial-cut.mjs) passes', { timeout: 10 * 60 * 1000 }, () => {
-  const r = spawnSync(process.execPath, ['--experimental-transform-types', '--no-warnings', script], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
+// openings 0 (the whole circle, opening at the bottom), 0.05 (the default) and 0.5 (a half circle), issue #41
+for (const opening of ['0', '0.05', '0.5'])
+  test(`radial cut regression script (scripts/check-radial-cut.mjs) passes, radialOpening ${opening}`, { timeout: 10 * 60 * 1000 }, () => {
+    const r = spawnSync(process.execPath, ['--experimental-transform-types', '--no-warnings', script, '--opening', opening], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    assert.equal(r.status, 0, `exit code ${r.status}\n${r.stdout.slice(-4000)}\n${r.stderr.slice(-2000)}`);
+    assert.equal(r.stdout.trimEnd().split('\n').pop(), 'OK', 'the script must end with OK');
   });
-  assert.equal(r.status, 0, `exit code ${r.status}\n${r.stdout.slice(-4000)}\n${r.stderr.slice(-2000)}`);
-  assert.equal(r.stdout.trimEnd().split('\n').pop(), 'OK', 'the script must end with OK');
-});

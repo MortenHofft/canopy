@@ -39,7 +39,7 @@ import {
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { InputController, type InputHost } from './input.ts';
-import { computeLayout, ensureTrig, remapRow, type Layout } from './layout.ts';
+import { computeLayout, ensureTrig, fanAngle, fanRow, radialFan, remapRow, setLayoutFan, type Layout } from './layout.ts';
 import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
@@ -900,9 +900,11 @@ export class TreeViewer {
     const changed = Object.keys(p) as (keyof ViewerOptions)[];
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
+    const fanChanged = p.radialOpening !== undefined || p.radialRotation !== undefined;
     const refit =
       lengthsChanged ||
       layoutChanged ||
+      (fanChanged && (p.layout ?? o.layout) === 'radial') ||
       (p.axis !== undefined && p.axis !== o.axis) ||
       (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight) ||
       (p.treeWidth !== undefined && p.treeWidth !== o.treeWidth);
@@ -917,7 +919,14 @@ export class TreeViewer {
     }
     if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
-    if (lengthsChanged) {
+    if (fanChanged) {
+      // the fan moves every tip: the trig cache of each cached layout is rebuilt for it, and the transform of the last frame follows
+      const fan = radialFan(this.opts.radialOpening, this.opts.radialRotation);
+      for (const L of this.layouts.values()) setLayoutFan(L, fan);
+      if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, this.vs.view, this.vs.area, this.L.rows, fan);
+      this.minPxHint = 0;
+    }
+    if (lengthsChanged || fanChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
       this.rebuildProj();
       this.hit.invalidate();
@@ -1179,16 +1188,14 @@ export class TreeViewer {
         cy = (v.y0 + v.y1) / 2;
       const rho = Math.hypot(cx, cy);
       if (rho > 1e-6) {
-        const full = 2 * Math.PI;
-        const th = (Math.atan2(cy, cx) + full) % full;
-        const th2 = (remapRow((th / full) * before.rows, before, this.L) / this.L.rows) * full;
+        const th2 = fanAngle(this.L.fan, this.L.rows, remapRow(fanRow(before.fan, before.rows, Math.atan2(cy, cx)), before, this.L));
         const nx = rho * Math.cos(th2),
           ny = rho * Math.sin(th2);
         vs.setViewport({ x0: nx - (cx - v.x0), x1: nx + (v.x1 - cx), y0: ny - (cy - v.y0), y1: ny + (v.y1 - cy) });
       }
     }
     // the transform of the last frame counts rows too (the radial angle step): positions asked before the next frame use the new ones
-    if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, vs.view, vs.area, this.L.rows);
+    if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, vs.view, vs.area, this.L.rows, this.L.fan);
     this.rebuildProj();
     this.hit.invalidate();
     this.invalidate(true);
@@ -1536,7 +1543,8 @@ export class TreeViewer {
       y1 = T.oy + this.L.rowEnd[i] * T.ky;
     } else {
       const bb = new Float64Array(4);
-      sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, this.L.rowStart[i] * T.da, this.L.rowEnd[i] * T.da, bb);
+      const fa = T.fan.start;
+      sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, fa + this.L.rowStart[i] * T.da, fa + this.L.rowEnd[i] * T.da, bb);
       x0 = bb[0];
       y0 = bb[1];
       x1 = bb[2];
@@ -1691,6 +1699,7 @@ export class TreeViewer {
     if (!L) {
       if (this.layouts.size >= 2) this.layouts.delete([...this.layouts.keys()][0]);
       L = computeLayout(this.tree, lengths, this.collapsedMask);
+      setLayoutFan(L, radialFan(this.opts.radialOpening, this.opts.radialRotation));
       this.layouts.set(lengths, L);
     }
     return L;
@@ -1795,7 +1804,7 @@ export class TreeViewer {
     if (!rect) ensureTrig(L);
     const vs = this.vs;
     vs.computeArea();
-    this.T = makeTransform(opts.layout, W, H, vs.view, vs.area, L.rows);
+    this.T = makeTransform(opts.layout, W, H, vs.view, vs.area, L.rows, L.fan);
     this.proj = projectionFor(tree, L, this.T);
     const T = this.T;
     const ctx = this.ctx;

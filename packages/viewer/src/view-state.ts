@@ -28,7 +28,7 @@ import {
 import { COL_GAP, FILL_MIN_PX } from './columns.ts';
 import { resolveTreeWidth, scaledPx, type TreeWidth } from './sizes.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Area } from './geom.ts';
-import type { Layout } from './layout.ts';
+import { FULL_FAN, fanAngle, type Layout, type RadialFan } from './layout.ts';
 import { projectionFor } from './projection.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
@@ -86,9 +86,22 @@ interface Anim {
   ms: number;
 }
 
-/** Radial: pixels per unit radius at the fit view (whole tree in the container, with a margin for labels and the scale bar). */
-export function radialFitScale(W: number, H: number): number {
-  return Math.max(RADIAL_FIT_MIN_R_PX, Math.min(W, H) / 2 - RADIAL_FIT_MARGIN_PX);
+/** Radial: the fit view, the fan's bounding box (root included, radius 1) in the container with a margin for labels and the scale bar:
+ *  `k` px per unit radius and the world point (cx, cy) at the container's centre. The whole circle is centred on the root; a fan with a
+ *  large opening is framed by what it covers, so a half circle in a wide container gets about twice the scale. */
+export function radialFit(W: number, H: number, fan: RadialFan = FULL_FAN): { k: number; cx: number; cy: number } {
+  const bb = new Float64Array(4);
+  sectorBBox(0, 0, 0, 1, fan.start, fan.start + fan.span, bb);
+  const bw = bb[2] - bb[0],
+    bh = bb[3] - bb[1];
+  const m = 2 * RADIAL_FIT_MARGIN_PX;
+  const k = Math.max(RADIAL_FIT_MIN_R_PX, Math.min((W - m) / Math.max(bw, 1e-6), (H - m) / Math.max(bh, 1e-6)));
+  return { k, cx: (bb[0] + bb[2]) / 2, cy: (bb[1] + bb[3]) / 2 };
+}
+
+/** Radial: pixels per unit radius at the fit view (see radialFit). */
+export function radialFitScale(W: number, H: number, fan: RadialFan = FULL_FAN): number {
+  return radialFit(W, H, fan).k;
 }
 
 export class ViewState {
@@ -180,8 +193,8 @@ export class ViewState {
       const rows = this.env.rowHeight ? a.ah / this.env.rowHeight : this.env.L.rows;
       return { x0: 0, x1: 1, y0: 0, y1: Math.max(1, rows) };
     }
-    const k = radialFitScale(this.env.W, this.env.H);
-    return { x0: -a.aw / 2 / k, x1: a.aw / 2 / k, y0: -a.ah / 2 / k, y1: a.ah / 2 / k };
+    const { k, cx, cy } = radialFit(this.env.W, this.env.H, this.env.L.fan);
+    return { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
   }
 
   /** v with the zoom and pan limits applied (a new object). Rectangular: width and height between the zoom limits, the tree stays
@@ -207,11 +220,12 @@ export class ViewState {
       y0 = h >= N * 0.999 ? Math.min(0, Math.max(N - h, y0)) : Math.min(N - OVERSCROLL_KEEP_FRAC * h, Math.max(-OVERSCROLL_FRAC * h, y0));
       return { x0, x1: x0 + w, y0, y1: y0 + h };
     }
-    const kfit = radialFitScale(this.env.W, this.env.H);
+    const fan = this.env.L.fan;
+    const kfit = radialFitScale(this.env.W, this.env.H, fan);
     let k = a.aw / (v.x1 - v.x0);
-    // outer-circle arc between neighbouring tips = k * 2 PI / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
+    // outer-circle arc between neighbouring tips = k * span / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
     // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
-    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / (2 * Math.PI);
+    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / fan.span;
     const kcap = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap));
     k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
@@ -346,9 +360,9 @@ export class ViewState {
     }
     const k = Math.max(
       a.aw / (v.x1 - v.x0),
-      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / (2 * Math.PI),
+      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / L.fan.span,
     );
-    const ang = L.ROW[node] * ((2 * Math.PI) / L.rows);
+    const ang = fanAngle(L.fan, L.rows, L.ROW[node]);
     const px = L.X[node] * Math.cos(ang),
       py = L.X[node] * Math.sin(ang);
     return { x0: px - a.aw / 2 / k, x1: px + a.aw / 2 / k, y0: py - a.ah / 2 / k, y1: py + a.ah / 2 / k };
@@ -372,7 +386,7 @@ export class ViewState {
       return { x0, x1: x0 + w, y0: mid - h / 2, y1: mid + h / 2 };
     }
     const bb = new Float64Array(4);
-    sectorBBox(0, 0, L.X[node], L.XMAX[node], ls * ((2 * Math.PI) / L.rows), le * ((2 * Math.PI) / L.rows), bb);
+    sectorBBox(0, 0, L.X[node], L.XMAX[node], fanAngle(L.fan, L.rows, ls), fanAngle(L.fan, L.rows, le), bb);
     const cx = (bb[0] + bb[2]) / 2,
       cy = (bb[1] + bb[3]) / 2;
     const half = Math.max((bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2, 1e-4) * ZOOM_NODE_RADIAL_PAD;
@@ -408,11 +422,11 @@ export class ViewState {
       return y0 !== v.y0 || x0 !== v.x0 ? { x0, x1, y0, y1 } : null;
     }
     const p = { x: 0, y: 0 };
-    projectionFor(tree, L, makeTransform('radial', W, H, v, a, L.rows)).nodeXY(node, p);
+    projectionFor(tree, L, makeTransform('radial', W, H, v, a, L.rows, L.fan)).nodeXY(node, p);
     const pad = 30;
     if (!(p.x < pad || p.y < pad || p.x > W - pad || p.y > H - pad)) return null;
     const k = a.aw / (v.x1 - v.x0);
-    const ang = L.ROW[node] * ((2 * Math.PI) / L.rows);
+    const ang = fanAngle(L.fan, L.rows, L.ROW[node]);
     const wx = L.X[node] * Math.cos(ang),
       wy = L.X[node] * Math.sin(ang);
     return { x0: wx - a.aw / 2 / k, x1: wx + a.aw / 2 / k, y0: wy - a.ah / 2 / k, y1: wy + a.ah / 2 / k };
