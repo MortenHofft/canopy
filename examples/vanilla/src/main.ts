@@ -176,7 +176,7 @@ viewer.addControl(
               hint: `${e.tipCount.toLocaleString('en')} tips`,
               onSelect: () => {
                 const cl = viewer.getClades();
-                viewer.setClades([...cl, { node: e.node, colour: palette[cl.length % palette.length], label: `Clade ${e.nodeId}` }]);
+                viewer.setClades([...cl, { node: e.node, colour: palette[cl.length % palette.length], label: `Clade ${e.node}` }]);
               },
             },
             { id: 'clear', label: 'Clear colours', disabled: viewer.getClades().length === 0, onSelect: () => viewer.setClades([]) },
@@ -205,7 +205,7 @@ const write = (text: string) => {
   log.prepend(li);
   while (log.children.length > 30) log.lastElementChild!.remove();
 };
-viewer.on('click', (e) => write(`click ${e.isTip ? 'tip ' + e.tipId : `${e.kind} ${e.nodeId} (${e.tipCount} tips)`}`));
+viewer.on('click', (e) => write(`click ${e.isTip ? 'tip ' + e.tipId : `${e.kind} ${e.node} (${e.tipCount} tips)`}`));
 viewer.on('optionschange', (e) => write(`options: ${e.changed.join(', ')}`));
 viewer.on('cladeschange', (c) => write(`clades: ${c.length}`));
 viewer.on('highlightchange', (ids) => write(`highlighted: ${ids.join(', ') || 'none'}`));

@@ -72,6 +72,21 @@ const HEAVY_PRIMS = 1000;
 const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
 const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
 
+/** A node handle is a preorder id of the tree the viewer holds: an integer in [0, limit) (see `nodeLimit`). */
+function isNodeOf(limit: number, id: unknown): id is number {
+  return typeof id === 'number' && Number.isInteger(id) && id >= 0 && id < limit;
+}
+
+/** Ids that are not nodes of the tree are ignored, with this warning, so a typo or a stale id does not fail quietly. */
+function warnUnknownNodes(where: string, bad: unknown[], limit: number): void {
+  const shown = bad.slice(0, 5).map((b) => (typeof b === 'string' ? JSON.stringify(b) : String(b)));
+  const more = bad.length > 5 ? ` and ${bad.length - 5} more` : '';
+  console.warn(
+    `gbif-phylo: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
+      `(nodes are numbers, ${limit === Infinity ? 'preorder ids' : `the preorder ids 0 to ${limit - 1}`}); ignored`,
+  );
+}
+
 function checkThemeObserver(m: unknown): void {
   if (m !== undefined && m !== 'media' && m !== 'document' && m !== 'none')
     throw new RangeError(`themeObserver must be 'media', 'document' or 'none', not ${JSON.stringify(m)}`);
@@ -518,6 +533,32 @@ export class TreeViewer {
     this.events.emit('sourcechange', { version: v });
   }
 
+  /** One past the largest node id: the node count for a tree in memory. A partial source's ids are only checked to be ids (whole numbers
+   *  from 0): whether one is in the full tree is the source's business, and a node that is not loaded yet is no error. */
+  private nodeLimit(): number {
+    return this.tree.globalId === null ? this.source.nodeCount : Infinity;
+  }
+
+  /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes`). */
+  private knownNodes<T>(where: string, items: readonly T[], node: (x: T) => unknown): T[] {
+    const n = this.nodeLimit();
+    if (items.every((x) => isNodeOf(n, node(x)))) return items as T[];
+    warnUnknownNodes(
+      where,
+      items.map(node).filter((k) => !isNodeOf(n, k)),
+      n,
+    );
+    return items.filter((x) => isNodeOf(n, node(x)));
+  }
+
+  /** False, with a warning, when `id` is not a node of this tree. */
+  private knownNode(where: string, id: number): boolean {
+    const n = this.nodeLimit();
+    if (isNodeOf(n, id)) return true;
+    warnUnknownNodes(where, [id], n);
+    return false;
+  }
+
   /** Row of the snapshot for a node id of the public API (preorder id of the full tree), -1 when that node is not loaded. */
   private rowOf(node: number): number {
     return this.tree.globalId === null ? (node >= 0 && node < this.tree.nodeCount ? node : -1) : this.tree.toLocal(node);
@@ -644,7 +685,7 @@ export class TreeViewer {
     // ---- what is keyed by node or rank
     const rm = (n: number) => (map ? (n >= 0 && n < map.length ? map[n] : -1) : n);
     // the collapsed clades first: the layout of the new tree reads them
-    if (o.collapsed) this.storeCollapsed(o.collapsed);
+    if (o.collapsed) this.storeCollapsed(this.knownNodes('setTree collapsed', o.collapsed, (n) => n));
     else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
     this.applyCollapsed();
     this.layouts.clear();
@@ -652,7 +693,7 @@ export class TreeViewer {
     this.rebuildProj();
     this.hit = new HitIndex();
     const cladesChanged = o.clades
-      ? this.storeClades(o.clades)
+      ? this.storeClades(this.knownNodes('setTree clades', o.clades, (c) => c.node))
       : map
         ? this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0))
         : false;
@@ -959,7 +1000,7 @@ export class TreeViewer {
   /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`. Where clades nest
    *  the innermost wins, whatever the order; for the same node the later entry wins. No-op for the same entries in the same order. */
   setClades(clades: CladeColour[]): void {
-    if (!this.storeClades(clades)) return;
+    if (!this.storeClades(this.knownNodes('setClades', clades, (c) => c.node))) return;
     this.applyClades();
     this.sceneVersion++;
     this.invalidate();
@@ -1009,13 +1050,13 @@ export class TreeViewer {
   /** Collapse these clades in the view: each is drawn as one triangle on ONE row of its own (the rows of its tips are freed), at the clade's
    *  place in the tree, its depth ending at its deepest tip (so a dated tree keeps its axis), and is never opened by the level of detail.
    *  `nodeIds` are the preorder ids of the full tree, the same ids as everywhere in the API: colours, highlights, events and `zoomToNode`
-   *  keep speaking them, and the tree is not changed. Ids that are not internal nodes (tips, unknown ids) are ignored, and a clade inside a
-   *  collapsed one is hidden by it. A click or hover on a collapsed clade reports `kind: 'summary'`, `node` = the clade and
+   *  keep speaking them, and the tree is not changed. Ids of tips are ignored, ids that are not nodes of the tree are ignored with a warning,
+   *  and a clade inside a collapsed one is hidden by it. A click or hover on a collapsed clade reports `kind: 'summary'`, `node` = the clade and
    *  `collapsed: true`. The window keeps its scale and the clades in it; a view that fits the whole tree is fitted again. Selection of
    *  the keyboard cursor and hover are reset. No-op for the same ids in the same order. A partially loaded source cannot collapse clades.
    *  Collapsing only draws less: `focusTip` on a tip inside a collapsed clade focuses the clade, columns draw nothing on its row. */
   setCollapsed(nodeIds: number[]): void {
-    if (!this.storeCollapsed(nodeIds)) return;
+    if (!this.storeCollapsed(this.knownNodes('setCollapsed', nodeIds, (n) => n))) return;
     this.relayoutCollapsed();
   }
 
@@ -1215,6 +1256,7 @@ export class TreeViewer {
   }
 
   zoomToNode(id: number, animate = false): void {
+    if (!this.knownNode('zoomToNode', id)) return;
     let row = this.rowOf(id);
     if (row < 0) return;
     if (this.L.hidden?.[row]) row = this.L.rowNode![this.L.rowStart[row]]; // inside a collapsed clade: frame the clade
@@ -1234,6 +1276,7 @@ export class TreeViewer {
 
   /** Where a click would land on node i (client px), or null when the node is not drawn / not in view. */
   locateNode(id: number): { x: number; y: number } | null {
+    if (!this.knownNode('locateNode', id)) return null;
     this.renderNow();
     const i = this.rowOf(id);
     if (i < 0) return null;
@@ -1265,6 +1308,7 @@ export class TreeViewer {
 
   /** Drawn extent of the clade below node i (client px), clipped to the plot area; null when not visible. */
   nodeBounds(id: number): { x: number; y: number; width: number; height: number } | null {
+    if (!this.knownNode('nodeBounds', id)) return null;
     this.renderNow();
     const i = this.rowOf(id);
     if (i < 0 || this.L.hidden?.[i]) return null;

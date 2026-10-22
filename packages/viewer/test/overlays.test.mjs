@@ -122,7 +122,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
       e.isTip
         ? null
         : [
-            { id: 'zoom', label: 'Zoom to clade', onSelect: (ev) => picked.push(['zoom', ev.nodeId]) },
+            { id: 'zoom', label: 'Zoom to clade', onSelect: (ev) => picked.push(['zoom', ev.node]) },
             { id: 'off', label: 'Not now', disabled: true, onSelect: () => picked.push(['off']) },
             { id: 'rot', label: 'Rotate', hint: 'swap children', onSelect: () => picked.push(['rot']) },
           ],
@@ -149,7 +149,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
   items[1].click();
   assert.equal(m.isOpen(), true, 'a disabled item does nothing');
   items[0].click();
-  assert.deepEqual(picked, [['zoom', 'n1']]);
+  assert.deepEqual(picked, [['zoom', 1]]);
   assert.equal(m.isOpen(), false);
   assert.equal(m.element.getAttribute('role'), null);
   assert.equal(document.activeElement, v.element, 'focus goes back to the tree');

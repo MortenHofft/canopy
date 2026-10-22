@@ -173,7 +173,7 @@ const legend = await ev(() => ({
   clades: window.__example.viewer.getClades().length,
 }));
 ok(
-  legend.clades === 1 && !legend.hidden && legend.entries.length === 1 && /^Clade n\d+$/.test(legend.entries[0]),
+  legend.clades === 1 && !legend.hidden && legend.entries.length === 1 && /^Clade \d+$/.test(legend.entries[0]),
   `the legend shows the coloured clade (${legend.entries})`,
 );
 
