@@ -30,6 +30,7 @@ import {
   drawRing,
   drawScaleBar,
   drawSelectionRing,
+  drawMarkRings,
   LabelList,
   TextMeasurer,
   type Scene,
@@ -225,6 +226,9 @@ export class TreeViewer {
   /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
    *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
   private selected = -1;
+  /** The marked nodes (`setMarked`, node ids as given), and their rows of the snapshot, filled by `drawTop` (-1: not loaded). */
+  private marked: number[] = [];
+  private markRows = new Int32Array(0);
   private raf = 0;
   private dirty = true;
   private topDirty = true;
@@ -732,6 +736,7 @@ export class TreeViewer {
     }
     this.activeNode = -1;
     this.selected = this.selectionAfterSetTree(oldSelected, map, rm);
+    this.storeMarked(map ? this.marked.map(rm).filter((n) => n >= 0 && isNodeOf(this.nodeLimit(), n)) : []);
     this.pendingHover = null;
     this.clearHover();
     this.root.style.cursor = 'grab';
@@ -1318,6 +1323,28 @@ export class TreeViewer {
     if (this.selected !== old) this.emitSelection();
   }
 
+  /** Mark nodes (node ids, tips or clades) with a ring of their own (theme `markColour`, `markWidth`, `markRadius`, `markDash`), until
+   *  `setMarked([])`: the pending pick of a two-step action such as a swap, which stays visible while the pointer looks for the second.
+   *  The rings follow the nodes through pans, zooms and layout switches; a node inside a collapsed clade is marked on the clade.
+   *  Kept across `setTree` through its `map`, dropped without one. Numbers that are not nodes are ignored with a warning. */
+  setMarked(nodes: readonly number[]): void {
+    const known = this.knownNodes('setMarked', nodes, (n) => n);
+    if (known.length === this.marked.length && known.every((n, i) => n === this.marked[i])) return;
+    this.storeMarked(known.slice());
+    this.topDirty = true;
+    this.schedule();
+  }
+
+  /** The marked nodes, as given to `setMarked` (unknown ids left out). */
+  getMarked(): number[] {
+    return this.marked.slice();
+  }
+
+  private storeMarked(nodes: number[]): void {
+    this.marked = nodes;
+    if (this.markRows.length !== nodes.length) this.markRows = new Int32Array(nodes.length);
+  }
+
   /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
    *  selected clade (as `zoomToNode`), worked out from the new layout's fit view. False when nothing is selected, or its row is not loaded. */
   private frameSelection(): boolean {
@@ -1782,7 +1809,7 @@ export class TreeViewer {
     } else this.overlay.follow(this.labels, T.kind); // the focus outline must move with the canvas
     this.reducedFrame = reduced;
     if (!reduced && tree.stub !== null) this.detail.request(tree, this.list, T, L, rect, vs.fitted, this.srcVersion);
-    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.selected >= 0 || this.topHad) this.topDirty = true;
+    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.selected >= 0 || this.marked.length > 0 || this.topHad) this.topDirty = true;
 
     const frameMs = performance.now() - t0;
     const st = this.stats;
@@ -1887,17 +1914,22 @@ export class TreeViewer {
     }
   }
 
-  /** The selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
+  /** The marks, selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
   private topHad = false;
   private drawTop(): void {
     this.topDirty = false;
     const sel = this.selected >= 0 ? this.rowOf(this.selected) : -1;
-    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0 || sel >= 0;
+    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0 || sel >= 0 || this.marked.length > 0;
     const c = this.topCtx;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const proj = this.proj;
+    if (this.marked.length) {
+      const rows = this.markRows;
+      for (let i = 0; i < rows.length; i++) rows[i] = this.rowOf(this.shownNode(this.marked[i]));
+      drawMarkRings(c, proj, rows, this.theme);
+    }
     if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
       drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);

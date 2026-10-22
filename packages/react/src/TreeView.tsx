@@ -80,6 +80,7 @@ export interface CladeProp {
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
+ *  - `marked`: compared element-wise with the marks in force (a new array with the same ids is no change).
  *  - `selected`: acts when its value changes, as `layout` does: a click selects on the viewer itself (report it back with
  *    `onSelectionChange` to keep the prop in step), and that stays until the prop changes. Left out (undefined), the viewer keeps its own.
  *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
@@ -116,6 +117,9 @@ export interface TreeViewProps {
   /** The selected node (a node id, tip or clade; null for none): drawn with a ring, kept across layout and branch-length switches (the
    *  view centres on it) and collapsing (a hidden node selects its clade). See `TreeViewer.setSelected`. */
   selected?: number | null;
+  /** Nodes marked with a ring of their own (node ids), e.g. the first pick of a two-step action; [] or left out for none. See
+   *  `TreeViewer.setMarked`. */
+  marked?: number[];
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
   /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
@@ -313,6 +317,10 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     if (selected !== undefined) liveRenderer(R, rendRef)?.setSelected(selected);
   }, [R, rendRef, selected]);
+  const marked = props.marked;
+  useLayoutEffect(() => {
+    liveRenderer(R, rendRef)?.setMarked(marked ?? EMPTY_NODES);
+  }, [R, rendRef, marked]);
   // the default is Zoom and Fit themselves, not defaultControls(): that would bundle every control into every app using <TreeView>
   const [ownControls] = useState<Control[]>(() => [new Zoom(), new Fit()]);
   const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));

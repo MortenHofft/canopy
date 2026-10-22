@@ -4,7 +4,7 @@
 // (window.__explorer() returns the TreeViewer): Width / Height zoom the window, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade, root; Escape closes it; a plain click collapses nothing)
-// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); colour, erase and the innermost-colour-wins order; reroot, flip, swap
+// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, and Swap marks its first pick until the second click or Escape (#65); colour, erase and the innermost-colour-wins order; reroot, flip, swap
 // (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); show only a clade, Up one level
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
@@ -91,6 +91,29 @@ const act = async (id) => {
   await menu.locator(`[data-action="${id}"]`).click();
   await page.waitForTimeout(250);
 };
+/** How many of 16 points on the circle of the theme radius `token` around node `n` (or the page point `n`) are inked on the overlay canvas
+ *  (the rings' canvas): 12 or more is a ring. */
+const ringHits = (n, token) =>
+  ev(
+    ([n, token]) => {
+      const v = __v();
+      const p = typeof n === 'number' ? v.locateNode(n) : n;
+      if (!p) return 0;
+      const top = v.treeElement.querySelectorAll('canvas')[1];
+      const r = top.getBoundingClientRect();
+      const k = top.width / r.width;
+      const rad = v.getTheme()[token];
+      const data = top.getContext('2d').getImageData(0, 0, top.width, top.height).data;
+      let hits = 0;
+      for (let a = 0; a < 16; a++) {
+        const x = Math.round((p.x - r.left + rad * Math.cos((a * Math.PI) / 8)) * k);
+        const y = Math.round((p.y - r.top + rad * Math.sin((a * Math.PI) / 8)) * k);
+        if (data[(y * top.width + x) * 4 + 3] > 100) hits++;
+      }
+      return hits;
+    },
+    [n, token],
+  );
 /** Collapse the clade at p through the node menu, as a user does. */
 const collapseAt = async (p) => {
   await openMenu(p);
@@ -374,6 +397,17 @@ ok(
   `a clade's menu: ${(await menuItems()).join(' | ')}`,
 );
 ok((await rows()) === before, 'a plain click on a clade collapses nothing (it opens the menu)');
+// the node the menu is for keeps a ring while the pointer is in the menu (#65): it is selected, and the selection ring stays
+{
+  const item = await menu.locator('.phylo-node-menu__item').nth(2).boundingBox();
+  await page.mouse.move(item.x + item.width / 2, item.y + item.height / 2, { steps: 4 });
+  await page.waitForTimeout(250);
+  const hits = await ringHits(c1.node, 'selectionRadius');
+  ok(
+    (await menu.count()) === 1 && (await ev(() => __v().getSelected())) === c1.node && hits >= 12,
+    `with the pointer in the menu, the clade it is for keeps its ring (${hits} of 16 points)`,
+  );
+}
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 ok((await menu.count()) === 0 && (await rows()) === before, 'Escape closes the menu');
@@ -431,7 +465,11 @@ await page.waitForTimeout(150);
         const b = t.nextSibling[a];
         const qa = __v().locateNode(a);
         const qb = __v().locateNode(b);
-        if (qa && qb) return [qa, qb];
+        if (qa && qb)
+          return [
+            { x: qa.x, y: qa.y, node: a },
+            { x: qb.x, y: qb.y, node: b },
+          ];
       }
     return null;
   });
@@ -442,9 +480,19 @@ await page.waitForTimeout(150);
     (await page.locator('.ex-tool.ex-swap-active').count()) === 1 && (await page.locator('.ex-steps .done').count()) === 1,
     'Swap with… starts Swap mode with step 1 done',
   );
+  // the first pick keeps its mark (#65) while the pointer goes to the second, whose hover ring shows too
+  await page.mouse.move(pr[1].x, pr[1].y, { steps: 6 });
+  await page.waitForTimeout(250);
+  const marked = await ringHits(pr[0].node, 'markRadius');
+  ok(
+    JSON.stringify(await ev(() => __v().getMarked())) === JSON.stringify([pr[0].node]) && marked >= 12,
+    `Swap: the first pick is marked while the pointer is on the second (${marked} of 16 points)`,
+  );
   await click(pr[1]);
   await page.waitForTimeout(200);
   ok((await ev(() => __order())) !== o && (await menu.count()) === 0, 'the next click swaps the two siblings, and no menu opens in a mode');
+  const left = await ringHits({ x: pr[0].x, y: pr[0].y }, 'markRadius');
+  ok((await ev(() => __v().getMarked().length)) === 0 && left < 4, `and the mark is cleared (${left} of 16 points inked)`);
   await page.keyboard.press('Escape');
   await btn('Undo').click();
   await page.waitForTimeout(200);
@@ -664,7 +712,11 @@ const tl = await ev(() => __v().getTree().tipLabels);
 await click(await ev((l) => __tipAt(l), tl[0]));
 await click(await ev((l) => __tipAt(l), tl[tl.length - 1]));
 ok((await toast()).includes('sibling'), 'Swap of non-siblings is refused with a message');
+await click(await ev((l) => __tipAt(l), tl[0]));
+ok((await ev(() => __v().getMarked().length)) === 1, 'Swap tool: the first pick is marked');
 await page.keyboard.press('Escape');
+await page.waitForTimeout(100);
+ok((await ev(() => __v().getMarked().length)) === 0, 'Escape leaves Swap and clears the mark');
 await btn('Midpoint').click();
 ok((await toast()).includes('nothing to change'), 'Midpoint on a dated tree: nothing to change');
 const o2 = await ev(() => __order());

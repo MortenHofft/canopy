@@ -38,8 +38,20 @@ const NUMBERS = [
   'alignRowGap',
   'selectionWidth',
   'selectionRadius',
+  'markWidth',
+  'markRadius',
 ] as const;
-const STRINGS = ['fontFamily', 'summaryStripeColour', 'leaderColour', 'leaderDash', 'supportColour', 'lengthColour', 'selectionColour'] as const;
+const STRINGS = [
+  'fontFamily',
+  'summaryStripeColour',
+  'leaderColour',
+  'leaderDash',
+  'supportColour',
+  'lengthColour',
+  'selectionColour',
+  'markColour',
+  'markDash',
+] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(

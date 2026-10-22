@@ -647,6 +647,35 @@ export function drawSelectionRing(ctx: CanvasRenderingContext2D, proj: LayoutPro
   drawRing(ctx, proj, node, theme.selectionRadius, theme.selectionColour || theme.foreground, w);
 }
 
+/** The rings of the marked nodes (`rows`, rows of the snapshot; -1 is skipped): `markColour` ('' = `highlight`) `markWidth` px wide at
+ *  `markRadius`, dashed as `markDash`, over a solid halo of the background 2 px wider. One path per pass, whatever the number of marks. */
+export function drawMarkRings(ctx: CanvasRenderingContext2D, proj: LayoutProjection, rows: Int32Array, theme: TreeTheme): void {
+  const w = theme.markWidth;
+  if (!(w > 0) || rows.length === 0) return;
+  const r = theme.markRadius;
+  const p: Pt = { x: 0, y: 0 };
+  const W = proj.T.W,
+    H = proj.T.H;
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.beginPath();
+    let n = 0;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i] < 0) continue;
+      proj.nodeXY(rows[i], p);
+      if (p.x < -r || p.y < -r || p.x > W + r || p.y > H + r) continue;
+      ctx.moveTo(p.x + r, p.y);
+      ctx.arc(p.x, p.y, r, 0, 6.2832);
+      n++;
+    }
+    if (n === 0) return;
+    ctx.setLineDash(pass === 0 ? [] : dashOf(theme.markDash));
+    ctx.strokeStyle = pass === 0 ? theme.background : theme.markColour || theme.highlight;
+    ctx.lineWidth = pass === 0 ? w + 2 : w;
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
 /** Where aligned labels start (CSS px, before the gap): right of the farthest tip (a collapsed clade's triangle ends at its tips, so it
  *  is never farther), so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
  *  at the area's right edge (where the farthest tip is at the fit view): the labels stay readable, and the branches of the tips beyond it
@@ -748,7 +777,7 @@ export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
   ctx.globalAlpha = 1;
 }
 
-/** The dash pattern of a `leaderDash` token: numbers separated by spaces or commas; nothing usable = solid. */
+/** The dash pattern of a `leaderDash` or `markDash` token: numbers separated by spaces or commas; nothing usable = solid. */
 function dashOf(v: string): number[] {
   const out: number[] = [];
   for (const s of v.split(/[\s,]+/)) {
