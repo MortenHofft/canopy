@@ -6,5 +6,6 @@ export { ladderise, reorder, rotate, swap, type LadderiseOptions } from './order
 export { collapseBySupport, collapseShortBranches, type CollapseEdgesOptions, type KeepNodes } from './collapse.ts';
 export { collapseClades, prune, subtree, type CollapseOptions, type CladeDepth } from './subset.ts';
 export { splitInternalLabel } from './labels.ts';
+export { treeBytes } from './bytes.ts';
 export { NO_FOCUS, canGoBack, canGoUp, focusBack, focusOn, focusUp, focusedNode, remapFocus, showFocus, type Focus } from './focus.ts';
 export { followClade, followClades, invertMap, composeMaps, type FollowOptions, type Followed, type FollowedClade } from './follow.ts';

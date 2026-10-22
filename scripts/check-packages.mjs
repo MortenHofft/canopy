@@ -84,7 +84,24 @@ const SCENARIOS = [
   {
     name: 'tree-ops: ladderise only',
     code: `import { ladderise } from '@gbif-phylo/tree-ops'; console.log(ladderise);`,
-    forbid: ['packages/tree-ops/dist/rooting.js', 'packages/tree-ops/dist/collapse.js', 'packages/tree-ops/dist/subset.js'],
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/bytes.js',
+    ],
+  },
+  {
+    name: 'tree-ops: treeBytes only',
+    code: `import { treeBytes } from '@gbif-phylo/tree-ops'; console.log(treeBytes);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+      'packages/tree-ops/dist/follow.js',
+    ],
   },
   {
     name: 'tree-ops: followClade, composeMaps only',

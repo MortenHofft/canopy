@@ -9,7 +9,8 @@
 // restores the tree as published; a clade click highlights nothing; collapse by support is a view (a lower threshold or
 // unticking brings branches back, colours survive); midpoint on a dated tree says the root already is the midpoint.
 // On the tree with repeated labels: a click highlights only the clicked tip, and it stays highlighted through ladderise, undo,
-// a focused clade and Back.
+// a focused clade and Back. Undo within a memory budget (?undo-budget): the oldest action dropped first, reset only for a tree larger
+// than the budget (#44).
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
@@ -504,6 +505,63 @@ ok(await page.evaluate(() => window.__panes().every((v, i) => v === window.__kee
     (await homo.count()) === 3 && back.length === 1 && back[0][2] === inFocus[0][2],
     `after Back to the whole tree the same tip is highlighted: ${JSON.stringify(back)}`,
   );
+}
+
+console.log('undo within a memory budget (#44)');
+{
+  const tips = () => page.evaluate(() => window.__panes()[0].getTree().tipLabels.join(','));
+  // tree-ops treeBytes of the current tree (the model, not the viewer's snapshot), the same count as packages/tree-ops/src/bytes.ts
+  // (keep the two in step): its typed arrays, and 8 bytes per element of its plain arrays
+  const bytes = () =>
+    page.evaluate(() => {
+      let b = 0;
+      for (const a of Object.values(window.__tree())) b += ArrayBuffer.isView(a) ? a.byteLength : Array.isArray(a) ? a.length * 8 : 0;
+      return b;
+    });
+  const go = async (extra) => {
+    await page.goto(`${url}?tree=rich-fish-carangaria-135&cpu=1${extra}`);
+    await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
+    await page.waitForFunction(() => typeof window.__panes === 'function' && window.__panes().length > 0 && window.__panes()[0]);
+    await page.waitForTimeout(300);
+  };
+  const lad = (dir) =>
+    page
+      .getByRole('button', { name: `Ladderise ${dir}` })
+      .click()
+      .then(() => page.waitForTimeout(250));
+  const undoBtn = page.getByRole('button', { name: 'Undo' });
+  const resetBtn = page.getByRole('button', { name: 'Reset' });
+  await go('');
+  const b = await bytes();
+  // room for two trees between the one as published and the current one: four actions drop the first
+  await go(`&undo-budget=${Math.round(b * 2.5)}`);
+  const o = [await tips()];
+  for (const dir of ['↓', '↑', '↓', '↑']) {
+    await lad(dir);
+    o.push(await tips());
+  }
+  ok(o.every((x, i) => i === 0 || x !== o[i - 1]) && /4 changes/.test(await status()), `four actions, each changes the tree: ${await status()}`);
+  await undoBtn.click();
+  await page.waitForTimeout(200);
+  await undoBtn.click();
+  await page.waitForTimeout(200);
+  ok((await tips()) === o[2] && /2 changes/.test(await status()), `undo twice goes back two actions: ${await status()}`);
+  ok(
+    (await undoBtn.count()) === 0 && (await resetBtn.isEnabled()) && (await page.getByText('Older steps were dropped').count()) === 1,
+    'the oldest action was dropped: undo stops there (hidden, with a note), reset stays',
+  );
+  await resetBtn.click();
+  await page.waitForTimeout(200);
+  ok((await tips()) === o[0] && /tree as published/.test(await status()), `reset goes back to the tree as published: ${await status()}`);
+  // a tree larger than the budget: reset only, with a note
+  await go(`&undo-budget=${Math.floor(b / 2)}`);
+  ok((await undoBtn.count()) === 0 && (await page.getByText('Undo is off').count()) === 1, 'a tree larger than the budget: no undo, a note says why');
+  await lad('↓');
+  await lad('↑');
+  ok((await tips()) === o[2] && (await undoBtn.count()) === 0 && (await resetBtn.isEnabled()), 'after two actions only reset is offered');
+  await resetBtn.click();
+  await page.waitForTimeout(200);
+  ok((await tips()) === o[0] && /tree as published/.test(await status()), `reset goes back to the tree as published: ${await status()}`);
 }
 
 await browser.close();

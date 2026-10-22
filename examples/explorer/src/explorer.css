@@ -382,6 +382,11 @@ body {
   height: 8px;
   border-radius: 50%;
 }
+.ex-undo-note {
+  font-size: 11px;
+  color: var(--ex-muted);
+  white-space: nowrap;
+}
 .ex-count {
   font-size: 10px;
   font-weight: 600;

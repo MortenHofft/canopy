@@ -5,7 +5,8 @@
 // tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade, root; Escape closes it; a plain click collapses nothing)
 // and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, and Swap marks its first pick until the second click or Escape (#65); colour, erase and the innermost-colour-wins order; reroot, flip, swap
-// (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); show only a clade, Up one level
+// (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
+// (?undo-budget: the oldest step dropped first, Reset only for a tree larger than the budget, #44); show only a clade, Up one level
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
@@ -1946,6 +1947,73 @@ console.log('one action colour (#74)');
     await page.locator('.theme-toggle').click();
     await page.waitForTimeout(300);
   }
+}
+
+console.log('undo within a memory budget (#44)');
+{
+  // tree-ops treeBytes of the current tree (the model, not the viewer's snapshot), the same count as packages/tree-ops/src/bytes.ts
+  // (keep the two in step): its typed arrays, and 8 bytes per element of its plain arrays
+  const bytes = () =>
+    ev(() => {
+      let b = 0;
+      for (const a of Object.values(window.__explorerTree())) b += ArrayBuffer.isView(a) ? a.byteLength : Array.isArray(a) ? a.length * 8 : 0;
+      return b;
+    });
+  const lad = (dir) =>
+    page
+      .locator(`button[title^="Ladderize ${dir}"]`)
+      .click()
+      .then(() => page.waitForTimeout(250));
+  const note = () => page.locator('.ex-undo-note');
+  await open('rich-fish-carangaria-135');
+  const b = await bytes();
+  // room for two trees between the one as published and the current one: four edits drop the first
+  await open('rich-fish-carangaria-135', `&undo-budget=${Math.round(b * 2.5)}`);
+  const o = [await ev(() => __order())];
+  for (const dir of ['descending', 'ascending', 'descending', 'ascending']) {
+    await lad(dir);
+    o.push(await ev(() => __order()));
+  }
+  ok(
+    o.every((x, i) => i === 0 || x !== o[i - 1]),
+    'four edits, each changes the tree',
+  );
+  ok((await btn('Undo').count()) === 1 && (await btn('Reset').count()) === 1 && (await note().count()) === 0, 'Undo and Reset are offered');
+  await btn('Undo').click();
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[3], 'Undo goes back one edit');
+  await btn('Undo').click();
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[2], 'and another');
+  ok(
+    (await btn('Undo').count()) === 0 && (await btn('Reset').count()) === 1 && /dropped/.test(await note().innerText()),
+    `the oldest step was dropped: Undo stops there, Reset stays, a note says why ("${(await note().count()) ? await note().innerText() : ''}")`,
+  );
+  await page.locator('.phylo-tree').focus();
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[2], 'Ctrl+Z does nothing there');
+  await btn('Reset').click();
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[0] && (await btn('Reset').count()) === 0, 'Reset goes back to the tree as published');
+  // a tree larger than the budget: Reset only, with a note
+  await open('rich-fish-carangaria-135', `&undo-budget=${Math.floor(b / 2)}`);
+  await lad('descending');
+  await lad('ascending');
+  ok(
+    (await ev(() => __order())) === o[2] &&
+      (await btn('Undo').count()) === 0 &&
+      (await btn('Reset').count()) === 1 &&
+      /too large/.test(await note().innerText()),
+    `a tree larger than the budget: Reset only ("${(await note().count()) ? await note().innerText() : ''}")`,
+  );
+  await page.locator('.phylo-tree').focus();
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[2], 'and Ctrl+Z does nothing');
+  await btn('Reset').click();
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o[0] && (await btn('Reset').count()) === 0, 'Reset goes back to the tree as published');
 }
 
 console.log('every tree of the playground catalogue, one from each group');

@@ -927,3 +927,26 @@ for (const by of ['tips', 'depth', 'height']) {
     assert.equal(ladderise(t, { by, order: 'decreasing' }).tree.tipCount, N);
   });
 }
+
+test('treeBytes: the typed arrays by byteLength, 8 bytes per element of the plain arrays, not the label strings', () => {
+  const t = parseNewick('((a:1,b:1)x:1,c:2);');
+  const n = t.nodeCount;
+  const tips = t.tipCount;
+  // TreeModel: 9 Int32Array of n (parent, subtreeEnd, depth, leafStart, leafEnd, firstChild, nextSibling, childCount, tipRank), tipNode
+  // of tips, 3 Float64Array of n (length, support, cumLength); labels (n) and tipLabels (tips) at 8 bytes per element
+  assert.equal(ops.treeBytes(t), 9 * 4 * n + 4 * tips + 3 * 8 * n + 8 * n + 8 * tips);
+  // a cache that is an array counts once it exists
+  t.heights();
+  assert.equal(ops.treeBytes(t), 9 * 4 * n + 4 * tips + 3 * 8 * n + 8 * n + 8 * tips + 4 * n);
+  // an operation's result: 5 Int32Array, 2 Float64Array and the labels
+  const r = ops.ladderise(t);
+  assert.ok(r.changed);
+  assert.equal(ops.treeBytes(r.tree), 5 * 4 * n + 2 * 8 * n + 8 * n);
+  // the strings are shared with the tree an operation came from, so their length does not count
+  const long = parseNewick(`((${'a'.repeat(500)}:1,b:1)x:1,c:2);`);
+  assert.equal(ops.treeBytes(long), ops.treeBytes(parseNewick('((a:1,b:1)x:1,c:2);')));
+  // grows with the tree: about 74 to 78 bytes per node for a TreeModel of a real tree (bench/tree-bytes.mjs)
+  const real = parseNewick(zlib.gunzipSync(fs.readFileSync(path.join(DATA, 'real-ladder/trees/otl-10k-amphibia.nwk.gz'))).toString('utf8'));
+  const perNode = ops.treeBytes(real) / real.nodeCount;
+  assert.ok(perNode > 70 && perNode < 80, `${perNode} bytes per node`);
+});

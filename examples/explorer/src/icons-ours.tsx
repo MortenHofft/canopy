@@ -26,6 +26,14 @@ export const IconBack = () => (
     <path d="M2.5 6.5h5.5a3.5 3.5 0 0 1 0 7H6" {...s} strokeWidth="1.5" />
   </svg>
 );
+/** Reset: back to the start, an arrow turning back to a bar. */
+export const IconReset = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <path d="M2 2.5v9" {...s} strokeWidth="1.5" />
+    <path d="M7.5 4L5 6.5 7.5 9" {...s} strokeWidth="1.5" />
+    <path d="M5.5 6.5h3a3 3 0 0 1 0 6H7.5" {...s} strokeWidth="1.5" />
+  </svg>
+);
 /** Collapse by support: a fork whose weak branches fold into one stem. */
 export const IconSupport = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

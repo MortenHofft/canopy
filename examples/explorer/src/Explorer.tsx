@@ -42,6 +42,50 @@ interface Step {
   collapsed: number[];
   /** The node map of the edit that made this step from the one before it (old tree -> this tree); none for the first. */
   map?: Int32Array;
+  /** How many steps before this one were dropped to stay within the memory budget: then `map` is from the tree as published, and
+   *  Undo stops here. */
+  dropped?: number;
+}
+
+/** What the trees kept for Undo may take, the tree as published and the current one aside (#44): about 45 to 60 steps of a 10k-tip tree, two
+ *  of the 190k-tip GTDB tree, none of a tree of a million tips, where only Reset is offered. */
+const UNDO_BUDGET = 64 * 1024 * 1024;
+
+/** Keeps the steps between the tree as published (`h[0]`) and the current one (the last) within `budget` bytes (tree-ops' treeBytes),
+ *  dropping the oldest first. The step after a dropped one takes a map from the tree as published, so Reset still keeps the view. */
+function trimHistory(h: Step[], budget: number): Step[] {
+  let bytes = 0;
+  for (let k = 1; k < h.length - 1; k++) bytes += ops.treeBytes(h[k].tree);
+  while (h.length > 2 && bytes > budget) {
+    bytes -= ops.treeBytes(h[1].tree);
+    h = [h[0], { ...h[2], map: ops.composeMaps(h[1].map!, h[2].map!), dropped: (h[1].dropped ?? 0) + 1 }, ...h.slice(3)];
+  }
+  return h;
+}
+
+/** Undo (only while a step is available) and Reset, shown once there is an edit; a note says why when Undo is off for the tree or
+ *  stops at a dropped step. */
+function UndoControls(p: { canUndo: boolean; undoOn: boolean; onUndo: () => void; onReset: () => void }) {
+  return (
+    <>
+      {p.canUndo && (
+        <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={p.onUndo}>
+          <I.IconUndo />
+          Undo
+        </button>
+      )}
+      <button type="button" className="ex-btn ex-fade" title="Back to the tree as published" onClick={p.onReset}>
+        <J.IconReset />
+        Reset
+      </button>
+      {!p.canUndo && (
+        <span className="ex-undo-note">
+          {p.undoOn ? 'Older steps were dropped to save memory' : 'Undo is off: the tree is too large to keep earlier versions'}
+        </span>
+      )}
+      <div className="ex-divider" />
+    </>
+  );
 }
 
 const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
@@ -167,15 +211,21 @@ export function Explorer({
   published,
   fasta,
   defaultHeight = 520,
+  undoBudget = UNDO_BUDGET,
 }: {
   published: TreeModel;
   fasta: Record<string, string> | null;
   defaultHeight?: number;
+  /** Bytes the trees kept for Undo may take ({@link UNDO_BUDGET}); a tree larger than this has Reset only. */
+  undoBudget?: number;
 }) {
   const ref = useRef<TreeViewHandle>(null);
   const outer = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
+  // Undo needs one more tree in memory than Reset: off when even one does not fit; it stops at a step whose earlier steps were dropped
+  const undoOn = useMemo(() => ops.treeBytes(published) <= undoBudget, [published, undoBudget]);
+  const canUndo = undoOn && history.length > 1 && !history[history.length - 1].dropped;
   // the last change of `tree` and the map it came with (edit: the op's map; undo: its inverse), to keep the view across it
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [clades, setClades] = useState<CladeProp[]>([]);
@@ -508,33 +558,41 @@ export function Explorer({
     if (ops.focusedNode(focus) >= 0 && ops.focusedNode(keptFocus) < 0)
       notes.push('the clade shown alone is no longer one clade after this edit: showing the whole tree');
     if (notes.length) flash(notes.join(' · '));
-    setHistory((h) => [
-      ...h.slice(0, -1),
-      { ...h[h.length - 1], clades, collapsed },
-      { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map },
-    ]);
+    setHistory((h) =>
+      trimHistory(
+        [...h.slice(0, -1), { ...h[h.length - 1], clades, collapsed }, { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map }],
+        undoBudget,
+      ),
+    );
     setMove({ from: tree, to: next, map: r.map });
     setClades(keptClades);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
     deselect();
   };
-  const undo = () => {
-    const prev = history[history.length - 2];
-    const undone = history[history.length - 1];
-    // the way back is the inverse of the edit's map (a tip stays the tip it was; an edit that added nodes has none to send back)
-    if (undone.map) {
-      const inverse = ops.invertMap(undone.map, undone.tree.nodeCount);
-      setMove({ from: tree, to: prev.tree, map: inverse });
-      setFocus((f) => (ops.canGoBack(f) || ops.canGoUp(f) ? ops.remapFocus(f, tree, prev.tree, inverse) : f)); // navigation stays; it follows the tips
+  // back to step `to` of the history: Undo is the step before the last, Reset the first (the tree as published)
+  const back = (to: number) => {
+    const prev = history[to];
+    // the way back: the inverses of the edits' maps, last first, chained (a tip stays the tip it was; an edit that added nodes has none
+    // to send back)
+    let way: Int32Array | null = null;
+    for (let k = history.length - 1; k > to; k--) {
+      const inverse = ops.invertMap(history[k].map!, history[k].tree.nodeCount);
+      way = way ? ops.composeMaps(way, inverse) : inverse;
     }
-    setHistory((h) => h.slice(0, -1));
+    if (way) {
+      const w = way;
+      setMove({ from: tree, to: prev.tree, map: w });
+      setFocus((f) => (ops.canGoBack(f) || ops.canGoUp(f) ? ops.remapFocus(f, tree, prev.tree, w) : f)); // navigation stays; it follows the tips
+    }
+    setHistory((h) => h.slice(0, to + 1));
     setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
     deselect();
     setPick(null);
   };
+  const undo = () => back(history.length - 2);
 
   const closePick = () => {
     setPick(null);
@@ -770,7 +828,7 @@ export function Explorer({
       e.preventDefault();
       setSearchOpen(true);
       searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
-    } else if (mod && e.key.toLowerCase() === 'z' && history.length > 1) {
+    } else if (mod && e.key.toLowerCase() === 'z' && canUndo) {
       e.preventDefault();
       undo();
     } else if (e.key === 'Escape') {
@@ -1029,15 +1087,7 @@ export function Explorer({
 
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
-        {history.length > 1 && (
-          <>
-            <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={undo}>
-              <I.IconUndo />
-              Undo
-            </button>
-            <div className="ex-divider" />
-          </>
-        )}
+        {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onUndo={undo} onReset={() => back(0)} />}
         <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
           <J.IconFit />
           Fit

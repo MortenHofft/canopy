@@ -1,6 +1,6 @@
 // The explorer: the page around <Explorer> (src/Explorer.tsx), a tree picker and a light/dark switch. `npm run dev` in this
-// folder, then open the printed URL (?tree=<id> picks a tree from src/trees.ts, ?theme=dark starts dark). The picker has the playground's
-// groups: every tree of its catalogue, and a few of our own.
+// folder, then open the printed URL (?tree=<id> picks a tree from src/trees.ts, ?theme=dark starts dark, ?undo-budget=<bytes>
+// sets what Undo may keep). The picker has the playground's groups: every tree of its catalogue, and a few of our own.
 
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -14,6 +14,8 @@ function App() {
   const params = new URLSearchParams(location.search);
   const [id, setId] = useState(params.get('tree') ?? 'rich-fish-carangaria-135');
   const [dark, setDark] = useState(params.get('theme') === 'dark');
+  const budgetParam = Number(params.get('undo-budget') ?? NaN); // a missing or bad value: the default
+  const undoBudget = Number.isFinite(budgetParam) ? budgetParam : undefined;
   const [data, setData] = useState<{ id: string; tree: TreeModel; fasta: Record<string, string> | null; bytes: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +64,11 @@ function App() {
       </header>
       {error && <p className="page-error">{error}</p>}
       {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
-      {data ? <Explorer key={data.id} published={data.tree} fasta={data.fasta} /> : !error && <p className="page-loading">loading {id}…</p>}
+      {data ? (
+        <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} />
+      ) : (
+        !error && <p className="page-loading">loading {id}…</p>
+      )}
       <p className="page-foot">
         Most toolbar icons are from <a href="https://github.com/vaaloo/reactreejs">reactreejs</a> (MIT), the look started there too. Everything else
         is @gbif-phylo: the README lists which control uses which API.
