@@ -1,14 +1,15 @@
 // Subsets: prune to a set of tips, take one clade as its own tree, collapse clades into single tips.
 
 import { addLen, checkNode, draftOf, identity, linkChildren, result } from './draft.ts';
-import { splitInternalLabel } from './labels.ts';
+import { splitInternalLabel, supportPart } from './labels.ts';
 import type { OpResult, TreeInput } from './types.ts';
 
 /**
  * Keep only the tips for which `keep(rank)` is true and the nodes that join them. Nodes the pruning leaves with one child are
  * removed and their edges merged. The new root is the MRCA of the kept tips: everything above it is dropped, one-child nodes
  * included (as reroot treats a one-child chain at the top as the root's own edge). Below it, nodes that already had one child
- * (named monotypic taxa in Open Tree of Life trees) are kept. Throws if no tip is kept.
+ * (named monotypic taxa in Open Tree of Life trees) are kept. A suppressed node's support is dropped with it: it belonged to a
+ * different split than the edge it merges into. Throws if no tip is kept.
  */
 export function prune(t: TreeInput, keep: (tipRank: number) => boolean): OpResult {
   const n = t.nodeCount;
@@ -56,6 +57,8 @@ export function subtree(t: TreeInput, node: number): OpResult {
   const d = draftOf(t);
   d.root = node;
   d.parent[node] = -1;
+  // the new root's edge is dropped, so its label-only support number goes with it (the array's value is dropped by the builder)
+  if (t.childCount[node] > 0 && !Number.isNaN(splitInternalLabel(t.labels[node]).support)) d.label[node] = supportPart(t.labels[node], false).name;
   // a subtree is a contiguous preorder range: nodes outside it are simply not reached by the builder
   return result(t, d);
 }
