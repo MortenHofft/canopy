@@ -26,14 +26,14 @@ const NUMBERS = [
   'dimOpacity',
   'labelSize',
   'axisFontSize',
+  'leaderWidth',
+  'leaderOpacity',
 ] as const;
+const STRINGS = ['fontFamily', 'leaderColour', 'leaderDash'] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(
-  (['dark', ...COLOURS, 'fontFamily', 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [
-    k,
-    '--phylo-' + kebab(k),
-  ]),
+  (['dark', ...COLOURS, ...STRINGS, 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [k, '--phylo-' + kebab(k)]),
 ) as Record<keyof TreeTheme, string>;
 
 /** Whether a background is dark (luminance under 0.4); null when it is not a colour or is translucent, which says nothing about the
@@ -58,8 +58,10 @@ export function themeFromCss(el: Element, deriveDarkFromBackground = true): Part
     const v = get(k);
     if (v) out[k] = v;
   }
-  const font = get('fontFamily');
-  if (font) out.fontFamily = font;
+  for (const k of STRINGS) {
+    const v = get(k);
+    if (v) out[k] = v;
+  }
   const cat = splitList(get('categorical'));
   if (cat.length) out.categorical = cat;
   for (const k of NUMBERS) {

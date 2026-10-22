@@ -213,6 +213,26 @@ await setInput('dimOpacity', '0.5');
 ok((await theme('dimOpacity')) === 0.5 && query().get('s.dimOpacity') === '0.5', 'the Dimmed opacity slider sets the theme token and the URL');
 await select('highlightStyle', 'band');
 
+// a tree whose tips end at different x (the default tree is ultrametric: its labels already share one x)
+await open('?tree=rich-ens-protein-54');
+ok((await opt('alignLabels')) === false, 'Align labels is off by default');
+const labelXs = () => ev(() => [...new Set(window.viewer.labels.x.slice(0, window.viewer.labels.count))].length);
+await select('rowHeight', '24'); // 24 px rows: labels show
+const xsBefore = await labelXs();
+await toggle('alignLabels', true);
+ok((await opt('alignLabels')) === true && query().get('s.alignLabels') === '1', 'the Align labels switch sets the option, kept in the URL');
+ok(xsBefore > 1 && (await labelXs()) === 1, `aligned: the labels start at one x (${xsBefore} different x before)`);
+ok((await theme('leaderDash')) === '1 3' && (await theme('leaderWidth')) === 1, 'the leader tokens are theme settings');
+await setInput('leaderWidth', '2');
+ok((await theme('leaderWidth')) === 2 && query().get('s.leaderWidth') === '2', 'the Leader width slider sets the token and the URL');
+await page.locator('input[data-setting=leaderDash]').fill('4 2');
+await settled();
+ok((await theme('leaderDash')) === '4 2', 'the Leader dash text sets the token');
+await toggle('alignLabels', false);
+ok((await labelXs()) > 1, 'off again: the labels follow their tips');
+await select('rowHeight', 'fit');
+await open(); // the default tree again for the sections that follow
+
 console.log('tree operations');
 await page.locator('input[data-setting=find]').fill('');
 const tips = () => ev(() => window.viewer.getTree().tipCount);

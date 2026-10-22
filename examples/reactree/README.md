@@ -38,6 +38,7 @@ control and reads the result back from the viewer.
 | Tip click: inspector (branch length, root distance, depth, support, copy name) | `onTipClick` and the `TreeModel` arrays |
 | Mode tooltips ("Set as root", "Paint Red", "1/2 Select first branch") | the `tooltip` prop rendering our own content |
 | Bootstrap / Length / No labels cycle | `NodeLabels`, placed after every `frame` event with `nodePosition` |
+| Align (leaf labels in one column, with leader lines) | `options.alignLabels`; the leaders are the `--phylo-leader-*` theme tokens |
 | Alignment track and legend | an `alignment` column (`columns` prop); the legend says how many tips have a sequence (exact label match) and draws its swatches from `residueColours` / `residueGroups`, so it matches the canvas (protein or nucleotide, light or dark) |
 | Dark mode (`data-theme="dark"` on `<html>`) | the `--phylo-*` properties change with it; a MutationObserver calls `refreshTheme()` |
 | Dotted background | `--phylo-background: transparent`: the pane's CSS grid shows under the tree |
@@ -59,7 +60,6 @@ Still open, found in the library:
 - **No node or branch labels** ([#16](https://github.com/MortenHofft/gbif-phylo/issues/16); posterior values need [#17](https://github.com/MortenHofft/gbif-phylo/issues/17)). Support values and branch lengths had to be a control of our own (`NodeLabels`); it walks every node on each
   frame, which is fine for hundreds of nodes, not for large trees, and in the radial layout puts a length at the node rather than on the
   branch.
-- **No aligned tip labels with leader lines** ([#35](https://github.com/MortenHofft/gbif-phylo/issues/35)). The Align button is shown disabled.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
 

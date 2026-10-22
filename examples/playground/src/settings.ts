@@ -95,6 +95,15 @@ export const SETTINGS: Setting[] = [
     ],
   },
   {
+    id: 'alignLabels',
+    label: 'Align labels',
+    hint: 'rectangular phylogram: all tip labels in one column, with leader lines from the tips',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'toggle',
+    default: O.alignLabels,
+  },
+  {
     id: 'highlightStyle',
     label: 'Highlight style',
     hint: 'how highlighted tips (search, "Highlight tips containing") stand out',
@@ -217,6 +226,19 @@ export const SETTINGS: Setting[] = [
     max: 1,
     step: 0.05,
   },
+  {
+    id: 'leaderColour',
+    label: 'Leader colour',
+    hint: 'empty = the axis colour',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'text',
+    default: T.leaderColour,
+    placeholder: 'e.g. #94a3b8',
+  },
+  { id: 'leaderDash', label: 'Leader dash', hint: 'px, e.g. 1 3; empty = solid', group: 'Theme', to: 'theme', kind: 'text', default: T.leaderDash },
+  { id: 'leaderWidth', label: 'Leader width (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.leaderWidth, min: 0.5, max: 4, step: 0.1 },
+  { id: 'leaderOpacity', label: 'Leader opacity', group: 'Theme', to: 'theme', kind: 'range', default: T.leaderOpacity, min: 0, max: 1, step: 0.05 },
   { id: 'axisFontSize', label: 'Axis text (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.axisFontSize, min: 6, max: 16, step: 0.5 },
 
   // ---- built-in controls
