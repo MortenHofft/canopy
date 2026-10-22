@@ -107,6 +107,8 @@ export interface TreeTheme extends ResidueTheme {
   summaryOpacity: number; // collapsed clades (triangles, fans, bands)
   markerOpacity: number; // tip dots and node markers
   highlightOpacity: number; // the band behind a highlighted tip
+  /** Opacity of what is outside the highlighted set when `highlightStyle` is 'dim' or 'both': branches, tips, labels and summaries. */
+  dimOpacity: number;
   /** Largest tip label size (labels shrink with the row height, down to 8 px), CSS px. */
   labelSize: number;
   axisFontSize: number;
@@ -129,6 +131,7 @@ export const FALLBACK_THEME: TreeTheme = {
   summaryOpacity: 0.6,
   markerOpacity: 0.85,
   highlightOpacity: 0.16,
+  dimOpacity: 0.25,
   labelSize: 13,
   axisFontSize: 10,
 };
@@ -223,6 +226,10 @@ export interface ColumnRenderer<V = unknown, D = unknown> {
 
 export type LabelDensity = 'sparse' | 'normal' | 'dense';
 
+/** How `setHighlighted` shows its tips: 'band' = a band, a ring and a bold label; 'dim' = everything outside the highlighted set is drawn
+ *  at the theme's `dimOpacity`; 'both' = both. */
+export type HighlightStyle = 'band' | 'dim' | 'both';
+
 export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
@@ -230,6 +237,8 @@ export interface ViewerOptions {
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
   labelDensity: LabelDensity;
+  /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
+  highlightStyle: HighlightStyle;
   rowHeight: number | null; // fixed px per tip row at fit (rectangular); null = fit all tips into the height
   axis: boolean; // scale bar / time axis
   italicLabels: boolean;
@@ -271,6 +280,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   drawBudget: 20000,
   showSummaries: true,
   labelDensity: 'normal',
+  highlightStyle: 'band',
   rowHeight: null,
   axis: true,
   italicLabels: true,

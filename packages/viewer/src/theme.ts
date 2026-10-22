@@ -23,6 +23,7 @@ const NUMBERS = [
   'summaryOpacity',
   'markerOpacity',
   'highlightOpacity',
+  'dimOpacity',
   'labelSize',
   'axisFontSize',
 ] as const;

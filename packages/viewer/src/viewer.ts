@@ -82,6 +82,7 @@ export interface ViewerInternals {
   reserveOverview(on: boolean): void;
 }
 
+const NO_RANKS = new Int32Array(0);
 const INTERNALS = new WeakMap<TreeViewer, ViewerInternals>();
 /** The viewer a control is on (a control has one at a time). */
 const OWNER = new WeakMap<Control, TreeViewer>();
@@ -143,6 +144,9 @@ export class TreeViewer {
   private detail: DetailLoader;
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
+  /** Highlighted tips before each rank (prefix sums, length tipCount + 1): a clade holds none when its range [leafStart, leafEnd) has equal
+   *  ends, which is the dim state. Built on first use by a dimming frame (never in 'band' mode) and dropped when the highlights change. */
+  private hlPrefix: Int32Array | null = null;
   private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
   private collapsedRank: Uint8Array | null = null; // by tip rank: 1 = the tip stands for a collapsed clade
@@ -447,6 +451,7 @@ export class TreeViewer {
     this.hit = new HitIndex();
     this.applyClades();
     this.applyCollapsed();
+    this.resolveHighlights(); // tips that were not loaded when the ids were passed may be now (and the dim state follows)
     this.activeNode = -1;
     this.clearHover();
     this.vs.resetLabelReserve();
@@ -757,9 +762,18 @@ export class TreeViewer {
     const last = this.hlIds;
     if (tipIds.length === last.length && tipIds.every((id, i) => id === last[i])) return;
     this.hlIds = tipIds.slice();
+    this.resolveHighlights();
+    this.sceneVersion++;
+    this.invalidate();
+    this.events.emit('highlightchange', this.hlIds.slice());
+  }
+
+  /** The ranks of the loaded tips among `hlIds`: `hlRanks`, `hl`, and the dim prefix (dropped, built again by the next dimming frame). With
+   *  a partial source a match whose rows are not loaded has no rank yet, so its clade counts as holding no match (and dims) until it loads. */
+  private resolveHighlights(): void {
     const N = this.tree.tipCount;
     const ranks: number[] = [];
-    for (const id of tipIds) {
+    for (const id of this.hlIds) {
       const n = this.tree.tipIndex(id);
       if (n >= 0) ranks.push(this.tree.tipRank[n]);
     }
@@ -770,9 +784,19 @@ export class TreeViewer {
       this.hl = new Uint8Array(N);
       for (const r of uniq) this.hl[r] = 1;
     } else this.hl = null;
-    this.sceneVersion++;
-    this.invalidate();
-    this.events.emit('highlightchange', this.hlIds.slice());
+    this.hlPrefix = null;
+  }
+
+  /** The dim prefix for a frame, built when first needed; null without highlights. */
+  private dimPrefix(): Int32Array | null {
+    const hl = this.hl;
+    if (!hl) return null;
+    if (!this.hlPrefix) {
+      const pre = new Int32Array(hl.length + 1);
+      for (let r = 0; r < hl.length; r++) pre[r + 1] = pre[r] + hl[r];
+      this.hlPrefix = pre;
+    }
+    return this.hlPrefix;
   }
 
   /** The tip labels last passed to `setHighlighted` (unknown ones included). */
@@ -1162,14 +1186,17 @@ export class TreeViewer {
     if (this.canvasAlpha) ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
+    const bands = opts.highlightStyle !== 'dim';
+    const dimming = opts.highlightStyle !== 'band';
     const S: Scene = {
       proj: this.proj,
       list: this.list,
       theme: this.theme,
       colours: this.colours,
       classOf: this.classOf,
-      highlight: this.hl,
-      hlRanks: this.hlRanks,
+      highlight: bands ? this.hl : null,
+      hlRanks: bands ? this.hlRanks : NO_RANKS,
+      hlPrefix: dimming ? this.dimPrefix() : null,
       collapsed: this.collapsedRank,
       hoverNode: this.hoverNode,
       activeNode: this.activeNode,

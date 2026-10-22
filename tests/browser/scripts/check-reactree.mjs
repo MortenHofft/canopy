@@ -156,9 +156,22 @@ ok(
 );
 
 console.log('search');
+// how much the main canvas differs from its background colour: dimming what does not match removes most of it
+const ink = () =>
+  ev(() => {
+    const c = __v().treeElement.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 4; i < d.length; i += 4) n += Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]);
+    return n;
+  });
+const inkBefore = await ink();
 await page.locator('button[aria-label="Search taxa"]').click();
 await page.keyboard.type('bothus');
 await page.waitForTimeout(200);
+ok((await ev(() => __v().options.highlightStyle)) === 'dim', 'search uses the dim highlight style');
+const inkDim = await ink();
+ok(inkDim < inkBefore * 0.6, `the tips that do not match are dimmed (canvas ink ${inkBefore} → ${inkDim})`);
 ok((await page.locator('.rt-search-count').innerText()) === '1 / 2', 'two matches, the first current');
 ok((await ev(() => __v().getHighlighted().length)) === 2, 'matches highlighted');
 await page.keyboard.press('Enter');
@@ -174,6 +187,8 @@ ok(
   'Escape closes the search and clears the highlight',
 );
 await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(300);
+ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back at full strength after the search');
 
 console.log('inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);

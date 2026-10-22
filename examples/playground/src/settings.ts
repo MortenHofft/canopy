@@ -94,6 +94,20 @@ export const SETTINGS: Setting[] = [
       ['dense', 'Dense (rows ≥ 8 px)'],
     ],
   },
+  {
+    id: 'highlightStyle',
+    label: 'Highlight style',
+    hint: 'how highlighted tips (search, "Highlight tips containing") stand out',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: O.highlightStyle,
+    options: [
+      ['band', 'Band (row band, ring, bold label)'],
+      ['dim', 'Dim (everything else fades)'],
+      ['both', 'Both'],
+    ],
+  },
   { id: 'italicLabels', label: 'Italic labels', group: 'Layout and labels', to: 'option', kind: 'toggle', default: O.italicLabels },
   {
     id: 'underscores',
@@ -191,6 +205,17 @@ export const SETTINGS: Setting[] = [
     min: 0,
     max: 1,
     step: 0.02,
+  },
+  {
+    id: 'dimOpacity',
+    label: 'Dimmed opacity',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'range',
+    default: T.dimOpacity,
+    min: 0,
+    max: 1,
+    step: 0.05,
   },
   { id: 'axisFontSize', label: 'Axis text (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.axisFontSize, min: 6, max: 16, step: 0.5 },
 

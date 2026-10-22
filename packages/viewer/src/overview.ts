@@ -212,6 +212,7 @@ export class Overview {
       colours: h.colours,
       classOf: h.classOf,
       highlight: null,
+      hlPrefix: null,
       collapsed: null,
       hlRanks: new Int32Array(0),
       hoverNode: -1,
