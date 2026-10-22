@@ -27,37 +27,49 @@ class ClassList {
   }
 }
 
-/** An inline style declaration: `cssText` is kept as written and also parsed into camelCase properties (`pointer-events:none` sets
- *  `pointerEvents`), as a browser does; properties can be set directly too. */
-class StyleDecl {
-  constructor() {
-    this._css = '';
-  }
-  get cssText() {
-    return this._css;
-  }
-  set cssText(v) {
-    this._css = String(v);
-    for (const d of this._css.split(';')) {
-      const i = d.indexOf(':');
-      if (i < 0) continue;
-      const k = d.slice(0, i).trim();
-      if (k) this.setProperty(k, d.slice(i + 1).trim());
-    }
-  }
-  setProperty(k, v) {
-    this[k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase())] = String(v);
-  }
-  getPropertyValue(k) {
-    return this[k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase())] ?? '';
-  }
+const camel = (k) => (k.startsWith('--') ? k : k.replace(/-(\w)/g, (_m, c) => c.toUpperCase()));
+const kebab = (k) => (k.startsWith('--') ? k : k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()));
+
+/** An inline style declaration with one property map (keys camelCase, or `--custom`). `cssText` is derived from it (`k:v;` without
+ *  the space a browser writes) and its setter replaces the whole map; `style.pointerEvents = 'none'`, `setProperty('pointer-events', ..)`
+ *  and `cssText` all act on the same properties. A property that is not set reads as undefined (a browser gives ''). */
+function makeStyle() {
+  const map = new Map();
+  const api = {
+    setProperty: (k, v) => void map.set(camel(k), String(v)),
+    getPropertyValue: (k) => map.get(camel(k)) ?? '',
+    removeProperty: (k) => {
+      const old = map.get(camel(k)) ?? '';
+      map.delete(camel(k));
+      return old;
+    },
+  };
+  return new Proxy(api, {
+    get(t, k) {
+      if (k === 'cssText') return [...map].map(([n, v]) => kebab(n) + ':' + v + ';').join('');
+      if (k in t || typeof k !== 'string') return t[k];
+      return map.get(k);
+    },
+    set(_t, k, v) {
+      if (k === 'cssText') {
+        map.clear();
+        for (const d of String(v).split(';')) {
+          const i = d.indexOf(':');
+          if (i > 0) api.setProperty(d.slice(0, i).trim(), d.slice(i + 1).trim());
+        }
+      } else if (v === '' || v == null) map.delete(k);
+      else map.set(k, String(v));
+      return true;
+    },
+    has: (_t, k) => map.has(k) || k in api,
+  });
 }
 
 export class FakeElement {
   constructor(tag) {
     this.tagName = tag.toUpperCase();
     this.attrs = {};
-    this.style = new StyleDecl();
+    this.style = makeStyle();
     this.dataset = {};
     this.children = [];
     this.parentNode = null;
@@ -134,7 +146,6 @@ export class FakeElement {
     c.dataset = { ...this.dataset };
     c.classList.set = new Set(this.classList.set);
     c.style.cssText = this.style.cssText;
-    for (const k of Object.keys(this.style)) if (k !== '_css') c.style[k] = this.style[k];
     c.w = this.w;
     c.h = this.h;
     if (deep) for (const k of this.children) c.appendChild(k.cloneNode(true));

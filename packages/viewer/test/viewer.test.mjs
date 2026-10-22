@@ -1,10 +1,12 @@
 // Unit tests of the TreeViewer facade (src/viewer.ts), built for real over the fake DOM of viewer-harness.mjs: clade colours, the control
 // layer, what the first frame draws and in which order (the opaque and the alpha canvas), the canvas swap when the background changes,
 // and setTheme / refreshTheme. Nothing here needs a browser; the frame is read from the recording 2D context.
-import { test } from 'node:test';
+import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { makeViewer } = await import('./viewer-harness.mjs');
+const { makeViewer, destroyAll, alphaOf } = await import('./viewer-harness.mjs');
+
+afterEach(destroyAll);
 const { FALLBACK_THEME } = await import('../src/types.ts');
 
 // preorder ids: 0 root, 1 outer, 2 inner, 3 a, 4 b, 5 c, 6 d
@@ -13,7 +15,7 @@ const NESTED = '(((a,b)inner,c)outer,d)root;';
 /** The colour each tip is painted with, by label ('' for none). Reads the viewer's private class arrays: the colour is not exposed. */
 function tipColours(v) {
   const out = {};
-  for (const label of ['a', 'b', 'c', 'd']) out[label] = v.colours[v.classOf?.[v.tipNode(label)] ?? 0];
+  for (const label of ['a', 'b', 'c', 'd']) out[label] = v.colours[v.classOf?.[v.rowOf(v.tipNode(label))] ?? 0];
   return out;
 }
 
@@ -26,11 +28,18 @@ test('setClades: the innermost clade wins, in either order', async () => {
     [outer, inner],
     [inner, outer],
   ]) {
-    const { viewer, env } = await makeViewer(NESTED);
+    const { viewer, env, ctx } = await makeViewer(NESTED);
     assert.equal(viewer.getTree().labels[2], 'inner', 'node ids as the test assumes');
     viewer.setClades(order);
     env.flush();
     assert.deepEqual(tipColours(viewer), { a: 'blue', b: 'blue', c: 'red', d: '' }, order.map((c) => c.colour).join(','));
+    // and the frame paints with both colours
+    const painted = new Set(
+      ctx()
+        .log.filter((e) => e[0] === 'strokeStyle=' || e[0] === 'fillStyle=')
+        .map((e) => e[1]),
+    );
+    assert.ok(painted.has('blue') && painted.has('red'), 'the frame used the clade colours');
   }
 });
 
@@ -155,12 +164,15 @@ test('the frame follows the size of the target and the device pixel ratio', asyn
   h.env.flush();
   assert.equal(h.canvas().width, 200);
   globalThis.devicePixelRatio = 2;
-  h.env.resize(h.target, 300, 150);
-  h.env.flush();
-  assert.equal(h.canvas().width, 600);
-  assert.equal(h.canvas().height, 300);
-  assert.deepEqual(h.ctx().calls('setTransform').pop(), ['setTransform', 2, 0, 0, 2, 0, 0]);
-  globalThis.devicePixelRatio = 1;
+  try {
+    h.env.resize(h.target, 300, 150);
+    h.env.flush();
+    assert.equal(h.canvas().width, 600);
+    assert.equal(h.canvas().height, 300);
+    assert.deepEqual(h.ctx().calls('setTransform').pop(), ['setTransform', 2, 0, 0, 2, 0, 0]);
+  } finally {
+    globalThis.devicePixelRatio = 1;
+  }
 });
 
 test('destroy: frames stop, the observer and the scheme listener are removed, the canvases released', async () => {
@@ -310,6 +322,7 @@ test('a colour scheme change refreshes the theme; after destroy it does not', as
   env.setDark(false);
   assert.equal(viewer.getTheme().background, '#000000', 'destroyed: no more refresh');
   viewer.refreshTheme(); // a no-op, not an error
+  assert.equal(viewer.getTheme().background, '#000000');
 });
 
 test('refreshTheme swaps the canvas when the CSS background turns transparent', async () => {
@@ -319,4 +332,35 @@ test('refreshTheme swaps the canvas when the CSS background turns transparent', 
   h.viewer.refreshTheme();
   assert.notEqual(h.canvas(), first);
   assert.equal(h.canvas().contextAttrs[0].alpha, true);
+});
+
+// ---------------------------------------------------------------- the harness itself
+
+test('alphaOf: the colour syntaxes a browser reads, and a throw for what it cannot', () => {
+  for (const c of ['transparent', 'rgba(0,0,0,0)', 'rgb(0 0 0 / 0)', 'hsl(0 0% 0% / 0%)', '#0000', '#00000000']) assert.equal(alphaOf(c), 0, c);
+  for (const c of ['rgb(0 0 0 / 0.5)', 'rgba(0,0,0,50%)', 'hsl(0 0% 0% / .5)', 'hsla(0,0%,0%,.5)', '#ffffff80', '#fff8'])
+    assert.ok(alphaOf(c) > 100 && alphaOf(c) < 140, c);
+  for (const c of ['#fff', '#112233', 'white', 'rgb(1, 2, 3)', 'rgb(1 2 3)', 'hsl(0 0% 0%)', 'rgba(0,0,0,1)', 'rgb(0 0 0 / 100%)'])
+    assert.equal(alphaOf(c), 255, c);
+  assert.throws(() => alphaOf('color-mix(in srgb, red, transparent)'), /cannot tell/);
+});
+
+test('the fake style keeps one property map and a canvas resize resets its context state', async () => {
+  const h = await makeViewer('(a,b)r;');
+  const el = h.env.document.createElement('div');
+  el.style.pointerEvents = 'none';
+  assert.equal(el.style.cssText, 'pointer-events:none;');
+  el.style.cssText = 'left:0';
+  assert.equal(el.style.pointerEvents, undefined, 'assigning cssText replaces the earlier properties');
+  el.style.setProperty('--x', '1');
+  assert.equal(el.style.removeProperty('--x'), '1');
+  assert.equal(el.style.getPropertyValue('--x'), '');
+  // inline custom properties on the target are read by getComputedStyle
+  h.target.style.setProperty('--phylo-background', '#000000');
+  h.viewer.refreshTheme();
+  assert.equal(h.viewer.getTheme().background, '#000000');
+  const c = h.canvas();
+  c.ctx.fillStyle = 'red';
+  c.width = 10;
+  assert.equal(c.ctx.fillStyle, '#000000');
 });

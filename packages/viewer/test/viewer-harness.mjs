@@ -30,15 +30,29 @@ const DEFAULTS = {
   textBaseline: 'alphabetic',
 };
 
-/** Alpha (0-255) of the CSS colours the tests use: transparent, rgba(), #rgba, #rrggbbaa; anything else is opaque. */
-function alphaOf(c) {
+/** Alpha (0-255) of a CSS colour as a browser reads it: transparent, #rgba / #rrggbbaa, and rgb / rgba / hsl / hsla in the comma and the
+ *  space-slash syntax, with the alpha as a number or a percentage. Opaque forms (#rgb, #rrggbb, names, rgb without alpha) give 255. Anything
+ *  else (color-mix, calc, var, ...) throws: a test should pick a colour this harness understands rather than get a silent 255. */
+export function alphaOf(c) {
   const s = String(c).trim().toLowerCase();
   if (s === 'transparent') return 0;
-  let m = /^rgba?\([^)]*?([\d.]+%?)\s*\)$/.exec(s);
-  if (/^rgba\(/.test(s) && m) return Math.round(parseFloat(m[1]) * 255);
-  m = /^#([0-9a-f]{8}|[0-9a-f]{4})$/.exec(s);
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(s) || /^[a-z]+$/.test(s)) return 255;
+  let m = /^#([0-9a-f]{8}|[0-9a-f]{4})$/.exec(s);
   if (m) return m[1].length === 8 ? parseInt(m[1].slice(6), 16) : parseInt(m[1][3] + m[1][3], 16);
-  return 255;
+  m = /^(?:rgb|rgba|hsl|hsla)\(([^()]*)\)$/.exec(s);
+  if (m) {
+    const body = m[1];
+    let alpha;
+    if (body.includes('/')) alpha = body.split('/')[1].trim();
+    else if (body.includes(',')) alpha = body.split(',').length === 4 ? body.split(',')[3].trim() : undefined;
+    else alpha = undefined;
+    if (alpha === undefined) return 255;
+    const n = /^([\d.]+)(%?)$/.exec(alpha);
+    if (!n) throw new Error('alphaOf: cannot read the alpha of ' + c);
+    const v = n[2] ? parseFloat(n[1]) / 100 : parseFloat(n[1]);
+    return Math.round(Math.min(1, Math.max(0, v)) * 255);
+  }
+  throw new Error('alphaOf: the harness cannot tell whether ' + c + ' is opaque; use a colour it parses');
 }
 
 /** A 2D context that records. `log` holds `[name, ...args]` for every method call and `['fillStyle=', value]` for every property
@@ -49,6 +63,8 @@ export function recordingContext(canvas) {
   const api = {
     log,
     reset: () => void (log.length = 0),
+    /** What a canvas does when its width or height is set: the drawing state goes back to the defaults. */
+    resetState: () => void Object.assign(props, DEFAULTS),
     /** Index in `log` of the first entry named `name` (a call, or `prop=` for a write) at or after `from`; -1 when absent. */
     indexOf: (name, from = 0) => log.findIndex((e, i) => i >= from && e[0] === name),
     /** All entries named `name`. */
@@ -79,11 +95,25 @@ export function recordingContext(canvas) {
 export class FakeCanvas extends FakeElement {
   constructor(tag = 'canvas') {
     super(tag);
-    this.width = 300;
-    this.height = 150;
+    this._w = 300;
+    this._h = 150;
     /** Attributes of each `getContext` call, in order. */
     this.contextAttrs = [];
     this.ctx = null;
+  }
+  get width() {
+    return this._w;
+  }
+  set width(v) {
+    this._w = v;
+    this.ctx?.resetState();
+  }
+  get height() {
+    return this._h;
+  }
+  set height(v) {
+    this._h = v;
+    this.ctx?.resetState();
   }
   getContext(type, attrs) {
     if (type !== '2d') return null;
@@ -149,7 +179,11 @@ export function installEnv() {
   // getComputedStyle: custom properties from `cssVars` of the element or its nearest ancestor that has the property
   g.getComputedStyle = (el) => ({
     getPropertyValue: (k) => {
-      for (let n = el; n; n = n.parentNode) if (n.cssVars && k in n.cssVars) return n.cssVars[k];
+      for (let n = el; n; n = n.parentNode) {
+        if (n.cssVars && k in n.cssVars) return n.cssVars[k];
+        const inline = n.style?.getPropertyValue(k);
+        if (inline) return inline;
+      }
       return '';
     },
   });
@@ -199,6 +233,13 @@ export function installEnv() {
  * @returns `{ viewer, env, target, ctx }`: `ctx()` is the recording context of the viewer's current main canvas, `top()` of the overlay
  *   canvas, `canvas()` the main canvas element. The first frame is queued, not drawn: call `env.flush()`.
  */
+const made = [];
+
+/** Destroy every viewer `makeViewer` built (call it in `afterEach`), so no frame queue or listener outlives its test. */
+export function destroyAll() {
+  for (const v of made.splice(0)) v.destroy();
+}
+
 export async function makeViewer(tree, init = {}) {
   const env = installEnv();
   const { TreeViewer } = await import(path.join(root, 'packages/viewer/src/viewer.ts'));
@@ -210,6 +251,7 @@ export async function makeViewer(tree, init = {}) {
   env.document.body.appendChild(target);
   const data = typeof tree === 'string' ? parseNewick(tree) : tree;
   const viewer = new TreeViewer({ ...rest, target, tree: data });
+  made.push(viewer);
   const canvases = () => viewer.root.children.filter((c) => c instanceof FakeCanvas);
   return {
     viewer,
