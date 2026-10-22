@@ -47,8 +47,8 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
   const R = n;
   const d = draftOf(t, atNode ? 0 : 1);
   // supports move with their edges; labels are split and recomposed only for the nodes whose edge changes
-  // The support of the edge above a node is `t.support[i]`, and the label's number only where that is NaN. `text` is how the label
-  // writes it ('98.0'), kept only while the label agrees with the value; a value that lives only in `support` leaves the label's name.
+  // The support of the edge above a node is `t.support[i]`, and the label's number only where that is NaN. `text` is how the old
+  // node's label writes its number ('98.0', '' if none) and travels with the edge, so a label that disagrees with the array stays as written.
   const edgeSupport = new Map<number, EdgeSupport>(); // node -> support of its new edge
   const edgeOf = (i: number): EdgeSupport => {
     if (t.childCount[i] === 0) return NO_SUPPORT; // a tip's edge carries no support in Newick
@@ -56,7 +56,7 @@ export function reroot(t: TreeInput, node: number, o: RerootOptions = {}): OpRes
     const fromLabel = splitInternalLabel(t.labels[i]).support;
     const text = supportPart(t.labels[i], false).support;
     if (Number.isNaN(own)) return { value: fromLabel, text };
-    return { value: own, text: own === fromLabel ? text : '' };
+    return { value: own, text };
   };
   const has = (i: number) => !Number.isNaN(edgeOf(i).value);
   const sup = edgeOf(node);

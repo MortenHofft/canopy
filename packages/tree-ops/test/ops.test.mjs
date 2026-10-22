@@ -439,13 +439,42 @@ test('reroot: the fish MCC posterior (supportFrom) survives every reroot positio
   for (const [sp, val] of splitSupports(m)) if (before.get(sp) !== AMBIGUOUS) assert.equal(val, before.get(sp), `midpoint: split ${sp}`);
 });
 
-test('subtree and showFocus drop a root support kept only in the label, and keep the name', () => {
+test('reroot: a moved edge carries its label text; the array wins for the value, a disagreeing label stays as written', () => {
+  const t = parseNewick("(((A,B)'90:ab',C)'80:abc',((D,E)'70:de',F)'60:def',G);");
+  const de = t.mrcaOf(['D', 'E']),
+    def = t.mrcaOf(['D', 'E', 'F']);
+  t.support[de] = 0.5; // the label says 70, the array 0.5
+  t.support[def] = 0.4; // the label says 60
+  // rooting on D reverses de and def: de's edge now sits above the node named def, def's edge above the old root
+  const r = reroot(t, t.tipIndex('D'), { at: 0.5 }).tree;
+  const efabcg = r.mrcaOf(['F', 'A', 'B', 'C', 'G']),
+    abcg = r.mrcaOf(['A', 'B', 'C', 'G']);
+  assert.equal(r.support[efabcg], 0.5);
+  assert.equal(r.labels[efabcg], '70:def'); // the number as written on the old node, the name of the new one
+  assert.equal(r.support[abcg], 0.4);
+  assert.equal(r.labels[abcg], '60'); // the old root has no name
+  // untouched nodes keep both
+  assert.equal(r.support[r.mrcaOf(['A', 'B'])], 90);
+  assert.equal(r.labels[r.mrcaOf(['A', 'B'])], '90:ab');
+  // the text is carried as written: '98.0' and '.95' are not renormalised
+  const x = parseNewick("(((A,B)'98.0:ab',C)'.95:abc',D);");
+  x.support[x.mrcaOf(['A', 'B'])] = 0.7;
+  const w = reroot(x, x.tipIndex('D'), { at: 0.5 }).tree;
+  assert.equal(w.labels[w.mrcaOf(['A', 'B', 'C'])], '.95:abc');
+  const y = parseNewick("((A,B)'98.0:ab',(C,D)'.95:cd',E);");
+  const wy = reroot(y, y.tipIndex('C'), { at: 0.5 }).tree;
+  assert.equal(wy.labels[wy.mrcaOf(['A', 'B', 'E'])], '.95'); // cd's edge, as written, without cd's name
+});
+
+test('subtree and showFocus drop a root support kept only in the label and keep the name', () => {
   const t = parseNewick('((A,B)ab,C);');
   const ab = t.labels.indexOf('ab');
   t.labels[ab] = '90:ab';
   t.support.fill(NaN);
   const s = subtree(t, ab).tree;
   assert.equal(s.labels[0], 'ab');
+  const f = ops.showFocus(t, ops.focusOn(t, ops.NO_FOCUS, ab)).tree;
+  assert.equal(f.labels[0], 'ab');
 });
 
 test('midpoint exactly on a node roots at that node (no zero-length edge)', () => {
