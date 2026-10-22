@@ -1381,9 +1381,12 @@ export class TreeViewer {
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
-    const ctx = canvas.getContext('2d');
+    const background = opts.background === undefined ? this.theme.background : opts.background;
+    // opaque like the screen's canvas when the background is: Chromium draws text on an opaque canvas with subpixel antialiasing
+    // (where the system's font settings ask for it) and on one with alpha in greyscale, so the image would differ from the screen
+    const ctx = canvas.getContext('2d', { alpha: background === null || !isOpaque(background) });
     if (!ctx) return Promise.reject(new Error('toBlob: no 2D context'));
-    this.paint(ctx, scale, new LabelList(), opts.background === undefined ? this.theme.background : opts.background);
+    this.paint(ctx, scale, new LabelList(), background);
     return new Promise((resolve, reject) => {
       canvas.toBlob((b) => {
         canvas.width = canvas.height = 0; // release the backing store

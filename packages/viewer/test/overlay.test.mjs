@@ -108,6 +108,7 @@ test('update creates one transparent focusable treeitem per label, named by form
   assert.equal(a.style.fontSize, '12px', 'height - 2, at least 8');
   assert.equal(a.style.height, '14px');
   assert.equal(a.style.lineHeight, '14px');
+  assert.equal(a.style.width, '40px', "the canvas's width of the text, not the DOM's (a highlighted label is drawn bolder)");
   assert.equal(a.style.display, '');
   o.update(labels([[0, 100, 40, 9]]), tree, opts(), { ...theme, labelFontStyle: 'normal' }, 'rectangular');
   assert.equal(o.layer.children.length, 1, 'a rebuilt pool after the label font style changed');
@@ -222,6 +223,10 @@ test('radial labels are rotated to the tip angle; flipped ones read towards the 
   o.update(labels([[0, 200, 100, 14]], { ang: 1, flip: 1 }), tree, opts(), theme, 'radial');
   assert.equal(o.layer.children[0], a, 'same element');
   assert.equal(a.style.transform, `translate(200px,93px) rotate(${(1 * 180) / Math.PI}deg) translateX(-100%) translateX(-8px)`);
+  const wide = new LabelList();
+  wide.add(0, 200, 100, 55, 14, 1, 1); // the same label highlighted: drawn at weight 600, so wider
+  o.update(wide, tree, opts(), theme, 'radial');
+  assert.equal(a.style.width, '55px', 'a flipped label: the anchor reaches the far end of the text (-100% is this width)');
   o.destroy();
 });
 
