@@ -20,10 +20,13 @@
   --ex-text: #0f172a;
   --ex-text-2: #475569;
   --ex-muted: #64748b;
-  --ex-dots: var(--ex-surface-30);
   --ex-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   --ex-pop-shadow: 0 8px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
-  --ex-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* one system stack for the page, the controls and (through --phylo-font-family) the tip labels on the canvas: nothing is downloaded, it
+   * matches the host's UI, and a tree's labels then read in the same face as the toolbar. Numbers that are read as numbers use --ex-mono */
+  --ex-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ex-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ex-edge: 28px; /* the fade at the end of a scrolling toolbar */
 
   --ex-palette-red: #ef4444;
   --ex-palette-orange: #f97316;
@@ -38,8 +41,8 @@
   --ex-palette-slate: #64748b;
   --ex-palette-brown: #92400e;
 
-  /* the viewer's theme from the tokens; transparent, so the pane's dotted grid shows under the tree */
-  --phylo-background: transparent;
+  /* the viewer's theme from the tokens; the background is the pane's grey, so the canvas is opaque (and the PNG export matches it) */
+  --phylo-background: var(--ex-surface-10);
   --phylo-foreground: #1e293b;
   --phylo-muted: var(--ex-muted);
   --phylo-branch: var(--ex-text-2);
@@ -73,14 +76,12 @@
   --ex-text: #f1f5f9;
   --ex-text-2: #cbd5e1;
   --ex-muted: #94a3b8;
-  --ex-dots: rgba(148, 163, 184, 0.15);
   --ex-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   --ex-pop-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
   --phylo-foreground: #e2e8f0;
   --phylo-branch: #cbd5e1;
   --phylo-summary: var(--ex-text-2);
   --phylo-summary-opacity: 0.3;
-  --phylo-dark: true; /* the background is transparent, so say it: the residue colours then use their dark defaults */
   color-scheme: dark;
 }
 
@@ -168,12 +169,46 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 0 6px 12px; /* the right padding is the pinned group's */
   background: var(--ex-surface-0);
   flex-wrap: nowrap;
-  overflow-x: auto; /* narrower than the toolbar: it scrolls sideways, keeping the two rows (thin bar, so it can be seen) */
-  scrollbar-width: thin;
   min-width: 0;
+}
+/* narrower than the toolbar, a row scrolls sideways (thin bar), keeping the two rows. A fade marks the end that has more: data-start /
+ * data-end are set by the Scroller. Search and Export (.ex-pinned) stay at the right edge whatever the scroll */
+.ex-row[data-scroll] {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.ex-row[data-start] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--ex-edge));
+  mask-image: linear-gradient(to right, transparent, #000 var(--ex-edge));
+}
+.ex-row:not(:has(> .ex-pinned))::after {
+  content: '';
+  flex: 0 0 4px; /* the right padding of a row with nothing pinned (the gap adds 8px) */
+}
+.ex-pinned {
+  position: sticky;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: -6px 0; /* the row's padding: the group fills the row's height */
+  padding: 6px 12px 6px 8px;
+  background: var(--ex-surface-0);
+  z-index: 2;
+}
+.ex-row[data-end] > .ex-pinned::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 100%;
+  width: var(--ex-edge);
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--ex-surface-0));
 }
 .ex-row:first-child {
   border-bottom: 1px solid var(--ex-surface-20);
@@ -242,8 +277,9 @@ body {
 }
 .ex-slider-val {
   font: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--ex-mono);
+  font-size: 10.5px;
+  font-weight: 500;
   color: var(--ex-primary);
   background: none;
   border: none;
@@ -341,7 +377,7 @@ body {
 .ex-steps span.on {
   background: white;
   color: #0d9488;
-  font-weight: 700;
+  font-weight: 600;
 }
 .ex-steps span.done {
   background: rgba(255, 255, 255, 0.6);
@@ -359,7 +395,7 @@ body {
 }
 .ex-count {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   min-width: 16px;
   height: 16px;
   line-height: 16px;
@@ -448,13 +484,17 @@ body {
   font-weight: 500;
   white-space: nowrap;
 }
+.ex-mono {
+  font-family: var(--ex-mono);
+  font-size: 0.95em;
+}
 .ex-chip {
   display: flex;
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 999px;
   color: var(--ex-violet);
   background: color-mix(in srgb, var(--ex-violet) 9%, transparent);
@@ -506,7 +546,8 @@ body {
 .ex-num {
   width: 58px;
   font: inherit;
-  font-size: 11.5px;
+  font-family: var(--ex-mono);
+  font-size: 11px;
   padding: 4px 6px;
   color: var(--ex-text);
   background: var(--ex-surface-10);
@@ -518,7 +559,8 @@ body {
   outline-offset: 1px;
 }
 .ex-support-n {
-  font-size: 11px;
+  font-family: var(--ex-mono);
+  font-size: 10.5px;
   color: var(--ex-muted);
   white-space: nowrap;
 }
@@ -601,8 +643,6 @@ body {
   position: relative;
   overflow: hidden;
   background-color: var(--ex-surface-10);
-  background-image: radial-gradient(circle, var(--ex-dots) 1px, transparent 1px);
-  background-size: 22px 22px;
   flex-shrink: 0;
 }
 .ex-mode-reroot .ex-pane,
@@ -727,8 +767,9 @@ body {
   display: none;
 }
 .ex-tip-step {
+  font-family: var(--ex-mono);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 1px 5px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.25);
@@ -772,8 +813,9 @@ body {
   caret-color: var(--ex-accent);
 }
 .ex-search-count {
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--ex-mono);
+  font-size: 10.5px;
+  font-weight: 500;
   color: var(--ex-accent);
   white-space: nowrap;
 }
@@ -855,11 +897,14 @@ body {
 }
 .ex-info-rows dt {
   color: var(--ex-muted);
+  line-height: 1.5;
 }
 .ex-info-rows dd {
   margin: 0;
   text-align: right;
-  font-weight: 600;
+  font-family: var(--ex-mono);
+  font-size: 11px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--ex-text);
 }
@@ -900,7 +945,7 @@ body {
   background: var(--ex-surface-0);
 }
 .ex-legend-type {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 5px;

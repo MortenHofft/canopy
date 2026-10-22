@@ -27,7 +27,7 @@ export const IconHeight = () => (
 );
 export const IconFont = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-    <text x="0" y="11" fontSize="11" fontFamily="system-ui" fontWeight="700">
+    <text x="0" y="11" fontSize="11" fontFamily="system-ui" fontWeight="600">
       A
     </text>
     <text x="9" y="13" fontSize="7" fontFamily="system-ui">
@@ -189,7 +189,7 @@ export const IconAlignLabels = () => (
 export const IconBootstrap = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />
-    <text x="7" y="10" textAnchor="middle" fontSize="7" fontWeight="700" fill="currentColor">
+    <text x="7" y="10" textAnchor="middle" fontSize="7" fontWeight="600" fill="currentColor">
       %
     </text>
   </svg>

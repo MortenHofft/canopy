@@ -7,7 +7,8 @@
 // and Collapse, Expand and Info are its items; colour, erase and the innermost-colour-wins order; reroot, flip, swap
 // (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); show only a clade, Up one level
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
-// the transparent background leaves no trace of earlier frames; the innermost clade colour wins whatever the order;
+// the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
+// inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu;
 // disabled in radial); the alignment track (a 'fill' column) and its legend; the overview and legend controls; dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included.
@@ -156,17 +157,52 @@ ok((await ev((l) => __v().options.formatLabel(l), longest)).endsWith('…'), 'Tr
 await btn('Truncate').click();
 ok((await ev((l) => __v().options.formatLabel(l), longest)) === longest.replace(/_/g, ' '), 'Full names: the whole name');
 
-console.log('transparent background');
-ok((await ev(() => __v().getTheme().background)) === 'transparent', 'the canvas background is transparent (the dotted grid shows)');
-// painted pixels after fitting, after zooming in and panning, and after fitting again: with frames drawn over each other the count grows
+console.log('opaque background, typography');
+const paneBg = await ev(() => {
+  const cs = getComputedStyle(document.querySelector('.ex-pane'));
+  return { colour: cs.backgroundColor, image: cs.backgroundImage };
+});
+ok(paneBg.image === 'none', `no dot pattern on the pane (background-image: ${paneBg.image})`);
+const themeBg = await ev(() => {
+  const p = document.createElement('i');
+  p.style.color = __v().getTheme().background;
+  document.body.append(p);
+  const c = getComputedStyle(p).color;
+  p.remove();
+  return c;
+});
+ok(themeBg === paneBg.colour && !/rgba|transparent/.test(themeBg), `the canvas background is the pane's grey, opaque (${themeBg})`);
+ok(
+  (await ev(() => getComputedStyle(document.querySelector('.ex-pane')).getPropertyValue('--phylo-dark'))) === '',
+  'light: no --phylo-dark set by hand',
+);
+ok(
+  await ev(
+    () =>
+      /system-ui/.test(getComputedStyle(document.body).fontFamily) &&
+      /system-ui/.test(getComputedStyle(document.querySelector('.ex-outer')).fontFamily),
+  ),
+  'the page font is a system-ui stack',
+);
+ok(/system-ui/.test(await ev(() => __v().getTheme().fontFamily)), 'and so is the tree labels font (--phylo-font-family)');
+// painted pixels (what differs from the background, the first pixel) after fitting, after zooming in and panning, and after fitting
+// again: with frames drawn over each other the count grows
 const painted = () =>
   ev(() => {
     __v().renderNow();
     const c = __v().treeElement.querySelector('canvas');
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     let n = 0;
+    for (let i = 4; i < d.length; i += 4) if (Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]) > 6) n++;
+    return n / (c.width * c.height); // the drawn share of the canvas
+  });
+const opaqueShare = () =>
+  ev(() => {
+    const c = __v().treeElement.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
     for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
-    return n / (c.width * c.height); // the painted share of the canvas
+    return n / (c.width * c.height);
   });
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
@@ -181,18 +217,26 @@ await page.waitForTimeout(300);
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(300);
 const p1 = await painted();
-ok(p0 > 0 && p0 < 0.5, `the canvas is see-through where nothing is drawn (${(p0 * 100).toFixed(1)}% painted)`);
+ok(p0 > 0 && p0 < 0.5, `the canvas is the background where nothing is drawn (${(p0 * 100).toFixed(1)}% drawn)`);
+ok((await opaqueShare()) === 1, 'the canvas is opaque');
 ok(Math.abs(p1 - p0) < 0.002, `no trace of earlier frames (${(p0 * 100).toFixed(2)}% painted before zoom and pan, ${(p1 * 100).toFixed(2)}% after)`);
-// switching to an opaque background and back at run time (the viewer changes canvas)
+// switching to a transparent background and back at run time (the viewer changes canvas)
 // setTheme replaces the page's overrides (font, branch width): pass the theme in force, only the background changed
 const themeNow = await ev(() => __v().getTheme());
-await ev((t) => __v().setTheme({ ...t, background: '#ffffff' }), themeNow);
-const pOpaque = await painted();
+await ev((t) => __v().setTheme({ ...t, background: 'transparent' }), themeNow);
+const pClear = await ev(() => {
+  __v().renderNow();
+  const c = __v().treeElement.querySelector('canvas');
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+  return n / (c.width * c.height);
+});
 await ev((t) => __v().setTheme(t), themeNow);
 const pBack = await painted();
 ok(
-  pOpaque === 1 && Math.abs(pBack - p0) < 0.002,
-  `opaque background at run time, then transparent again (${(pOpaque * 100).toFixed(1)}%, ${(pBack * 100).toFixed(2)}%)`,
+  pClear < 0.5 && Math.abs(pBack - p0) < 0.002 && (await opaqueShare()) === 1,
+  `transparent background at run time, then opaque again (${(pClear * 100).toFixed(1)}% painted, ${(pBack * 100).toFixed(2)}% drawn)`,
 );
 // the renderer outlives edits now, so the theme set by hand above would stay: give the page's own overrides back (the font size slider
 // sets them again)
@@ -255,6 +299,20 @@ ok(
   'Info opens the inspector',
 );
 ok((await page.locator('.ex-info-rows dt', { hasText: 'Root distance' }).count()) === 1, 'inspector: root distance');
+const infoFonts = await ev(() => [...document.querySelectorAll('.ex-info-rows dd')].map((d) => getComputedStyle(d).fontFamily));
+ok(
+  infoFonts.length >= 2 && infoFonts.every((f) => /ui-monospace|monospace/.test(f)),
+  `the inspector's numbers are monospace (${infoFonts.length} values)`,
+);
+ok(/system-ui/.test(await ev(() => getComputedStyle(document.querySelector('.ex-info-rows dt')).fontFamily)), 'and its labels are the page font');
+ok(
+  await ev(() =>
+    [...document.querySelectorAll('.ex-info, .ex-outer .ex-row')].every((el) =>
+      [...el.querySelectorAll('*')].every((n) => Number(getComputedStyle(n).fontWeight) < 700),
+    ),
+  ),
+  'nothing in the inspector or toolbar is bolder than 600',
+);
 await page.locator('.ex-info-head button').click();
 // a clade: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade
 const rows = () => ev(() => __v().layout.rows);
@@ -585,7 +643,11 @@ const download = async (label) => {
 const png1 = await download('PNG 1×');
 ok(png1.name === 'phylotree.png' && png1.data.subarray(1, 4).toString() === 'PNG', 'PNG 1× download');
 const img = PNG.sync.read(png1.data);
-ok(img.data[3] === 255, 'the PNG is opaque (the pane colour under the transparent canvas)');
+ok(img.data[3] === 255, 'the PNG is opaque');
+ok(
+  `rgb(${img.data[0]}, ${img.data[1]}, ${img.data[2]})` === paneBg.colour,
+  `the PNG's background is the pane's grey, with no background passed to toBlob (${img.data[0]}, ${img.data[1]}, ${img.data[2]})`,
+);
 ok(img.width === Math.round(pngSize.w) && img.height === Math.round(pngSize.h), `PNG 1× is the view's CSS size (${img.width} x ${img.height})`);
 const p2 = await download('PNG 2×');
 const img2 = PNG.sync.read(p2.data);
@@ -598,11 +660,11 @@ const img4 = PNG.sync.read(p4.data);
 ok(img4.width === img.width * 4 && img4.height === img.height * 4, `PNG 4× is four times the size (${img4.width} x ${img4.height})`);
 const screenVsBlob = () =>
   ev(async () => {
-    // the export equals the screen: the visible canvas (transparent background) against toBlob at the canvas scale, pixel by pixel
+    // the export equals the screen: the visible canvas against toBlob (the theme's background by default) at the canvas scale, pixel by pixel
     const v = __v();
     v.renderNow();
     const screen = v.treeElement.querySelector('canvas');
-    const bm = await createImageBitmap(await v.toBlob({ background: null }));
+    const bm = await createImageBitmap(await v.toBlob());
     const read = (src) => {
       const c = document.createElement('canvas');
       c.width = screen.width;
@@ -616,7 +678,7 @@ const screenVsBlob = () =>
     let diff = 0,
       painted = 0;
     for (let i = 0; i < A.length; i += 4) {
-      if (A[i + 3] > 0) painted++;
+      if (Math.abs(A[i] - A[0]) + Math.abs(A[i + 1] - A[1]) + Math.abs(A[i + 2] - A[2]) > 6) painted++;
       if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 2) diff++;
     }
     return { w: bm.width === screen.width && bm.height === screen.height, diff, painted };
@@ -638,7 +700,7 @@ const exp2 = await ev(async () => {
   return { type: b.type, w: bm.width, h: bm.height, corner: d[3], W: __v().size.width, H: __v().size.height };
 });
 ok(exp2.type === 'image/png' && exp2.w === exp2.W * 2 && exp2.h === exp2.H * 2, `toBlob({ scale: 2 }) is twice the CSS size (${exp2.w} x ${exp2.h})`);
-ok(exp2.corner === 0, 'toBlob({ background: null }) is transparent');
+ok(exp2.corner === 0, 'toBlob({ background: null }) is still transparent');
 ok(
   await ev(() => {
     const el = document.querySelector('.phylo-tooltip');
@@ -662,6 +724,7 @@ await page.locator('.theme-toggle').click();
 await page.waitForTimeout(200);
 const fg2 = await ev(() => __v().getTheme().branch);
 ok(fg2 !== fg, `dark mode reaches the canvas (branches ${fg} → ${fg2})`);
+ok(await ev(() => __v().getTheme().dark === true), 'dark is derived from the opaque dark background (no --phylo-dark by hand)');
 const h0 = (await page.locator('.ex-pane').boundingBox()).height;
 const g = await page.locator('.ex-resize').boundingBox();
 await page.mouse.move(g.x + g.width / 2, g.y + 7);
@@ -1114,6 +1177,8 @@ console.log('Copy Newick without navigator.clipboard');
   await page.waitForTimeout(500);
   const t = await toast();
   ok(t.startsWith('Copied') || (t.includes('downloaded') && (await dl) !== null), `without the clipboard API: "${t}"`);
+  const focused = await ev(() => document.activeElement?.tagName);
+  ok(focused !== 'BODY' && focused !== 'TEXTAREA', `the keyboard focus is not lost to the fallback's textarea (on ${focused})`);
 }
 
 // the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
@@ -1124,7 +1189,56 @@ for (const w of [1280, 1024, 600]) {
   await page.waitForTimeout(200);
   const rows = await page.locator('.ex-row').evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect().height)));
   ok(rows.length === 2 && rows.every((h) => h < 50), `${w} px: two single-line rows (${rows.join(', ')} px)`);
+  // Export and Search stay in view whatever the row scrolls; a row that overflows says so (data-end on the scroller, a fade)
+  const vis = await ev(() =>
+    ['.ex-export button', 'button[aria-label="Search tips"]'].map((q) => {
+      const r = document.querySelector(q).getBoundingClientRect();
+      const o = document.querySelector('.ex-outer').getBoundingClientRect();
+      return r.width > 0 && r.left >= o.left && r.right <= o.right;
+    }),
+  );
+  ok(vis[0] && vis[1], `${w} px: Export and Search are inside the toolbar`);
+  const row1 = await ev(() => {
+    const r = document.querySelector('.ex-row');
+    return { over: r.scrollWidth > r.clientWidth + 1, end: r.hasAttribute('data-end'), start: r.hasAttribute('data-start') };
+  });
+  ok(row1.over === row1.end && !row1.start, `${w} px: the View row ${row1.over ? 'overflows and shows the fade' : 'fits, no fade'}`);
+  await btn('Export').click();
+  ok(
+    (await page.locator('.ex-menu').count()) === 1 && (await page.locator('.ex-menu button').first().isVisible()),
+    `${w} px: Export is clickable and opens its menu`,
+  );
+  await btn('Export').click();
 }
+await page.setViewportSize({ width: 1024, height: 860 });
+await open('rich-fish-carangaria-135');
+await page
+  .locator('.ex-row')
+  .first()
+  .evaluate((r) => (r.scrollLeft = 0));
+// the row is scrolled to its end: the start fades, Export is still where it was
+const exportX = await ev(() => document.querySelector('.ex-export button').getBoundingClientRect().left);
+await page
+  .locator('.ex-row')
+  .first()
+  .evaluate((r) => (r.scrollLeft = r.scrollWidth));
+await page.waitForTimeout(150);
+ok(
+  (await ev(() => document.querySelector('.ex-row').hasAttribute('data-start'))) &&
+    !(await ev(() => document.querySelector('.ex-row').hasAttribute('data-end'))) &&
+    Math.abs((await ev(() => document.querySelector('.ex-export button').getBoundingClientRect().left)) - exportX) < 1,
+  '1024 px: scrolled to its end the row fades at the start and Export has not moved',
+);
+await page.mouse.click(
+  ...Object.values(
+    await ev(() => {
+      const r = document.querySelector('.ex-export button').getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }),
+  ),
+);
+ok((await page.locator('.ex-menu').count()) === 1, '1024 px: a real click on Export (after scrolling) opens the menu');
+await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1280, height: 860 });
 
 // ---------------------------------------------------------------- collapse by support
