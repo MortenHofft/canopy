@@ -361,9 +361,9 @@ export interface ViewerOptions {
   hoverAnimation: boolean;
   /**
    * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
-   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
+   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout; tips get one too), or a function
    * `(node, tree)` returning the text or a number (null = none), placed and coloured like support; `node` is the preorder id in the full
-   * tree, as in `cladeLabel`. Only drawn internal nodes get one (never one inside a collapsed clade), and only where the branch is long
+   * tree, as in `cladeLabel`. Only drawn internal nodes (and, for 'length', drawn tips) get one (never one inside a collapsed clade), and only where the branch is long
    * enough for the text and rows (rectangular) or arcs (radial) are at least `labelDensity` apart. Colours and size: `supportColour`,
    * `lengthColour`, `nodeLabelSize`.
    */

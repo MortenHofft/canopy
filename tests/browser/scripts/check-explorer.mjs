@@ -127,7 +127,10 @@ await page.addInitScript(() => {
   CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
     if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
     // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout (the radial scale bar has it too)
-    if (this.textBaseline === 'bottom') (window.__nodeTexts ??= []).push(String(text));
+    if (this.textBaseline === 'bottom') {
+      (window.__nodeTexts ??= []).push(String(text));
+      (window.__nodeTextAt ??= []).push({ text: String(text), x: rest[0], y: rest[1], align: this.textAlign });
+    }
     return ft.call(this, text, ...rest);
   };
 });
@@ -865,6 +868,7 @@ console.log('node labels');
 const drawn = async () => {
   await ev(() => {
     window.__nodeTexts = [];
+    window.__nodeTextAt = [];
     __v().invalidate();
     __v().renderNow();
   });
@@ -885,7 +889,7 @@ ok(labels.includes('0.3') && labels.includes('0.4') && labels.includes('0.1'), `
 await btn('Length').click();
 await page.waitForTimeout(200);
 ok((await drawn()).length === 0 && (await ev(() => __v().options.nodeLabels)) === 'none', 'No labels');
-// lengths on the HCV tree: every label is the length of an internal node
+// lengths on the HCV tree: every label is the length of a node, and the long tip branches have theirs (#66)
 await open('rich-hcv-19');
 for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'length'; k++) {
   await page.locator('.ex-labels').click(); // None, (Bootstrap if the tree has support), Length
@@ -895,13 +899,32 @@ labels = await drawn();
 const hcvLengths = await ev(() => {
   const t = __v().getTree();
   const out = [];
-  for (let i = 1; i < t.nodeCount; i++) if (t.firstChild[i] >= 0 && !Number.isNaN(t.length[i])) out.push(String(Number(t.length[i].toPrecision(3))));
+  for (let i = 1; i < t.nodeCount; i++) if (!Number.isNaN(t.length[i])) out.push(String(Number(t.length[i].toPrecision(3))));
   return out;
 });
 ok(
   labels.length > 0 && labels.every((l) => hcvLengths.includes(l)),
-  `HCV: ${labels.length} branch lengths drawn, each the length of an internal node (${labels.slice(0, 6).join(' ')} ...)`,
+  `HCV: ${labels.length} branch lengths drawn, each the length of a node (${labels.slice(0, 6).join(' ')} ...)`,
 );
+// the long tip branches at the fitted view: one label each, centred on the branch (the visible part of it) within 1 px
+for (const name of ['HCV-2k GB BID-G1242', 'PTR3874']) {
+  const r = await ev((name) => {
+    const v = __v();
+    const t = v.getTree();
+    let i = 1;
+    while (i < t.nodeCount && !(t.firstChild[i] < 0 && t.tipLabels[t.tipRank[i]].replace(/_/g, ' ').startsWith(name))) i++;
+    if (i === t.nodeCount) return null;
+    const p = v.nodePosition(i),
+      q = v.nodePosition(t.parent[i]);
+    const text = String(Number(t.length[i].toPrecision(3)));
+    const mine = window.__nodeTextAt.filter((l) => l.text === text && l.align === 'center' && Math.abs(l.y - p.y) < 6);
+    return { text, mid: (p.x + q.x) / 2, xs: mine.map((l) => l.x) };
+  }, name);
+  ok(
+    r && r.xs.length === 1 && Math.abs(r.xs[0] - r.mid) <= 1,
+    `HCV: the tip branch of ${name} shows its length ${r?.text}, centred (${r?.xs.map((x) => x.toFixed(1)).join(',')} vs ${r?.mid.toFixed(1)})`,
+  );
+}
 // hcvZoomed in on x the short branches get room for their text, so more labels are drawn
 await ev(() => {
   const v = __v();
@@ -973,7 +996,7 @@ const lengthLabelsOff = async (vp) =>
     for (const l of seen) {
       let best = Infinity;
       for (let i = 1; i < tree.nodeCount; i++) {
-        if (tree.firstChild[i] < 0 || String(Number(tree.length[i].toPrecision(3))) !== l.t) continue;
+        if (String(Number(tree.length[i].toPrecision(3))) !== l.t) continue; // tips too (#66)
         proj.nodeXY(i, p);
         proj.parentXY(i, q);
         if (Math.abs(p.y - 2 - l.y) > 1) continue;

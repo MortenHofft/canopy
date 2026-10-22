@@ -570,8 +570,11 @@ await select('nodeLabels', 'none');
 const scaleBar = await drawnNodeTexts();
 for (const t of scaleBar) withLabels.splice(withLabels.indexOf(t), 1);
 ok(
-  withLabels.includes('0.3') && withLabels.includes('0.4') && withLabels.length === 3,
-  `radial: three lengths along the branches, the scale bar not counted (${withLabels.join(' ')})`,
+  withLabels.includes('0.3') &&
+    withLabels.includes('0.4') &&
+    withLabels.includes('0.2') &&
+    withLabels.every((t) => ['0.1', '0.2', '0.3', '0.4'].includes(t)),
+  `radial: lengths along the internal and the tip branches, the scale bar not counted (${withLabels.join(' ')})`,
 );
 await open();
 

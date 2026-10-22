@@ -1023,14 +1023,35 @@ function nodeText(S: Scene, row: number): string | null {
   return r ? r : null;
 }
 
-/** Node labels (`nodeLabels`) for the internal nodes of the draw list, which are expanded nodes and collapsed clades (on their own stem), so
+/** Draw-list entry `e` can get a node label: in the tip pass a tip, else an expanded internal node (not a run), a clade the app collapsed,
+ *  or, when `stubs` (a length, rectangular), a stub: it is drawn as its branch only, and when its node is right of the plot (checked by the
+ *  caller) the visible part of a long stem still holds a length, the same as it did while the node was a pixel nearer. */
+function nodeLabelled(S: Scene, e: number, tips: boolean, stubs: boolean): boolean {
+  const kind = S.list.kind[e];
+  if (tips) return kind === K_TIP;
+  if (kind === K_NODE) return S.list.last[e] < 0;
+  return isCollapsedEntry(S, e) || (stubs && kind === K_STUB);
+}
+
+/** Radial: the room across the branch of draw-list entry `i` of kind `kind` (`r1` its radius, `room` its length; px). An expanded node:
+ *  its arc at its radius. A tip: one row's angle at the middle of its branch, where its label sits (the frame's tipPitch is the angle at
+ *  the outer radius, too wide for a tip near the centre). A collapsed clade or a stub: not limited. */
+function acrossPx(proj: RadialProjection, kind: number, i: number, r1: number, room: number): number {
+  if (kind === K_TIP) return proj.T.da * (r1 - room / 2);
+  if (kind !== K_NODE) return Infinity;
+  return proj.tipSpan(proj.tree.firstChild[i], proj.L.LAST[i]) * r1;
+}
+
+/** Node labels (`nodeLabels`) for the nodes of the draw list, which are expanded nodes, collapsed clades (on their own stem) and tips, so
  *  never a node inside a summary, a run or a collapsed clade. Shown only with room, by the label-density rule of tip labels: rectangular, tip rows at least `labelMinPx` (scaled with the theme's `labelSize`) apart
  *  and the text fits the visible part of the node's horizontal segment; radial, the node's arc at least that long and the text fits the
  *  branch. Support sits left of the node above its branch; a length is centred on the branch (radial: rotated along it, upright on the
  *  left half like tip labels). A length is placed by one rule at every zoom: centred on the visible part of its branch (rectangular; the
- *  whole branch, radial) if the text plus `pad` on both sides fits there, else not drawn (there is no placement at the node). Tips get no
- *  label: a label on a tip branch would meet the tip marker and the tip label. The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP) labels, found by one pass over
- *  the draw list, with the text made only after the cheap geometry tests. */
+ *  whole branch, radial) if the text plus `pad` on both sides fits there, else not drawn (there is no placement at the node). Tips get a
+ *  length by the same rule (their tip label is right of the tip, so the branch is free) once tip rows are far enough apart for tip labels;
+ *  support and a function's text stay on internal nodes. The root has no branch and no label. At most MAX_RECT_LABELS (RADIAL_LABEL_CAP)
+ *  labels, found by one pass over the draw list for the internal nodes and then one for the tips, so tips never use up the cap before the
+ *  internal branches are labelled; the text is made only after the cheap geometry tests. */
 export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const mode = S.nodeLabels;
   if (mode === 'none') return;
@@ -1048,86 +1069,85 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const centred = mode === 'length'; // a function's text is placed and coloured like support
   const gap = Math.max(NODE_LABEL_GAP_PX, theme.nodeMarkerSize / 2 + 1); // a support value clears the node's marker
   const pad = Math.max(NODE_LABEL_PAD_PX, theme.nodeMarkerSize / 2 + 1); // a length keeps clear of the node marker at one end and the connector at the other
+  const fit = centred ? 2 * pad : gap + NODE_LABEL_PAD_PX; // the room a label needs besides its text
+  const fitTip = 2 * Math.max(pad, theme.tipRadius + 1); // a tip's length (the only label of a tip) keeps clear of the tip dot too
   const colSupport = theme.supportColour || theme.muted,
     colLength = theme.lengthColour || theme.muted;
   const p: Pt = { x: 0, y: 0 },
     q: Pt = { x: 0, y: 0 };
-  const { firstChild, parent } = tree;
-  const hasCollapsed = L.collapsed !== null;
+  const { parent } = tree;
   let n = 0;
   let lastFill = '';
   let lastAlpha = 1;
   let lastAlign = '';
-  for (let e = 0; e < list.count && n < maxN; e++) {
-    const kind = list.kind[e];
-    const col = kind !== K_NODE; // a collapsed clade shows its own support or length on its stem, like an expanded node
-    // a stub is drawn as its branch only: when its node is right of the plot (rectangular, checked below) the visible part of a long stem
-    // still holds a length, the same as it did while the node was a pixel nearer
-    if (col ? !((hasCollapsed && isCollapsedEntry(S, e)) || (kind === K_STUB && centred && rect)) : list.last[e] >= 0) continue;
-    const i = list.node[e];
-    if (i === 0) continue;
-    let x0 = 0, // rectangular: the visible part of the segment; radial: the label's origin
-      y0 = 0,
-      room = 0,
-      c = 1,
-      sn = 0;
-    proj.nodeXY(i, p);
-    if (rect) {
-      if (kind === K_STUB && p.x <= T.clipR) continue; // a clade cut by size, not one pushed out of view
-      proj.parentXY(i, q);
-      if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
-      x0 = Math.max(q.x, T.clipL);
-      room = (centred ? Math.min(p.x, T.clipR) : p.x) - x0;
-      if (!centred && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
-      y0 = p.y - NODE_LABEL_LIFT_PX;
-    } else {
-      const lc = L.LAST[i];
-      const r1 = proj.depth(i);
-      room = r1 - proj.depth(parent[i]);
-      if (room < NODE_LABEL_MIN_SEG_PX || (!col && proj.tipSpan(firstChild[i], lc) * r1 < need)) continue; // no room along the branch or across
-      c = L.COS![i];
-      sn = L.SIN![i];
-      x0 = centred ? p.x - (c * room) / 2 : p.x;
-      y0 = centred ? p.y - (sn * room) / 2 : p.y;
-      if (x0 < -20 || y0 < -20 || x0 > T.W + 20 || y0 > T.H + 20) continue;
-    }
-    if (room < NODE_LABEL_MIN_SEG_PX) continue;
-    const text = nodeText(S, i);
-    if (text === null) continue;
-    const w = S.measure.width(ctx, text, font);
-    if (w + (centred ? 2 * pad : gap + NODE_LABEL_PAD_PX) > room) continue; // no room: not drawn, never moved to the node
-    const fill = centred ? colLength : colSupport;
-    if (fill !== lastFill) {
-      ctx.fillStyle = fill;
-      lastFill = fill;
-    }
-    const alpha = S.hlPrefix !== null && dimmed(S, e) ? theme.dimOpacity : 1;
-    if (alpha !== lastAlpha) {
-      ctx.globalAlpha = alpha;
-      lastAlpha = alpha;
-    }
-    if (rect) {
-      const al = centred ? 'center' : 'right';
-      if (al !== lastAlign) {
-        ctx.textAlign = al;
-        lastAlign = al;
+  const passes = centred && proj.tipPitch >= need ? 2 : 1; // the second pass labels tip branches with their length
+  for (let pass = 0; pass < passes; pass++)
+    for (let e = 0; e < list.count && n < maxN; e++) {
+      if (!nodeLabelled(S, e, pass === 1, centred && rect)) continue;
+      const kind = list.kind[e];
+      const i = list.node[e];
+      if (i === 0) continue;
+      let x0 = 0, // rectangular: the visible part of the segment; radial: the label's origin
+        y0 = 0,
+        room = 0,
+        c = 1,
+        sn = 0;
+      proj.nodeXY(i, p);
+      if (rect) {
+        if (kind === K_STUB && p.x <= T.clipR) continue; // a clade cut by size, not one pushed out of view
+        proj.parentXY(i, q);
+        if (p.y < T.clipT - 4 || p.y > T.clipB + 4 || p.x < T.clipL || q.x > T.clipR) continue;
+        x0 = Math.max(q.x, T.clipL);
+        room = (centred ? Math.min(p.x, T.clipR) : p.x) - x0;
+        if (!centred && p.x > T.clipR) continue; // the node is out of view: its support would float in the air
+        y0 = p.y - NODE_LABEL_LIFT_PX;
+      } else {
+        const r1 = proj.depth(i);
+        room = r1 - proj.depth(parent[i]);
+        if (room < NODE_LABEL_MIN_SEG_PX || acrossPx(proj, kind, i, r1, room) < need) continue; // no room along the branch or across
+        c = L.COS![i];
+        sn = L.SIN![i];
+        x0 = centred ? p.x - (c * room) / 2 : p.x;
+        y0 = centred ? p.y - (sn * room) / 2 : p.y;
+        if (x0 < -20 || y0 < -20 || x0 > T.W + 20 || y0 > T.H + 20) continue;
       }
-      ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - gap, y0);
-    } else {
-      const left = c < 0; // the left half is read upside down otherwise: turn the text round
-      const cf = left ? -c : c,
-        sf = left ? -sn : sn;
-      ctx.setTransform(sc * cf, sc * sf, -sc * sf, sc * cf, sc * x0, sc * y0);
-      // support: its end at the node, which is the end of the branch away from the root (the start of the text when turned round)
-      const al = centred ? 'center' : left ? 'left' : 'right';
-      if (al !== lastAlign) {
-        ctx.textAlign = al;
-        lastAlign = al;
+      if (room < NODE_LABEL_MIN_SEG_PX) continue;
+      const text = nodeText(S, i);
+      if (text === null) continue;
+      const w = S.measure.width(ctx, text, font);
+      if (w + (kind === K_TIP ? fitTip : fit) > room) continue; // no room: not drawn, never moved to the node
+      const fill = centred ? colLength : colSupport;
+      if (fill !== lastFill) {
+        ctx.fillStyle = fill;
+        lastFill = fill;
       }
-      ctx.fillText(text, centred ? 0 : left ? gap : -gap, -NODE_LABEL_LIFT_PX);
+      const alpha = S.hlPrefix !== null && dimmed(S, e) ? theme.dimOpacity : 1;
+      if (alpha !== lastAlpha) {
+        ctx.globalAlpha = alpha;
+        lastAlpha = alpha;
+      }
+      if (rect) {
+        const al = centred ? 'center' : 'right';
+        if (al !== lastAlign) {
+          ctx.textAlign = al;
+          lastAlign = al;
+        }
+        ctx.fillText(text, centred ? (x0 + Math.min(p.x, T.clipR)) / 2 : p.x - gap, y0);
+      } else {
+        const left = c < 0; // the left half is read upside down otherwise: turn the text round
+        const cf = left ? -c : c,
+          sf = left ? -sn : sn;
+        ctx.setTransform(sc * cf, sc * sf, -sc * sf, sc * cf, sc * x0, sc * y0);
+        // support: its end at the node, which is the end of the branch away from the root (the start of the text when turned round)
+        const al = centred ? 'center' : left ? 'left' : 'right';
+        if (al !== lastAlign) {
+          ctx.textAlign = al;
+          lastAlign = al;
+        }
+        ctx.fillText(text, centred ? 0 : left ? gap : -gap, -NODE_LABEL_LIFT_PX);
+      }
+      n++;
     }
-    n++;
-  }
   if (!rect) ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.textAlign = 'left';
   ctx.globalAlpha = 1;
