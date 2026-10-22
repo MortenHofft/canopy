@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const harness = await import('./viewer-harness.mjs');
 const { destroyAll } = harness;
-// these tests set windows of a few rows: no tip-spacing cap (they are about the view kept across a tree change, not the zoom limit)
-const makeViewer = (tree, init = {}) => harness.makeViewer(tree, { ...init, options: { maxTipSpacing: Infinity, ...init.options } });
+const { makeViewer } = harness;
 const { Search, Legend, Zoom } = await import('../src/controls/index.ts');
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
@@ -48,16 +47,31 @@ test('setTree keeps the viewport for an identity map', async () => {
   assert.equal(viewer.getTree().tipCount, 40);
 });
 
+test('setTree keeps a window that cuts a row at its edges, with and without the zoom cap', async () => {
+  for (const options of [{}, { maxTipSpacing: 'auto' }]) {
+    const a = ladder(names(0, 40));
+    const { viewer, env } = await makeViewer(a, { options });
+    env.flush();
+    viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 21.83 });
+    const v = viewer.getViewport();
+    const b = ladder(names(0, 40));
+    viewer.setTree(b, { map: tipMap(a, b) });
+    env.flush();
+    assert.deepEqual(viewer.getViewport(), v);
+    destroyAll();
+  }
+});
+
 test('setTree frames the surviving tips after a prune', async () => {
   const a = ladder(names(0, 40));
   const { viewer, env } = await makeViewer(a);
   env.flush();
-  viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 20 });
+  viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 25 });
   const b = ladder(names(5, 40)); // t0..t4 removed: every tip moves up by 5 rows
   viewer.setTree(b, { map: tipMap(a, b) });
   const v = viewer.getViewport();
   near(v.y0, 5, 'y0');
-  near(v.y1, 15, 'y1');
+  near(v.y1, 20, 'y1');
   assert.equal(b.tipLabels[Math.round(v.y0)], 't10');
 });
 
@@ -65,23 +79,23 @@ test('setTree keeps the view across a flip inside it', async () => {
   const a = ladder(names(0, 40));
   const { viewer, env } = await makeViewer(a);
   env.flush();
-  viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 20 });
+  viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 25 });
   const order = [...names(0, 12), ...names(12, 18).reverse(), ...names(18, 40)];
   const b = ladder(order);
   viewer.setTree(b, { map: tipMap(a, b) });
   const v = viewer.getViewport();
   near(v.y0, 10, 'y0');
-  near(v.y1, 20, 'y1');
+  near(v.y1, 25, 'y1');
 });
 
 test('setTree fits when no tip in view survives, and without a map', async () => {
   const a = ladder(names(0, 40));
   const { viewer, env } = await makeViewer(a);
   env.flush();
-  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
-  const b = ladder(names(5, 40));
+  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 12 });
+  const b = ladder(names(12, 40));
   viewer.setTree(b, { map: tipMap(a, b) });
-  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 35 });
+  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 28 });
   // no map: fit, as the default
   viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 20 });
   viewer.setTree(ladder(names(0, 30)));
@@ -347,10 +361,10 @@ test('setTree fits (and is fitted) when the tips in view are all gone in a real 
   const a = ladder(names(0, 40));
   const { viewer, env } = await makeViewer(a);
   env.flush();
-  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
-  const r = ops.prune(a, (rank) => rank >= 10); // keeps t10..: the five tips in view are gone; their ancestors all lead to the root
+  viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 12 });
+  const r = ops.prune(a, (rank) => rank >= 12); // keeps t12..: the tips in view are gone; their ancestors all lead to the root
   viewer.setTree(new TreeModel(r.tree), { map: r.map });
-  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 30 });
+  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 28 });
   assert.equal(viewer.vs.fitted, true);
 });
 

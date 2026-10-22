@@ -116,7 +116,8 @@ export function keptViewport(a: KeepInput): Viewport | null {
       const h = v.y1 - v.y0;
       const extent = nHi - nLo;
       const nc = (nLo + nHi) / 2;
-      if (extent > h && !a.fixedRows) {
+      // a window that cuts a row at its edge holds that row's tips whole: compare with the rows it touches, not only its height
+      if (extent > Math.max(h, oMax - oMin + 1) && !a.fixedRows) {
         const pad = extent * 0.02;
         return { x0, x1, y0: nc - extent / 2 - pad, y1: nc + extent / 2 + pad };
       }
