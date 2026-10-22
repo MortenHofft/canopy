@@ -163,6 +163,10 @@ export interface TreeTheme extends ResidueTheme {
   markWidth: number;
   markRadius: number;
   markDash: string;
+  /** The path from the hovered node (or, with nothing hovered, the keyboard cursor) up to the root, option `hoverPath`: colour ('' =
+   *  `highlight`) and line width (CSS px, 0 = no path). Drawn on the overlay canvas under the rings, at full strength over a dimmed tree. */
+  hoverPathColour: string;
+  hoverPathWidth: number;
 }
 
 export const FALLBACK_THEME: TreeTheme = {
@@ -203,6 +207,8 @@ export const FALLBACK_THEME: TreeTheme = {
   markWidth: 2,
   markRadius: 11,
   markDash: '3 2',
+  hoverPathColour: '',
+  hoverPathWidth: 2,
 };
 
 /** Field-by-field equality of two themes (`categorical` element-wise), so a theme rebuilt with the same values counts as unchanged. */
@@ -338,6 +344,9 @@ export interface ViewerOptions {
    *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
    *  without branch lengths or in the radial layout. */
   alignLabels: boolean;
+  /** Hovering a tip, clade or summary also highlights its path to the root (every branch and connector on the way); with nothing
+   *  hovered, the keyboard cursor's path is shown. How it looks is the theme's `hoverPathColour` and `hoverPathWidth`. */
+  hoverPath: boolean;
   /**
    * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
    * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
@@ -412,6 +421,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   stripeCollapsed: false,
   labelDensity: 'normal',
   alignLabels: false,
+  hoverPath: true,
   nodeLabels: 'none',
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',

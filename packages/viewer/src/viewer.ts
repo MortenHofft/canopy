@@ -28,6 +28,7 @@ import {
   drawLeaders,
   drawMarkers,
   drawRing,
+  drawRootPath,
   drawScaleBar,
   drawSelectionRing,
   drawMarkRings,
@@ -1932,7 +1933,13 @@ export class TreeViewer {
     drawMarkRings(c, proj, rows, this.theme);
   }
 
-  /** The marks, selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
+  /** The path to the root (option `hoverPath`) of the hovered node, else of the keyboard cursor: one path at a time. */
+  private drawHoverPath(c: CanvasRenderingContext2D, proj: LayoutProjection): void {
+    if (this.opts.hoverPath) drawRootPath(c, proj, this.hoverNode >= 0 ? this.hoverNode : this.activeNode, this.theme);
+  }
+
+  /** The marks, selection, hover and keyboard rings, and the path to the root of the hovered node (else of the keyboard cursor; under the
+   *  rings), live on their own canvas so they never trigger a tree redraw. */
   private topHad = false;
   private drawTop(): void {
     this.topDirty = false;
@@ -1943,6 +1950,7 @@ export class TreeViewer {
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const proj = this.proj;
+    this.drawHoverPath(c, proj);
     this.drawMarks(c, proj);
     if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
