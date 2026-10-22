@@ -80,12 +80,12 @@ export class LabelOverlay {
   update(labels: LabelList, tree: TreeSnapshot, opts: OverlayOptions, theme: TreeTheme, kind: LayoutKind): void {
     const mode = opts.tipHref ? 'a' : 'span';
     if (mode !== this.poolMode) {
-      this.clear();
+      this.clear(true);
       this.poolMode = mode;
     }
     const key = theme.fontFamily + '|' + theme.labelFontStyle;
     if (key !== this.lastKey) {
-      this.clear();
+      this.clear(true);
       this.lastKey = key;
     }
     const used = new Set<number>();
@@ -100,6 +100,7 @@ export class LabelOverlay {
       if (!el) {
         el = document.createElement(mode);
         el.dataset.tipId = id;
+        el.dataset.rank = String(r);
         el.textContent = opts.formatLabel(id);
         el.tabIndex = 0;
         el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
@@ -141,16 +142,15 @@ export class LabelOverlay {
    *  label of the frame is found by tip rank; when it is not drawn (left the view, or folded into a summary) the anchor is parked off
    *  screen. The pool is not touched otherwise. */
   follow(labels: LabelList, kind: LayoutKind): void {
-    const active = document.activeElement;
-    if (!active) return;
-    for (const [r, el] of this.pool) {
-      if (el !== active) continue;
-      let k = 0;
-      while (k < labels.count && labels.rank[k] !== r) k++;
-      if (k < labels.count) place(el, labels, k, kind === 'rectangular');
-      else park(el);
-      return;
-    }
+    const rank = (document.activeElement as HTMLElement | null)?.dataset?.rank;
+    if (rank === undefined) return; // focus is not on a label anchor
+    const r = +rank;
+    const el = this.pool.get(r);
+    if (!el || el !== document.activeElement) return;
+    let k = 0;
+    while (k < labels.count && labels.rank[k] !== r) k++;
+    if (k < labels.count) place(el, labels, k, kind === 'rectangular');
+    else park(el);
   }
 
   /** Move DOM focus to the anchor of tip `rank` when it exists (the keyboard cursor follows focus on a label). */

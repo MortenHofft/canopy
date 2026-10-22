@@ -10,8 +10,8 @@
 //   overview.ts       the strip / disc with the window box
 //   detail-loader.ts  opening the stubs of a partial TreeSource
 //   node-event.ts     the NodeEvent handed to the host app
-// What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop, and
-// the focus-ring styling, because it needs the theme.
+// What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop.
+// (The focus rings of the tree and of the label anchors are CSS, viewer.css.)
 
 import { cladeName } from './clade-name.ts';
 import type { Control, ControlPosition } from './control.ts';
@@ -139,14 +139,6 @@ export interface SetTreeOptions {
 }
 
 const CORNERS: Exclude<ControlPosition, 'custom'>[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
-function focusVisible(el: HTMLElement): boolean {
-  try {
-    return el.matches(':focus-visible');
-  } catch {
-    return true; // no :focus-visible support: show the ring
-  }
-}
 
 export class TreeViewer {
   // ------------------------------------------------------------- DOM
@@ -328,8 +320,6 @@ export class TreeViewer {
     this.input = new InputController(this.root, this.inputHost());
     // the wheel over controls and the overview zooms the tree as it does over the tree, except inside parts that scroll themselves
     this.uiLayer.addEventListener('wheel', this.onUiWheel, { passive: false });
-    this.root.addEventListener('focusin', this.onFocusIn);
-    this.root.addEventListener('focusout', this.onFocusOut);
     this.ro = new ResizeObserver(() => {
       if (!this.destroyed) this.measure();
     });
@@ -835,7 +825,7 @@ export class TreeViewer {
       this.rebuildProj();
       this.hit.invalidate();
     }
-    if (labelsChanged) this.overlay.clear();
+    if (labelsChanged) this.overlay.clear(true);
     if (refit) {
       this.activeNode = -1;
       if (this.vs.fitted || layoutChanged || lengthsChanged || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
@@ -953,7 +943,7 @@ export class TreeViewer {
       else this.reclampView();
     }
     this.sceneVersion++;
-    this.overlay.clear();
+    this.overlay.clear(true);
     this.invalidate(true);
     this.events.emit('themechange', this.theme);
   }
@@ -1501,7 +1491,7 @@ export class TreeViewer {
     if (this.destroyed) return;
     this.dirty = true;
     this.topDirty = true;
-    if (fonts) this.overlay.clear();
+    if (fonts) this.overlay.clear(true);
     this.schedule();
   }
 
@@ -1808,23 +1798,4 @@ export class TreeViewer {
     }
     this.schedule();
   }
-
-  private onFocusIn = (e: FocusEvent) => {
-    const t = e.target as HTMLElement;
-    if (t !== this.root && t.closest('[data-phylo-ui]')) return; // controls and popups style their own focus
-    // a label anchor shows the ring for keyboard focus only (:focus-visible), not after a click
-    if (t !== this.root) {
-      if (focusVisible(t)) t.style.outline = `2px solid ${this.theme.highlight}`;
-    } else this.root.style.boxShadow = `inset 0 0 0 2px ${this.theme.highlight}`;
-    this.topDirty = true;
-    this.schedule();
-  };
-  private onFocusOut = (e: FocusEvent) => {
-    const t = e.target as HTMLElement;
-    if (t !== this.root && t.closest('[data-phylo-ui]')) return;
-    if (t !== this.root) t.style.outline = '';
-    else this.root.style.boxShadow = '';
-    this.topDirty = true;
-    this.schedule();
-  };
 }

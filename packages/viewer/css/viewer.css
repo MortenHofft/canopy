@@ -35,6 +35,19 @@
   box-shadow: inset 0 0 0 2px var(--phylo-highlight, #4c9b45);
 }
 
+/* The focus ring of a tip label's transparent anchor, keyboard focus only. The anchor is moved over its label by the viewer on every frame. */
+.phylo-tree [data-tip-id]:focus-visible {
+  outline: 2px solid var(--phylo-highlight, #4c9b45);
+}
+@supports not selector(:focus-visible) {
+  .phylo-tree [data-tip-id]:focus {
+    outline: 2px solid var(--phylo-highlight, #4c9b45);
+  }
+  .phylo-tree:focus {
+    box-shadow: inset 0 0 0 2px var(--phylo-highlight, #4c9b45);
+  }
+}
+
 /* ---- corners: controls stack with a gap, inset from the edges */
 
 .phylo-controls {

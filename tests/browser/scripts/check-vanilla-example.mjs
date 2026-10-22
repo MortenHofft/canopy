@@ -333,7 +333,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
         return {
           anchor: true,
           focused: document.activeElement === el,
-          outline: el.style.outline,
+          outline: getComputedStyle(el).outlineStyle,
           cy: b.top + b.height / 2,
           left: b.left,
           right: b.right,
@@ -384,8 +384,8 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await focusAnchor();
     const s1 = await state();
     ok(s1.focused, `${how}: the anchor has DOM focus`);
-    if (how === 'click') ok(s1.outline === '', `click: no focus outline after a mouse click (${s1.outline})`);
-    else ok(/solid/.test(s1.outline), `keyboard: focus outline shown (${s1.outline})`);
+    if (how === 'click') ok(s1.outline === 'none', `click: no focus outline after a mouse click (${s1.outline})`);
+    else ok(s1.outline === 'solid', `keyboard: focus outline shown (${s1.outline})`);
     await follows(`${how}, before panning`);
     // drag: pan up and down on empty canvas (right of the labels), measuring while the button is down
     const box = await ev(() => {
@@ -395,7 +395,10 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await page.mouse.move(box.x, box.y);
     await page.mouse.down();
     // a mouse press on the canvas moves focus to the tree (the old outline goes with it); put it back to test a pan with focus kept
-    ok(!(await state()).focused && (await state()).outline === '', `${how}: pressing the canvas takes focus off the anchor and clears its outline`);
+    ok(
+      !(await state()).focused && (await state()).outline === 'none',
+      `${how}: pressing the canvas takes focus off the anchor and clears its outline`,
+    );
     await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t).focus(), tipId);
     for (const dy of [-40, -90, -160, 200, 420]) {
       await page.mouse.move(box.x, box.y + dy, { steps: 3 });
@@ -407,7 +410,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await ev(() => window.__example.viewer.focusTip(300));
     await sleep(700);
     await focusAnchor();
-    // wheel: zoom about a point away from the tip, then back
+    // wheel: zoom about a point away from the tip, then back (the -120 steps move the tip out and are regression coverage of parking)
     await page.mouse.move(box.x, box.y);
     for (const dy of [-120, -120, 120, 120]) {
       await page.mouse.wheel(0, dy);
@@ -442,25 +445,77 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await ev(() => document.activeElement?.blur?.());
     await sleep(300);
   }
+  // a theme or label-size change rebuilds the anchors; keyboard focus stays on the same tip's anchor (and keeps its ring: CSS)
+  await ev(() => window.__example.viewer.focusTip(300));
+  await sleep(700);
+  await ev(() => document.activeElement?.blur?.());
+  await page.keyboard.press('Tab');
+  await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t).focus(), tipId);
+  await ev(() => window.__example.viewer.setTheme({ labelSize: 15 }));
+  await sleep(500);
+  const kept = await ev(() => ({ id: document.activeElement?.dataset?.tipId, ring: getComputedStyle(document.activeElement).outlineStyle }));
+  ok(kept.id === tipId && kept.ring === 'solid', `a labelSize change keeps focus on the same anchor, ring shown (${kept.id}, ${kept.ring})`);
+  await ev(() => window.__example.viewer.setTheme({}));
+  await sleep(300);
+  // :focus-visible is live CSS: click a label (no ring), then a key press makes the ring appear without a new focus event
+  await ev(() => window.__example.viewer.focusTip(300));
+  await sleep(700);
+  {
+    await ev(() => document.activeElement?.blur?.());
+    const s = await state();
+    await page.mouse.click(s.left + 4, s.cy);
+    await sleep(150);
+    await ev(() => window.__example.card.setPosition(null));
+    const r0 = await ev(() => getComputedStyle(document.activeElement).outlineStyle);
+    await page.keyboard.press('+');
+    await sleep(300);
+    const r1 = await ev(() => getComputedStyle(document.activeElement).outlineStyle);
+    ok(r0 === 'none' && r1 === 'solid', `ring after a click is off, and on after a key press (${r0} -> ${r1})`);
+  }
   // radial: the rotated anchor stays next to its tip (the label is 140 px wide at most) through a drag and wheel steps
   await ev(() => window.__example.viewer.setOptions({ layout: 'radial' }));
   await ev(() => window.__example.viewer.focusTip(300));
   await sleep(900);
   await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t)?.focus(), tipId);
+  // the label's pixels (drawn in a unique colour) must lie inside the anchor's rotated box: >= 90% of them
+  await ev(() => {
+    const v = window.__example.viewer;
+    v.setTheme({ highlight: '#ff00ff' });
+  });
+  await ev((t) => window.__example.viewer.setHighlighted([t]), tipId);
+  await sleep(300);
   const near = async (what) => {
     await frames();
     const s = await ev((t) => {
       const v = window.__example.viewer;
-      const el = [...v.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t);
+      const el = document.activeElement;
       const p = v.nodePosition(v.tipNode(t));
-      if (!el || !p) return { missing: !el, tip: !!p, focused: el === document.activeElement };
-      const b = el.getBoundingClientRect();
-      const r = v.element.getBoundingClientRect();
-      const d = Math.hypot(b.left + b.width / 2 - (r.left + p.x), b.top + b.height / 2 - (r.top + p.y));
-      return { d, focused: el === document.activeElement, tip: true };
+      if (el?.dataset?.tipId !== t || !p) return { focused: el?.dataset?.tipId === t, tip: !!p };
+      const cv = v.element.querySelector('canvas');
+      const cr = cv.getBoundingClientRect();
+      const sx = cv.width / cr.width;
+      const img = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      const lr = el.parentElement.getBoundingClientRect();
+      const inv = new DOMMatrix(getComputedStyle(el).transform).inverse();
+      const w = el.offsetWidth,
+        h = el.offsetHeight;
+      let inside = 0,
+        outside = 0;
+      for (let y = Math.max(0, Math.floor(p.y - 260)); y < Math.min(cr.height, p.y + 260); y++)
+        for (let x = Math.max(0, Math.floor(p.x - 260)); x < Math.min(cr.width, p.x + 260); x++) {
+          if (Math.hypot(x - p.x, y - p.y) < 8) continue; // the tip marker
+          const i = (Math.round(y * sx) * cv.width + Math.round(x * sx)) * 4;
+          if (!(img[i] > 180 && img[i + 2] > 180 && img[i + 1] < 120)) continue;
+          const q = inv.transformPoint(new DOMPoint(x + cr.left - lr.left, y + cr.top - lr.top - h / 2));
+          const ey = q.y + h / 2;
+          if (q.x >= -1 && q.x <= w + 1 && ey >= -1 && ey <= h + 1) inside++;
+          else outside++;
+        }
+      return { focused: true, tip: true, inside, outside };
     }, tipId);
     if (!s.tip) return;
-    ok(s.focused && s.d < 90, `radial, ${what}: the anchor is next to its tip (${s.d?.toFixed(0)} px)`);
+    const frac = s.inside / Math.max(1, s.inside + s.outside);
+    ok(s.focused && s.inside > 20 && frac >= 0.9, `radial, ${what}: the label's pixels are inside the anchor box (${s.inside} in, ${s.outside} out)`);
   };
   await near('before panning');
   const rc = await ev(() => {
@@ -476,7 +531,12 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
   }
   await page.mouse.up();
   await sleep(300);
-  await ev(() => window.__example.viewer.setOptions({ layout: 'rectangular' }));
+  await ev(() => {
+    const v = window.__example.viewer;
+    v.setHighlighted([]);
+    v.setTheme({});
+    v.setOptions({ layout: 'rectangular' });
+  });
   await sleep(300);
 }
 
