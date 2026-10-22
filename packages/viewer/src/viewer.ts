@@ -1990,11 +1990,10 @@ export class TreeViewer {
     const hin = this.hoverIn,
       out = this.hoverOut;
     const shown = this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel;
+    // the pointer moved on: the old ring fades out. A ring hidden while its node is still hovered (it became the selection, as a click
+    // does by default, or the keyboard cursor) goes at once, so it never fades over the ring that takes its place
     const prev = hin.node;
-    if (prev !== (shown ? this.hoverNode : -1)) {
-      if (prev >= 0 && ms > 0) out.fadeFrom(hin);
-      else out.clear();
-    }
+    if (prev >= 0 && prev !== this.hoverNode && ms > 0) out.fadeFrom(hin);
     hin.to(shown ? this.hoverNode : -1, this.hoverKind === 'summary' ? 1.5 : 1);
     this.cursorIn.to(this.activeNode, 1);
     const fading = this.fadeRing(c, proj, ms, now);

@@ -174,6 +174,31 @@ test('moving to another node: the old ring fades out at its size while the new o
   assert.equal(env.pendingFrames(), 0);
 });
 
+test('a click selects the hovered node: its hover ring goes at once, without fading over the selection ring', async () => {
+  const { viewer, env, top } = await make();
+  env.flush();
+  const host = viewer.inputHost();
+  const n = viewer.tipNode('t5');
+  const p = viewer.nodePosition(n);
+  host.hover(p);
+  frames(env, top);
+  host.click({ node: n, kind: 'tip' }, p.x, p.y);
+  assert.equal(viewer.getSelected(), n);
+  const fs = frames(env, top);
+  assert.equal(fs.length, 1, 'one frame, nothing left to animate');
+  const sr = viewer.getTheme().selectionRadius;
+  assert.deepEqual(
+    fs[0].map((g) => g.r),
+    [sr, sr],
+    'only the selection ring (over its halo)',
+  );
+  assert.ok(
+    fs[0].every((g) => g.alpha === 1),
+    'nothing faded',
+  );
+  assert.equal(env.pendingFrames(), 0);
+});
+
 test('leaving a ring halfway fades it from where it got; a collapsed clade grows to 1.5 times the radius', async () => {
   const { viewer, env, top } = await make();
   env.flush();
