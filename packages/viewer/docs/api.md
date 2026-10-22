@@ -466,6 +466,14 @@ nothing there.
 previous stroke colour). `leaderDash` as a CSS custom property: only `none` (not an empty value, which the viewer ignores) gives a solid line;
 with `setTheme`, `''` or `'none'` both do.
 
+### Label anchors and focus
+
+Every drawn tip label has a transparent DOM anchor over it (an `<a>` with `tipHref`, else a `role="treeitem"` span) for links, keyboard focus and screen readers. Its focus ring (2 px, `theme.highlight`) is drawn by the viewer on the anchor itself, so two rules keep it honest:
+
+- **Keyboard focus only, in CSS.** The rings are rules in `viewer.css` (`.phylo-tree [data-tip-id]:focus-visible` and `.phylo-tree:focus-visible`, 2 px `var(--phylo-highlight)`), not inline styles, so they follow the browser's live `:focus-visible` state (a key press after a click turns the ring on) and the theme; `@supports not selector(:focus-visible)` falls back to `:focus`. They need `viewer.css`, like the controls and popups. Without it there is no ring, so load it. A press on the canvas moves focus to the tree and the ring on the anchor goes with it.
+- **Focus survives a rebuild.** A change of theme font, `labelSize` or link mode, or `document.fonts` loading, rebuilds the anchors; focus moves to the anchor of the same tip.
+- **It follows its label.** The focused anchor is moved with every frame, including the reduced frames drawn while a drag, wheel or pinch is in progress (`interactionLOD`; the other anchors wait for the full frame after `refineMs`). When its label is no longer drawn (out of view, or folded into a summary) the anchor is parked at `translate(-9999px, 0)`, so no ring is left behind, and keeps DOM focus until it moves. Decision for #62: the ring used to stay at the old place during interaction because only full frames updated the anchors.
+
 ### Node labels
 
 `nodeLabels` draws a text on each internal node that is in the frame's draw list. It is its own loop over the draw list (after the markers,

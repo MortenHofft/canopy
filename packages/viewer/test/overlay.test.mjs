@@ -178,6 +178,42 @@ test('the focused label that left the view is parked off screen, not removed, un
   o.destroy();
 });
 
+test('follow: the focused anchor tracks its label on frames that skip update, and is parked once the label is not drawn', () => {
+  const o = new LabelOverlay(() => {});
+  o.update(
+    labels([
+      [0, 100, 40],
+      [1, 100, 52],
+    ]),
+    tree,
+    opts(),
+    theme,
+    'rectangular',
+  );
+  const [a, b] = o.layer.children;
+  o.follow(labels([[0, 90, 40]]), 'rectangular');
+  assert.equal(a.style.transform, 'translate(100px,34px)', 'nothing focused: no anchor moves');
+  o.focusAnchor(0);
+  for (const dx of [10, 20, 30]) {
+    o.follow(
+      labels([
+        [1, 100 - dx, 52],
+        [0, 100 - dx, 40],
+      ]),
+      'rectangular',
+    );
+    assert.equal(a.style.transform, `translate(${100 - dx}px,34px)`, 'the focused anchor follows its label');
+  }
+  assert.equal(b.style.transform, 'translate(100px,46px)', 'the other anchors wait for the next full update');
+  o.follow(labels([[1, 60, 52]]), 'rectangular');
+  assert.equal(a.style.transform, 'translate(-9999px,0)', 'label no longer drawn: parked off screen');
+  o.follow(labels([[0, 50, 40]]), 'rectangular');
+  assert.equal(a.style.transform, 'translate(50px,34px)', 'and back over the label when it returns');
+  o.follow(labels([[0, 50, 40, 14]], { ang: 0.5 }), 'radial');
+  assert.match(a.style.transform, /rotate\(/, 'radial too');
+  o.destroy();
+});
+
 test('radial labels are rotated to the tip angle; flipped ones read towards the root', () => {
   const o = new LabelOverlay(() => {});
   o.update(labels([[0, 200, 100, 14]], { ang: 0.5 }), tree, opts(), theme, 'radial');
