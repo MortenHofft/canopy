@@ -190,6 +190,45 @@ test('Legend: one entry per coloured clade, named by label, node name or tip cou
   );
 });
 
+test('Legend: a clade is named by its label without support, through formatLabel, with its tip count; no name falls back to the count', () => {
+  const v = fakeViewer("((a:1,b:1)'95:Chelodina_ott235768':1,(c:1,d:1)95:1,(e:1,f:1):1,(g:1,h:1)mrcaott99343ott3606205:1)'98.0:c__Root';");
+  const l = new Legend();
+  l.setViewer(v);
+  const t = v.getTree();
+  const row = (name) => t.labels.indexOf(name);
+  v.clades = [row('95:Chelodina_ott235768'), row('95'), t.labels.findIndex((x, i) => x === '' && t.childCount[i] > 0), 0].map((node, i) => ({
+    node,
+    colour: '#' + i,
+  }));
+  const text = () => l.items(v).map((i) => [i.label, i.detail ?? null]);
+  assert.deepEqual(text(), [
+    ['Chelodina ott235768', '2 tips'],
+    ['Clade of 2 tips', null],
+    ['Clade of 2 tips', null],
+    ['c  Root', '8 tips'],
+  ]);
+  v.options.formatLabel = (s) => s.replace(/_ott\d+$/, '').replace(/_/g, ' ');
+  assert.equal(text()[0][0], 'Chelodina');
+  l.element.hidden = false;
+  v.emit('cladeschange', v.clades);
+  const btn = l.list.children[0].children[1];
+  assert.equal(btn.textContent, 'Chelodina (2 tips)');
+  // an app's cladeLabel decides what is a name: null hides it, a string replaces it (and is formatted)
+  const hide = new Legend({ cladeLabel: (r, tree) => (/^mrcaott/.test(tree.labels[r]) ? null : tree.labels[r].replace(/^[^:]*:/, '')) });
+  hide.setViewer(v);
+  v.clades = [
+    { node: row('mrcaott99343ott3606205'), colour: '#0' },
+    { node: row('95:Chelodina_ott235768'), colour: '#1' },
+  ];
+  assert.deepEqual(
+    hide.items(v).map((i) => i.label),
+    ['Clade of 2 tips', 'Chelodina'],
+  );
+  // an explicit label of the clade wins and gets no detail
+  v.clades = [{ node: 0, colour: '#0', label: 'Pink' }];
+  assert.deepEqual(l.items(v), [{ colour: '#0', label: 'Pink', node: 0 }]);
+});
+
 test('defaultControls: zoom and fit by default; keys switch others on, false switches off, options pass through', () => {
   const names = (cs) => cs.map((c) => c.constructor.name);
   assert.deepEqual(names(defaultControls()), ['Zoom', 'Fit']);

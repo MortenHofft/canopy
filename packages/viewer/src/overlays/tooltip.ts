@@ -3,6 +3,7 @@
 // default text, or `render(event, viewer)` returning a node, a string, or null for none.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
+import { cladeName } from '../clade-name.ts';
 import type { TreeEvent } from '../events.ts';
 import type { TreeViewer } from '../viewer.ts';
 
@@ -64,7 +65,7 @@ export class Tooltip extends BaseControl {
 export function defaultTooltip(e: TreeEvent, v: TreeViewer): Node {
   const t = v.getTree();
   const row = t.globalId === null ? e.node : t.toLocal(e.node);
-  const name = row >= 0 ? (t.labels[row] ?? '') : '';
+  const name = e.isTip ? '' : (cladeName(t, row, v.options.formatLabel) ?? '');
   const box = document.createDocumentFragment();
   const title = document.createElement('div');
   title.className = 'phylo-tooltip__title';

@@ -131,7 +131,7 @@ export function stripUndefined<T extends object>(o: T): Partial<T> {
 export interface CladeColour {
   node: number; // node id (preorder id of the full tree)
   colour: string;
-  /** Name for a legend; without it the legend uses the node's own name, or 'Clade of N tips'. */
+  /** Name for a legend; without it the legend uses the clade's name (see Legend's cladeLabel), or 'Clade of N tips'. */
   label?: string;
 }
 

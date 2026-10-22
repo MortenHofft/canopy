@@ -2,11 +2,14 @@
 // zooms to it. Hidden while there is nothing to show.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
+import { cladeName, type CladeLabelFn } from '../clade-name.ts';
 import type { TreeViewer } from '../viewer.ts';
 
 export interface LegendItem {
   colour: string;
   label: string;
+  /** Secondary text after the label, such as '12 tips'. */
+  detail?: string;
   /** Node id to zoom to when the entry is clicked. */
   node?: number;
 }
@@ -15,6 +18,12 @@ export interface LegendOptions extends ControlOptions {
   title?: string;
   /** A fixed list instead of the viewer's clade colours. */
   items?: LegendItem[];
+  /**
+   * What names a coloured clade: `(row, tree)` gives the name of the internal node at `row` of `tree.labels`, or null for none (the legend
+   * then says 'Clade of N tips'). The name goes through the viewer's `formatLabel`. Default: the node's label without its support value.
+   * Hide synthetic names or look names up elsewhere here.
+   */
+  cladeLabel?: CladeLabelFn;
 }
 
 export class Legend extends BaseControl {
@@ -45,15 +54,18 @@ export class Legend extends BaseControl {
     this.render(v);
   }
 
-  /** The entries shown: the fixed items, or one per coloured clade (named by its label, the node's name, or its tip count). */
+  /** The entries shown: the fixed items, or one per coloured clade (named by its label, else the clade's name with its tip count as detail, else 'Clade of N tips'). */
   items(v: TreeViewer): LegendItem[] {
     if (this.opts.items) return this.opts.items;
     const t = v.getTree();
     return v.getClades().map((c) => {
       const row = t.globalId === null ? c.node : t.toLocal(c.node);
-      const name = row >= 0 ? (t.labels[row] ?? '') : '';
+      if (c.label !== undefined) return { colour: c.colour, label: c.label, node: c.node };
       const tips = row >= 0 ? t.leafEnd[row] - t.leafStart[row] : 0;
-      return { colour: c.colour, label: c.label ?? (name || `Clade of ${tips.toLocaleString('en')} tips`), node: c.node };
+      const n = `${tips.toLocaleString('en')} tips`;
+      const name = cladeName(t, row, v.options.formatLabel, this.opts.cladeLabel);
+      if (name === null) return { colour: c.colour, label: `Clade of ${n}`, node: c.node };
+      return t.childCount[row] === 0 ? { colour: c.colour, label: name, node: c.node } : { colour: c.colour, label: name, detail: n, node: c.node };
     });
   }
 
@@ -68,6 +80,12 @@ export class Legend extends BaseControl {
         const text = document.createElement(it.node === undefined ? 'span' : 'button');
         text.className = 'phylo-legend__label';
         text.textContent = it.label;
+        if (it.detail) {
+          const d = document.createElement('span');
+          d.className = 'phylo-legend__detail';
+          d.textContent = ` (${it.detail})`;
+          text.append(d);
+        }
         if (it.node !== undefined) {
           (text as HTMLButtonElement).type = 'button';
           text.dataset.node = String(it.node);
