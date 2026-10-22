@@ -31,6 +31,7 @@ export class Tooltip extends BaseControl {
 
   protected attach(v: TreeViewer): void {
     this.listen(v.on('hover', (e) => (e ? this.show(v, e) : this.hide()), { asDefault: true }));
+    this.listen(v.on('treechange', () => this.hide()));
     this.listen(v.on('click', () => this.hide())); // a click (a menu opening, say) hides it until the next hover
   }
 

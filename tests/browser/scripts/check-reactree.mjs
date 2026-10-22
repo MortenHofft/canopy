@@ -7,7 +7,7 @@
 // (siblings and not), midpoint, ladderise and undo (button and Ctrl+Z); export (PNG, Newick and NEXUS downloads); the transparent
 // background leaves no trace of earlier frames; the innermost clade colour wins whatever the order;
 // node labels (support, length); the alignment track and its legend; dark mode reaches the canvas; the resize handle.
-/* global __v, __order, __tipAt, __clade -- helpers the page gets from HELPERS below, used inside page.evaluate */
+/* global __v, __order, __tipAt, __clade, __inView -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
@@ -154,6 +154,11 @@ ok(
   pOpaque === 1 && Math.abs(pBack - p0) < 0.002,
   `opaque background at run time, then transparent again (${(pOpaque * 100).toFixed(1)}%, ${(pBack * 100).toFixed(2)}%)`,
 );
+// the renderer outlives edits now, so the theme set by hand above would stay: give the page's own overrides back (the font size slider
+// sets them again)
+await page.locator('input[aria-label="Font size"]').fill('1.5');
+await page.locator('input[aria-label="Font size"]').fill('2');
+await page.waitForTimeout(150);
 
 console.log('search');
 await page.locator('button[aria-label="Search taxa"]').click();
@@ -303,6 +308,58 @@ await page.locator('.phylo-tree').focus();
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0, 'Ctrl+Z undoes');
+// a new tree keeps the renderer and the view: zoom into a clade, Flip a clade inside it, and the same tips are in view; Undo returns to the same view
+console.log('a new tree keeps the view');
+const zoomed = await ev(() => {
+  const t = __v().getTree();
+  let big = null;
+  for (let i = 1; i < t.nodeCount; i++) {
+    const c = t.leafEnd[i] - t.leafStart[i];
+    if (t.firstChild[i] >= 0 && c >= 30 && c <= 60) {
+      big = i;
+      break;
+    }
+  }
+  window.__viewer = __v();
+  window.__inView = () => {
+    const t = __v().getTree();
+    const w = __v().getViewport();
+    return t.tipLabels
+      .filter((_, r) => r + 0.5 >= w.y0 && r + 0.5 <= w.y1)
+      .sort()
+      .join(',');
+  };
+  __v().zoomToNode(big, false);
+  return big !== null;
+});
+await page.waitForTimeout(300);
+ok(zoomed, 'zoomed into a clade of 30 to 60 tips');
+const vw0 = await ev(() => __v().getViewport());
+const seen0 = await ev(() => __inView());
+ok(
+  vw0.y1 - vw0.y0 < 100 && seen0.split(',').length >= 30,
+  `the view is a part of the tree (${vw0.y0.toFixed(1)} to ${vw0.y1.toFixed(1)}, ${seen0.split(',').length} tips)`,
+);
+const orderZ = await ev(() => __order());
+await btn('Flip').click();
+await click(await ev(() => __clade(4, 12)));
+await page.waitForTimeout(300);
+ok((await ev(() => __order())) !== orderZ, 'Flip reversed a clade inside the view');
+ok(await ev(() => __v() === window.__viewer && !__v().isDestroyed()), 'the edit went to the same renderer (no new one)');
+ok((await ev(() => __inView())) === seen0, 'the same tips are still in view after the Flip');
+const vw1 = await ev(() => __v().getViewport());
+ok(Math.abs(vw1.y1 - vw1.y0 - (vw0.y1 - vw0.y0)) < 1e-6, 'at the same scale');
+await page.keyboard.press('Escape');
+await btn('Undo').click();
+await page.waitForTimeout(300);
+const vw2 = await ev(() => __v().getViewport());
+ok(
+  (await ev(() => __order())) === orderZ && ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(vw2[k] - vw0[k]) < 1e-6),
+  'Undo returns the tree and the same view',
+);
+ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
+await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(200);
 // swap: the two children of a binary node, then two tips that are not siblings
 const pair = await ev(() => {
   const t = __v().getTree();

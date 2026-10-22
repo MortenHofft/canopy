@@ -20,6 +20,7 @@ import {
   DEFAULT_OPTIONS,
   themeEquals,
   FALLBACK_THEME,
+  type CladeColour,
   type Column,
   type FrameStats,
   type LayoutKind,
@@ -79,12 +80,18 @@ export interface CladeProp {
  *    them once (`useMemo` / `useState`), not inline: `defaultControls()` in render makes new controls every time.
  *  - `layout`, `branchLengths` and the fields of `options` act when their value changes: a change made on the viewer itself (by the
  *    LayoutToggle control, say) stays until that prop changes; they are not re-applied when another prop changes.
- *  - `tree` / `source`: a new one re-creates the renderer (and so resets the view).
+ *  - `tree` / `source`: a new one is handed to the same renderer (`TreeViewer.setTree`), so the controls, layout, theme overrides and
+ *    listeners stay and `onReady` fires once per renderer, not per edit. The view is fitted, or, with `treeMap`, kept. Only a change
+ *    between `tree` and `source` (a different kind of input), or of `options.softwareCanvas`, re-creates the renderer.
+ *  - `treeMap`: read when `tree` / `source` changes; it is not a trigger by itself.
  *  - callbacks are read at call time and never trigger anything.
  */
 export interface TreeViewProps {
   tree?: TreeData; // a tree in memory (wrapped in an InMemorySource) ...
   source?: TreeSource; // ... or a source that loads parts of it on demand; one of the two, `source` wins
+  /** The node map (old node -> new node, -1 removed) of the operation that produced the new `tree`, e.g. tree-ops' `map`. With it the
+   *  viewport stays on the same tips; without it a new `tree` is fitted. Pass it in the same render as the new `tree`. */
+  treeMap?: Int32Array;
 
   layout?: LayoutKind;
   branchLengths?: boolean;
@@ -131,14 +138,18 @@ function nodeIndexOf(nodeCount: number, id: string): number {
   return k < nodeCount ? k : -1;
 }
 
+function toCladeColours(nodeCount: number, clades: CladeProp[] | undefined): CladeColour[] {
+  return (clades ?? []).map((c) => ({ node: nodeIndexOf(nodeCount, c.nodeId), colour: c.colour, label: c.label })).filter((c) => c.node >= 0);
+}
+
 /** Create the renderer in a layout effect and destroy it in the cleanup (strict-mode safe: the cleanup undoes everything the effect did).
  *  `make` builds the renderer over the host element and returns it with an extra cleanup; it is read from a ref, so it may close over
- *  the props of the latest render, and the renderer is re-created only when `source` or `softwareCanvas` changes. Returns the instance
+ *  the props of the latest render, and the renderer is re-created only when the kind of input (`tree` or `source`) or `softwareCanvas` changes; a new tree goes to `setTree`. Returns the instance
  *  as state (the prop-sync effects depend on it, so they re-run once it exists and again after a re-creation, without anything reading
  *  a ref during render) and as a ref for the imperative handle, which is only called after mount. */
 function useRenderer(
   hostRef: React.RefObject<HTMLElement>,
-  source: TreeSource,
+  kind: 'tree' | 'source',
   softwareCanvas: boolean | undefined,
   make: (host: HTMLElement) => [TreeViewer, () => void],
 ): { renderer: TreeViewer | null; rendererRef: React.MutableRefObject<TreeViewer | null> } {
@@ -158,7 +169,7 @@ function useRenderer(
       rendererRef.current = null;
       setRenderer(null);
     };
-  }, [hostRef, source, softwareCanvas]);
+  }, [hostRef, kind, softwareCanvas]);
   return { renderer, rendererRef };
 }
 
@@ -218,7 +229,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   );
   const [menuControl] = useState(() => new NodeMenu({ items: (e) => latest.current.nodeMenu?.(e) }));
 
-  const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, source, options.softwareCanvas, (host) => {
+  const { renderer: R, rendererRef: rendRef } = useRenderer(hostRef, props.source ? 'source' : 'tree', options.softwareCanvas, (host) => {
     const r = new TreeViewer({ target: host, source, options: rendererOptions, theme: themeOverrides });
     r.on('click', (ev) => (ev.isTip ? latest.current.onTipClick?.(ev) : latest.current.onNodeClick?.(ev)));
     r.on('hover', (ev) => latest.current.onHover?.(ev));
@@ -249,11 +260,24 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     for (const k of changedKeys(prev.o, rendererOptions)) (patch as Record<string, unknown>)[k] = rendererOptions[k];
     r.setOptions(patch);
   }, [R, rendRef, rendererOptions]);
+  // A new tree or source goes to the renderer that shows the old one. Clades, highlights and collapsed marks go in the same call, so
+  // the first frame of the new tree is drawn with them; the effects below then find nothing to change.
+  const treeMap = props.treeMap;
+  useLayoutEffect(() => {
+    const r = liveRenderer(R, rendRef);
+    if (!r || r.getSource() === source) return;
+    r.setTree(source, {
+      map: treeMap,
+      view: treeMap ? 'keep' : 'fit',
+      clades: toCladeColours(source.nodeCount, clades),
+      highlighted: highlighted ?? EMPTY_IDS,
+      collapsed: (collapsed ?? EMPTY_IDS).map((id) => nodeIndexOf(source.nodeCount, id)).filter((n) => n >= 0),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- treeMap, clades, highlighted and collapsed are read for this change of `source` only
+  }, [R, rendRef, source]);
   // `source` is in the dependency list of the next two only because their bodies read it; the new viewer's first run is triggered by `R`
   useLayoutEffect(() => {
-    liveRenderer(R, rendRef)?.setClades(
-      (clades ?? []).map((c) => ({ node: nodeIndexOf(source.nodeCount, c.nodeId), colour: c.colour, label: c.label })).filter((c) => c.node >= 0),
-    );
+    liveRenderer(R, rendRef)?.setClades(toCladeColours(source.nodeCount, clades));
   }, [R, rendRef, source, clades]);
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setHighlighted(highlighted ?? EMPTY_IDS);
