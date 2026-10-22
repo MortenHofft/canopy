@@ -219,7 +219,6 @@ export class Overview {
       activeNode: -1,
       alignLabels: false,
       density: 'sparse',
-      italic: false,
       format: (id) => h.formatLabel(id),
       scale: h.dpr,
       thin: false,

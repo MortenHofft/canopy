@@ -11,6 +11,7 @@ import {
   FOCUS_TIP_MAX_ROW_PX,
   FOCUS_TIP_MIN_ROW_PX,
   FOCUS_TIP_RADIAL_PITCH_PX,
+  COLLAPSED_W,
   OVERSCROLL_FRAC,
   OVERSCROLL_KEEP_FRAC,
   OVERVIEW_STRIP_W_PX,
@@ -32,7 +33,6 @@ import { projectionFor } from './projection.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
 const LABEL_W = 190; // cap of the room right of the tips for labels (rectangular)
-const ALIGNED_EXTRA = 14; // aligned labels: room for the triangle of a collapsed clade that the column clears (draw.ts COLLAPSED_W)
 const HEAD_H = 24; // room above the plot for column headers
 const FOOT_H = 36; // room below the plot for the axis
 const MIN_HEAD = 8; // top and (without an axis) bottom margin
@@ -46,6 +46,8 @@ export interface ViewEnv {
   readonly rowHeight: number | null;
   /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
   readonly alignLabels: boolean;
+  /** Some tip stands for a collapsed clade (drawn as a triangle). */
+  readonly hasCollapsed: boolean;
   /** Container size in CSS px. */
   readonly W: number;
   readonly H: number;
@@ -126,7 +128,7 @@ export class ViewState {
       else for (let i = 0; i < t.length; i++) if (t[i].length > m) m = t[i].length;
       this.maxChars = m;
     }
-    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14 + (this.alignsLabels() ? ALIGNED_EXTRA : 0)));
+    return Math.max(70, Math.min(LABEL_W, this.maxChars * 6.3 + 14 + (this.alignsLabels() && this.env.hasCollapsed ? COLLAPSED_W : 0)));
   }
 
   /** The plotting area for the current container size, options and columns; places the columns as a side effect (they follow the clip). */
@@ -318,8 +320,7 @@ export class ViewState {
       const mid = (ls + le) / 2;
       const h = rows * 1.12 + 1;
       const x0 = Math.max(-0.02, L.X[node] - 0.03);
-      // aligned labels sit right of the farthest tip of the whole tree, so the window reaches it
-      const spanX = (this.alignsLabels() ? L.XMAX[0] : L.XMAX[node]) - L.X[node];
+      const spanX = L.XMAX[node] - L.X[node];
       const labelFrac = Math.min(0.5, this.labelReserve() / a.aw);
       const w = Math.max(0.0005, (spanX + 0.035) / (1 - labelFrac));
       return { x0, x1: x0 + w, y0: mid - h / 2, y1: mid + h / 2 };

@@ -278,6 +278,37 @@ test('setTheme puts colours and font on the container as custom properties', asy
   assert.equal(s['--phylo-font-family'], 'Rubik');
 });
 
+test('labelFontStyle: the canvas label font is italic or not by the theme; the container property follows setTheme', async () => {
+  const h = await makeViewer('((a,b),(c,d));');
+  h.env.flush();
+  const fonts = () =>
+    h
+      .ctx()
+      .calls('font=')
+      .map((e) => e[1]);
+  assert.ok(
+    fonts().some((f) => /^italic /.test(f)),
+    'italic by default',
+  );
+  assert.equal(h.viewer.container.style['--phylo-label-font-style'], 'italic');
+  h.ctx().reset();
+  h.viewer.setTheme({ labelFontStyle: 'normal' });
+  h.env.flush();
+  assert.ok(
+    fonts().some((f) => /px /.test(f)),
+    'labels were drawn again',
+  );
+  assert.ok(!fonts().some((f) => /italic/.test(f)), 'no italic in any font of the frame');
+  assert.equal(h.viewer.container.style['--phylo-label-font-style'], 'normal');
+});
+
+test('viewer.css: DOM tip labels take their style from --phylo-label-font-style', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const css = await readFile(new URL('../css/viewer.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /font-style:\s*italic/, 'no hard-coded italic');
+  assert.equal(css.match(/font-style:\s*var\(--phylo-label-font-style, italic\)/g)?.length, 2);
+});
+
 test('refreshTheme re-reads the CSS custom properties of the target; overrides still win', async () => {
   const h = await makeViewer('((a,b),(c,d));', {
     cssVars: { '--phylo-background': '#0f172a', '--phylo-branch': '#94a3b8' },

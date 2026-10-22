@@ -67,8 +67,7 @@ Differences that follow from the design, not defects:
 
 - Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
   135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)) makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
-  expanded (the same known limit as `examples/react`).
+- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)): the example passes `{ extend: true }` to `collapseClades` when the tree is ultrametric, so the triangle's tip ends at the present and the axis stays "time before tips". The tip's length is then the clade's edge plus its height, not the original edge.
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
   component.
 - Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from

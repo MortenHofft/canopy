@@ -337,6 +337,7 @@ export class TreeViewer {
         axis: () => this.opts.axis,
         rowHeight: () => this.opts.rowHeight,
         alignLabels: () => this.opts.alignLabels,
+        hasCollapsed: () => this.collapsedRank !== null,
         W: () => this.W,
         H: () => this.H,
         tree: () => this.tree,
@@ -670,7 +671,7 @@ export class TreeViewer {
   private syncCssVars(): void {
     const s = this.container.style;
     const t = this.theme;
-    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily'] as const)
+    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily', 'labelFontStyle'] as const)
       s.setProperty(THEME_CSS_VARS[k], t[k]);
   }
 
@@ -1215,7 +1216,6 @@ export class TreeViewer {
       activeNode: this.activeNode,
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
-      italic: opts.italicLabels,
       format: opts.formatLabel,
       scale: dpr,
       thin: !rect && this.list.count >= THIN_PRIMS,
@@ -1233,7 +1233,7 @@ export class TreeViewer {
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle, alignRowGap: opts.alignRowGap });
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
       if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
     } else if (opts.axis) drawScaleBar(ctx, S);
 

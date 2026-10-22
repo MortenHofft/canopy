@@ -17,7 +17,6 @@ const SR_DELAY_MS = 160; // the list of tips in view follows the view this long 
 /** The options the overlay reads. */
 export interface OverlayOptions {
   readonly tipHref: ((tipId: string) => string) | null;
-  readonly italicLabels: boolean;
   readonly formatLabel: (id: string) => string;
 }
 
@@ -55,7 +54,7 @@ export class LabelOverlay {
       this.clear();
       this.poolMode = mode;
     }
-    const key = theme.fontFamily + '|' + opts.italicLabels;
+    const key = theme.fontFamily + '|' + theme.labelFontStyle;
     if (key !== this.lastKey) {
       this.clear();
       this.lastKey = key;
@@ -73,7 +72,7 @@ export class LabelOverlay {
         el.dataset.tipId = id;
         el.textContent = opts.formatLabel(id);
         el.tabIndex = 0;
-        el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};${opts.italicLabels ? 'font-style:italic;' : ''}transform-origin:0 50%`;
+        el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
         if (mode === 'a') {
           const a = el as HTMLAnchorElement;
           a.href = opts.tipHref!(id);

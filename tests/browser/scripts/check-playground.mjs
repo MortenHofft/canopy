@@ -78,6 +78,14 @@ ok(
 console.log('theme');
 await setInput('labelSize', '18');
 ok((await theme('labelSize')) === 18, 'range → theme.labelSize');
+ok((await theme('labelFontStyle')) === 'italic', 'labels are italic by default');
+await select('labelFontStyle', 'normal');
+ok(
+  (await theme('labelFontStyle')) === 'normal' && query().get('s.labelFontStyle') === 'normal',
+  'Label style select → theme.labelFontStyle, and into the URL',
+);
+await select('labelFontStyle', 'italic');
+ok((await theme('labelFontStyle')) === 'italic' && !query().has('s.labelFontStyle'), 'back to italic, out of the URL again');
 await setInput('branch', '#ff0000');
 ok((await theme('branch')) === '#ff0000' && query().get('s.branch') === '#ff0000', 'colour → theme.branch, and into the URL');
 await select('preset', 'dark');
@@ -282,13 +290,13 @@ ok(
 );
 await open(new URL(page.url()).search);
 ok((await tips()) === afterCollapse && (await status()).includes('1 collapsed'), 'the focus and the collapsed clade survive a reload');
-await menu(
-  await ev(() => {
-    const t = window.viewer.getTree();
-    for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
-  }),
-  'Expand',
-);
+// the collapsed tip of a dated tree now ends at the present, in the tip column, where the first row sits under the Find control: click
+// the triangle itself, 40 px left of the tip
+const triPoint = await ev(() => {
+  const t = window.viewer.getTree();
+  for (let r = 0; r < t.tipCount; r++) if (/ and \d+ more$| \(\d+ tips\)$/.test(t.tipLabels[r])) return window.viewer.locateNode(t.tipNode[r]);
+});
+await menu({ x: triPoint.x - 40, y: triPoint.y }, 'Expand');
 ok((await tips()) === big.tips && !query().has('collapsed'), 'Expand from the triangle’s menu');
 // a colour set inside the clade stays on it when going back out
 const inner = await cladeOf(3, 10);

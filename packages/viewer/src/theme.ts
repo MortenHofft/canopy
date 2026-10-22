@@ -1,3 +1,8 @@
+// Theme or option? The theme is how things look: colours, sizes and widths in px, opacities, font family and style. Everything in it
+// can be a --phylo-* property, so a stylesheet (light/dark, GBIF tokens) sets it without JavaScript. Options (ViewerOptions in
+// types.ts) are what is shown and how the viewer behaves: layout, which elements appear, density and level-of-detail thresholds,
+// functions, performance knobs. The rule and the exceptions are in docs/api.md ("Theme or option").
+//
 // The canvas theme from CSS: every TreeTheme field can be given as a custom property, --phylo-<field in kebab case> (THEME_CSS_VARS),
 // on the viewer's target or any ancestor. The viewer reads them when it is created, on `refreshTheme()` and when the colour scheme
 // preference changes, so one stylesheet themes both the canvas and the DOM (controls, popups; see css/viewer.css).
@@ -28,12 +33,16 @@ const NUMBERS = [
   'axisFontSize',
   'leaderWidth',
   'leaderOpacity',
+  'alignRowGap',
 ] as const;
 const STRINGS = ['fontFamily', 'leaderColour', 'leaderDash'] as const;
 
 /** The custom property of each theme field. */
 export const THEME_CSS_VARS: Record<keyof TreeTheme, string> = Object.fromEntries(
-  (['dark', ...COLOURS, ...STRINGS, 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [k, '--phylo-' + kebab(k)]),
+  (['dark', ...COLOURS, ...STRINGS, 'labelFontStyle', 'categorical', ...NUMBERS, ...RESIDUE_THEME_KEYS] as (keyof TreeTheme)[]).map((k) => [
+    k,
+    '--phylo-' + kebab(k),
+  ]),
 ) as Record<keyof TreeTheme, string>;
 
 /** Whether a background is dark (luminance under 0.4); null when it is not a colour or is translucent, which says nothing about the
@@ -62,6 +71,9 @@ export function themeFromCss(el: Element, deriveDarkFromBackground = true): Part
     const v = get(k);
     if (v) out[k] = v;
   }
+  const fontStyle = get('labelFontStyle').toLowerCase(); // 'oblique' is italic to the canvas and the DOM alike
+  if (fontStyle === 'italic' || fontStyle === 'oblique') out.labelFontStyle = 'italic';
+  else if (fontStyle === 'normal') out.labelFontStyle = 'normal';
   const cat = splitList(get('categorical'));
   if (cat.length) out.categorical = cat;
   for (const k of NUMBERS) {

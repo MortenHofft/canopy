@@ -33,7 +33,7 @@ function leaders(ctx) {
     else if (e[0] === 'globalAlpha=') alpha = e[1];
     else if (dashed && e[0] === 'moveTo') from = e;
     else if (dashed && e[0] === 'lineTo' && from) {
-      out.push({ x0: from[1], x1: e[1], y: from[2], alpha });
+      out.push({ x0: e[1], x1: from[1], y: from[2], alpha }); // drawn from the column leftward: x1 is the column end
       from = null;
     }
   }
@@ -153,24 +153,73 @@ test('the tokens colour, dash and size the leaders', async () => {
   assert.ok(leaders(ctx).every((l) => l.alpha === 0.5));
 });
 
-test('labelReserve and the clade window account for the column', async () => {
-  const LONG = '((aaaaaaaa:1,b:4)x:1,(c:2,d:6)y:1)r;'; // under 8 characters the reserve sits at its floor
+test('labelReserve grows by the triangle width only while there are collapsed tips; zoomToNode still zooms on x', async () => {
+  const LONG = '((aaaaaaaaaaaa:1,b:4)x:1,(c:2,d:6)y:1)r;'; // under 8 characters the reserve sits at its floor
   const m = await make(LONG);
   const off = await make(LONG, { alignLabels: false });
-  assert.ok(m.viewer.vs.labelReserve() > off.viewer.vs.labelReserve());
-  const v = m.viewer.vs.cladeViewport(m.viewer.tree.firstChild[0]);
-  const w = off.viewer.vs.cladeViewport(off.viewer.tree.firstChild[0]);
-  assert.ok(v.x1 - v.x0 > w.x1 - w.x0, 'the window reaches the label column');
+  assert.equal(m.viewer.vs.labelReserve(), off.viewer.vs.labelReserve());
+  m.viewer.setCollapsed([m.viewer.tree.tipNode[1]]);
+  m.env.flush();
+  assert.equal(m.viewer.vs.labelReserve(), off.viewer.vs.labelReserve() + 14);
+  const n = m.viewer.tree.firstChild[0];
+  const v = m.viewer.vs.cladeViewport(n);
+  const w = off.viewer.vs.cladeViewport(n);
+  assert.ok(v.x1 - v.x0 < 0.9, 'the window is the clade, not the whole tree width');
+  assert.ok(Math.abs(v.x1 - v.x0 - (w.x1 - w.x0)) < 0.1);
 });
 
-test('collapsed clades get their label at the aligned x, clear of the triangle, with a leader from its base', async () => {
+test('collapsed tip: its leader starts at the base of the triangle', async () => {
   const m = await make(PHYLO);
-  m.viewer.setCollapsed([m.viewer.tree.tipNode[0], m.viewer.tree.tipNode[3]]); // the tips a and d: d is at the farthest x
+  m.viewer.setCollapsed([m.viewer.tree.tipNode[0]]); // a
   m.ctx().reset();
   m.env.flush();
-  const xs = labelXs(m.ctx());
-  assert.equal(new Set(Object.values(xs)).size, 1);
-  const T = m.viewer.proj.T;
-  assert.ok(xs.d >= T.ox + T.kx + 14 + 8, 'past the triangle of the farthest tip');
-  assert.equal(leaders(m.ctx()).length, 4);
+  const p = { x: 0, y: 0 };
+  m.viewer.proj.nodeXY(m.viewer.tree.tipNode[0], p);
+  const ls = leaders(m.ctx());
+  assert.equal(ls.length, 4);
+  const mine = ls.find((l) => Math.abs(l.y - p.y) < 1e-9);
+  assert.equal(mine.x0, p.x + 14);
+});
+
+/** A caterpillar-free comb of n tips with different lengths. */
+const comb = (n) => '(' + Array.from({ length: n }, (_, k) => `t${k}:${1 + (k % 7)}`).join(',') + ');';
+
+test('leaders follow the labels: same rows in a scrolled view with culled rows, and the same cap', async () => {
+  const m = await make(comb(60), {}, { size: [500, 400] });
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 20, y1: 30 });
+  m.ctx().reset();
+  m.env.flush();
+  const L = m.viewer.labels;
+  assert.ok(L.count > 0 && L.count < 60, 'rows outside the window are culled');
+  const ys = [...Array(L.count).keys()].map((k) => L.y[k]).sort((a, b) => a - b);
+  const lys = leaders(m.ctx())
+    .map((l) => l.y)
+    .sort((a, b) => a - b);
+  assert.deepEqual(
+    lys.map((y) => y.toFixed(2)),
+    ys.map((y) => y.toFixed(2)),
+  );
+  const big = await make(comb(900), { lod: false }, { size: [500, 12000] });
+  assert.equal(big.viewer.labels.count, 600, 'the label cap');
+  assert.equal(leaders(big.ctx()).length, 600, 'and the leader cap');
+});
+
+test('zoomed in on x the column is pinned at the right edge of the plot area and labels stay (not culled as when unaligned)', async () => {
+  const m = await make(PHYLO);
+  const ax = m.viewer.vs.area.ax + m.viewer.vs.area.aw;
+  m.viewer.setViewport({ x0: 0, x1: 0.5, y0: 0, y1: 4 });
+  m.ctx().reset();
+  m.env.flush();
+  const L = m.viewer.labels;
+  assert.equal(L.count, 4);
+  for (let k = 0; k < L.count; k++) assert.equal(L.x[k], ax + 8);
+  const off = await make(PHYLO, { alignLabels: false });
+  off.viewer.setViewport({ x0: 0, x1: 0.5, y0: 0, y1: 4 });
+  off.env.flush();
+  assert.ok(off.viewer.labels.count < 4, 'unaligned, the tips past the right edge lose their labels');
+  const ls = leaders(m.ctx());
+  assert.ok(
+    ls.every((l) => l.x0 < l.x1),
+    'no leader for a tip at or past the column',
+  );
 });

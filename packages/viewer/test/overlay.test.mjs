@@ -60,7 +60,7 @@ globalThis.window = { setTimeout: (...a) => globalThis.setTimeout(...a) }; // lo
 
 const tree = new InMemorySource(parseNewick('((A:1,B:2)AB:1,(C:1,(D:2,E:3)DE:1)CDE:2,F:4)root;')).snapshot();
 const theme = { ...FALLBACK_THEME };
-const opts = (o = {}) => ({ tipHref: null, italicLabels: true, formatLabel: (s) => s.toUpperCase() + '!', ...o });
+const opts = (o = {}) => ({ tipHref: null, formatLabel: (s) => s.toUpperCase() + '!', ...o });
 
 function labels(rows, { ang = 0, flip = 0 } = {}) {
   const l = new LabelList();
@@ -109,8 +109,8 @@ test('update creates one transparent focusable treeitem per label, named by form
   assert.equal(a.style.height, '14px');
   assert.equal(a.style.lineHeight, '14px');
   assert.equal(a.style.display, '');
-  o.update(labels([[0, 100, 40, 9]]), tree, opts({ italicLabels: false }), theme, 'rectangular');
-  assert.equal(o.layer.children.length, 1, 'a rebuilt pool after the italic flag changed');
+  o.update(labels([[0, 100, 40, 9]]), tree, opts(), { ...theme, labelFontStyle: 'normal' }, 'rectangular');
+  assert.equal(o.layer.children.length, 1, 'a rebuilt pool after the label font style changed');
   assert.equal(o.layer.children[0].style.fontSize, '8px', 'never below 8 px');
   assert.doesNotMatch(o.layer.children[0].style.cssText, /italic/);
   o.destroy();

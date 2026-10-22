@@ -1,7 +1,7 @@
 // Canvas2D drawing of one frame's draw list. Everything here reads typed arrays and the draw list; nothing
 // allocates per node. Strokes are batched into one path per colour class.
 
-import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
+import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, COLLAPSED_W, RADIAL_FAR_ARC_R } from './constants.ts';
 import { DrawList, K_NODE, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import type { LayoutProjection, Pt, RadialProjection } from './projection.ts';
@@ -21,7 +21,6 @@ export interface Scene {
   activeNode: number;
   density: LabelDensity;
   alignLabels: boolean; // the option; it acts only in a rectangular phylogram (see alignedX)
-  italic: boolean;
   format: (id: string) => string;
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
@@ -76,7 +75,6 @@ const MAX_RECT_LABELS = 600;
 const STROKE_CHUNK = 256; // segments per stroke() call: a path with thousands of subpaths rasterises superlinearly (measured, CPU)
 const FILL_CHUNK = 32; // fans per fill() call, same reason
 const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
-const COLLAPSED_W = 14; // length of the triangle of a collapsed-clade tip, along the branch direction (CSS px)
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
 const COLLAPSED_MIN_PX = 3; // below this row pitch the triangle is not drawn (the branch alone shows the tip)
@@ -472,12 +470,15 @@ export function drawRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, 
 }
 
 /** Where aligned labels start (CSS px, before the gap): right of the farthest tip, and of the triangle of a collapsed clade when
- *  there is one, so all labels share one x. NaN when labels are not aligned: the option is off, or the layout has no tips that end at
+ *  there is one, so all labels share one x. Zoomed in on x so far that the farthest tip is right of the plot area, the column is pinned
+ *  at the area's right edge (where the farthest tip is at the fit view): the labels stay readable, and the branches of the tips beyond it
+ *  run on under the text. NaN when labels are not aligned: the option is off, or the layout has no tips that end at
  *  different x (radial, cladogram, tree without lengths). */
 export function alignedX(S: Scene): number {
   const { proj } = S;
   if (!S.alignLabels || proj.kind !== 'rectangular' || !proj.L.usedLengths) return NaN;
-  return proj.T.ox + proj.L.XMAX[0] * proj.T.kx + (S.collapsed ? COLLAPSED_W : 0);
+  const { T, L } = proj;
+  return Math.min(T.ox + L.XMAX[0] * T.kx, T.area.ax + T.area.aw) + (S.collapsed ? COLLAPSED_W : 0);
 }
 
 /** The rectangular label of the tip at (x, y) is not drawn: its row is out of view, or (aligned) the column is. */
@@ -513,9 +514,9 @@ export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
       labelled++;
       if (passes > 1 && dimmed(S, e) !== pass) continue;
       const x0 = p.x + (S.collapsed && S.collapsed[tree.tipRank[i]] ? COLLAPSED_W : 0);
-      if (endX - x0 < 1) continue;
-      ctx.moveTo(x0, p.y);
-      ctx.lineTo(endX, p.y);
+      if (x0 >= endX) continue; // at or past the column (pinned): nothing to lead over
+      ctx.moveTo(endX, p.y); // from the column leftward, so the dash pattern lines up at the labels
+      ctx.lineTo(x0, p.y);
       if (++n >= STROKE_CHUNK) {
         ctx.stroke();
         ctx.beginPath();
@@ -550,8 +551,9 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const need = LABEL_MIN_PX[S.density];
   if (pitch < need) return;
   const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
-  const fontN = `${S.italic ? 'italic ' : ''}${size}px ${theme.fontFamily}`;
-  const fontH = `${S.italic ? 'italic ' : ''}600 ${size}px ${theme.fontFamily}`;
+  const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';
+  const fontN = `${style}${size}px ${theme.fontFamily}`;
+  const fontH = `${style}600 ${size}px ${theme.fontFamily}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   const p: Pt = { x: 0, y: 0 };
