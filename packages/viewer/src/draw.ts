@@ -16,8 +16,7 @@ export interface Scene {
   highlight: Uint8Array | null; // by tip rank
   collapsed: Uint8Array | null; // by tip rank: the tip stands for a collapsed clade (drawn as a triangle)
   hlRanks: Int32Array; // sorted highlighted ranks
-  dim: Uint8Array | null; // by row: 1 = no highlighted tip below it, drawn at theme.dimOpacity; null = no dimming
-  hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1), for runs, which have no row of their own
+  hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
   hoverNode: number;
   activeNode: number;
   density: LabelDensity;
@@ -104,16 +103,15 @@ export class TextMeasurer {
 
 /** 1 when draw-list entry `e` is outside the highlighted set (drawn dimmed), else 0. A clade is dimmed only when none of its tips is
  *  highlighted, so a mixed clade, a triangle holding a match and the path to a match keep full strength. A run (siblings drawn as one
- *  slice) has no row of its own: it is dimmed when none of its members' tips is. */
+ *  slice) spans its members' tips, `leafStart` of the first to `leafEnd` of the last. */
 function dimmed(S: Scene, e: number): number {
-  const dim = S.dim;
-  if (dim === null) return 0;
+  const pre = S.hlPrefix;
+  if (pre === null) return 0;
   const i = S.list.node[e];
   const lm = S.list.last[e];
-  if (lm < 0) return dim[i];
-  const pre = S.hlPrefix!;
   const t = S.proj.tree;
-  return pre[Math.min(t.leafEnd[lm], pre.length - 1)] - pre[Math.min(t.leafStart[i], pre.length - 1)] === 0 ? 1 : 0;
+  const n = pre.length - 1;
+  return pre[Math.min(t.leafEnd[lm >= 0 ? lm : i], n)] - pre[Math.min(t.leafStart[i], n)] === 0 ? 1 : 0;
 }
 
 const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
@@ -132,7 +130,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
     q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'round';
-  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       const col = cls === 0 ? theme.branch : colours[cls];
@@ -216,7 +214,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
     q: Pt = { x: 0, y: 0 };
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'bevel';
-  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
@@ -346,7 +344,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
   const m = theme.nodeMarkerSize;
   // internal markers: small filled squares (cheap), only for clades big enough to click
-  const passes = S.dim ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
+  const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < colours.length; cls++) {
       ctx.globalAlpha = pass ? theme.markerOpacity * theme.dimOpacity : theme.markerOpacity;
@@ -518,7 +516,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.fillStyle = fill;
       lastFill = fill;
     }
-    const alpha = S.dim && S.dim[i] ? theme.dimOpacity : 1;
+    const alpha = S.hlPrefix && S.hlPrefix[r + 1] === S.hlPrefix[r] ? theme.dimOpacity : 1;
     if (alpha !== lastAlpha) {
       ctx.globalAlpha = alpha;
       lastAlpha = alpha;

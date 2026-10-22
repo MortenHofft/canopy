@@ -209,10 +209,8 @@ ok((await opt('highlightStyle')) === 'band', 'Highlight style defaults to band')
 await select('highlightStyle', 'dim');
 ok((await opt('highlightStyle')) === 'dim' && query().get('s.highlightStyle') === 'dim', 'Highlight style: dim, kept in the URL');
 ok((await theme('dimOpacity')) === 0.25, 'dimOpacity is a theme setting');
-await page
-  .locator('input[data-setting=dimOpacity]')
-  .fill('0.5')
-  .catch(() => {});
+await setInput('dimOpacity', '0.5');
+ok((await theme('dimOpacity')) === 0.5 && query().get('s.dimOpacity') === '0.5', 'the Dimmed opacity slider sets the theme token and the URL');
 await select('highlightStyle', 'band');
 
 console.log('tree operations');

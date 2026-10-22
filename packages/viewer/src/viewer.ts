@@ -144,10 +144,9 @@ export class TreeViewer {
   private detail: DetailLoader;
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
-  /** Highlight counts by tip rank (prefix sums, length tipCount + 1) and, by row, 1 = no highlighted tip below it: the dim state. Null
-   *  without highlights. Rebuilt when the highlights or the rows change (`applyDim`), never in a frame. */
+  /** Highlighted tips before each rank (prefix sums, length tipCount + 1): a clade holds none when its range [leafStart, leafEnd) has equal
+   *  ends, which is the dim state. Built on first use by a dimming frame (never in 'band' mode) and dropped when the highlights change. */
   private hlPrefix: Int32Array | null = null;
-  private dimOf: Uint8Array | null = null;
   private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
   private collapsedRank: Uint8Array | null = null; // by tip rank: 1 = the tip stands for a collapsed clade
@@ -452,7 +451,7 @@ export class TreeViewer {
     this.hit = new HitIndex();
     this.applyClades();
     this.applyCollapsed();
-    this.applyDim();
+    this.resolveHighlights(); // tips that were not loaded when the ids were passed may be now (and the dim state follows)
     this.activeNode = -1;
     this.clearHover();
     this.vs.resetLabelReserve();
@@ -763,9 +762,18 @@ export class TreeViewer {
     const last = this.hlIds;
     if (tipIds.length === last.length && tipIds.every((id, i) => id === last[i])) return;
     this.hlIds = tipIds.slice();
+    this.resolveHighlights();
+    this.sceneVersion++;
+    this.invalidate();
+    this.events.emit('highlightchange', this.hlIds.slice());
+  }
+
+  /** The ranks of the loaded tips among `hlIds`: `hlRanks`, `hl`, and the dim prefix (dropped, built again by the next dimming frame). With
+   *  a partial source a match whose rows are not loaded has no rank yet, so its clade counts as holding no match (and dims) until it loads. */
+  private resolveHighlights(): void {
     const N = this.tree.tipCount;
     const ranks: number[] = [];
-    for (const id of tipIds) {
+    for (const id of this.hlIds) {
       const n = this.tree.tipIndex(id);
       if (n >= 0) ranks.push(this.tree.tipRank[n]);
     }
@@ -776,32 +784,19 @@ export class TreeViewer {
       this.hl = new Uint8Array(N);
       for (const r of uniq) this.hl[r] = 1;
     } else this.hl = null;
-    this.applyDim();
-    this.sceneVersion++;
-    this.invalidate();
-    this.events.emit('highlightchange', this.hlIds.slice());
+    this.hlPrefix = null;
   }
 
-  /** The dim state per row from the highlighted tips: a row is dimmed when none of its tips is highlighted (a mixed clade is not). */
-  private applyDim(): void {
+  /** The dim prefix for a frame, built when first needed; null without highlights. */
+  private dimPrefix(): Int32Array | null {
     const hl = this.hl;
-    if (!hl) {
-      this.hlPrefix = null;
-      this.dimOf = null;
-      return;
+    if (!hl) return null;
+    if (!this.hlPrefix) {
+      const pre = new Int32Array(hl.length + 1);
+      for (let r = 0; r < hl.length; r++) pre[r + 1] = pre[r] + hl[r];
+      this.hlPrefix = pre;
     }
-    const t = this.tree;
-    const N = hl.length;
-    const pre = new Int32Array(N + 1);
-    for (let r = 0; r < N; r++) pre[r + 1] = pre[r] + hl[r];
-    const dim = new Uint8Array(t.nodeCount);
-    for (let i = 0; i < t.nodeCount; i++) {
-      const a = Math.min(t.leafStart[i], N),
-        b = Math.min(t.leafEnd[i], N);
-      dim[i] = pre[b] - pre[a] === 0 ? 1 : 0;
-    }
-    this.hlPrefix = pre;
-    this.dimOf = dim;
+    return this.hlPrefix;
   }
 
   /** The tip labels last passed to `setHighlighted` (unknown ones included). */
@@ -1201,8 +1196,7 @@ export class TreeViewer {
       classOf: this.classOf,
       highlight: bands ? this.hl : null,
       hlRanks: bands ? this.hlRanks : NO_RANKS,
-      dim: dimming ? this.dimOf : null,
-      hlPrefix: this.hlPrefix,
+      hlPrefix: dimming ? this.dimPrefix() : null,
       collapsed: this.collapsedRank,
       hoverNode: this.hoverNode,
       activeNode: this.activeNode,

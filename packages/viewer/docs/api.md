@@ -332,7 +332,7 @@ The overview is a control (`OverviewControl`), not an option.
 ### Dimming highlights
 
 With `highlightStyle: 'dim'` (or `'both'`), `setHighlighted` dims what is not highlighted instead of (or as well as) banding what is. The dim
-state is precomputed per row when the highlights change (a `Uint8Array`, 1 = no highlighted tip below the row), so a frame only reads it.
+state is a prefix sum over tip ranks, so a frame reads two entries per drawn primitive and allocates nothing.
 
 - A clade is dimmed only when **none** of its tips is highlighted. A clade with some highlighted tips (a mixed clade, the path from the root to
   a match, a collapsed triangle or slice that holds a match) is drawn at full strength; its unmatched tips, branches and labels inside are dimmed
@@ -342,6 +342,10 @@ state is precomputed per row when the highlights change (a `Uint8Array`, 1 = no 
 - Columns are **not** dimmed. Their cells carry data (colours, bars, alignments) that the person reads next to the label, and a custom
   `ColumnRenderer` has no row state to dim with; the row of a dimmed tip still shows its full-strength column.
 - No highlights means no dimming. The overview and its ticks are unchanged.
+- Draw order: lit entries are drawn first, then the dimmed ones, so where a dimmed stroke meets a lit one at a junction the dimmed stroke is on top.
+- The state is a prefix sum of highlighted tips by tip rank, built on the first dimming frame after the highlights change (never in `'band'`
+  mode); a clade is lit when its tip range holds at least one. With a partial source the ids are resolved again when rows arrive, but a match
+  whose rows are not loaded yet has no rank, so its stub clade is dimmed until it loads.
 
 ## Other types
 

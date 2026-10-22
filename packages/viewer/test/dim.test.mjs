@@ -66,16 +66,93 @@ test('dim: branches of a clade with no highlighted tip are stroked at dimOpacity
   assert.ok(strokes.includes(DIM), 'the other clade');
 });
 
-test('dim state per row: a clade with a highlighted tip is not dimmed, one with none is', async () => {
-  const { viewer } = await viewerWith('dim', ['a']);
-  const dim = viewer.dimOf;
-  assert.ok(dim instanceof Uint8Array);
-  assert.deepEqual([...dim], [0, 0, 0, 1, 1, 1, 1], 'r and x hold a, a itself is lit; b, y, c, d are dim');
+test('dim follows the highlighted set as it changes: a clade is lit when any tip below it matches', async () => {
+  const { viewer, env, ctx } = await viewerWith('dim', ['a']);
+  assert.deepEqual(labelAlpha(ctx()), { a: 1, b: DIM, c: DIM, d: DIM });
+  ctx().reset();
   viewer.setHighlighted(['a', 'c']);
-  assert.deepEqual([...viewer.dimOf], [0, 0, 0, 1, 0, 0, 1]);
+  env.flush();
+  assert.deepEqual(labelAlpha(ctx()), { a: 1, b: DIM, c: 1, d: DIM });
+  const strokes = alphas(ctx(), 'stroke').map((x) => x.alpha);
+  assert.ok(strokes.includes(1) && strokes.includes(DIM), 'the cherries x and y are each lit by one match; b and d are dim');
+  ctx().reset();
   viewer.setHighlighted([]);
-  assert.equal(viewer.dimOf, null, 'no highlights, no dimming');
+  env.flush();
+  assert.ok(alphas(ctx(), 'fillText').every((x) => x.alpha === 1));
+  assert.ok(!ctx().log.some((e) => e[0] === 'globalAlpha=' && e[1] === DIM), 'no highlights, no dimming');
 });
+
+test("'band' builds no dim state (no prefix array); a switch to dim or both, or a dim viewer, builds it on the next frame", async () => {
+  const band = await viewerWith('band', ['a']);
+  assert.equal(band.viewer.hlPrefix, null);
+  band.viewer.setOptions({ highlightStyle: 'both' });
+  band.env.flush();
+  assert.ok(band.viewer.hlPrefix instanceof Int32Array);
+  band.viewer.setHighlighted(['b']);
+  assert.equal(band.viewer.hlPrefix, null, 'dropped when the highlights change');
+});
+
+test('dim: node markers and tip dots are filled at markerOpacity, dimmed ones at markerOpacity * dimOpacity', async () => {
+  const { ctx } = await viewerWith('dim', ['a']);
+  const mo = FALLBACK_THEME.markerOpacity;
+  const fills = alphas(ctx(), 'fill').map((x) => x.alpha);
+  assert.ok(fills.includes(mo), 'the lit markers');
+  assert.ok(fills.includes(mo * DIM), 'the dimmed markers');
+});
+
+test('dim: the triangle of a collapsed tip is dimmed unless the tip matches', async () => {
+  const { viewer, env, ctx } = await viewerWith('dim', ['a']);
+  viewer.setCollapsed([2, 5]); // the tips a and c
+  ctx().reset();
+  env.flush();
+  const fills = alphas(ctx(), 'fill').map((x) => x.alpha);
+  assert.ok(fills.includes(0.35), 'a, the match');
+  assert.ok(fills.includes(0.35 * DIM), 'c');
+  const strokes = alphas(ctx(), 'stroke').map((x) => x.alpha);
+  assert.ok(strokes.includes(DIM));
+});
+
+// runs: siblings drawn as one slice. Its tips are [leafStart of the first member, leafEnd of the last], so a match at either end, in the
+// middle, or in another clade must each give the right lit / dimmed count.
+const cher = (k) => `(p${k}a,p${k}b)c${k}`;
+const RUNS = '((' + Array.from({ length: 200 }, (_, k) => cher(k)).join(',') + ')P,(z1,z2)Z)root;';
+function fillGroups(ctx) {
+  let alpha = 1,
+    prims = 0;
+  const out = {};
+  for (const e of ctx.log) {
+    if (e[0] === 'globalAlpha=') alpha = e[1];
+    else if (e[0] === 'beginPath') prims = 0;
+    else if (e[0] === 'rect' || e[0] === 'moveTo') prims++;
+    else if (e[0] === 'fill') out[alpha] = (out[alpha] ?? 0) + prims;
+  }
+  return out;
+}
+for (const tip of ['p0a', 'p17b', 'p100a', 'p199b', 'z1']) {
+  test('dim: runs and slices are lit exactly when a tip of their members matches (' + tip + ')', async () => {
+    const m = await makeViewer(RUNS, { options: { highlightStyle: 'dim' }, theme: { dimOpacity: DIM }, size: [400, 120] });
+    m.viewer.setHighlighted([tip]);
+    m.env.flush();
+    const { list, tree: t } = m.viewer;
+    const r = t.tipRank[t.tipIndex(tip)];
+    let runs = 0,
+      expDim = 0,
+      expLit = 0;
+    for (let e = 0; e < list.count; e++) {
+      if (list.kind[e] !== 2) continue; // K_SUMMARY
+      const i = list.node[e],
+        lm = list.last[e];
+      if (lm >= 0) runs++;
+      if (r >= t.leafStart[i] && r < t.leafEnd[lm >= 0 ? lm : i]) expLit++;
+      else expDim++;
+    }
+    const g = fillGroups(m.ctx());
+    const so = m.viewer.theme.summaryOpacity;
+    assert.ok(runs > 0, 'the frame draws runs');
+    assert.equal(g[so * DIM] ?? 0, expDim, 'dimmed summaries');
+    assert.equal(g[so] ?? 0, expLit, 'lit summaries');
+  });
+}
 
 test('dim: nothing is dimmed without highlights, and unknown ids highlight nothing', async () => {
   for (const tips of [[], ['nope']]) {

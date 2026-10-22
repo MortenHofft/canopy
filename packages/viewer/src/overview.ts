@@ -212,7 +212,6 @@ export class Overview {
       colours: h.colours,
       classOf: h.classOf,
       highlight: null,
-      dim: null,
       hlPrefix: null,
       collapsed: null,
       hlRanks: new Int32Array(0),

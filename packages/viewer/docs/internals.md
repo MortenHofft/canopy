@@ -122,7 +122,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/geom.ts` | 95 | `makeTransform` (viewport to px), sector bounding boxes |
 | `src/projection.ts` | 316 | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values |
 | `src/lod.ts` | 655 | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R |
-| `src/draw.ts` | 605 | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer` |
+| `src/draw.ts` | 643 | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer` |
 | `src/hit.ts` | 314 | `HitIndex`: uniform grid over the draw list, candidate scoring |
 | `src/columns.ts` | 379 | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns` |
 | `src/view-state.ts` | 384 | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM) |
