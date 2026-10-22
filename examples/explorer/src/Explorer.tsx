@@ -58,12 +58,12 @@ function shownSelection(selected: number | null, view: { toView: Int32Array } | 
   return null;
 }
 
-// What ladderise sorts by: 'height' is not on offer without branch lengths, so a tree without them falls back to tips.
 /** Whether the "Scroll to zoom" hint is drawn. The rectangular one shares the bottom-right corner with the viewer's clade legend, so it gives way while that shows. */
 function hintShown(gone: boolean, layout: Layout, legendOn: boolean, shownCladeCount: number): boolean {
   return !gone && (layout === 'radial' || !(legendOn && shownCladeCount > 0));
 }
 
+// What ladderise sorts by: 'height' is not on offer without branch lengths, so a tree without them falls back to tips.
 function effectiveLadderBy(choice: LadderBy, hasLengths: boolean): LadderBy {
   return choice === 'height' && !hasLengths ? 'tips' : choice;
 }
