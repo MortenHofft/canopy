@@ -80,7 +80,8 @@ export interface CladeProp {
  *    is unchanged and a new object (never an in-place mutation) when it changed. A new array of the same columns is no change.
  *  - `viewport`: compared by its four numbers.
  *  - `focus`: acts when `seq` changes; the tip id alone changing does nothing.
- *  - `marked`: compared element-wise with the marks in force (a new array with the same ids is no change).
+ *  - `marked`: applied when it changes and with every new `tree` / `source` (its ids are of the tree you pass), compared element-wise
+ *    with the marks in force, so a new array with the same ids is no change.
  *  - `selected`: acts when its value changes, as `layout` does: a click selects on the viewer itself (report it back with
  *    `onSelectionChange` to keep the prop in step), and that stays until the prop changes. Left out (undefined), the viewer keeps its own.
  *  - `controls`: compared element by element by identity; a control that is no longer in the list is removed, a new one added. Create
@@ -317,10 +318,11 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   useLayoutEffect(() => {
     if (selected !== undefined) liveRenderer(R, rendRef)?.setSelected(selected);
   }, [R, rendRef, selected]);
+  // also after a new tree: the marks are the prop's ids of the tree passed, not the old marks sent through `treeMap` (or dropped without it)
   const marked = props.marked;
   useLayoutEffect(() => {
     liveRenderer(R, rendRef)?.setMarked(marked ?? EMPTY_NODES);
-  }, [R, rendRef, marked]);
+  }, [R, rendRef, marked, source]);
   // the default is Zoom and Fit themselves, not defaultControls(): that would bundle every control into every app using <TreeView>
   const [ownControls] = useState<Control[]>(() => [new Zoom(), new Fit()]);
   const controls = useStable(props.controls ?? ownControls, (a, b) => a.length === b.length && a.every((c, i) => c === b[i]));

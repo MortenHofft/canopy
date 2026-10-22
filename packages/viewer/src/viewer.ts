@@ -736,7 +736,7 @@ export class TreeViewer {
     }
     this.activeNode = -1;
     this.selected = this.selectionAfterSetTree(oldSelected, map, rm);
-    this.storeMarked(map ? this.marked.map(rm).filter((n) => n >= 0 && isNodeOf(this.nodeLimit(), n)) : []);
+    this.storeMarked(this.marksAfterSetTree(map, rm));
     this.pendingHover = null;
     this.clearHover();
     this.root.style.cursor = 'grab';
@@ -1259,6 +1259,13 @@ export class TreeViewer {
   private selectionAfterSetTree(old: number, map: Int32Array | null, rm: (n: number) => number): number {
     const sel = map && old >= 0 ? rm(old) : -1;
     return sel >= 0 && isNodeOf(this.nodeLimit(), sel) ? this.shownNode(sel) : -1;
+  }
+
+  /** The marks of the new tree in `setTree`: the old ones sent through `rm` (removed ones dropped); without a map, none. */
+  private marksAfterSetTree(map: Int32Array | null, rm: (n: number) => number): number[] {
+    if (!map) return [];
+    const limit = this.nodeLimit();
+    return this.marked.map(rm).filter((n) => n >= 0 && isNodeOf(limit, n));
   }
 
   /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
@@ -1809,7 +1816,7 @@ export class TreeViewer {
     } else this.overlay.follow(this.labels, T.kind); // the focus outline must move with the canvas
     this.reducedFrame = reduced;
     if (!reduced && tree.stub !== null) this.detail.request(tree, this.list, T, L, rect, vs.fitted, this.srcVersion);
-    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.selected >= 0 || this.marked.length > 0 || this.topHad) this.topDirty = true;
+    if (this.hoverNode >= 0 || this.activeNode >= 0 || this.selected >= 0 || this.topHad) this.topDirty = true;
 
     const frameMs = performance.now() - t0;
     const st = this.stats;
@@ -1914,6 +1921,14 @@ export class TreeViewer {
     }
   }
 
+  /** The rings of the marked nodes (`setMarked`), at their rows of the snapshot now (a hidden node at its collapsed clade). */
+  private drawMarks(c: CanvasRenderingContext2D, proj: LayoutProjection): void {
+    const rows = this.markRows;
+    if (rows.length === 0) return;
+    for (let i = 0; i < rows.length; i++) rows[i] = this.rowOf(this.shownNode(this.marked[i]));
+    drawMarkRings(c, proj, rows, this.theme);
+  }
+
   /** The marks, selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
   private topHad = false;
   private drawTop(): void {
@@ -1925,11 +1940,7 @@ export class TreeViewer {
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const proj = this.proj;
-    if (this.marked.length) {
-      const rows = this.markRows;
-      for (let i = 0; i < rows.length; i++) rows[i] = this.rowOf(this.shownNode(this.marked[i]));
-      drawMarkRings(c, proj, rows, this.theme);
-    }
+    this.drawMarks(c, proj);
     if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
       drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);
