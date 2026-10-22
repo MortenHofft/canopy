@@ -27,7 +27,7 @@ control and reads the result back from the viewer.
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
-| Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one |
+| Search (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches with `highlightStyle: 'dim'` (what does not match fades to `--phylo-dim-opacity`; the columns stay at full strength) and `focus` to centre the current one |
 | Export | PNG from the viewer's canvas (labels are drawn on it) over the pane colour; Newick and NEXUS with `toNewick` / `toNexus` from `@gbif-phylo/io`. Reactree's SVG and PDF are left out |
 | Undo (and ⌘Z) | a history of trees; every edit is a tree-ops function returning a new tree |
 | Fit | `fit()` |
@@ -62,14 +62,12 @@ Still open, found in the library:
 - **No aligned tip labels with leader lines** ([#35](https://github.com/MortenHofft/gbif-phylo/issues/35)). The Align button is shown disabled.
 - **No vector export.** The viewer draws on a canvas, so the menu has PNG (the current view at the canvas resolution), Newick and NEXUS,
   not Reactree's SVG and PDF.
-- **Search can highlight, not dim** ([#22](https://github.com/MortenHofft/gbif-phylo/issues/22)). Reactree dims the tips that do not match; the viewer has highlighting only.
 
 Differences that follow from the design, not defects:
 
 - Reactree scales the drawing to fit and shows tiny labels on every tip; the viewer shows labels only where they fit (`labelDensity`), so a
   135-tip tree at the fitted view has none until you zoom in or raise Height ([#24](https://github.com/MortenHofft/gbif-phylo/issues/24)).
-- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)) makes the shown tree non-ultrametric, so the axis switches to distance from the root until it is
-  expanded (the same known limit as `examples/react`).
+- Collapsing a clade of a dated tree ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)): the example passes `{ extend: true }` to `collapseClades` when the tree is ultrametric, so the triangle's tip ends at the present and the axis stays "time before tips". The tip's length is then the clade's edge plus its height, not the original edge.
 - Reactree's palette and export menu are portalled to `<body>` and the palette can be dragged; here they are positioned inside the
   component.
 - Reactree's look is kept as its own tokens (`--rt-*`), not GBIF's: the point is the comparison. The viewer still takes every colour from

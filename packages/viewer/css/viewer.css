@@ -12,7 +12,7 @@
  *   shape       --phylo-radius  --phylo-control-radius  --phylo-control-size  --phylo-shadow  --phylo-popup-shadow  --phylo-gap
  *   motion      --phylo-transition
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
- *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dark
+ *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
  *   residues    --phylo-residue-hydrophobic  -positive  -negative  -polar  -aromatic  -glycine  -proline  (protein groups)
  *               --phylo-residue-a  -c  -g  -t  (nucleotides)  --phylo-residue-other   (canvas only; defaults follow --phylo-dark)
  *
@@ -123,7 +123,7 @@
 
 .phylo-tooltip__title--tip,
 .phylo-node-menu__title--tip {
-  font-style: italic;
+  font-style: var(--phylo-label-font-style, italic);
 }
 
 .phylo-node-menu {
@@ -225,7 +225,7 @@
 .phylo-search__option {
   padding: 5px 8px;
   border-radius: var(--phylo-control-radius, 4px);
-  font-style: italic;
+  font-style: var(--phylo-label-font-style, italic);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;

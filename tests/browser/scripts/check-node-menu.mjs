@@ -118,9 +118,8 @@ await page.mouse.move(ef.x - 20, ef.y - 80); // wheel zoom: a viewport change wi
 await page.mouse.wheel(0, -200);
 await page.waitForTimeout(300);
 ok(!(await menuOpen()), 'zooming (a viewport change) closes it');
-// fit again, without the animation: the two panes share one controlled viewport, which echoes every animation step back and stops the
-// animation after its first step (also before setTree: it used to be hidden by the refit that a new tree brought)
-await page.evaluate(() => window.__panes()[0].fit(false));
+const pb = await pane.boundingBox();
+await page.mouse.dblclick(pb.x + 300, pb.y + 12); // double click on empty space fits the tree again (animated, under the shared controlled viewport)
 await page.waitForTimeout(400);
 await openOn(await cladeOf('E', 'F'));
 await act('rotate');
@@ -324,6 +323,14 @@ await page.waitForTimeout(400);
 }
 
 // midpoint on a dated (ultrametric) tree: the root already is the midpoint, and the status says so
+// the axis label is canvas text: remember the last axis title drawn
+await page.addInitScript(() => {
+  const ft = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
+    return ft.call(this, text, ...rest);
+  };
+});
 await page.goto(`${url}?tree=rich-fish-carangaria-135&cpu=1`);
 await page.waitForSelector('[role=toolbar]', { timeout: 60000 });
 await page.getByRole('button', { name: 'Midpoint root' }).click();
@@ -380,6 +387,30 @@ await page.waitForTimeout(500);
 [va, vb] = await panes();
 ok(sameView(va, vb) && va.y1 - va.y0 < va.tips * 0.6, 'Undo: still in sync, still zoomed');
 ok(await page.evaluate(() => window.__panes().every((v, i) => v === window.__keep[i])), 'and still the same renderers');
+
+// collapsing a clade of a dated tree extends the new tip to the present (tree-ops collapseClades { extend }), so the axis stays
+// "time before tips" (without it the tip ends at the clade's node and the axis flips to "distance from root", issue #19)
+{
+  const axis = () => page.evaluate(() => window.__axis);
+  ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
+  // no tip is labelled at this size: hover along rows of the tree until the tooltip names a clade of 3 to 10 tips
+  const box = await pane.locator('canvas').first().boundingBox();
+  let hit = null;
+  for (let y = box.y + box.height * 0.3; y < box.y + box.height * 0.7 && !hit; y += 7) {
+    for (let x = box.x + box.width * 0.6; x > box.x + 20 && !hit; x -= 4) {
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(20);
+      const tt = page.locator('[role=tooltip]');
+      if ((await tt.count()) && /Clade, ([3-9]|10) tips/.test(await tt.first().innerText())) hit = { x, y };
+    }
+  }
+  ok(hit !== null, 'found a clade to collapse');
+  await page.evaluate(() => (window.__axis = null)); // a stale title must not pass
+  await openOn(hit);
+  await act('collapse');
+  ok(await page.getByRole('button', { name: /Expand all/ }).isEnabled(), 'the clade is collapsed (Expand all is offered)');
+  ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
+}
 
 await browser.close();
 console.log(failures ? `\n${failures} FAILED` : '\nOK');

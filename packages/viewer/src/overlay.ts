@@ -17,7 +17,6 @@ const SR_DELAY_MS = 160; // the list of tips in view follows the view this long 
 /** The options the overlay reads. */
 export interface OverlayOptions {
   readonly tipHref: ((tipId: string) => string) | null;
-  readonly italicLabels: boolean;
   readonly formatLabel: (id: string) => string;
 }
 
@@ -42,9 +41,16 @@ export class LabelOverlay {
     this.live.setAttribute('role', 'status');
   }
 
-  /** Drop all label elements (the font, the link mode or the theme changed: they are rebuilt on the next update). */
-  clear(): void {
-    for (const el of this.pool.values()) el.remove();
+  private refocus: string | null = null;
+
+  /** Drop all label elements (the font, the link mode or the theme changed: they are rebuilt on the next update). With `keepFocus`, DOM
+   *  focus on a label goes to the anchor of the same tip when it is drawn again (the tree was replaced). */
+  clear(keepFocus = false): void {
+    const active = document.activeElement as HTMLElement | null;
+    for (const el of this.pool.values()) {
+      if (keepFocus && el === active) this.refocus = el.dataset.tipId ?? null;
+      el.remove();
+    }
     this.pool.clear();
   }
 
@@ -55,7 +61,7 @@ export class LabelOverlay {
       this.clear();
       this.poolMode = mode;
     }
-    const key = theme.fontFamily + '|' + opts.italicLabels;
+    const key = theme.fontFamily + '|' + theme.labelFontStyle;
     if (key !== this.lastKey) {
       this.clear();
       this.lastKey = key;
@@ -73,7 +79,7 @@ export class LabelOverlay {
         el.dataset.tipId = id;
         el.textContent = opts.formatLabel(id);
         el.tabIndex = 0;
-        el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};${opts.italicLabels ? 'font-style:italic;' : ''}transform-origin:0 50%`;
+        el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
         if (mode === 'a') {
           const a = el as HTMLAnchorElement;
           a.href = opts.tipHref!(id);
@@ -98,6 +104,14 @@ export class LabelOverlay {
           : `translate(${labels.x[k]}px,${labels.y[k] - h / 2}px) rotate(${deg}deg) translateX(${labels.gap[k]}px)`;
       }
       el.style.display = '';
+    }
+    if (this.refocus !== null) {
+      for (const el of this.pool.values())
+        if (el.dataset.tipId === this.refocus) {
+          el.focus({ preventScroll: true });
+          break;
+        }
+      this.refocus = null;
     }
     for (const [r, el] of this.pool) {
       if (used.has(r)) continue;

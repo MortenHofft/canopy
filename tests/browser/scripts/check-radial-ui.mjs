@@ -515,7 +515,7 @@ const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2
     step('dense labels, minCladePx 6', { labelDensity: 'dense', minCladePx: 6 });
     step('radial, radialMaxNodes 300', { layout: 'radial', radialMaxNodes: 300 }, (rec) => rec.drawn <= 300);
     step('radial, interaction LOD off, dprCap 1', { interactionLOD: false, dprCap: 1 });
-    step('alignStyle blocks', { alignStyle: 'blocks', alignRowGap: 2 });
+    step('alignStyle blocks', { alignStyle: 'blocks' });
     step('back to rectangular', { layout: 'rectangular' });
     // equal input does not redraw (settle first: a pending refine frame is not what is measured)
     r.renderNow();

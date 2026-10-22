@@ -82,7 +82,8 @@ function App() {
     const inShown = collapsed.map(toShown).filter((v) => v > 0); // the shown root is not collapsed
     let collapsedTips: number[] = [];
     if (inShown.length) {
-      const r = ops.collapseClades(acc.shown, inShown);
+      // on a dated (ultrametric) tree the collapsed tip is lengthened to the present, so the shown tree stays dated and the axis stays
+      const r = ops.collapseClades(acc.shown, inShown, undefined, { extend: acc.shown.isUltrametric(1e-3) });
       if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
     }
     let supportCollapsed = 0;

@@ -49,7 +49,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
-import { keptViewport } from './view-keep.ts';
+import { keptViewport, type TipTarget } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
@@ -83,6 +83,7 @@ export interface ViewerInternals {
   reserveOverview(on: boolean): void;
 }
 
+const NO_RANKS = new Int32Array(0);
 const INTERNALS = new WeakMap<TreeViewer, ViewerInternals>();
 /** The viewer a control is on (a control has one at a time). */
 const OWNER = new WeakMap<Control, TreeViewer>();
@@ -96,7 +97,8 @@ export function viewerInternals(v: TreeViewer): ViewerInternals {
 
 /** What `setTree` takes besides the tree. */
 export interface SetTreeOptions {
-  /** Old node -> new node, as tree-ops returns it (-1 = removed). Lets 'keep' send the tips in view to where they are now, and (when
+  /** Old node -> new node, as tree-ops returns it (-1 = removed); its length must be the old tree's node count, else it is ignored with a
+   *  warning. Lets 'keep' send the tips in view to where they are now, and (when
    *  `clades` / `collapsed` are not passed) carries the clade colours and the collapsed marks across. */
   map?: Int32Array;
   /** 'keep': frame the tips that were in view (through `map`, else by tip label) at the same scale; 'fit': show the whole tree.
@@ -104,7 +106,9 @@ export interface SetTreeOptions {
    *  view survives, and for a partial source (either side). */
   view?: 'keep' | 'fit';
   /** The clade colours for the new tree (node ids of it), applied before the next frame. Default: the current ones sent through `map`
-   *  (clades that are gone dropped); without a `map` the ids are kept as they are, which only fits a tree with the same node ids. */
+   *  (clades that are gone dropped). That follows node ids, not tips: a clade whose tips an operation moved keeps its colour on the node
+   *  that maps from it, so for colours that must follow their tips compute the new list with tree-ops' `followClades` and pass it here.
+   *  Without a `map` the ids are kept as they are, which only fits a tree with the same node ids. */
   clades?: CladeColour[];
   /** The highlighted tip labels for the new tree. Default: unchanged (labels, not ranks, so they follow the tips). */
   highlighted?: string[];
@@ -162,6 +166,9 @@ export class TreeViewer {
   private detail: DetailLoader;
   private hl: Uint8Array | null = null;
   private hlRanks = new Int32Array(0);
+  /** Highlighted tips before each rank (prefix sums, length tipCount + 1): a clade holds none when its range [leafStart, leafEnd) has equal
+   *  ends, which is the dim state. Built on first use by a dimming frame (never in 'band' mode) and dropped when the highlights change. */
+  private hlPrefix: Int32Array | null = null;
   private hlIds: string[] = []; // the ids of the last setHighlighted, to skip an identical call
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
   private collapsedRank: Uint8Array | null = null; // by tip rank: 1 = the tip stands for a collapsed clade
@@ -466,6 +473,7 @@ export class TreeViewer {
     this.hit = new HitIndex();
     this.applyClades();
     this.applyCollapsed();
+    this.resolveHighlights(); // tips that were not loaded when the ids were passed may be now (and the dim state follows)
     this.activeNode = -1;
     this.clearHover();
     this.vs.resetLabelReserve();
@@ -565,13 +573,22 @@ export class TreeViewer {
    */
   setTree(tree: TreeData | TreeSource, o: SetTreeOptions = {}): void {
     if (this.destroyed) return;
-    const map = o.map ?? null;
     const before = this.tree;
     const beforeL = this.L;
+    let map = o.map ?? null;
+    if (map && map.length !== before.nodeCount) {
+      console.warn(
+        `TreeViewer.setTree: the map has ${map.length} entries but the tree it replaces has ${before.nodeCount} nodes; ignored, the view is fitted`,
+      );
+      map = null;
+      o = { ...o, view: 'fit' };
+    }
     const oldView = { ...this.vs.view };
     const wasFitted = this.vs.fitted;
     const oldClades = this.clades;
     const oldCollapsed = this.collapsedNodes;
+    const oldHl = this.hlIds;
+    const hadHover = this.hoverNode >= 0;
 
     // ---- swap the source
     this.unsubscribe();
@@ -590,17 +607,22 @@ export class TreeViewer {
     this.hit = new HitIndex();
     this.vs.cancelAnim();
     this.vs.resetLabelReserve();
+    this.input.endGesture(); // a drag started on the old tree would go on moving the new one
 
     // ---- what is keyed by node or rank
     const rm = (n: number) => (map ? (n >= 0 && n < map.length ? map[n] : -1) : n);
-    if (o.clades) this.storeClades(o.clades);
-    else if (map) this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0));
+    const cladesChanged = o.clades
+      ? this.storeClades(o.clades)
+      : map
+        ? this.storeClades(oldClades.map((c) => ({ ...c, node: rm(c.node) })).filter((c) => c.node >= 0))
+        : false;
     if (o.collapsed) this.storeCollapsed(o.collapsed);
     else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
     if (o.highlighted) this.hlIds = o.highlighted.slice();
+    const hlChanged = this.hlIds.length !== oldHl.length || this.hlIds.some((id, i) => id !== oldHl[i]);
     this.applyClades();
     this.applyCollapsed();
-    this.applyHighlighted();
+    this.resolveHighlights(); // also drops the dim prefix, which is as long as the old tree
     if (this.columns.length) {
       this.columns = updateColumns(
         this.tree,
@@ -612,7 +634,9 @@ export class TreeViewer {
     this.activeNode = -1;
     this.pendingHover = null;
     this.clearHover();
-    this.overlay.clear();
+    this.root.style.cursor = 'grab';
+    this.overlay.clear(true);
+    this.overlay.scheduleList();
     this.minPxHint = 0;
     this.sceneVersion++;
 
@@ -621,26 +645,53 @@ export class TreeViewer {
     const want = o.view ?? (map ? 'keep' : 'fit');
     if (want === 'keep' && !wasFitted && before.globalId === null && this.tree.globalId === null) {
       const after = this.tree;
-      const mapTip = (r: number): number => {
-        const node = before.tipNode[r];
-        if (node < 0) return -1;
-        if (map) {
-          const m = node < map.length ? map[node] : -1;
-          return m >= 0 && m < after.nodeCount && after.childCount[m] === 0 ? after.tipRank[m] : -1;
+      const m = map;
+      const target = (r: number, deep: boolean, out: TipTarget): boolean => {
+        let node = before.tipNode[r];
+        if (node < 0) return false;
+        if (m) {
+          // the tip, or what it became (a collapsed clade is one tip, an expanded tip is a clade); with `deep`, what it is part of
+          for (; node >= 0; node = deep ? before.parent[node] : -1) {
+            const q = node < m.length ? m[node] : -1;
+            if (q >= 0 && q < after.nodeCount) {
+              out.lo = after.leafStart[q];
+              out.hi = after.leafEnd[q];
+              out.node = q;
+              return true;
+            }
+          }
+          return false;
         }
-        const m = after.tipIndex(before.tipLabels[r]);
-        return m >= 0 ? after.tipRank[m] : -1;
+        const q = after.tipIndex(before.tipLabels[r]);
+        if (q < 0) return false;
+        out.lo = after.tipRank[q];
+        out.hi = out.lo + 1;
+        out.node = q;
+        return true;
       };
-      kept = keptViewport({ layout: this.opts.layout, view: oldView, before, beforeL, after, mapTip });
+      kept = keptViewport({
+        layout: this.opts.layout,
+        view: oldView,
+        before,
+        beforeL,
+        after,
+        afterL: this.L,
+        fixedRows: !!this.opts.rowHeight,
+        target,
+      });
     }
     if (kept) {
-      // the area first: the new tree's label reserve and columns decide the plot width the window is clamped against
+      // the area first: the new tree's label reserve and columns decide the plot width the window is clamped against. Clamp here too:
+      // setViewport skips a window equal to the current one, which was valid for the old tree only.
       this.vs.computeArea();
-      this.vs.setViewport(kept);
+      this.vs.setViewport(this.vs.clampView(kept));
     } else this.fit(false);
     this.hit.invalidate();
     this.invalidate(true);
     this.events.emit('treechange', { map });
+    if (cladesChanged) this.events.emit('cladeschange', this.getClades());
+    if (hlChanged) this.events.emit('highlightchange', this.hlIds.slice());
+    if (hadHover) this.emitNode('hover', null);
   }
 
   // ---- state
@@ -760,7 +811,7 @@ export class TreeViewer {
   private syncCssVars(): void {
     const s = this.container.style;
     const t = this.theme;
-    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily'] as const)
+    for (const k of ['background', 'foreground', 'muted', 'branch', 'highlight', 'summary', 'fontFamily', 'labelFontStyle'] as const)
       s.setProperty(THEME_CSS_VARS[k], t[k]);
   }
 
@@ -876,14 +927,15 @@ export class TreeViewer {
     const last = this.hlIds;
     if (tipIds.length === last.length && tipIds.every((id, i) => id === last[i])) return;
     this.hlIds = tipIds.slice();
-    this.applyHighlighted();
+    this.resolveHighlights();
     this.sceneVersion++;
     this.invalidate();
     this.events.emit('highlightchange', this.hlIds.slice());
   }
 
-  /** The highlight ranks and flags from the labels in `hlIds`, for the current tree. */
-  private applyHighlighted(): void {
+  /** The ranks of the loaded tips among `hlIds`: `hlRanks`, `hl`, and the dim prefix (dropped, built again by the next dimming frame). With
+   *  a partial source a match whose rows are not loaded has no rank yet, so its clade counts as holding no match (and dims) until it loads. */
+  private resolveHighlights(): void {
     const N = this.tree.tipCount;
     const ranks: number[] = [];
     for (const id of this.hlIds) {
@@ -897,6 +949,19 @@ export class TreeViewer {
       this.hl = new Uint8Array(N);
       for (const r of uniq) this.hl[r] = 1;
     } else this.hl = null;
+    this.hlPrefix = null;
+  }
+
+  /** The dim prefix for a frame, built when first needed; null without highlights. */
+  private dimPrefix(): Int32Array | null {
+    const hl = this.hl;
+    if (!hl) return null;
+    if (!this.hlPrefix) {
+      const pre = new Int32Array(hl.length + 1);
+      for (let r = 0; r < hl.length; r++) pre[r + 1] = pre[r] + hl[r];
+      this.hlPrefix = pre;
+    }
+    return this.hlPrefix;
   }
 
   /** The tip labels last passed to `setHighlighted` (unknown ones included). */
@@ -1286,19 +1351,21 @@ export class TreeViewer {
     if (this.canvasAlpha) ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = this.theme.background;
     ctx.fillRect(0, 0, W, H);
+    const bands = opts.highlightStyle !== 'dim';
+    const dimming = opts.highlightStyle !== 'band';
     const S: Scene = {
       proj: this.proj,
       list: this.list,
       theme: this.theme,
       colours: this.colours,
       classOf: this.classOf,
-      highlight: this.hl,
-      hlRanks: this.hlRanks,
+      highlight: bands ? this.hl : null,
+      hlRanks: bands ? this.hlRanks : NO_RANKS,
+      hlPrefix: dimming ? this.dimPrefix() : null,
       collapsed: this.collapsedRank,
       hoverNode: this.hoverNode,
       activeNode: this.activeNode,
       density: opts.labelDensity,
-      italic: opts.italicLabels,
       format: opts.formatLabel,
       scale: dpr,
       thin: !rect && this.list.count >= THIN_PRIMS,
@@ -1315,7 +1382,7 @@ export class TreeViewer {
     ctx.restore();
     if (rect) {
       const barC = this.theme.categorical[1] ?? this.theme.highlight;
-      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle, alignRowGap: opts.alignRowGap });
+      drawColumns(ctx, this.columns, tree, T, this.theme, T.area.ay - 8, barC, { alignStyle: opts.alignStyle });
       if (opts.axis) drawAxis(ctx, S, vs.view.x0, vs.view.x1);
     } else if (opts.axis) drawScaleBar(ctx, S);
 

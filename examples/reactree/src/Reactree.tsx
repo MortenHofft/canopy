@@ -120,7 +120,8 @@ export function Reactree({
     const live = collapsed.filter((v) => v > 0 && v < tree.nodeCount);
     if (!live.length) return null;
     // tree-ops' own label ('Name (8 tips)' or 'First_tip and 7 more'): unique, which matters because tip labels are the viewer's ids
-    const r = ops.collapseClades(tree, live);
+    // on a dated (ultrametric) tree the triangle's tip is lengthened to the present, so the shown tree stays dated and the axis stays
+    const r = ops.collapseClades(tree, live, undefined, { extend: tree.isUltrametric(1e-3) });
     const shown = new TreeModel(r.tree);
     return { tree: shown, toView: r.map, toTree: ops.invertMap(r.map, shown.nodeCount), collapsedIds: live.map((v) => 'n' + r.map[v]) };
   }, [tree, collapsed]);
@@ -221,6 +222,8 @@ export function Reactree({
   const nodeLabels = useMemo(() => new NodeLabels(), []);
   const controls = useMemo<Control[]>(() => [nodeLabels], [nodeLabels]);
   useEffect(() => nodeLabels.setMode(labelMode), [nodeLabels, labelMode]);
+  const collapsedIds = view?.collapsedIds;
+  useEffect(() => nodeLabels.setSkipped(new Set((collapsedIds ?? []).map((id) => Number(id.slice(1))))), [nodeLabels, collapsedIds]);
 
   // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
   const fitted = useRef<Viewport | null>(null);
@@ -829,7 +832,7 @@ export function Reactree({
           controls={controls}
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
-          options={{ formatLabel, italicLabels: false, labelDensity: 'dense' }}
+          options={{ formatLabel, labelDensity: 'dense', highlightStyle: 'dim' }}
           tooltip={tooltip}
           onNodeClick={onClick}
           onTipClick={onClick}

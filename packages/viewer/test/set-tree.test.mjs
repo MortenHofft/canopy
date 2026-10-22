@@ -177,12 +177,15 @@ test('setTree applies clades, highlights and collapsed marks with the new tree, 
   const b = ladder(names(2, 10));
   viewer.setTree(b, { map: tipMap(a, b) });
   assert.deepEqual(viewer.getClades(), [{ node: tNode(b, 't9'), colour: 'red' }]);
-  assert.deepEqual([...viewer.getTree().tipRank.slice(0, 0)], []);
+  assert.deepEqual([...viewer.hlRanks], [b.tipRank[b.tipIndex('t8')]], 'a highlight follows its tip label to its new rank');
+  assert.equal(viewer.hl.length, 8);
   // explicit lists win and apply before the next frame
   const c = ladder(names(0, 10));
   viewer.setTree(c, { map: tipMap(b, c), clades: [{ node: tNode(c, 't0'), colour: 'blue' }], highlighted: ['t1'] });
   assert.deepEqual(viewer.getClades(), [{ node: tNode(c, 't0'), colour: 'blue' }]);
   assert.deepEqual(viewer.getHighlighted(), ['t1']);
+  assert.deepEqual([...viewer.hlRanks], [c.tipRank[c.tipIndex('t1')]], 'the highlight ranks are those of the new tree');
+  assert.equal(viewer.hl[1], 1);
   let cladeEvents = 0;
   viewer.on('cladeschange', () => cladeEvents++);
   viewer.setClades([{ node: tNode(c, 't0'), colour: 'blue' }]);
@@ -205,4 +208,132 @@ test('setTree: the Search index and the Legend follow the new tree', async () =>
   assert.deepEqual(search.find(viewer, 'ga'), [2]);
   assert.equal(legend.element.hidden, false);
   assert.match(legend.element.textContent ?? '', /first/);
+});
+
+// ---------------------------------------------------------------- review fixes
+
+test('setTree always clamps a kept window: rows past the end of a pruned tree', async () => {
+  const a = ladder(names(0, 100));
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.setViewport({ x0: 0, x1: 1, y0: 40, y1: 60 });
+  const b = ladder(names(0, 51)); // t51.. pruned: the old window is past the end of the tree
+  viewer.setTree(b, { map: tipMap(a, b) });
+  const v = viewer.getViewport();
+  assert.deepEqual(v, viewer.vs.clampView({ ...v }), 'the window is a valid one for the new tree');
+  assert.ok(v.y0 < 51);
+});
+
+test('setTree carries the x window through the survivors when X is rescaled (the deepest tip is pruned)', async () => {
+  const deep = (withDeep) => {
+    const parts = Array.from({ length: 40 }, (_, i) => `t${i}:1`);
+    let s = parts[39];
+    for (let i = 38; i >= 0; i--) s = `(${parts[i]},${s}):0.1`;
+    return parseNewick(withDeep ? `(deep:20,${s}:0.1);` : `(${s}:0.1);`);
+  };
+  const a = deep(true);
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  const xs = [10, 11, 12, 13].map((i) => viewer.layout.X[a.tipIndex('t' + i)]);
+  const lo = Math.min(...xs),
+    hi = Math.max(...xs);
+  const rows = [10, 11, 12, 13].map((i) => a.tipRank[a.tipIndex('t' + i)]);
+  viewer.setViewport({ x0: lo - 0.01, x1: hi + 0.01, y0: Math.min(...rows), y1: Math.max(...rows) + 1 });
+  const b = deep(false);
+  viewer.setTree(b, { map: tipMap(a, b) });
+  const v = viewer.getViewport();
+  const L = viewer.layout;
+  for (const i of [10, 11, 12, 13]) {
+    const xx = L.X[b.tipNode[b.tipRank[b.tipIndex('t' + i)]]];
+    assert.ok(xx >= v.x0 && xx <= v.x1, `t${i} (x ${xx.toFixed(3)}) is inside the x window ${v.x0.toFixed(3)}..${v.x1.toFixed(3)}`);
+  }
+});
+
+test('setTree keeps the view when the clade in view is collapsed, and when it is expanded again', async () => {
+  let clade = Array.from({ length: 16 }, (_, i) => `c${i}`);
+  while (clade.length > 1) {
+    const nx = [];
+    for (let i = 0; i < clade.length; i += 2) nx.push(`(${clade[i]},${clade[i + 1]})`);
+    clade = nx;
+  }
+  let nw = clade[0];
+  for (let i = 39; i >= 0; i--) nw = `(t${i},${nw})`;
+  const a = parseNewick(nw + ';');
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  let top = a.parent[a.tipNode[a.tipRank[a.tipIndex('c0')]]];
+  while (a.leafEnd[top] - a.leafStart[top] < 16) top = a.parent[top];
+  viewer.zoomToNode(top);
+  const { collapseClades, invertMap } = await import(path.join(root, 'packages/tree-ops/src/index.ts'));
+  const { TreeModel } = await import(path.join(root, 'packages/io/src/tree.ts'));
+  const r = collapseClades(a, [top]);
+  const col = new TreeModel(r.tree);
+  viewer.setTree(col, { map: r.map });
+  const v1 = viewer.getViewport();
+  const fit = { x0: 0, x1: 1, y0: 0, y1: col.tipCount };
+  assert.notDeepEqual(v1, fit, 'not fitted');
+  assert.ok(41 - 0.5 >= v1.y0 && 41 - 0.5 <= v1.y1, 'the collapsed tip is in view');
+  // expand: the collapsed tip maps to the clade root
+  viewer.setTree(a, { map: invertMap(r.map, col.nodeCount) });
+  const v2 = viewer.getViewport();
+  assert.notDeepEqual(v2, { x0: 0, x1: 1, y0: 0, y1: a.tipCount }, 'not fitted');
+  assert.ok(v2.y0 < a.tipCount - 8 && v2.y1 > a.tipCount - 8, 'the expanded clade is in view');
+});
+
+test('setTree: radial with no tip in view keeps the window; a rowHeight view keeps its height', async () => {
+  const a = ladder(names(0, 40));
+  const { viewer, env } = await makeViewer(a, { options: { layout: 'radial' } });
+  env.flush();
+  viewer.setViewport({ x0: 0.02, x1: 0.1, y0: -0.03, y1: 0.03 }); // next to the root, no tip near
+  const v = viewer.getViewport();
+  viewer.setTree(ladder(names(0, 30)), { view: 'keep' });
+  assert.deepEqual(viewer.getViewport(), v);
+  const m = await makeViewer(ladder(names(0, 40)), { options: { rowHeight: 10 } });
+  m.env.flush();
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 5, y1: 15 });
+  const h = m.viewer.getViewport().y1 - m.viewer.getViewport().y0;
+  const b = ladder(names(0, 40).reverse()); // every tip moves: the survivors spread over the whole tree
+  m.viewer.setTree(b, { view: 'keep' });
+  near(m.viewer.getViewport().y1 - m.viewer.getViewport().y0, h, 'height');
+});
+
+test('setTree tells listeners: hover ended, clades and highlights changed; an unusable map is ignored', async () => {
+  const a = ladder(names(0, 10));
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.setClades([{ node: 3, colour: 'red' }]);
+  viewer.setHighlighted(['t1']);
+  const log = [];
+  viewer.on('hover', (e) => log.push(['hover', e]));
+  viewer.on('cladeschange', () => log.push(['cladeschange']));
+  viewer.on('highlightchange', () => log.push(['highlightchange']));
+  viewer.hoverNode = 4; // as doHover leaves it
+  viewer.hoverKind = 'tip';
+  const b = ladder(names(2, 10));
+  viewer.setTree(b, { map: tipMap(a, b), highlighted: ['t5'] });
+  assert.deepEqual(log.map((x) => x[0]).sort(), ['cladeschange', 'highlightchange', 'hover']);
+  assert.equal(log.find((x) => x[0] === 'hover')[1], null);
+  // a map of another tree: warned about, ignored, fitted
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...x) => warned.push(x);
+  try {
+    viewer.setViewport({ x0: 0, x1: 1, y0: 2, y1: 5 });
+    viewer.setTree(ladder(names(2, 10)), { map: new Int32Array(3) });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(warned.length, 1);
+  assert.deepEqual(viewer.getViewport(), { x0: 0, x1: 1, y0: 0, y1: 8 });
+});
+
+test('setTree ends a drag in progress and refreshes the screen-reader list', async () => {
+  const a = ladder(names(0, 10));
+  const { viewer, env } = await makeViewer(a);
+  env.flush();
+  viewer.input.drag = { id: 1, moved: true };
+  viewer.input.pointers.set(1, { x: 0, y: 0 });
+  viewer.setTree(ladder(names(0, 12)));
+  assert.equal(viewer.input.gesturing, false);
+  assert.equal(viewer.input.pointers.size, 0);
 });

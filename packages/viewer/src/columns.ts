@@ -182,7 +182,6 @@ const BLOCK_ROW_PX = 1.5; // blocks need rows at least this tall, below it the r
 
 export interface ColumnDrawOptions {
   alignStyle: 'residues' | 'blocks';
-  alignRowGap: number;
 }
 
 /** Start/end pairs (alignment columns) of the stretches without gaps in the sequence of rank r, cached on the column. */
@@ -234,7 +233,7 @@ export function drawColumns(
   theme: TreeTheme,
   headY: number,
   barColour: string,
-  opts: ColumnDrawOptions = { alignStyle: 'residues', alignRowGap: 0 },
+  opts: ColumnDrawOptions = { alignStyle: 'residues' },
 ): void {
   if (!cols.length || T.kind !== 'rectangular') return;
   const N = tree.tipCount;
@@ -274,7 +273,7 @@ export function drawColumns(
     } else if (c.spec.kind === 'alignment' && c.txt && opts.alignStyle === 'blocks' && ky >= BLOCK_ROW_PX) {
       // ETE style: a thin line over the whole width, grey blocks over the stretches without gaps
       const cw = w / Math.max(1, c.seqLen);
-      const inset = ky >= GAP_ROW_PX ? Math.max(opts.alignRowGap, ky * 0.25) : 0;
+      const inset = ky >= GAP_ROW_PX ? Math.max(theme.alignRowGap, ky * 0.25) : 0;
       const bh = Math.max(1, ky - inset);
       const rr = Math.min(3, bh / 2);
       const canRound = typeof ctx.roundRect === 'function' && bh >= 4;
@@ -302,10 +301,10 @@ export function drawColumns(
         }
       }
       ctx.fill();
-    } else if (c.spec.kind === 'alignment' && c.bitmap && opts.alignRowGap > 0 && ky >= GAP_ROW_PX) {
+    } else if (c.spec.kind === 'alignment' && c.bitmap && theme.alignRowGap > 0 && ky >= GAP_ROW_PX) {
       // residues with a gap between sequences: one blit per visible row, a little shorter than the row
       ctx.imageSmoothingEnabled = false;
-      const g = Math.min(opts.alignRowGap, ky - 1);
+      const g = Math.min(theme.alignRowGap, ky - 1);
       for (let r = r0; r <= r1; r++) ctx.drawImage(c.bitmap, 0, r, c.seqLen, 1, c.x, oy + r * ky + g / 2, w, ky - g);
     } else if (c.spec.kind === 'alignment' && c.bitmap) {
       ctx.imageSmoothingEnabled = ky < 1;

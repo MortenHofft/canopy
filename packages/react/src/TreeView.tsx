@@ -195,8 +195,10 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
   const source = useMemo<TreeSource>(() => props.source ?? new InMemorySource(props.tree!), [props.source, props.tree]);
   const hostRef = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
+  const sourceRef = useRef(source);
   useLayoutEffect(() => {
     latest.current = props; // the listeners the viewer holds always call the newest callbacks
+    sourceRef.current = source;
   });
 
   // Identity-stable inputs: an inline `options` / `theme` object is a new object on every parent render, but the effects below only
@@ -305,13 +307,15 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       liveRenderer(R, rendRef)?.setViewport({ x0: vx0, x1: vx1, y0: vy0, y1: vy1 });
   }, [R, rendRef, vx0, vx1, vy0, vy1]);
   const focusSeq = focus?.seq;
+  // acts when `seq` changes or the renderer is created, not when a new tree arrives (that would override the view it kept)
   useLayoutEffect(() => {
-    const f = latest.current.focus; // acts when `seq` changes, not when only the tip id does
+    const f = latest.current.focus;
     const r = liveRenderer(R, rendRef);
     if (!f || !r) return;
-    const n = source.snapshot().tipIndex(f.tipId);
-    if (n >= 0) r.focusTip(source.snapshot().tipRank[n]);
-  }, [R, rendRef, source, focusSeq]);
+    const snap = sourceRef.current.snapshot();
+    const n = snap.tipIndex(f.tipId);
+    if (n >= 0) r.focusTip(snap.tipRank[n]);
+  }, [R, rendRef, focusSeq]);
 
   useImperativeHandle(
     ref,

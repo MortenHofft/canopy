@@ -211,8 +211,9 @@ export class ViewState {
   setViewport(v: Viewport, animate = false): void {
     if (!(v.x1 > v.x0 && v.y1 > v.y0)) return;
     if (animate) return this.animateTo(v);
-    this.cancelAnim();
+    // the same window as now changes nothing, and must not stop an animation either: a controlled viewport echoes the window it was given
     if (viewportEquals(v, this.view)) return;
+    this.cancelAnim();
     this.view = this.clampView({ ...v });
     this.fitted = false;
     this.ev.changed(false);

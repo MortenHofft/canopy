@@ -68,6 +68,15 @@ const btn = (text) => page.locator('.rt-outer button', { hasText: text }).first(
 const toast = async () => ((await page.locator('.rt-toast').count()) ? page.locator('.rt-toast').innerText() : '');
 
 // ---------------------------------------------------------------- Carangaria (135 tips, dated)
+// the axis label is canvas text: remember the last axis title drawn
+await page.addInitScript(() => {
+  const ft = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
+    if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
+    return ft.call(this, text, ...rest);
+  };
+});
+
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
 ok((await page.locator('.rt-row').count()) === 2, 'two toolbar rows');
@@ -161,9 +170,22 @@ await page.locator('input[aria-label="Font size"]').fill('2');
 await page.waitForTimeout(150);
 
 console.log('search');
+// how much the main canvas differs from its background colour: dimming what does not match removes most of it
+const ink = () =>
+  ev(() => {
+    const c = __v().treeElement.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 4; i < d.length; i += 4) n += Math.abs(d[i] - d[0]) + Math.abs(d[i + 1] - d[1]) + Math.abs(d[i + 2] - d[2]);
+    return n;
+  });
+const inkBefore = await ink();
 await page.locator('button[aria-label="Search taxa"]').click();
 await page.keyboard.type('bothus');
 await page.waitForTimeout(200);
+ok((await ev(() => __v().options.highlightStyle)) === 'dim', 'search uses the dim highlight style');
+const inkDim = await ink();
+ok(inkDim < inkBefore * 0.6, `the tips that do not match are dimmed (canvas ink ${inkBefore} → ${inkDim})`);
 ok((await page.locator('.rt-search-count').innerText()) === '1 / 2', 'two matches, the first current');
 ok((await ev(() => __v().getHighlighted().length)) === 2, 'matches highlighted');
 await page.keyboard.press('Enter');
@@ -179,6 +201,8 @@ ok(
   'Escape closes the search and clears the highlight',
 );
 await page.locator('.rt-btn[title="Fit tree"]').click();
+await page.waitForTimeout(300);
+ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back at full strength after the search');
 
 console.log('inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);
@@ -220,6 +244,20 @@ ok(new Set(labs).size === labs.length, 'collapsed clades of the same size get di
 await btn('Expand all').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().getTree().tipCount)) === before, 'Expand all');
+
+// the tree is dated, so a collapsed clade is lengthened to the present (tree-ops collapseClades { extend }) and the axis keeps its
+// title; without it the tip ends at the clade's node and the axis flips to "distance from root" (issue #19)
+{
+  const axis = () => ev(() => window.__axis);
+  ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
+  await ev(() => (window.__axis = null)); // a stale title must not pass
+  await click(await ev(() => __clade(4, 10)));
+  await page.waitForTimeout(200);
+  ok((await ev(() => __v().getTree().tipCount)) < before, 'a clade is collapsed');
+  ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
+  await btn('Expand all').click();
+  await page.waitForTimeout(150);
+}
 
 console.log('colour');
 await btn('Color').click();

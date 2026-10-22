@@ -107,6 +107,14 @@ export class InputController {
     return !!(this.drag?.moved || this.pinch);
   }
 
+  /** Forget a drag or pinch in progress (the tree was replaced under it). */
+  endGesture(): void {
+    this.drag = null;
+    this.pinch = null;
+    this.pointers.clear();
+    this.unbindWindow();
+  }
+
   /** Remove the window listeners (the element's own go with the element). */
   destroy(): void {
     this.unbindWindow();
