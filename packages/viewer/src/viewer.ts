@@ -917,13 +917,15 @@ export class TreeViewer {
     }
     if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
+    // the fan first: the layout of the other branch lengths is then made with the new fan, and the transform carries it too
+    const fanRefit = this.applyFanOption(p);
     if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
       this.rebuildProj();
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    if (this.applyFanOption(p) || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
     else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();

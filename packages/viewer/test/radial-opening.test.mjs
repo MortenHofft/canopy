@@ -240,3 +240,22 @@ test("hit-testing a connector arc that crosses 3 o'clock (angle 0) in the defaul
   assert.ok(r * a > 6 && r * (v.proj.tip(t.tipNode[31]) - TAU - a) > 6, "the point is clear of the tips' branches");
   assert.deepEqual(v.hitTest(v.T.cx + r * Math.cos(a), v.T.cy + r * Math.sin(a)), { node, kind: 'branch' });
 });
+
+for (const [name, patch] of [
+  ['branch lengths and the opening', (v) => ({ branchLengths: !v.options.branchLengths, radialOpening: 0.5 })],
+  ['branch lengths and the rotation', (v) => ({ branchLengths: !v.options.branchLengths, radialRotation: 0 })],
+  ['layout, branch lengths and the opening', (v) => ({ layout: 'radial', branchLengths: !v.options.branchLengths, radialOpening: 0.5 })],
+])
+  test(`setOptions: ${name} in one call`, async () => {
+    const start = name.startsWith('layout') ? 'rectangular' : 'radial';
+    const m = await makeViewer(NWK, { options: { layout: start }, size: [500, 500] });
+    m.env.flush();
+    const v = m.viewer;
+    const p = patch(v);
+    v.setOptions(p);
+    m.env.flush();
+    const fan = radialFan(v.options.radialOpening, v.options.radialRotation);
+    assert.deepEqual(v.L.fan, fan, 'the shown layout has the new fan');
+    assert.deepEqual(v.T.fan, fan, 'so does the transform');
+    assert.equal(v.options.branchLengths, p.branchLengths);
+  });
