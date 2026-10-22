@@ -316,7 +316,7 @@ properties) follow a theme from JavaScript too. A dark mode is a set of custom p
 | `branchWidth`, `cladeBranchWidth`                                                                                                 | `--phylo-branch-width`, ...                                                                            | 1.3, 2                                                                                                                                                                                 | line widths (px)                                                                                                                                                                      |
 | `tipRadius`, `nodeMarkerSize`                                                                                                     | `--phylo-tip-radius`, ...                                                                              | 3.2, 4                                                                                                                                                                                 | largest tip dot radius, node marker side (px)                                                                                                                                         |
 | `summaryOpacity`, `markerOpacity`, `highlightOpacity`                                                                             | `--phylo-summary-opacity`, ...                                                                         | 0.6, 0.85, 0.16                                                                                                                                                                        | collapsed clades, markers, highlight band                                                                                                                                             |
-| `summaryStripeColour`, `summaryStripeGap`                                                                                         | `--phylo-summary-stripe-colour`, `-gap`                                                                | `''` (= `summary`), 3                                                                                                                                                                  | striped summaries (`summaryStyle`): stripe colour for a clade without its own colour, the least distance between two stripes (px; the line is half of it wide, at least 1 px)         |
+| `summaryStripeColour`, `summaryStripeGap`                                                                                         | `--phylo-summary-stripe-colour`, `-gap`                                                                | `''` (= `summary`), 3                                                                                                                                                                  | striped summaries (`summaryStyle`): stripe colour for a clade without its own colour, the least distance between two stripes (px, at least 1)  |
 | `dimOpacity`                                                                                                                      | `--phylo-dim-opacity`                                                                                  | 0.25                                                                                                                                                                                   | what `highlightStyle: 'dim'` or `'both'` draws outside the highlighted set (branches, tip dots, labels, summaries); multiplies a summary's own opacity                                |
 | `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity`                                                                      | `--phylo-leader-colour`, `-dash`, `-width`, `-opacity`                                                 | `''` (= `muted`), `1 3`, 1, 0.7                                                                                                                                                        | leader lines of aligned labels: colour, dash pattern (px, separated by spaces or commas; `''` or `none` = solid), width (px), opacity (times `dimOpacity` for a dimmed tip)           |
 | `labelSize`, `axisFontSize`                                                                                                       | `--phylo-label-size`, ...                                                                              | 13, 10                                                                                                                                                                                 | largest label size (labels shrink with the rows, down to 8), axis text (px)                                                                                                           |
@@ -389,20 +389,29 @@ with fine stripes instead of a solid colour, in the direction the hidden branche
 zooming in shows. The option is `'solid'` by default (nothing changes unless it is set). A clade collapsed by an app (`setCollapsed`) is not
 a level-of-detail summary: it stays solid, with its label, unless `stripeCollapsed` is true.
 
-- **Rectangular:** horizontal stripes, from the triangle's edge (the band's left side) to its outer edge, about one per hidden tip row (the
-  row pitch at the current zoom) and never closer than `summaryStripeGap` px. A triangle's stripe starts on its sloping side.
-- **Radial:** stripes along the rays from the root through the wedge, spaced by angle, never closer than `summaryStripeGap` px along the arc at the outer
-  radius, at most 256 per fan (a fan zoomed far past the screen gets coarser stripes, not more). A fan's ray starts on its side, a polytomy's ring segment's at its inner arc.
-- **Too small stays solid.** A summary with fewer than two hidden tips, or room for fewer than two stripes (under two gaps tall, or wide along the arc)
-  is filled solid: nothing would show. This matters for what you will see: the level of detail summarises clades smaller than `minCladePx`,
-  so a summary is at most about `minCladePx` px tall (bands of polytomies and of runs excepted); with the default 3 px only those bands carry stripes, and
-  `minCladePx` of 12 or more (or a draw budget that raises the threshold) gives most summaries some.
-- **Colour.** The stripes use the clade's colour, else `summaryStripeColour`, else `summary`; they are drawn at `summaryOpacity`, times `dimOpacity` when
-  dimmed, with the alpha raised for the gaps: coverage `c` (line width over gap) gives `1 - (1 - a)^(1/c)`, so the stripes look as dark as a solid fill of alpha `a` (`highlightStyle: 'dim'` or `'both'` follows the solid fill's rule: a summary holding a highlighted tip keeps full strength).
-- **Hit-testing, labels and the overview.** Unchanged: the summary's area is hit as before. The overview strip always draws solid summaries.
-- **Cost.** The stripes of a frame are collected into one reused buffer and stroked in batches of 256 per (dimming pass, colour class), like the branches;
-  no allocation per node. Their number is bounded by the summaries' height over the gap (rectangular: only the visible rows are generated) and by 256 per fan
-  (radial). Measured frame times with the option off and on: see `tests/browser/bench/stripes-bench.mjs` and the CHANGELOG.
+- **Rectangular:** horizontal stripes, from the triangle's sloping side (the band's left edge) to its outer edge, about one per hidden tip row
+  (the row pitch at the current zoom) and never closer than `summaryStripeGap` px. Only the visible rows are generated.
+- **Radial:** stripes along the rays from the root through the wedge, spaced by angle, never closer than `summaryStripeGap` px along the arc at the
+  outer radius and at most 256 per fan. A fan's ray starts where it meets the fan's side, a polytomy's ring segment's at its inner arc. When the
+  view is zoomed in, the rays are spent on the visible angles only (the window the cut uses), so a fan far larger than the screen still shows
+  a dense set; if even 256 rays would be more than twice the gap apart on screen, the fan stays solid.
+- **Too small stays solid.** A summary with room for fewer than two stripes (under two gaps tall, or wide along the arc, or with fewer than two
+  hidden tips) is filled solid: nothing would show. The level of detail summarises clades smaller than `minCladePx`, so a summary is at most
+  about `minCladePx` px tall (bands of polytomies and of runs excepted): with the default 3 px only those bands carry stripes, and a
+  `minCladePx` of 12 or more (or a draw budget that raises the threshold) gives most summaries some. The explorer sets 14 while its stripes are on.
+- **Darkness.** The stripes cover about `width / pitch` of a summary, so their width and alpha are set to make the mean darkness that of the solid
+  fill, `a` = `summaryOpacity` (times `dimOpacity` for a dimmed summary): width `max(1, a * pitch)` px at alpha `a * pitch / width` (1 unless the
+  1 px minimum applies), `pitch` being the distance between the stripes (for radial ones at the fan's mean radius). A summary with stripes 3 px
+  apart has 1.8 px lines, one with stripes 20 px apart 12 px bands. Measured in Chromium (mean pixel value of a 160 px square against a solid
+  `a` = 0.6): within 12% at pitches 3, 4.5, 6, 10 and 20 px, at device pixel ratios 1 and 2. The line width is derived, not a token.
+- **Colour and dimming.** The stripes use the clade's colour, else `summaryStripeColour`, else `summary`. Dimming (`highlightStyle: 'dim'` or `'both'`)
+  follows the solid fill's rule: a summary holding a highlighted tip keeps full strength.
+- **Gap.** `summaryStripeGap` below 1 is taken as 1 (a stripe per tip, or an infinite alpha, would follow).
+- **Hit-testing, labels and the overview.** Unchanged: the summary's area is hit as before. The overview strip always draws solid summaries,
+  by design: it is a thumbnail, and stripes there would be noise.
+- **Cost.** The stripes of a frame are collected into one reused buffer (one group per summary) and stroked per summary in batches of 256, no allocation per
+  node. Their number is bounded by the summaries' height over the gap (rectangular: only the visible rows) and by 256 per fan (radial).
+  Measured frame times with the option off and on: see `tests/browser/bench/stripes-bench.mjs` and the CHANGELOG.
 
 ### Collapsed clades
 

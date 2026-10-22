@@ -26,7 +26,11 @@ function stripes(ctx, colour = STRIPE) {
   let style = null,
     alpha = 1,
     width = 1,
-    path = [];
+    path = [],
+    id = 0,
+    lastW = -1,
+    lastA = -1,
+    prevCount = 0;
   for (const e of ctx.log) {
     if (e[0] === 'strokeStyle=') style = e[1];
     else if (e[0] === 'globalAlpha=') alpha = e[1];
@@ -36,7 +40,13 @@ function stripes(ctx, colour = STRIPE) {
     else if (e[0] === 'lineTo' && path.length) {
       path.push([e[1], e[2]]);
     } else if (e[0] === 'stroke' && style === colour) {
-      for (let k = 0; k + 1 < path.length; k += 2) out.push({ x0: path[k][0], y0: path[k][1], x1: path[k + 1][0], y1: path[k + 1][1], alpha, width });
+      // a summary's stripes are stroked in chunks of 256 with one width and alpha: a stroke after a full chunk continues its group
+      if (!(prevCount === 256 && width === lastW && alpha === lastA)) id++;
+      lastW = width;
+      lastA = alpha;
+      prevCount = path.length / 2;
+      for (let k = 0; k + 1 < path.length; k += 2)
+        out.push({ x0: path[k][0], y0: path[k][1], x1: path[k + 1][0], y1: path[k + 1][1], alpha, width, id });
     }
   }
   return out;
@@ -96,7 +106,6 @@ test('rectangular: the stripes are horizontal, run rightwards, at least the gap 
   for (const x of s) {
     assert.equal(x.y0, x.y1, 'horizontal: the direction of the tip branches');
     assert.ok(x.x1 > x.x0);
-    assert.ok(x.alpha > viewer.theme.summaryOpacity && x.alpha <= 1, 'raised above the solid alpha to make up for the gaps');
   }
   const gap = viewer.theme.summaryStripeGap;
   const ys = [...new Set(s.map((x) => x.y0))].sort((a, b) => a - b);
@@ -105,33 +114,70 @@ test('rectangular: the stripes are horizontal, run rightwards, at least the gap 
   assert.ok(s.length <= 300 / gap + viewer.getStats().summaries, 'bounded by the plot height over the gap');
 });
 
-test('stripes look as dark as the solid fill: coverage c leaves 1 - (1 - alpha)^c of the background, which equals the solid 1 - (1 - summaryOpacity); also dimmed', async () => {
-  for (const gap of [3, 6]) {
-    const m = await make('rectangular', { highlightStyle: 'dim' }, TREE, { theme: { summaryStripeGap: gap, dimOpacity: DIM } });
+/** Group the stripes by stroke (one summary each). */
+const groups = (s) => [...Map.groupBy(s, (x) => x.id).values()];
+/** The computed coverage of a rectangular group: line width over the distance between neighbouring stripes, times the alpha. */
+function rectDarkness(g) {
+  const ys = g.map((x) => x.y0).sort((a, b) => a - b);
+  const pitch = (ys[ys.length - 1] - ys[0]) / (ys.length - 1);
+  return (g[0].alpha * g[0].width) / pitch;
+}
+
+test('stripes are as dark as the solid fill: alpha times coverage (line width over spacing) equals summaryOpacity, dimmed ones summaryOpacity * dimOpacity', async () => {
+  for (const gap of [3, 4.5, 6, 10]) {
+    const m = await make('rectangular', { highlightStyle: 'dim', minCladePx: 40 }, TREE, { theme: { summaryStripeGap: gap, dimOpacity: DIM } });
     m.viewer.setHighlighted(['t5']);
     m.env.flush();
     const so = m.viewer.theme.summaryOpacity;
-    const s = stripes(m.ctx());
-    assert.ok(s.length > 0);
-    const c = Math.max(1, gap / 2) / gap;
-    const targets = [so, so * DIM];
+    const gs = groups(stripes(m.ctx())).filter((g) => g.length > 2);
+    assert.ok(gs.length > 1, 'gap ' + gap);
     const seen = new Set();
-    for (const x of s) {
-      const effective = 1 - Math.pow(1 - x.alpha, c);
-      const t = targets.find((t) => Math.abs(t - effective) < 1e-9);
-      assert.ok(t !== undefined, `alpha ${x.alpha} at coverage ${c} gives ${effective}, not ${targets}`);
+    for (const g of gs) {
+      const d = rectDarkness(g);
+      const t = [so, so * DIM].find((t) => Math.abs(d - t) < 0.02 * t + 1e-9);
+      assert.ok(t !== undefined, `gap ${gap}: darkness ${d} is neither ${so} nor ${so * DIM}`);
       seen.add(t);
     }
-    assert.equal(seen.size, 2, 'lit and dimmed summaries both match their solid alpha');
+    assert.equal(seen.size, 2, 'lit and dimmed summaries');
   }
 });
 
-test('stripeAlpha: a solid-equivalent alpha, clamped to 1', async () => {
-  const { stripeAlpha } = await import('../src/draw.ts');
-  assert.equal(stripeAlpha(0.6, 1), 0.6);
-  assert.ok(Math.abs(stripeAlpha(0.6, 0.5) - 0.84) < 1e-12);
-  assert.equal(stripeAlpha(1, 0.5), 1);
-  assert.ok(stripeAlpha(0.99, 0.1) <= 1);
+test('radial: stripes are about as dark as the solid fill (spacing measured at the middle of the stripes)', async () => {
+  const m = await make('radial', { minCladePx: 40 });
+  const { cx, cy } = m.viewer.proj.T;
+  const so = m.viewer.theme.summaryOpacity;
+  const gs = groups(stripes(m.ctx())).filter((g) => g.length > 3);
+  assert.ok(gs.length > 1);
+  for (const g of gs) {
+    const mids = g.map((x) => {
+      const mx = (x.x0 + x.x1) / 2 - cx,
+        my = (x.y0 + x.y1) / 2 - cy;
+      return { a: Math.atan2(my, mx), r: Math.hypot(mx, my) };
+    });
+    const as = mids.map((q) => q.a).sort((p, q) => p - q);
+    const rMean = mids.reduce((t, q) => t + q.r, 0) / mids.length;
+    const pitch = ((as[as.length - 1] - as[0]) / (as.length - 1)) * rMean;
+    const d = (g[0].alpha * g[0].width) / pitch;
+    assert.ok(Math.abs(d - so) < 0.15 * so, `darkness ${d} against ${so}`);
+  }
+});
+
+test('stripeLineWidth / stripeLineAlpha: the width is alpha times the pitch, at least 1 px, and the alpha makes up for the minimum', async () => {
+  const { stripeLineWidth, stripeLineAlpha } = await import('../src/draw.ts');
+  for (const [a, pitch] of [
+    [0.6, 3],
+    [0.6, 20],
+    [0.15, 3],
+    [1, 1],
+    [0.25, 25],
+  ]) {
+    const w = stripeLineWidth(a, pitch),
+      al = stripeLineAlpha(a, pitch);
+    assert.ok(w >= 1 && al > 0 && al <= 1);
+    assert.ok(Math.abs((w * al) / pitch - a) < 1e-12, `${a} at ${pitch}`);
+  }
+  assert.equal(stripeLineWidth(0.6, 20), 12);
+  assert.equal(stripeLineAlpha(0.6, 20), 1);
 });
 
 test('rectangular: a larger gap gives fewer stripes, and the line is at least 1 px wide', async () => {
@@ -141,8 +187,8 @@ test('rectangular: a larger gap gives fewer stripes, and the line is at least 1 
   const sb = stripes(b.ctx());
   assert.ok(sb.length > 0 && sb.length < na);
   assert.ok(
-    sb.every((x) => x.width >= 4 && x.width <= 8),
-    'about half the gap',
+    sb.every((x) => x.width >= 1),
+    'at least a pixel wide',
   );
 });
 
@@ -194,21 +240,21 @@ test('a clade colour is kept by its stripes', async () => {
   assert.ok(stripes(m.ctx(), STRIPE).length > 0, 'the rest in the stripe colour');
 });
 
-test('dimming: the stripes of a summary without a highlighted tip are stroked at summaryOpacity * dimOpacity', async () => {
+test('dimming: the stripes of a summary without a highlighted tip are as dark as a solid summaryOpacity * dimOpacity, the others as summaryOpacity', async () => {
   const m = await makeViewer(TREE, {
-    options: { minCladePx: 20, summaryStyle: 'striped', highlightStyle: 'dim' },
+    options: { minCladePx: 40, summaryStyle: 'striped', highlightStyle: 'dim' },
     theme: { summaryStripeColour: STRIPE, dimOpacity: DIM },
     size: [500, 300],
   });
   m.viewer.setHighlighted(['t5']);
   m.env.flush();
   const so = m.viewer.theme.summaryOpacity;
-  const { stripeAlpha } = await import('../src/draw.ts');
-  const c = Math.max(1, m.viewer.theme.summaryStripeGap / 2) / m.viewer.theme.summaryStripeGap;
-  const alphas = new Set(stripes(m.ctx()).map((x) => x.alpha));
-  assert.ok(alphas.has(stripeAlpha(so, c)), 'the summary holding the match');
-  assert.ok(alphas.has(stripeAlpha(so * DIM, c)), 'the others');
-  assert.equal(alphas.size, 2);
+  const darks = new Set(
+    groups(stripes(m.ctx()))
+      .filter((g) => g.length > 2)
+      .map((g) => rectDarkness(g).toFixed(6)),
+  );
+  assert.deepEqual([...darks].sort(), [(so * DIM).toFixed(6), so.toFixed(6)].sort());
 });
 
 for (const layout of ['rectangular', 'radial']) {
@@ -251,4 +297,153 @@ test('the overview strip stays solid', async () => {
     strips.some((c) => fillAlphas(c.ctx).length > 0),
     'and draws its summaries filled',
   );
+});
+
+const poly = (n, p) => '(' + Array.from({ length: n }, (_, k) => p + k).join(',') + ')';
+const BANDS = `(${poly(400, 'p')}P,${poly(400, 'q')}Q)r;`; // two polytomies of tips: slices
+
+test('rectangular: a triangle summary starts each stripe on its sloping side, a polytomy band at its left edge; all end at the outer edge', async () => {
+  const tri = groups(stripes((await make('rectangular', { minCladePx: 40 })).ctx())).filter((g) => g.length > 3);
+  assert.ok(tri.length > 3);
+  for (const g of tri) {
+    assert.equal(new Set(g.map((x) => x.x1)).size, 1, 'one outer edge');
+    const xs = g.map((x) => x.x0);
+    assert.ok(Math.max(...xs) - Math.min(...xs) > 1, 'the start follows the triangle side');
+    assert.ok(Math.min(...xs) >= g[0].x1 - 400 && Math.max(...xs) <= g[0].x1, 'inside the triangle');
+  }
+  const band = groups(stripes((await make('rectangular', {}, BANDS)).ctx()));
+  assert.ok(band.length >= 2 && band.every((g) => g.length > 5));
+  for (const g of band) assert.equal(new Set(g.map((x) => x.x0)).size, 1, 'a band starts at one x');
+});
+
+test('radial: a fan starts each ray on its side (the start radius varies), a polytomy ring segment at one radius', async () => {
+  const { cx, cy } = (await make('radial')).viewer.proj.T;
+  const r = (x) => Math.hypot(x.x0 - cx, x.y0 - cy);
+  const fans = groups(stripes((await make('radial', { minCladePx: 40 })).ctx())).filter((g) => g.length > 3);
+  assert.ok(fans.length > 3);
+  for (const g of fans) {
+    const rs = g.map(r);
+    assert.ok(Math.max(...rs) - Math.min(...rs) > 1, 'start radii vary');
+    assert.ok(Math.min(...rs) < Math.hypot(g[0].x1 - cx, g[0].y1 - cy), 'and lie inside the fan');
+  }
+  const rings = groups(stripes((await make('radial', {}, BANDS)).ctx()));
+  assert.ok(rings.length >= 2 && rings.every((g) => g.length > 5));
+  for (const g of rings) {
+    const rs = g.map(r);
+    assert.ok(Math.max(...rs) - Math.min(...rs) < 1e-3, 'one start radius');
+  }
+});
+
+test('a striped summary has no solid fill under its stripes', async () => {
+  const m = await make('rectangular', { minCladePx: 40 });
+  assert.ok(stripes(m.ctx()).length > 0);
+  assert.ok(!fillAlphas(m.ctx()).includes(m.viewer.theme.summaryOpacity), 'no fill at the summary opacity');
+});
+
+test('rectangular, zoomed: only the stripes of the visible rows are drawn', async () => {
+  const m = await make('rectangular', { minCladePx: 400 });
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 310 });
+  m.env.flush();
+  const s = stripes(m.ctx());
+  assert.ok(s.length > 0, 'summaries taller than the screen are striped');
+  const gap = m.viewer.theme.summaryStripeGap;
+  assert.ok(
+    s.every((x) => x.y0 > -20 && x.y0 < 320),
+    'inside the clip window',
+  );
+  assert.ok(s.length <= (330 / gap) * (m.viewer.getStats().summaries + 1), 'bounded by the window, not the clade');
+});
+
+test('radial, zoomed: at most 256 rays per fan, drawn over the visible angles only, else solid', async () => {
+  const m = await make('radial', { minCladePx: 600 });
+  let drawn = 0;
+  for (const vp of [
+    { x0: 0.2, x1: 0.4, y0: -0.1, y1: 0.1 },
+    { x0: 0.5, x1: 0.52, y0: 0.2, y1: 0.22 },
+  ]) {
+    m.viewer.setViewport(vp);
+    m.env.flush();
+    const gs = groups(stripes(m.ctx()));
+    for (const g of gs) assert.ok(g.length <= 256, 'rays per fan ' + g.length);
+    // every ray is at an angle the window can see (proj.lo..hi, its complement when it wraps; the whole circle when the root is inside)
+    const p = m.viewer.proj;
+    const inWindow = (x) => {
+      let a = Math.atan2(x.y1 - p.T.cy, x.x1 - p.T.cx);
+      if (a < 0) a += 2 * Math.PI;
+      return p.all || (p.wrap ? a <= p.hi + 1e-6 || a >= p.lo - 1e-6 : a >= p.lo - 1e-6 && a <= p.hi + 1e-6);
+    };
+    for (const x of gs.flat()) assert.ok(inWindow(x), 'a ray outside the visible angles');
+    drawn += gs.length;
+    m.ctx().reset();
+  }
+  assert.ok(drawn > 0, 'some fan is striped in the zoomed views');
+});
+
+test('summaryStripeGap below 1 is taken as 1: no stripe per tip, no infinite alpha', async () => {
+  const m = await make('rectangular', {}, TREE, { theme: { summaryStripeGap: 0 } });
+  const s = stripes(m.ctx());
+  assert.ok(s.length > 0);
+  assert.ok(s.every((x) => Number.isFinite(x.alpha) && x.alpha <= 1 && Number.isFinite(x.width)));
+  assert.ok(s.length <= 300 + m.viewer.getStats().summaries, 'at most one per px');
+});
+
+test('the overview strip stays solid even where it has room for stripes (a polytomy band hundreds of tips tall)', async () => {
+  const { OverviewControl } = await import('../src/controls/index.ts');
+  const m = await makeViewer(BANDS, {
+    controls: [new OverviewControl()],
+    options: { summaryStyle: 'striped' },
+    theme: { summaryStripeColour: STRIPE },
+    size: [500, 300],
+  });
+  m.env.flush();
+  assert.ok(stripes(m.ctx()).length > 0, 'the main canvas stripes the bands');
+  const canvases = [];
+  const walk = (el) => {
+    for (const c of el.children ?? []) {
+      if (c.ctx) canvases.push(c);
+      walk(c);
+    }
+  };
+  walk(m.viewer.element);
+  const strips = canvases.filter((c) => c !== m.canvas() && c !== m.topCanvas());
+  assert.ok(
+    strips.some((c) => fillAlphas(c.ctx).includes(m.viewer.theme.summaryOpacity)),
+    'the strip fills its bands solid',
+  );
+  for (const c of strips) assert.equal(stripes(c.ctx).length, 0);
+});
+
+test('one stripe per hidden tip when the rows are wider than the gap (not one per gap)', async () => {
+  const m = await make('rectangular', { minCladePx: 100 }, balanced(3)); // 8 tips, 37 px rows: the cherries are 75 px summaries
+  const gs = groups(stripes(m.ctx()));
+  assert.ok(gs.length >= 2);
+  for (const g of gs) assert.equal(g.length, 2, 'a cherry has two hidden tips, so two stripes');
+});
+
+test('radial: a fan wider than 256 gaps gets 256 rays, and is solid where those would be more than two gaps apart', async () => {
+  const m = await makeViewer(`(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`, {
+    options: { layout: 'radial', summaryStyle: 'striped' },
+    theme: { summaryStripeColour: STRIPE },
+    size: [900, 900],
+  });
+  m.env.flush();
+  const gs = groups(stripes(m.ctx()));
+  assert.ok(gs.length >= 1);
+  assert.equal(Math.max(...gs.map((g) => g.length)), 256, 'capped at 256');
+  const gap = m.viewer.theme.summaryStripeGap;
+  m.ctx().reset();
+  m.viewer.setViewport({ x0: -0.05, x1: 0.05, y0: -0.05, y1: 0.05 }); // far in: the fan is much larger than the screen
+  m.env.flush();
+  for (const g of groups(stripes(m.ctx()))) {
+    const q = g.map((x) => Math.atan2(x.y1 - 450, x.x1 - 450)).sort((a, b) => a - b);
+    const r = Math.hypot(g[0].x1 - 450, g[0].y1 - 450);
+    assert.ok(((q[q.length - 1] - q[0]) / (q.length - 1)) * r <= 2 * gap + 1e-6 || r > 5e4, 'rays are not more than two gaps apart on screen');
+  }
+});
+
+test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {
+  const m = await make('radial', { minCladePx: 400 }, balanced(3));
+  const gs = groups(stripes(m.ctx()));
+  assert.ok(gs.length >= 2);
+  for (const g of gs) assert.equal(g.length, 4, 'a clade of four tips: four rays');
 });

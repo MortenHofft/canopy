@@ -121,8 +121,8 @@ export interface TreeTheme extends ResidueTheme {
   summaryOpacity: number; // collapsed clades (triangles, fans, bands)
   /** Colour of the stripes of a striped summary (`summaryStyle: 'striped'`) without a clade colour. '' = `summary`. */
   summaryStripeColour: string;
-  /** Striped summaries: the least distance between two stripes, CSS px (the stripes are about this wide divided by two, at least 1 px).
-   *  A summary shorter than two gaps stays solid. */
+  /** Striped summaries: the least distance between two stripes, CSS px, at least 1 (smaller values are taken as 1). The line width follows from it
+   *  and the darkness of the solid fill (see api.md, "Striped summaries"). A summary shorter than two gaps stays solid. */
   summaryStripeGap: number;
   markerOpacity: number; // tip dots and node markers
   highlightOpacity: number; // the band behind a highlighted tip

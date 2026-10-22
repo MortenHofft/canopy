@@ -124,16 +124,20 @@ function dimmed(S: Scene, e: number): number {
 
 const clampY = (y: number, H: number) => (y < -CLAMP_Y_PAD_PX ? -CLAMP_Y_PAD_PX : y > H + CLAMP_Y_PAD_PX ? H + CLAMP_Y_PAD_PX : y);
 
-// Striped summaries. The stripes of a frame's summaries are collected as segments (x0, y0, x1, y1) in one scratch buffer, then stroked in
-// chunks per (dimming pass, colour class), like the branches. The buffer is module state used only inside one drawBody call, grown by
-// doubling, never held across calls. Cost: the stripes are bounded by the summary's extent over the gap, rectangular ones by the visible
-// window only, radial ones by MAX_RADIAL_STRIPES per fan; a summary with room for fewer than two stripes stays solid (nothing to see).
-let stripeBuf = new Float64Array(4096);
+// Striped summaries. The stripes of a frame's summaries are collected as segments (x0, y0, x1, y1) in one scratch buffer, in groups (one per
+// summary, with its spacing), then stroked per (dimming pass, colour class), like the branches. The buffer is module state used only inside
+// one drawBody call, grown by doubling, never held across calls. Cost: the stripes are bounded by the summary's extent over the gap,
+// rectangular ones by the visible rows only, radial ones by the visible angles and MAX_RADIAL_STRIPES per fan; a summary with room for fewer
+// than two stripes stays solid (nothing to see).
+let stripeBuf = new Float32Array(4096);
 let stripeN = 0; // floats used
+let groupEnd = new Int32Array(256); // per summary: the end of its segments in stripeBuf
+let groupPitch = new Float32Array(256); // and the distance between its stripes (px, for the radial ones at the fan's mean radius)
+let groupN = 0;
 
 function pushStripe(x0: number, y0: number, x1: number, y1: number): void {
   if (stripeN + 4 > stripeBuf.length) {
-    const b = new Float64Array(stripeBuf.length * 2);
+    const b = new Float32Array(stripeBuf.length * 2);
     b.set(stripeBuf);
     stripeBuf = b;
   }
@@ -143,8 +147,23 @@ function pushStripe(x0: number, y0: number, x1: number, y1: number): void {
   stripeBuf[stripeN++] = y1;
 }
 
-/** Stripes for the summary of node `i` (a run first=i..last when lm >= 0), geometry from `proj.d0..t1` set by summaryExtent. Returns
- *  false (nothing pushed) when the summary should be solid: fewer than two hidden tips, or no room for two stripes `gap` px apart. */
+/** Close the stripes pushed since the last group: they are `pitch` px apart. */
+function endGroup(pitch: number): void {
+  if (groupN === groupEnd.length) {
+    const e = new Int32Array(groupN * 2),
+      p = new Float32Array(groupN * 2);
+    e.set(groupEnd);
+    p.set(groupPitch);
+    groupEnd = e;
+    groupPitch = p;
+  }
+  groupEnd[groupN] = stripeN;
+  groupPitch[groupN++] = pitch;
+}
+
+/** Stripes for the summary of node `i` (a run first=i..last when lm >= 0), geometry from `proj.d0..t1` set by summaryExtent. `gap` is at
+ *  least 1. Returns false (nothing pushed) when the summary should be solid: fewer than two hidden tips, no room for two stripes `gap` px
+ *  apart, or (radial) so far zoomed in that 256 rays would be more than twice the gap apart. True with nothing pushed: it is off screen. */
 function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): boolean {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
@@ -173,55 +192,103 @@ function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: 
       const xs = solidShape ? sx : Math.min(xm, sx + (y < sy ? (sy - y) * up : (y - sy) * down));
       pushStripe(xs, y, xm, y);
     }
+    if (stripeN > (groupN ? groupEnd[groupN - 1] : 0)) endGroup(pitch);
     return true;
   }
   const r0 = proj.d0,
     r1 = Math.max(r0 + 2, proj.d1);
   const a0 = proj.t0,
     a1 = proj.t1;
-  const n = Math.min(hidden, MAX_RADIAL_STRIPES, Math.floor(((a1 - a0) * r1) / gap));
-  if (n < 2) return false;
-  const da = (a1 - a0) / n;
+  // the visible angles of the clade: one interval, or two when the window wraps through angle 0 (u0..u1 and v0..v1)
+  let u0 = a0,
+    u1 = a1,
+    v0 = 0,
+    v1 = 0;
+  if (!proj.all) {
+    if (!proj.wrap) {
+      u0 = Math.max(a0, proj.lo);
+      u1 = Math.min(a1, proj.hi);
+    } else {
+      u1 = Math.min(a1, proj.hi);
+      v0 = Math.max(a0, proj.lo);
+      v1 = a1;
+    }
+  }
+  const len1 = u1 > u0 ? u1 - u0 : 0,
+    len2 = v1 > v0 ? v1 - v0 : 0;
+  const vis = len1 + len2;
+  if (vis <= 0) return true; // off screen
+  const arc = vis * r1;
+  const byRows = Math.ceil((hidden * vis) / (a1 - a0));
+  const byGap = Math.floor(arc / gap);
+  if (Math.min(byRows, byGap) < 2) return false;
+  const n = Math.min(byRows, byGap, MAX_RADIAL_STRIPES);
+  if (n === MAX_RADIAL_STRIPES && arc / n > 2 * gap) return false;
+  const da = vis / n;
   const phi = solidShape ? 0 : proj.tip(i); // the node's own angle, where the fan's apex lies
-  const half = Math.max(phi - a0, a1 - phi, 1e-9);
   const { cx, cy } = proj.T;
+  // a fan's ray starts where it meets the fan's side (the segment from the apex to the edge's end), a ring segment's at r0
+  const ax = r0 * Math.cos(phi),
+    ay = r0 * Math.sin(phi);
+  const e0x = r1 * Math.cos(a0) - ax,
+    e0y = r1 * Math.sin(a0) - ay,
+    e1x = r1 * Math.cos(a1) - ax,
+    e1y = r1 * Math.sin(a1) - ay;
   for (let k = 0; k < n; k++) {
-    const a = a0 + (k + 0.5) * da;
+    const pos = (k + 0.5) * da;
+    const a = pos < len1 ? u0 + pos : v0 + (pos - len1);
     const c = Math.cos(a),
       sn = Math.sin(a);
-    // a fan's ray starts on its side (the apex is at the node's radius, the outer edge widens it), a ring segment's at r0
-    const rs = solidShape ? r0 : r0 + (r1 - r0) * Math.min(1, Math.abs(a - phi) / half);
+    let rs = r0;
+    if (!solidShape) {
+      const ex = a < phi ? e0x : e1x,
+        ey = a < phi ? e0y : e1y;
+      const den = c * ey - sn * ex;
+      let t = den !== 0 ? (sn * ax - c * ay) / den : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      rs = c * (ax + t * ex) + sn * (ay + t * ey);
+    }
     pushStripe(cx + rs * c, cy + rs * sn, cx + r1 * c, cy + r1 * sn);
   }
+  endGroup(da * (solidShape ? (r0 + r1) / 2 : r0 + ((r1 - r0) * 2) / 3));
   return true;
 }
 
-/** The alpha of stripes that cover a share `cover` (line width over spacing, at most 1) of a summary, so that it looks as dark as a solid fill
- *  of alpha `a`: n layers of the stripe alpha leave 1 - (1 - a_s)^c of the background, which is 1 - (1 - a) for a_s = 1 - (1 - a)^(1/c). */
-export function stripeAlpha(a: number, cover: number): number {
-  return a >= 1 || cover >= 1 ? a : cover <= 0 ? 1 : 1 - Math.pow(1 - a, 1 / cover);
+/** The line width of the stripes of a summary drawn at alpha `a` (a solid fill's) with stripes `pitch` px apart: the stripes cover
+ *  `width / pitch` of it, so `a * pitch` makes the mean darkness the solid fill's, at least 1 px (thinner lines are not drawn crisply). */
+export function stripeLineWidth(a: number, pitch: number): number {
+  return Math.max(1, a * pitch);
 }
 
-/** Stroke the collected stripes in `colour`, `width` px wide, at alpha `alpha` (what a solid fill would use) raised for the coverage
- *  `width / gap`, and empty the buffer. */
-function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, width: number, gap: number, alpha: number): void {
-  if (stripeN === 0) return;
+/** Their alpha: 1 where the width is `a * pitch`, lower when the 1 px minimum made the lines wider than that. */
+export function stripeLineAlpha(a: number, pitch: number): number {
+  return Math.min(1, (a * pitch) / stripeLineWidth(a, pitch));
+}
+
+/** Stroke the collected stripes in `colour`, each summary's with the width and alpha that give the darkness of a solid fill of alpha `a`
+ *  (the dimming included in `a`), and empty the buffer. */
+function strokeStripes(ctx: CanvasRenderingContext2D, colour: string, a: number): void {
+  if (groupN === 0) return;
   ctx.strokeStyle = colour;
-  ctx.lineWidth = width;
-  ctx.globalAlpha = stripeAlpha(alpha, width / gap);
   ctx.lineCap = 'butt';
-  ctx.beginPath();
-  for (let j = 0, c = 0; j < stripeN; j += 4) {
-    ctx.moveTo(stripeBuf[j], stripeBuf[j + 1]);
-    ctx.lineTo(stripeBuf[j + 2], stripeBuf[j + 3]);
-    if (++c >= STROKE_CHUNK) {
-      ctx.stroke();
-      ctx.beginPath();
-      c = 0;
+  for (let g = 0, j = 0; g < groupN; j = groupEnd[g++]) {
+    const pitch = groupPitch[g];
+    ctx.lineWidth = stripeLineWidth(a, pitch);
+    ctx.globalAlpha = stripeLineAlpha(a, pitch);
+    ctx.beginPath();
+    for (let c = 0; j < groupEnd[g]; j += 4) {
+      ctx.moveTo(stripeBuf[j], stripeBuf[j + 1]);
+      ctx.lineTo(stripeBuf[j + 2], stripeBuf[j + 3]);
+      if (++c >= STROKE_CHUNK) {
+        ctx.stroke();
+        ctx.beginPath();
+        c = 0;
+      }
     }
+    ctx.stroke();
   }
-  ctx.stroke();
   stripeN = 0;
+  groupN = 0;
 }
 
 /** Summary entry `e` is drawn striped (given room, see pushStripes): the style is on, and it is not a clade the app collapsed unless asked. */
@@ -244,7 +311,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'round';
   const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
-  const stripeWidth = Math.max(1, theme.summaryStripeGap / 2);
+  const gap = theme.summaryStripeGap >= 1 ? theme.summaryStripeGap : 1; // at least 1 px: no stripe per tip, no huge alpha
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       const col = cls === 0 ? theme.branch : colours[cls];
@@ -286,7 +353,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
         const i = list.node[e];
         const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' rows
         proj.summaryExtent(i, lm, list.xmax[e]);
-        if (S.striped && stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), theme.summaryStripeGap)) continue;
+        if (stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), gap)) continue;
         any = true;
         const sx = proj.d0,
           sy = proj.tip(i);
@@ -311,8 +378,6 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
       strokeStripes(
         ctx,
         cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
-        stripeWidth,
-        theme.summaryStripeGap,
         pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
       );
     }
@@ -337,7 +402,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
   ctx.lineCap = 'butt';
   ctx.lineJoin = 'bevel';
   const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
-  const stripeWidth = Math.max(1, theme.summaryStripeGap / 2);
+  const gap = theme.summaryStripeGap >= 1 ? theme.summaryStripeGap : 1; // at least 1 px: no stripe per tip, no huge alpha
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < nCls; cls++) {
       ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
@@ -413,7 +478,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
         const i = list.node[e];
         const lm = list.last[e]; // run: from the parent's depth to the deepest member, over the members' angles
         proj.summaryExtent(i, lm, list.xmax[e]);
-        if (S.striped && stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), theme.summaryStripeGap)) continue;
+        if (stripedEntry(S, e) && pushStripes(proj, i, lm, lm >= 0 || isSlice(tree, i, L.collapsed), gap)) continue;
         let a0 = proj.t0,
           a1 = proj.t1;
         const r0 = proj.d0;
@@ -458,8 +523,6 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
       strokeStripes(
         ctx,
         cls === 0 ? theme.summaryStripeColour || theme.summary : colours[cls],
-        stripeWidth,
-        theme.summaryStripeGap,
         pass ? theme.summaryOpacity * theme.dimOpacity : theme.summaryOpacity,
       );
     }

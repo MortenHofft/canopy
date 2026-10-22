@@ -1191,9 +1191,10 @@ export function Explorer({
             formatLabel,
             labelDensity: 'dense',
             highlightStyle,
-            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: raise it while they are on
+            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are many,
+            // raise it while they are on (a small tree keeps every tip)
             summaryStyle: stripes ? 'striped' : 'solid',
-            minCladePx: stripes ? 14 : undefined,
+            minCladePx: stripes && tree.tipCount > 1500 ? 14 : undefined,
             alignLabels,
             nodeLabels,
             formatNodeLabel,
