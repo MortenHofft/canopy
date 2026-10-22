@@ -249,7 +249,7 @@ export class HitIndex {
               }
             } else {
               const rr = Math.hypot(mx - T.cx, my - T.cy);
-              const th = fanTheta(T.fan, Math.atan2(my - T.cy, mx - T.cx));
+              const th = fanTheta(L.fan, Math.atan2(my - T.cy, mx - T.cx));
               const a0 = proj.t0,
                 a1 = proj.t1;
               const r1 = proj.d1;
@@ -279,7 +279,7 @@ export class HitIndex {
           } else {
             const r = proj.depth(i);
             const rr = Math.hypot(mx - T.cx, my - T.cy);
-            const th = fanTheta(T.fan, Math.atan2(my - T.cy, mx - T.cx));
+            const th = fanTheta(L.fan, Math.atan2(my - T.cy, mx - T.cx));
             const a0 = proj.tip(tree.firstChild[i]),
               a1 = proj.tip(L.LAST[i]);
             const slack = 4 / Math.max(r, 1);

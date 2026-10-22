@@ -37,7 +37,8 @@ export interface Transform {
   clipB: number;
 }
 
-/** `fan`: the layout's radial fan (`L.fan`); the whole circle when left out. */
+/** `fan`: the layout's radial fan (`L.fan`; the whole circle when left out). The radial projection of a frame refuses a transform whose
+ *  fan is not its layout's, so pass `L.fan` for any layout whose fan was set. */
 export function makeTransform(kind: LayoutKind, W: number, H: number, v: Viewport, a: Area, rows: number, fan: RadialFan = FULL_FAN): Transform {
   const kx = a.aw / (v.x1 - v.x0);
   const ky = a.ah / (v.y1 - v.y0);

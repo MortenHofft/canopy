@@ -900,11 +900,9 @@ export class TreeViewer {
     const changed = Object.keys(p) as (keyof ViewerOptions)[];
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
-    const fanChanged = p.radialOpening !== undefined || p.radialRotation !== undefined;
     const refit =
       lengthsChanged ||
       layoutChanged ||
-      (fanChanged && (p.layout ?? o.layout) === 'radial') ||
       (p.axis !== undefined && p.axis !== o.axis) ||
       (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight) ||
       (p.treeWidth !== undefined && p.treeWidth !== o.treeWidth);
@@ -919,24 +917,31 @@ export class TreeViewer {
     }
     if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
-    if (fanChanged) {
-      // the fan moves every tip: the trig cache of each cached layout is rebuilt for it, and the transform of the last frame follows
-      const fan = radialFan(this.opts.radialOpening, this.opts.radialRotation);
-      for (const L of this.layouts.values()) setLayoutFan(L, fan);
-      if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, this.vs.view, this.vs.area, this.L.rows, fan);
-      this.minPxHint = 0;
-    }
-    if (lengthsChanged || fanChanged) {
+    if (lengthsChanged) {
       this.L = this.layoutFor(this.opts.branchLengths);
       this.rebuildProj();
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    if (refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    if (this.applyFanOption(p) || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
     else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
     this.events.emit('optionschange', { options: this.opts, changed });
+  }
+
+  /** `setOptions` changed `radialOpening` or `radialRotation` (in `p`, already in `this.opts`): every cached layout gets the new fan (its
+   *  trig cache is rebuilt on the next use) and the last frame's transform and projection follow. True when the view is to be refitted
+   *  (the radial layout is shown). */
+  private applyFanOption(p: Partial<ViewerOptions>): boolean {
+    if (p.radialOpening === undefined && p.radialRotation === undefined) return false;
+    const fan = radialFan(this.opts.radialOpening, this.opts.radialRotation);
+    for (const L of this.layouts.values()) setLayoutFan(L, fan);
+    if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, this.vs.view, this.vs.area, this.L.rows, this.L.fan);
+    this.rebuildProj();
+    this.hit.invalidate();
+    this.minPxHint = 0;
+    return this.opts.layout === 'radial';
   }
 
   /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
@@ -1543,7 +1548,7 @@ export class TreeViewer {
       y1 = T.oy + this.L.rowEnd[i] * T.ky;
     } else {
       const bb = new Float64Array(4);
-      const fa = T.fan.start;
+      const fa = this.L.fan.start;
       sectorBBox(T.cx, T.cy, this.L.X[i] * T.k, this.L.XMAX[i] * T.k, fa + this.L.rowStart[i] * T.da, fa + this.L.rowEnd[i] * T.da, bb);
       x0 = bb[0];
       y0 = bb[1];

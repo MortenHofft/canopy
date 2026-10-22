@@ -17,7 +17,7 @@ const root = path.resolve(here, '../../..');
 const out = path.resolve(process.argv[2] ?? path.join(here, '..', 'test', 'cut-golden.json'));
 const core = path.join(root, 'packages/viewer/src');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
-const { computeLayout, ensureTrig, radialFan } = await import(path.join(core, 'layout.ts'));
+const { computeLayout, ensureTrig, radialFan, setLayoutFan } = await import(path.join(core, 'layout.ts'));
 const { DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut } = await import(path.join(core, 'lod.ts'));
@@ -46,7 +46,8 @@ for (const [name, spec] of Object.entries(TREES)) {
 function capture(c, fan) {
   const { s, L, classOf } = built[c.tree];
   const N = s.tipCount;
-  ensureTrig(L, fan);
+  setLayoutFan(L, fan);
+  ensureTrig(L);
   const T = makeTransform(c.layout, W, H, VIEWS[c.layout][c.view](N), area, N, fan);
   const list = new DrawList();
   const r = searchCut(projectionFor(s, L, T), classOf, list, new Seen(), {

@@ -390,7 +390,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
   const { parent, subtreeEnd, leafStart, leafEnd, childCount, firstChild } = tree;
   const stub = tree.stub ?? null; // a plain TreeData (no stub field) is accepted too
   const { cx, cy, k, da, clipL, clipR, clipT, clipB } = T;
-  const fa0 = T.fan.start; // the angle of row 0: angles below are canvas angles, in the projection's range (lo, hi and the quadrant test)
+  const fa0 = L.fan.start; // the angle of row 0: angles below are canvas angles, in the projection's range (lo, hi and the quadrant test)
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = CULL_PAD_PX;

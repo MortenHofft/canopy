@@ -111,11 +111,10 @@ export function setLayoutFan(L: Layout, fan: RadialFan): void {
   L.COS = L.SIN = L.BC = L.BS = null;
 }
 
-/** Cache cos/sin of every node's radial angle (the angle does not depend on the zoom or on branch lengths), so the cut,
- *  the drawing and the hit index never call Math.cos/sin per node. 16 bytes per node, only paid when radial is used. `fan`: the fan to
- *  build it for (default the layout's own; another one replaces it, see setLayoutFan). */
-export function ensureTrig(L: Layout, fan: RadialFan = L.fan): void {
-  setLayoutFan(L, fan);
+/** Cache cos/sin of every node's radial angle on the layout's fan (`L.fan`; the angle does not depend on the zoom or on branch lengths),
+ *  so the cut, the drawing and the hit index never call Math.cos/sin per node. 16 bytes per node, only paid when radial is used. It
+ *  only reads the fan: setLayoutFan is the one place that changes it. */
+export function ensureTrig(L: Layout): void {
   if (L.COS) return;
   const n = L.n;
   const a0 = L.fan.start;

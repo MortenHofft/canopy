@@ -21,7 +21,7 @@
 
 import { CULL_PAD_PX } from './constants.ts';
 import type { Layout } from './layout.ts';
-import { ensureTrig, fanTheta } from './layout.ts';
+import { ensureTrig, fanTheta, sameFan } from './layout.ts';
 import type { Transform } from './geom.ts';
 import { K_RUN, cell, type Seen } from './lod.ts';
 import type { LayoutKind, TreeSnapshot } from './types.ts';
@@ -190,7 +190,9 @@ export class RadialProjection implements ProjectionCore {
     readonly L: Layout,
     readonly T: Transform,
   ) {
-    ensureTrig(L, T.fan);
+    // the fan is the layout's (setLayoutFan); the projection only reads it, and a transform made for another fan is a caller's mistake
+    if (!sameFan(T.fan, L.fan)) throw new Error("makeTransform was given a radial fan other than the layout's (pass L.fan)");
+    ensureTrig(L);
     this.X = L.X;
     this.ROW = L.ROW;
     this.XMAX = L.XMAX;
@@ -203,7 +205,7 @@ export class RadialProjection implements ProjectionCore {
     this.cy = T.cy;
     this.k = T.k;
     this.da = T.da;
-    this.a0 = T.fan.start;
+    this.a0 = L.fan.start;
     this.tipPitch = T.da * T.k;
     const fq = Math.pow(2, Math.floor(Math.log2(T.k))) / T.k;
     this.fq = fq;
@@ -220,7 +222,7 @@ export class RadialProjection implements ProjectionCore {
     this.rMin = Math.hypot(dxMin, dyMin);
     this.rMax = Math.hypot(Math.max(Math.abs(cx - L), Math.abs(cx - R)), Math.max(Math.abs(cy - T), Math.abs(cy - B)));
     this.all = dxMin === 0 && dyMin === 0; // the root is inside the window: every angle is visible
-    const fan = this.T.fan;
+    const fan = this.L.fan;
     const base = fan.start + (fan.span / 2 - Math.PI); // the lowest angle of the fan's range (the middle of the opening, see fanTheta)
     if (this.all) {
       this.lo = base;

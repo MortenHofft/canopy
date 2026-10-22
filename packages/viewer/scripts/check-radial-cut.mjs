@@ -42,7 +42,7 @@ const TIPS = Number(args.tips || 10000);
 const BUDGET = Number(args.budget || 2000);
 
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
-const { computeLayout, ensureTrig, fanAngle, radialFan } = await import(path.join(root, 'packages/viewer/src/layout.ts'));
+const { computeLayout, ensureTrig, fanAngle, radialFan, setLayoutFan } = await import(path.join(root, 'packages/viewer/src/layout.ts'));
 const { DEFAULT_OPTIONS } = await import(path.join(root, 'packages/viewer/src/types.ts'));
 const OPENING = args.opening !== undefined ? Number(args.opening) : DEFAULT_OPTIONS.radialOpening;
 const ROTATION = args.rotation !== undefined ? Number(args.rotation) : DEFAULT_OPTIONS.radialRotation;
@@ -64,7 +64,8 @@ function loadNewick() {
 }
 const tree = parseNewick(loadNewick());
 const L = computeLayout(tree, true);
-ensureTrig(L, FAN);
+setLayoutFan(L, FAN);
+ensureTrig(L);
 const N = tree.tipCount;
 console.log(`tree: ${N} tips, ${tree.nodeCount} nodes; budget ${BUDGET}; radial opening ${OPENING}, rotation ${ROTATION}`);
 
@@ -270,7 +271,8 @@ const skipOtl = (what) => {
 if (fs.existsSync(otlFile)) {
   const otl = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const Lo = computeLayout(otl, true);
-  ensureTrig(Lo, FAN);
+  setLayoutFan(Lo, FAN);
+  ensureTrig(Lo);
   panCheck('OTL 91k', otl, Lo, otl.tipCount);
 } else skipOtl('8 sub-pixel pan on the OTL 91k tree');
 // 9 a star of 10,000 tips next to two balanced 1,000-tip clades
@@ -280,7 +282,8 @@ if (fs.existsSync(otlFile)) {
   const star = Array.from({ length: STAR }, (_, j) => `s${j}:1`).join(',');
   const st = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${star}):10);`);
   const Ls = computeLayout(st, true);
-  ensureTrig(Ls, FAN);
+  setLayoutFan(Ls, FAN);
+  ensureTrig(Ls);
   const Ns = st.tipCount;
   const starNode = (() => {
     for (let i = 0; i < st.nodeCount; i++) if (st.childCount[i] === STAR) return i;
@@ -349,7 +352,8 @@ if (fs.existsSync(otlFile)) {
   }
   const poly = parseNewick(`(${bal(1000, 'a')},${bal(1000, 'b')},(${kids.join(',')}):10);`);
   const Lp = computeLayout(poly, true);
-  ensureTrig(Lp, FAN);
+  setLayoutFan(Lp, FAN);
+  ensureTrig(Lp);
   const Np = poly.tipCount;
   const P = (() => {
     for (let i = 0; i < poly.nodeCount; i++) if (poly.childCount[i] === kids.length) return i;
@@ -508,7 +512,8 @@ if (fs.existsSync(otlFile)) {
 if (fs.existsSync(otlFile)) {
   const otl2 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const Lz = computeLayout(otl2, true);
-  ensureTrig(Lz, FAN);
+  setLayoutFan(Lz, FAN);
+  ensureTrig(Lz);
   const Nz = otl2.tipCount;
   for (const b of [500, 2000]) {
     let changed = 0,
@@ -555,7 +560,8 @@ if (fs.existsSync(otlFile)) {
 if (fs.existsSync(otlFile)) {
   const otl3 = parseNewick(execFileSync('gzip', ['-dc', otlFile], { maxBuffer: 1 << 28 }).toString('utf8'));
   const L3 = computeLayout(otl3, true);
-  ensureTrig(L3, FAN);
+  setLayoutFan(L3, FAN);
+  ensureTrig(L3);
   const N3 = otl3.tipCount;
   for (const b of [500, 2000]) {
     const a = (200 * Math.PI) / 180,

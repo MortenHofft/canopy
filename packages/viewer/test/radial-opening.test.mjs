@@ -33,7 +33,8 @@ test('the options default to 5% open with the opening at the bottom', () => {
 test('default fan: the first and the last tip sit symmetrically either side of the opening at the bottom', () => {
   const t = parseNewick(NWK);
   const L = computeLayout(t, true);
-  ensureTrig(L, radialFan(DEFAULT_OPTIONS.radialOpening, DEFAULT_OPTIONS.radialRotation));
+  setLayoutFan(L, radialFan(DEFAULT_OPTIONS.radialOpening, DEFAULT_OPTIONS.radialRotation));
+  ensureTrig(L);
   const first = t.tipNode[0],
     last = t.tipNode[t.tipCount - 1];
   // canvas angles: y grows downwards, so the bottom is +y; clockwise from just left of the bottom over the top to just right of it
@@ -53,7 +54,8 @@ test("radialOpening 0 and radialRotation 0 are exactly the angles of the whole c
   assert.deepEqual(radialFan(0, 0), FULL_FAN);
   const t = parseNewick(NWK);
   const L = computeLayout(t, true);
-  ensureTrig(L, radialFan(0, 0));
+  setLayoutFan(L, radialFan(0, 0));
+  ensureTrig(L);
   const da = TAU / L.rows; // the old formula: angle = ROW * 2pi / rows
   for (let i = 0; i < t.nodeCount; i++) {
     assert.equal(L.COS[i], Math.cos(L.ROW[i] * da));
@@ -76,7 +78,8 @@ test('a changed fan rebuilds the trig cache; the same fan keeps it', () => {
   const c = L.COS;
   setLayoutFan(L, radialFan(0, 0));
   assert.equal(L.COS, c, 'same fan by value: nothing is rebuilt');
-  ensureTrig(L, radialFan(0.5, 90));
+  setLayoutFan(L, radialFan(0.5, 90));
+  ensureTrig(L);
   assert.notEqual(L.COS, c);
   assert.ok(close(L.fan.span, Math.PI));
 });
@@ -203,4 +206,37 @@ test('tip labels turn round on the left half of the screen, wherever the rotatio
       `rotation ${rotation}: ${a.join(' ')}`,
     );
   }
+});
+
+test("the projection reads the layout's fan and refuses a transform made for another one", () => {
+  const t = parseNewick(NWK);
+  const L = computeLayout(t, true);
+  const fan = radialFan(0.05, 90);
+  setLayoutFan(L, fan);
+  const area = { ax: 0, ay: 0, aw: 300, ah: 200, clipL: 0, clipT: 0, clipR: 300, clipB: 200 };
+  const v = { x0: -1.5, x1: 1.5, y0: -1, y1: 1 };
+  assert.throws(() => projectionFor(t, L, makeTransform('radial', 300, 200, v, area, L.rows)), /fan/);
+  assert.deepEqual(L.fan, fan, 'the layout keeps its fan');
+  const p = projectionFor(t, L, makeTransform('radial', 300, 200, v, area, L.rows, L.fan));
+  assert.ok(close(p.tip(t.tipNode[0]), fan.start + 0.5 * (fan.span / L.rows)));
+});
+
+test("hit-testing a connector arc that crosses 3 o'clock (angle 0) in the default fan", async () => {
+  // ten clades of four tips under the root: with the default fan 3 o'clock is at row 30.5, inside the clade of rows 28..32, whose
+  // connector arc runs from about 343 to 368 degrees; a pointer on it just below 3 o'clock is at a canvas angle of 0.07 rad, which is
+  // 2pi + 0.07 in the fan's range of angles (fanTheta), not 0.07
+  const clade = (c) => '(' + [0, 1, 2, 3].map((k) => `c${c}t${k}:1`).join(',') + '):1';
+  const m = await makeViewer('(' + Array.from({ length: 10 }, (_, c) => clade(c)).join(',') + ')r;', {
+    options: { layout: 'radial' },
+    size: [500, 500],
+  });
+  m.env.flush();
+  const v = m.viewer;
+  const t = v.tree;
+  const node = t.parent[t.tipNode[28]];
+  assert.ok(v.proj.tip(t.tipNode[28]) < TAU && v.proj.tip(t.tipNode[31]) > TAU, 'the clade spans angle 0');
+  const r = v.proj.depth(node);
+  const a = 0.07;
+  assert.ok(r * a > 6 && r * (v.proj.tip(t.tipNode[31]) - TAU - a) > 6, "the point is clear of the tips' branches");
+  assert.deepEqual(v.hitTest(v.T.cx + r * Math.cos(a), v.T.cy + r * Math.sin(a)), { node, kind: 'branch' });
 });

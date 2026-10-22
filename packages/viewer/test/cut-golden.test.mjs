@@ -27,7 +27,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..', '..', '..');
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
 const core = path.join(root, 'packages/viewer/src');
-const { computeLayout, ensureTrig, radialFan } = await import(path.join(core, 'layout.ts'));
+const { computeLayout, ensureTrig, radialFan, setLayoutFan } = await import(path.join(core, 'layout.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
@@ -70,7 +70,8 @@ test('the golden file covers every case', () => {
 function runCase(c, fan) {
   const { s, L, classOf } = built[c.tree];
   const N = s.tipCount;
-  ensureTrig(L, fan);
+  setLayoutFan(L, fan);
+  ensureTrig(L);
   const T = makeTransform(c.layout, W, H, VIEWS[c.layout][c.view](N), area, N, fan);
   const list = new DrawList();
   const r = searchCut(projectionFor(s, L, T), classOf, list, new Seen(), {
