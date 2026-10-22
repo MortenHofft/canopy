@@ -4,7 +4,7 @@ export type { OpResult, TreeArrays, TreeInput } from './types.ts';
 export { reroot, midpointRoot, type RerootOptions, type MidpointInfo } from './rooting.ts';
 export { ladderise, reorder, rotate, swap, type LadderiseOptions } from './order.ts';
 export { collapseBySupport, collapseShortBranches } from './collapse.ts';
-export { collapseClades, prune, subtree } from './subset.ts';
+export { collapseClades, prune, subtree, type CollapseOptions, type CladeDepth } from './subset.ts';
 export { splitInternalLabel } from './labels.ts';
 export { NO_FOCUS, canGoBack, canGoUp, focusBack, focusOn, focusUp, focusedNode, remapFocus, showFocus, type Focus } from './focus.ts';
 export { followClade, followClades, invertMap, composeMaps, type FollowOptions, type Followed, type FollowedClade } from './follow.ts';

@@ -23,8 +23,7 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from s
 
   Colours, collapsed clades and the focus are kept in node ids of the loaded tree and mapped to the shown one, so they survive going
   in and out. The focus and the collapsed clades are in the URL (`?focus=…&collapsed=…`). Every change re-creates the viewer, so the
-  zoom resets ([#27](https://github.com/MortenHofft/gbif-phylo/issues/27)); collapsing in a dated tree switches the axis
-  ([#19](https://github.com/MortenHofft/gbif-phylo/issues/19)).
+  zoom resets ([#27](https://github.com/MortenHofft/gbif-phylo/issues/27)).
 - Per-tip data become columns: numbers as bars, short text as text. The panel says how many tips have data. Tips without data get an
   empty cell rather than being dropped.
 - The readout under the tree shows the last frame's stats (`getStats()`); **Benchmark** draws 30 full frames (`benchmark(30)`). The event

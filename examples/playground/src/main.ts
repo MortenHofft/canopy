@@ -107,7 +107,8 @@ function computeView(t: TreeModel): View {
   let collapsedTips: number[] = [];
   const inShown = collapsed.map(toShownNow).filter((v) => v > 0); // the shown root is never collapsed
   if (inShown.length) {
-    const r = ops.collapseClades(shown, inShown);
+    // on a dated (ultrametric) tree the collapsed tip is lengthened to the present, so the axis stays "time before tips"
+    const r = ops.collapseClades(shown, inShown, undefined, { extend: shown.isUltrametric(1e-3) });
     if (step(r)) collapsedTips = inShown.map((v) => r.map[v]).filter((v) => v >= 0);
   }
   const support = supportRange(t);

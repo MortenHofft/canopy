@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
 // Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
 // something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
-import { parseNewick, toNewick, TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, toNewick, TreeModel } from '@gbif-phylo/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const wrap =
@@ -461,6 +461,64 @@ test('collapseClades: a clade becomes one tip that stands for it; nested and rep
   const u = parseNewick('(((,),),);'); // unlabelled tips
   assert.equal(nwk(collapseClades(u, [u.mrcaOf([2, 3])]).tree), "(('2 tips',),);");
   assert.equal(nwk(collapseClades(t, [ab], (v, n) => `clade${v}x${n}`).tree), '((clade2x2:2,C:1)Fam:1,(D:1,(E:1,F:1):1):1);');
+});
+
+test("collapseClades extend: the new tip ends where the clade's tips did (own edge + the clade's height)", () => {
+  const t = parseNewick('(((A:1,B:3)95:2,C:1)Fam:1,(D:1,(E:2,F:4):1):1);');
+  const ab = t.mrcaOf(['A', 'B']),
+    fam = t.mrcaOf(['A', 'C']);
+  const len = (r, node) => r.tree.length[r.map[node]];
+  assert.equal(len(collapseClades(t, [ab]), ab), 2); // default: the edge is kept
+  assert.equal(len(collapseClades(t, [ab], undefined, { extend: false }), ab), 2);
+  assert.equal(len(collapseClades(t, [ab], undefined, { extend: true }), ab), 5); // max: 2 + 3
+  assert.equal(len(collapseClades(t, [ab], undefined, { extend: 'max' }), ab), 5);
+  assert.equal(len(collapseClades(t, [ab], undefined, { extend: 'mean' }), ab), 4); // 2 + (1 + 3) / 2
+  assert.equal(len(collapseClades(t, [ab], undefined, { extend: 'min' }), ab), 3); // 2 + 1
+  // a clade of clades: depths run through the lengths of the inner edges (A: 1+2, B: 3+2, C: 1)
+  assert.equal(len(collapseClades(t, [fam], undefined, { extend: 'max' }), fam), 1 + 5);
+  assert.equal(len(collapseClades(t, [fam], undefined, { extend: 'mean' }), fam), 1 + 3);
+  assert.equal(len(collapseClades(t, [fam], undefined, { extend: 'min' }), fam), 1 + 1);
+  // nested and repeated nodes: the outer clade covers the inner one, which is not lengthened twice
+  const r = collapseClades(t, [ab, fam], undefined, { extend: 'max' });
+  assert.equal(len(r, fam), 6);
+  assert.equal(r.map[ab], -1);
+  // missing lengths count as 0 in the height; no lengths at all: nothing to extend
+  const m = parseNewick('((A,B:2)x:1,C);');
+  assert.equal(len(collapseClades(m, [m.mrcaOf(['A', 'B'])], undefined, { extend: true }), m.mrcaOf(['A', 'B'])), 3);
+  const u = parseNewick('((A,B)x,C);');
+  assert.equal(nwk(collapseClades(u, [u.mrcaOf(['A', 'B'])], undefined, { extend: true }).tree), "('x (2 tips)',C);");
+  assert.ok(Number.isNaN(collapseClades(u, [u.mrcaOf(['A', 'B'])], undefined, { extend: true }).tree.length[1]));
+});
+
+test('collapseClades extend: validates the option and counts a negative own edge as 0', () => {
+  const t = parseNewick('((A:1,B:3)x:-2,C:1);');
+  const x = t.mrcaOf(['A', 'B']);
+  for (const bad of ['median', 1, null, {}]) assert.throws(() => ops.collapseClades(t, [x], undefined, { extend: bad }), RangeError);
+  assert.equal(collapseClades(t, [x], undefined, { extend: undefined }).tree.length[1], -2);
+  const r = collapseClades(t, [x], undefined, { extend: true });
+  assert.equal(r.tree.length[r.map[x]], 3); // max(0, -2) + 3
+});
+
+test('collapseClades extend: any clade of the dated Carangaria MCC tree collapses without breaking ultrametricity', () => {
+  const t = parseNexus(fs.readFileSync(path.join(DATA, 'rich/fish-carangaria-mcc/Carangaria-MCC.tre'), 'utf8')).tree;
+  assert.ok(t.isUltrametric(1e-3));
+  for (const rule of [true, 'max', 'mean', 'min']) {
+    let checked = 0;
+    for (let v = 1; v < t.nodeCount; v++) {
+      if (t.childCount[v] === 0) continue;
+      const r = collapseClades(t, [v], undefined, { extend: rule });
+      assert.ok(r.tree.isUltrametric(1e-3), `${rule}: node ${v}`);
+      checked++;
+    }
+    assert.ok(checked > 100);
+  }
+  // without the option the shown tree is not ultrametric (the issue)
+  const inner = t.mrcaOf(t.tipLabels.slice(0, 2));
+  assert.ok(!collapseClades(t, [inner]).tree.isUltrametric(1e-3));
+  // all the root's clades at once
+  const kids = [];
+  for (let c = t.firstChild[0]; c >= 0; c = t.nextSibling[c]) kids.push(c);
+  assert.ok(collapseClades(t, kids, undefined, { extend: 'max' }).tree.isUltrametric(1e-3));
 });
 
 test('focus: show a clade alone, up one level, back', () => {
