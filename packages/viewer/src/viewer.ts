@@ -30,6 +30,7 @@ import {
   drawRing,
   drawScaleBar,
   drawSelectionRing,
+  drawMarkRings,
   LabelList,
   TextMeasurer,
   type Scene,
@@ -225,6 +226,9 @@ export class TreeViewer {
   /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
    *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
   private selected = -1;
+  /** The marked nodes (`setMarked`, node ids as given), and their rows of the snapshot, filled by `drawTop` (-1: not loaded). */
+  private marked: number[] = [];
+  private markRows = new Int32Array(0);
   private raf = 0;
   private dirty = true;
   private topDirty = true;
@@ -732,6 +736,7 @@ export class TreeViewer {
     }
     this.activeNode = -1;
     this.selected = this.selectionAfterSetTree(oldSelected, map, rm);
+    this.storeMarked(this.marksAfterSetTree(map, rm));
     this.pendingHover = null;
     this.clearHover();
     this.root.style.cursor = 'grab';
@@ -1256,6 +1261,13 @@ export class TreeViewer {
     return sel >= 0 && isNodeOf(this.nodeLimit(), sel) ? this.shownNode(sel) : -1;
   }
 
+  /** The marks of the new tree in `setTree`: the old ones sent through `rm` (removed ones dropped); without a map, none. */
+  private marksAfterSetTree(map: Int32Array | null, rm: (n: number) => number): number[] {
+    if (!map) return [];
+    const limit = this.nodeLimit();
+    return this.marked.map(rm).filter((n) => n >= 0 && isNodeOf(limit, n));
+  }
+
   /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
    *  loaded. They stay in the list (`getHighlighted` gives back what was set) and highlight nothing. */
   private checkHighlighted(where: string, ids: readonly TipRef[]): void {
@@ -1316,6 +1328,28 @@ export class TreeViewer {
   /** `selectionchange` when the selection is no longer `old`. */
   private emitSelectionSince(old: number): void {
     if (this.selected !== old) this.emitSelection();
+  }
+
+  /** Mark nodes (node ids, tips or clades) with a ring of their own (theme `markColour`, `markWidth`, `markRadius`, `markDash`), until
+   *  `setMarked([])`: the pending pick of a two-step action such as a swap, which stays visible while the pointer looks for the second.
+   *  The rings follow the nodes through pans, zooms and layout switches; a node inside a collapsed clade is marked on the clade.
+   *  Kept across `setTree` through its `map`, dropped without one. Numbers that are not nodes are ignored with a warning. */
+  setMarked(nodes: readonly number[]): void {
+    const known = this.knownNodes('setMarked', nodes, (n) => n);
+    if (known.length === this.marked.length && known.every((n, i) => n === this.marked[i])) return;
+    this.storeMarked(known.slice());
+    this.topDirty = true;
+    this.schedule();
+  }
+
+  /** The marked nodes, as given to `setMarked` (unknown ids left out). */
+  getMarked(): number[] {
+    return this.marked.slice();
+  }
+
+  private storeMarked(nodes: number[]): void {
+    this.marked = nodes;
+    if (this.markRows.length !== nodes.length) this.markRows = new Int32Array(nodes.length);
   }
 
   /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
@@ -1887,17 +1921,26 @@ export class TreeViewer {
     }
   }
 
-  /** The selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
+  /** The rings of the marked nodes (`setMarked`), at their rows of the snapshot now (a hidden node at its collapsed clade). */
+  private drawMarks(c: CanvasRenderingContext2D, proj: LayoutProjection): void {
+    const rows = this.markRows;
+    if (rows.length === 0) return;
+    for (let i = 0; i < rows.length; i++) rows[i] = this.rowOf(this.shownNode(this.marked[i]));
+    drawMarkRings(c, proj, rows, this.theme);
+  }
+
+  /** The marks, selection, hover and keyboard rings live on their own canvas so they never trigger a tree redraw. */
   private topHad = false;
   private drawTop(): void {
     this.topDirty = false;
     const sel = this.selected >= 0 ? this.rowOf(this.selected) : -1;
-    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0 || sel >= 0;
+    this.topHad = this.hoverNode >= 0 || this.activeNode >= 0 || sel >= 0 || this.marked.length > 0;
     const c = this.topCtx;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.clearRect(0, 0, this.W, this.H);
     if (!this.T) return;
     const proj = this.proj;
+    this.drawMarks(c, proj);
     if (sel >= 0) drawSelectionRing(c, proj, sel, this.theme);
     if (this.hoverNode >= 0 && this.hoverRun < 0 && this.hoverNode !== this.activeNode && this.hoverNode !== sel)
       drawRing(c, proj, this.hoverNode, this.hoverKind === 'summary' ? 9 : 6, this.theme.highlight, 2);

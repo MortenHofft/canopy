@@ -211,6 +211,9 @@ export function Explorer({
     return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
   };
   const selectedShown = shownSelection(selected, view, tree.parent);
+  // Swap's first pick keeps a ring of its own (the viewer's marks) until the second click or Escape
+  const swapShown = shownSelection(swapFirst, view, tree.parent);
+  const marked = useMemo(() => (swapShown === null ? [] : [swapShown]), [swapShown]);
   const shownClades = useMemo(
     () =>
       view
@@ -1235,6 +1238,7 @@ export function Explorer({
           theme={theme}
           focus={current ? { tipId: current, seq: focusSeq } : null}
           selected={selectedShown}
+          marked={marked}
           onSelectionChange={(k) => setSelected(k === null || toTree(k) < 0 ? null : toTree(k))}
           options={{
             formatLabel,

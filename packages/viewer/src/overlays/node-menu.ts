@@ -6,6 +6,9 @@
 // Tab out closes. Pointer: a press outside, a pan or zoom, or a choice closes it. Opened by a tap, focus stays put: the compatibility
 // mousedown that follows a tap would otherwise blur the menu and close it at once. While it is open, hover listeners that run as
 // default actions (the tooltip) are suppressed.
+//
+// Opening it selects the node it is for (`setSelected`, which a click does by default anyway), so the selection ring marks the node the
+// menu acts on while the pointer is in the menu. The selection stays after the menu closes.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
 import { cladeName } from '../clade-name.ts';
@@ -77,11 +80,12 @@ export class NodeMenu extends BaseControl {
     this.close(false);
   }
 
-  /** Open the menu for `e` (what a click does); closes it when there are no items. */
+  /** Open the menu for `e` (what a click does), and select its node (not for a run of small clades); closes it when there are no items. */
   openAt(v: TreeViewer, e: TreeEvent): void {
     const items = this.opts.items(e, v);
     if (!items?.length) return this.close(false);
     this.open = { e, items };
+    if (!e.run) v.setSelected(e.node);
     const el = this.element;
     const head = document.createElement('div');
     head.className = 'phylo-node-menu__title';
