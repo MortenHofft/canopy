@@ -287,6 +287,10 @@
   white-space: nowrap;
 }
 
+.phylo-legend__detail {
+  color: var(--phylo-muted, #6b7c8a);
+}
+
 button.phylo-legend__label {
   padding: 0;
   border: 0;
