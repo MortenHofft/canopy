@@ -318,6 +318,7 @@ await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
 // only the arc counts (#87): at the fit, hardly a clade of this tree spans less than 20 px along the arc, so raise it for summaries
 await ev(() => window.viewer.setOptions({ minCladePx: 60 }));
+await settled(); // the frame with the new threshold, before reading its pixels
 ok((await redPixels()) > 100, 'radial: the same look');
 await select('layout', 'rectangular');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
