@@ -2,7 +2,9 @@
 
 The hub page (this folder) and the pages it links to, built into one static site by
 [`scripts/build-site.mjs`](../scripts/build-site.mjs) (`npm run build:site`, output `site-dist/`). Vercel builds it on every push (see
-[`vercel.json`](../vercel.json)).
+[`vercel.json`](../vercel.json)), except to branches that are only steps towards another branch: `ignoreCommand` skips a branch whose
+name contains `--` (a work shift's issue branches, `<shift branch>--<issue>-<slug>`, which are merged into the shift branch and seen in
+its preview) or starts with `claude/`. Every other branch (`main`, a shift branch, a feature branch) gets a preview.
 
 - [`src/examples.json`](src/examples.json) lists the pages: `playground` (the plain viewer with every setting) or `showcase` (a specific
   build such as the explorer). Each entry names the example's folder and its data catalogue. To add a page, add an entry.
