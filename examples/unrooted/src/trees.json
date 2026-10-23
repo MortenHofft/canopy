@@ -1,0 +1,29 @@
+{
+  "trees": {
+    "gtdb-1k": {
+      "label": "GTDB, Nitrososphaeria (932 tips, branch lengths)",
+      "path": "real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz",
+      "format": "newick"
+    },
+    "gtdb-200": {
+      "label": "GTDB, Iainarchaeia (215 tips, branch lengths)",
+      "path": "real-ladder/trees/gtdb-0200-iainarchaeia.nwk.gz",
+      "format": "newick"
+    },
+    "hcv-19": {
+      "label": "HCV 2k IQ-TREE (19 tips, branch lengths)",
+      "path": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre",
+      "format": "nexus"
+    },
+    "otl-testudines-1k": {
+      "label": "Open Tree, Testudines (888 tips, no lengths)",
+      "path": "real-ladder/trees/otl-1k-testudines.nwk.gz",
+      "format": "newick"
+    },
+    "otl-canidae-200": {
+      "label": "Open Tree, Canidae (211 tips, no lengths)",
+      "path": "real-ladder/trees/otl-0200-canidae.nwk.gz",
+      "format": "newick"
+    }
+  }
+}

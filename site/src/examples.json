@@ -25,5 +25,14 @@
     "description": "A table like TBrowse: one row per tip at a fixed height, the wheel scrolls rows instead of zooming, and the tree is one column among data columns (label fields, an alignment, gene location, an expression heatmap, a score), each with a header and a resize handle. The overview strip is the scrollbar. Built on the public API; its README lists what the viewer cannot do for it yet.",
     "tags": ["@gbif-phylo/viewer", "no framework", "custom columns"],
     "data": "src/trees.json"
+  },
+  {
+    "id": "unrooted",
+    "dir": "examples/unrooted",
+    "kind": "spike",
+    "title": "Unrooted layout spike",
+    "description": "The equal-angle layout of #42, before the viewer has an unrooted view: every branch drawn on a plain canvas, with no zoom, pan or level of detail. Pick a tree, with or without branch lengths and labels. A throw-away page for deciding whether the viewer should get layout: 'unrooted'; it uses the layout from the viewer's source, not the public API.",
+    "tags": ["spike", "equal-angle", "canvas"],
+    "data": "src/trees.json"
   }
 ]
