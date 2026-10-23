@@ -3,9 +3,8 @@
 Written 2026-10-23. The spike is an equal-angle layout pass, `unrootedLayout(tree)` in
 [`packages/viewer/src/unrooted.ts`](../../packages/viewer/src/unrooted.ts), with unit tests in
 [`packages/viewer/test/unrooted.test.mjs`](../../packages/viewer/test/unrooted.test.mjs). There is also a throw-away canvas page that
-draws every branch with no level of detail: [`tests/browser/unrooted.html`](../../tests/browser/unrooted.html) and
-[`src/unrooted.ts`](../../tests/browser/src/unrooted.ts). It is served by the test page's dev server only and is not in a build or a
-package. The viewer has no `layout: 'unrooted'` yet; this note is for deciding whether it should.
+draws every branch with no level of detail: [`examples/unrooted`](../../examples/unrooted), on the demo site as `/unrooted`. It imports
+the layout from the viewer's source and is not in a package. The viewer has no `layout: 'unrooted'` yet; this note is for deciding whether it should.
 
 Marks: **(M)** measured here, with the command given. **(R)** from reading the code. **unverified**: from memory or estimated.
 
