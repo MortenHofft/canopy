@@ -1117,6 +1117,31 @@ ok(
 await page.locator('#bench').click();
 ok((await page.locator('#log').textContent()).includes('30 frames: mean'), 'Benchmark reports in the event log'); // textContent: the log is in a closed <details>
 
+console.log('every match is highlighted, past the old 20,000 cap; the Search list says "N of M" (#58)');
+await open('?tree=otl-100k-vertebrata');
+await page.locator('input[data-setting=find]').fill('a');
+await settled();
+{
+  const want = await ev(() => window.viewer.getTree().tipLabels.filter((l) => l.toLowerCase().includes('a')).length);
+  const got = await ev(() => window.viewer.getHighlighted().length); // the labels passed: OTL's are unique
+  ok(want > 20000 && got === want, `"Highlight tips containing" a highlights all ${want} matching tips (${got})`);
+}
+await page.locator('input[data-setting=find]').fill('');
+await settled();
+await page.locator('.phylo-search__input').fill('anolis');
+await page.waitForTimeout(300);
+{
+  const more = (await page.locator('.phylo-search__more').innerText()).trim();
+  const status = await page.locator('.phylo-search [role=status]').textContent();
+  const shown = await page.locator('.phylo-search__option').count();
+  ok(/^8 of [\d,]+ matches$/.test(more) && Number(more.split(' ')[2].replace(/,/g, '')) > 8, `the Search list ends with "${more}"`);
+  ok(shown === 8 && status === more, `the live region says the same ("${status}"), 8 options listed`);
+  const box = await page.locator('.phylo-search__more').boundingBox();
+  const list = await page.locator('.phylo-search__list').boundingBox();
+  ok(box !== null && list !== null && box.y + box.height <= list.y + list.height + 1, 'the count line is in sight at the bottom of the list');
+}
+await page.locator('.phylo-search__input').fill('');
+
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks pass');
 process.exit(failures ? 1 : 0);

@@ -39,7 +39,7 @@ Each control and the API behind it.
 | Font size, branch width | the `theme` prop (`labelSize`, `branchWidth`) |
 | Rectangular / circular, phylogram / cladogram | the `layout` and `branchLengths` props |
 | Truncate / Full names | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
-| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels, at most 5,000 matches kept |
+| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels; every match is highlighted and counted |
 | **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the columns stay at full strength) |
 | Midpoint, **Ladderize ↑ ↓ and by tips / depth / height** (one segmented group: ascending, descending, type) | tree-ops `midpointRoot`, `ladderise(t, { order, by })` |
 | Reroot, Flip, Swap, Undo (⌘Z) | tree-ops `reroot`, `rotate`, `swap`; a history of trees, each edit a function returning a new tree. Colours, collapsed clades and the focus follow the tips (`followClades`, `remapFocus`) and the view stays (`treeMap`, the op's node map) |
@@ -58,8 +58,8 @@ Each control and the API behind it.
 
 ### Large trees
 
-Nothing is switched off on a large tree. Search is capped at 5,000 matches (the count says so, and its tooltip); on 2.4 million tips a
-keystroke takes about half a second. Measurements of the whole-tree actions are in the CHANGELOG entry for #54.
+Nothing is switched off on a large tree. Search highlights every match: on the 2.4 million tips of OTL the label scan takes about 0.1 s
+and highlighting a million matches about 0.05 s plus a frame of under 30 ms (headless, `docs/design/highlight-cost.md`). Measurements of the whole-tree actions are in the CHANGELOG entry for #54.
 
 ## Notes
 

@@ -40,7 +40,6 @@ type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
 /** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
 const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up one level or Back to the whole tree first';
-const MAX_MATCHES = 5000;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
@@ -466,8 +465,8 @@ export function Explorer({
   );
 
   // ---- search: case-insensitive substring of the displayed name (Reactree's rule; an underscore and a space are the same); matches
-  // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label, and at most
-  // MAX_MATCHES kept: on a tree of millions of tips a keystroke must not cost seconds, and a million highlights say nothing.
+  // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label (about 0.1 s on 2.4
+  // million labels), and every match kept: highlighting a million tips costs little (docs/design/highlight-cost.md, #58).
   const matches = useMemo(() => {
     const q = query.trim();
     if (!q) return [];
@@ -475,10 +474,11 @@ export function Explorer({
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
     const out: number[] = [];
     const labels = shown.tipLabels;
-    for (let r = 0; r < labels.length; r++) if (re.test(labels[r]) && out.push(shown.tipNode[r]) >= MAX_MATCHES) break;
+    for (let r = 0; r < labels.length; r++) if (re.test(labels[r])) out.push(shown.tipNode[r]);
     return out;
   }, [query, shown]);
-  const current = matches.length ? matches[((matchIdx % matches.length) + matches.length) % matches.length] : null;
+  const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
+  const current = currentIdx >= 0 ? matches[currentIdx] : null;
   const [focusSeq, setFocusSeq] = useState(0);
   useEffect(() => setFocusSeq((s) => s + 1), [current]);
 
@@ -1376,17 +1376,8 @@ export function Explorer({
               }}
             />
             {query.trim() && (
-              <span
-                className={`ex-search-count${matches.length ? '' : ' none'}`}
-                title={
-                  matches.length >= MAX_MATCHES
-                    ? `Showing the first ${MAX_MATCHES.toLocaleString('en')} matches; type more to narrow them`
-                    : undefined
-                }
-              >
-                {matches.length
-                  ? `${matches.indexOf(current!) + 1} / ${matches.length}${matches.length >= MAX_MATCHES ? '+ (first 5,000)' : ''}`
-                  : 'No match'}
+              <span className={`ex-search-count${matches.length ? '' : ' none'}`}>
+                {matches.length ? `${(currentIdx + 1).toLocaleString('en')} / ${matches.length.toLocaleString('en')}` : 'No match'}
               </span>
             )}
             {matches.length > 1 && (

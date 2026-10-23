@@ -14,7 +14,7 @@ Headless Chromium through `playwright-core`. Chromium comes from `$CHROMIUM_PATH
   - `examples/no-build` runs `scripts/check-no-build.mjs`. It builds the packages and serves the repository as static files itself.
 - Each check also takes `--url` (or `--port`) to run against a dev server.
 - `bench/`: before/after benchmarks against the built test page (`npm run build && npx vite preview --port 5306`). Their results are in
-  `docs/design/custom.md`.
+  `docs/design/custom.md`, those of `highlight-bench.mjs` in `docs/design/highlight-cost.md`.
 
 ## Reaching the viewer from a check
 

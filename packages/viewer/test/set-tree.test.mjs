@@ -269,14 +269,14 @@ test('setTree: the Search index and the Legend follow the new tree', async () =>
   const legend = new Legend();
   const { viewer, env } = await makeViewer(a, { controls: [search, legend] });
   env.flush();
-  assert.deepEqual(search.find(viewer, 'ga'), [2]);
-  assert.equal(search.find(viewer, 'delta').length, 0);
+  assert.deepEqual(search.find(viewer, 'ga').ranks, [2]);
+  assert.equal(search.find(viewer, 'delta').total, 0);
   const b = ladder(['delta', 'alpha', 'gamma', 'epsilon']);
   viewer.setTree(b, {
     clades: [{ node: b.tipNode[0], colour: 'red', label: 'first' }],
   });
-  assert.deepEqual(search.find(viewer, 'delta'), [0]);
-  assert.deepEqual(search.find(viewer, 'ga'), [2]);
+  assert.deepEqual(search.find(viewer, 'delta').ranks, [0]);
+  assert.deepEqual(search.find(viewer, 'ga').ranks, [2]);
   assert.equal(legend.element.hidden, false);
   assert.match(legend.element.textContent ?? '', /first/);
 });

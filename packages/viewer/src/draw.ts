@@ -604,46 +604,116 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {
   const { proj, theme, hlRanks } = S;
-  const { tree, L, T } = proj;
+  const T = proj.T;
   if (!hlRanks.length) return;
   const rect = proj.kind === 'rectangular';
   const p: Pt = { x: 0, y: 0 };
+  // The canvas calls are bounded by pixels, not by matches (#58): at the fit view of a large tree thousands of matched rows share a
+  // pixel. First the bands, then the rings (one path, a ring skipped when it lands within a pixel of the one before).
   ctx.fillStyle = theme.highlight;
   ctx.strokeStyle = theme.highlight;
+  ctx.globalAlpha = theme.highlightOpacity;
+  // rectangular: the rows grow with k, so only the matches on the rows in view are visited
+  const k0 = rect ? firstAtRow(S, Math.floor((T.clipT - T.oy) / T.ky) - 1) : 0;
+  const k1 = rect ? firstAtRow(S, Math.ceil((T.clipB - T.oy) / T.ky) + 1) : hlRanks.length;
+  if (rect) drawBandRuns(ctx, S, k0, k1, rightEdge);
+  else drawRays(ctx, S, p);
+  ctx.globalAlpha = 1;
   ctx.lineWidth = 2;
-  for (let k = 0; k < hlRanks.length; k++) {
-    const r = hlRanks[k];
-    // tips below a collapsed clade are marked once, on the clade's row and at its apex (the ranks are sorted, so a row's are adjacent)
-    const row = L.rowOfRank ? L.rowOfRank[r] : r;
-    if (L.rowOfRank && k > 0 && L.rowOfRank[hlRanks[k - 1]] === row) continue;
-    const node = L.rowNode ? L.rowNode[row] : tree.tipNode[r];
-    if (rect) {
-      const y = T.oy + row * T.ky;
-      if (y + T.ky < T.clipT || y > T.clipB) continue;
-      ctx.globalAlpha = theme.highlightOpacity;
-      ctx.fillRect(0, y + T.ky / 2 - Math.max(3, T.ky) / 2, rightEdge, Math.max(3, T.ky));
-      ctx.globalAlpha = 1;
-      proj.nodeXY(node, p);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 7, 0, 6.2832);
-      ctx.stroke();
-    } else {
-      proj.nodeXY(node, p);
-      if (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20) continue;
-      const a = proj.tip(node);
-      ctx.globalAlpha = theme.highlightOpacity;
-      ctx.lineWidth = Math.max(3, T.da * L.X[node] * T.k);
-      ctx.beginPath();
-      ctx.moveTo(T.cx, T.cy);
-      ctx.lineTo(T.cx + 1.15 * T.k * Math.cos(a), T.cy + 1.15 * T.k * Math.sin(a));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 7, 0, 6.2832);
-      ctx.stroke();
-    }
+  ctx.beginPath();
+  let lastX = NaN,
+    lastY = NaN;
+  for (let k = k0; k < k1; k++) {
+    const node = highlightNode(S, k);
+    if (node < 0) continue;
+    proj.nodeXY(node, p);
+    if (!rect && (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20)) continue;
+    if (Math.abs(p.x - lastX) < 1 && Math.abs(p.y - lastY) < 1) continue;
+    lastX = p.x;
+    lastY = p.y;
+    ctx.moveTo(p.x + 7, p.y);
+    ctx.arc(p.x, p.y, 7, 0, 6.2832);
   }
+  ctx.stroke();
+}
+
+/** The rectangular bands of the matches k0..k1-1: bands that overlap (rows under 3 px apart) are merged into one fillRect per run. */
+function drawBandRuns(ctx: CanvasRenderingContext2D, S: Scene, k0: number, k1: number, rightEdge: number): void {
+  const T = S.proj.T;
+  const h = Math.max(3, T.ky);
+  let runTop = 0,
+    runBot = -Infinity;
+  for (let k = k0; k < k1; k++) {
+    if (highlightNode(S, k) < 0) continue;
+    const top = T.oy + tipRow(S, k) * T.ky + T.ky / 2 - h / 2;
+    if (top >= runBot) {
+      if (runBot > runTop) ctx.fillRect(0, runTop, rightEdge, runBot - runTop);
+      runTop = top;
+    }
+    runBot = top + h;
+  }
+  if (runBot > runTop) ctx.fillRect(0, runTop, rightEdge, runBot - runTop);
+}
+
+/** The radial bands: a ray from the centre past each matched tip, skipped when it ends within a pixel of the one before and is no
+ *  wider. `p` is scratch. */
+function drawRays(ctx: CanvasRenderingContext2D, S: Scene, p: Pt): void {
+  const { proj } = S;
+  const { L, T } = proj;
+  let lastX = NaN,
+    lastY = NaN,
+    lastW = 0;
+  for (let k = 0; k < S.hlRanks.length; k++) {
+    const node = highlightNode(S, k);
+    if (node < 0) continue;
+    proj.nodeXY(node, p);
+    if (p.x < -20 || p.y < -20 || p.x > T.W + 20 || p.y > T.H + 20) continue;
+    const a = proj.tip(node);
+    const w = Math.max(3, T.da * L.X[node] * T.k);
+    const ex = T.cx + 1.15 * T.k * Math.cos(a),
+      ey = T.cy + 1.15 * T.k * Math.sin(a);
+    if (Math.abs(ex - lastX) < 1 && Math.abs(ey - lastY) < 1 && w <= lastW) continue;
+    lastX = ex;
+    lastY = ey;
+    lastW = w;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(T.cx, T.cy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+}
+
+/** The first k whose row is at least `row` (the highlighted ranks are sorted, and rows grow with ranks). */
+function firstAtRow(S: Scene, row: number): number {
+  let lo = 0,
+    hi = S.hlRanks.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (tipRow(S, m) < row) lo = m + 1;
+    else hi = m;
+  }
+  return lo;
+}
+
+/** The row of the k-th highlighted rank. */
+function tipRow(S: Scene, k: number): number {
+  const r = S.hlRanks[k];
+  const rowOfRank = S.proj.L.rowOfRank;
+  return rowOfRank ? rowOfRank[r] : r;
+}
+
+/** The node to mark for the k-th highlighted rank, or -1 to skip it: tips below a collapsed clade are marked once, on the clade's row
+ *  and at its apex (the ranks are sorted, so a row's are adjacent), and in the rectangular layout a row outside the clip is skipped. */
+function highlightNode(S: Scene, k: number): number {
+  const { tree, L, T } = S.proj;
+  const row = tipRow(S, k);
+  if (L.rowOfRank && k > 0 && tipRow(S, k - 1) === row) return -1;
+  if (S.proj.kind === 'rectangular') {
+    const y = T.oy + row * T.ky;
+    if (y + T.ky < T.clipT || y > T.clipB) return -1;
+  }
+  return L.rowNode ? L.rowNode[row] : tree.tipNode[S.hlRanks[k]];
 }
 
 export function drawRing(ctx: CanvasRenderingContext2D, proj: LayoutProjection, node: number, radius: number, colour: string, width: number): void {

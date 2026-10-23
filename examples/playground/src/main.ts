@@ -236,11 +236,17 @@ function columns(): Column[] {
   return out;
 }
 
+/** The labels containing the "Highlight tips containing" text, all of them (#58: highlighting a million costs little). Kept for the same
+ *  text and tree, as `apply` runs after every setting change. */
+let found: { q: string; labels: readonly string[]; out: string[] } = { q: '', labels: [], out: [] };
 function highlightedTips(): string[] {
   const q = String(state.find).trim().toLowerCase();
   if (!q || !loaded) return [];
+  const labels = (view?.tree ?? loaded.tree).tipLabels;
+  if (found.q === q && found.labels === labels) return found.out;
   const out: string[] = [];
-  for (const l of (view?.tree ?? loaded.tree).tipLabels) if (l.toLowerCase().includes(q) && out.push(l) >= 20000) break;
+  for (const l of labels) if (l.toLowerCase().includes(q)) out.push(l);
+  found = { q, labels, out };
   return out;
 }
 
@@ -361,7 +367,7 @@ function menuItems(e: TreeEvent): NodeMenuItem[] {
   items.push({
     id: 'hl',
     label: 'Highlight ' + (e.isTip ? 'this tip' : 'its tips'),
-    onSelect: () => viewer?.setHighlighted(e.tipIds().slice(0, 20000)),
+    onSelect: () => viewer?.setHighlighted(e.tipIds()),
   });
   if (e.isTip && e.tipId)
     items.push({ id: 'gbif', label: 'Search GBIF for this name', onSelect: () => window.open(GBIF_HREF(e.tipId!), '_blank', 'noopener') });

@@ -1261,12 +1261,13 @@ export class TreeViewer {
         if (row >= 0) add(row);
       }
     }
-    ranks.sort((a, b) => a - b);
-    const uniq = ranks.filter((r, k) => k === 0 || r !== ranks[k - 1]);
-    this.hlRanks = Int32Array.from(uniq);
-    if (uniq.length) {
+    const sorted = Int32Array.from(ranks).sort(); // a typed array sorts numerically, and much faster than an array with a comparator
+    let n = 0;
+    for (let k = 0; k < sorted.length; k++) if (k === 0 || sorted[k] !== sorted[k - 1]) sorted[n++] = sorted[k];
+    this.hlRanks = sorted.slice(0, n);
+    if (n) {
       this.hl = new Uint8Array(N);
-      for (const r of uniq) this.hl[r] = 1;
+      for (let k = 0; k < n; k++) this.hl[this.hlRanks[k]] = 1;
     } else this.hl = null;
     this.hlPrefix = null;
   }

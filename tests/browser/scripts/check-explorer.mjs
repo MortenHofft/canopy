@@ -2144,13 +2144,15 @@ for (const [id, tipsWanted] of [
     'nothing is disabled on a large tree',
   );
   ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
-  // search is capped
+  // search is not capped (#58): every match is counted and highlighted
   await page.locator('button[aria-label="Search tips"]').click();
   await page.keyboard.type('a');
   await page.waitForTimeout(800);
+  const all = await ev(() => __v().getHighlighted().length);
+  const count = await page.locator('.ex-search-count').innerText();
   ok(
-    (await page.locator('.ex-search-count').innerText()).includes('5,000'),
-    `search says when the 5,000-match cap is hit (${await page.locator('.ex-search-count').innerText()})`,
+    all > 5000 && count === `1 / ${all.toLocaleString('en')}`,
+    `search highlights and counts every match, past the old 5,000 cap (${count}, ${all} highlighted)`,
   );
 }
 

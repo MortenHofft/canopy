@@ -268,6 +268,18 @@
   font-size: 0.85em;
 }
 
+/* the count line stays in sight at the bottom of the list when the list scrolls */
+.phylo-search__more {
+  position: sticky;
+  bottom: -4px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  color: var(--phylo-muted, #6b7c8a);
+  font-size: 0.85em;
+  cursor: default;
+}
+
 .phylo-search__option:hover,
 .phylo-search__option[aria-selected='true'] {
   background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));
