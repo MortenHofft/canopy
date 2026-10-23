@@ -228,14 +228,15 @@ test('a two-tip clade with near-zero branch lengths is not collapsed once its ro
   assert.ok(narrowTree.leafEnd[cherry] - narrowTree.leafStart[cherry] === 2 && narrowTree.length[narrowTree.tipNode[0]] < 1e-5);
   // 20 px rows, minCladePx 14: the cherry is 40 px tall and well under a pixel wide
   assert.deepEqual(kindsOf({ x0: 0, x1: 1, y0: 0, y1: 20 }, 'rectangular', 14), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
-  // 5 px rows: 10 px tall, under minCladePx, so it is a summary
-  assert.deepEqual(kindsOf({ x0: 0, x1: 1, y0: 0, y1: 80 }, 'rectangular', 14), { cherry: [K_SUMMARY], a: [], b: [] });
+  // 5 px rows: 10 px tall, under minCladePx, but a clade of two tips is never folded by size (#112)
+  assert.deepEqual(kindsOf({ x0: 0, x1: 1, y0: 0, y1: 80 }, 'rectangular', 14), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
 });
 
 test('radial: a two-tip clade with near-zero branch lengths is not collapsed once its arc is longer than minCladePx', () => {
   // radius 300 px over 128 tips: about 15 px of arc per tip, so the cherry's arc (about 29 px) is over 14 and under 4 * 14
   assert.deepEqual(kindsOf({ x0: -1, x1: 1, y0: -1, y1: 1 }, 'radial', 14), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
-  assert.deepEqual(kindsOf({ x0: -1, x1: 1, y0: -1, y1: 1 }, 'radial', 40), { cherry: [K_SUMMARY], a: [], b: [] });
+  // over its arc, a clade of two tips is never folded by size (#112)
+  assert.deepEqual(kindsOf({ x0: -1, x1: 1, y0: -1, y1: 1 }, 'radial', 40), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
 });
 
 test('radial, cold search (no hint) zoomed 64 times into a 20k comb: the ladder climbs past 60 passes and the list fits the budget', () => {

@@ -67,7 +67,7 @@ something changed.
 
 Where the three adaptive mechanisms sit:
 
-- **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades less than `minPx` tall (radial: arc at the tips; option `minCladePx`, default 3). If the draw list
+- **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades of three or more tips less than `minPx` tall (radial: arc at the tips; option `minCladePx`, default 3); a clade of one or two tips is never collapsed by size, at any `minPx` and so under the ladder too (#112), and may still be a member of a run of 16 or more small siblings. If the draw list
   would exceed the budget (`drawBudget`, default 20,000; radial: the smaller of that and `radialMaxNodes`, default 2,000), `minPx` is raised on
   a fixed ladder `base * 1.15^n` and the cut is redone; the aborted pass stops as soon as the budget is exceeded. The level is sticky: it rises
   only on overflow and falls only when the next level down fits with room to spare, and the previous full frame's level is the starting

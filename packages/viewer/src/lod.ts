@@ -5,11 +5,15 @@
 // together with its whole subtree by jumping to subtreeEnd[i]. Cost is O(nodes visited), which is bounded by
 // the viewport for bushy trees, and the number of PRIMITIVES emitted is bounded by the draw budget:
 //   rule A    collapse a clade whose pixel height (radial: arc length at the tips) is < minPx. Only the row direction counts: a clade
-//             of near-identical tips (tiny branch lengths) is narrow at any zoom, and its tips get their rows once they fit (#87)
+//             of near-identical tips (tiny branch lengths) is narrow at any zoom, and its tips get their rows once they fit (#87).
+//             A clade of at most two tips of the tree (leafEnd - leafStart: tips, not rows) is never collapsed
+//             by size, at any minPx and under any budget (#112): as a triangle it is no cheaper than its branches, and it hides its tips.
+//             It may still be a member of a run (rule R). The raise of rule D, the radial polytomy clause and the cap only move or add
+//             to this test, so they cannot fold it either
 //   rule C    sub-pixel primitives that land on the same pixel cells as an earlier one are not emitted again
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
-//   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
-//             than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
+//   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip, a clade of at most two tips or a
+//             collapsed clade smaller than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
 //             primitive per run, while its large children stay their own entries (issue 13). Siblings outside the window still count
 //             towards their run (they are not drawn, and a run with no member in view is not drawn), so which tips form a run depends on
 //             the tree and the zoom, not on where the window is: a pan does not fold tips in view back into a slice (#77)
@@ -218,7 +222,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
   // caterpillars (V8's inlining budget, see `cut`). Change both together.
   // pending run of small siblings (rule R; only under a parent with at least SLICE_MIN_CHILDREN children, which keeps
   // binary trees off this path). Its first members are emitted as usual and taken back when the run reaches
-  // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member
+  // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member. A member of at
+  // most two tips is open (K_NODE, #112) and descended into: the run stays pending while i is inside its subtree (i <= runEnd)
   const canRun = lod && P.summaries;
   let runCount = 0,
     runFirst = 0,
@@ -238,7 +243,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
-    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+    if (runCount !== 0 && (i >= n || i > runEnd || force)) {
       force = false;
       if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
@@ -281,7 +286,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     else if (sx > clipR + PAD) kind = K_STUB;
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a triangle whatever the zoom and the options, never opened
-    else if (lod && i > 0 && yBot - yTop < minPx) kind = P.summaries ? K_SUMMARY : K_STUB;
+    else if (lod && i > 0 && yBot - yTop < minPx && leafEnd[i] - leafStart[i] > 2) kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -293,7 +298,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         i > 0 &&
         px < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind !== K_NODE && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
+        (kind === K_TIP || ((stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -335,7 +340,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
           i = runEnd;
           continue;
         }
-      } else if (runCount !== 0) {
+      } else if (runCount !== 0 && i >= runEnd) {
         if (runCount >= SLICE_MIN_CHILDREN) {
           force = true;
           continue;
@@ -430,7 +435,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
-    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+    if (runCount !== 0 && (i >= n || i > runEnd || force)) {
       force = false;
       if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
@@ -500,7 +505,9 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a fan whatever the zoom and the options, never opened
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
-    else if (lod && i > 0 && (arc < minPx || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
+    // (a clade of at most two tips is never folded by size, #112: it is no cheaper as a fan, and it hides the tips)
+    else if (lod && i > 0 && (arc < minPx ? leafEnd[i] - leafStart[i] > 2 : isSlice(tree, i) && arc < minPx * childCount[i]))
+      kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -510,7 +517,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         i > 0 &&
         arc < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
+        (kind === K_TIP || ((stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -552,7 +559,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           i = runEnd;
           continue;
         }
-      } else if (runCount !== 0) {
+      } else if (runCount !== 0 && i >= runEnd) {
         if (runCount >= SLICE_MIN_CHILDREN) {
           force = true;
           continue;

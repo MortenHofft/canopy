@@ -286,8 +286,9 @@ test('radial: the same rule along the branch, at 1.01x steps', async () => {
 
 // A clade the level of detail cuts as a stub or summary while its node is in view has no stem label: only a stub pushed out of view to the
 // right does (see above). Since #109 the level of detail folds nothing while tips have room for dots and labels, unless the draw budget is
-// hit, so these trees hold 200 cherries with long, distinct stems and the budget (500 entries; radial 100) does the cutting.
-const CHERRIES = `(${Array.from({ length: 200 }, (_, i) => `(a${i}:1,b${i}:1)x${i}:${(10 + i * 0.37).toFixed(2)}`).join(',')})r;`;
+// hit, so these trees hold 200 clades of three tips (a clade of one or two is never cut, #112) with long, distinct stems and the budget
+// (500 entries; radial 100) does the cutting.
+const CHERRIES = `(${Array.from({ length: 200 }, (_, i) => `(a${i}:1,b${i}:1,c${i}:1)x${i}:${(10 + i * 0.37).toFixed(2)}`).join(',')})r;`;
 const { K_NODE, K_TIP } = await import('../src/lod.ts');
 
 /** The nodes with a length label in the frame, the kinds in the draw list (by node), and how many clades the list cuts. */
@@ -305,13 +306,13 @@ function cutAndLabelled(m) {
 
 test('a clade cut by the budget, node in view: no length (with or without summaries)', async () => {
   const open = await make({ labelDensity: 'dense' }, CHERRIES);
-  open.env.resize(open.target, 700, 3400); // rows of 8.5 px: dots and labels
+  open.env.resize(open.target, 700, 5100); // rows of 8.5 px: dots and labels
   const all = cutAndLabelled(open);
   assert.equal(all.cut, 0, 'nothing is cut with the budget to spare');
   assert.ok(all.f.labels.filter((l) => l.node > 0).length >= 150, 'and the stems are labelled');
   for (const showSummaries of [false, true]) {
     const m = await make({ showSummaries, labelDensity: 'dense', drawBudget: 500 }, CHERRIES);
-    m.env.resize(m.target, 700, 3400);
+    m.env.resize(m.target, 700, 5100);
     const { f, kindOf, cut } = cutAndLabelled(m);
     assert.ok(cut > 0, `showSummaries ${showSummaries}: the budget cuts clades (${cut})`);
     for (const l of f.labels) if (l.node > 0) assert.ok(kindOf.get(l.node) === K_NODE, `node ${l.node}: a stem label only on an open clade`);
