@@ -215,6 +215,7 @@ export class Overview {
       hlPrefix: null,
       hlRanks: new Int32Array(0),
       alignLabels: false,
+      labelRoom: 0,
       density: 'sparse',
       format: (id) => h.formatLabel(id),
       cladeText: null,

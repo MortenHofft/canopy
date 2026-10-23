@@ -184,7 +184,7 @@ export const SETTINGS: Setting[] = [
   {
     id: 'alignLabels',
     label: 'Align labels',
-    hint: 'rectangular phylogram: all tip labels in one column, with leader lines from the tips',
+    hint: 'phylogram: all tip labels in one column (radial: on one circle), with leader lines from the tips',
     group: 'Layout and labels',
     to: 'option',
     kind: 'toggle',

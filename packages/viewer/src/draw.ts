@@ -19,7 +19,8 @@ export interface Scene {
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
   density: LabelDensity;
-  alignLabels: boolean; // the option; it acts only in a rectangular phylogram (see alignedX)
+  alignLabels: boolean; // the option; it acts only in a phylogram (see alignedX and alignedR)
+  labelRoom: number; // radial, aligned labels: the room (px) the text keeps in view when the circle is pinned (see alignedR)
   format: (id: string) => string;
   /** The label of a collapsed clade (node = row of the snapshot): its name, else its size. null: collapsed clades get no label. */
   cladeText: ((node: number) => string) | null;
@@ -69,6 +70,23 @@ export class LabelList {
     this.ang[c] = ang;
     this.flip[c] = flip;
     this.gap[c] = gap;
+  }
+  /** The label under (x, y) in CSS px, or -1: its text box, which in the radial layout is turned along its ray (2 px slack along). */
+  at(x: number, y: number, rect: boolean): number {
+    for (let k = 0; k < this.count; k++) {
+      let u = x - this.x[k],
+        v = y - this.y[k];
+      if (!rect) {
+        // into the label's own frame: u along its ray from the gap on, v across it (a flipped label is turned round, its text still runs outward)
+        const c = Math.cos(this.ang[k]),
+          s = Math.sin(this.ang[k]);
+        const t = u * c + v * s;
+        v = v * c - u * s;
+        u = (this.flip[k] ? -t : t) - this.gap[k];
+      }
+      if (u >= -2 && u <= this.w[k] + 2 && Math.abs(v) <= this.h[k] / 2) return k;
+    }
+    return -1;
   }
 }
 
@@ -906,6 +924,26 @@ export function alignedX(S: Scene): number {
   return Math.min(T.ox + L.XMAX[0] * T.kx, T.area.ax + T.area.aw);
 }
 
+/** Radial phylogram: the radius (px) of the circle aligned labels start on (before the gap): the outermost tip's (a collapsed clade's
+ *  triangle ends at its tips, so it is never farther), so all labels share one circle. Zoomed in so far that the furthest visible radius
+ *  (from the root to the farthest corner of the plot) is less than that plus `labelRoom`, the circle is pinned at the furthest visible
+ *  radius less `labelRoom`: the labels of the tips in view stay readable, and the branches of the tips beyond it run on under the text.
+ *  NaN when labels are not aligned: the option is off, or the layout is rectangular or has no tips that end at different radii
+ *  (cladogram, tree without lengths). */
+export function alignedR(S: Scene): number {
+  const { proj } = S;
+  if (!S.alignLabels || proj.kind !== 'radial' || !proj.L.usedLengths) return NaN;
+  const { T } = proj;
+  const far = Math.hypot(Math.max(Math.abs(T.cx - T.clipL), Math.abs(T.cx - T.clipR)), Math.max(Math.abs(T.cy - T.clipT), Math.abs(T.cy - T.clipB)));
+  return Math.min(proj.L.XMAX[0] * T.k, Math.max(0, far - S.labelRoom));
+}
+
+/** Distance (px) between neighbouring labels, for the density rule: the tip pitch, or with radial aligned labels (`ar`, see alignedR) the
+ *  arc between neighbouring tips on their circle (smaller than the tip pitch when the circle is pinned). */
+function labelPitch(S: Scene, ar: number): number {
+  return Number.isNaN(ar) ? S.proj.tipPitch : S.proj.T.da * ar;
+}
+
 /** Draw-list entry `e` is a clade the app collapsed (a summary of its own, not a run and not a clade the level of detail summarised). */
 function isCollapsedEntry(S: Scene, e: number): boolean {
   const c = S.proj.L.collapsed;
@@ -951,18 +989,60 @@ function labelCulled(T: Scene['proj']['T'], x: number, y: number, ax: number): b
   return y < T.clipT - 4 || y > T.clipB + 4 || (Number.isNaN(ax) ? x > T.clipR : ax + LABEL_GAP_PX > T.clipR);
 }
 
-/** Leader lines of aligned labels: a dotted line from each tip (from the end of the triangle of a collapsed clade) to just before its label.
- *  Drawn for the tips that get a label (same density rule, cap and culling as drawLabels), below the dots. Dimmed tips' leaders are drawn
- *  at dimOpacity. Batched into one path per chunk, as the branches are. */
+/** Radial: the label of row `i` anchored at `p` (its tip, or the end of a collapsed clade's triangle) is not drawn, as where its text
+ *  starts is far out of view. Aligned (`ar` not NaN, see alignedR), `p` is first moved along the ray onto the labels' circle. */
+function radialLabelCulled(S: Scene, i: number, ar: number, p: Pt): boolean {
+  const { L, T } = S.proj;
+  if (!Number.isNaN(ar)) {
+    p.x = T.cx + ar * L.COS![i];
+    p.y = T.cy + ar * L.SIN![i];
+  }
+  return p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50;
+}
+
+/** The leader of draw-list entry `e` (`col`: a collapsed clade): from `a`, just before the label (rectangular: in the column `ax`; radial:
+ *  on the circle `ar`, along the ray), to `b`, the tip or the end of the clade's triangle. 0: the label is culled, so no leader; 1: the
+ *  label is drawn but there is nothing to lead over (the tip is at or past the label, which is pinned); 2: a leader from a to b. */
+function leaderOf(S: Scene, e: number, col: boolean, ax: number, ar: number, a: Pt, b: Pt): number {
+  const { proj } = S;
+  labelAnchor(S, e, col, b);
+  if (proj.kind === 'rectangular') {
+    if (labelCulled(proj.T, b.x, b.y, ax)) return 0;
+    a.x = ax + LABEL_GAP_PX - LEADER_END_GAP_PX;
+    a.y = b.y;
+    return b.x < a.x ? 2 : 1;
+  }
+  const { L, T } = proj;
+  const i = S.list.node[e];
+  a.x = b.x;
+  a.y = b.y;
+  if (radialLabelCulled(S, i, ar, a)) return 0;
+  const r = ar + LABEL_GAP_PX - LEADER_END_GAP_PX;
+  if (Math.hypot(b.x - T.cx, b.y - T.cy) >= r) return 1;
+  a.x = T.cx + r * L.COS![i];
+  a.y = T.cy + r * L.SIN![i];
+  return 2;
+}
+
+/** Aligned labels are drawn this frame (in the rectangular column `ax` or on the radial circle `ar`): labels are aligned and their rows
+ *  (arcs) are far enough apart for the label density. */
+function alignedLabelsShown(S: Scene, ax: number, ar: number): boolean {
+  if (Number.isNaN(ax) && Number.isNaN(ar)) return false;
+  return labelPitch(S, ar) >= labelMinPx(S.density, S.theme.labelSize);
+}
+
+/** Leader lines of aligned labels: a dotted line from each tip (from the end of the triangle of a collapsed clade) to just before its label,
+ *  rectangular along the row, radial along the ray. Drawn for the tips that get a label (same density rule, cap and culling as drawLabels),
+ *  below the dots. Dimmed tips' leaders are drawn at dimOpacity. Batched into one path per chunk, as the branches are. */
 export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
-  const ax = alignedX(S);
-  if (Number.isNaN(ax)) return;
+  const ax = alignedX(S),
+    ar = alignedR(S);
+  if (!alignedLabelsShown(S, ax, ar)) return;
   const { proj, list, theme } = S;
-  const { T } = proj;
-  if (proj.tipPitch < labelMinPx(S.density, S.theme.labelSize)) return;
   const hasCollapsed = S.cladeText !== null && proj.L.collapsed !== null; // collapsed clades are labelled
-  const endX = ax + LABEL_GAP_PX - LEADER_END_GAP_PX;
-  const p: Pt = { x: 0, y: 0 };
+  const maxL = proj.kind === 'rectangular' ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
+  const a: Pt = { x: 0, y: 0 },
+    b: Pt = { x: 0, y: 0 };
   ctx.strokeStyle = theme.leaderColour || theme.muted;
   ctx.lineWidth = theme.leaderWidth;
   ctx.setLineDash(dashOf(theme.leaderDash));
@@ -972,17 +1052,15 @@ export function drawLeaders(ctx: CanvasRenderingContext2D, S: Scene): void {
     ctx.beginPath();
     let n = 0,
       labelled = 0;
-    for (let e = 0; e < list.count && labelled < MAX_RECT_LABELS; e++) {
+    for (let e = 0; e < list.count && labelled < maxL; e++) {
       const col = list.kind[e] !== K_TIP;
       if (col && !(hasCollapsed && isCollapsedEntry(S, e))) continue;
-      labelAnchor(S, e, col, p);
-      if (labelCulled(T, p.x, p.y, ax)) continue;
+      const got = leaderOf(S, e, col, ax, ar, a, b);
+      if (got === 0) continue;
       labelled++;
-      if (passes > 1 && dimmed(S, e) !== pass) continue;
-      const x0 = p.x;
-      if (x0 >= endX) continue; // at or past the column (pinned): nothing to lead over
-      ctx.moveTo(endX, p.y); // from the column leftward, so the dash pattern lines up at the labels
-      ctx.lineTo(x0, p.y);
+      if (got === 1 || (passes > 1 && dimmed(S, e) !== pass)) continue;
+      ctx.moveTo(a.x, a.y); // from the label back to the tip, so the dash pattern lines up at the labels
+      ctx.lineTo(b.x, b.y);
       if (++n >= STROKE_CHUNK) {
         ctx.stroke();
         ctx.beginPath();
@@ -1006,14 +1084,17 @@ function dashOf(v: string): number[] {
 }
 
 /** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay.
- *  Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
+ *  Aligned (`alignLabels`, a phylogram): rectangular, the text starts in one column (alignedX); radial, on one circle (alignedR), still
+ *  along the tip's ray. Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
  *  setTransform per label instead of save/translate/rotate/restore (cos/sin come from the layout cache). */
 export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList): void {
   const { proj, list, theme, classOf, colours, highlight } = S;
   const { tree, L, T } = proj;
   labels.clear();
   const rect = proj.kind === 'rectangular';
-  const pitch = proj.tipPitch;
+  const ax = alignedX(S); // NaN: labels follow their tips
+  const ar = alignedR(S);
+  const pitch = labelPitch(S, ar);
   const need = labelMinPx(S.density, S.theme.labelSize);
   if (pitch < need) return;
   const hasCollapsed = S.cladeText !== null && L.collapsed !== null; // collapsed clades are labelled
@@ -1025,7 +1106,6 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   ctx.textAlign = 'left';
   const p: Pt = { x: 0, y: 0 };
   const MAXL = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
-  const ax = rect ? alignedX(S) : NaN; // NaN: labels follow their tips
   const sc = S.scale;
   let lastFont = '';
   let lastFill = '';
@@ -1037,9 +1117,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     const i = list.node[e];
     const r = col ? -1 : tree.tipRank[i];
     labelAnchor(S, e, col, p);
-    if (rect) {
-      if (labelCulled(T, p.x, p.y, ax)) continue;
-    } else if (p.x < -50 || p.y < -50 || p.x > T.W + 50 || p.y > T.H + 50) continue;
+    if (rect ? labelCulled(T, p.x, p.y, ax) : radialLabelCulled(S, i, ar, p)) continue; // radial aligned: p is now on the circle
     const hl = col ? highlight !== null && holdsHighlight(S, i) : highlight ? highlight[r] === 1 : false;
     const f = hl ? fontH : fontN;
     if (f !== lastFont) {
@@ -1063,7 +1141,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.globalAlpha = alpha;
       lastAlpha = alpha;
     }
-    // aligned: the text starts at the column, which is right of every tip and every triangle
+    // aligned: the text starts at the column (the circle), which is right of (outside) every tip and every triangle, unless pinned
     const gap = LABEL_GAP_PX;
     const key = col ? -(i + 1) : r;
     if (rect) {

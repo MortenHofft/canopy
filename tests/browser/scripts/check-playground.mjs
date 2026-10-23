@@ -625,6 +625,23 @@ ok((await theme('leaderWidth')) === 2 && query().get('s.leaderWidth') === '2', '
 await page.locator('input[data-setting=leaderDash]').fill('4 2');
 await settled();
 ok((await theme('leaderDash')) === '4 2', 'the Leader dash text sets the token');
+// radial (#52): the labels start on one circle (the label's anchor plus its gap, from the root)
+const labelRadii = () =>
+  ev(() => {
+    const v = window.viewer,
+      L = v.labels;
+    return [...new Set([...Array(L.count).keys()].map((k) => Math.round(Math.hypot(L.x[k] - v.T.cx, L.y[k] - v.T.cy) + L.gap[k])))];
+  });
+await select('layout', 'radial');
+const radialAligned = await labelRadii();
+ok(
+  (await ev(() => window.viewer.labels.count)) > 5 && radialAligned.length === 1,
+  `radial with Align labels: the labels start on one circle (${radialAligned.join(', ')} px from the root)`,
+);
+await toggle('alignLabels', false);
+ok((await labelRadii()).length > 1, 'radial, off: the labels follow their tips');
+await toggle('alignLabels', true);
+await select('layout', 'rectangular');
 await toggle('alignLabels', false);
 ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');

@@ -37,6 +37,7 @@ const HEAD_H = 24; // room above the plot for column headers
 const FOOT_H = 36; // room below the plot for the axis
 const AUTO_FILL_TREE_MIN_PX = 240; // 'auto' with a fill column: the tree keeps at least this (room for its labels) before the half split
 const MIN_HEAD = 8; // top and (without an axis) bottom margin
+const RADIAL_LABEL_ROOM_FRAC = 0.2; // radial aligned labels keep at most this share of the smaller container side for their text
 
 /** What a ViewState reads of the world. Plain getters over the renderer's current values (read at call time, never cached). */
 export interface ViewEnv {
@@ -53,7 +54,7 @@ export interface ViewEnv {
   readonly maxViewWidth: number;
   /** The `treeWidth` option (rectangular). */
   readonly treeWidth: TreeWidth;
-  /** The `alignLabels` option (it acts only in a rectangular phylogram, see ViewState.alignsLabels). */
+  /** The `alignLabels` option (it acts only in a phylogram, see ViewState.alignsLabels). */
   readonly alignLabels: boolean;
   /** Container size in CSS px. */
   readonly W: number;
@@ -86,22 +87,23 @@ interface Anim {
   ms: number;
 }
 
-/** Radial: the fit view, the fan's bounding box (root included, radius 1) in the container with a margin for labels and the scale bar:
- *  `k` px per unit radius and the world point (cx, cy) at the container's centre. The whole circle is centred on the root; a fan with a
- *  large opening is framed by what it covers, so a half circle in a wide container gets about twice the scale. */
-export function radialFit(W: number, H: number, fan: RadialFan = FULL_FAN): { k: number; cx: number; cy: number } {
+/** Radial: the fit view, the fan's bounding box (root included, radius 1) in the container with a margin for labels and the scale bar,
+ *  plus `labelRoom` px on every side (aligned labels, see ViewState.radialLabelRoom): `k` px per unit radius and the world point (cx, cy)
+ *  at the container's centre. The whole circle is centred on the root; a fan with a large opening is framed by what it covers, so a half
+ *  circle in a wide container gets about twice the scale. */
+export function radialFit(W: number, H: number, fan: RadialFan = FULL_FAN, labelRoom = 0): { k: number; cx: number; cy: number } {
   const bb = new Float64Array(4);
   sectorBBox(0, 0, 0, 1, fan.start, fan.start + fan.span, bb);
   const bw = bb[2] - bb[0],
     bh = bb[3] - bb[1];
-  const m = 2 * RADIAL_FIT_MARGIN_PX;
+  const m = 2 * (RADIAL_FIT_MARGIN_PX + labelRoom);
   const k = Math.max(RADIAL_FIT_MIN_R_PX, Math.min((W - m) / Math.max(bw, 1e-6), (H - m) / Math.max(bh, 1e-6)));
   return { k, cx: (bb[0] + bb[2]) / 2, cy: (bb[1] + bb[3]) / 2 };
 }
 
 /** Radial: pixels per unit radius at the fit view (see radialFit). */
-export function radialFitScale(W: number, H: number, fan: RadialFan = FULL_FAN): number {
-  return radialFit(W, H, fan).k;
+export function radialFitScale(W: number, H: number, fan: RadialFan = FULL_FAN, labelRoom = 0): number {
+  return radialFit(W, H, fan, labelRoom).k;
 }
 
 export class ViewState {
@@ -134,9 +136,17 @@ export class ViewState {
     this.maxChars = -1;
   }
 
-  /** Labels are drawn in one column right of the farthest tip (rectangular phylogram with `alignLabels`). */
+  /** Labels are aligned: in one column right of the farthest tip, or radial on one circle outside it (a phylogram with `alignLabels`). */
   alignsLabels(): boolean {
-    return this.env.alignLabels && this.env.layout === 'rectangular' && this.env.L.usedLengths;
+    return this.env.alignLabels && this.env.L.usedLengths;
+  }
+
+  /** Radial with aligned labels: the room (px) kept for their text outside the circle they start on, at the fit (on every side) and when
+   *  the circle is pinned (see alignedR in draw.ts): the rectangular label reserve, at most RADIAL_LABEL_ROOM_FRAC of the smaller container
+   *  side. 0 otherwise. */
+  radialLabelRoom(): number {
+    if (this.env.layout !== 'radial' || !this.alignsLabels()) return 0;
+    return Math.min(this.labelReserve(), RADIAL_LABEL_ROOM_FRAC * Math.min(this.env.W, this.env.H));
   }
 
   /** Room right of the tips for labels: from the longest label, capped (rectangular layout). */
@@ -193,7 +203,7 @@ export class ViewState {
       const rows = this.env.rowHeight ? a.ah / this.env.rowHeight : this.env.L.rows;
       return { x0: 0, x1: 1, y0: 0, y1: Math.max(1, rows) };
     }
-    const { k, cx, cy } = radialFit(this.env.W, this.env.H, this.env.L.fan);
+    const { k, cx, cy } = radialFit(this.env.W, this.env.H, this.env.L.fan, this.radialLabelRoom());
     return { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
   }
 
@@ -221,7 +231,7 @@ export class ViewState {
       return { x0, x1: x0 + w, y0, y1: y0 + h };
     }
     const fan = this.env.L.fan;
-    const kfit = radialFitScale(this.env.W, this.env.H, fan);
+    const kfit = radialFitScale(this.env.W, this.env.H, fan, this.radialLabelRoom());
     let k = a.aw / (v.x1 - v.x0);
     // outer-circle arc between neighbouring tips = k * span / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
     // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)

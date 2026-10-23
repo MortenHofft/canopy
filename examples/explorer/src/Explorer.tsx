@@ -1244,15 +1244,12 @@ export function Explorer({
         {phylogram && tree.hasLengths && (
           <button
             type="button"
-            className={`ex-btn ex-toggle${alignLabels && layout === 'rectangular' ? ' active' : ''}`}
-            aria-pressed={alignLabels && layout === 'rectangular'}
-            disabled={layout === 'radial'}
+            className={`ex-btn ex-toggle${alignLabels ? ' active' : ''}`}
+            aria-pressed={alignLabels}
             title={
-              layout === 'radial'
-                ? 'Aligned labels need the rectangular layout for now (#52 would add them to the circular one)'
-                : alignLabels
-                  ? 'Labels follow their tips'
-                  : 'Align leaf labels in one column, with leader lines'
+              alignLabels
+                ? 'Labels follow their tips'
+                : `Align leaf labels ${layout === 'radial' ? 'on one circle' : 'in one column'}, with leader lines`
             }
             onClick={() => setAlignLabels((a) => !a)}
           >

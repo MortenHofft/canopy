@@ -10,8 +10,8 @@
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
-// node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu;
-// disabled in radial); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
+// node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
+// radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included.
 /* global __v, __order, __tipAt, __clade, __inView -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
@@ -1874,13 +1874,37 @@ await page.locator('button[title=Circular]').click();
 await page.waitForTimeout(200);
 {
   const al = page.locator('.ex-outer button', { hasText: /^\s*Align\s*$/ });
+  // the distances from the root of the label anchors (their translate is the label's place, the vertical centre at half their height)
+  const anchorRadii = () =>
+    ev(() => {
+      const T = __v().T;
+      return [...document.querySelectorAll('.phylo-tree [data-tip-id]')]
+        .filter((a) => a.style.display !== 'none' && !a.style.transform.includes('-9999px'))
+        .map((a) => {
+          const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(a.style.transform);
+          return Math.round(Math.hypot(Number(m[1]) - T.cx, Number(m[2]) + parseFloat(a.style.height) / 2 - T.cy));
+        });
+    });
+  ok(await al.isEnabled(), 'Align is enabled in the circular layout (#52)');
+  const ragged = await anchorRadii();
+  ok(ragged.length > 5 && new Set(ragged).size > 3, `circular: the label anchors follow their tips (${new Set(ragged).size} distances)`);
+  await al.click();
+  await page.waitForTimeout(400);
+  const radii = await anchorRadii();
   ok(
-    (await al.isDisabled()) && (await al.getAttribute('title')).includes('#52'),
-    'Align is disabled in the circular layout, and the tooltip says why',
+    radii.length > 5 && new Set(radii).size === 1 && (await al.getAttribute('aria-pressed')) === 'true',
+    `Align in circular: the label anchors are at one distance from the root (${radii.length} anchors at ${radii[0]} px)`,
   );
+  const sameRadial = await screenVsBlob();
+  ok(
+    sameRadial.w && sameRadial.painted > 500 && sameRadial.diff === 0,
+    `Align in circular: toBlob equals the screen, leaders included (${sameRadial.painted} painted pixels, ${sameRadial.diff} differ)`,
+  );
+  await al.click();
+  await page.waitForTimeout(300);
+  ok(new Set(await anchorRadii()).size > 3, 'Align off: the circular labels follow their tips again');
   await page.locator('button[title=Rectangular]').click();
   await page.waitForTimeout(200);
-  ok(await al.isEnabled(), 'and enabled again in the rectangular one');
 }
 
 // ---------------------------------------------------------------- overview and legend

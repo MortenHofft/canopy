@@ -101,6 +101,13 @@ function checkThemeObserver(m: unknown): void {
     throw new RangeError(`themeObserver must be 'media', 'document' or 'none', not ${JSON.stringify(m)}`);
 }
 
+/** `setOptions` changes in `p` (over the options `o`), besides the layout and branch lengths, that change the fit view: the axis, the row
+ *  height, the tree width, and in the radial layout `alignLabels` (the fit keeps room for labels outside the circle). */
+function refitsView(p: Partial<ViewerOptions>, o: ViewerOptions): boolean {
+  const changes = <K extends keyof ViewerOptions>(k: K) => p[k] !== undefined && p[k] !== o[k];
+  return changes('axis') || changes('rowHeight') || changes('treeWidth') || (changes('alignLabels') && (p.layout ?? o.layout) === 'radial');
+}
+
 /** What `new TreeViewer(...)` takes. One of `tree` and `source` is needed; `source` wins. */
 export interface TreeViewerInit {
   /** The element the viewer fills: it appends its root there and follows its size (ResizeObserver). Give it a size. */
@@ -921,12 +928,7 @@ export class TreeViewer {
     const changed = Object.keys(p) as (keyof ViewerOptions)[];
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
-    const refit =
-      lengthsChanged ||
-      layoutChanged ||
-      (p.axis !== undefined && p.axis !== o.axis) ||
-      (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight) ||
-      (p.treeWidth !== undefined && p.treeWidth !== o.treeWidth);
+    const refit = lengthsChanged || layoutChanged || refitsView(p, o);
     // the pooled label elements take their text (formatLabel) and link (tipHref) when they are created, so a change of either rebuilds them
     const labelsChanged = (p.tipHref !== undefined && p.tipHref !== o.tipHref) || (p.formatLabel !== undefined && p.formatLabel !== o.formatLabel);
     this.opts = { ...o, ...p };
@@ -968,11 +970,12 @@ export class TreeViewer {
   }
 
   /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
-   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before, and the cursor
-   *  is announced again. */
+   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before (a zoomed view is
+   *  only clamped to the new limits), and the cursor is announced again. */
   private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
     if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
       this.fit(false);
+    else this.reclampView(); // a zoomed view keeps its window within the limits, which are relative to the fit (radial: alignLabels moves it)
     if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
 
@@ -1940,6 +1943,7 @@ export class TreeViewer {
       hlPrefix: dimming ? this.dimPrefix() : null,
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
+      labelRoom: vs.radialLabelRoom(),
       format: opts.formatLabel,
       cladeText: (row) => this.cladeText(row),
       nodeLabels: opts.nodeLabels,
@@ -2112,14 +2116,10 @@ export class TreeViewer {
   }
 
   private queryHit(x: number, y: number): Hit | null {
-    // a label under the pointer is a tip hit (rectangular text; radial labels are matched by their box centre line)
+    // a label under the pointer (its text box; radial, turned along its ray) is a tip hit
     const L = this.labels;
-    if (this.T.kind === 'rectangular') {
-      for (let k = 0; k < L.count; k++) {
-        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2)
-          return L.rank[k] >= 0 ? { node: this.tree.tipNode[L.rank[k]], kind: 'tip' } : { node: -L.rank[k] - 1, kind: 'summary' }; // a collapsed clade's label is the clade
-      }
-    }
+    const k = L.at(x, y, this.T.kind === 'rectangular');
+    if (k >= 0) return L.rank[k] >= 0 ? { node: this.tree.tipNode[L.rank[k]], kind: 'tip' } : { node: -L.rank[k] - 1, kind: 'summary' }; // a collapsed clade's label is the clade
     return this.hit.query(x, y, this.proj);
   }
 

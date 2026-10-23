@@ -355,9 +355,9 @@ export interface ViewerOptions {
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
   labelDensity: LabelDensity;
-  /** Rectangular phylogram: draw every tip label in one column right of the farthest tip, with a leader line (theme `leaderColour`,
-   *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
-   *  without branch lengths or in the radial layout. */
+  /** Phylogram: draw every tip label in one column right of the farthest tip (radial: on one circle just outside the outermost tip),
+   *  with a leader line (theme `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram
+   *  (the tips already end at one x or radius) or in a tree without branch lengths. */
   alignLabels: boolean;
   /** Hovering a tip, clade or summary also highlights its path to the root (every branch and connector on the way); with nothing
    *  hovered, the keyboard cursor's path is shown. How it looks is the theme's `hoverPathColour` and `hoverPathWidth`. */
