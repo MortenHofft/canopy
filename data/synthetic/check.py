@@ -20,7 +20,7 @@ import sys
 
 TOKEN = re.compile(r"[(),;]|[^(),;\s]+")
 NAME = re.compile(r"^(yule|birthdeath|balanced|caterpillar|bushy|mixed)_(\d+)(_nobl|_ids|_support|_bootstrap|_nodenames)?\.nwk$")
-POLY = re.compile(r"^(polytomy_demo|polytomy_mixed)_(\d+)(_support)?\.nwk$")   # make_polytomy*.py
+POLY = re.compile(r"^(polytomy_demo|polytomy_mixed|radial_depth)_(\d+)(_support)?\.nwk$")   # make_polytomy*.py, make_radial_depth.py
 LABEL_KIND = {"_support": "support", "_bootstrap": "support_percent", "_nodenames": "names"}
 BINOMIAL = re.compile(r"^[A-Z][a-z]+_[a-z]+$")
 COMMIT_RAW_MAX, COMMIT_GZ_MAX = 1000, 10000   # 10k: the main (no-suffix) files and GZ_VARIANTS, gzipped
@@ -181,6 +181,13 @@ def check_polytomy(n, suf, st):
     check_support(suf, st)
 
 
+def check_radial_depth(n, suf, st):
+    expect(st["tips"] == n and suf == "_support", "tip count %d != %d" % (st["tips"], n))
+    expect(st["branch_lengths"] and st["polytomies"] > 0, "expected branch lengths and polytomies")
+    check_support(suf, st)
+    expect(20 <= st["max_degree"] <= 90, "max degree %d" % st["max_degree"])
+
+
 def check_shape(shape, n, suf, st):
     expect(st["tips"] == n, "tip count %d != %d" % (st["tips"], n))
     expect(st["tip_labels"] == ("ids" if suf == "_ids" else "species"), "tip label kind " + st["tip_labels"])
@@ -222,7 +229,7 @@ def file_entry(rel, data, gzpath):
 
 def storage(f, shape, n, suf):
     """How a file is kept: committed raw or gzipped, or generated on demand (see README)."""
-    if shape.startswith("polytomy"):
+    if shape.startswith("polytomy") or shape == "radial_depth":
         return "gz"
     if n <= COMMIT_RAW_MAX:
         return "raw"
@@ -239,7 +246,9 @@ def check_newick(nd, f):
     expect(text.endswith(";\n") and text.count("\n") == 1, f + ": expected one line ending in ';'")
     try:
         st, _ = scan_newick(text)
-        if shape.startswith("polytomy"):
+        if shape == "radial_depth":
+            check_radial_depth(n, suf, st)
+        elif shape.startswith("polytomy"):
             check_polytomy(n, suf, st)
         else:
             check_shape(shape, n, suf, st)
