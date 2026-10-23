@@ -316,10 +316,23 @@ ok(
 );
 await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
-// only the arc counts (#87): at the fit, hardly a clade of this tree spans less than 20 px along the arc, so raise it for summaries
-await ev(() => window.viewer.setOptions({ minCladePx: 60 }));
-await settled(); // the frame with the new threshold, before reading its pixels
+// the level of detail folds nothing where the tips have room for dots (#109), and the tree's fit is such a view: collapse a few clades
+// of the tree by hand to get summaries
+await ev(() => {
+  const t = window.viewer.getTree();
+  const ids = [];
+  for (let i = 1; i < t.nodeCount && ids.length < 6; i++) {
+    const c = t.leafEnd[i] - t.leafStart[i];
+    if (t.firstChild[i] >= 0 && c >= 8) {
+      ids.push(i);
+      i = t.subtreeEnd[i] - 1;
+    }
+  }
+  window.viewer.setCollapsed(ids);
+});
+await settled();
 ok((await redPixels()) > 100, 'radial: the same look');
+await ev(() => window.viewer.setCollapsed([]));
 await select('layout', 'rectangular');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
 await setInput('summary', summaryColour);

@@ -21,6 +21,15 @@ export function resolveSize(v: FontRelative, labelSize: number): number {
   return m ? Math.round(Number(m[1]) * labelSize) : NaN;
 }
 
+/** Tip dots are drawn when rows (radial: the arc between tips) are at least this many px. */
+export const TIP_DOT_PX = 6;
+/** The most the level of detail collapses by (px) while the draw list fits its budget, once tips have dots: the tip pitch, less a hair (a
+ *  one-row clade is the pitch tall up to rounding, and the cut folds a clade *under* the threshold). Folding a clade next to tips drawn with
+ *  dots and labels saves nothing at such a zoom, a window holds a few hundred rows at most (#109). Infinity before that, and with `lod` off. */
+export function collapseCap(tipPitch: number, lod: boolean): number {
+  return lod && tipPitch >= TIP_DOT_PX ? tipPitch * (1 - 1e-4) : Infinity;
+}
+
 /** A px constant measured at `REF_LABEL_SIZE`, for font size `labelSize` (exactly the constant at the reference size). */
 export function scaledPx(px: number, labelSize: number): number {
   return (px * labelSize) / REF_LABEL_SIZE;

@@ -56,6 +56,7 @@ function capture(c, fan) {
     budget: c.opts.budget,
     summaries: true,
     hint: 0,
+    cap: Infinity,
   });
   const entries = [];
   for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);

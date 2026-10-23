@@ -4,7 +4,7 @@
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
 import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
-import { labelMinPx } from './sizes.ts';
+import { labelMinPx, TIP_DOT_PX } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
 import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import type { LabelDensity, RadialRings, TreeTheme } from './types.ts';
@@ -97,7 +97,6 @@ const FILL_CHUNK = 32; // fans per fill() call, same reason
 const MAX_RADIAL_STRIPES = 256; // rays per fan: a fan zoomed far past the screen draws every 2nd, 4th, ... ray of its grid, not more of them
 const MAX_PITCH_GAPS = 8; // stripes further apart than this many gaps (a few hidden tips over a tall summary) are not drawn: the summary gets their mean tone
 const STRIPE_PX = 1; // line width of the stripes: hairlines, thinner than any branch, so they read as a texture and not as branches
-const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
 

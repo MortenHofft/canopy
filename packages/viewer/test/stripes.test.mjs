@@ -379,7 +379,10 @@ test('the overview strip stripes a summary with room for stripes (a polytomy ban
 });
 
 test('one stripe per hidden tip when the rows are wider than the gap (not one per gap)', async () => {
-  const m = await make('rectangular', { minCladePx: 100 }, balanced(3), { theme: { summaryStripeGap: 6 } }); // 8 tips, 37 px rows: the cherries are 75 px summaries
+  // 8 tips, 37 px rows: the cherries, collapsed by the app (the level of detail folds nothing at rows this tall, #109), are 75 px summaries
+  const m = await make('rectangular', {}, balanced(3), { theme: { summaryStripeGap: 6 } });
+  m.viewer.setCollapsed([2, 5, 9, 12]);
+  m.env.flush();
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 2, 'a cherry has two hidden tips, so two stripes');
@@ -428,10 +431,11 @@ test('radial: a fan with more than 256 rays in view draws every 2nd, 4th, ... ra
 test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary gets their tone', async () => {
   const sparse = `(${poly(10, 'p')}P,${poly(10, 'q')}Q)r;`;
   const m = await makeViewer(sparse, {
-    options: { layout: 'radial', minCladePx: 3000 },
+    options: { layout: 'radial' },
     theme: THEME,
     size: [500, 500],
   });
+  m.viewer.setCollapsed([1, 12]); // the polytomies, collapsed by the app: the level of detail folds nothing where tips are this far apart (#109)
   m.env.flush();
   assert.ok(m.viewer.getStats().summaries >= 2, 'the polytomies are summarised');
   assert.equal(stripes(m.ctx()).length, 0);
@@ -591,7 +595,9 @@ test('rectangular: zooming a summary across the eight-gap limit keeps its darkne
 });
 
 test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {
-  const m = await make('radial', { minCladePx: 4000 }, balanced(3), { theme: { summaryStripeGap: 24 } });
+  const m = await make('radial', {}, balanced(3), { theme: { summaryStripeGap: 24 } });
+  m.viewer.setCollapsed([1, 8]); // the two clades of four tips (the level of detail folds nothing at this pitch, #109)
+  m.env.flush();
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 4, 'a clade of four tips: four rays');
