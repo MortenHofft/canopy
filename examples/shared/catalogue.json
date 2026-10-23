@@ -103,6 +103,12 @@
       "path": "synthetic/newick/polytomy_mixed_22800_support.nwk.gz",
       "format": "newick",
       "nodes": 37600
+    },
+    "syn-radial-depth-2554": {
+      "label": "Radial depth test (2,554 tips, support: crowded at 30%, mid at 60%, spaced at 100% of the radius)",
+      "path": "synthetic/newick/radial_depth_2554_support.nwk.gz",
+      "format": "newick",
+      "nodes": 3877
     }
   },
   "large": {

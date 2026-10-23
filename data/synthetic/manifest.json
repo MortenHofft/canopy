@@ -45,6 +45,8 @@
  "newick/balanced_10000.nwk": {
   "branch_lengths": true,
   "bytes": 418296,
+  "gz_bytes": 61341,
+  "gz_sha256_gzip9n": "861337d929d6c1b2755df692e15d3f294a258fc48791452b63b18b3a426e086e",
   "internal_labels": "none",
   "internal_nodes": 9999,
   "max_degree": 2,
@@ -343,6 +345,8 @@
  "newick/birthdeath_10000.nwk": {
   "branch_lengths": true,
   "bytes": 414614,
+  "gz_bytes": 147714,
+  "gz_sha256_gzip9n": "8a6a993fa5f727f510b34736b5aaddc28a9cdee458014e77459e3671d043d6db",
   "internal_labels": "none",
   "internal_nodes": 9999,
   "max_degree": 2,
@@ -641,6 +645,8 @@
  "newick/bushy_10000.nwk": {
   "branch_lengths": true,
   "bytes": 351405,
+  "gz_bytes": 59839,
+  "gz_sha256_gzip9n": "4b8caba69cfec403808bd8be67b4754e92cd5740c8cd11451725f453dd77a493",
   "internal_labels": "none",
   "internal_nodes": 3995,
   "max_degree": 20,
@@ -939,6 +945,8 @@
  "newick/caterpillar_10000.nwk": {
   "branch_lengths": true,
   "bytes": 420924,
+  "gz_bytes": 124805,
+  "gz_sha256_gzip9n": "e77910a773b9924515bebfd5c1640ab4b79320cfedba322749143ea35de9d973",
   "internal_labels": "none",
   "internal_nodes": 9999,
   "max_degree": 2,
@@ -1075,6 +1083,8 @@
  "newick/caterpillar_10000_support.nwk": {
   "branch_lengths": true,
   "bytes": 460920,
+  "gz_bytes": 138352,
+  "gz_sha256_gzip9n": "9785763df359cbbba0a01648b3f98aea680370a4a68f663394771ff228173b4c",
   "internal_labels": "support",
   "internal_nodes": 9999,
   "max_degree": 2,
@@ -1271,6 +1281,8 @@
  "newick/mixed_10000.nwk": {
   "branch_lengths": true,
   "bytes": 405544,
+  "gz_bytes": 130884,
+  "gz_sha256_gzip9n": "dffa7987af7cd12be55a8748609fb7dece5e2c516691e5fa4ab6ea4e357bda15",
   "internal_labels": "none",
   "internal_nodes": 9411,
   "max_degree": 18,
@@ -1609,6 +1621,28 @@
   "ultrametric": false,
   "variant": "_support"
  },
+ "newick/radial_depth_2554_support.nwk": {
+  "branch_lengths": true,
+  "bytes": 59511,
+  "gz_bytes": 17034,
+  "gz_sha256_gzip9n": "3c35ba91fd6811036e6a065856c026a90453e962306c7cf833b2e36000e9bf48",
+  "internal_labels": "support",
+  "internal_nodes": 1323,
+  "max_degree": 74,
+  "max_depth": 15,
+  "nodes": 3877,
+  "polytomies": 31,
+  "sha256": "72e8529bb4eff1fecf4df8b298b083d581fc70bc5925df72774a7d6dcbe98e7b",
+  "shape": "radial_depth",
+  "storage": "gz",
+  "support_below_0_7": 0.342,
+  "support_max": 1.0,
+  "support_min": 0.0,
+  "tip_labels": "other",
+  "tips": 2554,
+  "ultrametric": false,
+  "variant": "_support"
+ },
  "newick/yule_1000.nwk": {
   "branch_lengths": true,
   "bytes": 41755,
@@ -1629,6 +1663,8 @@
  "newick/yule_10000.nwk": {
   "branch_lengths": true,
   "bytes": 416018,
+  "gz_bytes": 149065,
+  "gz_sha256_gzip9n": "5ffb02d05d00b33bb4aa56b44ecc58ad4a0bb8e9921f1d6cc3954e79f4ed80b6",
   "internal_labels": "none",
   "internal_nodes": 9999,
   "max_degree": 2,
@@ -1873,6 +1909,8 @@
  "newick/yule_10000_support.nwk": {
   "branch_lengths": true,
   "bytes": 456014,
+  "gz_bytes": 163510,
+  "gz_sha256_gzip9n": "4a89f230317b8c92eca17689782c1c2c4c2e2b105a5423fb98f692f4f20d043f",
   "internal_labels": "support",
   "internal_nodes": 9999,
   "max_degree": 2,
