@@ -83,6 +83,7 @@ await open();
 ok((await page.locator('#tree-info').innerText()).startsWith('135 tips'), 'the default tree is loaded (135 tips)');
 ok(query().get('tree') === 'rich-fish-carangaria-135' && [...query().keys()].length === 1, 'the URL holds only the tree while everything is default');
 ok((await page.locator('.setting.changed').count()) === 0, 'no setting marked as changed');
+ok((await opt('drawBudget')) === 'auto' && (await opt('radialMaxNodes')) === 'auto', "the draw budgets default to 'auto' (#114)");
 ok((await page.locator('.phylo-zoom').count()) === 1 && (await page.locator('.phylo-search').count()) === 1, 'default controls: zoom, fit, search');
 
 console.log('options');
@@ -92,6 +93,10 @@ await select('drawBudget', '2000');
 ok((await opt('drawBudget')) === 2000, 'numeric select → a number');
 await select('radialMaxNodes', 'Infinity');
 ok((await opt('radialMaxNodes')) === Infinity, "'Infinity' → Infinity");
+await select('drawBudget', 'auto');
+await select('radialMaxNodes', 'auto');
+ok((await opt('drawBudget')) === 'auto' && (await opt('radialMaxNodes')) === 'auto', "'auto' → the string (the adaptive budgets, #114)");
+ok(!query().has('s.drawBudget') && !query().has('s.radialMaxNodes'), "and 'auto' is the default, so out of the URL again");
 await select('layout', 'rectangular');
 await select('rowHeight', '12');
 ok((await opt('rowHeight')) === 12, 'row height 12');

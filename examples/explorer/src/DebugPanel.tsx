@@ -38,7 +38,7 @@ function sample(v: TreeViewer) {
 /** A number to `d` decimals, or to 4 significant digits below 1 (a pitch of 0.003 px); `full` for the viewport, which is restored exactly. */
 const n = (x: number, d = 2) => (!Number.isFinite(x) ? String(x) : Math.abs(x) < 1 && x !== 0 ? String(+x.toPrecision(4)) : String(+x.toFixed(d)));
 const full = (x: number) => String(+x.toPrecision(12));
-const int = (x: number) => (Number.isFinite(x) ? Math.round(x).toLocaleString('en') : String(x));
+const int = (x: number | string) => (typeof x === 'string' ? x : Number.isFinite(x) ? Math.round(x).toLocaleString('en') : String(x));
 const treeText = (t: TreeName) => ('file' in t ? `file "${t.file}"` : `${t.label} (${t.id})`);
 
 /** The view in force, written down to be restored (debug.ts SavedView). */
@@ -132,7 +132,7 @@ function rowsOf(p: Sample, tree: TreeName, collapsed: number): [string, React.Re
   const vp = p.viewport;
   const rect = o.layout === 'rectangular';
   const budgetOpt =
-    !rect && Number.isFinite(o.radialMaxNodes)
+    !rect && o.radialMaxNodes !== Infinity
       ? `drawBudget ${int(o.drawBudget)}, radialMaxNodes ${int(o.radialMaxNodes)}`
       : `drawBudget ${int(o.drawBudget)}`;
   return [
@@ -149,7 +149,10 @@ function rowsOf(p: Sample, tree: TreeName, collapsed: number): [string, React.Re
       'frame',
       `#${s.frames} · ${n(s.frameMs)} ms (cut ${n(s.cutMs)}) · visited ${int(s.visited)} · list ${int(s.listLength)}${s.reduced ? ' · reduced (moving)' : ''}`,
     ],
-    ['minPx', `${n(s.minPxUsed)} used / minCladePx ${n(o.minCladePx)}`],
+    [
+      'minPx',
+      `${n(s.minPxUsed)} used / minCladePx ${n(o.minCladePx)}${Number.isFinite(s.minPxLimit) ? ` · limit ${n(s.minPxLimit)} (4° wedge)${s.minPxUsed > s.minPxLimit ? ', passed: the budget wins' : ''}` : ''}`,
+    ],
     ['budget', `${int(s.budget)} / ${budgetOpt} · ${s.budgetHit ? 'hit' : 'not hit'} · retries ${s.budgetRetries} · forced ${int(s.forced)}`],
     ['lod', `lod ${o.lod} · interactionLOD ${String(o.interactionLOD)} · showSummaries ${o.showSummaries}`],
   ];

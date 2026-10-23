@@ -182,7 +182,8 @@ const Pane = forwardRef<PaneApi, { index: number }>(function Pane({ index }, ref
             focus={s.focus}
             width={o.size.width}
             height={o.size.height}
-            options={{ softwareCanvas: CPU, ariaLabel: `Phylogenetic tree, ${s.tree.tipCount} tips` }}
+            // fixed budgets: the checks and benchmarks count primitives against them ('auto' moves the budget, and is checked in check-explorer)
+            options={{ softwareCanvas: CPU, drawBudget: 20000, radialMaxNodes: 2000, ariaLabel: `Phylogenetic tree, ${s.tree.tipCount} tips` }}
             controls={NO_CONTROLS}
             onTipClick={(ev) => emit(ev, false)}
             onNodeClick={(ev) => emit(ev, false)}

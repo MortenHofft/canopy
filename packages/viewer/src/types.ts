@@ -352,7 +352,10 @@ export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
-  drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
+  /** Most primitives drawn per frame; the collapse threshold is raised until the cut fits. A number is fixed. `'auto'` (the default) follows
+   *  the machine: it starts at 20,000 and is kept where a frame takes about 25 ms (see the budget section of the internals doc), between 500
+   *  and 200,000 and no higher than the canvas can show. `FrameStats.budget` is the value in force. */
+  drawBudget: number | 'auto';
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
   labelDensity: LabelDensity;
   /** Phylogram: draw every tip label in one column right of the farthest tip (radial: on one circle just outside the outermost tip),
@@ -441,8 +444,10 @@ export interface ViewerOptions {
    *  age along the middle of the opening where there is room. Default 'none'. */
   radialRings: RadialRings;
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
-   *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
-  radialMaxNodes: number;
+   *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. `'auto'` (the
+   *  default) follows the machine like `drawBudget: 'auto'` (starts at 2,000, 100 to 200,000), and keeps summary wedges within 4 degrees
+   *  (arc at the outermost ring) unless frames are slower than the target. A number is fixed. */
+  radialMaxNodes: number | 'auto';
   /** Reduced frames while the view moves (wheel, pinch, drag, animation): a quarter of the budget (min 500) and a coarser collapse
    *  threshold, then one full-quality frame after `refineMs` without input. Hit-testing always settles to a full-quality frame first.
    *  `'auto'` (default): full quality while moving, reduced only when the full-quality frames get slow (their JS time, smoothed over
@@ -457,7 +462,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   layout: 'rectangular',
   branchLengths: true,
   lod: true,
-  drawBudget: 20000,
+  drawBudget: 'auto',
   showSummaries: true,
   labelDensity: 'normal',
   alignLabels: false,
@@ -484,7 +489,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   radialOpening: 0.05,
   radialRotation: 90,
   radialRings: 'none',
-  radialMaxNodes: 2000,
+  radialMaxNodes: 'auto',
   interactionLOD: 'auto',
   refineMs: 120,
   summaryNotice: true,
@@ -529,7 +534,8 @@ export interface FrameStats {
   budgetHit: boolean;
   truncated: boolean; // even the highest threshold overflowed (list was cut)
   frames: number; // total frames rendered so far
-  budget: number; // primitive budget in force for this frame (radial: the cut-off; reduced while interacting)
+  budget: number; // primitive budget in force for this frame (radial: the cut-off; reduced while interacting). With 'auto' the adaptive value; a radial list may exceed it (`drawn` > `budget`) where the 4 degree wedge limit holds
+  minPxLimit: number; // radial with radialMaxNodes 'auto': the threshold (px) the budget may not raise `minPxUsed` above, the arc of 4 degrees at the outermost ring; Infinity when no limit is in force (a number budget, rectangular, a reduced frame, or frames over the target)
   forced: number; // summary fans that the normal threshold would have expanded (clades summarised because of the budget)
   summaryTips: number; // tips inside the drawn summaries
   mergedTips: number; // tips of primitives not emitted because they land on the same pixel cells as an earlier one
