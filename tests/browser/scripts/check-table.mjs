@@ -313,7 +313,7 @@ ok(
   `a file: 5 tips, the sample columns (${hs.join(', ')})`,
 );
 ok(
-  !new URL(page.url()).searchParams.has('tree') && (await page.locator('#tree-select').inputValue()) === '__file',
+  !new URL(page.url()).searchParams.has('tree') && (await page.locator('#tree-select').inputValue()) === '__file-shown',
   'no tree in the URL; the picker shows the file',
 );
 

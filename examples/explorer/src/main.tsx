@@ -59,6 +59,7 @@ function App() {
         <TreePicker
           groups={GROUPS}
           value={'id' in pick ? pick.id : null}
+          fileName={'file' in pick ? pick.file.name : undefined}
           onTree={(id) => setPick({ id })}
           onFile={(file) => setPick({ file, key: `file:${++files}` })}
         />

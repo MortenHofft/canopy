@@ -82,19 +82,17 @@ let scroller: RowScroller | null = null;
 let header: HeaderRow | null = null;
 let collapsed: number[] = [];
 
-// the fields and columns are the new source's, so a new tree starts from its defaults
-treePicker($<HTMLSelectElement>('#tree-select'), $<HTMLInputElement>('#tree-file'), GROUPS, treeId, {
+// a new tree starts from its own fields and columns: the tree and the zones change when it has loaded, so a failed load keeps both
+const picker = treePicker($<HTMLSelectElement>('#tree-select'), $<HTMLInputElement>('#tree-file'), GROUPS, treeId, {
   onTree(id) {
-    treeId = id;
-    zones = new Map();
-    void load(loadTable(id), TREES[id].label);
+    void load(loadTable(id), TREES[id].label, id);
   },
   onFile(file) {
-    treeId = null;
-    zones = new Map();
-    void load(loadTableFile(file), file.name);
+    void load(loadTableFile(file), file.name, null);
   },
 });
+/** The name of the file shown (treeId null), for the picker after a failed load. */
+let fileName = '';
 
 const rowInput = $<HTMLInputElement>('#row-height');
 const fontInput = $<HTMLInputElement>('#font-size');
@@ -312,17 +310,23 @@ frame.addEventListener('pointerleave', () => (hoverRow.textContent = 'Hover a ro
 
 let loads = 0;
 
-async function load(p: Promise<TableData>, name: string): Promise<void> {
+/** Load a table and show it; `id` is the tree of the list (null: a file named `name`), which goes into the URL once it is shown. */
+async function load(p: Promise<TableData>, name: string, id: string | null): Promise<void> {
   const ticket = ++loads;
   $('#status').textContent = `Loading ${name}…`;
   let next: TableData;
   try {
     next = await p;
   } catch (err) {
-    if (ticket === loads) $('#status').textContent = `${name}: ${(err as Error).message}`;
+    if (ticket !== loads) return;
+    $('#status').textContent = `${name}: ${(err as Error).message}`;
+    picker.show(treeId, fileName); // the list names the tree still shown
     return;
   }
   if (ticket !== loads) return; // a later choice won
+  if (data) zones = new Map(); // not on the first load, whose zones are the URL's
+  treeId = id;
+  if (id === null) fileName = name;
   data = next;
   collapsed = [];
   if (!viewer) create();
@@ -375,4 +379,4 @@ function create(): void {
   (window as unknown as { __table: () => TreeViewer | null }).__table = () => viewer;
 }
 
-void load(loadTable(firstTree), TREES[firstTree].label);
+void load(loadTable(firstTree), TREES[firstTree].label, firstTree);

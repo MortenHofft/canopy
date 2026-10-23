@@ -131,7 +131,19 @@ await page
   .setInputFiles({ name: 'mine.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a:1,b:2):1,(c:1,(d:1,e:1):2):1);') });
 await drawn('mine.nwk');
 ok((await state()).tips === 5 && (await inked()) > 100, 'a file of one’s own draws (5 tips)');
-ok(!query().has('tree') && (await page.locator('#tree-select').inputValue()) === '__file', 'no tree in the URL; the picker shows the file');
+ok(!query().has('tree') && (await page.locator('#tree-select').inputValue()) === '__file-shown', 'no tree in the URL; the picker shows the file');
+// the file option in the list opens the file dialog every time, and the same file loads again (the list names the file shown)
+for (const round of [1, 2]) {
+  await page.evaluate(() => (window.__before = window.__unrooted));
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.selectOption('#tree-select', '__file')]);
+  await chooser.setFiles({ name: 'small.nwk', mimeType: 'text/plain', buffer: Buffer.from('(p:1,(q:1,r:1):1);') });
+  await page.waitForFunction(() => window.__unrooted && window.__unrooted !== window.__before && window.__unrooted.tree === 'small.nwk');
+  const sel = await page.locator('#tree-select').evaluate((s) => [s.value, s.selectedOptions[0].textContent]);
+  ok(
+    (await state()).tips === 3 && sel[0] === '__file-shown' && sel[1] === 'small.nwk',
+    `the file option opens the file dialog, the file draws and the list names it (${round === 1 ? 'first time' : 'the same file again'})`,
+  );
+}
 await page.locator('#tree-file').setInputFiles({ name: 'big.nwk', mimeType: 'text/plain', buffer: Buffer.from(nwk(13000)) });
 await page.waitForFunction(() => document.querySelector('#info').classList.contains('over-limit'));
 ok(

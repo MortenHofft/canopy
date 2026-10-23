@@ -38,7 +38,7 @@ const limit = limitOf(q.get('limit'));
 
 function limitOf(v: string | null): number {
   const n = Number(v);
-  if (v === null || !Number.isFinite(n) || n < 0) return NODE_LIMIT;
+  if (v === null || v.trim() === '' || !Number.isFinite(n) || n < 0) return NODE_LIMIT; // ?limit= alone is not 0
   return n === 0 ? Infinity : n;
 }
 

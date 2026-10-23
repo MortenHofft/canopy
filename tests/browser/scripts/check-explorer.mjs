@@ -2247,13 +2247,28 @@ console.log('\na file of one’s own, through the picker’s file input (example
   await page.evaluate(HELPERS);
   await page.waitForTimeout(300);
   ok(
-    (await tipCount()) === 5 && (await page.locator('.page-head select').inputValue()) === '__file',
+    (await tipCount()) === 5 && (await page.locator('.page-head select').inputValue()) === '__file-shown',
     'the file is shown (5 tips) and the picker says so',
   );
   const gz = new Uint8Array(await new Response(new Blob(['(x:1,(y:1,z:1):1);']).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
   await page.locator('.page-head input[type=file]').setInputFiles({ name: 'mine.nwk.gz', mimeType: 'application/gzip', buffer: Buffer.from(gz) });
   await page.waitForFunction(() => window.__explorer?.()?.getTree().tipCount === 3, null, { timeout: 30000 });
   ok(true, 'a gzipped file too (3 tips)');
+  // the file option in the list opens the file dialog every time, and the same file loads again (the list names the file shown)
+  for (const round of [1, 2]) {
+    await page.evaluate(() => (window.__before = window.__explorer?.()));
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.selectOption('.page-head select', '__file')]);
+    await chooser.setFiles({ name: 'four.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a,b),(c,d));') });
+    await page.waitForFunction(() => {
+      const v = window.__explorer?.();
+      return v && v !== window.__before && v.getTree().tipCount === 4;
+    });
+    const sel = await page.locator('.page-head select').evaluate((s) => [s.value, s.selectedOptions[0].textContent]);
+    ok(
+      sel[0] === '__file-shown' && sel[1] === 'four.nwk',
+      `the file option opens the file dialog, the file loads and the list names it (${round === 1 ? 'first time' : 'the same file again'})`,
+    );
+  }
   await page.evaluate(HELPERS);
 }
 // Drill-down (#57) on a large tree: Overview collapses to about 50 rows, a click on a collapsed clade expands it in place (its children
