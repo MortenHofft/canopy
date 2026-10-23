@@ -102,9 +102,10 @@ export function readDebug(params: URLSearchParams): { on: boolean; restore: Save
 export const sameTree = (a: TreeName, b: TreeName) => ('id' in a && 'id' in b ? a.id === b.id : 'file' in a && 'file' in b && a.file === b.file);
 
 /** The explorer's starting state from a view to restore (its own defaults without one). `baseLabelSize` is the explorer's label size at
- *  a font scale of 1. Only the options the view gives are set, so the explorer's own stay otherwise. */
+ *  a font scale of 1. Only the options the view gives are set, so the explorer's own stay otherwise. Only for the view's own tree: once
+ *  another tree is picked, the explorer's defaults apply again (a restored minCladePx must not follow the user to another tree). */
 export function restoredSettings(debug: DebugInfo | undefined, baseLabelSize: number) {
-  const v = debug?.restore;
+  const v = debug?.matches ? debug.restore : undefined;
   if (!v) return { layout: 'rectangular' as const, phylogram: true, fontScale: 1, alignLabels: false, collapsed: [] as number[], options: {} };
   const options: Record<string, unknown> = {};
   for (const k of VIEW_OPTIONS) if (v.options[k] !== undefined && v.options[k] !== null) options[k] = v.options[k];
@@ -113,7 +114,7 @@ export function restoredSettings(debug: DebugInfo | undefined, baseLabelSize: nu
     phylogram: v.branchLengths !== false,
     fontScale: isNum(v.labelSize) ? v.labelSize / baseLabelSize : 1,
     alignLabels: v.alignLabels === true,
-    collapsed: debug.matches && v.asLoaded !== false ? v.collapsed : [], // ids of the tree shown then: only the tree as loaded has them
+    collapsed: v.asLoaded !== false ? v.collapsed : [], // ids of the tree shown then: only the tree as loaded has them
     options: options as ViewOptions,
   };
 }
