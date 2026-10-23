@@ -1,7 +1,7 @@
-// Frame time of solid vs striped summaries at the fit view. Usage (test page served on 5306, see bench.mjs):
+// Frame time of the summaries (background fill and stripes) at the fit view. Usage (test page served on 5306, see bench.mjs):
 //   node bench/stripes-bench.mjs --tree <path.nwk[.gz]> [--minpx 3,12] [--frames 30]
-// Prints, per layout and minCladePx, the mean draw time (the JS time of the draw calls; raster is not included) and frame time with
-// summaryStyle 'solid' and 'striped', the number of summaries drawn, and how many stripes were stroked (counted on the context).
+// Prints, per layout and minCladePx, the mean draw time (the JS time of the draw calls; raster is not included) and frame time over two
+// runs, the number of summaries drawn, and the stroke() and lineTo() calls per frame (counted on the context).
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
@@ -31,11 +31,11 @@ for (const layout of ['rectangular', 'radial']) {
   );
   for (const minPx of minpxs) {
     const row = { layout, minCladePx: minPx };
-    for (const style of ['solid', 'striped', 'solid', 'striped']) {
+    for (let run = 0; run < 2; run++) {
       const r = await page.evaluate(
-        ({ style, minPx, frames }) => {
+        ({ minPx, frames }) => {
           const rd = window.__customTree.handle().renderer();
-          rd.setOptions({ summaryStyle: style, minCladePx: minPx });
+          rd.setOptions({ minCladePx: minPx });
           rd.fit(false);
           rd.renderNow();
           // count stroke() calls whose path is a stripe batch: wrap the context
@@ -61,29 +61,21 @@ for (const layout of ['rectangular', 'radial']) {
           const s = rd.getStats();
           return { ...b, summaries: s.summaries, drawn: s.drawn, strokesPerFrame: strokes / frames, linesPerFrame: lines / frames };
         },
-        { style, minPx, frames },
+        { minPx, frames },
       );
-      (row[style] ??= []).push(r);
+      (row.runs ??= []).push(r);
     }
     const f = (a, k) => (a.reduce((s, x) => s + x[k], 0) / a.length).toFixed(2);
     console.log(
       JSON.stringify({
         layout,
         minCladePx: minPx,
-        summaries: row.solid[0].summaries,
-        drawn: row.solid[0].drawn,
-        solid: {
-          frameMs: f(row.solid, 'meanMs'),
-          drawMs: f(row.solid, 'drawMs'),
-          strokes: row.solid[0].strokesPerFrame,
-          lineTo: row.solid[0].linesPerFrame,
-        },
-        striped: {
-          frameMs: f(row.striped, 'meanMs'),
-          drawMs: f(row.striped, 'drawMs'),
-          strokes: row.striped[0].strokesPerFrame,
-          lineTo: row.striped[0].linesPerFrame,
-        },
+        summaries: row.runs[0].summaries,
+        drawn: row.runs[0].drawn,
+        frameMs: f(row.runs, 'meanMs'),
+        drawMs: f(row.runs, 'drawMs'),
+        strokes: row.runs[0].strokesPerFrame,
+        lineTo: row.runs[0].linesPerFrame,
       }),
     );
   }

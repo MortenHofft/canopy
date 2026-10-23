@@ -80,11 +80,12 @@ test('phylogram: every drawn label starts at one x, right of the farthest tip, a
   assert.deepEqual(ctx.calls('setLineDash').at(-1)[1], [], 'the dash is reset');
 });
 
-test('cladogram, radial and a tree without lengths: no-op', async () => {
+test('cladogram and a tree without lengths, rectangular and radial: no-op', async () => {
   for (const [nw, opts] of [
     [PHYLO, { branchLengths: false }],
     [CLADO, {}],
-    [PHYLO, { layout: 'radial' }],
+    [PHYLO, { branchLengths: false, layout: 'radial' }],
+    [CLADO, { layout: 'radial' }],
   ]) {
     const off = await make(nw, { ...opts, alignLabels: false });
     const on = await make(nw, opts);
@@ -237,4 +238,185 @@ test('zoomed in on x the column is pinned at the right edge of the plot area and
     ls.every((l) => l.x0 < l.x1),
     'no leader for a tip at or past the column',
   );
+});
+
+// ---------------------------------------------------------------- radial
+
+/** Distance of (x, y) from the root of a radial frame. */
+const radius = (v, x, y) => Math.hypot(x - v.T.cx, y - v.T.cy);
+/** The labels of a frame: where each text starts (CSS px from the root, the anchor plus the gap), and its tip id. */
+function radialLabels(v) {
+  const L = v.labels;
+  return [...Array(L.count).keys()].map((k) => ({ k, id: v.tree.tipLabels[L.rank[k]], r: radius(v, L.x[k], L.y[k]) + L.gap[k] }));
+}
+async function makeRadial(newick, options = {}, extra = {}) {
+  return make(newick, { layout: 'radial', ...options }, { size: [500, 500], ...extra });
+}
+
+test('radial phylogram: every drawn label starts on one circle just outside the outermost tip, along its ray', async () => {
+  const m = await makeRadial(PHYLO);
+  const v = m.viewer;
+  const ls = radialLabels(v);
+  assert.equal(ls.length, 4);
+  const far = v.L.XMAX[0] * v.T.k; // the outermost tip (d)
+  for (const l of ls) assert.ok(Math.abs(l.r - (far + 8)) < 1e-3, `${l.id} starts at ${l.r}, not ${far + 8}`);
+  const off = await makeRadial(PHYLO, { alignLabels: false });
+  assert.ok(new Set(radialLabels(off.viewer).map((l) => l.r.toFixed(3))).size > 1, 'unaligned, the labels follow their tips');
+  // the text is drawn at the label's place, turned along the ray of its tip: the translation of its setTransform is the label's anchor
+  const L = v.labels;
+  const moves = m
+    .ctx()
+    .calls('setTransform')
+    .filter((e) => e[1] !== e[4] || e[2] !== 0); // the rotated ones
+  for (let k = 0; k < L.count; k++) assert.ok(moves.some((e) => Math.abs(e[5] - L.x[k]) < 1e-3 && Math.abs(e[6] - L.y[k]) < 1e-3)); // labels are stored as Float32
+});
+
+test('radial phylogram: a leader runs along the ray from each tip to just before its label', async () => {
+  const m = await makeRadial(PHYLO);
+  const v = m.viewer;
+  const far = v.L.XMAX[0] * v.T.k;
+  const ls = leaders(m.ctx()); // here x0 / x1 are only the x of the ends: read the log again for both ends
+  assert.equal(ls.length, 4, 'one per tip, also the outermost (its dot is not the circle)');
+  let dashed = false,
+    from = null;
+  const segs = [];
+  for (const e of m.ctx().log) {
+    if (e[0] === 'setLineDash') dashed = e[1].length > 0;
+    else if (dashed && e[0] === 'moveTo') from = e;
+    else if (dashed && e[0] === 'lineTo' && from) {
+      segs.push({ ax: from[1], ay: from[2], bx: e[1], by: e[2] });
+      from = null;
+    }
+  }
+  const tipRadii = [...Array(v.tree.tipCount).keys()].map((r) => v.L.X[v.tree.tipNode[r]] * v.T.k);
+  for (const s of segs) {
+    assert.ok(Math.abs(radius(v, s.ax, s.ay) - (far + 5)) < 1e-6, 'starts 3 px before the label');
+    const rb = radius(v, s.bx, s.by);
+    assert.ok(
+      tipRadii.some((r) => Math.abs(r - rb) < 1e-6),
+      'ends at a tip',
+    );
+    // on one ray from the root: the cross product of the two ends seen from the root is 0
+    const cross = (s.ax - v.T.cx) * (s.by - v.T.cy) - (s.ay - v.T.cy) * (s.bx - v.T.cx);
+    assert.ok(Math.abs(cross) < 1e-6 * far * far, 'along the ray');
+  }
+});
+
+test('radial: hit-testing an aligned label returns its tip; the DOM anchors sit on the circle', async () => {
+  const m = await makeRadial(PHYLO);
+  const v = m.viewer;
+  const L = v.labels;
+  for (let k = 0; k < L.count; k++) {
+    const ray = L.flip[k] ? L.ang[k] - Math.PI : L.ang[k];
+    const d = L.gap[k] + L.w[k] / 2; // the middle of the text
+    const h = v.hitTest(L.x[k] + d * Math.cos(ray), L.y[k] + d * Math.sin(ray));
+    assert.deepEqual(h && { node: h.node, kind: h.kind }, { node: v.tree.tipNode[L.rank[k]], kind: 'tip' });
+  }
+  const anchors = [];
+  const walk = (n) => {
+    if (n.dataset?.tipId) anchors.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(v.root);
+  assert.equal(anchors.length, 4);
+  const far = v.L.XMAX[0] * v.T.k;
+  for (const a of anchors) {
+    const [, x, y] = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(a.style.transform);
+    const h = Number(a.style.height.replace('px', ''));
+    assert.ok(Math.abs(radius(v, Number(x), Number(y) + h / 2) - far) < 1e-3, 'the anchor is on the circle');
+  }
+});
+
+test('radial: no leader where no label is drawn, and dimmed leaders follow highlightStyle', async () => {
+  const sparse = await makeRadial(comb(400), { labelDensity: 'sparse' }, { size: [200, 200] });
+  assert.equal(sparse.viewer.labels.count, 0);
+  assert.equal(leaders(sparse.ctx()).length, 0);
+  const m = await makeRadial(PHYLO, { highlightStyle: 'dim' });
+  m.viewer.setHighlighted(['a']);
+  m.ctx().reset();
+  m.env.flush();
+  const ls = leaders(m.ctx());
+  const o = FALLBACK_THEME.leaderOpacity;
+  assert.equal(ls.filter((l) => l.alpha === o).length, 1, 'tip a');
+  assert.equal(ls.filter((l) => Math.abs(l.alpha - o * DIM) < 1e-12).length, 3, 'b, c and d');
+});
+
+test('radial: a collapsed clade is labelled on the circle, with a leader from the end of its triangle', async () => {
+  const m = await makeRadial(PHYLO);
+  const v = m.viewer;
+  v.setCollapsed([v.tree.firstChild[0]]);
+  m.ctx().reset();
+  m.env.flush();
+  const L = v.labels;
+  assert.equal(L.count, 3, 'the collapsed clade, c and d');
+  const far = v.L.XMAX[0] * v.T.k;
+  for (let k = 0; k < L.count; k++) assert.ok(Math.abs(radius(v, L.x[k], L.y[k]) - far) < 1e-3);
+  assert.ok(
+    [...L.rank.slice(0, L.count)].some((r) => r < 0),
+    'one is the clade',
+  );
+  assert.equal(leaders(m.ctx()).length, 3);
+});
+
+test('radial: the fit keeps room for the labels outside the circle, and toggling Align refits', async () => {
+  const LONG = '((aaaaaaaaaaaaaaaaaaaa:1,b:4)x:1,(c:2,d:6)y:1)r;';
+  const m = await makeRadial(LONG);
+  const off = await makeRadial(LONG, { alignLabels: false });
+  const room = m.viewer.vs.radialLabelRoom();
+  assert.ok(room > 0 && off.viewer.vs.radialLabelRoom() === 0);
+  assert.ok(Math.abs(off.viewer.T.k - m.viewer.T.k - room) < 1e-6, `the circle is ${room} px smaller (a square container)`);
+  off.viewer.setOptions({ alignLabels: true });
+  off.env.flush();
+  assert.ok(Math.abs(off.viewer.T.k - m.viewer.T.k) < 1e-6, 'Align on refits the fitted view');
+});
+
+test('radial: zoomed in so the circle is out of view, it is pinned at the furthest visible radius less the label room', async () => {
+  const m = await makeRadial(comb(40));
+  const v = m.viewer;
+  const k0 = v.T.k;
+  // zoom 4x on a point half way out on the right: the whole window is inside the circle of the tips
+  const k = 4 * k0,
+    a = v.vs.area;
+  const cx = 0.5,
+    cy = 0;
+  v.setViewport({ x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k });
+  m.ctx().reset();
+  m.env.flush();
+  const T = v.T;
+  const far = Math.hypot(Math.max(Math.abs(T.cx - T.clipL), Math.abs(T.cx - T.clipR)), Math.max(Math.abs(T.cy - T.clipT), Math.abs(T.cy - T.clipB)));
+  assert.ok(far < v.L.XMAX[0] * T.k, 'the outermost tip is out of view');
+  const want = far - v.vs.radialLabelRoom();
+  const ls = radialLabels(v);
+  assert.ok(ls.length > 0, 'labels are drawn');
+  for (const l of ls) assert.ok(Math.abs(l.r - (want + 8)) < 1e-3, `pinned: ${l.r} vs ${want + 8}`);
+  for (const l of ls) {
+    const x = v.labels.x[l.k],
+      y = v.labels.y[l.k];
+    assert.ok(x > -50 && y > -50 && x < T.W + 50 && y < T.H + 50, 'where the text starts is in view');
+  }
+});
+
+test('radial: switching Align while zoomed keeps the view but clamps it to the zoom limits of the new fit', async () => {
+  /** Zoom to scale k (px per unit radius) about (cx, 0), switch Align to `on`, and return the window widths before and after. */
+  const run = async (alignBefore, k, cx) => {
+    const m = await makeRadial(comb(40), { alignLabels: alignBefore });
+    const v = m.viewer;
+    const a = v.vs.area;
+    v.setViewport({ x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: -a.ah / 2 / k, y1: a.ah / 2 / k });
+    m.env.flush();
+    assert.equal(v.vs.fitted, false);
+    const before = v.vs.view.x1 - v.vs.view.x0;
+    v.setOptions({ alignLabels: !alignBefore });
+    m.env.flush();
+    assert.equal(v.vs.fitted, false, 'not refitted');
+    const c = v.vs.clampView(v.vs.view);
+    assert.ok(Math.abs(c.x1 - c.x0 - (v.vs.view.x1 - v.vs.view.x0)) < 1e-9 * (c.x1 - c.x0), 'within the new limits');
+    return { before, after: v.vs.view.x1 - v.vs.view.x0 };
+  };
+  // zoomed out to the limit with Align (a fraction of its smaller fit): without Align the limit is the larger fit's, so the view zooms in
+  const out = await run(true, 1e-6, 0);
+  assert.ok(out.after < out.before - 1e-9, `zoomed in to the new limit (${out.before} -> ${out.after})`);
+  // zoomed in to the cap without Align (a multiple of the fit): with Align the cap is lower, so the view zooms out
+  const inn = await run(false, 1e12, 0.5);
+  assert.ok(inn.after > inn.before + 1e-12, `zoomed out to the new cap (${inn.before} -> ${inn.after})`);
 });

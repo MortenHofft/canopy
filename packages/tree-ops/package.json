@@ -21,7 +21,8 @@
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/*.mjs\"",
-    "bench": "node --conditions=@gbif-phylo/source --max-old-space-size=8192 --experimental-transform-types bench/tree-ops.mjs"
+    "bench": "node --conditions=@gbif-phylo/source --max-old-space-size=8192 --experimental-transform-types bench/tree-ops.mjs",
+    "bench:bytes": "node --conditions=@gbif-phylo/source --expose-gc --max-old-space-size=8192 --experimental-transform-types bench/tree-bytes.mjs"
   },
   "devDependencies": {
     "@gbif-phylo/io": "0.1.0"

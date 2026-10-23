@@ -313,11 +313,13 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
 
 // ---- a focused label anchor (its focus outline is the only visible part) follows its label while the view moves (#62)
 // Focus by click and by keyboard, then pan by drag, wheel and keyboard, reading the anchor right after the next frames, inside the
-// interaction-LOD window where only reduced frames are drawn. Rectangular: the anchor stays at a fixed offset to its tip (1 px); once the
+// interaction-LOD window where only reduced frames are drawn (interactionLOD true for this block: the default 'auto' reduces only when
+// full frames are slow, which depends on the machine). Rectangular: the anchor stays at a fixed offset to its tip (1 px); once the
 // tip is out of the plot it is hidden or off screen. No outline after a mouse click (:focus-visible only).
 {
   await ev(() => {
     window.__example.card.setPosition(null);
+    window.__example.viewer.setOptions({ interactionLOD: true });
   });
   const tipId = await ev(() => window.__example.viewer.getTree().tipLabels[300]);
   const frames = () => ev(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
@@ -536,7 +538,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     const v = window.__example.viewer;
     v.setHighlighted([]);
     v.setTheme({});
-    v.setOptions({ layout: 'rectangular' });
+    v.setOptions({ layout: 'rectangular', interactionLOD: 'auto' });
   });
   await sleep(300);
 }

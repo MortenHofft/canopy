@@ -7,7 +7,7 @@ export const H = 200;
 let seed = 20240607;
 const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
 
-/** Comb (caterpillar) of n tips; every 9th rung has a short internal branch, so thin clades (rule B) occur. */
+/** Comb (caterpillar) of n tips; every 9th rung has a short internal branch, so thin clades occur (they used to exercise a width rule, removed in #87). */
 function ladder(n) {
   let s = 't0:1';
   for (let i = 1; i < n; i++) s = `(${s}:${i % 9 === 0 ? '0.002' : '0.5'},t${i}:${(1 + (i % 5) * 0.4).toFixed(1)})`;

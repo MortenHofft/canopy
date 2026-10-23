@@ -8,10 +8,11 @@ const TREES: Record<string, { path: string; format: 'newick' | 'nexus' }> = {
   'rich-fish-carangaria-135': { path: 'rich/fish-carangaria-mcc/Carangaria-MCC.tre', format: 'nexus' },
   'edge-internal-support': { path: 'rich/edge-cases/internal-labels-support.nwk', format: 'newick' },
   'edge-quoted-labels': { path: 'rich/edge-cases/quoted-labels.nwk', format: 'newick' },
+  'edge-duplicate-labels': { path: 'rich/edge-cases/duplicate-tip-labels.nwk', format: 'newick' },
   'otl-1k': { path: 'real-ladder/trees/otl-1k-testudines.nwk.gz', format: 'newick' },
   'otl-91k': { path: 'real-ladder/trees/otl-100k-vertebrata.nwk.gz', format: 'newick' },
   'gtdb-10k': { path: 'real-ladder/trees/gtdb-10k-archaea.nwk.gz', format: 'newick' },
-  'syn-yule-10000': { path: 'synthetic/newick/yule_10000.nwk.gz', format: 'newick' },
+  'syn-yule-10000': { path: 'synthetic/newick/yule_10000_support.nwk.gz', format: 'newick' },
 };
 
 export const treeIds = Object.keys(TREES);

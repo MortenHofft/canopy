@@ -7,7 +7,17 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
-import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
+import {
+  TreeView,
+  useTreeEvent,
+  useTreeTheme,
+  useTreeViewer,
+  useViewport,
+  type CladeProp,
+  type NodeMenuItem,
+  type TreeNodeEvent,
+  type TreeViewHandle,
+} from '@gbif-phylo/react';
 import {
   defaultControls,
   defaultFormatNodeLabel,
@@ -15,6 +25,7 @@ import {
   residueColours,
   residueGroups,
   type Column,
+  type TreeViewer,
   type Viewport,
 } from '@gbif-phylo/viewer';
 import * as I from './icons.tsx';
@@ -29,7 +40,6 @@ type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
 /** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
 const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up one level or Back to the whole tree first';
-const MAX_MATCHES = 5000;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
@@ -42,9 +52,55 @@ interface Step {
   collapsed: number[];
   /** The node map of the edit that made this step from the one before it (old tree -> this tree); none for the first. */
   map?: Int32Array;
+  /** How many steps before this one were dropped to stay within the memory budget: then `map` is from the tree as published, and
+   *  Undo stops here. */
+  dropped?: number;
 }
 
-const pct = (v: number, lo: number, hi: number) => `${((v - lo) / (hi - lo)) * 100}%`;
+/** What the trees kept for Undo may take, the tree as published and the current one aside (#44): about 45 to 60 steps of a 10k-tip tree, two
+ *  of the 190k-tip GTDB tree, none of a tree of a million tips, where only Reset is offered. */
+const UNDO_BUDGET = 64 * 1024 * 1024;
+
+/** Keeps the steps between the tree as published (`h[0]`) and the current one (the last) within `budget` bytes (tree-ops' treeBytes),
+ *  dropping the oldest first. The step after a dropped one takes a map from the tree as published, so Reset still keeps the view. */
+function trimHistory(h: Step[], budget: number): Step[] {
+  let bytes = 0;
+  for (let k = 1; k < h.length - 1; k++) bytes += ops.treeBytes(h[k].tree);
+  while (h.length > 2 && bytes > budget) {
+    bytes -= ops.treeBytes(h[1].tree);
+    h = [h[0], { ...h[2], map: ops.composeMaps(h[1].map!, h[2].map!), dropped: (h[1].dropped ?? 0) + 1 }, ...h.slice(3)];
+  }
+  return h;
+}
+
+/** Undo (only while a step is available) and Reset, shown once there is an edit; a note says why when Undo is off for the tree or
+ *  stops at a dropped step. */
+function UndoControls(p: { canUndo: boolean; undoOn: boolean; onUndo: () => void; onReset: () => void }) {
+  return (
+    <>
+      {p.canUndo && (
+        <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={p.onUndo}>
+          <I.IconUndo />
+          Undo
+        </button>
+      )}
+      <button type="button" className="ex-btn ex-fade" title="Back to the tree as published" onClick={p.onReset}>
+        <J.IconReset />
+        Reset
+      </button>
+      {!p.canUndo && (
+        <span className="ex-undo-note">
+          {p.undoOn ? 'Older steps were dropped to save memory' : 'Undo is off: the tree is too large to keep earlier versions'}
+        </span>
+      )}
+      <div className="ex-divider" />
+    </>
+  );
+}
+
+// clamped: a slider that follows the view (Width / Height) can be past its range after a wheel zoom
+const pct = (v: number, lo: number, hi: number) => `${Math.min(1, Math.max(0, (v - lo) / (hi - lo))) * 100}%`;
+const sameWindow = (a: Viewport, b: Viewport) => a.x0 === b.x0 && a.x1 === b.x1 && a.y0 === b.y0 && a.y1 === b.y1;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -163,25 +219,95 @@ function Slider(p: {
   );
 }
 
+/** Width / Height (Size in circular): Reactree stretches the drawing; here they are the visible window relative to the fitted one. They
+ *  are read from the viewport in force, so they follow a wheel zoom, a pinch, the keyboard and Fit as well as setting the window
+ *  themselves. Its own component, so that a pan or zoom (a `viewchange` per frame) renders the sliders and not the whole explorer. */
+function SizeSliders({ viewer, radial }: { viewer: TreeViewer | null; radial: boolean }) {
+  const vp = useViewport(viewer);
+  const [fitted, setFitted] = useState<Viewport | null>(null);
+  const readFit = useCallback(() => {
+    if (!viewer) return;
+    const f = viewer.fitViewport(); // the window fit() would go to, without moving
+    setFitted((prev) => (prev && sameWindow(prev, f) ? prev : f));
+  }, [viewer]);
+  // The fitted window moves with the rows (the tree shown, collapsing), the layout, the tree type, the label size, the columns and the
+  // pane's size. Read it again after every render (cheap, and an unchanged window is no new state) in a passive effect, which runs
+  // after the <TreeView>'s layout effects have applied those changes, wherever it sits in the page.
+  useEffect(readFit);
+  useTreeEvent(viewer, 'resize', readFit); // the pane's size
+  const hScale = fitted && vp ? (fitted.x1 - fitted.x0) / (vp.x1 - vp.x0) : 1;
+  const vScale = radial ? hScale : fitted && vp ? (fitted.y1 - fitted.y0) / (vp.y1 - vp.y0) : 1;
+  // an axis at 1x goes back to the fitted window's centre; one zoomed keeps the current centre
+  const setScales = (h: number, v: number) => {
+    const f = fitted;
+    if (!viewer || !f || !vp) return;
+    const cx = h === 1 ? (f.x0 + f.x1) / 2 : (vp.x0 + vp.x1) / 2;
+    const cy = v === 1 ? (f.y0 + f.y1) / 2 : (vp.y0 + vp.y1) / 2;
+    const w = (f.x1 - f.x0) / h;
+    const hh = (f.y1 - f.y0) / v;
+    viewer.setViewport({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - hh / 2, y1: cy + hh / 2 });
+  };
+  return (
+    <>
+      <Slider
+        icon={<I.IconWidth />}
+        label={radial ? 'Size' : 'Width'}
+        title="Width"
+        value={hScale}
+        min={0.3}
+        max={4}
+        step={0.05}
+        reset={1}
+        onChange={(h) => setScales(h, radial ? h : vScale)}
+      />
+      {!radial && (
+        <>
+          <div className="ex-divider" />
+          <Slider
+            icon={<I.IconHeight />}
+            title="Height"
+            label="Height"
+            value={vScale}
+            min={0.3}
+            max={4}
+            step={0.05}
+            reset={1}
+            onChange={(v) => setScales(hScale, v)}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 export function Explorer({
   published,
   fasta,
   defaultHeight = 520,
+  undoBudget = UNDO_BUDGET,
 }: {
   published: TreeModel;
   fasta: Record<string, string> | null;
   defaultHeight?: number;
+  /** Bytes the trees kept for Undo may take ({@link UNDO_BUDGET}); a tree larger than this has Reset only. */
+  undoBudget?: number;
 }) {
   const ref = useRef<TreeViewHandle>(null);
+  // the viewer as state, and the theme in force: React follows every theme change, whoever made it (the viewport is read by
+  // <SizeSliders> alone, so a pan or zoom renders only the sliders)
+  const viewer = useTreeViewer(ref);
+  const treeTheme = useTreeTheme(viewer);
   const outer = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
+  // Undo needs one more tree in memory than Reset: off when even one does not fit; it stops at a step whose earlier steps were dropped
+  const undoOn = useMemo(() => ops.treeBytes(published) <= undoBudget, [published, undoBudget]);
+  const canUndo = undoOn && history.length > 1 && !history[history.length - 1].dropped;
   // the last change of `tree` and the map it came with (edit: the op's map; undo: its inverse), to keep the view across it
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>([]); // clades the user collapsed (ids of `tree`)
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Back and Up one level (tree-ops focus)
-  const [navTick, setNavTick] = useState(0); // bumped by Show only / Up / Back: the view is fitted, so "fitted" is read again
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
   const [ladderByChoice, setLadderBy] = useState<LadderBy>('tips');
@@ -195,8 +321,6 @@ export function Explorer({
   const dragFrom = useRef<{ x: number; y: number } | null>(null); // where a drag in the pane began (not on the resize grip)
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
-  const [hScale, setHScale] = useState(1);
-  const [vScale, setVScale] = useState(1);
   const [fontScale, setFontScale] = useState(1);
   const [strokeWidth, setStrokeWidth] = useState(1.5);
   const [layout, setLayout] = useState<Layout>('rectangular');
@@ -205,9 +329,6 @@ export function Explorer({
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
   const [alignLabels, setAlignLabels] = useState(false);
-  // striped summaries (#59): the explorer's default; the library's is solid
-  const [stripes, setStripes] = useState(true);
-  const [themeTick, setThemeTick] = useState(0); // bumped when the page flips light/dark: the legend reads the theme in force
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -344,8 +465,8 @@ export function Explorer({
   );
 
   // ---- search: case-insensitive substring of the displayed name (Reactree's rule; an underscore and a space are the same); matches
-  // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label, and at most
-  // MAX_MATCHES kept: on a tree of millions of tips a keystroke must not cost seconds, and a million highlights say nothing.
+  // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label (about 0.1 s on 2.4
+  // million labels), and every match kept: highlighting a million tips costs little (docs/design/highlight-cost.md, #58).
   const matches = useMemo(() => {
     const q = query.trim();
     if (!q) return [];
@@ -353,10 +474,11 @@ export function Explorer({
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
     const out: number[] = [];
     const labels = shown.tipLabels;
-    for (let r = 0; r < labels.length; r++) if (re.test(labels[r]) && out.push(shown.tipNode[r]) >= MAX_MATCHES) break;
+    for (let r = 0; r < labels.length; r++) if (re.test(labels[r])) out.push(shown.tipNode[r]);
     return out;
   }, [query, shown]);
-  const current = matches.length ? matches[((matchIdx % matches.length) + matches.length) % matches.length] : null;
+  const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
+  const current = currentIdx >= 0 ? matches[currentIdx] : null;
   const [focusSeq, setFocusSeq] = useState(0);
   useEffect(() => setFocusSeq((s) => s + 1), [current]);
 
@@ -377,18 +499,13 @@ export function Explorer({
     const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 'fill', values, alphabet };
     return { column, matched, sites, alphabet };
   }, [fasta, published]);
-  // the legend reads the residue colours of the theme in force, so it follows every theme change, whoever made it
-  useEffect(() => {
-    if (!showAlignment) return;
-    return ref.current?.renderer()?.on('themechange', () => setThemeTick((t) => t + 1));
-  }, [showAlignment, alignment]);
-  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group
+  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group. It reads the
+  // residue colours of the theme in force, so it follows every theme change, whoever made it
   const legend = useMemo(() => {
     if (!alignment) return [];
-    const colours = residueColours(ref.current?.renderer()?.getTheme() ?? {}, alignment.alphabet);
+    const colours = residueColours(treeTheme ?? {}, alignment.alphabet);
     return residueGroups(alignment.alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- themeTick: the theme changed
-  }, [alignment, themeTick, showAlignment]);
+  }, [alignment, treeTheme]);
   const columns = useMemo(
     () => (showAlignment && alignment && layout === 'rectangular' ? [alignment.column] : []),
     [showAlignment, alignment, layout],
@@ -411,49 +528,6 @@ export function Explorer({
     () => defaultControls({ zoom: false, fit: false, overview: showOverview, legend: showLegend }),
     [showOverview, showLegend],
   );
-
-  // ---- Width / Height: Reactree stretches the drawing; here they set the visible window relative to the fitted one
-  const fitted = useRef<Viewport | null>(null);
-  const scales = useRef({ h: 1, v: 1 });
-  scales.current = { h: hScale, v: layout === 'radial' ? hScale : vScale };
-  const applyScales = useCallback(() => {
-    const r = ref.current?.renderer();
-    const f = fitted.current;
-    if (!r || !f) return;
-    const cur = r.getViewport();
-    const { h, v } = scales.current;
-    const cx = h === 1 ? (f.x0 + f.x1) / 2 : (cur.x0 + cur.x1) / 2;
-    const cy = v === 1 ? (f.y0 + f.y1) / 2 : (cur.y0 + cur.y1) / 2;
-    const w = (f.x1 - f.x0) / h;
-    const hh = (f.y1 - f.y0) / v;
-    r.setViewport({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - hh / 2, y1: cy + hh / 2 });
-  }, []);
-  const refit = useCallback(() => {
-    const r = ref.current?.renderer();
-    if (!r) return;
-    fitted.current = r.fitViewport();
-    applyScales();
-  }, [applyScales]);
-  // A new tree keeps the view (the viewer's setTree, through `treeMap`), but what "fitted" is has changed with it: read it back
-  // (fitViewport does not move the window), so the sliders go on working relative to the new fit.
-  useLayoutEffect(() => {
-    const r = ref.current?.renderer();
-    if (r && fitted.current) fitted.current = r.fitViewport();
-  }, [shown, collapsedIds]);
-  useEffect(applyScales, [hScale, vScale, applyScales]);
-  // a new layout, tree type, label size, column or navigation to another clade changes what "fitted" is. After a switch of layout or tree
-  // type with a node selected the viewer has centred the new view on it: that stays, only the new fit is read for the sliders
-  const lastKind = useRef({ layout, phylogram });
-  useEffect(() => {
-    const switched = lastKind.current.layout !== layout || lastKind.current.phylogram !== phylogram;
-    lastKind.current = { layout, phylogram };
-    const id = requestAnimationFrame(() => {
-      const r = ref.current?.renderer();
-      if (switched && r && r.getSelected() !== null) fitted.current = r.fitViewport();
-      else refit();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [layout, phylogram, columns, height, navTick, refit]);
 
   // for the browser check (tests/browser/scripts/check-explorer.mjs): the viewer, to find where nodes are
   useEffect(() => {
@@ -508,33 +582,41 @@ export function Explorer({
     if (ops.focusedNode(focus) >= 0 && ops.focusedNode(keptFocus) < 0)
       notes.push('the clade shown alone is no longer one clade after this edit: showing the whole tree');
     if (notes.length) flash(notes.join(' · '));
-    setHistory((h) => [
-      ...h.slice(0, -1),
-      { ...h[h.length - 1], clades, collapsed },
-      { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map },
-    ]);
+    setHistory((h) =>
+      trimHistory(
+        [...h.slice(0, -1), { ...h[h.length - 1], clades, collapsed }, { tree: next, clades: keptClades, collapsed: keptCollapsed, map: r.map }],
+        undoBudget,
+      ),
+    );
     setMove({ from: tree, to: next, map: r.map });
     setClades(keptClades);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
     deselect();
   };
-  const undo = () => {
-    const prev = history[history.length - 2];
-    const undone = history[history.length - 1];
-    // the way back is the inverse of the edit's map (a tip stays the tip it was; an edit that added nodes has none to send back)
-    if (undone.map) {
-      const inverse = ops.invertMap(undone.map, undone.tree.nodeCount);
-      setMove({ from: tree, to: prev.tree, map: inverse });
-      setFocus((f) => (ops.canGoBack(f) || ops.canGoUp(f) ? ops.remapFocus(f, tree, prev.tree, inverse) : f)); // navigation stays; it follows the tips
+  // back to step `to` of the history: Undo is the step before the last, Reset the first (the tree as published)
+  const back = (to: number) => {
+    const prev = history[to];
+    // the way back: the inverses of the edits' maps, last first, chained (a tip stays the tip it was; an edit that added nodes has none
+    // to send back)
+    let way: Int32Array | null = null;
+    for (let k = history.length - 1; k > to; k--) {
+      const inverse = ops.invertMap(history[k].map!, history[k].tree.nodeCount);
+      way = way ? ops.composeMaps(way, inverse) : inverse;
     }
-    setHistory((h) => h.slice(0, -1));
+    if (way) {
+      const w = way;
+      setMove({ from: tree, to: prev.tree, map: w });
+      setFocus((f) => (ops.canGoBack(f) || ops.canGoUp(f) ? ops.remapFocus(f, tree, prev.tree, w) : f)); // navigation stays; it follows the tips
+    }
+    setHistory((h) => h.slice(0, to + 1));
     setSwapFirst(null);
     setClades(prev.clades);
     setCollapsed(prev.collapsed);
     deselect();
     setPick(null);
   };
+  const undo = () => back(history.length - 2);
 
   const closePick = () => {
     setPick(null);
@@ -553,7 +635,6 @@ export function Explorer({
   // ---- show only a clade: a navigation, not an edit, so it is not in the undo history. Back and Up one level come from tree-ops' focus.
   const navigate = (f: ops.Focus) => {
     setFocus(f);
-    setNavTick((t) => t + 1);
     deselect();
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
@@ -637,12 +718,9 @@ export function Explorer({
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
     const trueRoot = v === 0;
-    const tips = tree.tipCountOf(v).toLocaleString('en');
-    const what = isTip ? 'tip' : 'clade';
     const info: NodeMenuItem = {
       id: 'info',
       label: 'Info',
-      hint: 'branch length, root distance, depth, support',
       onSelect: () => {
         setSelected(v);
         setInfoOpen(true);
@@ -651,53 +729,47 @@ export function Explorer({
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
-      hint: `show its ${tips} tips again`,
       onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)),
     };
     const collapse: NodeMenuItem = {
       id: 'collapse',
       label: 'Collapse',
-      hint: `draw its ${tips} tips as one triangle`,
       onSelect: () => setCollapsed((cs) => [...cs, v]),
     };
     const only: NodeMenuItem = {
       id: 'subtree',
-      label: 'Show only this clade',
-      hint: `${tips} tips; Back or Up one level return`,
+      label: 'Show only',
       onSelect: () => navigate(ops.focusOn(tree, focus, v)),
     };
     const reroot: NodeMenuItem = {
       id: 'reroot',
       label: 'Reroot here',
-      hint: `root on the branch above this ${what}`,
       onSelect: () => apply((t) => ops.reroot(t, v), 'Reroot'),
     };
     const flip: NodeMenuItem = {
       id: 'flip',
       label: 'Flip',
-      hint: 'reverse the order of its branches',
       onSelect: () => apply((t) => ops.rotate(t, v), 'Flip'),
     };
     const swap: NodeMenuItem = {
       id: 'swap',
       label: 'Swap with…',
-      hint: 'then click a sibling branch',
       disabled: tree.childCount[tree.parent[v]] < 2,
       onSelect: () => {
         setMode('swap');
         setSwapFirst(v);
+        flash('Now click a sibling branch to swap with'); // what the item's label leaves out
       },
     };
     const colour: NodeMenuItem = {
       id: 'colour',
       label: 'Colour…',
-      hint: `pick a colour for this ${what}`,
       onSelect: (ev) => {
         const r = outer.current?.getBoundingClientRect();
         setPick({ node: v, x: r ? ev.clientX - r.left : 16, y: r ? ev.clientY - r.top : 92 });
       },
     };
-    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick of this clade', hint: `${tips} tips`, onSelect: () => copyNewick(v) };
+    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick', onSelect: () => copyNewick(v) };
     if (isCollapsed) return [expand, info, only, colour];
     // inside a clade shown alone a reroot would split it (REROOT_IN_FOCUS): the menu leaves it out there
     const canReroot = !ops.canGoUp(focus) || shownRoot;
@@ -708,10 +780,9 @@ export function Explorer({
       items.push({
         id: 'up',
         label: 'Up one level',
-        hint: 'show the clade that contains this one',
         onSelect: () => navigate(ops.focusUp(tree, focus)),
       });
-      items.push({ id: 'back', label: 'Back', hint: 'to the view before', onSelect: () => navigate(ops.focusBack(focus)) });
+      items.push({ id: 'back', label: 'Back', onSelect: () => navigate(ops.focusBack(focus)) });
     }
     items.push(info);
     if (trueRoot) return [...items, flip, colour];
@@ -770,7 +841,7 @@ export function Explorer({
       e.preventDefault();
       setSearchOpen(true);
       searchInput.current?.focus(); // already open; a new panel focuses itself (autoFocus)
-    } else if (mod && e.key.toLowerCase() === 'z' && history.length > 1) {
+    } else if (mod && e.key.toLowerCase() === 'z' && canUndo) {
       e.preventDefault();
       undo();
     } else if (e.key === 'Escape') {
@@ -866,33 +937,7 @@ export function Explorer({
     <div className={`ex-outer ex-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="View">
-        <Slider
-          icon={<I.IconWidth />}
-          label={layout === 'radial' ? 'Size' : 'Width'}
-          title="Width"
-          value={hScale}
-          min={0.3}
-          max={4}
-          step={0.05}
-          reset={1}
-          onChange={setHScale}
-        />
-        {layout === 'rectangular' && (
-          <>
-            <div className="ex-divider" />
-            <Slider
-              icon={<I.IconHeight />}
-              label="Height"
-              title="Height"
-              value={vScale}
-              min={0.3}
-              max={4}
-              step={0.05}
-              reset={1}
-              onChange={setVScale}
-            />
-          </>
-        )}
+        <SizeSliders viewer={viewer} radial={layout === 'radial'} />
         <div className="ex-divider" />
         <Slider
           icon={<I.IconFont />}
@@ -1029,16 +1074,8 @@ export function Explorer({
 
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
-        {history.length > 1 && (
-          <>
-            <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={undo}>
-              <I.IconUndo />
-              Undo
-            </button>
-            <div className="ex-divider" />
-          </>
-        )}
-        <button type="button" className="ex-btn" title="Fit tree" onClick={refit}>
+        {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onUndo={undo} onReset={() => back(0)} />}
+        <button type="button" className="ex-btn" title="Fit tree" onClick={() => viewer?.fit(false)}>
           <J.IconFit />
           Fit
         </button>
@@ -1152,23 +1189,22 @@ export function Explorer({
             title={`Ladderize ascending by ${ladderBy} — smallest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy }), 'Ladderize')}
           >
-            <I.IconLadderize asc />
+            <J.IconLadderBy />
           </button>
           <button
             type="button"
             title={`Ladderize descending by ${ladderBy} — largest clades at top`}
             onClick={() => apply((t) => ops.ladderise(t, { by: ladderBy, order: 'decreasing' }), 'Ladderize')}
           >
-            <I.IconLadderize asc={false} />
+            <J.IconLadderBy descending />
           </button>
+          <label
+            className="ex-group-select"
+            title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
+          >
+            <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
+          </label>
         </div>
-        <label
-          className="ex-select"
-          title="What ladderise sorts the clades by: tips (number of descendants), depth (most nested path) or height (longest path, in branch length)"
-        >
-          <J.IconLadderBy />
-          <LadderBySelect value={ladderBy} hasLengths={tree.hasLengths} onChange={setLadderBy} />
-        </label>
         <SupportGroup
           range={supportRange}
           step={supportStep}
@@ -1208,15 +1244,12 @@ export function Explorer({
         {phylogram && tree.hasLengths && (
           <button
             type="button"
-            className={`ex-btn ex-toggle${alignLabels && layout === 'rectangular' ? ' active' : ''}`}
-            aria-pressed={alignLabels && layout === 'rectangular'}
-            disabled={layout === 'radial'}
+            className={`ex-btn ex-toggle${alignLabels ? ' active' : ''}`}
+            aria-pressed={alignLabels}
             title={
-              layout === 'radial'
-                ? 'Aligned labels need the rectangular layout for now (#52 would add them to the circular one)'
-                : alignLabels
-                  ? 'Labels follow their tips'
-                  : 'Align leaf labels in one column, with leader lines'
+              alignLabels
+                ? 'Labels follow their tips'
+                : `Align leaf labels ${layout === 'radial' ? 'on one circle' : 'in one column'}, with leader lines`
             }
             onClick={() => setAlignLabels((a) => !a)}
           >
@@ -1224,20 +1257,6 @@ export function Explorer({
             Align
           </button>
         )}
-        <button
-          type="button"
-          className={`ex-btn ex-toggle${stripes ? ' active' : ''}`}
-          aria-pressed={stripes}
-          title={
-            stripes
-              ? 'Summaries of small clades are striped: click for a solid fill'
-              : 'Fill the summaries of small clades with stripes along their hidden branches'
-          }
-          onClick={() => setStripes((x) => !x)}
-        >
-          <I.IconStripes />
-          Stripes
-        </button>
         {labelCycle.length > 1 && (
           <button
             type="button"
@@ -1298,10 +1317,9 @@ export function Explorer({
             formatLabel,
             labelDensity: 'dense',
             highlightStyle,
-            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are many,
-            // raise it while they are on (a small tree keeps every tip)
-            summaryStyle: stripes ? 'striped' : 'solid',
-            minCladePx: stripes && tree.tipCount > 1500 ? 14 : undefined,
+            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are
+            // many, raise it (a small tree keeps every tip)
+            minCladePx: tree.tipCount > 1500 ? 14 : undefined,
             alignLabels,
             nodeLabels,
             formatNodeLabel,
@@ -1345,17 +1363,8 @@ export function Explorer({
               }}
             />
             {query.trim() && (
-              <span
-                className={`ex-search-count${matches.length ? '' : ' none'}`}
-                title={
-                  matches.length >= MAX_MATCHES
-                    ? `Showing the first ${MAX_MATCHES.toLocaleString('en')} matches; type more to narrow them`
-                    : undefined
-                }
-              >
-                {matches.length
-                  ? `${matches.indexOf(current!) + 1} / ${matches.length}${matches.length >= MAX_MATCHES ? '+ (first 5,000)' : ''}`
-                  : 'No match'}
+              <span className={`ex-search-count${matches.length ? '' : ' none'}`}>
+                {matches.length ? `${(currentIdx + 1).toLocaleString('en')} / ${matches.length.toLocaleString('en')}` : 'No match'}
               </span>
             )}
             {matches.length > 1 && (

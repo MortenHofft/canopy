@@ -88,6 +88,20 @@ export const SETTINGS: Setting[] = [
     max: 355,
     step: 5,
   },
+  {
+    id: 'radialRings',
+    label: 'Radial scale rings',
+    hint: "radial: circles at the scale bar's step, from the tips on a dated tree",
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: O.radialRings,
+    options: [
+      ['none', 'None'],
+      ['lines', 'Lines'],
+      ['stripes', 'Stripes'],
+    ],
+  },
   { id: 'axis', label: 'Time axis / scale bar', group: 'Layout and labels', to: 'option', kind: 'toggle', default: O.axis },
   {
     id: 'rowHeight',
@@ -170,7 +184,7 @@ export const SETTINGS: Setting[] = [
   {
     id: 'alignLabels',
     label: 'Align labels',
-    hint: 'rectangular phylogram: all tip labels in one column, with leader lines from the tips',
+    hint: 'phylogram: all tip labels in one column (radial: on one circle), with leader lines from the tips',
     group: 'Layout and labels',
     to: 'option',
     kind: 'toggle',
@@ -302,7 +316,7 @@ export const SETTINGS: Setting[] = [
   },
   {
     id: 'summaryOpacity',
-    label: 'Collapsed clade opacity',
+    label: 'Collapsed clade background opacity',
     group: 'Theme',
     to: 'theme',
     kind: 'range',
@@ -312,14 +326,15 @@ export const SETTINGS: Setting[] = [
     step: 0.05,
   },
   {
-    id: 'summaryStripeColour',
-    label: 'Stripe colour',
-    hint: 'empty = the collapsed clade colour',
+    id: 'summaryStripeOpacity',
+    label: 'Collapsed clade stripe opacity',
     group: 'Theme',
     to: 'theme',
-    kind: 'text',
-    default: T.summaryStripeColour,
-    placeholder: 'e.g. #64748b',
+    kind: 'range',
+    default: T.summaryStripeOpacity,
+    min: 0,
+    max: 1,
+    step: 0.05,
   },
   {
     id: 'summaryStripeGap',
@@ -329,7 +344,7 @@ export const SETTINGS: Setting[] = [
     to: 'theme',
     kind: 'range',
     default: T.summaryStripeGap,
-    min: 2,
+    min: 1,
     max: 12,
     step: 0.5,
   },
@@ -400,6 +415,30 @@ export const SETTINGS: Setting[] = [
     placeholder: 'e.g. #684393',
   },
   { id: 'axisFontSize', label: 'Axis text (px)', group: 'Theme', to: 'theme', kind: 'range', default: T.axisFontSize, min: 6, max: 16, step: 0.5 },
+  {
+    id: 'ringWidth',
+    label: 'Ring width (px)',
+    hint: 'radial scale rings',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'range',
+    default: T.ringWidth,
+    min: 0.5,
+    max: 4,
+    step: 0.1,
+  },
+  { id: 'ringOpacity', label: 'Ring opacity', group: 'Theme', to: 'theme', kind: 'range', default: T.ringOpacity, min: 0, max: 1, step: 0.05 },
+  {
+    id: 'ringStripeOpacity',
+    label: 'Ring stripe opacity',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'range',
+    default: T.ringStripeOpacity,
+    min: 0,
+    max: 0.5,
+    step: 0.01,
+  },
   {
     id: 'alignRowGap',
     label: 'Alignment row gap (px)',
@@ -593,6 +632,18 @@ export const SETTINGS: Setting[] = [
     step: 1,
   },
   {
+    id: 'collapseTo',
+    label: 'Collapse to N clades (0 = off)',
+    hint: 'tree-ops autoCollapse: at most N rows (tips and collapsed clades), the largest clades opened first; run again when the shown clade changes, and Expand or Collapse from the menu still work',
+    group: 'Tree operations',
+    to: 'app',
+    kind: 'range',
+    default: 0,
+    min: 0,
+    max: 200,
+    step: 5,
+  },
+  {
     id: 'hoverPath',
     label: 'Hover path',
     hint: 'hovering a node highlights its path to the root (with nothing hovered, the keyboard cursor’s)',
@@ -706,27 +757,6 @@ export const SETTINGS: Setting[] = [
     default: O.showSummaries,
   },
   {
-    id: 'summaryStyle',
-    label: 'Collapsed clade fill',
-    hint: 'striped: fine stripes along the hidden branches, best with a larger smallest clade',
-    group: 'Level of detail',
-    to: 'option',
-    kind: 'select',
-    default: O.summaryStyle,
-    options: [
-      ['solid', 'Solid'],
-      ['striped', 'Striped'],
-    ],
-  },
-  {
-    id: 'stripeCollapsed',
-    label: 'Stripe clades collapsed by the app too',
-    group: 'Level of detail',
-    to: 'option',
-    kind: 'toggle',
-    default: O.stripeCollapsed,
-  },
-  {
     id: 'minCladePx',
     label: 'Smallest clade drawn (px)',
     group: 'Level of detail',
@@ -778,7 +808,19 @@ export const SETTINGS: Setting[] = [
     kind: 'toggle',
     default: O.summaryNotice,
   },
-  { id: 'interactionLOD', label: 'Reduced frames while dragging', group: 'Level of detail', to: 'option', kind: 'toggle', default: O.interactionLOD },
+  {
+    id: 'interactionLOD',
+    label: 'Reduced frames while moving',
+    group: 'Level of detail',
+    to: 'option',
+    kind: 'select',
+    default: String(O.interactionLOD),
+    options: [
+      ['auto', 'When frames are slow'],
+      ['true', 'Always'],
+      ['false', 'Never'],
+    ],
+  },
   {
     id: 'refineMs',
     label: 'Full frame after (ms idle)',
@@ -826,6 +868,7 @@ export function toViewer(s: Setting, v: Value): unknown {
   if (s.kind !== 'select' || typeof v !== 'string') return v;
   if (v === 'fit') return null;
   if (v === 'Infinity') return Infinity;
+  if (v === 'true' || v === 'false') return v === 'true';
   return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
 }
 
@@ -847,7 +890,6 @@ export const PRESETS: Record<string, Record<string, Value>> = {
     branch: '#cbd5e1',
     highlight: '#7dd87f',
     summary: '#64748b',
-    summaryOpacity: 0.5,
   },
   grid: { transparent: true, branch: '#475569', foreground: '#1e293b', highlight: '#6366f1' },
 };

@@ -29,6 +29,7 @@ import {
   drawMarkers,
   drawRing,
   drawRootPath,
+  drawRings,
   drawScaleBar,
   drawSelectionRing,
   drawMarkRings,
@@ -74,6 +75,7 @@ import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
+const AUTO_LOD_MS = 12; // interactionLOD 'auto': reduce while moving once full-quality frames take longer than this (JS time, smoothed)
 const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas limits are near this)
 const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
 const CURSOR_RING_RADIUS = 10; // the keyboard cursor's ring, CSS px (in highlight; not a theme token yet, see api.md "Known gaps")
@@ -90,13 +92,20 @@ function warnUnknownNodes(where: string, bad: unknown[], limit: number): void {
   const more = bad.length > 5 ? ` and ${bad.length - 5} more` : '';
   console.warn(
     `gbif-phylo: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
-      `(nodes are numbers, ${limit === Infinity ? 'preorder ids' : `the preorder ids 0 to ${limit - 1}`}); ignored`,
+      `(nodes are numbers, the preorder ids 0 to ${limit - 1}); ignored`,
   );
 }
 
 function checkThemeObserver(m: unknown): void {
   if (m !== undefined && m !== 'media' && m !== 'document' && m !== 'none')
     throw new RangeError(`themeObserver must be 'media', 'document' or 'none', not ${JSON.stringify(m)}`);
+}
+
+/** `setOptions` changes in `p` (over the options `o`), besides the layout and branch lengths, that change the fit view: the axis, the row
+ *  height, the tree width, and in the radial layout `alignLabels` (the fit keeps room for labels outside the circle). */
+function refitsView(p: Partial<ViewerOptions>, o: ViewerOptions): boolean {
+  const changes = <K extends keyof ViewerOptions>(k: K) => p[k] !== undefined && p[k] !== o[k];
+  return changes('axis') || changes('rowHeight') || changes('treeWidth') || (changes('alignLabels') && (p.layout ?? o.layout) === 'radial');
 }
 
 /** What `new TreeViewer(...)` takes. One of `tree` and `source` is needed; `source` wins. */
@@ -266,13 +275,15 @@ export class TreeViewer {
     reduced: false,
     scale: 1,
   };
-  // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced; one full frame follows
-  // `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
+  // interaction-time degradation: wheel, pinch, drag and animation frames are drawn reduced (interactionLOD true, or 'auto' when the
+  // full frames are slow, see fullMs); one full frame follows `refineMs` after the last input. Anything that reads the draw list (click, hover, locate, bounds) settles first.
   private interacting = false;
   private reducedFrame = false;
   private refineTimer = 0;
   private minPxHint = 0;
   private lastFullDrawn = 0;
+  private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
+  private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
   private noticeText = '';
   private noticeShown = false;
   private msSum = 0;
@@ -557,10 +568,10 @@ export class TreeViewer {
     this.events.emit('sourcechange', { version: v });
   }
 
-  /** One past the largest node id: the node count for a tree in memory. A partial source's ids are only checked to be ids (whole numbers
-   *  from 0): whether one is in the full tree is the source's business, and a node that is not loaded yet is no error. */
+  /** One past the largest node id: the node count of the full tree, for a partial source too (`TreeSource.nodeCount`). Whether an id below
+   *  it is loaded is the source's business, and a node that is not loaded yet is no error. */
   private nodeLimit(): number {
-    return this.tree.globalId === null ? this.source.nodeCount : Infinity;
+    return this.source.nodeCount;
   }
 
   /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes`). */
@@ -764,6 +775,8 @@ export class TreeViewer {
       const m = map;
       // up[i]: the nearest node at or above i that the map keeps (built once, in one preorder pass, only if the deep pass runs)
       let up: Int32Array | null = null;
+      // tipIndices of a label in the old and the new tree, kept so a repeated label is looked up once
+      const dupLists = new Map<string, [ArrayLike<number>, ArrayLike<number>]>();
       const target = (r: number, deep: boolean, out: TipTarget): boolean => {
         let node = before.tipNode[r];
         if (node < 0) return false;
@@ -787,8 +800,23 @@ export class TreeViewer {
           out.node = q;
           return true;
         }
-        const q = after.tipIndex(before.tipLabels[r]);
-        if (q < 0) return false;
+        // a label several tips carry: the k-th tip with it before is the k-th after
+        const label = before.tipLabels[r];
+        let q: number;
+        if (before.tipIndices && after.tipIndices) {
+          let lists = dupLists.get(label);
+          if (!lists) {
+            lists = [before.tipIndices(label), after.tipIndices(label)];
+            dupLists.set(label, lists);
+          }
+          let k = 0;
+          while (k < lists[0].length && lists[0][k] !== node) k++;
+          if (k >= lists[1].length) return false;
+          q = lists[1][k];
+        } else {
+          q = after.tipIndex(label);
+          if (q < 0) return false;
+        }
         out.lo = after.tipRank[q];
         out.hi = out.lo + 1;
         out.node = q;
@@ -900,12 +928,7 @@ export class TreeViewer {
     const changed = Object.keys(p) as (keyof ViewerOptions)[];
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
-    const refit =
-      lengthsChanged ||
-      layoutChanged ||
-      (p.axis !== undefined && p.axis !== o.axis) ||
-      (p.rowHeight !== undefined && p.rowHeight !== o.rowHeight) ||
-      (p.treeWidth !== undefined && p.treeWidth !== o.treeWidth);
+    const refit = lengthsChanged || layoutChanged || refitsView(p, o);
     // the pooled label elements take their text (formatLabel) and link (tipHref) when they are created, so a change of either rebuilds them
     const labelsChanged = (p.tipHref !== undefined && p.tipHref !== o.tipHref) || (p.formatLabel !== undefined && p.formatLabel !== o.formatLabel);
     this.opts = { ...o, ...p };
@@ -947,11 +970,12 @@ export class TreeViewer {
   }
 
   /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
-   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before, and the cursor
-   *  is announced again. */
+   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before (a zoomed view is
+   *  only clamped to the new limits), and the cursor is announced again. */
   private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
     if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
       this.fit(false);
+    else this.reclampView(); // a zoomed view keeps its window within the limits, which are relative to the fit (radial: alignLabels moves it)
     if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
 
@@ -1240,12 +1264,13 @@ export class TreeViewer {
         if (row >= 0) add(row);
       }
     }
-    ranks.sort((a, b) => a - b);
-    const uniq = ranks.filter((r, k) => k === 0 || r !== ranks[k - 1]);
-    this.hlRanks = Int32Array.from(uniq);
-    if (uniq.length) {
+    const sorted = Int32Array.from(ranks).sort(); // a typed array sorts numerically, and much faster than an array with a comparator
+    let n = 0;
+    for (let k = 0; k < sorted.length; k++) if (k === 0 || sorted[k] !== sorted[k - 1]) sorted[n++] = sorted[k];
+    this.hlRanks = sorted.slice(0, n);
+    if (n) {
       this.hl = new Uint8Array(N);
-      for (const r of uniq) this.hl[r] = 1;
+      for (let k = 0; k < n; k++) this.hl[this.hlRanks[k]] = 1;
     } else this.hl = null;
     this.hlPrefix = null;
   }
@@ -1635,7 +1660,7 @@ export class TreeViewer {
 
   /** Called by every input that moves the view (wheel, drag, pinch, overview, animation steps). */
   private noteInput(): void {
-    if (!this.opts.interactionLOD) return;
+    if (this.opts.interactionLOD === false) return;
     this.interacting = true;
     if (this.refineTimer) clearTimeout(this.refineTimer);
     this.refineTimer = window.setTimeout(() => {
@@ -1645,6 +1670,19 @@ export class TreeViewer {
       if (this.reducedFrame) this.dirty = true;
       this.schedule();
     }, this.opts.refineMs);
+  }
+
+  /** Whether this frame is drawn reduced: only while the view moves, and with 'auto' only when the full-quality frames are slow. */
+  private reduceWhileMoving(): boolean {
+    const mode = this.opts.interactionLOD;
+    return this.interacting && (mode === true || (mode === 'auto' && this.fullMs > AUTO_LOD_MS));
+  }
+
+  /** Fold the JS time of a full-quality frame into fullMs (weight 1/2 on the newest). The first full frame carries one-off costs (JIT,
+   *  first measurements) and is skipped; the second seeds the average. */
+  private measureFull(ms: number): void {
+    if (this.fullFrames++ === 0) return;
+    this.fullMs = this.fullMs > 0 ? this.fullMs * 0.5 + ms * 0.5 : ms;
   }
 
   /** Force a full redraw n times and return the mean JS time per frame (benchmark helper). */
@@ -1816,7 +1854,7 @@ export class TreeViewer {
     const T = this.T;
     const ctx = this.ctx;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const reduced = this.interacting && opts.interactionLOD;
+    const reduced = this.reduceWhileMoving();
 
     // ---- cut
     const tc = performance.now();
@@ -1871,6 +1909,7 @@ export class TreeViewer {
     st.mergedTips = res.mergedTips;
     st.reduced = reduced;
     st.scale = dpr;
+    if (!reduced) this.measureFull(frameMs);
     this.msSum += frameMs;
     this.msN++;
     if (frameMs > this.msMax) this.msMax = frameMs;
@@ -1904,13 +1943,12 @@ export class TreeViewer {
       hlPrefix: dimming ? this.dimPrefix() : null,
       density: opts.labelDensity,
       alignLabels: opts.alignLabels,
+      labelRoom: vs.radialLabelRoom(),
       format: opts.formatLabel,
       cladeText: (row) => this.cladeText(row),
       nodeLabels: opts.nodeLabels,
       formatNode: opts.formatNodeLabel,
       scale,
-      striped: opts.summaryStyle === 'striped',
-      stripeCollapsed: opts.stripeCollapsed,
       thin: !rect && this.list.count >= THIN_PRIMS,
       measure: this.measurer,
     };
@@ -1918,6 +1956,7 @@ export class TreeViewer {
     ctx.beginPath();
     ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
     ctx.clip();
+    if (opts.axis) drawRings(ctx, S, opts.radialRings); // radial only; with the scale bar, their one label without an opening
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, this.theme.branchWidth);
     drawLeaders(ctx, S);
@@ -2077,14 +2116,10 @@ export class TreeViewer {
   }
 
   private queryHit(x: number, y: number): Hit | null {
-    // a label under the pointer is a tip hit (rectangular text; radial labels are matched by their box centre line)
+    // a label under the pointer (its text box; radial, turned along its ray) is a tip hit
     const L = this.labels;
-    if (this.T.kind === 'rectangular') {
-      for (let k = 0; k < L.count; k++) {
-        if (x >= L.x[k] - 2 && x <= L.x[k] + L.w[k] + 2 && Math.abs(y - L.y[k]) <= L.h[k] / 2)
-          return L.rank[k] >= 0 ? { node: this.tree.tipNode[L.rank[k]], kind: 'tip' } : { node: -L.rank[k] - 1, kind: 'summary' }; // a collapsed clade's label is the clade
-      }
-    }
+    const k = L.at(x, y, this.T.kind === 'rectangular');
+    if (k >= 0) return L.rank[k] >= 0 ? { node: this.tree.tipNode[L.rank[k]], kind: 'tip' } : { node: -L.rank[k] - 1, kind: 'summary' }; // a collapsed clade's label is the clade
     return this.hit.query(x, y, this.proj);
   }
 

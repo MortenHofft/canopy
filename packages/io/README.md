@@ -15,7 +15,7 @@ Only single-quoted labels are handled, not double-quoted ones. Underscores in la
 Tip labels are lookup keys, not the identity of a tip: the same label can be on several tips (several sequences of one species, labels
 made for display), and every tip is kept. `tree.duplicateTipLabels()` reports them after a parse (a map from each label that more than one
 tip carries to those tips' node indexes, in preorder; empty when the labels are unique), so an app can warn. `tipIndex(label)` is the
-first tip with a label, `tipIndices(label)` every one, and `mrcaOf` counts every tip of a label. To tell the tips apart, use their node
+first tip with a label, and `tipIndices(label)` every one (`mrcaOf` takes node numbers, so pass it `tipIndices(label)` to count every tip of a label). To tell the tips apart, use their node
 indexes (the viewer's node ids).
 
 ```ts

@@ -84,7 +84,26 @@ const SCENARIOS = [
   {
     name: 'tree-ops: ladderise only',
     code: `import { ladderise } from '@gbif-phylo/tree-ops'; console.log(ladderise);`,
-    forbid: ['packages/tree-ops/dist/rooting.js', 'packages/tree-ops/dist/collapse.js', 'packages/tree-ops/dist/subset.js'],
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/bytes.js',
+      'packages/tree-ops/dist/auto-collapse.js',
+    ],
+  },
+  {
+    name: 'tree-ops: treeBytes only',
+    code: `import { treeBytes } from '@gbif-phylo/tree-ops'; console.log(treeBytes);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+      'packages/tree-ops/dist/follow.js',
+      'packages/tree-ops/dist/auto-collapse.js',
+    ],
   },
   {
     name: 'tree-ops: followClade, composeMaps only',
@@ -95,6 +114,19 @@ const SCENARIOS = [
       'packages/tree-ops/dist/collapse.js',
       'packages/tree-ops/dist/subset.js',
       'packages/tree-ops/dist/focus.js',
+    ],
+  },
+  {
+    name: 'tree-ops: autoCollapse only',
+    code: `import { autoCollapse } from '@gbif-phylo/tree-ops'; console.log(autoCollapse);`,
+    forbid: [
+      'packages/tree-ops/dist/rooting.js',
+      'packages/tree-ops/dist/order.js',
+      'packages/tree-ops/dist/collapse.js',
+      'packages/tree-ops/dist/subset.js',
+      'packages/tree-ops/dist/focus.js',
+      'packages/tree-ops/dist/follow.js',
+      'packages/tree-ops/dist/bytes.js',
     ],
   },
   {
@@ -123,6 +155,18 @@ const SCENARIOS = [
     name: 'react: TreeView',
     code: `import { TreeView } from '@gbif-phylo/react'; console.log(TreeView);`,
     forbid: ['controls/search.js', 'controls/legend.js', 'controls/defaults.js', 'controls/layout-toggle.js', 'packages/viewer/dist/overview.js'],
+    external: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
+  {
+    // the hooks build on the viewer's events only: no <TreeView>, no controls
+    name: 'react: hooks only',
+    code: `import { useTreeViewer, useViewport, useTreeEvent, useTreeTheme } from '@gbif-phylo/react'; console.log(useTreeViewer, useViewport, useTreeEvent, useTreeTheme);`,
+    forbid: [
+      'packages/react/dist/TreeView.js',
+      'packages/viewer/dist/viewer.js',
+      'packages/viewer/dist/controls/',
+      'packages/viewer/dist/overview.js',
+    ],
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 ];

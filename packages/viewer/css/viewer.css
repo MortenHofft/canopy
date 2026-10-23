@@ -13,6 +13,7 @@
  *   motion      --phylo-transition
  *   canvas      --phylo-branch-width  --phylo-clade-branch-width  --phylo-tip-radius  --phylo-node-marker-size  --phylo-label-size
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
+ *               --phylo-summary-stripe-opacity  --phylo-summary-stripe-gap
  *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *               --phylo-node-label-size  --phylo-support-colour  --phylo-length-colour
  *               --phylo-selection-colour  --phylo-selection-width  --phylo-selection-radius
@@ -161,12 +162,42 @@
   padding: 4px;
 }
 
+/* the header: the name, a close button, and a line under them */
+.phylo-node-menu__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px -4px 4px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
+}
+
 .phylo-node-menu__title {
-  padding: 4px 8px 6px;
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.phylo-node-menu__close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--phylo-control-radius, 4px);
+  background: transparent;
+  color: var(--phylo-muted, #6b7c8a);
+  cursor: pointer;
+}
+
+.phylo-node-menu__close:hover {
+  background: var(--phylo-surface-hover, color-mix(in srgb, var(--phylo-foreground, #162d3d) 8%, transparent));
+  color: var(--phylo-foreground, #162d3d);
 }
 
 .phylo-node-menu__item {
@@ -265,6 +296,18 @@
   color: var(--phylo-muted, #6b7c8a);
   font-style: normal;
   font-size: 0.85em;
+}
+
+/* the count line stays in sight at the bottom of the list when the list scrolls */
+.phylo-search__more {
+  position: sticky;
+  bottom: -4px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
+  background: var(--phylo-surface, var(--phylo-background, #ffffff));
+  color: var(--phylo-muted, #6b7c8a);
+  font-size: 0.85em;
+  cursor: default;
 }
 
 .phylo-search__option:hover,

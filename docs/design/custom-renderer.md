@@ -124,6 +124,7 @@ Given viewport `V` (visible leaf range `[l0,l1]`, x range, pixel size), with `px
 2. **Cull**: skip a node if `leafHi < l0` or `leafLo > l1` (no need to visit its subtree).
 3. **Collapse rule A (vertical)**: if the node is internal and `(leafHi - leafLo + 1) * pxPerLeaf < minPx` (default 3), emit one summary glyph for the whole clade (a filled wedge or a stub with density colour) and do not descend.
 4. **Collapse rule B (horizontal/size)**: also collapse when the clade's total horizontal extent (max descendant `x` minus own `x`, stored as `maxX[node]`, one more typed array) times x-scale is `< minPx`. Needed for ladderised trees (6.3).
+   *Note (2026-10-23, #87):* the library had rule B (bounded to clades under `4 * minPx` tall) and removed it: it collapsed clades of near-identical tips at any zoom. Ladders are handled by rule C, the pixel-cell dedupe in `packages/viewer/src/lod.ts`, which does not emit sub-pixel segments that land on the same cells as an earlier one.
 5. Otherwise emit the node's branch segment and (if `pxPerLeaf >= labelPx`) its label, then push children.
 6. **Orthogonal elbows**: draw one vertical line per internal node from first to last child and a horizontal line per child, as in standard rectangular trees. Batch into one `Path2D` per colour class.
 
@@ -142,6 +143,8 @@ So the draw list is bounded by the viewport pixel budget (hundreds to thousands 
 ### 6.3 Failure case found: caterpillar trees (measured)
 
 A 200k-tip caterpillar (fully ladderised, depth 200k): fit-all draws 398,668 nodes and collapses 1, in 12.5 ms CPU, and the zoomed-in views still draw 120k nodes. Rule A cannot collapse the spine because every spine clade spans many leaves; only a clade near the bottom is short. In a real picture most of those 200k spine nodes are sub-pixel in `x` (branch lengths), so rule B (horizontal extent) or "merge consecutive sub-pixel segments" is required. This is an open design item; acceptance test for the spike: a 200k-tip ladderised tree with realistic branch lengths must keep the draw list under about 20k primitives at fit-all. The case is realistic (many published trees are ladderised for display; Newick files from ML tools often put the biggest clade first).
+
+*Note (2026-10-23, #87):* in the library this was solved by "merge consecutive sub-pixel segments" (rule C, the pixel-cell dedupe in `packages/viewer/src/lod.ts`), not by rule B; rule B was removed in #87.
 
 ### 6.4 Clade labels and collapsed triangles
 
@@ -295,7 +298,7 @@ Skipping WebGL (if LOD keeps Canvas2D fast enough, which is plausible given the 
 ## 13. Risks
 
 1. **Canvas2D frame time is unmeasured**: no browser was available in this research. Draw-list sizes are measured; frame times are not. Mitigation: first spike task is a Canvas2D harness drawing synthetic lists of 5k, 20k, 100k segments plus 100 labels, on a mid-range laptop and a phone.
-2. **Ladderised trees** defeat rule A (section 6.3). Mitigation: rule B plus segment merging; test with real GBIF trees.
+2. **Ladderised trees** defeat rule A (section 6.3). Mitigation: rule B plus segment merging; test with real GBIF trees. *Note (2026-10-23, #87):* the library keeps the segment merging (rule C) and no longer has rule B.
 3. **Unknown real tree sizes and shapes** (goal.md open question). All estimates scale with that.
 4. **Accessibility on canvas** is real work and easy to under-deliver.
 5. **Scope creep** from ETE-style "faces" (alignment columns, domain shapes): keep column types as an extension point, not core.

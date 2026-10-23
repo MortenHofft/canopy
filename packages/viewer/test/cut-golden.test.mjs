@@ -13,7 +13,7 @@
 // (radialFan(0, 0)) must still give exactly the e2897fb draw lists: cut-golden-circle.json holds their hashes, computed from the
 // cut-golden.json entries as they were before the recapture.
 //
-// The cases cover: a comb, a balanced tree with thin cherries (rule B), a random tree, polytomies (runs of small siblings between larger
+// The cases cover: a comb, a balanced tree with thin cherries (collapsed by height only since #87), a random tree, polytomies (runs of small siblings between larger
 // children, a class change and a parent change in the middle of a run), a snapshot with stubs, a view that cuts the tree at the right edge
 // (clades whose node lies beyond the clip edge), sub-pixel pans, and budgets small enough to raise the threshold (`forced`).
 import { test } from 'node:test';

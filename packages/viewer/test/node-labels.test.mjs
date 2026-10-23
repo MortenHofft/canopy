@@ -88,17 +88,22 @@ test("'support': a number per drawn internal node, right-aligned just left of th
   }
 });
 
-test("'length': centred on the horizontal segment of the branch; formatNodeLabel formats", async () => {
+test("'length': centred on the horizontal segment of the branch, tips too; formatNodeLabel formats", async () => {
   const m = await make({ nodeLabels: 'length' });
   const t = nodeTexts(m.ctx());
-  assert.deepEqual(t.map((x) => x.text).sort(), ['2', '3']);
-  const x = t.find((l) => l.text === '2');
-  const p = m.viewer.nodePosition(1),
-    q = m.viewer.nodePosition(0);
-  assert.equal(x.align, 'center');
-  assert.ok(Math.abs(x.x - (p.x + q.x) / 2) < 1e-6);
+  assert.deepEqual(t.map((x) => x.text).sort(), ['1', '1', '1', '1', '2', '3']);
+  for (const [node, text] of [
+    [1, '2'],
+    [2, '1'],
+  ]) {
+    const p = m.viewer.nodePosition(node),
+      q = m.viewer.nodePosition(m.viewer.getTree().parent[node]);
+    const x = t.find((l) => l.text === text && Math.abs(l.x - (p.x + q.x) / 2) < 1e-6);
+    assert.ok(x, `node ${node}: a label in the middle of its branch`);
+    assert.equal(x.align, 'center');
+  }
   const f = await make({ nodeLabels: 'length', formatNodeLabel: (v, k) => `${k}:${v}` });
-  assert.deepEqual(texts(f.ctx()).sort(), ['length:2', 'length:3']);
+  assert.deepEqual(texts(f.ctx()).sort(), ['length:1', 'length:1', 'length:1', 'length:1', 'length:2', 'length:3']);
   const g = await make({ nodeLabels: 'support', formatNodeLabel: (v, k) => (k === 'support' && v <= 1 ? String(Math.round(v * 100)) : String(v)) });
   assert.deepEqual(texts(g.ctx()).sort(), ['50', '95']);
 });
@@ -143,18 +148,18 @@ test('none inside a summary: collapsed clades get no label, expanded ones do', a
   assert.deepEqual(texts(m.ctx()), []);
 });
 
-test('a collapsed tip gets no label, its extended length is not shown', async () => {
-  // tip a stands for a collapsed clade, its branch lengthened to the clade's height (as collapseClades { extend } does)
+test('a tip gets its length; a clade collapsed by the app gets the length of its stem, its tips none', async () => {
   const m = await make({ nodeLabels: 'length' }, { tree: '((a:7.5,b:1)95:2,(c:1,d:1)0.5:3)r;' });
-  assert.ok(!texts(m.ctx()).includes('7.5'), 'a tip never gets a length label');
-  m.viewer.setCollapsed([2]);
+  assert.deepEqual(texts(m.ctx()).sort(), ['1', '1', '1', '2', '3', '7.5']);
+  m.viewer.setCollapsed([1]);
   m.env.flush();
   m.ctx().reset();
   m.viewer.setOptions({ nodeLabels: 'support' });
   m.viewer.setOptions({ nodeLabels: 'length' });
   m.env.flush();
-  const t = texts(m.ctx());
-  assert.deepEqual(t.sort(), ['2', '3'], 'the internal branches only');
+  const t = texts(m.ctx()).filter((x) => x !== '2 tips'); // the collapsed clade's own label
+  assert.deepEqual(t.sort(), ['1', '1', '2', '3'], 'x on its stem, c and d, nothing for a and b');
+  assert.deepEqual(texts((await make({ nodeLabels: 'support' })).ctx()).sort(), ['0.5', '95'], 'support: internal nodes only');
 });
 
 test('none below the density threshold; the density option moves it', async () => {
@@ -203,7 +208,7 @@ test('radial: along the branch, rotated like tip labels, and the transform is re
   const m = await make({ nodeLabels: 'length', layout: 'radial' }, { init: { size: [500, 500] } });
   const ctx = m.ctx();
   const t = nodeTexts(ctx);
-  assert.deepEqual(t.map((x) => x.text).sort(), ['2', '3']);
+  assert.deepEqual(t.map((x) => x.text).sort(), ['1', '1', '1', '1', '2', '3']);
   for (const l of t) {
     assert.equal(l.align, 'center');
     assert.ok(l.tf && l.tf.length === 6);
@@ -223,6 +228,13 @@ test('radial: none when the node has no arc to speak of', async () => {
   for (let i = 0; i < 400; i += 2) pairs.push(`(${tips[i]},${tips[i + 1]})90:1`);
   const m = await make({ nodeLabels: 'support', layout: 'radial' }, { tree: `(${pairs.join(',')})r;`, init: { size: [300, 300] } });
   assert.deepEqual(texts(m.ctx()), []);
+  // tips closer than the tip labels' threshold get no length either (tips have length 2 here, the rest 1)
+  const n = await make(
+    { nodeLabels: 'length', layout: 'radial' },
+    { tree: `(${pairs.join(',')})r;`.replace(/(t\d+):1/g, '$1:2'), init: { size: [300, 300] } },
+  );
+  assert.ok(n.viewer.proj.tipPitch < 11, `pitch ${n.viewer.proj.tipPitch}`);
+  assert.ok(!texts(n.ctx()).includes('2'));
 });
 
 test('a change of the option redraws', async () => {
@@ -263,7 +275,7 @@ test("'support' reads tree.support when the snapshot has it, the label otherwise
 
 test('NaN, infinite and missing values give no label', async () => {
   const m = await make({ nodeLabels: 'length' }, { tree: '((a:1,b:1)95,(c:1,d:1)0.5:3)r;' });
-  assert.deepEqual(texts(m.ctx()), ['3'], 'x has no length');
+  assert.deepEqual(texts(m.ctx()).sort(), ['1', '1', '1', '1', '3'], 'x has no length, its tips have theirs');
   const n = await make({ nodeLabels: (node) => (node === 1 ? NaN : node === 4 ? Infinity : 'ok') });
   assert.deepEqual(texts(n.ctx()), []);
   const s = await make({ nodeLabels: 'support' }, { tree: '((a:1,b:1)Name:1,(c:1,d:1)0.5:3)r;' });
@@ -381,11 +393,10 @@ test('radial: text on the left half is turned to read upright, on both halves, f
     assert.ok(dxs.some((d) => d < -5) && dxs.some((d) => d > 5), 'nodes on both halves');
     for (const l of t) assert.ok(l.tf[0] >= -1e-9, 'upright');
     if (mode === 'length') {
-      // every label sits at the middle of the branch of one internal node, not only the ones on the vertical axis
+      // every label sits at the middle of the branch of one node (tips too), not only the ones on the vertical axis
       const tr = m.viewer.getTree();
       const mids = [];
       for (let i = 1; i < tr.nodeCount; i++) {
-        if (tr.firstChild[i] < 0) continue;
         // the branch runs along the node's own ray, from the parent's radius to the node's
         const p = m.viewer.nodePosition(i),
           q = m.viewer.nodePosition(tr.parent[i]);
@@ -428,12 +439,22 @@ test('rectangular: at most 600 labels', async () => {
   assert.equal(nodeTexts(m.ctx()).length, 600);
 });
 
+test('the cap is filled with internal branches first, then tips', async () => {
+  // 511 internal nodes (branches of length 1; the root has none) and 512 tips (length 2): the 510 internal branches, then 90 tips
+  const tree = balanced(9).replace(/(t\d+):1/g, '$1:2');
+  const m = await make({ nodeLabels: 'length', lod: false }, { tree, init: { size: [800, 30000] } });
+  const t = texts(m.ctx());
+  assert.equal(t.length, 600);
+  assert.equal(t.filter((x) => x === '1').length, 510, 'every internal branch (the root has none)');
+  assert.equal(t.filter((x) => x === '2').length, 90, 'tips take what is left');
+});
+
 test('a function gets the full-tree id of a partial snapshot, never a stub, and its row is toLocal(id)', async () => {
   const OFFSET = 1000;
   const full = new InMemorySource(parseNewick('((a:1,b:1)x:2,((c:1,d:1)y:1,e:1)z:1,f:1)r;')).snapshot();
   const { snap } = partialSnapshot(full, [4], OFFSET); // z (preorder 4) is not loaded
   const source = {
-    nodeCount: full.nodeCount,
+    nodeCount: full.nodeCount + OFFSET, // ids are row + OFFSET, so all are below it
     tipCount: full.tipCount,
     hasLengths: true,
     version: 0,
@@ -462,6 +483,6 @@ test('the root has no branch: no label, even with a support value and a length o
     const s = await make({ nodeLabels: 'support', layout }, { tree, init: { size: [500, 500] } });
     assert.deepEqual(texts(s.ctx()).sort(), ['0.5', '95'], layout);
     const l = await make({ nodeLabels: 'length', layout }, { tree, init: { size: [500, 500] } });
-    assert.deepEqual(texts(l.ctx()).sort(), ['2', '3'], layout);
+    assert.deepEqual(texts(l.ctx()).sort(), ['1', '1', '1', '1', '2', '3'], layout);
   }
 });

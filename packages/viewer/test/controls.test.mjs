@@ -115,11 +115,11 @@ test('Search: prefix matches first, case-insensitive on the displayed label, cap
   const v = fakeViewer();
   const s = new Search({ maxResults: 3 });
   s.setViewer(v);
-  const labels = (ranks) => ranks.map((r) => v.getTree().tipLabels[r]);
+  const labels = ({ ranks }) => ranks.map((r) => v.getTree().tipLabels[r]);
   assert.deepEqual(labels(s.find(v, 'apis')), ['Apis_mellifera', 'Apis_cerana']);
   assert.deepEqual(labels(s.find(v, 'IS M')), ['Apis_mellifera'], 'underscores show as spaces');
   assert.deepEqual(labels(s.find(v, 'a')), ['Apis_mellifera', 'Apis_cerana', 'Xylocopa_violacea'], 'prefix first, then anywhere, capped');
-  assert.deepEqual(s.find(v, '   '), []);
+  assert.deepEqual(s.find(v, '   '), { ranks: [], total: 0 });
   // type, wait for the debounce, choose with the keyboard
   s.input.value = 'cer';
   s.input.dispatch('input');
@@ -136,6 +136,44 @@ test('Search: prefix matches first, case-insensitive on the displayed label, cap
       done();
     }, 150),
   );
+});
+
+test('Search: the list says "N of M" when more tips match than it shows, and the live region announces the count (#58)', () => {
+  const v = fakeViewer();
+  const s = new Search({ maxResults: 2 });
+  s.setViewer(v);
+  assert.deepEqual(s.find(v, 'a'), { ranks: [0, 1], total: 3 }, 'every match is counted, beyond maxResults');
+  assert.equal(s.status.getAttribute('aria-live'), 'polite');
+  const typed = (q) =>
+    new Promise((done) => {
+      s.input.value = q;
+      s.input.dispatch('input');
+      setTimeout(done, 150);
+    });
+  return typed('a')
+    .then(() => {
+      const items = [...s.list.children];
+      assert.deepEqual(
+        items.map((li) => li.textContent),
+        ['Apis mellifera', 'Apis cerana', '2 of 3 matches'],
+      );
+      assert.equal(items[2].getAttribute('role'), 'none', 'the count line is not an option');
+      assert.equal(s.status.textContent, '2 of 3 matches');
+      items[2].click();
+      assert.deepEqual(v.calls, [], 'clicking the count line chooses nothing');
+      s.input.dispatch('keydown', { key: 'ArrowUp' });
+      assert.equal(s.input.getAttribute('aria-activedescendant'), `${s.list.id}-1`, 'the arrow keys skip the count line');
+      return typed('apis');
+    })
+    .then(() => {
+      assert.equal(s.list.children.length, 2, 'no count line when every match is listed');
+      assert.equal(s.status.textContent, '2 matches');
+      return typed('zzz');
+    })
+    .then(() => {
+      assert.equal(s.status.textContent, 'No matches');
+      s.setViewer(null);
+    });
 });
 
 test('Search: highlight and onSelect', () => {
@@ -169,7 +207,7 @@ test('Search: a label that several tips carry lists each tip, says which it is, 
   const v = fakeViewer('((Homo_sapiens:1,Homo_sapiens:1):1,Pan_troglodytes:1,Homo_sapiens:1)root;');
   const s = new Search({ highlight: true });
   s.setViewer(v);
-  assert.deepEqual(s.find(v, 'homo'), [0, 1, 3], 'every tip with the label is a suggestion');
+  assert.deepEqual(s.find(v, 'homo'), { ranks: [0, 1, 3], total: 3 }, 'every tip with the label is a suggestion');
   s.input.value = 'homo';
   s.input.dispatch('input');
   return new Promise((done) =>

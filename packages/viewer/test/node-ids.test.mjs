@@ -97,7 +97,7 @@ test('more than five bad ids: the first five and a count', async () => {
   assert.match(w[0], /setCollapsed: 10, 11, 12, 13, 14 and 2 more are not nodes/);
 });
 
-test('a partial source: any whole number from 0 is an id (a node not loaded yet is no error), anything else warns', async () => {
+test('a partial source: any id below nodeCount is an id (a node not loaded yet is no error), anything else warns', async () => {
   const path = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -107,7 +107,7 @@ test('a partial source: any whole number from 0 is an id (a node not loaded yet 
   const full = new InMemorySource(parseNewick('((A:1,B:2)AB:1,(C:1,(D:2,E:3)DE:1)CDE:2,F:4)root;')).snapshot();
   const { snap } = partialSnapshot(full, [4], 1000); // ids are row + 1000, CDE (4) not loaded
   const source = {
-    nodeCount: full.nodeCount,
+    nodeCount: full.nodeCount + 1000, // ids are the full tree's ids + 1000
     tipCount: full.tipCount,
     hasLengths: true,
     version: 0,
@@ -124,6 +124,8 @@ test('a partial source: any whole number from 0 is an id (a node not loaded yet 
     warnings(() => v.setClades([{ node: 1001, colour: '#f00' }])),
     [],
   );
+  const out = warnings(() => v.setClades([{ node: 1000 + full.nodeCount, colour: '#f00' }]));
+  assert.match(out[0], /setClades: 1010 is not a node of this tree \(nodes are numbers, the preorder ids 0 to 1009\)/);
   const w = warnings(() => v.zoomToNode('1001'));
-  assert.match(w[0], /zoomToNode: "1001" is not a node of this tree \(nodes are numbers, preorder ids\)/);
+  assert.match(w[0], /zoomToNode: "1001" is not a node of this tree \(nodes are numbers, the preorder ids 0 to 1009\)/);
 });

@@ -3,7 +3,7 @@
 // open a page). It is a DEFAULT action of the click event: a click listener that calls `preventDefault()` keeps it closed.
 //
 // Keyboard: opened from the keyboard, focus goes to the first enabled item; arrows move, Escape closes and gives focus back to the tree,
-// Tab out closes. Pointer: a press outside, a pan or zoom, or a choice closes it. Opened by a tap, focus stays put: the compatibility
+// Tab out closes. Pointer: the close button in the header, a press outside, a pan or zoom, or a choice closes it. Opened by a tap, focus stays put: the compatibility
 // mousedown that follows a tap would otherwise blur the menu and close it at once. While it is open, hover listeners that run as
 // default actions (the tooltip) are suppressed.
 //
@@ -29,6 +29,9 @@ export interface NodeMenuOptions extends Omit<ControlOptions, 'position' | 'targ
   /** The heading; default: the tip label, or the clade's name (without support, through formatLabel), or 'Clade, N tips'. */
   title?(e: TreeEvent, viewer: TreeViewer): string;
 }
+
+const CLOSE_ICON =
+  '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2l6 6M8 2l-6 6"/></svg>';
 
 export class NodeMenu extends BaseControl {
   private opts: NodeMenuOptions;
@@ -71,6 +74,7 @@ export class NodeMenu extends BaseControl {
     });
     this.domListen(this.element, 'click', (e) => {
       const b = (e.target as Element).closest('button');
+      if (b?.classList.contains('phylo-node-menu__close')) return this.close(true);
       const it = b && this.open?.items.find((x) => x.id === b.dataset.action);
       if (it && !it.disabled) this.choose(it);
     });
@@ -87,11 +91,22 @@ export class NodeMenu extends BaseControl {
     this.open = { e, items };
     if (!e.run) v.setSelected(e.node);
     const el = this.element;
+    // the header: the name (the menu's aria-label says it to assistive technology) and a close button for the pointer (Escape for the
+    // keyboard), so the header is hidden from assistive technology and the button is not in the tab order
     const head = document.createElement('div');
-    head.className = 'phylo-node-menu__title';
+    head.className = 'phylo-node-menu__head';
     head.setAttribute('aria-hidden', 'true');
-    if (e.isTip) head.classList.add('phylo-node-menu__title--tip');
-    head.textContent = this.opts.title ? this.opts.title(e, v) : defaultTitle(e, v);
+    const title = document.createElement('span');
+    title.className = 'phylo-node-menu__title';
+    if (e.isTip) title.classList.add('phylo-node-menu__title--tip');
+    title.textContent = this.opts.title ? this.opts.title(e, v) : defaultTitle(e, v);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'phylo-node-menu__close';
+    close.tabIndex = -1;
+    close.title = 'Close';
+    close.innerHTML = CLOSE_ICON;
+    head.append(title, close);
     // role and label only while open, so a closed menu is not a menu to assistive technology (or to a query for one)
     el.setAttribute('role', 'menu');
     el.dataset.treeviewMenu = '';
@@ -122,7 +137,7 @@ export class NodeMenu extends BaseControl {
     const x = Math.max(4, Math.min(e.clientX - r.left + 6, r.width - el.offsetWidth - 4));
     const y = Math.max(4, Math.min(e.clientY - r.top + 6, r.height - el.offsetHeight - 4));
     el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-    if (e.via === 'keyboard') el.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+    if (e.via === 'keyboard') this.items()[0]?.focus();
     this.bindWindow(v);
   }
 
@@ -167,6 +182,11 @@ export class NodeMenu extends BaseControl {
     };
   }
 
+  /** The enabled items, in order (not the close button). */
+  private items(): HTMLButtonElement[] {
+    return Array.from(this.element.querySelectorAll<HTMLButtonElement>('.phylo-node-menu__item')).filter((b) => !b.disabled);
+  }
+
   private onKey(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -175,7 +195,7 @@ export class NodeMenu extends BaseControl {
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
-    const btns = Array.from(this.element.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+    const btns = this.items();
     const k = btns.indexOf(document.activeElement as HTMLButtonElement);
     btns[(k + (e.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length]?.focus();
   }

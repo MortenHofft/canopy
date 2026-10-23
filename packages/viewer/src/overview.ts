@@ -215,14 +215,13 @@ export class Overview {
       hlPrefix: null,
       hlRanks: new Int32Array(0),
       alignLabels: false,
+      labelRoom: 0,
       density: 'sparse',
       format: (id) => h.formatLabel(id),
       cladeText: null,
       nodeLabels: 'none',
       formatNode: String,
       scale: h.dpr,
-      striped: false, // the strip is small: summaries stay solid
-      stripeCollapsed: false,
       thin: false,
       measure: h.measure,
     };
@@ -231,7 +230,14 @@ export class Overview {
     if (rect && hlRanks.length) {
       ctx.fillStyle = h.theme.highlight;
       const rowOf = h.L.rowOfRank;
-      for (let k = 0; k < hlRanks.length && k < 2000; k++) ctx.fillRect(0, ((rowOf ? rowOf[hlRanks[k]] : hlRanks[k]) / N) * g.h - 1, g.w, 2.5);
+      // every match, one mark per pixel at most (the ranks are sorted, so y only grows; #58: it used to be the first 2,000 only)
+      let last = -Infinity;
+      for (let k = 0; k < hlRanks.length; k++) {
+        const y = ((rowOf ? rowOf[hlRanks[k]] : hlRanks[k]) / N) * g.h - 1;
+        if (y - last < 1) continue;
+        last = y;
+        ctx.fillRect(0, y, g.w, 2.5);
+      }
     }
   }
 

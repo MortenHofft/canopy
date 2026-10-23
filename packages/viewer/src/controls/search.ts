@@ -4,11 +4,15 @@
 // is a suggestion of its own, a label that several tips carry says which of them it is ('2 of 3'), and the chosen tip alone is focused and
 // highlighted (by node id).
 //
-// The lowercased labels are built once per tree and options (a large tree is scanned per keystroke, debounced, not re-lowercased).
+// When more tips match than the list shows, its last line says so ('8 of 1,234 matches'), and a polite live region announces the same count.
+//
+// The lowercased labels are built once per tree and options (a large tree is scanned per keystroke, debounced, not re-lowercased); every
+// label is scanned, to count the matches.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
 import type { TreeViewer } from '../viewer.ts';
 import { ICONS } from './icons.ts';
+import { SR_ONLY } from '../dom.ts';
 
 export interface SearchOptions extends ControlOptions {
   placeholder?: string;
@@ -21,14 +25,23 @@ export interface SearchOptions extends ControlOptions {
   icon?: string;
 }
 
+/** What `Search.find` found: the tip ranks to list (prefix matches first, at most `maxResults`) and how many tips match in all. */
+export interface SearchResult {
+  ranks: number[];
+  total: number;
+}
+
 let uid = 0;
 
 export class Search extends BaseControl {
   readonly input: HTMLInputElement;
   readonly list: HTMLUListElement;
+  /** The polite live region that announces the count ('8 of 1,234 matches', 'No matches'). */
+  readonly status: HTMLDivElement;
   private opts: SearchOptions;
   private lower: string[] | null = null;
   private results: number[] = []; // tip ranks
+  private total = 0;
   private active = -1;
   private timer = 0;
 
@@ -56,7 +69,11 @@ export class Search extends BaseControl {
     this.list.setAttribute('role', 'listbox');
     this.list.dataset.phyloScroll = ''; // scrolls itself: the wheel over it does not zoom the tree
     this.list.hidden = true;
-    this.element.append(icon, this.input, this.list);
+    this.status = document.createElement('div');
+    this.status.style.cssText = SR_ONLY;
+    this.status.setAttribute('role', 'status');
+    this.status.setAttribute('aria-live', 'polite');
+    this.element.append(icon, this.input, this.list, this.status);
   }
 
   protected attach(v: TreeViewer): void {
@@ -82,7 +99,7 @@ export class Search extends BaseControl {
     this.domListen(this.list, 'pointerdown', (e) => e.preventDefault()); // keep focus in the field
     this.domListen(this.list, 'click', (e) => {
       const li = (e.target as Element).closest('li');
-      if (li) this.choose(v, Number(li.dataset.rank));
+      if (li?.dataset.rank) this.choose(v, Number(li.dataset.rank));
     });
   }
 
@@ -92,10 +109,10 @@ export class Search extends BaseControl {
     this.lower = null;
   }
 
-  /** The tip ranks matching `query` (prefix matches first), at most `maxResults`. */
-  find(v: TreeViewer, query: string): number[] {
+  /** The tip ranks matching `query` (prefix matches first), at most `maxResults`, and the number of tips matching in all. */
+  find(v: TreeViewer, query: string): SearchResult {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
+    if (!q) return { ranks: [], total: 0 };
     const t = v.getTree();
     const fmt = v.options.formatLabel;
     this.lower ??= t.tipLabels.map((l) => (l === undefined ? '' : fmt(l).toLowerCase()));
@@ -103,18 +120,25 @@ export class Search extends BaseControl {
     const pre: number[] = [];
     const any: number[] = [];
     const L = this.lower;
-    for (let r = 0; r < L.length && pre.length < max; r++) {
+    let total = 0;
+    for (let r = 0; r < L.length; r++) {
       const k = L[r].indexOf(q);
-      if (k === 0) pre.push(r);
-      else if (k > 0 && any.length < max) any.push(r);
+      if (k < 0) continue;
+      total++;
+      if (k === 0) {
+        if (pre.length < max) pre.push(r);
+      } else if (any.length < max) any.push(r);
     }
-    return pre.concat(any).slice(0, max);
+    return { ranks: pre.concat(any).slice(0, max), total };
   }
 
   private run(v: TreeViewer): void {
-    this.results = this.find(v, this.input.value);
-    this.active = this.results.length ? 0 : -1;
+    const { ranks, total } = this.find(v, this.input.value);
+    this.results = ranks;
+    this.total = total;
+    this.active = ranks.length ? 0 : -1;
     this.render(v);
+    this.status.textContent = this.input.value.trim() ? countText(ranks.length, total) : '';
   }
 
   private render(v: TreeViewer): void {
@@ -140,6 +164,14 @@ export class Search extends BaseControl {
         return li;
       }),
     );
+    if (this.total > this.results.length) {
+      const more = document.createElement('li');
+      more.className = 'phylo-search__more';
+      more.setAttribute('role', 'none');
+      more.setAttribute('aria-hidden', 'true'); // the live region says it
+      more.textContent = countText(this.results.length, this.total);
+      this.list.append(more);
+    }
     const open = this.results.length > 0;
     this.list.hidden = !open;
     this.input.setAttribute('aria-expanded', String(open));
@@ -186,10 +218,20 @@ export class Search extends BaseControl {
 
   private close(): void {
     this.results = [];
+    this.total = 0;
+    this.status.textContent = '';
     this.active = -1;
     this.list.replaceChildren();
     this.list.hidden = true;
     this.input.setAttribute('aria-expanded', 'false');
     this.input.removeAttribute('aria-activedescendant');
   }
+}
+
+/** '8 of 1,234 matches' when the list shows fewer than match, else '3 matches', '1 match' or 'No matches'. */
+function countText(shown: number, total: number): string {
+  const n = (x: number) => x.toLocaleString('en');
+  if (!total) return 'No matches';
+  if (shown < total) return `${n(shown)} of ${n(total)} matches`;
+  return `${n(total)} match${total === 1 ? '' : 'es'}`;
 }

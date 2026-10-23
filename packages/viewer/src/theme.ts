@@ -26,6 +26,7 @@ const NUMBERS = [
   'tipRadius',
   'nodeMarkerSize',
   'summaryOpacity',
+  'summaryStripeOpacity',
   'summaryStripeGap',
   'markerOpacity',
   'highlightOpacity',
@@ -33,6 +34,9 @@ const NUMBERS = [
   'labelSize',
   'nodeLabelSize',
   'axisFontSize',
+  'ringWidth',
+  'ringOpacity',
+  'ringStripeOpacity',
   'leaderWidth',
   'leaderOpacity',
   'alignRowGap',
@@ -47,7 +51,6 @@ const NUMBERS = [
 ] as const;
 const STRINGS = [
   'fontFamily',
-  'summaryStripeColour',
   'leaderColour',
   'leaderDash',
   'supportColour',

@@ -111,7 +111,9 @@ export interface TreeTheme extends ResidueTheme {
   muted: string; // axis lines, gridlines, headers
   branch: string;
   highlight: string; // hover and keyboard rings, marks (`markColour` unset), highlight bands, focus ring
-  summary: string; // fill of collapsed clades without own colour
+  /** Colour of summaries (collapsed clades and the triangles, fans and bands of the level of detail) without a clade colour: their
+   *  background at `summaryOpacity` and their stripes at `summaryStripeOpacity`. */
+  summary: string;
   fontFamily: string;
   /** Style of tip labels, `--phylo-label-font-style`: 'italic' (scientific names) or 'normal'. */
   labelFontStyle: 'normal' | 'italic';
@@ -125,11 +127,12 @@ export interface TreeTheme extends ResidueTheme {
   tipRadius: number;
   /** Side of the square marker on internal nodes big enough to click, CSS px. */
   nodeMarkerSize: number;
-  summaryOpacity: number; // collapsed clades (triangles, fans, bands)
-  /** Colour of the stripes of a striped summary (`summaryStyle: 'striped'`) without a clade colour. '' = `summary`. */
-  summaryStripeColour: string;
-  /** Striped summaries: the least distance between two stripes, CSS px, at least 1 (smaller values are taken as 1). The line width follows from it
-   *  and the darkness of the solid fill (see api.md, "Striped summaries"). A summary shorter than two gaps stays solid. */
+  /** Opacity of the background fill of summaries: the faint shape that says "more tree here". */
+  summaryOpacity: number;
+  /** Opacity of the hairline stripes over a summary's background (see api.md, "Summaries"). */
+  summaryStripeOpacity: number;
+  /** The least distance between two stripes of a summary, CSS px, at least 1 (smaller values are taken as 1). A summary without room for
+   *  two stripes gets their mean tone at this spacing instead. */
   summaryStripeGap: number;
   markerOpacity: number; // tip dots and node markers
   highlightOpacity: number; // the band behind a highlighted tip
@@ -143,6 +146,11 @@ export interface TreeTheme extends ResidueTheme {
   supportColour: string;
   lengthColour: string;
   axisFontSize: number;
+  /** The radial scale rings (option `radialRings`), in `muted`: line width (CSS px) and opacity of 'lines', and the opacity of the
+   *  shaded bands of 'stripes'. Their labels use `axisFontSize`. */
+  ringWidth: number;
+  ringOpacity: number;
+  ringStripeOpacity: number;
   /** Leader lines of aligned labels (`alignLabels`): colour ('' = `muted`), dash pattern as CSS px separated by spaces or commas ('' or
    *  'none' = solid), width (CSS px) and opacity (multiplied by `dimOpacity` for a dimmed tip). */
   leaderColour: string;
@@ -189,9 +197,9 @@ export const FALLBACK_THEME: TreeTheme = {
   cladeBranchWidth: 2,
   tipRadius: 3.2,
   nodeMarkerSize: 4,
-  summaryOpacity: 0.6,
-  summaryStripeColour: '',
-  summaryStripeGap: 3,
+  summaryOpacity: 0.25,
+  summaryStripeOpacity: 0.5,
+  summaryStripeGap: 2,
   markerOpacity: 0.85,
   highlightOpacity: 0.16,
   dimOpacity: 0.25,
@@ -200,6 +208,9 @@ export const FALLBACK_THEME: TreeTheme = {
   supportColour: '',
   lengthColour: '',
   axisFontSize: 10,
+  ringWidth: 1,
+  ringOpacity: 0.3,
+  ringStripeOpacity: 0.08,
   leaderColour: '',
   leaderDash: '1 3',
   leaderWidth: 1,
@@ -333,6 +344,9 @@ export type LabelDensity = 'sparse' | 'normal' | 'dense';
  *  at the theme's `dimOpacity`; 'both' = both. */
 export type HighlightStyle = 'band' | 'dim' | 'both';
 
+/** Scale rings of the radial layout (option `radialRings`): none, circles, or every other band between them shaded. */
+export type RadialRings = 'none' | 'lines' | 'stripes';
+
 /** What is shown and how the viewer behaves (see the header: looks are `TreeTheme`). */
 export interface ViewerOptions {
   layout: LayoutKind;
@@ -340,17 +354,10 @@ export interface ViewerOptions {
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
   drawBudget: number; // max drawn tree primitives per frame; LOD thresholds are raised until the cut fits
   showSummaries: boolean; // draw collapsed clades as triangles (otherwise only their branch is drawn)
-  /** Fill of the summaries the level of detail draws (triangles, fans, bands of small siblings): `'solid'`, or `'striped'`: fine stripes
-   *  in the direction the hidden branches would run (rectangular: horizontal, about one per hidden tip row, no closer than the theme's
-   *  `summaryStripeGap`; radial: along the rays from the root, spaced by angle), a compressed preview of what zooming in shows. Clades the
-   *  app collapsed (`setCollapsed`) stay solid unless `stripeCollapsed`. The overview strip is always solid. */
-  summaryStyle: 'solid' | 'striped';
-  /** With `summaryStyle: 'striped'`, stripe the clades the app collapsed (`setCollapsed`) too. Default false: they stay solid, with their label. */
-  stripeCollapsed: boolean;
   labelDensity: LabelDensity;
-  /** Rectangular phylogram: draw every tip label in one column right of the farthest tip, with a leader line (theme `leaderColour`,
-   *  `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram (the tips already end at one x), in a tree
-   *  without branch lengths or in the radial layout. */
+  /** Phylogram: draw every tip label in one column right of the farthest tip (radial: on one circle just outside the outermost tip),
+   *  with a leader line (theme `leaderColour`, `leaderDash`, `leaderWidth`, `leaderOpacity`) from each tip to it. No effect in a cladogram
+   *  (the tips already end at one x or radius) or in a tree without branch lengths. */
   alignLabels: boolean;
   /** Hovering a tip, clade or summary also highlights its path to the root (every branch and connector on the way); with nothing
    *  hovered, the keyboard cursor's path is shown. How it looks is the theme's `hoverPathColour` and `hoverPathWidth`. */
@@ -361,9 +368,9 @@ export interface ViewerOptions {
   hoverAnimation: boolean;
   /**
    * Labels on internal nodes, drawn by the viewer from the draw list: 'support' (the number at the start of the node's label, left of the
-   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout), or a function
+   * node, above its branch), 'length' (the node's branch length, centred on the branch; along it in the radial layout; tips get one too), or a function
    * `(node, tree)` returning the text or a number (null = none), placed and coloured like support; `node` is the preorder id in the full
-   * tree, as in `cladeLabel`. Only drawn internal nodes get one (never one inside a collapsed clade), and only where the branch is long
+   * tree, as in `cladeLabel`. Only drawn internal nodes (and, for 'length', drawn tips) get one (never one inside a collapsed clade), and only where the branch is long
    * enough for the text and rows (rectangular) or arcs (radial) are at least `labelDensity` apart. Colours and size: `supportColour`,
    * `lengthColour`, `nodeLabelSize`.
    */
@@ -378,7 +385,7 @@ export interface ViewerOptions {
   /** The most space between two neighbouring tips when zooming in: a row's height in px (rectangular) or the arc between tips on the
    *  outer circle (radial). px, `'<n>em'` (n times `labelSize`, so it follows `--phylo-label-size`) or `'auto'` (1.85 em, 24 px at
    *  the default size: a label line, an alignment row and padding). `Infinity` = no cap beyond the hard ceilings (500 px per row, radial
-   *  20000 times the fit scale). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
+   *  20000 times the fit scale, or tips 50 px apart where that is deeper). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
    *  zoom out. The x axis (rectangular) is not capped by this: zooming x stretches branch lengths and stays up to 5e6 px per unit. */
   maxTipSpacing: FontRelative;
   /** Rectangular: the widest x window, in tree widths (default 1.6: the tree can shrink to about 62% of the plot width). Raise it to
@@ -390,7 +397,7 @@ export interface ViewerOptions {
    *  At least 120 px. */
   treeWidth: TreeWidth;
   axis: boolean; // scale bar / time axis
-  minCladePx: number; // collapse clades smaller than this many pixels (either direction)
+  minCladePx: number; // collapse clades less than this many pixels tall (radial: arc at the tips); branch lengths do not count
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
   alignStyle: 'residues' | 'blocks';
@@ -421,12 +428,20 @@ export interface ViewerOptions {
    *  circle is an arch open at the bottom. With `radialOpening: 0` and `radialRotation: 0` the angles are those of a full circle from
    *  3 o'clock, as before the options existed. */
   radialRotation: number;
+  /** Radial layout with branch lengths and `axis` on only (the scale bar labels the rings): circles about the root behind the tree, at the scale bar's step (so the bar is one band
+   *  wide; zooming in subdivides them, zooming out merges them). On a dated tree (ultrametric) they count back from the tips, which are
+   *  age 0, otherwise out from the root. 'lines' draws the circles, 'stripes' shades every other band between them (theme `ringWidth`,
+   *  `ringOpacity`, `ringStripeOpacity`, colour `muted`). With an opening (`radialOpening`), each ring is labelled with its distance or
+   *  age along the middle of the opening where there is room. Default 'none'. */
+  radialRings: RadialRings;
   /** Radial layout only: most primitives (expanded nodes, tips, summary fans) drawn per frame. When the viewport holds more,
    *  the collapse threshold is raised until it fits, so small clades become fans. Infinity = only `drawBudget` applies. */
   radialMaxNodes: number;
-  /** While the user wheels, pinches or drags, draw with a quarter of the budget (min 500) and a coarser collapse threshold,
-   *  then refine once after `refineMs` without input. Hit-testing always settles to a full-quality frame first. */
-  interactionLOD: boolean;
+  /** Reduced frames while the view moves (wheel, pinch, drag, animation): a quarter of the budget (min 500) and a coarser collapse
+   *  threshold, then one full-quality frame after `refineMs` without input. Hit-testing always settles to a full-quality frame first.
+   *  `'auto'` (default): full quality while moving, reduced only when the full-quality frames get slow (their JS time, smoothed over
+   *  the last few, above 12 ms); `true`: always reduced while moving; `false`: never. */
+  interactionLOD: boolean | 'auto';
   refineMs: number;
   /** Small notice in the canvas corner when the radial cut-off is summarising clades the normal threshold would show. */
   summaryNotice: boolean;
@@ -438,8 +453,6 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   lod: true,
   drawBudget: 20000,
   showSummaries: true,
-  summaryStyle: 'solid',
-  stripeCollapsed: false,
   labelDensity: 'normal',
   alignLabels: false,
   hoverPath: true,
@@ -463,8 +476,9 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   themeObserver: 'media',
   radialOpening: 0.05,
   radialRotation: 90,
+  radialRings: 'none',
   radialMaxNodes: 2000,
-  interactionLOD: true,
+  interactionLOD: 'auto',
   refineMs: 120,
   summaryNotice: true,
 };

@@ -5,7 +5,8 @@
 // Tree operations come from @gbif-phylo/tree-ops (no rendering in there) and this page is the only place the two meet:
 // clicking a tip or clade opens <TreeView>'s node menu with per-node actions (rotate, reroot here, ...), the toolbar holds
 // whole-tree actions (midpoint root, ladderise, collapse by support). Each action returns a new tree that replaces the one
-// shown; the tree as published is kept for undo and reset and never changed.
+// shown; the tree as published is kept for reset and never changed, and the trees between it and the current one for undo, within a
+// memory budget (tree-ops' treeBytes, #44).
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -26,16 +27,71 @@ type SplitColour = 'remove' | 'node';
 
 const NO_NODES: number[] = [];
 
+/** An entry of the history: `clades`, `collapsed` and `focus` are what it had when the next action was applied, so undo restores them
+ *  exactly; `map` is the node map of the action that made it (the tree before -> this tree), and `dropped` counts the entries before it
+ *  dropped to stay within the memory budget (then `map` is from the tree as published, and undo stops here). */
+interface Entry {
+  tree: TreeModel;
+  clades: CladeProp[];
+  collapsed: number[];
+  focus: ops.Focus;
+  map?: Int32Array;
+  dropped?: number;
+}
+/** What the trees kept for undo may take, the tree as published and the current one aside (#44): a tree larger than this has reset
+ *  only. `?undo-budget=<bytes>` sets it. */
+const UNDO_BUDGET = 64 * 1024 * 1024;
+
+/** Undo (only while a step is available), Reset, and a note when undo is off for the tree or stops at a dropped entry. */
+function UndoControls(p: { canUndo: boolean; canReset: boolean; undoOn: boolean; onUndo: () => void; onReset: () => void }) {
+  const note = !p.undoOn
+    ? 'Undo is off: the tree is too large to keep earlier versions'
+    : p.canReset && !p.canUndo
+      ? 'Older steps were dropped to save memory'
+      : null;
+  return (
+    <>
+      {p.canUndo && (
+        <button className="btn btn-outline" onClick={p.onUndo}>
+          Undo
+        </button>
+      )}
+      <button className="btn btn-outline" disabled={!p.canReset} onClick={p.onReset}>
+        Reset
+      </button>
+      {note && <span style={{ fontSize: 13 }}>{note}</span>}
+    </>
+  );
+}
+
+/** Keeps the entries between the tree as published (`h[0]`) and the current one (the last) within `budget` bytes (tree-ops' treeBytes),
+ *  dropping the oldest first; the entry after a dropped one takes a map from the tree as published, so reset still keeps the view. */
+function trimHistory(h: Entry[], budget: number): Entry[] {
+  let bytes = 0;
+  for (let k = 1; k < h.length - 1; k++) bytes += ops.treeBytes(h[k].tree);
+  while (h.length > 2 && bytes > budget) {
+    bytes -= ops.treeBytes(h[1].tree);
+    h = [h[0], { ...h[2], map: ops.composeMaps(h[1].map!, h[2].map!), dropped: (h[1].dropped ?? 0) + 1 }, ...h.slice(3)];
+  }
+  return h;
+}
+
 function App() {
   const params = new URLSearchParams(location.search);
-  // [as published, ...each action's result]; `clades` and `collapsed` are what the entry had when the next action was applied, so
-  // undo restores them exactly; `map` is the node map of the action that made the entry (the tree before -> this tree)
-  const [history, setHistory] = useState<{ tree: TreeModel; clades: CladeProp[]; collapsed: number[]; focus: ops.Focus; map?: Int32Array }[]>([]);
+  // [as published, ...each action's result, within the memory budget]
+  const [history, setHistory] = useState<Entry[]>([]);
   const tree = history[history.length - 1]?.tree ?? null;
+  const budgetParam = Number(params.get('undo-budget') ?? NaN); // a missing or bad value: the default
+  const undoBudget = Number.isFinite(budgetParam) ? budgetParam : UNDO_BUDGET;
+  // undo needs one more tree in memory than reset: off when even one does not fit
+  const published = history[0]?.tree ?? null;
+  const undoOn = useMemo(() => !published || ops.treeBytes(published) <= undoBudget, [published, undoBudget]);
+  const canUndo = undoOn && history.length > 1 && !history[history.length - 1].dropped;
+  const changes = history.length - 1 + (history[1]?.dropped ?? 0);
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>([]); // clades shown collapsed (node ids of `tree`): the viewer collapses them
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with back and up (tree-ops' focus)
-  const [hl, setHl] = useState<string[]>([]);
+  const [hl, setHl] = useState<number[]>([]); // the highlighted tips as nodes of `tree` (a label would light every tip that carries it)
   // the last change of `tree` with its node map (an action's map; for undo the inverse of the actions undone), to keep the view
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [vp, setVp] = useState<Viewport | undefined>(undefined);
@@ -118,11 +174,15 @@ function App() {
   useLayoutEffect(() => {
     if (tree) lastShown.current = { shown: view?.tree ?? tree, tree, focus, toTree: view?.toTree ?? null };
   }, [tree, view, focus]);
-  // for the browser check (tests/browser/scripts/check-node-menu.mjs): the two viewers
+  // for the browser check (tests/browser/scripts/check-node-menu.mjs): the two viewers, and the current tree (the viewers hold a
+  // snapshot of what is shown, not the tree model kept in the history)
   const leftPane = useRef<TreeViewHandle>(null);
   const rightPane = useRef<TreeViewHandle>(null);
+  const treeNow = useRef(tree);
+  treeNow.current = tree;
   useEffect(() => {
     (window as unknown as { __panes?: () => unknown }).__panes = () => [leftPane.current?.renderer() ?? null, rightPane.current?.renderer() ?? null];
+    (window as unknown as { __tree?: () => TreeModel | null }).__tree = () => treeNow.current;
   }, []);
   const colouredTips = useMemo(() => {
     let n = 0;
@@ -207,15 +267,21 @@ function App() {
       .filter((m) => m >= 0 && next.childCount[m] > 0);
     // so does the focus (a focused clade the operation split is left: back skips it)
     const keptFocus = ops.remapFocus(focus, tree, next, r.map);
+    setHl((h) => h.map((v) => r.map[v]).filter((k) => k >= 0)); // a highlighted tip an operation removed is dropped
     setClades(kept);
     setCollapsed(keptCollapsed);
     setFocus(keptFocus);
     setMove({ from: tree, to: next, map: r.map });
-    setHistory((h) => [
-      ...h.slice(0, -1),
-      { ...h[h.length - 1], clades, collapsed, focus }, // keeps the map that made it
-      { tree: next, clades: kept, collapsed: keptCollapsed, focus: keptFocus, map: r.map },
-    ]);
+    setHistory((h) =>
+      trimHistory(
+        [
+          ...h.slice(0, -1),
+          { ...h[h.length - 1], clades, collapsed, focus }, // keeps the map that made it
+          { tree: next, clades: kept, collapsed: keptCollapsed, focus: keptFocus, map: r.map },
+        ],
+        undoBudget,
+      ),
+    );
     setLast(
       `${name}: ${ms.toFixed(1)} ms for ${tree.tipCount.toLocaleString('en')} tips (${next.tipCount.toLocaleString('en')} after)${notes.map((n) => ` · ${n}`).join('')}`,
     );
@@ -227,7 +293,11 @@ function App() {
       const inv = ops.invertMap(history[k].map!, history[k].tree.nodeCount);
       way = way ? ops.composeMaps(way, inv) : inv;
     }
-    if (way) setMove({ from: tree, to: history[to - 1].tree, map: way });
+    if (way) {
+      const w = way;
+      setMove({ from: tree, to: history[to - 1].tree, map: w });
+      setHl((h) => h.map((v) => w[v]).filter((k) => k >= 0)); // the highlighted tip goes back with the tree
+    }
     setHistory((h) => h.slice(0, to));
     setClades(history[to - 1].clades);
     setCollapsed(history[to - 1].collapsed);
@@ -324,7 +394,8 @@ function App() {
   const onClick = (e: TreeNodeEvent) => {
     // a clicked tip is highlighted; a clicked clade is not (it was: its first five tips, which read as if the click had selected
     // them). Colouring a clade is the menu's job.
-    setHl(e.isTip && e.tipId ? [e.tipId] : []);
+    // by node, so only the clicked tip when the tree repeats a label; the event's node is in the shown tree, `hl` is in `tree`'s
+    setHl(e.isTip ? [view ? view.toTree[e.node] : e.node] : []);
     setLast(e.isTip ? `tip ${e.tipId}` : `${e.kind} ${e.node}: ${e.tipCount} tips, range [${e.tipStart}, ${e.tipEnd})`);
   };
 
@@ -338,11 +409,12 @@ function App() {
   // the collapsed clades in the shown tree's ids (the same as `tree`'s while no view is on; a clade that focus left out, or that collapse
   // by support contracted into its parent, has none)
   const shownCollapsed = view ? collapsed.map((v) => view.toView[v]).filter((k) => k > 0) : collapsed;
+  const shownHl = view ? hl.map((v) => view.toView[v]).filter((k) => k >= 0) : hl; // a tip the view left out has none
   const common = {
     tree: shown,
     treeMap,
     clades: shownClades,
-    highlighted: hl,
+    highlighted: shownHl,
     collapsed: shownCollapsed,
     viewport: vp,
     onViewportChange: setVp,
@@ -460,16 +532,17 @@ function App() {
         <button className={btn} disabled={collapsed.length === 0} onClick={() => setCollapsed([])}>
           Expand all
         </button>
-        <button className="btn btn-outline" disabled={history.length < 2} onClick={() => back(history.length - 1)}>
-          Undo
-        </button>
-        <button className="btn btn-outline" disabled={history.length < 2} onClick={() => back(1)}>
-          Reset
-        </button>
+        <UndoControls
+          canUndo={canUndo}
+          canReset={history.length > 1}
+          undoOn={undoOn}
+          onUndo={() => back(history.length - 1)}
+          onReset={() => back(1)}
+        />
       </div>
       <p style={{ margin: '0 0 8px' }} aria-live="polite">
-        {last} · {history.length > 1 ? `${history.length - 1} change${history.length > 2 ? 's' : ''} by you, not as published` : 'tree as published'}{' '}
-        · {clades.length} coloured clades
+        {last} · {changes > 0 ? `${changes} change${changes > 1 ? 's' : ''} by you, not as published` : 'tree as published'} · {clades.length}{' '}
+        coloured clades
       </p>
       <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
         <div className="card" style={{ flex: 1, minWidth: 0, background: 'var(--bg1)' }}>

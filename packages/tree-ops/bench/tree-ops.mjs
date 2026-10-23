@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../src/index.ts';
+import { autoCollapse, collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../src/index.ts';
 import { parseNewick } from '@gbif-phylo/io'; // fixture: text -> TreeInput
 
 const argv = process.argv.slice(2);
@@ -45,6 +45,7 @@ for (const f of files) {
     ladderiseMs: +median(() => ladderise(t)).toFixed(1),
     collapseSupportMs: hasSupport ? +median(() => collapseBySupport(t, 70)).toFixed(1) : null,
     prune10pctMs: +median(() => prune(t, (r) => r % 10 === 0)).toFixed(1),
+    autoCollapse50Ms: +median(() => autoCollapse(t, { maxRows: 50 })).toFixed(2),
   };
   console.log(JSON.stringify(row));
 }

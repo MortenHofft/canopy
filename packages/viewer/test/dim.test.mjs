@@ -133,7 +133,8 @@ function fillGroups(ctx) {
 }
 for (const tip of ['p0a', 'p17b', 'p100a', 'p199b', 'z1']) {
   test('dim: runs and slices are lit exactly when a tip of their members matches (' + tip + ')', async () => {
-    const m = await makeViewer(RUNS, { options: { highlightStyle: 'dim' }, theme: { dimOpacity: DIM }, size: [400, 120] });
+    // a stripe opacity whose tone (0.45, see stripeToneAlpha) differs from the background's: the background fills are counted, one per summary
+    const m = await makeViewer(RUNS, { options: { highlightStyle: 'dim' }, theme: { dimOpacity: DIM, summaryStripeOpacity: 0.9 }, size: [400, 120] });
     m.viewer.setHighlighted([tip]);
     m.env.flush();
     const { list, tree: t } = m.viewer;
@@ -204,4 +205,62 @@ test('dim after setTree: the dim prefix is built for the new tree, not the old l
   env.flush();
   assert.equal(viewer.hlPrefix.length, 7, 'rebuilt for six tips');
   assert.deepEqual(labelAlpha(ctx()), { a: 1, b: DIM, c: DIM, d: DIM, e: DIM, f: 1 });
+});
+
+test('band: thousands of matched rows that share pixels cost canvas calls per pixel, not per match (#58)', async () => {
+  // a star of 4,000 tips in a 300 px high view: rows are 0.07 px apart, every tip highlighted
+  const n = 4000;
+  const tips = Array.from({ length: n }, (_, k) => `t${k}`);
+  const m = await makeViewer(`(${tips.join(',')})r;`, { options: { highlightStyle: 'band' } });
+  m.viewer.setHighlighted(tips);
+  m.ctx().reset();
+  m.viewer.renderNow();
+  let alpha = 1;
+  const bands = [];
+  for (const e of m.ctx().log) {
+    if (e[0] === 'globalAlpha=') alpha = e[1];
+    else if (e[0] === 'fillRect' && alpha === m.viewer.getTheme().highlightOpacity) bands.push(e);
+  }
+  const rings = m
+    .ctx()
+    .calls('arc')
+    .filter((e) => e[3] === 7);
+  assert.equal(bands.length, 1, 'overlapping bands are one run');
+  assert.ok(bands[0][4] > 250, 'the run spans the rows');
+  assert.ok(rings.length > 0 && rings.length <= 300, `one ring per pixel at most, got ${rings.length}`);
+});
+
+test('band, zoomed in: matches on rows partly in view are drawn, matches above and below the clip are not visited (#58)', async () => {
+  const n = 200;
+  const tips = Array.from({ length: n }, (_, k) => `t${k}`);
+  const m = await makeViewer(`(${tips.join(',')})r;`, { options: { highlightStyle: 'band' } });
+  const v = m.viewer;
+  v.focusTip(100, false);
+  v.renderNow();
+  const T = v.T;
+  const top = Math.floor((T.clipT - T.oy) / T.ky); // the first row in view, maybe partly
+  const bot = Math.floor((T.clipB - T.oy) / T.ky); // the last
+  assert.ok(T.ky >= 3 && top > 3 && bot < n - 4, `zoomed in on the middle (rows ${top}..${bot}, ${T.ky} px each)`);
+  const rows = [0, top - 2, top - 1, top, 100, bot, bot + 1, bot + 2, n - 1];
+  v.setHighlighted(rows.map((r) => `t${r}`));
+  m.ctx().reset();
+  v.renderNow();
+  let alpha = 1;
+  const bands = [];
+  for (const e of m.ctx().log) {
+    if (e[0] === 'globalAlpha=') alpha = e[1];
+    else if (e[0] === 'fillRect' && alpha === v.getTheme().highlightOpacity) bands.push(e);
+  }
+  const rowOf = (y) => Math.round((y - T.oy - T.ky / 2) / T.ky);
+  const banded = bands.map((e) => rowOf(e[2] + e[4] / 2));
+  const ringed = m
+    .ctx()
+    .calls('arc')
+    .filter((e) => e[3] === 7)
+    .map((e) => rowOf(e[2]));
+  // rows whose band reaches into the clip: top (partly) to bot (partly); top - 1 and bot + 1 only if their row touches the clip
+  const inView = rows.filter((r) => T.oy + (r + 1) * T.ky >= T.clipT && T.oy + r * T.ky <= T.clipB);
+  assert.deepEqual(banded, inView, 'a band for each matched row in view, the edge rows included');
+  assert.deepEqual(ringed, inView, 'and a ring');
+  assert.ok(!banded.includes(0) && !banded.includes(n - 1));
 });

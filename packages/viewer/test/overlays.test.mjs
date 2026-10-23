@@ -138,7 +138,7 @@ test('NodeMenu: opens with the items as a default action of click, with a role o
   assert.equal(v.selected, 1, 'opening it selects its node');
   assert.equal(m.element.getAttribute('role'), 'menu');
   assert.equal(m.element.getAttribute('aria-label'), 'Actions for clade of 2 tips');
-  const items = m.element.querySelectorAll('button');
+  const items = m.element.querySelectorAll('.phylo-node-menu__item');
   assert.deepEqual(
     items.map((b) => b.dataset.action),
     ['zoom', 'off', 'rot'],
@@ -194,6 +194,28 @@ test('NodeMenu: a click listener that prevents the default keeps it closed; view
   assert.equal((winListeners.pointerdown ?? []).length, 0, 'window listeners removed when closed');
 });
 
+test('NodeMenu: the close button in the header closes it, is out of the tab order and is not an item', () => {
+  const v = fakeViewer();
+  const picked = [];
+  const m = new NodeMenu({ items: () => [{ id: 'a', label: 'A', onSelect: () => picked.push('a') }] });
+  m.setViewer(v);
+  v.emit('click', v.event(1, 'keyboard'));
+  const head = m.element.querySelector('.phylo-node-menu__head');
+  const close = m.element.querySelector('.phylo-node-menu__close');
+  assert.equal(close.parentNode, head);
+  assert.equal(close.tabIndex, -1);
+  assert.equal(head.getAttribute('aria-hidden'), 'true');
+  assert.equal(
+    document.activeElement,
+    m.element.querySelector('.phylo-node-menu__item'),
+    'keyboard focus goes to the first item, not the close button',
+  );
+  close.click();
+  assert.equal(m.isOpen(), false);
+  assert.deepEqual(picked, [], 'closing runs no action');
+  assert.equal(document.activeElement, v.element, 'focus goes back to the tree');
+});
+
 test('NodeMenu from the keyboard: focus on the first enabled item, arrows wrap, Escape closes and refocuses the tree', () => {
   const v = fakeViewer();
   const m = new NodeMenu({
@@ -205,7 +227,7 @@ test('NodeMenu from the keyboard: focus on the first enabled item, arrows wrap, 
   });
   m.setViewer(v);
   v.emit('click', v.event(1, 'keyboard'));
-  const [, b, c] = m.element.querySelectorAll('button');
+  const [, b, c] = m.element.querySelectorAll('.phylo-node-menu__item');
   assert.equal(document.activeElement, b);
   m.element.dispatch('keydown', { key: 'ArrowDown' });
   assert.equal(document.activeElement, c);

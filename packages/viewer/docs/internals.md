@@ -67,14 +67,17 @@ something changed.
 
 Where the three adaptive mechanisms sit:
 
-- **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades smaller than `minPx` (option `minCladePx`, default 3). If the draw list
+- **Budget ladder** (`searchCut` in `lod.ts`). The cut collapses clades less than `minPx` tall (radial: arc at the tips; option `minCladePx`, default 3). If the draw list
   would exceed the budget (`drawBudget`, default 20,000; radial: the smaller of that and `radialMaxNodes`, default 2,000), `minPx` is raised on
   a fixed ladder `base * 1.15^n` and the cut is redone; the aborted pass stops as soon as the budget is exceeded. The level is sticky: it rises
   only on overflow and falls only when the next level down fits with room to spare, and the previous full frame's level is the starting
   point. Above 80,000 visited nodes (caterpillar-like walks) there is no search, `minPx` just doubles until the list fits.
 - **Interaction LOD** (`viewer.ts`: `noteInput`, `refineMs`). The input controller calls `noteInput()` before it moves the view. While the user
   wheels, pinches, drags or an animation runs, frames are reduced: a quarter of the budget (at least 500), and the threshold x1.6 when the last
-  full frame had more than 1,000 primitives. `refineMs` (default 120) after the last input one full-quality frame is drawn. The label overlay,
+  full frame had more than 1,000 primitives. With `interactionLOD: 'auto'` (the default) that happens only while the full-quality frames are
+  slow: `fullMs`, the JS time of the full frames averaged with weight 1/2 on the newest (the first full frame, with its one-off costs, is skipped), above `AUTO_LOD_MS` (12 ms). A reduced frame does
+  not update it, so a gesture that started reduced stays reduced until the frame after `refineMs` measures the full cost again. JS time
+  leaves out the GPU and compositing, so it is a lower bound of the real frame time. `refineMs` (default 120) after the last input one full-quality frame is drawn. The label overlay,
   the corner notice and the stub loader run after full-quality frames only.
 - **Settle** (`settle()` in `viewer.ts`). Anything that reads the draw list for a decision (`hitTest`, click, hover, `locateNode`, `nodeBounds`,
   `columnCell`, `renderNow`) first draws a full-quality frame if the last one was reduced, so a click always hits what a settled frame shows.
@@ -248,7 +251,7 @@ so a third layout extends that union and `projectionFor`. Draw and hit are writt
    `draw.ts` (positions, `summaryExtent`, `cladeSize` for the marker threshold, `tipPitch`), `hit.ts` (positions and extents of candidates,
    `cladeSize`, `tipPitch`), `viewer.ts` (`nodeXY` for `locateNode`). `tipSpan` is not part of `ProjectionCore`: it exists only on
    `RadialProjection`, where `drawBodyRadial` uses it for arc lengths.
-3. Write the cut loop. `lod.ts` has `cutRect` and `cutRadial` as two inline loops with the cull, the collapse rules (A/B), the dedupe key (rule C)
+3. Write the cut loop. `lod.ts` has `cutRect` and `cutRadial` as two inline loops with the cull, the collapse rule (A), the dedupe key (rule C)
    and the run accumulator (rule R) written as locals; `cut()` dispatches on `proj.kind`. A third layout means a third copy of that loop, and the
    golden tests (`test/cut-golden*.mjs`) are the model for guarding it. Why not one loop through the projection: see the next section.
 4. Layout-specific drawing (strokes, arcs, axis) stays in `draw.ts` per layout; `view-state.ts` has the fit, limits and target windows per kind;

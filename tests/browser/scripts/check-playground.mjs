@@ -52,6 +52,23 @@ await page.addInitScript(() => {
     return ft.call(this, text, ...rest);
   };
 });
+// the radial scale rings (#45) and the scale bar: while window.__paths is an array, every stroked or filled path is recorded with its
+// line width and opacity (arcs as ['arc', x, y, r, a0, a1, ccw], moves and lines as ['M' | 'L', x, y])
+await page.addInitScript(() => {
+  const P = CanvasRenderingContext2D.prototype;
+  const wrap = (name, fn) => {
+    const f = P[name];
+    P[name] = function (...a) {
+      if (window.__paths) fn(this, a);
+      return f.apply(this, a);
+    };
+  };
+  wrap('beginPath', (c) => (c.__path = []));
+  wrap('arc', (c, a) => c.__path?.push(['arc', ...a]));
+  wrap('moveTo', (c, a) => c.__path?.push(['M', ...a]));
+  wrap('lineTo', (c, a) => c.__path?.push(['L', ...a]));
+  for (const op of ['stroke', 'fill']) wrap(op, (c) => window.__paths.push({ op, lw: c.lineWidth, alpha: c.globalAlpha, path: c.__path ?? [] }));
+});
 const drawnNodeTexts = async () => {
   await ev(() => {
     window.__nodeTexts = [];
@@ -165,13 +182,116 @@ console.log('radial opening and rotation (#41)');
   await select('layout', 'rectangular');
 }
 
-console.log('striped summaries');
-// the playground shows the library's default (solid); the select compares solid and striped
-ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'solid by default in the playground, not in the URL');
+console.log('radial scale rings (#45)');
+{
+  await select('layout', 'radial');
+  await toggle('branchLengths', true); // turned off under 'options'; the rings and the scale bar need branch lengths
+  await ev(() => window.viewer.setOptions({ maxTipSpacing: Infinity })); // room to zoom in on 135 tips
+  ok(
+    (await opt('radialRings')) === 'none' && (await page.locator('select[data-setting=radialRings]').count()) === 1,
+    'the rings setting, off by default',
+  );
+  await select('radialRings', 'lines');
+  await setInput('ringWidth', '0.7');
+  await setInput('ringOpacity', '0.35');
+  await setInput('ringStripeOpacity', '0.2');
+  ok(
+    (await opt('radialRings')) === 'lines' &&
+      (await theme('ringWidth')) === 0.7 &&
+      (await theme('ringOpacity')) === 0.35 &&
+      (await theme('ringStripeOpacity')) === 0.2,
+    'the option and the ring tokens reach the viewer',
+  );
+  // one frame's rings (the path at ringWidth and ringOpacity, or the fill at ringStripeOpacity) and the scale bar (the last path at
+  // 1.5 px: its one horizontal segment)
+  const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+  const measure = () =>
+    ev(() => {
+      window.__paths = [];
+      window.viewer.invalidate();
+      window.viewer.renderNow();
+      const paths = window.__paths;
+      window.__paths = null;
+      const t = window.viewer.getTheme();
+      const ring = (p) =>
+        p.op === 'stroke'
+          ? Math.abs(p.lw - t.ringWidth) < 1e-6 && Math.abs(p.alpha - t.ringOpacity) < 1e-6
+          : Math.abs(p.alpha - t.ringStripeOpacity) < 1e-6;
+      const rings = paths
+        .filter(ring)
+        .flatMap((p) => p.path.filter((e) => e[0] === 'arc').map((e) => ({ op: p.op, x: e[1], y: e[2], r: e[3], ccw: !!e[6] })));
+      const bar = paths.filter((p) => p.op === 'stroke' && Math.abs(p.lw - 1.5) < 1e-6).at(-1).path;
+      let w = 0;
+      for (let i = 1; i < bar.length; i++)
+        if (bar[i][0] === 'L' && bar[i - 1][0] === 'M' && bar[i][2] === bar[i - 1][2]) w = bar[i][1] - bar[i - 1][1];
+      const v = window.viewer;
+      const tree = v.getTree();
+      const vp = v.getViewport();
+      return { rings, w, root: v.nodePosition(0), tip: v.nodePosition(tree.tipNode[0]), dated: v.layout.ultrametric, span: vp.x1 - vp.x0 };
+    });
+  const spacing = (m, what) => {
+    const radii = m.rings.map((g) => g.r).sort((a, b) => a - b);
+    const gaps = radii.slice(1).map((r, i) => r - radii[i]);
+    ok(
+      radii.length >= 2 && m.w > 0 && gaps.every((g) => near(g, m.w, 0.01)),
+      `${what}: ${radii.length} rings ${gaps.map((g) => g.toFixed(2)).join(', ')} px apart, the scale bar ${m.w.toFixed(2)} px`,
+    );
+  };
+  let m = await measure();
+  ok(
+    m.rings.every((g) => g.op === 'stroke' && near(g.x, m.root.x) && near(g.y, m.root.y)),
+    'lines: stroked circles about the root',
+  );
+  spacing(m, 'fit');
+  // the default tree, the Carangaria MCC, is dated: the rings count back from its tips
+  ok(query().get('tree') === 'rich-fish-carangaria-135' && m.dated && m.tip !== null, 'the fish MCC tree is loaded, dated, with a tip in view');
+  if (m.tip) {
+    const k = Math.hypot(m.tip.x - m.root.x, m.tip.y - m.root.y);
+    ok(near(Math.max(...m.rings.map((g) => g.r)), k, 0.01), 'a dated tree: the outermost ring runs through the tips (age 0)');
+  }
+  await ev((p) => window.viewer.zoomBy(3, 3, p.x, p.y), m.root);
+  await settled();
+  const z = await measure();
+  spacing(z, 'zoomed in 3x about the root');
+  const f = m.span / z.span; // the zoom factor
+  ok(
+    f > 2.5 && z.w / (f * m.w) < 0.75,
+    `zoomed in ${f.toFixed(2)}x, the rings subdivide: the step is ${(z.w / (f * m.w)).toFixed(2)} of what it was`,
+  );
+  await select('radialRings', 'stripes');
+  m = await measure();
+  const outer = m.rings.filter((g) => !g.ccw),
+    inner = m.rings.filter((g) => g.ccw);
+  ok(
+    m.rings.length >= 2 && m.rings.every((g) => g.op === 'fill') && outer.every((g, i) => near(g.r - inner[i].r, m.w, 0.01) || inner[i].r === 0),
+    `stripes: ${outer.length} bands filled at ringStripeOpacity, each one scale bar wide`,
+  );
+  await select('radialRings', 'none');
+  m = await measure();
+  ok(m.rings.length === 0, "'none': no rings");
+  for (const [k, v] of [
+    ['ringWidth', '1'],
+    ['ringOpacity', '0.3'],
+    ['ringStripeOpacity', '0.08'],
+  ])
+    await setInput(k, v);
+  await ev(() => window.viewer.setOptions({ maxTipSpacing: 'auto' }));
+  await ev(() => window.viewer.fit(false));
+  await toggle('branchLengths', false);
+  await select('layout', 'rectangular');
+  ok(!query().has('s.radialRings') && !query().has('s.ringWidth'), 'back to the defaults: out of the URL');
+}
+
+console.log('summaries');
+// one look for every summary (#85): a faint background fill with darker stripes over it; the panel has its theme tokens and no style switch
+ok(
+  (await page.locator('[data-setting=summaryStyle], [data-setting=stripeCollapsed], [data-setting=summaryStripeColour]').count()) === 0,
+  'no summary style, stripeCollapsed or stripe colour setting',
+);
 await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
-await select('summaryStyle', 'striped');
-ok((await opt('summaryStyle')) === 'striped' && query().get('s.summaryStyle') === 'striped', 'Striped: options.summaryStyle, and into the URL');
-await setInput('summaryStripeColour', '#ff0000');
+const summaryColour = await theme('summary');
+await setInput('summary', '#ff0000');
+// strong red only: the background alone (summaryOpacity 0.25 over white) is too faint to count, the stripes and their tone are not
 const redPixels = () =>
   ev(() => {
     const c = document.querySelector('.phylo-tree canvas');
@@ -181,27 +301,28 @@ const redPixels = () =>
     return n;
   });
 const stripedRed = await redPixels();
-ok(stripedRed > 100, `striped: the summaries are stroked in the stripe colour (${stripedRed} red pixels)`);
-await select('summaryStyle', 'solid');
-ok((await opt('summaryStyle')) === 'solid' && !query().has('s.summaryStyle'), 'Solid: options.summaryStyle, out of the URL again');
-ok((await redPixels()) === 0, 'solid: no stripe colour on the canvas');
-await select('summaryStyle', 'striped');
-ok((await redPixels()) > 100, 'striped again');
+ok(stripedRed > 100, `the summaries are drawn in the summary colour (${stripedRed} red pixels)`);
+await setInput('summaryStripeOpacity', '0');
+ok((await theme('summaryStripeOpacity')) === 0 && (await redPixels()) === 0, 'stripe opacity 0: only the faint background is left');
+await setInput('summaryStripeOpacity', '0.5');
+await setInput('summaryOpacity', '1');
+ok((await theme('summaryOpacity')) === 1 && (await redPixels()) > stripedRed, 'background opacity 1: the shapes are filled');
+await setInput('summaryOpacity', '0.25');
+ok((await redPixels()) === stripedRed, 'and back');
 await setInput('summaryStripeGap', '10');
 ok(
   (await theme('summaryStripeGap')) === 10 && (await redPixels()) < stripedRed,
   'the gap token reaches the theme, and a wider gap draws fewer stripes',
 );
-await setInput('summaryStripeGap', '3');
-await toggle('stripeCollapsed', true);
-ok((await opt('stripeCollapsed')) === true, 'stripeCollapsed toggle → options.stripeCollapsed');
-await toggle('stripeCollapsed', false);
+await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
-ok((await redPixels()) > 100, 'radial: striped too');
+// only the arc counts (#87): at the fit, hardly a clade of this tree spans less than 20 px along the arc, so raise it for summaries
+await ev(() => window.viewer.setOptions({ minCladePx: 60 }));
+await settled(); // the frame with the new threshold, before reading its pixels
+ok((await redPixels()) > 100, 'radial: the same look');
 await select('layout', 'rectangular');
-await select('summaryStyle', 'solid');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
-await setInput('summaryStripeColour', '');
+await setInput('summary', summaryColour);
 
 console.log('hover path');
 // hover a tip below the root's first child: its path ends with the root's first child's branch and the root's connector, so a
@@ -507,6 +628,23 @@ ok((await theme('leaderWidth')) === 2 && query().get('s.leaderWidth') === '2', '
 await page.locator('input[data-setting=leaderDash]').fill('4 2');
 await settled();
 ok((await theme('leaderDash')) === '4 2', 'the Leader dash text sets the token');
+// radial (#52): the labels start on one circle (the label's anchor plus its gap, from the root)
+const labelRadii = () =>
+  ev(() => {
+    const v = window.viewer,
+      L = v.labels;
+    return [...new Set([...Array(L.count).keys()].map((k) => Math.round(Math.hypot(L.x[k] - v.T.cx, L.y[k] - v.T.cy) + L.gap[k])))];
+  });
+await select('layout', 'radial');
+const radialAligned = await labelRadii();
+ok(
+  (await ev(() => window.viewer.labels.count)) > 5 && radialAligned.length === 1,
+  `radial with Align labels: the labels start on one circle (${radialAligned.join(', ')} px from the root)`,
+);
+await toggle('alignLabels', false);
+ok((await labelRadii()).length > 1, 'radial, off: the labels follow their tips');
+await toggle('alignLabels', true);
+await select('layout', 'rectangular');
 await toggle('alignLabels', false);
 ok((await labelXs()) > 1, 'off again: the labels follow their tips');
 await select('rowHeight', 'fit');
@@ -570,8 +708,11 @@ await select('nodeLabels', 'none');
 const scaleBar = await drawnNodeTexts();
 for (const t of scaleBar) withLabels.splice(withLabels.indexOf(t), 1);
 ok(
-  withLabels.includes('0.3') && withLabels.includes('0.4') && withLabels.length === 3,
-  `radial: three lengths along the branches, the scale bar not counted (${withLabels.join(' ')})`,
+  withLabels.includes('0.3') &&
+    withLabels.includes('0.4') &&
+    withLabels.includes('0.2') &&
+    withLabels.every((t) => ['0.1', '0.2', '0.3', '0.4'].includes(t)),
+  `radial: lengths along the internal and the tip branches, the scale bar not counted (${withLabels.join(' ')})`,
 );
 await open();
 
@@ -671,6 +812,58 @@ ok(
   (await tips()) === whole && !query().has('focus') && (await ev(() => window.viewer.getClades().length)) === 0,
   'Reset all: the whole tree, no colours',
 );
+// Collapse to N clades (tree-ops autoCollapse): at most N rows, run again inside a clade shown alone and on Back
+const N = 20;
+await setInput('collapseTo', String(N));
+await page.waitForTimeout(300);
+const overviewRows = await rows();
+ok(
+  overviewRows <= N && overviewRows >= N - 5 && (await tips()) === whole && query().get('s.collapseTo') === String(N) && query().has('collapsed'),
+  `Collapse to ${N} clades: ${whole} tips in ${overviewRows} rows, in the URL`,
+);
+// the largest collapsed clade, and its triangle
+const largest = await ev((ids) => {
+  const t = window.viewer.getTree();
+  const size = (n) => t.leafEnd[n] - t.leafStart[n];
+  const best = ids.reduce((a, b) => (size(b) > size(a) ? b : a));
+  return { node: best, tips: size(best) };
+}, query().get('collapsed').split(',').map(Number)); // the whole tree is shown: ids of the loaded tree are the viewer's
+await menu(await triAt(largest.node), 'Show only this clade');
+const insideRows = await rows();
+ok(
+  (await tips()) === largest.tips &&
+    insideRows <= N &&
+    (largest.tips <= N ? insideRows === largest.tips : insideRows >= Math.min(N - 5, largest.tips)),
+  `Show only the largest collapsed clade (${largest.tips} tips): collapsed again to ${insideRows} rows`,
+);
+await page.locator('#ops-back').click();
+await page.waitForTimeout(300);
+ok((await tips()) === whole && (await rows()) === overviewRows, 'Back: the whole tree, collapsed to the same rows');
+await setInput('collapseTo', '0');
+await page.waitForTimeout(300);
+ok((await rows()) === whole && !query().has('collapsed') && !query().has('s.collapseTo'), 'Collapse to 0 clades: everything open');
+// a polytomy wider than N shown alone: its clades are collapsed, one row per child, not every tip opened
+await page.selectOption('#tree-select', 'syn-polytomy-22800');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('22,800 tips'), null, { timeout: 30000 });
+await page.waitForTimeout(300);
+await setInput('collapseTo', String(N));
+await page.waitForTimeout(300);
+ok((await rows()) <= N, `polytomies: collapsed to ${await rows()} rows`);
+const wide = await ev((ids) => {
+  const t = window.viewer.getTree();
+  const best = ids.reduce((a, b) => (t.childCount[b] > t.childCount[a] ? b : a));
+  return { node: best, children: t.childCount[best], tips: t.leafEnd[best] - t.leafStart[best] };
+}, query().get('collapsed').split(',').map(Number));
+await menu(await triAt(wide.node), 'Show only this clade');
+const wideRows = await rows();
+ok(
+  wide.children > N && (await tips()) === wide.tips && wideRows === wide.children,
+  `Show only a polytomy of ${wide.children} children (${wide.tips} tips): ${wideRows} rows, one per child`,
+);
+await setInput('collapseTo', '0');
+await page.selectOption('#tree-select', 'rich-fish-carangaria-135');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
+await page.waitForTimeout(300);
 // collapse by support: 0.95 and 100 on one tree (two scales in one file), so the threshold is in % of the scale 0..100
 await page.selectOption('#tree-select', 'edge-internal-support');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('6 tips'), null, { timeout: 30000 });
@@ -691,6 +884,53 @@ ok((await nodes()) === n0, 'unticked: back');
 await page.selectOption('#tree-select', 'rich-fish-carangaria-135');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
 ok(await page.locator('input[data-setting=supportCollapse]').isDisabled(), 'no support values: the switch is off');
+
+console.log('support on every synthetic tree (#55)');
+const resume = new URL(page.url()).search; // the page as it is, to come back to
+const synthetic = await ev(() => [...document.querySelectorAll('#tree-select optgroup[label=synthetic] option')].map((o) => o.value));
+ok(synthetic.length >= 4, `the synthetic trees: ${synthetic.join(', ')}`);
+for (const id of synthetic) {
+  await open(`?tree=${id}&s.nodeLabels=support`);
+  await page.waitForFunction(() => / tips/.test(document.querySelector('#tree-info').textContent), null, { timeout: 60000 });
+  await page.waitForTimeout(300);
+  const note = await page.locator('#support-note').innerText();
+  // labels need room: frame a clade of a few dozen tips, then stretch x (Shift + wheel) until a branch is long enough for one
+  const at = await ev(() => {
+    const t = window.viewer.getTree();
+    for (let i = 1; i < t.nodeCount; i++) {
+      const c = t.leafEnd[i] - t.leafStart[i];
+      if (t.firstChild[i] >= 0 && c >= 12 && c <= 40) {
+        window.viewer.zoomToNode(i);
+        return window.viewer.locateNode(i);
+      }
+    }
+    return null;
+  });
+  let texts = await drawnNodeTexts();
+  for (let k = 0; at && k < 30 && texts.length === 0; k++) {
+    await ev(({ x, y }) => {
+      const wheel = { deltaY: -300, shiftKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true };
+      document.querySelector('#tree canvas').dispatchEvent(new WheelEvent('wheel', wheel));
+    }, at);
+    texts = await drawnNodeTexts();
+  }
+  const hi = id.endsWith('-bootstrap') ? 100 : 1;
+  ok(
+    note.startsWith('Support in this tree') && texts.length > 0 && texts.every((s) => Number(s) >= 0 && Number(s) <= hi),
+    `${id}: support values drawn (${texts.slice(0, 6).join(' ')}; ${note})`,
+  );
+  const before = await nodes();
+  await toggle('supportCollapse', true);
+  await setInput('minSupport', '70');
+  await page.waitForFunction((n) => window.viewer.getTree().nodeCount < n, before, { timeout: 30000 }).catch(() => {});
+  const after = await nodes();
+  ok(
+    after < before && (await status()).includes('with low support collapsed'),
+    `${id}: collapse by support below ${hi === 1 ? 0.7 : 70} (70% of the scale) changes the tree (${before} → ${after} nodes)`,
+  );
+}
+await open(resume);
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
 
 console.log('data columns');
 await page.selectOption('#tree-select', 'syn-yule-1000');
@@ -896,6 +1136,31 @@ ok(
 );
 await page.locator('#bench').click();
 ok((await page.locator('#log').textContent()).includes('30 frames: mean'), 'Benchmark reports in the event log'); // textContent: the log is in a closed <details>
+
+console.log('every match is highlighted, past the old 20,000 cap; the Search list says "N of M" (#58)');
+await open('?tree=otl-100k-vertebrata');
+await page.locator('input[data-setting=find]').fill('a');
+await settled();
+{
+  const want = await ev(() => window.viewer.getTree().tipLabels.filter((l) => l.toLowerCase().includes('a')).length);
+  const got = await ev(() => window.viewer.getHighlighted().length); // the labels passed: OTL's are unique
+  ok(want > 20000 && got === want, `"Highlight tips containing" a highlights all ${want} matching tips (${got})`);
+}
+await page.locator('input[data-setting=find]').fill('');
+await settled();
+await page.locator('.phylo-search__input').fill('anolis');
+await page.waitForTimeout(300);
+{
+  const more = (await page.locator('.phylo-search__more').innerText()).trim();
+  const status = await page.locator('.phylo-search [role=status]').textContent();
+  const shown = await page.locator('.phylo-search__option').count();
+  ok(/^8 of [\d,]+ matches$/.test(more) && Number(more.split(' ')[2].replace(/,/g, '')) > 8, `the Search list ends with "${more}"`);
+  ok(shown === 8 && status === more, `the live region says the same ("${status}"), 8 options listed`);
+  const box = await page.locator('.phylo-search__more').boundingBox();
+  const list = await page.locator('.phylo-search__list').boundingBox();
+  ok(box !== null && list !== null && box.y + box.height <= list.y + list.height + 1, 'the count line is in sight at the bottom of the list');
+}
+await page.locator('.phylo-search__input').fill('');
 
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks pass');
