@@ -1101,6 +1101,14 @@ function labelFontSize(labelSize: number, pitch: number): number {
   return Math.max(8, Math.min(labelSize, Math.round(pitch * 0.78)));
 }
 
+/** Radial, labels at their tips: the font size of the label of tip `i` (`col`: of the clade whose triangle ends at `i`'s radius, XMAX), from
+ *  the arc to the next tip at that radius; 0 when the arc is under `need`, so no label. */
+function tipLabelSize(S: Scene, i: number, col: boolean, need: number): number {
+  const { proj } = S;
+  const room = proj.T.da * (col ? proj.L.XMAX[i] * proj.T.k : proj.depth(i));
+  return room < need ? 0 : labelFontSize(S.theme.labelSize, room);
+}
+
 /** The label fonts (normal and highlighted) for the current size; `use` rebuilds the strings only when the size changes. */
 class LabelFonts {
   size = 0;
@@ -1154,9 +1162,9 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     labelAnchor(S, e, col, p);
     if (rect ? labelCulled(T, p.x, p.y, ax) : radialLabelCulled(S, i, ar, p)) continue; // radial aligned: p is now on the circle
     if (perTip) {
-      const room = T.da * (col ? L.XMAX[i] * T.k : proj.depth(i)); // the arc to the next tip, at the tip (the end of the clade's triangle)
-      if (room < need) continue;
-      fonts.use(labelFontSize(theme.labelSize, room));
+      const sz = tipLabelSize(S, i, col, need);
+      if (sz === 0) continue;
+      fonts.use(sz);
     }
     const size = fonts.size;
     const hl = col ? highlight !== null && holdsHighlight(S, i) : highlight ? highlight[r] === 1 : false;

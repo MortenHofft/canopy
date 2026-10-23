@@ -209,20 +209,56 @@ test('an ultrametric tree is cut as before: every tip is on the outer ring', () 
 });
 
 test('a run of tips (rule R) is broken where a tip has room for a dot', () => {
-  // a star of 60 tips at mixed lengths under the root: tips at 1 have dots at this size, tips at 0.02 do not
+  // a star of 60 tips: 20 at half the radius (arc about 9 px: room for a dot, under the cap), 20 at 0.02 and 20 at the outer ring, in that order so that runs can form
   const kids = [];
-  for (let i = 0; i < 60; i++) kids.push(`t${i}:${i % 3 === 0 ? 1 : 0.02}`);
-  const now = cutOf(`(${kids.join(',')});`, 40, true);
-  const tipsDrawn = now.kinds.filter(([, k]) => k === K_TIP).map(([i]) => i);
-  const L = now.proj.L;
-  const long = now.snap.nodeCount;
-  let longTips = 0;
-  for (let i = 1; i < long; i++)
-    if (now.snap.childCount[i] === 0 && L.X[i] > 0.9) {
-      longTips++;
-      assert.ok(tipsDrawn.includes(i), 'a tip with a dot is its own entry, not part of a slice');
+  for (let i = 0; i < 60; i++) kids.push(`t${i}:${[0.5, 0.02, 1][Math.floor(i / 20)]}`);
+  const nwk = `(${kids.join(',')});`;
+  const now = cutOf(nwk, 40, true);
+  const { L, T } = now.proj;
+  assert.ok(T.da * 0.5 * L.XMAX[0] * T.k >= TIP_DOT_PX && now.cap > T.da * 0.5 * L.XMAX[0] * T.k, 'premise: room for a dot, arc under the cap');
+  const tipsDrawn = new Set(now.kinds.filter(([, k]) => k === K_TIP).map(([i]) => i));
+  let dotted = 0;
+  for (let i = 1; i < now.snap.nodeCount; i++)
+    if (now.snap.childCount[i] === 0 && L.X[i] * T.k * T.da >= TIP_DOT_PX) {
+      dotted++;
+      assert.ok(tipsDrawn.has(i), 'a tip with a dot is its own entry, not part of a slice');
     }
-  assert.equal(longTips, 20);
+  assert.equal(dotted, 40);
+  assert.ok(
+    now.list.last.slice(0, now.list.count).some((l) => l >= 0),
+    'the tips without room still form a run',
+  );
+});
+
+test('forced counts the clades the budget folds although the base threshold would keep them: dotted ones too', () => {
+  // groups of three tips at 0.2 (a dot each, arc of the group under the base threshold of 40) and at 1; a budget that makes the cut fold
+  const now = cutOf(shortAndLong(8), 40, true, 10);
+  const { proj } = now;
+  const dotR = tipDotRadius(proj);
+  let dottedSummaries = 0;
+  for (const [i, k] of now.kinds) if (k === K_SUMMARY && proj.L.XMAX[i] * proj.T.k >= dotR) dottedSummaries++;
+  assert.ok(now.r.minPx > now.cap, 'premise: the threshold went past the cap');
+  assert.equal(dottedSummaries, 8, 'premise: all eight groups are folded');
+  assert.ok(now.r.res.forced >= dottedSummaries, `forced ${now.r.res.forced} counts every folded clade with a dotted tip`);
+});
+
+test('labels nearer the centre are set in a smaller font than those on the outer ring', async () => {
+  // tips at 1 and 0.9 of the radius, 40 pairs: arcs about 14 and 13 px, both labelled; the font follows the arc
+  const g = [];
+  for (let i = 0; i < 40; i++) g.push(`(a${i}:1,b${i}:0.9):0.001`);
+  const { viewer, ctx } = await frame(`(${g.join(',')});`);
+  const { T } = viewer.proj;
+  const need = labelMinPx(viewer.opts.labelDensity, viewer.theme.labelSize);
+  const ring = viewer.proj.L.XMAX[0] * T.k;
+  assert.ok(T.da * 0.9 * ring >= need, 'premise: both depths have room for a label');
+  const sizeAt = new Map();
+  let font = '';
+  for (const e of ctx.log) {
+    if (e[0] === 'font=') font = e[1];
+    else if (e[0] === 'fillText' && /^[ab]\d/.test(e[1])) sizeAt.set(e[1][0], parseFloat(/(\d+(?:\.\d+)?)px/.exec(font)[1]));
+  }
+  assert.deepEqual([...sizeAt.keys()].sort(), ['a', 'b'], 'both are labelled');
+  assert.ok(sizeAt.get('b') < sizeAt.get('a'), `inner ${sizeAt.get('b')} px < outer ${sizeAt.get('a')} px`);
 });
 
 test('the wedge limit is per clade: a clade ending at half the radius is not folded to a wedge over 4 degrees', () => {
