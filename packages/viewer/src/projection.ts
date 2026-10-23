@@ -276,7 +276,7 @@ export class RadialProjection implements ProjectionCore {
     if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
       return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + K_RUN * 8192, e);
     // the part of the run's ray inside the cells (see clipRay); a run whose ray misses them is visible only through its rim and is not
-    // merged with another (see seenFar)
+    // merged with another (see seenSummary in lod.ts)
     if (!clipRay(rp * fq, rq * fq, cm, sm, ou, ov)) return true;
     return seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + K_RUN * 8192, e);
   }

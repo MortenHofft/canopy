@@ -101,8 +101,9 @@ no lint rule enforces them. Per-frame allocation of a few objects (a projection,
 
 The radial dedupe key of a primitive with an end beyond the cells (a deep zoom, #111) is made by `clipRay` in `lod.ts`, which leaves it in the
 module-level `CLIP` array (4 cells, shared and overwritten by every call: read it right after the call, never keep it) instead of allocating;
-`seenFar` decides what a ray that misses the cells gets in the cut (a summary is never merged, a connector keeps its clamped key, a tip is keyed
-by its ring), and `RadialProjection.dedupeRun` calls `clipRay` too and does not merge a run that misses.
+only summaries get it in the cut (`seenSummary`: a summary whose ray misses the cells is never merged), while connectors and tips keep their
+clamped key inline, as clipping them, or even a call per node, cost 15-60% of a radial cut zoomed into a 200k comb (measured with the cut
+benchmark against `fa1f511`). `RadialProjection.dedupeRun` calls `clipRay` too and does not merge a run that misses.
 
 Related, from the measured work: the two cut loops in `lod.ts` are separate on purpose (see below), and several helpers there (`cell`, the
 `K_*` kinds) are defined in the loops' module because an import binding measured slower (the comment on `cell` in `lod.ts` gives 10-25% slower on a polytomy; `90f1671`).

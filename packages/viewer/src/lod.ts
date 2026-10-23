@@ -574,9 +574,9 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         uy = ri * sa * fq - ov,
         vx = rp * ca * fq - ou,
         vy = rp * sa * fq - ov;
-      if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
-        emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
-      else emit = seenFar(seen, kind, e, rp * fq, (kind === K_SUMMARY ? XMAX[i] * k : ri) * fq, ca, sa, ou, ov, ux, uy, vx, vy);
+      // a summary is keyed by what of it is in the cells when an end is beyond them (#111); everything else by its clamped cells
+      if (kind === K_SUMMARY) emit = seenSummary(seen, e, ux, uy, vx, vy, rp * fq, XMAX[i] * k * fq, ca, sa, ou, ov);
+      else emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) {
@@ -615,7 +615,7 @@ export const CELL_HI = 7168;
 export const CLIP = new Int32Array(4);
 /** The dedupe key of the ray segment from scaled radius `s0` to `s1` (s0 <= s1) in direction (ca, sa), seen from the window anchor (ou, ov):
  *  the cells of the part of it inside the cells (CELL_LO..CELL_HI on both axes), far end first, left in CLIP, and true. A segment that
- *  misses the cells returns false, with the cell of its ring (its end's distance from the window centre) in CLIP[0]; seenFar says what is
+ *  misses the cells returns false, with the cell of its ring (its end's distance from the window centre) in CLIP[0]; seenSummary says what is
  *  done with those. Clamping the ends instead put every far node in the same cell and merged primitives a whole row apart (#111); not
  *  deduping them emitted every node of a comb at a deep zoom. */
 export function clipRay(s0: number, s1: number, ca: number, sa: number, ou: number, ov: number): boolean {
@@ -652,30 +652,30 @@ export function clipRay(s0: number, s1: number, ca: number, sa: number, ou: numb
   CLIP[3] = cell(a * sa - ov);
   return true;
 }
-/** The dedupe of a primitive with an end beyond the cells (a deep zoom: the node and its parent are thousands of px away, only the rim is
- *  near), true if it is new. The part of its ray inside the cells is its key (out to the clade's rim for a summary, #111), not a clamped
- *  point. A ray that misses the cells: a summary is visible only through its rim, and summaries are disjoint in angle, so only a handful
- *  can straddle the window and none is merged; a connector keeps its clamped key (what is in view of it is its arc, and merging those is
- *  what keeps a caterpillar zoomed far in folded); anything else (a tip) is keyed by its ring. `s0`, `s1`: the ray's scaled radii. */
-function seenFar(
+/** The dedupe of a summary, true if it is new. With both ends in the cells, its cells, as for any primitive. With an end beyond them (a
+ *  deep zoom: the node and its parent are thousands of px away, only the rim is near), the part of its ray inside the cells, out to the
+ *  clade's rim, is its key, not a clamped point: clamping put far summaries a row apart in the same cells and dropped one (#111). A
+ *  summary whose ray misses the cells is visible only through its rim, and summaries are disjoint in angle, so only a handful can
+ *  straddle the window: none is merged. Connectors and tips keep their clamped key in the cut loop, without a call (a comb zoomed far in
+ *  has hundreds of thousands of them). `s0`, `s1`: the ray's scaled radii. */
+function seenSummary(
   seen: Seen,
-  kind: number,
   e: number,
+  ux: number,
+  uy: number,
+  vx: number,
+  vy: number,
   s0: number,
   s1: number,
   ca: number,
   sa: number,
   ou: number,
   ov: number,
-  ux: number,
-  uy: number,
-  vx: number,
-  vy: number,
 ): boolean {
-  if (clipRay(s0, s1, ca, sa, ou, ov)) return seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + kind * 8192, e);
-  if (kind === K_SUMMARY) return true;
-  if (kind === K_NODE) return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
-  return seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + kind * 8192, e);
+  const key = K_SUMMARY * 8192;
+  if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
+    return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + key, e);
+  return clipRay(s0, s1, ca, sa, ou, ov) ? seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + key, e) : true;
 }
 const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
 const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
