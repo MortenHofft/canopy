@@ -13,7 +13,7 @@ const { computeLayout, ensureTrig } = await import(path.join(core, 'layout.ts'))
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { projectionFor } = await import(path.join(core, 'projection.ts'));
-const { DrawList, Seen, searchCut, cell, K_NODE, K_TIP, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
+const { DrawList, Seen, searchCut, cell, OUT_OF_CELLS, K_NODE, K_TIP, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
 
 test('Seen: the first add of a key is new, the second is not; keys differ in any of the five parts', () => {
   const s = new Seen();
@@ -71,13 +71,14 @@ test('Seen: a nearly full table stops deduplicating instead of looping', () => {
   assert.equal(s.add(1, 1, 1, 1, 1), false, 'dedupe is back after a reset');
 });
 
-test('cell: offset by 1024 so small negatives stay apart, clamped to 13 bits', () => {
+test('cell: offset by 1024 so small negatives stay apart; beyond the 13 bits it is OUT_OF_CELLS, not clamped (#111)', () => {
   assert.equal(cell(0), 1024);
   assert.equal(cell(0.9), 1024);
   assert.equal(cell(-0.1), 1023);
-  assert.equal(cell(-2000), 0);
-  assert.equal(cell(1e9), 8191);
+  assert.equal(cell(-2000), OUT_OF_CELLS);
+  assert.equal(cell(1e9), OUT_OF_CELLS);
   assert.equal(cell(7167), 8191);
+  assert.equal(cell(7168), OUT_OF_CELLS);
   assert.equal(cell(7166.5), 8190);
 });
 

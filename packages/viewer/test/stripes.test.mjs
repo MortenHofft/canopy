@@ -554,6 +554,23 @@ test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px get
   assert.equal(groups(stripes(m.ctx())).length >= 1, true, 'striped at 60 px per row (20 px stripes)');
 });
 
+test('a summary of one tip gets the tone of one stripe over its width, not of stripes a gap apart: no darker than its neighbours (#111)', async () => {
+  // the unary clade X is a row tall (about 95 px), under minCladePx: one summary, one hidden tip
+  const m = await makeViewer('((a0)X,(b0,b1,b2)Y)r;', { options: { minCladePx: 120 }, theme: { ...THEME, summaryStripeGap: 3 }, size: [500, 300] });
+  m.env.flush();
+  assert.equal(summaryCount(m.viewer), 1, 'X is a summary');
+  assert.equal(stripes(m.ctx()).length, 0, 'one hidden tip: no stripes');
+  const proj = m.viewer.proj;
+  proj.summaryExtent(1, -1, 0);
+  const width = proj.t1 - proj.t0;
+  assert.ok(width > 30, 'wider than the gap: ' + width);
+  const tones = toneAlphas(m);
+  assert.ok(
+    tones.length === 1 && Math.abs(tones[0] - stripeToneAlpha(0.8, width)) < 1e-6,
+    `the tone of one stripe ${width} px wide, not of stripes 3 px apart (${stripeToneAlpha(0.8, 3)}): ${tones}`,
+  );
+});
+
 test('rectangular: zooming a summary across the eight-gap limit keeps its darkness: the tone just past it matches the stripes just before it', async () => {
   const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', { theme: { ...THEME, summaryStripeGap: 3 }, size: [500, 300] });
   m.viewer.setCollapsed([1]);

@@ -95,6 +95,9 @@ export class DrawList {
 }
 
 /** Hash set of pixel-cell keys with O(1) reset (generation stamps). */
+/** What `cell` returns for a coordinate outside the cells; negative whatever kind * 8192 is added to it. */
+export const OUT_OF_CELLS = -(1 << 20);
+
 export class Seen {
   private k1 = new Float64Array(1 << 19);
   private k2 = new Int32Array(1 << 19);
@@ -112,6 +115,7 @@ export class Seen {
   /** true if the key was new (and is now recorded), false if already present. */
   add(a: number, b: number, c: number, d: number, e: number): boolean {
     if (this.n > 380000) return true; // table nearly full: stop deduplicating rather than loop
+    if (a < 0 || b < 0 || c < 0 || d < 0 || e < 0) return true; // a coordinate beyond the cells (OUT_OF_CELLS): the position is not known, nothing to merge on
     const key1 = (a * 8192 + b) * 8192 + c;
     const key2 = d * 8192 + e;
     const lo = key1 % 4294967296;
@@ -596,11 +600,13 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
 }
 
 const HALF_PI = Math.PI / 2;
-/** Dedupe cell of a pixel (or scaled tree-space) coordinate: offset so small negatives stay distinct, clamped to the 13 bits Seen.add packs.
+/** Dedupe cell of a pixel (or scaled tree-space) coordinate: offset so small negatives stay distinct, in the 13 bits Seen.add packs.
+ *  A coordinate outside them is OUT_OF_CELLS, which makes Seen.add report the key as new: clamping it instead put every far point
+ *  of a deep zoom in the same cell, and primitives a whole row apart were merged (#111).
  *  Defined here, not imported, in the module of the loops that call it per node: measured 10-25% slower on a polytomy when imported. */
 export const cell = (v: number): number => {
   const c = Math.floor(v) + 1024;
-  return c < 0 ? 0 : c > 8191 ? 8191 : c;
+  return c < 0 || c > 8191 ? OUT_OF_CELLS : c;
 };
 const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
 const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget

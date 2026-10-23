@@ -198,7 +198,12 @@ function endGroup(): void {
 function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): number {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
-  if (hidden < 2) return gap;
+  if (hidden < 2) {
+    // one tip: its single stripe would be as far from the next summary's as the shape is wide, so that is the tone's distance; the
+    // gap itself made it several times darker than its neighbours' stripes (#111)
+    const w = proj.kind === 'rectangular' ? proj.t1 - proj.t0 : (proj.t1 - proj.t0) * Math.max(proj.d0 + 2, proj.d1);
+    return w > gap ? w : gap;
+  }
   if (proj.kind === 'rectangular') {
     const { T } = proj;
     const y0 = proj.t0,
