@@ -1170,3 +1170,77 @@ body {
 .ex-info-rows--clade {
   padding-top: 0;
 }
+
+/* ── Debug panel (?debug=1, src/DebugPanel.tsx): under the tree pane, in the page flow; small monospace rows ── */
+.ex-debug {
+  border-top: 1px solid var(--ex-surface-30);
+  background: var(--ex-surface-0);
+  color: var(--ex-text-2);
+  font-family: var(--ex-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  padding: 4px 12px 6px;
+}
+.ex-debug-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ex-debug-head button {
+  font: inherit;
+  color: var(--ex-text);
+  background: var(--ex-surface-20);
+  border: 1px solid var(--ex-surface-30);
+  border-radius: calc(var(--ex-popover-radius) * 0.6);
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.ex-debug-head button:hover {
+  background: var(--ex-surface-30);
+}
+.ex-debug-head .ex-debug-toggle {
+  background: none;
+  border-color: transparent;
+  font-weight: 600;
+  padding-left: 0;
+}
+.ex-debug-build,
+.ex-debug-status {
+  color: var(--ex-muted);
+}
+.ex-debug-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0 12px;
+  margin: 4px 0 0;
+}
+.ex-debug-rows dt {
+  color: var(--ex-muted);
+}
+.ex-debug-rows dd {
+  margin: 0;
+  color: var(--ex-text);
+  overflow-wrap: anywhere;
+}
+.ex-debug-note {
+  margin: 4px 0 0;
+  color: var(--ex-danger);
+}
+.ex-debug-out {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.ex-debug-out textarea,
+.ex-debug-out input {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--ex-text);
+  background: var(--ex-surface-10);
+  border: 1px solid var(--ex-surface-30);
+  border-radius: calc(var(--ex-popover-radius) * 0.6);
+  padding: 3px 6px;
+  resize: vertical;
+}

@@ -38,6 +38,8 @@ import {
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
 import { Scroller } from './Scroller.tsx';
+import { DebugPanel } from './DebugPanel.tsx';
+import { restoredSettings, type DebugInfo } from './debug.ts';
 
 type Mode = 'none' | 'reroot' | 'flip' | 'swap' | 'color';
 type Layout = 'rectangular' | 'radial';
@@ -65,6 +67,7 @@ const INFO_NAMES = 12;
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
 const ERASE = 'reset';
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
+const LABEL_SIZE = 11.5; // the tip labels' size at a font scale of 1
 
 interface Step {
   tree: TreeModel;
@@ -376,13 +379,18 @@ export function Explorer({
   fasta,
   defaultHeight = 520,
   undoBudget = UNDO_BUDGET,
+  debug,
 }: {
   published: TreeModel;
   fasta: Record<string, string> | null;
   defaultHeight?: number;
   /** Bytes the trees kept for Undo may take ({@link UNDO_BUDGET}); a tree larger than this has Reset only. */
   undoBudget?: number;
+  /** The debug panel (?debug=1) and the view to restore (?view=, src/debug.ts); no panel without it. */
+  debug?: DebugInfo;
 }) {
+  // the starting state: the explorer's defaults, or the view restored
+  const [init] = useState(() => restoredSettings(debug, LABEL_SIZE));
   const ref = useRef<TreeViewHandle>(null);
   // the viewer as state, and the theme in force: React follows every theme change, whoever made it (the viewport is read by
   // <SizeSliders> alone, so a pan or zoom renders only the sliders)
@@ -397,7 +405,7 @@ export function Explorer({
   // the last change of `tree` and the map it came with (edit: the op's map; undo: its inverse), to keep the view across it
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [clades, setClades] = useState<CladeProp[]>([]);
-  const [collapsed, setCollapsed] = useState<number[]>([]); // clades the user collapsed (ids of `tree`)
+  const [collapsed, setCollapsed] = useState<number[]>(init.collapsed); // clades the user collapsed (ids of `tree`)
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Back and Up one level (tree-ops focus)
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
@@ -414,14 +422,14 @@ export function Explorer({
   const dragFrom = useRef<{ x: number; y: number } | null>(null); // where a drag in the pane began (not on the resize grip)
   const [showLegend, setShowLegend] = useState(true); // the clade legend: hidden by itself while no clade is coloured
 
-  const [fontScale, setFontScale] = useState(1);
+  const [fontScale, setFontScale] = useState(init.fontScale);
   const [strokeWidth, setStrokeWidth] = useState(1.5);
-  const [layout, setLayout] = useState<Layout>('rectangular');
-  const [phylogram, setPhylogram] = useState(true);
+  const [layout, setLayout] = useState<Layout>(init.layout);
+  const [phylogram, setPhylogram] = useState(init.phylogram);
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
-  const [alignLabels, setAlignLabels] = useState(false);
+  const [alignLabels, setAlignLabels] = useState(init.alignLabels);
 
   const [mode, setMode] = useState<Mode>('none');
   const [swapFirst, setSwapFirst] = useState<number | null>(null);
@@ -1068,7 +1076,7 @@ export function Explorer({
   const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
   const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
   const theme = useMemo(
-    () => ({ labelSize: 11.5 * fontScale, branchWidth: strokeWidth, cladeBranchWidth: strokeWidth + 0.7 }),
+    () => ({ labelSize: LABEL_SIZE * fontScale, branchWidth: strokeWidth, cladeBranchWidth: strokeWidth + 0.7 }),
     [fontScale, strokeWidth],
   );
   const activeHex = activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})`;
@@ -1492,6 +1500,8 @@ export function Explorer({
             themeObserver: 'document',
             // the hover ring grows in, as in Reactree (the default; said here as the look depends on it)
             hoverAnimation: true,
+            // a view restored (?view=) sets the level-of-detail options it was copied with
+            ...init.options,
           }}
           tooltip={tooltip}
           tooltipBare
@@ -1632,6 +1642,8 @@ export function Explorer({
           </span>
         </div>
       )}
+
+      <DebugPanel viewer={viewer} debug={debug} collapsed={collapsedIds} columns={columns.length} asLoaded={shown === published} />
 
       {downloadOpen && (
         <div className="ex-menu" role="menu" ref={menuRef}>

@@ -14,7 +14,8 @@
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
-// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns).
+// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
+// shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -2505,6 +2506,56 @@ for (const [id, tipsWanted] of [
     all > 5000 && count === `1 / ${all.toLocaleString('en')}`,
     `search highlights and counts every match, past the old 5,000 cap (${count}, ${all} highlighted)`,
   );
+}
+
+// ---------------------------------------------------------------- the debug panel (?debug=1) and a view copied and restored (?view=)
+{
+  const debugRoundTrip = async (layout) => {
+    await open('rich-fish-carangaria-135', '&debug=1');
+    const panel = page.locator('.ex-debug');
+    if (layout === 'radial') await page.locator('button[title=Circular]').click();
+    const box = await page.locator('.ex-pane canvas').first().boundingBox();
+    await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.4);
+    for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -200);
+    await page.waitForTimeout(700);
+    const text = await panel.innerText();
+    const pane = await page.locator('.ex-pane').boundingBox();
+    const at = await panel.boundingBox();
+    ok(
+      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx [\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
+      `${layout}: the debug panel shows numbers, under the tree pane (${text.split('\n')[text.split('\n').indexOf('frame') + 1] ?? text.slice(0, 80)})`,
+    );
+    const before = await ev(() => __v().getViewport());
+    await panel.locator('button', { hasText: 'Copy view' }).click();
+    await panel.locator('textarea').waitFor();
+    const json = JSON.parse(await panel.locator('textarea').inputValue());
+    const link = await panel.locator('input[aria-label="View URL"]').inputValue();
+    ok(
+      json.tree.id === 'rich-fish-carangaria-135' &&
+        json.layout === layout &&
+        typeof json.commit === 'string' &&
+        json.options.minCladePx > 0 &&
+        json.canvas.width > 0 &&
+        json.viewport.x0 === before.x0 &&
+        json.viewport.y1 === before.y1 &&
+        /\?debug=1&view=/.test(link),
+      `${layout}: Copy view gives the tree, layout, build, canvas, options and viewport (${JSON.stringify(json.viewport)})`,
+    );
+    await page.goto(link);
+    await page.waitForSelector('.ex-outer canvas', { timeout: 60000 });
+    await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
+    await page.evaluate(HELPERS);
+    await page.waitForTimeout(800);
+    const after = await ev(() => __v().getViewport());
+    const span = Math.max(before.x1 - before.x0, before.y1 - before.y0);
+    const off = Math.max(...['x0', 'x1', 'y0', 'y1'].map((k) => Math.abs(after[k] - before[k])));
+    ok(
+      off <= span * 1e-6 && (await ev(() => __v().options.layout)) === layout,
+      `${layout}: ?view= restores the layout and the viewport (off by ${off.toExponential(2)})`,
+    );
+  };
+  await debugRoundTrip('rectangular');
+  await debugRoundTrip('radial');
 }
 
 await browser.close();

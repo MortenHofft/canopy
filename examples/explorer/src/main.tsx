@@ -1,6 +1,6 @@
 // The explorer: the page around <Explorer> (src/Explorer.tsx), a tree picker and a light/dark switch. `npm run dev` in this
 // folder, then open the printed URL (?tree=<id> picks a tree from src/trees.ts, ?theme=dark starts dark, ?undo-budget=<bytes>
-// sets what Undo may keep). The picker has the playground's groups: every tree of its catalogue, a few of our own, and a file from
+// sets what Undo may keep, ?debug=1 shows the debug panel, ?view= restores a view it copied: src/debug.ts). The picker has the playground's groups: every tree of its catalogue, a few of our own, and a file from
 // your computer (src/TreePicker.tsx).
 
 import React, { useEffect, useState } from 'react';
@@ -9,9 +9,10 @@ import '@gbif-phylo/viewer/viewer.css';
 import './explorer.css';
 import type { TreeModel } from '@gbif-phylo/io';
 import { Explorer } from './Explorer.tsx';
-import { GROUPS, loadTree } from './trees.ts';
+import { GROUPS, TREES, loadTree } from './trees.ts';
 import { TreePicker } from './TreePicker.tsx';
 import { loadTreeFile } from '../../shared/data.ts';
+import { readDebug, sameTree, type DebugInfo, type TreeName } from './debug.ts';
 
 /** What is shown: a tree of the list, or a file of one's own (`key` tells two picks of a file apart). */
 type Pick = { id: string } | { file: File; key: string };
@@ -22,9 +23,24 @@ const keyOf = (p: Pick) => ('id' in p ? p.id : p.key);
 const load = (p: Pick): Promise<Loaded> => ('id' in p ? loadTree(p.id) : loadTreeFile(p.file).then((d) => ({ ...d, fasta: null })));
 let files = 0;
 
+const treeName = (p: Pick): TreeName => ('id' in p ? { id: p.id, label: TREES[p.id]?.label ?? p.id } : { file: p.file.name });
+/** The tree to start with: the one of the view restored when it is in the list, else ?tree=, else the Carangaria tree. */
+const firstTree = (params: URLSearchParams, debug: ReturnType<typeof readDebug>) => {
+  const t = debug.restore?.tree;
+  return t && 'id' in t && TREES[t.id] ? t.id : (params.get('tree') ?? 'rich-fish-carangaria-135');
+};
+/** What the explorer gets while debugging (nothing otherwise): the tree shown, and the view to restore with whether it is of it. */
+function debugInfo(debug: ReturnType<typeof readDebug>, pick: Pick): DebugInfo | undefined {
+  if (!debug.on) return undefined;
+  const tree = treeName(pick);
+  const restore = debug.restore;
+  return { tree, restore, matches: restore !== null && sameTree(restore.tree, tree), error: debug.error };
+}
+
 function App() {
   const params = new URLSearchParams(location.search);
-  const [pick, setPick] = useState<Pick>({ id: params.get('tree') ?? 'rich-fish-carangaria-135' });
+  const [debug] = useState(() => readDebug(params));
+  const [pick, setPick] = useState<Pick>(() => ({ id: firstTree(params, debug) }));
   const [dark, setDark] = useState(params.get('theme') === 'dark');
   const budgetParam = Number(params.get('undo-budget') ?? NaN); // a missing or bad value: the default
   const undoBudget = Number.isFinite(budgetParam) ? budgetParam : undefined;
@@ -70,7 +86,7 @@ function App() {
       {error && <p className="page-error">{error}</p>}
       {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
       {data ? (
-        <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} />
+        <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} debug={debugInfo(debug, pick)} />
       ) : (
         !error && <p className="page-loading">loading {nameOf(pick)}…</p>
       )}
