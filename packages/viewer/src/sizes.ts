@@ -23,11 +23,16 @@ export function resolveSize(v: FontRelative, labelSize: number): number {
 
 /** Tip dots are drawn when rows (radial: the arc between tips) are at least this many px. */
 export const TIP_DOT_PX = 6;
-/** The most the level of detail collapses by (px) while the draw list fits its budget, once tips have dots: the tip pitch, less a hair (a
- *  one-row clade is the pitch tall up to rounding, and the cut folds a clade *under* the threshold). Folding a clade next to tips drawn with
- *  dots and labels saves nothing at such a zoom, a window holds a few hundred rows at most (#109). Infinity before that, and with `lod` off. */
-export function collapseCap(tipPitch: number, lod: boolean): number {
-  return lod && tipPitch >= TIP_DOT_PX ? tipPitch * (1 - 1e-4) : Infinity;
+/** Rectangular: the least row height (px) from which the collapse threshold is capped at the row height. A canvas H px tall holds at most H
+ *  rows at 1 px or more, a few thousand entries, far under the budget, and folding gives nothing there: summaries carry no text (#113). */
+export const RECT_CAP_MIN_PX = 1;
+
+/** The most the level of detail collapses by (px) while the draw list fits its budget: the tip pitch, less a hair (a one-row clade is the
+ *  pitch tall up to rounding, and the cut folds a clade *under* the threshold). Folding a clade next to tips drawn at this pitch saves
+ *  nothing, a window holds a few hundred rows at most (#109). From a row height of `RECT_CAP_MIN_PX` in the rectangular layout (#113), from
+ *  the dot size `TIP_DOT_PX` in the radial one, where the arcs are denser towards the centre (#110). Infinity before that, and with `lod` off. */
+export function collapseCap(tipPitch: number, lod: boolean, rect: boolean): number {
+  return lod && tipPitch >= (rect ? RECT_CAP_MIN_PX : TIP_DOT_PX) ? tipPitch * (1 - 1e-4) : Infinity;
 }
 
 /** A px constant measured at `REF_LABEL_SIZE`, for font size `labelSize` (exactly the constant at the reference size). */

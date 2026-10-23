@@ -288,18 +288,34 @@ ok(
   (await page.locator('[data-setting=summaryStyle], [data-setting=stripeCollapsed], [data-setting=summaryStripeColour]').count()) === 0,
   'no summary style, stripeCollapsed or stripe colour setting',
 );
-await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
+// the level of detail folds nothing where the tips have room for dots (radial) or rows are 1 px tall (#109, #113): collapse a few clades by hand
+const collapseSome = () =>
+  ev(() => {
+    const t = window.viewer.getTree();
+    const ids = [];
+    for (let i = 1; i < t.nodeCount && ids.length < 6; i++) {
+      const c = t.leafEnd[i] - t.leafStart[i];
+      if (t.firstChild[i] >= 0 && c >= 8) {
+        ids.push(i);
+        i = t.subtreeEnd[i] - 1;
+      }
+    }
+    window.viewer.setCollapsed(ids);
+  });
 const summaryColour = await theme('summary');
 await setInput('summary', '#ff0000');
 // strong red only: the background alone (summaryOpacity 0.25 over white) is too faint to count, the stripes and their tone are not
-const redPixels = () =>
-  ev(() => {
+const redPixels = async () => {
+  await collapseSome(); // a setting change re-applies the playground's collapse, so collapse again before each read
+  await settled();
+  return ev(() => {
     const c = document.querySelector('.phylo-tree canvas');
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     let n = 0;
     for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 170 && d[i + 2] < 170 && Math.abs(d[i + 1] - d[i + 2]) < 20) n++;
     return n;
   });
+};
 const stripedRed = await redPixels();
 ok(stripedRed > 100, `the summaries are drawn in the summary colour (${stripedRed} red pixels)`);
 await setInput('summaryStripeOpacity', '0');
@@ -316,20 +332,7 @@ ok(
 );
 await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
-// the level of detail folds nothing where the tips have room for dots (#109), and the tree's fit is such a view: collapse a few clades
-// of the tree by hand to get summaries
-await ev(() => {
-  const t = window.viewer.getTree();
-  const ids = [];
-  for (let i = 1; i < t.nodeCount && ids.length < 6; i++) {
-    const c = t.leafEnd[i] - t.leafStart[i];
-    if (t.firstChild[i] >= 0 && c >= 8) {
-      ids.push(i);
-      i = t.subtreeEnd[i] - 1;
-    }
-  }
-  window.viewer.setCollapsed(ids);
-});
+await collapseSome();
 await settled();
 ok((await redPixels()) > 100, 'radial: the same look');
 await ev(() => window.viewer.setCollapsed([]));

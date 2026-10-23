@@ -532,8 +532,8 @@ for (const [name, vp] of [
 }
 
 test('rectangular, zoomed into a summary much taller than the screen: only the stripes of the visible rows are drawn', async () => {
-  const m = await make('rectangular', { minCladePx: 4000 }, balanced(11)); // clades of 1024 tips are summaries; 100 rows fill the screen
-  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 400 });
+  const m = await make('rectangular', { minCladePx: 4000 }, balanced(11)); // clades of 1024 tips are summaries; 360 rows (0.9 px) fill the screen (#113)
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 660 });
   m.ctx().reset();
   m.env.flush();
   const s = stripes(m.ctx());

@@ -142,8 +142,8 @@ test('none inside a summary: collapsed clades get no label, expanded ones do', a
   // x (2 tips, 1 row) and y (2 tips) collapse into triangles when minCladePx is above their size and the rows are under the dot size; the root stays
   const big = await make({ nodeLabels: 'support' });
   assert.equal(texts(big.ctx()).length, 2);
-  // a long polytomy beside them keeps the rows under the dot size, where minCladePx applies (#109)
-  const wide = '((a:1,b:1)95:2,(c:1,d:1)0.5:3,(' + Array.from({ length: 120 }, (_, k) => 'z' + k + ':1').join(',') + '):1)r;';
+  // a long polytomy beside them keeps the rows under 1 px, where minCladePx applies (#109, #113)
+  const wide = '((a:1,b:1)95:2,(c:1,d:1)0.5:3,(' + Array.from({ length: 500 }, (_, k) => 'z' + k + ':1').join(',') + '):1)r;';
   const m = await make({ nodeLabels: 'support', minCladePx: 400 }, { tree: wide });
   const S = m.viewer.getStats();
   assert.ok(S.summaries > 0, 'there are summaries');
