@@ -69,6 +69,24 @@ import {
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
 import { collapseCap, resolveSize } from './sizes.ts';
+import {
+  CEILING,
+  BUDGET_FRAME_MS,
+  CHAIN_FRAMES,
+  FLOOR_RADIAL,
+  FLOOR_RECT,
+  MIN_SAMPLES,
+  MIN_THRESHOLD_PX,
+  START_RADIAL,
+  START_RECT,
+  newBudgetState,
+  observeFrame,
+  observeInterval,
+  stepBudget,
+  wantsStep,
+  wedgeLimitPx,
+  type BudgetState,
+} from './budget.ts';
 import { keptViewport, type TipTarget } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
@@ -269,6 +287,7 @@ export class TreeViewer {
     truncated: false,
     frames: 0,
     budget: 0,
+    minPxLimit: Infinity,
     forced: 0,
     summaryTips: 0,
     mergedTips: 0,
@@ -280,11 +299,26 @@ export class TreeViewer {
   private interacting = false;
   private reducedFrame = false;
   private refineTimer = 0;
+  private budgetTimer = 0; // the frame that measures a changed budget (adaptBudget)
   private minPxHint = 0;
   private hintRaised = false; // the hint is a threshold the budget raised past the cap, not a base (or the cap itself)
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
+  // the adaptive budget ('auto', budget.ts): one state per layout kind, the one in force for the frame being drawn (null: a fixed budget),
+  // and the limits it moves within. It steps on settled frames only; `budgetPending` says the last step changed the budget, so the
+  // frames that follow are drawn (at most `budgetChain` of them, without any input) to measure the new value and step again.
+  private autoRect: BudgetState = newBudgetState(START_RECT);
+  private autoRadial: BudgetState = newBudgetState(START_RADIAL);
+  private ctl: BudgetState | null = null;
+  private lastCtl: BudgetState | null = null;
+  private ctlFloor = 0;
+  private ctlCeiling = 0;
+  private wedgeLimited = false; // radial 'auto': the cut keeps summary wedges within MAX_WEDGE_DEG while frames are on target
+  private budgetPending = true;
+  private budgetChain = CHAIN_FRAMES;
+  private ivLast = 0; // timestamp of the previous animation frame drawn while the view was animated, 0 for none
+  private ivTree: TreeSnapshot | null = null; // the snapshot the controller last saw: a new tree starts the measurements again
   private noticeText = '';
   private noticeShown = false;
   private msSum = 0;
@@ -942,7 +976,10 @@ export class TreeViewer {
       this.watchTheme();
       if (o.themeObserver === 'none') this.refreshTheme(); // nothing watched the page meanwhile
     }
-    if (p.radialMaxNodes !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) this.minPxHint = 0;
+    if (p.radialMaxNodes !== undefined || p.drawBudget !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined) {
+      this.minPxHint = 0;
+      this.budgetPending = true;
+    }
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
     // the fan first: the layout of the other branch lengths is then made with the new fan, and the transform carries it too
     const fanRefit = this.applyFanOption(p);
@@ -1666,6 +1703,7 @@ export class TreeViewer {
   private noteInput(): void {
     if (this.opts.interactionLOD === false) return;
     this.interacting = true;
+    this.budgetChain = CHAIN_FRAMES;
     if (this.refineTimer) clearTimeout(this.refineTimer);
     this.refineTimer = window.setTimeout(() => {
       this.refineTimer = 0;
@@ -1719,6 +1757,7 @@ export class TreeViewer {
     this.raf = 0;
     this.overlay.destroy();
     if (this.refineTimer) clearTimeout(this.refineTimer);
+    if (this.budgetTimer) clearTimeout(this.budgetTimer);
     this.ro?.disconnect();
     this.ro = null;
     (document as Document & { fonts?: FontFaceSet }).fonts?.removeEventListener?.('loadingdone', this.onFonts);
@@ -1830,18 +1869,84 @@ export class TreeViewer {
     if (this.effScale() !== this.dpr) this.setSize(this.W, this.H);
   }
 
+  /** The budget of this frame (before the reduction while moving), and the controller in force: a number is fixed; `'auto'` is the
+   *  adaptive value (budget.ts) within its limits. For numbers this is exactly the fixed rule: drawBudget at least 500, and in radial no
+   *  more than radialMaxNodes (at least 100). A radial `radialMaxNodes: 'auto'` is the controller, bounded by a fixed drawBudget. */
+  private resolveBudget(rect: boolean): number {
+    const { drawBudget: d, radialMaxNodes: r } = this.opts;
+    this.ctl = null;
+    this.wedgeLimited = false;
+    this.ctlCeiling = 0;
+    if (!this.opts.lod) return 600000;
+    if (!rect && r === 'auto') {
+      const ceiling = d === 'auto' ? CEILING : Math.min(CEILING, Math.max(FLOOR_RECT, d));
+      this.useController(this.autoRadial, FLOOR_RADIAL, ceiling);
+      this.wedgeLimited = true;
+      return Math.min(ceiling, Math.max(FLOOR_RADIAL, this.autoRadial.budget));
+    }
+    let budget: number;
+    if (d === 'auto') {
+      const ceiling = !rect && Number.isFinite(r) ? Math.min(CEILING, Math.max(FLOOR_RADIAL, r as number)) : CEILING;
+      this.useController(this.autoRect, FLOOR_RECT, ceiling);
+      budget = Math.max(FLOOR_RECT, Math.min(ceiling, this.autoRect.budget));
+    } else budget = Math.max(FLOOR_RECT, d);
+    if (!rect && Number.isFinite(r)) budget = Math.max(FLOOR_RADIAL, Math.min(budget, r as number));
+    return budget;
+  }
+
+  private useController(s: BudgetState, floor: number, ceiling: number): void {
+    if (this.ivTree !== this.tree || this.lastCtl !== s) this.budgetPending = true;
+    this.ivTree = this.tree;
+    this.lastCtl = s;
+    this.ctl = s;
+    this.ctlFloor = floor;
+    this.ctlCeiling = ceiling;
+  }
+
+  /** Feed the finished frame to the adaptive budget (budget.ts). Full-quality frames add their JS time (the first is not measured); frames
+   *  of an animation add the time since the previous one, which on a weak device is dominated by drawing the pixels. The budget changes only
+   *  on a settled frame (no gesture in progress), and a change is followed by frames, without input, to measure it. */
+  private adaptBudget(frameMs: number, reduced: boolean, saturated: boolean): void {
+    const s = this.ctl!;
+    const now = this.frameNow;
+    if (this.interacting && this.vs.animating && Number.isFinite(now)) {
+      if (this.ivLast > 0) observeInterval(s, now - this.ivLast);
+      this.ivLast = now;
+    } else this.ivLast = 0;
+    if (reduced) return;
+    if (this.fullFrames > 1) observeFrame(s, frameMs);
+    if (this.interacting) return;
+    const ran = s.n >= MIN_SAMPLES;
+    const changed = stepBudget(s, { floor: this.ctlFloor, ceiling: this.ctlCeiling, saturated });
+    if (ran) this.budgetPending = changed;
+    else if (wantsStep(s, saturated)) this.budgetPending = true; // one measurement so far, and it calls for a change: get the next
+    if (this.budgetPending && this.budgetChain > 0) {
+      this.budgetChain--;
+      if (!this.budgetTimer)
+        this.budgetTimer = window.setTimeout(() => {
+          this.budgetTimer = 0;
+          if (this.destroyed || this.interacting) return;
+          this.dirty = true;
+          this.schedule();
+        }, BUDGET_FRAME_MS);
+    }
+  }
+
   private fitCut(
     base: number,
     cap: number,
     budget: number,
     summaries: boolean,
     useHint: boolean,
+    limit: number,
   ): { res: CutResult; minPx: number; retries: number } {
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
       base,
       cap,
       budget,
+      limit,
+      hardBudget: Math.max(budget, this.ctlCeiling),
       summaries,
       // a hint that is only a base (the cap was not in force or not reached) starts a search at the cap, not 19 rungs above it (#113)
       hint: useHint ? (this.hintRaised ? this.minPxHint : Math.min(this.minPxHint, cap)) : 0,
@@ -1874,15 +1979,17 @@ export class TreeViewer {
     // ---- cut
     const tc = performance.now();
     const cap = collapseCap(this.proj.tipPitch, opts.lod, rect); // #109, #113
-    const baseMinPx = Math.min(cap, Math.max(1, opts.minCladePx));
-    let budget = opts.lod ? Math.max(500, opts.drawBudget) : 600000;
-    if (opts.lod && !rect && Number.isFinite(opts.radialMaxNodes)) budget = Math.max(100, Math.min(budget, opts.radialMaxNodes));
+    const baseMinPx = Math.min(cap, Math.max(MIN_THRESHOLD_PX, opts.minCladePx));
+    let budget = this.resolveBudget(rect);
     let base = baseMinPx;
     if (reduced) {
       budget = Math.max(500, Math.floor(budget / 4));
       if (this.lastFullDrawn > HEAVY_PRIMS) base = Math.min(cap, baseMinPx * REDUCED_MINPX);
     }
-    const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, !reduced);
+    // the wedge limit (radial 'auto'): the budget does not raise the threshold above the arc of MAX_WEDGE_DEG at the outermost ring while
+    // frames are on target; it gives way (limit Infinity) once a step has lowered the budget (budget.ts, `pressed`)
+    const limit = this.wedgeLimited && !reduced && this.ctl !== null && !this.ctl.pressed ? wedgeLimitPx(L.XMAX[0] * T.k) : Infinity;
+    const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, !reduced, limit);
     const { minPx, retries } = cutRes;
     const res = cutRes.res;
     const cutMs = performance.now() - tc;
@@ -1920,12 +2027,14 @@ export class TreeViewer {
     st.truncated = res.overflow;
     st.frames++;
     st.budget = budget;
+    st.minPxLimit = limit;
     st.forced = res.forced;
     st.summaryTips = res.summaryTips;
     st.mergedTips = res.mergedTips;
     st.reduced = reduced;
     st.scale = dpr;
     if (!reduced) this.measureFull(frameMs);
+    if (this.ctl !== null) this.adaptBudget(frameMs, reduced, !res.overflow && res.forced === 0);
     this.msSum += frameMs;
     this.msN++;
     if (frameMs > this.msMax) this.msMax = frameMs;

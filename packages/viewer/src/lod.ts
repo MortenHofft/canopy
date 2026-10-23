@@ -704,6 +704,11 @@ export interface SearchOpts {
   budget: number;
   summaries: boolean;
   hint: number; // threshold of the previous full frame, 0 for none
+  /** The budget never raises the threshold above this (px): where the list still overflows at the highest rung at or under it, the cut is
+   *  made there with `hardBudget` instead (a list that may exceed `budget`). Infinity or absent for none; below `base` it holds `base`.
+   *  The radial wedge limit of the adaptive budget (budget.ts). */
+  limit?: number;
+  hardBudget?: number; // with `limit`: the budget at the limit's rung (default `budget`); a list that overflows even this goes on up the ladder
 }
 
 /** Run the cut, raising the collapse threshold until the draw list fits the budget, and no further than needed. Without
@@ -721,9 +726,9 @@ export function searchCut(
   const { base, budget, summaries } = o;
   let lastM = -1;
   // one small result object per pass (not per node): a pass that is kept must not be overwritten by the next one
-  const run = (minPx: number): CutResult => {
+  const run = (minPx: number, bud = budget): CutResult => {
     lastM = minPx;
-    const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
+    const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget: bud, summaries };
     return cut(proj, P, classOf, list, seen, newCutResult());
   };
   // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
@@ -734,17 +739,34 @@ export function searchCut(
   const capRung = Math.max(base, o.cap);
   const capN = capRung > base ? Math.ceil(Math.log(capRung / base) / Math.log(LEVEL_STEP) - 1e-9) : 0;
   const lvl = (n: number): number => (n === capN ? capRung : base * Math.pow(LEVEL_STEP, n));
-  let n = hintRung(o.hint, base, capRung, capN);
+  // the limit's rung: the highest one at or under it (the base itself when the limit is below it); Infinity when there is none
+  let limN = o.limit !== undefined && o.limit < Infinity ? Math.max(0, Math.floor(Math.log(o.limit / base) / Math.log(LEVEL_STEP) + 1e-9)) : Infinity;
+  while (limN > 0 && limN < Infinity && lvl(limN) > o.limit! * (1 + 1e-9)) limN--; // the cap rung may sit above the ladder's
+  const hard = o.hardBudget ?? budget;
+  let n = Math.min(hintRung(o.hint, base, capRung, capN), limN);
   let m = lvl(n);
   let res = run(m);
   let passes = 1;
+  // up the ladder while the list overflows, to the limit's rung at most; true if it still overflows at that rung
+  const climb = (): boolean => {
+    while (res.overflow && passes < MAX_PASSES && n < limN) {
+      n++;
+      m = lvl(n);
+      res = run(m);
+      passes++;
+    }
+    return res.overflow && n >= limN;
+  };
   if (o.lod && res.visited < 80000) {
     if (res.overflow) {
-      while (res.overflow && passes < MAX_PASSES) {
-        n++;
-        m = lvl(n);
-        res = run(m);
+      // at the limit's rung the budget gives way: the cut is made there with the hard budget; where even that overflows the ladder goes on
+      if (climb()) {
+        res = run(m, hard);
         passes++;
+        if (res.overflow) {
+          limN = Infinity;
+          climb();
+        }
       }
     } else {
       while (n > 0 && passes < MAX_PASSES) {
@@ -761,10 +783,17 @@ export function searchCut(
       }
     }
   } else if (res.overflow && o.lod) {
-    // very expensive walks (caterpillar-like): no search, just double until it fits
+    // very expensive walks (caterpillar-like): no search, just double until it fits (or to the limit, where the hard budget applies)
+    const limit = o.limit ?? Infinity;
+    let hardDone = false;
     while (res.overflow && passes < 24) {
-      m *= 2;
-      res = run(m);
+      if (!hardDone && m >= limit) {
+        hardDone = true;
+        res = run(m, hard);
+      } else {
+        m = hardDone ? m * 2 : Math.min(m * 2, limit);
+        res = run(m);
+      }
       passes++;
     }
   }

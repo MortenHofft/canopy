@@ -779,6 +779,7 @@ export const SETTINGS: Setting[] = [
     kind: 'select',
     default: String(O.drawBudget),
     options: [
+      ['auto', 'Auto (follows the machine)'],
       ['500', '500 primitives'],
       ['2000', '2,000'],
       ['20000', '20,000'],
@@ -794,6 +795,7 @@ export const SETTINGS: Setting[] = [
     kind: 'select',
     default: num(O.radialMaxNodes),
     options: [
+      ['auto', 'Auto (follows the machine)'],
       ['500', '500'],
       ['2000', '2,000'],
       ['10000', '10,000'],

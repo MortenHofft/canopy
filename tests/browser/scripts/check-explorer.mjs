@@ -2501,6 +2501,66 @@ for (const [id, tipsWanted] of [
     'nothing is disabled on a large tree',
   );
   ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
+  // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
+  // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
+  // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates
+  await page.locator('button[title=Circular]').click();
+  await page.waitForTimeout(500);
+  const budgetStats = () =>
+    ev(() => {
+      const s = __v().getStats();
+      return { budget: s.budget, forced: s.forced, minPx: s.minPxUsed, limit: s.minPxLimit, frameMs: s.frameMs, drawn: s.drawn, reduced: s.reduced };
+    });
+  const auto = await ev(() => {
+    const v = __v();
+    window.__minCladePx = v.options.minCladePx;
+    v.setOptions({ minCladePx: 1, radialMaxNodes: 'auto', drawBudget: 'auto' });
+    v.fit(false);
+    v.renderNow();
+    return { radialMaxNodes: v.options.radialMaxNodes, drawBudget: v.options.drawBudget, start: v.getStats().budget };
+  });
+  ok(auto.radialMaxNodes === 'auto' && auto.drawBudget === 'auto', "radialMaxNodes and drawBudget 'auto' (the defaults)");
+  ok(auto.start >= 100 && auto.start <= 200000, `the first frame's budget is ${auto.start}`);
+  const first = await budgetStats();
+  ok(
+    !Number.isFinite(first.limit) || first.minPx <= first.limit * (1 + 1e-9),
+    `radial full view: the threshold ${first.minPx.toFixed(1)} px is within the 4 degree wedge limit (${first.limit.toFixed(1)} px)`,
+  );
+  let moved = null;
+  for (let k = 0; k < 40 && moved === null; k++) {
+    await page.waitForTimeout(250);
+    const s = await budgetStats();
+    if (s.budget !== auto.start) moved = s;
+  }
+  ok(moved !== null, `after settled frames the budget differs from the start (${auto.start} -> ${moved?.budget})`);
+  await page.waitForTimeout(3000);
+  const rest = await budgetStats();
+  ok(
+    rest.budget >= 100 && rest.budget <= 200000,
+    `and stays within its limits: ${rest.budget} (forced ${rest.forced}, frame ${rest.frameMs.toFixed(1)} ms)`,
+  );
+  ok(
+    !Number.isFinite(rest.limit) || rest.minPx <= rest.limit * (1 + 1e-9),
+    `the wedge limit holds, or has given way to the budget (limit ${rest.limit})`,
+  );
+  const fixed = await ev(() => {
+    __v().setOptions({ radialMaxNodes: 1500 });
+    __v().renderNow();
+    return __v().getStats().budget;
+  });
+  await page.waitForTimeout(1500);
+  const fixedLater = await budgetStats();
+  ok(
+    fixed === 1500 && fixedLater.budget === 1500 && fixedLater.drawn <= 1500,
+    'a number stays fixed: radialMaxNodes 1500 gives a budget of 1500 over later frames',
+  );
+  await ev(() => {
+    __v().setOptions({ minCladePx: window.__minCladePx, radialMaxNodes: 'auto' });
+    __v().fit(false);
+    __v().renderNow();
+  });
+  await page.locator('button[title=Rectangular]').click();
+  await page.waitForTimeout(500);
   await drillDown(n2);
   // search is not capped (#58): every match is counted and highlighted
   await page.locator('button[aria-label="Search tips"]').click();
