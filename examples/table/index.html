@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Table view · @gbif-phylo</title>
+  </head>
+  <body>
+    <header class="top">
+      <a class="back" href="/">← All demos</a>
+      <h1>Table view</h1>
+      <p class="lede">
+        One row per tip at a fixed height, the wheel scrolls rows, and the tree is one column among the data columns. Drag a header's edge to
+        resize a column; click a clade to collapse it.
+      </p>
+    </header>
+    <div class="toolbar" role="toolbar" aria-label="Table settings">
+      <label class="tool">
+        <span class="tool__name">Tree</span>
+        <select id="tree-select" aria-label="Tree"></select>
+      </label>
+      <label class="tool">
+        <span class="tool__name">Row</span>
+        <input type="range" id="row-height" min="14" max="48" step="1" aria-label="Row height" />
+        <span class="tool__value" id="row-height-value"></span>
+      </label>
+      <label class="tool">
+        <span class="tool__name">Font</span>
+        <input type="range" id="font-size" min="9" max="18" step="1" aria-label="Font size" />
+        <span class="tool__value" id="font-size-value"></span>
+      </label>
+      <details class="picker">
+        <summary class="btn btn-outline">Label fields <span class="picker__count" id="fields-count"></span></summary>
+        <div class="picker__list" id="fields-list"></div>
+      </details>
+      <details class="picker">
+        <summary class="btn btn-outline">Columns <span class="picker__count" id="columns-count"></span></summary>
+        <div class="picker__list" id="columns-list"></div>
+      </details>
+      <span id="search-slot" class="search-slot"></span>
+      <span class="status" id="status" aria-live="polite"></span>
+    </div>
+    <main class="card table-card">
+      <div class="table-frame" id="frame">
+        <div class="table-head" id="head"></div>
+        <div class="table-tree" id="tree"></div>
+      </div>
+      <div class="readouts" aria-live="off">
+        <span id="hover-node">Hover a node…</span>
+        <span id="hover-row">Hover a row…</span>
+        <span id="selected">Nothing selected</span>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

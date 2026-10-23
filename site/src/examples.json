@@ -16,5 +16,14 @@
     "description": "The styled showcase of the library, an alternative to the playground: toolbars, tools, a node menu on click, show only a clade, collapse by support, ladderise, search, overview, alignment and export, built on <TreeView> and tree-ops, with a theme made only of CSS custom properties. Every tree of the playground, up to 2.4 million tips.",
     "tags": ["React", "tree-ops", "custom theme"],
     "data": ["src/trees.json", "../shared/catalogue.json"]
+  },
+  {
+    "id": "table",
+    "dir": "examples/table",
+    "kind": "showcase",
+    "title": "Table view",
+    "description": "A table like TBrowse: one row per tip at a fixed height, the wheel scrolls rows instead of zooming, and the tree is one column among data columns (label fields, an alignment, gene location, an expression heatmap, a score), each with a header and a resize handle. The overview strip is the scrollbar. Built on the public API; its README lists what the viewer cannot do for it yet.",
+    "tags": ["@gbif-phylo/viewer", "no framework", "custom columns"],
+    "data": "src/trees.json"
   }
 ]
