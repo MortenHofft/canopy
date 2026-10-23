@@ -110,6 +110,7 @@ test('a 20k comb zoomed deep, radial and rectangular: the threshold stays at the
       base: 14,
       cap: Infinity,
       budget: 20000,
+
       summaries: true,
       hint: 0,
     });
@@ -119,11 +120,13 @@ test('a 20k comb zoomed deep, radial and rectangular: the threshold stays at the
   for (let i = 0; i < snap.nodeCount && tip < 0; i++) if (snap.childCount[i] === 0 && L.rowStart[i] === Math.floor(0.7 * rows)) tip = i;
   const x = L.X[tip] * L.COS[tip],
     y = L.X[tip] * L.SIN[tip];
+  // the most entries a view may have: not deduping the far primitives at all gives 6529, 6020 and 6001 at these three
+  const LIMIT = { 64: 8000, 4096: 1500, 262144: 5000 };
   for (const z of [64, 4096, 262144]) {
     const k = (Math.min(W, H) / 2.2) * z;
     const { list, r } = cutOf('radial', { x0: x - W / 2 / k, x1: x + W / 2 / k, y0: y - H / 2 / k, y1: y + H / 2 / k });
     assert.equal(r.minPx, 14, `radial z=${z}: threshold at the base`);
-    assert.ok(!r.res.overflow && list.count > 0 && list.count < 15000, `radial z=${z}: ${list.count} entries`);
+    assert.ok(!r.res.overflow && list.count > 0 && list.count < LIMIT[z], `radial z=${z}: ${list.count} entries`);
   }
   for (const zx of [1, 20, 400]) {
     const yc = 0.5 * rows,
@@ -132,5 +135,36 @@ test('a 20k comb zoomed deep, radial and rectangular: the threshold stays at the
     const { list, r } = cutOf('rectangular', { x0: 0.95 - hx, x1: 0.95 + hx, y0: yc - hy, y1: yc + hy });
     assert.equal(r.minPx, 14, `rectangular zx=${zx}: threshold at the base`);
     assert.ok(!r.res.overflow && list.count > 0 && list.count < 15000, `rectangular zx=${zx}: ${list.count} entries`);
+  }
+});
+
+test('a deep zoom on the boundary of two collapsed clades of equal depth draws both of them (#111)', () => {
+  // four app-collapsed clades of 1000 tips under the root, all at the same depth: their summaries are fans out to the same rim; the centre
+  // ray of each misses the cells at a deep zoom, and the two at the window are at the same ring and the same size
+  const n = 1000;
+  const clade = (p) => '(' + Array.from({ length: n }, (_, k) => `${p}${k}:1`).join(',') + `)${p}:1`;
+  const snap = new InMemorySource(parseNewick(`(${clade('A')},${clade('B')},${clade('C')},${clade('D')})r;`)).snapshot();
+  const collapsed = new Uint8Array(snap.nodeCount);
+  for (let i = 1; i < snap.nodeCount; i++) if (snap.childCount[i] > 0) collapsed[i] = 1;
+  const L = computeLayout(snap, true, collapsed);
+  const FAN = { start: 0.3, span: 2 * Math.PI };
+  setLayoutFan(L, FAN);
+  ensureTrig(L);
+  const W = 1198,
+    H = 520;
+  const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
+  const a = FAN.start + Math.PI / 2; // the boundary of the first two clades
+  const R = Math.max(...L.XMAX);
+  for (const z of [4, 64, 1024]) {
+    const k = (Math.min(W, H) / 2.2) * z;
+    const x = R * Math.cos(a),
+      y = R * Math.sin(a);
+    const T = makeTransform('radial', W, H, { x0: x - W / 2 / k, x1: x + W / 2 / k, y0: y - H / 2 / k, y1: y + H / 2 / k }, area, L.rowEnd[0], FAN);
+    const list = new DrawList();
+    searchCut(projectionFor(snap, L, T), null, list, new Seen(), { lod: true, base: 14, cap: Infinity, budget: 20000, summaries: true, hint: 0 });
+    const drawn = [];
+    for (let e = 0; e < list.count; e++) if (list.kind[e] === K_SUMMARY) drawn.push(list.node[e]);
+    const [nodeA, nodeB] = [1, 1 + n + 1];
+    assert.ok(drawn.includes(nodeA) && drawn.includes(nodeB), `z=${z}: both clades on the boundary are drawn, got ${drawn}`);
   }
 });
