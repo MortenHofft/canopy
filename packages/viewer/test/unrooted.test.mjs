@@ -96,6 +96,7 @@ for (const [name, maxKids, skew] of [
 ]) {
   test(`random trees (${name}): branches at their lengths, wedges nested and disjoint, no crossings`, () => {
     const rand = lcg(name.length * 7919);
+    let wide = 0; // non-root nodes whose wedge is wider than pi (a non-convex cone)
     for (let rep = 0; rep < 25; rep++) {
       const t = parseNewick(randomNewick(rand, 5 + Math.floor(rand() * 60), maxKids, skew));
       const L = unrootedLayout(t);
@@ -109,6 +110,7 @@ for (const [name, maxKids, skew] of [
           a += (t.leafEnd[c] - t.leafStart[c]) * L.unit;
         }
         if (t.firstChild[i] >= 0) close(a, L.W0[i] + (t.leafEnd[i] - t.leafStart[i]) * L.unit, `wedges of ${i}'s children fill it`);
+        if (i > 0 && (t.leafEnd[i] - t.leafStart[i]) * L.unit > Math.PI) wide++;
         if (i > 0) {
           const p = t.parent[i];
           close(Math.hypot(L.X[i] - L.X[p], L.Y[i] - L.Y[p]), t.length[i], `length of branch ${i}`);
@@ -129,6 +131,8 @@ for (const [name, maxKids, skew] of [
           );
         }
     }
+    // the ladders are there for this case: no crossings although some wedges are wider than pi
+    if (skew) assert.ok(wide > 0, 'some ladder has a wedge wider than pi');
   });
 }
 

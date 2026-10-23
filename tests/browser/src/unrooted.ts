@@ -26,23 +26,28 @@ async function load(p: string): Promise<TreeModel> {
   return /^\s*#NEXUS/i.test(text) ? parseNexus(text).tree : parseNewick(text);
 }
 
+const FONT = '10px system-ui, sans-serif';
+
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function draw(tree: TreeModel, L: UnrootedLayout, labels: boolean): void {
+interface Fit {
+  k: number;
+  ox: number;
+  oy: number;
+}
+
+/** Once per tree: size the canvas and find the scale and offset that fit the nodes and, with labels, each tip's label sticking out along
+ *  its direction (bisection on the scale, measureText per tip). Not part of the timed redraw. */
+function fit(tree: TreeModel, L: UnrootedLayout, labels: boolean): Fit {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);
   canvas.style.width = canvas.style.height = `${size}px`;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = cssVar('--phylo-background');
-  ctx.fillRect(0, 0, size, size);
-  const font = '10px system-ui, sans-serif';
-  ctx.font = font;
+  ctx.font = FONT;
   const pad = 8;
   const { X, Y } = L;
-  // the extent of the drawing at scale k: the nodes, and with labels each tip's label sticking out along its direction (bisection on k)
   const T = tree.tipCount;
   const lw = new Float64Array(labels ? T : 0);
   for (let r = 0; r < lw.length; r++) lw[r] = ctx.measureText(tree.tipLabels[r]).width + 3;
@@ -74,8 +79,18 @@ function draw(tree: TreeModel, L: UnrootedLayout, labels: boolean): void {
   }
   const k = lo;
   const [x0, x1, y0, y1] = box(k);
-  const ox = pad + (avail - (x1 - x0)) / 2 - x0;
-  const oy = pad + (avail - (y1 - y0)) / 2 - y0;
+  return { k, ox: pad + (avail - (x1 - x0)) / 2 - x0, oy: pad + (avail - (y1 - y0)) / 2 - y0 };
+}
+
+/** What is timed: clear, stroke every branch as one path, and the labels when on. */
+function paint(tree: TreeModel, L: UnrootedLayout, labels: boolean, f: Fit): void {
+  const { k, ox, oy } = f;
+  const { X, Y } = L;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = cssVar('--phylo-background');
+  ctx.fillRect(0, 0, size, size);
+  ctx.font = FONT;
   const parent = tree.parent;
   ctx.strokeStyle = cssVar('--phylo-branch');
   ctx.lineWidth = 1;
@@ -109,7 +124,8 @@ interface SpikeApi {
   usedLengths: boolean;
   parseMs: number;
   layoutMs: number;
-  /** Draw `runs` times; median ms per draw, the pixels flushed by a 1-pixel read each time. */
+  /** Paint `runs` times; median ms per paint (clear, branches, labels; not the fit or the canvas sizing), the pixels flushed by a
+   *  1-pixel read each time. */
   redraw(runs: number): number;
 }
 
@@ -119,7 +135,8 @@ async function main(): Promise<void> {
   const parseMs = performance.now() - t;
   const L = unrootedLayout(tree, lengths);
   const labels = q.has('labels') ? q.get('labels') === '1' : tree.tipCount <= 250;
-  draw(tree, L, labels);
+  const f = fit(tree, L, labels);
+  paint(tree, L, labels, f);
   const api: SpikeApi = {
     tree: treePath,
     tips: tree.tipCount,
@@ -131,7 +148,7 @@ async function main(): Promise<void> {
       const ms: number[] = [];
       for (let r = 0; r < runs; r++) {
         t = performance.now();
-        draw(tree, L, labels);
+        paint(tree, L, labels, f);
         ctx.getImageData(0, 0, 1, 1);
         ms.push(performance.now() - t);
       }

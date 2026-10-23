@@ -26,7 +26,7 @@ Properties, shown in the unit tests **(M)**:
   length equals the tree's branch length to 1e-9, and its direction is the middle of the node's wedge.
 - **Wedges nested and disjoint.** The children's wedges tile the parent's wedge in order, and the root's wedge is the whole circle.
 - **No crossing branches.** An O(n²) segment-intersection check finds no crossings on 75 random trees of 5 to 65 tips. The ladder
-  trees are included, and on those a wedge near the root is wider than π.
+  trees are included, and the test asserts that some of their wedges are wider than π (non-convex cones).
 - **The same picture from another root.** The same unrooted tree, written with two different roots that keep the cyclic order of
   neighbours, gives the same tip-to-tip distances.
 - **A small tree checked by hand**: `((A:1,B:2)AB:1,C:1,D:3)root;`.
@@ -80,7 +80,7 @@ tree the script parses once, then runs `unrootedLayout` and `computeLayout(tree,
 
 ```
 node --experimental-transform-types --no-warnings --expose-gc --max-old-space-size=8000 tests/browser/bench/unrooted-layout.mjs \
-  data/real-ladder/trees/gtdb-190k-bacteria.nwk.gz /tmp/ws42-data/otl-2m-full.nwk.gz ...
+  data/real-ladder/trees/gtdb-190k-bacteria.nwk.gz data/real-ladder/fetched/otl-2m-full.nwk.gz ...
 ```
 
 | tree | tips | nodes | lengths | unrootedLayout min / median | computeLayout min / median |
@@ -93,32 +93,43 @@ node --experimental-transform-types --no-warnings --expose-gc --max-old-space-si
 | **gtdb-190k-bacteria** | 189,801 | 379,601 | yes | **28.0 / 29.5 ms** | 9.8 / 10.9 ms |
 | **otl-2m-full** | 2,385,875 | 2,725,682 | unit | **179.8 / 201.9 ms** | 53.4 / 72.6 ms |
 
-The largest tree is the full OTL synthesis tree, opentree16.1. `data/real-ladder/fetch.sh otl` could not download it here, because
-`files.opentreeoflife.org` answered 403 through the sandbox's proxy. It was taken instead from the repository's `data/otl-large` branch
-(`trees/otl-2m-full.nwk.gz`, the file the examples' catalogue names as `remote`). Its uncompressed sha256 is `86bcd162…66a9305`. The
-manifest has no entry for that rung to check it against, so the 2,385,875 tips are the only cross-check, and they match custom.md.
+The largest tree is the full OTL synthesis tree, opentree16.1, at the path the examples' catalogue gives it,
+`data/real-ladder/fetched/otl-2m-full.nwk.gz` (git-ignored). `data/real-ladder/fetch.sh otl` could not download its source here,
+because `files.opentreeoflife.org` answered 403 through the sandbox's proxy. The file was taken instead from this repository's
+`data/otl-large` branch (`git show origin/data/otl-large:trees/otl-2m-full.nwk.gz`, the file the catalogue names as `remote`). Its
+uncompressed sha256 is `86bcd162bf307763225f0ba8e473c89b541231994269746e080a23fae66a9305` (M). The manifest has no entry for that rung
+to check it against, so the 2,385,875 tips are the only cross-check, and they match custom.md.
 
-So the pass is linear: about 75 ns per node. It costs about three times `computeLayout`, almost all of it the `cos` and `sin` per node
-**(R)**, not profiled. At 190k it is one 30 ms task; at 2.4M it is 0.2 s, which a worker would need. Compare the parse at 2.4M: 2.8 s
-in the same run.
+The table is the first run. A repeat on the same day gave medians of 37.6 ms (190k) and 211.3 ms (2.4M) for `unrootedLayout`, and
+26.0 and 91.4 ms for `computeLayout`, with the minimums within 10% of the table. Medians move by up to 30% between runs on this shared
+machine.
+
+So the pass is linear: about 75 ns per node. It costs two to three times `computeLayout`. The `cos` and `sin` per node are a large
+part of that but not all of it. A scratch copy of the pass with the two calls replaced by a multiplication (not committed; same tree,
+15 alternating runs, medians) took 21 to 25 ms instead of 38 to 44 ms at 190k, and 116 to 292 ms instead of 234 to 418 ms at 2.4M, over
+two runs **(M, noisy)**. So the trig is roughly 30 to 50% of the pass. The rest is not profiled. At 190k the pass is one 30 to 40 ms
+task; at 2.4M it is about 0.2 s, which a worker would need. Compare the parse at 2.4M: 2.2 to 2.8 s.
 
 **Drawing in headless Chromium (M, relative only).** Chromium 141.0.7390.37 headless, **no GPU** (SwiftShader, CPU canvas through
 `willReadFrequently`), same machine and date. The throw-away page draws every branch as one path, with no level of detail and no
-labels above 250 tips. Each figure is the median of 20 redraws of a 760 px canvas, with the pixels flushed by a 1-pixel `getImageData`.
+labels above 250 tips. A redraw is what `paint()` in the page does: clear the canvas, stroke every branch as one path, and draw the
+labels when they are on. It does not include sizing the canvas or fitting the drawing (measuring the labels and searching for the
+scale), which the page does once per tree. Each figure is the median of 20 redraws of a 760 px canvas. The pixels are flushed by a
+1-pixel `getImageData` inside the timing, so the raster is included as far as that flush forces it. Two runs of
+`node bench/unrooted-shots.mjs`, 2026-10-23.
 These figures compare sizes with each other; a real browser with a GPU will differ (**unverified** by how much).
 
-| tree | nodes | draw (median) |
+| tree | nodes | redraw median, run 1 / run 2 |
 |---|---:|---:|
-| hcv-19 (labels) | 36 | 0.9 ms |
-| otl-0200-canidae (211 labels) | 367 | 4.2 ms |
-| otl-1k-testudines | 1,465 | 1.0 ms |
-| gtdb-1k-nitrososphaeria | 1,863 | 1.2 ms |
-| otl-10k-amphibia | 14,874 | 7.8 ms |
-| gtdb-10k-archaea | 20,243 | 5.8 ms |
-| gtdb-100k-bacteria-random | 199,999 | 71 ms |
+| hcv-19 (labels) | 36 | 0.5 / 0.3 ms |
+| otl-0200-canidae (211 labels) | 367 | 2.7 / 2.1 ms |
+| otl-1k-testudines | 1,465 | 0.6 / 1.0 ms |
+| gtdb-1k-nitrososphaeria | 1,863 | 0.9 / 1.2 ms |
+| otl-10k-amphibia | 14,874 | 5.5 / 4.2 ms |
+| gtdb-10k-archaea | 20,243 | 5.0 / 5.4 ms |
+| gtdb-100k-bacteria-random | 199,999 | 56 / 52 ms |
 
-Drawing about 2,000 nodes costs about 1 ms here. Labels cost more than branches, about 4 ms for 211 rotated labels. A first run of the
-same script gave 2.4 ms for Canidae and 48 ms for the 100k tree, so treat these as rough figures.
+Drawing about 2,000 nodes costs about 1 ms here. Labels cost more than branches: about 2 to 3 ms for 211 rotated labels.
 
 **Equal-daylight, not built.** Each round rotates the subtrees around every internal node to even out the empty angles. A round is
 O(n) or more, and rounds repeat until the change is small, with no fixed bound. At 2,000 nodes that would be milliseconds per round,
