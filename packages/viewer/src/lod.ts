@@ -608,10 +608,17 @@ const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list 
 // into a comb, whose clades' arcs at the rim run to tens of thousands of px (#87); an overflowing pass stops at the budget, so they are cheap
 const MAX_PASSES = 100;
 
+/** The rung the previous full frame's threshold `hint` was on (0 for none, or at or below the base). */
+function hintRung(hint: number, base: number, capRung: number, capN: number): number {
+  if (hint <= base) return 0;
+  if (capRung < Infinity && Math.abs(hint - capRung) <= capRung * 1e-9) return capN;
+  return Math.round(Math.log(hint / base) / Math.log(LEVEL_STEP));
+}
+
 export interface SearchOpts {
   lod: boolean;
   base: number; // collapse threshold without budget pressure (px)
-  cap?: number; // the threshold never rises above this (px), whatever the budget (default none): the tip pitch once tips have dots (#109)
+  cap: number; // the threshold stays at or below this (px) while the list fits the budget, Infinity for none: the tip pitch once tips have dots (#109)
   budget: number;
   summaries: boolean;
   hint: number; // threshold of the previous full frame, 0 for none
@@ -630,7 +637,6 @@ export function searchCut(
   o: SearchOpts,
 ): { res: CutResult; minPx: number; retries: number } {
   const { base, budget, summaries } = o;
-  const cap = Math.max(base, o.cap ?? Infinity);
   let lastM = -1;
   // one small result object per pass (not per node): a pass that is kept must not be overwritten by the next one
   const run = (minPx: number): CutResult => {
@@ -641,14 +647,18 @@ export function searchCut(
   // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
   // when the next level down also fits with room to spare. The number of primitives is not monotone in the threshold (the
   // pixel-cell dedupe), so a search for "the smallest threshold that fits" jumped between frames at nearly the same zoom.
-  const lvl = (n: number): number => Math.min(cap, base * Math.pow(LEVEL_STEP, n));
-  let n = o.hint > base ? Math.round(Math.log(o.hint / base) / Math.log(LEVEL_STEP)) : 0;
+  // The ladder has the cap as a rung of its own (the first rung at or above it is replaced by the cap), so a view whose tips have dots
+  // is cut at the cap and nothing is folded unless the list overflows there; past the cap the ladder goes on, folding instead of truncating.
+  const capRung = Math.max(base, o.cap);
+  const capN = capRung > base ? Math.ceil(Math.log(capRung / base) / Math.log(LEVEL_STEP) - 1e-9) : 0;
+  const lvl = (n: number): number => (n === capN ? capRung : base * Math.pow(LEVEL_STEP, n));
+  let n = hintRung(o.hint, base, capRung, capN);
   let m = lvl(n);
   let res = run(m);
   let passes = 1;
   if (o.lod && res.visited < 80000) {
     if (res.overflow) {
-      while (res.overflow && passes < MAX_PASSES && m < cap) {
+      while (res.overflow && passes < MAX_PASSES) {
         n++;
         m = lvl(n);
         res = run(m);
@@ -670,8 +680,8 @@ export function searchCut(
     }
   } else if (res.overflow && o.lod) {
     // very expensive walks (caterpillar-like): no search, just double until it fits
-    while (res.overflow && passes < 24 && m < cap) {
-      m = Math.min(cap, m * 2);
+    while (res.overflow && passes < 24) {
+      m *= 2;
       res = run(m);
       passes++;
     }

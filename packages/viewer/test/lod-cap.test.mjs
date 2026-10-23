@@ -41,9 +41,10 @@ async function frameAt(layout, minCladePx, rows) {
 }
 
 test('collapseCap: the tip pitch from the dot size up, none below', () => {
-  assert.equal(collapseCap(TIP_DOT_PX - 0.01), Infinity);
-  assert.ok(Math.abs(collapseCap(TIP_DOT_PX) - TIP_DOT_PX) < 1e-3 && collapseCap(TIP_DOT_PX) < TIP_DOT_PX, 'a hair under the pitch');
-  assert.ok(Math.abs(collapseCap(13.5) - 13.5) < 2e-3);
+  assert.equal(collapseCap(TIP_DOT_PX - 0.01, true), Infinity);
+  assert.ok(Math.abs(collapseCap(TIP_DOT_PX, true) - TIP_DOT_PX) < 1e-3 && collapseCap(TIP_DOT_PX, true) < TIP_DOT_PX, 'a hair under the pitch');
+  assert.ok(Math.abs(collapseCap(13.5, true) - 13.5) < 2e-3);
+  assert.equal(collapseCap(13.5, false), Infinity, 'none with the level of detail off');
 });
 
 test('rectangular: rows of about 10 px with minCladePx 14 fold nothing, and the threshold reported is the capped one', async () => {
@@ -53,7 +54,7 @@ test('rectangular: rows of about 10 px with minCladePx 14 fold nothing, and the 
   assert.equal(st.budgetHit, false);
 });
 
-test('rectangular: without the cap the same view folds (the window is wide enough to see the old behaviour)', async () => {
+test('rectangular: rows under the dot size still fold by minCladePx, as before', async () => {
   // rows of about 3 px, under the dot size: minCladePx applies as before
   const st = await frameAt('rectangular', MIN, 66 * 1.5);
   assert.equal(st.minPxUsed, MIN);
@@ -82,15 +83,52 @@ const run = (o) => {
   return { ...searchCut(proj, null, list, new Seen(), { lod: true, base: 3, budget: 100, summaries: true, hint: 0, ...o }), list };
 };
 
-test('searchCut: the budget raises the threshold up to the cap and not past it', () => {
-  const free = run({});
-  assert.ok(free.minPx > 6, 'without a cap the threshold climbs past 6');
+test('searchCut: when the list overflows at the cap the ladder goes on past it, folding instead of truncating', () => {
   const capped = run({ cap: 6 });
-  assert.equal(capped.minPx, 6);
+  const free = run({});
+  assert.ok(capped.minPx > 6, `climbed past the cap: ${capped.minPx}`);
+  assert.equal(capped.res.overflow, false);
   assert.ok(capped.list.count <= 100);
-  assert.equal(run({ cap: 1e6 }).minPx, free.minPx);
+  assert.ok(capped.minPx >= free.minPx, 'never lower than where an uncapped search lands');
+  assert.ok(capped.res.summaries > 0);
 });
 
 test('searchCut: a cap below the base does not lower the base', () => {
   assert.equal(run({ budget: 1e6, cap: 1 }).minPx, 3);
+});
+
+// ---- the viewer: the budget still wins, in both layouts
+
+test('radial, 128 tips in 900 x 900 (tips far apart) with radialMaxNodes 100: folded to fit the budget, not truncated', async () => {
+  const { viewer, env } = await makeViewer(balanced(128), { options: { layout: 'radial', radialMaxNodes: 100, refineMs: 0 }, size: [900, 900] });
+  env.flush();
+  const st = viewer.getStats();
+  assert.ok(viewer.proj.tipPitch >= TIP_DOT_PX, `tips have room for dots (${viewer.proj.tipPitch})`);
+  assert.equal(st.truncated, false);
+  assert.ok(st.drawn <= 100 && st.summaries > 0, `${st.drawn} drawn, ${st.summaries} summaries`);
+  assert.ok(st.minPxUsed > viewer.proj.tipPitch, 'the budget raised the threshold past the pitch');
+  assert.equal(st.budgetHit, true);
+});
+
+test('interactionLOD: the reduced base (minCladePx x 1.6) is capped at the tip pitch too', async () => {
+  // 600 tips on a 1600 px circle: tips 7.8 px apart, more than 1000 entries, so the next reduced frame uses the x 1.6 base (9.6 px)
+  const { viewer, env } = await makeViewer(balanced(512), {
+    options: { layout: 'radial', radialMaxNodes: Infinity, minCladePx: 6, interactionLOD: true, refineMs: 0 },
+    size: [1600, 1600],
+  });
+  env.flush();
+  const full = viewer.getStats();
+  assert.ok(full.drawn > 1000 && viewer.proj.tipPitch > 6, `heavy full frame: ${full.drawn} drawn, pitch ${viewer.proj.tipPitch}`);
+  assert.ok(full.minPxUsed < viewer.proj.tipPitch);
+  const seen = [];
+  viewer.on('frame', (s) => seen.push({ reduced: s.reduced, minPxUsed: s.minPxUsed, pitch: viewer.proj.tipPitch, summaries: s.summaries }));
+  const v = viewer.getViewport();
+  viewer.setViewport({ x0: v.x0 * 0.99, x1: v.x1 * 0.99, y0: v.y0 * 0.99, y1: v.y1 * 0.99 }, true); // a small animated zoom: the pitch stays near 7.8
+  for (let k = 0; k < 4; k++) env.frame();
+  const reduced = seen.filter((f) => f.reduced);
+  assert.ok(reduced.length > 0, 'a reduced frame was drawn');
+  for (const f of reduced) {
+    assert.ok(f.minPxUsed <= f.pitch, `reduced frame: threshold ${f.minPxUsed} within the pitch ${f.pitch}`);
+    assert.equal(f.summaries, 0);
+  }
 });

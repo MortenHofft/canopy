@@ -105,7 +105,7 @@ test('cut: LOD off emits every node; results are caller-owned and never shared',
 test('searchCut returns an independent result per call', () => {
   const list = new DrawList(),
     seen = new Seen();
-  const o = { lod: true, base: 3, budget: 1000, summaries: true, hint: 0 };
+  const o = { lod: true, base: 3, budget: 1000, summaries: true, hint: 0, cap: Infinity };
   const r1 = searchCut(projectionFor(tree, L, radialT), null, list, seen, o);
   const snap = { ...r1.res };
   const r2 = searchCut(projectionFor(tree, L, rectT), null, list, seen, o);
