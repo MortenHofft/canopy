@@ -37,6 +37,8 @@ npm workspaces (Node >= 22.7):
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
 - `examples/explorer`: the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree; its README is a table of control to API), checked by
   `tests/browser/scripts/check-explorer.mjs`.
+- `examples/table`: the table view (TBrowse-like: fixed rows that scroll, the tree as one column among data columns, a header row with resize), on the
+  public API only; its README lists the gaps in the core it works around. Checked by `tests/browser/scripts/check-table.mjs`.
 - `examples/shared`: the tree catalogue (`catalogue.json`) and the loading helpers (fetch, gzip, `remote`, FASTA) of the playground and the explorer. A folder, not a package.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.
@@ -69,12 +71,13 @@ npm workspaces (Node >= 22.7):
   `node --experimental-transform-types scripts/capture-cut-golden.mjs` rewrites `test/cut-golden.json` after a deliberate change of the
   cut. Otherwise a diff of that file is a regression.
 - **Browser tests.**
-  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,explorer,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
+  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,explorer,playground,table,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
     - the test page runs `check-radial-ui.mjs`;
     - the vanilla example runs `check-vanilla-example.mjs`;
     - the React example runs `check-node-menu.mjs`;
     - the explorer runs `check-explorer.mjs`;
     - the playground runs `check-playground.mjs`;
+    - the table view runs `check-table.mjs`;
     - the no-build example runs `check-no-build.mjs`. It builds the packages and serves static files itself, without Vite.
     - the site runs `check-site.mjs`. It runs `scripts/build-site.mjs` and serves `site-dist/` with vercel.json's URL rules.
   - Each check also runs against a dev server with `--url`.
