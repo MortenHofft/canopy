@@ -9,3 +9,4 @@ docs
 *.yml
 *.css
 site-dist
+.claude/
