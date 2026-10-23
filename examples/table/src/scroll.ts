@@ -93,9 +93,10 @@ export class RowScroller {
     e.stopPropagation();
   };
 
-  /** CSS px per row (the `rowHeight` in force). */
+  /** CSS px per row. This page only sets `rowHeight` in px (main.ts); the option may also be '<n>em' or 'auto' (#38), whose resolved
+   *  px the viewer does not expose, and then the viewer's height over the rows in view is a close enough estimate for wheel steps. */
   private rowPx(): number {
-    const h = this.viewer.size.height;
-    return Math.max(1, (this.viewer.options.rowHeight as number | null) ?? h / Math.max(1, this.pageRows));
+    const rh = this.viewer.options.rowHeight;
+    return Math.max(1, typeof rh === 'number' ? rh : this.viewer.size.height / Math.max(1, this.pageRows));
   }
 }

@@ -273,13 +273,15 @@ function rowAt(clientY: number): { label: string } | { clade: number } | null {
   if (!v || !data) return null;
   const L = v.layout;
   const t = v.getTree();
-  const ids = columnSpecs().map((c) => c.id);
+  const ids = columnSpecs()
+    .filter((c) => c.kind !== 'bar') // a bar's box is the bar, not the row
+    .map((c) => c.id);
   const { y0, y1 } = v.getViewport();
   for (let row = Math.max(0, Math.floor(y0)); row < Math.min(L.rows, Math.ceil(y1)); row++) {
     const rank = L.rankOfRow ? L.rankOfRow[row] : row;
     for (const id of ids) {
       const box = v.columnCell(id, rank);
-      if (!box || id === 'score') continue; // a bar's box is the bar, not the row
+      if (!box) continue;
       const r = row + Math.floor((clientY - box.y) / box.height);
       if (r < 0 || r >= L.rows) return null;
       const node = L.rowNode ? L.rowNode[r] : t.tipNode[r];

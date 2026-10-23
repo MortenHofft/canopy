@@ -130,14 +130,38 @@ await wheelAt(tree.x, tree.y, 100000);
 v = await view();
 const n = await rows();
 ok(near(v.y1, n, 1e-6) && near(v.y1 - v.y0, h), `and at the last (y1 ${v.y1.toFixed(3)} of ${n} rows)`);
+// the lock puts any zoom back at once, so the window alone cannot tell: count the window changes, there must be none
+await page.evaluate(() => {
+  window.__viewChanges = 0;
+  window.__table().on('viewchange', () => window.__viewChanges++);
+});
+const changes = () => page.evaluate(() => window.__viewChanges);
+await wheelAt(tree.x, tree.y, -100000);
+await wheelAt(tree.x, tree.y, 240);
+await page.evaluate(() => (window.__viewChanges = 0));
 await page.locator('.phylo-tree').focus();
 for (const key of ['+', '=', '-']) await page.keyboard.press(key);
+await page.waitForTimeout(300);
 v = await view();
-ok(near(v.y1 - v.y0, h) && near(v.x1 - v.x0, 1), 'the + and - keys do not zoom');
-await page.mouse.dblclick(tree.x, tree.y);
-await page.waitForTimeout(400);
+ok((await changes()) === 0 && near(v.y0, 10, 1e-3) && near(v.y1 - v.y0, h), `the + and - keys do not zoom (${await changes()} window changes)`);
+// a double click on empty space fits the tree in the viewer (back to the first row), on a clade zooms to it
+const empty = await page.evaluate(
+  ([x0, y0]) => {
+    const v = window.__table();
+    const r = v.element.getBoundingClientRect();
+    for (let y = y0 - 100; y < y0 + 100; y += 6) for (let x = x0 - 120; x < x0 + 60; x += 6) if (!v.hitTest(x - r.left, y - r.top)) return { x, y };
+    return null;
+  },
+  [tree.x, tree.y],
+);
+await page.evaluate(() => (window.__viewChanges = 0));
+await page.mouse.dblclick(empty.x, empty.y);
+await page.waitForTimeout(600);
 v = await view();
-ok(near(v.y1 - v.y0, h) && near(v.x1 - v.x0, 1), 'a double click does not zoom');
+ok(
+  (await changes()) === 0 && near(v.y0, 10, 1e-3) && near(v.y1 - v.y0, h),
+  `a double click does not zoom or fit (${await changes()} window changes, y0 ${v.y0.toFixed(3)})`,
+);
 await page.evaluate(() => window.__table().zoomBy(2, 3, 300, 300));
 v = await view();
 ok(near(v.y1 - v.y0, h) && near(v.x1 - v.x0, 1), 'a zoom from elsewhere (zoomBy) is put back to whole rows');
