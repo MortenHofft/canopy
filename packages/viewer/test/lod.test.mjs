@@ -256,3 +256,102 @@ test('radial, cold search (no hint) zoomed 64 times into a 20k comb: the ladder 
   assert.ok(r.retries >= 60, `more than 60 passes: ${r.retries + 1}`);
   assert.ok(list.count <= 2000);
 });
+
+// ---- a pan does not fold tips in view back into a run (#77)
+
+// a polytomy of 40 tips, a cherry, 40 tips, a cherry, 40 tips: at 10 px per tip and minCladePx 14 the tips are runs (rule R) and the
+// cherries (20 px) are drawn, so each block of 40 tips is one run however much of it is in view
+const POLY = (() => {
+  const tips = (q) => Array.from({ length: 40 }, (_, i) => `${q}${i}:1`).join(',');
+  return `(${tips('a')},(c0:1,c1:1):0.5,${tips('b')},(d0:1,d1:1):0.5,${tips('e')});`;
+})();
+const polyTree = new InMemorySource(parseNewick(POLY)).snapshot();
+const polyL = computeLayout(polyTree, true);
+ensureTrig(polyL);
+const PW = 300,
+  PH = 200;
+const polyArea = { ax: 0, ay: 0, aw: PW, ah: PH, clipL: 0, clipT: 0, clipR: PW, clipB: PH };
+
+/** Per tip rank in view (its point inside the clip rectangle): 'T' drawn as a tip, 'S' inside a summary or run. */
+function inView(kind, view) {
+  const T = makeTransform(kind, PW, PH, view, polyArea, polyL.rows, polyL.fan);
+  const p = projectionFor(polyTree, polyL, T);
+  const list = new DrawList();
+  searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0 });
+  const state = new Map();
+  for (let e = 0; e < list.count; e++) {
+    if (list.kind[e] === K_NODE) continue;
+    const i = list.node[e],
+      last = list.last[e];
+    for (let r = polyTree.leafStart[i]; r < polyTree.leafEnd[last >= 0 ? last : i]; r++) state.set(r, list.kind[e] === K_TIP ? 'T' : 'S');
+  }
+  const pt = { x: 0, y: 0 };
+  const out = new Map();
+  for (let r = 0; r < polyTree.tipCount; r++) {
+    p.nodeXY(polyTree.tipNode[r], pt);
+    if (pt.x >= 0 && pt.x <= PW && pt.y >= 0 && pt.y <= PH) out.set(r, state.get(r) ?? '-');
+  }
+  return out;
+}
+
+function assertStableUnderPan(kind, viewAt) {
+  const base = inView(kind, viewAt(0));
+  assert.ok(base.size >= 10, `${base.size} tips in view`);
+  let compared = 0;
+  for (let d = 2; d <= 200; d += 2) {
+    const moved = inView(kind, viewAt(d));
+    for (const [r, s] of moved)
+      if (base.has(r)) {
+        compared++;
+        assert.equal(s, base.get(r), `${kind}, tip ${r} after a pan of ${d} px`);
+      }
+  }
+  assert.ok(compared > 500, `${compared} tips compared`);
+}
+
+test('rectangular: panning at a fixed zoom does not change which tips in view are drawn as tips (#77)', () => {
+  // 10 px rows; the window starts with the cherry after the first 40 tips in view and pans down by 2 px steps
+  assertStableUnderPan('rectangular', (d) => ({ x0: 0, x1: 1.2, y0: 30 + d / 10, y1: 50 + d / 10 }));
+});
+
+test('radial: panning at a fixed zoom does not change which tips in view are drawn as tips (#77)', () => {
+  // 10 px of arc between tips at radius 1; the window sits on the rim at the first cherry and pans along the rim
+  const k = (10 * polyL.rows) / polyL.fan.span;
+  const a = polyL.fan.start + (polyL.ROW[polyTree.tipNode[41]] * polyL.fan.span) / polyL.rows;
+  const w = PW / k,
+    h = PH / k;
+  assertStableUnderPan('radial', (d) => {
+    const cx = Math.cos(a) - (Math.sin(a) * d) / k,
+      cy = Math.sin(a) + (Math.cos(a) * d) / k;
+    return { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 };
+  });
+});
+
+test('rectangular: panning in x does not split a run where small clades cross the right edge (#77)', () => {
+  // a polytomy of 48 children, every third a cherry whose node sits at x 0.15 .. 0.85 (a stub, not a summary, once right of the window),
+  // the rest tips at x 1. At 3 px rows (minCladePx 14) they are all run members; panning the window right moves its edge over the cherries
+  const kids = Array.from({ length: 48 }, (_, i) => {
+    if (i % 3 !== 1) return `t${i}:0.9`;
+    const x = 0.05 + (0.7 * i) / 48;
+    return `(c${i}a:${(0.9 - x).toFixed(4)},c${i}b:${(0.9 - x).toFixed(4)}):${x.toFixed(4)}`;
+  });
+  const t = new InMemorySource(parseNewick(`(${kids.join(',')}):0.1;`)).snapshot();
+  const l = computeLayout(t, true);
+  const rows = l.rows;
+  const state = (x0) => {
+    const p = projectionFor(t, l, makeTransform('rectangular', PW, PH, { x0, x1: x0 + 0.3, y0: 0, y1: PH / 3 }, polyArea, rows));
+    const list = new DrawList();
+    searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0 });
+    const s = new Array(t.tipCount).fill('-');
+    for (let e = 0; e < list.count; e++) {
+      if (list.kind[e] === K_NODE) continue;
+      const i = list.node[e],
+        last = list.last[e];
+      for (let r = t.leafStart[i]; r < t.leafEnd[last >= 0 ? last : i]; r++) s[r] = list.kind[e] === K_TIP ? 'T' : 'S';
+    }
+    return s.join('');
+  };
+  const base = state(0);
+  assert.ok(!base.includes('T') && !base.includes('-'), `one run over every tip: ${base}`);
+  for (let x0 = 0.01; x0 <= 0.6; x0 += 0.01) assert.equal(state(x0), base, `window from x ${x0.toFixed(2)}`);
+});

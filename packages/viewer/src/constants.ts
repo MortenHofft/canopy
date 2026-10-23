@@ -41,8 +41,12 @@ export const OVERSCROLL_KEEP_FRAC = 0.85;
 export const RADIAL_FIT_MIN_R_PX = 20;
 /** Radial: the fit circle leaves this margin (px) inside the smaller container side, for labels and the scale bar. */
 export const RADIAL_FIT_MARGIN_PX = 28;
-/** Radial: hard ceiling of the zoom, as a multiple of the fit scale, whatever `maxTipSpacing` says. */
+/** Radial: hard ceiling of the zoom, as a multiple of the fit scale, whatever `maxTipSpacing` says, unless RADIAL_MAX_TIP_PX allows more. */
 export const RADIAL_MAX_ZOOM = 20000;
+/** Radial: the hard ceiling never stops before neighbouring tips on the outer circle are this many px apart (the radial counterpart of
+ *  RECT_MAX_ZOOM_Y, but lower: on the 2.39M-tip OTL tree 50 px is 2e7 px per unit radius, and Chromium draws far arcs a few px off above about
+ *  3e7). A tree of more than about a million tips reaches RADIAL_MAX_ZOOM with its tips closer than a label (#76). */
+export const RADIAL_MAX_TIP_PX = 50;
 /** Radial: whatever `maxTipSpacing` says, zoom in is allowed up to this multiple of the fit scale, so short branches near the root of a
  *  small tree can still be pulled apart (rectangular keeps its x zoom free for the same reason). */
 export const RADIAL_GEOMETRIC_ZOOM = 50;

@@ -438,6 +438,21 @@ test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap,
   assert.ok(maxScale({ maxTipSpacing: 24 }, 200) > kfit * 3.35, 'a 200-tip tree zooms well beyond the old 3.35 x');
 });
 
+test('radial, millions of tips: the zoom reaches the tip cap, beyond RADIAL_MAX_ZOOM times the fit (#76)', () => {
+  const kfit = radialFitScale(800, 600);
+  const pitchAtMax = (maxTipSpacing, rows) => {
+    const { vs } = make({ layout: 'radial', L: { ...L, rows }, maxTipSpacing });
+    const c = vs.clampView({ x0: 0, x1: 1e-12, y0: 0, y1: 1e-12 });
+    return ((vs.area.aw / (c.x1 - c.x0)) * 2 * Math.PI) / rows;
+  };
+  // 3M tips: RADIAL_MAX_ZOOM times the fit leaves them about 11 px apart, closer than the explorer's minCladePx (14), so a polytomy of
+  // tips stayed a slice at any zoom
+  assert.ok((kfit * K.RADIAL_MAX_ZOOM * 2 * Math.PI) / 3e6 < 14, 'the old ceiling stops short of 14 px');
+  near(pitchAtMax(24, 3e6), 24, 1e-9);
+  // no cap: the hard ceiling is RADIAL_MAX_TIP_PX between tips
+  near(pitchAtMax(Infinity, 3e6), K.RADIAL_MAX_TIP_PX, 1e-9);
+});
+
 test('maxTipSpacing, radial, with a collapsed clade: the cap is maxTipSpacing px per ROW, not per tip', () => {
   // 30000 tips: a clade of over 12000 collapsed leaves fewer than 18000 rows
   const big = new InMemorySource(parseNewick(ladder(30000))).snapshot();

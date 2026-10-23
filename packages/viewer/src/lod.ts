@@ -10,7 +10,9 @@
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
 //   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
 //             than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
-//             primitive per run, while its large children stay their own entries (issue 13)
+//             primitive per run, while its large children stay their own entries (issue 13). Siblings outside the window still count
+//             towards their run (they are not drawn, and a run with no member in view is not drawn), so which tips form a run depends on
+//             the tree and the zoom, not on where the window is: a pan does not fold tips in view back into a slice (#77)
 //   user      a clade the app collapsed (Layout.collapsed, one Uint8Array lookup per visited node) is always a summary and never opened;
 //             its tips share one row (Layout.rowStart / rowEnd are in rows, the tip ranks stay in tree.leafStart / leafEnd)
 //   rule D    if the list still exceeds the budget, minPx is raised and the cut is redone (cheap: the aborted
@@ -226,6 +228,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     runCls = 0,
     runXmax = 0,
     runPx = 0,
+    runVis = false, // a member of the run is in view: a run wholly outside the window is not drawn
     force = false;
   let snapOut = 0,
     snapS = 0,
@@ -237,7 +240,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
     if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
       force = false;
-      if (runCount >= SLICE_MIN_CHILDREN) {
+      if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
         if (proj.dedupeRun(seen, runFirst, runLast, runXmax)) {
           if (out.count >= budget) {
@@ -256,12 +259,10 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     visited++;
     const yTop = oy + rowStart[i] * ky;
     const yBot = oy + rowEnd[i] * ky;
-    if (yBot < clipT - PAD || yTop > clipB + PAD) {
-      i = subtreeEnd[i];
-      continue;
-    }
     const sx = ox + X[i] * kx;
-    if (ox + XMAX[i] * kx < clipL - PAD) {
+    const culled = yBot < clipT - PAD || yTop > clipB + PAD || ox + XMAX[i] * kx < clipL - PAD;
+    // a culled node is skipped, unless it may belong to a run (rule R): it is not drawn, but it counts towards its run (see below)
+    if (culled && !(canRun && i > 0 && yBot - yTop < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN)) {
       i = subtreeEnd[i];
       continue;
     }
@@ -287,11 +288,12 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     }
     if (canRun) {
       const px = yBot - yTop;
+      // a small clade right of the window (a stub only because of the window) belongs to its run like any other
       if (
         i > 0 &&
         px < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
+        (kind === K_TIP || (kind !== K_NODE && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -307,6 +309,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
           runCls = cl;
           runXmax = 0;
           runPx = 0;
+          runVis = false;
           snapOut = out.count;
           snapS = summaries;
           snapT = tips;
@@ -317,6 +320,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         runCount++;
         runLast = i;
         runEnd = subtreeEnd[i];
+        if (!culled) runVis = true;
         if (XMAX[i] > runXmax) runXmax = XMAX[i];
         if (px > runPx) runPx = px;
         if (runCount === SLICE_MIN_CHILDREN) {
@@ -338,6 +342,10 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         }
         runCount = 0;
       }
+    }
+    if (culled) {
+      i = subtreeEnd[i];
+      continue;
     }
     let emit = true;
     if (lod) {
@@ -412,6 +420,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     runCls = 0,
     runXmax = 0,
     runPx = 0,
+    runVis = false, // a member of the run is in view: a run wholly outside the window is not drawn
     force = false;
   let snapOut = 0,
     snapS = 0,
@@ -423,7 +432,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
     if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
       force = false;
-      if (runCount >= SLICE_MIN_CHILDREN) {
+      if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
         if (proj.dedupeRun(seen, runFirst, runLast, runXmax)) {
           if (out.count >= budget) {
@@ -442,19 +451,12 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     visited++;
     const r1 = XMAX[i] * k;
     const r0 = i > 0 ? X[parent[i]] * k : 0;
-    if (r1 < rMin || r0 > rMax) {
-      i = subtreeEnd[i];
-      continue;
-    }
     const a0 = fa0 + rowStart[i] * da;
     const a1 = fa0 + rowEnd[i] * da;
-    if (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi))) {
-      i = subtreeEnd[i];
-      continue;
-    }
+    let culled = r1 < rMin || r0 > rMax || (!all && (wrap ? !(a1 >= lo || a0 <= hi) : !(a1 >= lo && a0 <= hi)));
     // exact enough: the sector's bounding box against the padded clip rectangle (corner points from the cached boundary
     // cos/sin, plus the axis crossings), after the cheap radius and angle tests above
-    {
+    if (!culled) {
       const ls = rowStart[i],
         le = rowEnd[i];
       const c0 = BC[ls],
@@ -480,10 +482,12 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
             if (-r1 < by0) by0 = -r1;
         }
       }
-      if (cx + bx1 < clipL - PAD || cx + bx0 > clipR + PAD || cy + by1 < clipT - PAD || cy + by0 > clipB + PAD) {
-        i = subtreeEnd[i];
-        continue;
-      }
+      culled = cx + bx1 < clipL - PAD || cx + bx0 > clipR + PAD || cy + by1 < clipT - PAD || cy + by0 > clipB + PAD;
+    }
+    // a culled node is skipped, unless it may belong to a run (rule R): it is not drawn, but it counts towards its run (see below)
+    if (culled && !(canRun && i > 0 && (a1 - a0) * r1 < minPx && childCount[parent[i]] >= SLICE_MIN_CHILDREN)) {
+      i = subtreeEnd[i];
+      continue;
     }
     const ri = X[i] * k;
     const ca = COS[i],
@@ -522,6 +526,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           runCls = cl;
           runXmax = 0;
           runPx = 0;
+          runVis = false;
           snapOut = out.count;
           snapS = summaries;
           snapT = tips;
@@ -532,6 +537,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         runCount++;
         runLast = i;
         runEnd = subtreeEnd[i];
+        if (!culled) runVis = true;
         if (XMAX[i] > runXmax) runXmax = XMAX[i];
         if (arc > runPx) runPx = arc;
         if (runCount === SLICE_MIN_CHILDREN) {
@@ -553,6 +559,10 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         }
         runCount = 0;
       }
+    }
+    if (culled) {
+      i = subtreeEnd[i];
+      continue;
     }
     let emit = true;
     if (lod) {

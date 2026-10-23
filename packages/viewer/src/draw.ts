@@ -352,7 +352,7 @@ function rectSummaryShape(ctx: CanvasRenderingContext2D, proj: RectProjection, i
 
 /** Radial: add the shape of the summary whose extent `proj.summaryExtent` just set (node `i`) to the path: a ring segment (`band`) or a fan
  *  from the node (apex) to the clade's radius, the outer arc only where it is visibly curved, at least 1.5 px wide at its outer edge. */
-function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProjection, i: number, band: boolean): void {
+export function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProjection, i: number, band: boolean): void {
   const { cx, cy } = proj.T;
   let a0 = proj.t0,
     a1 = proj.t1;
@@ -365,16 +365,15 @@ function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProjection, 
     a1 = m + h;
   } // keep slivers visible
   if (band) {
-    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
-    const len0 = (a1 - a0) * r1;
-    ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
-    ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
-    if (len0 * len0 > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
-    else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
-    ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
-    const len1 = (a1 - a0) * r0;
-    if (len1 * len1 > ARC_SAGITTA_K * r0 && r0 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r0, a1, a0, true);
-    ctx.closePath();
+    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles. Far off, only its
+    // visible angles (padded), with its edges as arcs, as the connectors do: a run reaches as far out of the window as its members (#77),
+    // and a chord over all of them would cut inside the tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends.
+    if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
+    else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
+    else {
+      bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), a1, true);
+      bandPiece(ctx, proj, r0, r1, a0, Math.min(a1, proj.hi), true);
+    }
     return;
   }
   ctx.moveTo(cx + r0 * proj.L.COS![i], cy + r0 * proj.L.SIN![i]);
@@ -382,6 +381,22 @@ function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProjection, 
   const len = (a1 - a0) * r1;
   if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
   else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  ctx.closePath();
+}
+
+/** One ring segment of a band (see fanSummaryShape): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
+ *  it is visibly curved, if it is near (under RADIAL_FAR_ARC_R) or `far` (the angles are already cut to the window), else a straight line. */
+function bandPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number, far: boolean): void {
+  if (!(a1 > a0)) return;
+  const { cx, cy } = proj.T;
+  const len0 = (a1 - a0) * r1;
+  ctx.moveTo(cx + r0 * Math.cos(a0), cy + r0 * Math.sin(a0));
+  ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+  if (len0 * len0 > ARC_SAGITTA_K * r1 && (r1 < RADIAL_FAR_ARC_R || far)) ctx.arc(cx, cy, r1, a0, a1);
+  else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  ctx.lineTo(cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1));
+  const len1 = (a1 - a0) * r0;
+  if (len1 * len1 > ARC_SAGITTA_K * r0 && (r0 < RADIAL_FAR_ARC_R || far)) ctx.arc(cx, cy, r0, a1, a0, true);
   ctx.closePath();
 }
 

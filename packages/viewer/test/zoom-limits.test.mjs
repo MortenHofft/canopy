@@ -72,3 +72,23 @@ test('labels need rows scaled with the theme labelSize', async () => {
   big.env.flush();
   assert.equal(labels(big), 0, 'the same rows are too narrow for 60 px labels (the threshold is 11 * 60 / 13 = 50.8 px)');
 });
+
+test('radial, 200,000 tips in polytomies of 16, small pane: zoomed in as far as allowed, the tips of a polytomy are drawn one by one (#76)', async () => {
+  // 12,500 genera of 16 species under one root. In a 96 px pane the fit scale is 20 px per unit radius, so RADIAL_MAX_ZOOM times the
+  // fit left the tips about 12 px apart: closer than minCladePx 14, so every genus stayed a slice however far you zoomed in
+  const genera = Array.from({ length: 12500 }, (_, g) => `(${Array.from({ length: 16 }, (_, s) => `g${g}s${s}`).join(',')})`);
+  const m = await makeViewer(`(${genera.join(',')});`, { options: { layout: 'radial', minCladePx: 14 }, size: [96, 96] });
+  m.env.flush();
+  const rank = 16 * 7000 + 5;
+  m.viewer.focusTip(rank);
+  m.env.flush();
+  m.viewer.zoomBy(64, 64, 48, 48);
+  m.env.flush();
+  const v = m.viewer;
+  const pitch = v.T.k * v.T.da;
+  assert.ok(pitch >= 14, `tips ${pitch.toFixed(1)} px apart at the deepest zoom`);
+  const node = v.getTree().tipNode[rank];
+  const kinds = [];
+  for (let e = 0; e < v.list.count; e++) if (v.list.node[e] === node) kinds.push(v.list.kind[e]);
+  assert.deepEqual(kinds, [1], 'the focused tip is drawn as a tip (K_TIP)');
+});

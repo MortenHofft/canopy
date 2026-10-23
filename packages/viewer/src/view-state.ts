@@ -17,6 +17,7 @@ import {
   RADIAL_FIT_MARGIN_PX,
   RADIAL_FIT_MIN_R_PX,
   RADIAL_GEOMETRIC_ZOOM,
+  RADIAL_MAX_TIP_PX,
   RADIAL_MAX_ZOOM,
   RADIAL_MIN_ZOOM,
   RADIAL_PAN_LIMIT,
@@ -236,7 +237,10 @@ export class ViewState {
     // outer-circle arc between neighbouring tips = k * span / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
     // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
     const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / fan.span;
-    const kcap = Math.min(kfit * RADIAL_MAX_ZOOM, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap));
+    // the hard ceiling is RADIAL_MAX_ZOOM times the fit or tips RADIAL_MAX_TIP_PX apart, whichever is deeper: a multiple of the fit alone
+    // stopped a tree of millions of tips before its tips were far enough apart to be drawn one by one (#76)
+    const hard = Math.max(kfit * RADIAL_MAX_ZOOM, (RADIAL_MAX_TIP_PX * this.env.L.rows) / fan.span);
+    const kcap = Math.min(hard, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap));
     k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
       cy = (v.y0 + v.y1) / 2;

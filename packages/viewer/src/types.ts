@@ -385,7 +385,7 @@ export interface ViewerOptions {
   /** The most space between two neighbouring tips when zooming in: a row's height in px (rectangular) or the arc between tips on the
    *  outer circle (radial). px, `'<n>em'` (n times `labelSize`, so it follows `--phylo-label-size`) or `'auto'` (1.85 em, 24 px at
    *  the default size: a label line, an alignment row and padding). `Infinity` = no cap beyond the hard ceilings (500 px per row, radial
-   *  20000 times the fit scale). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
+   *  20000 times the fit scale, or tips 50 px apart where that is deeper). The view is never forced below the fit: a small tree that fits at 100 px per row stays there and can only
    *  zoom out. The x axis (rectangular) is not capped by this: zooming x stretches branch lengths and stays up to 5e6 px per unit. */
   maxTipSpacing: FontRelative;
   /** Rectangular: the widest x window, in tree widths (default 1.6: the tree can shrink to about 62% of the plot width). Raise it to

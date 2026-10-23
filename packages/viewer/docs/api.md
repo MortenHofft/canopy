@@ -482,7 +482,9 @@ a new tree is not needed (so the window is not reset, which `setTree` also avoid
 
 ### Zoom limits
 
-`maxTipSpacing` replaces the old fixed limits (500 px per row, 20,000 times the fit scale in radial), which stay only as hard ceilings.
+`maxTipSpacing` replaces the old fixed limits (500 px per row, 20,000 times the fit scale in radial), which stay only as hard ceilings. The
+radial one never stops before neighbouring tips are 50 px apart (`RADIAL_MAX_TIP_PX`): on a tree of more than about a million tips,
+20,000 times the fit left the tips closer than a label, so a polytomy of tips stayed a slice however far you zoomed in (#76).
 Every way of zooming in goes through `clampView`, so the wheel, pinch, buttons, keyboard, the overview, `setViewport`, `focusTip` and
 `zoomToNode` all stop at it.
 
