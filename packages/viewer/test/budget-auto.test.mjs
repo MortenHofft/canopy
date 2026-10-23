@@ -164,27 +164,66 @@ test('a fixed drawBudget bounds radialMaxNodes auto, and radialMaxNodes bounds d
   assert.equal(b.viewer.autoRect.budget <= 700, true);
 });
 
-test('applied on settle only: frames of a gesture measure, they do not move the budget', async () => {
-  const ctx = await setup({ interactionLOD: true });
+for (const interactionLOD of [true, 'auto', false]) {
+  test(`applied on settle only, interactionLOD ${interactionLOD}: frames of a gesture measure, they do not move the budget`, async () => {
+    const ctx = await setup({ interactionLOD });
+    ctx.frame();
+    await settleBudget(ctx);
+    const at = ctx.viewer.autoRadial.budget;
+    ctx.clock.cost = 200;
+    const tip = ctx.viewer.getTree().tipIndex('taaaaaaaaaaaaaa');
+    assert.ok(tip >= 0);
+    ctx.clock.start = ctx.env.now();
+    ctx.clock.first = true;
+    ctx.viewer.zoomToNode(tip, true);
+    for (let k = 0; k < 6; k++) ctx.frame();
+    assert.equal(ctx.viewer.moving, true, 'still moving');
+    assert.equal(ctx.viewer.autoRadial.budget, at, 'unchanged mid-gesture');
+    assert.ok(ctx.viewer.autoRadial.n >= 1 || ctx.viewer.autoRadial.iv > 0, 'but measured');
+    // the gesture ends: the refine timer settles, the next settled frame applies it
+    for (let k = 0; k < 200 && ctx.viewer.vs.animating; k++) ctx.frame();
+    await new Promise((r) => setTimeout(r, 30));
+    ctx.frame();
+    await settleBudget(ctx, 8);
+    assert.ok(ctx.viewer.autoRadial.budget < at, `lowered after the gesture: ${ctx.viewer.autoRadial.budget} < ${at}`);
+  });
+}
+
+test('a new tree: its first frame is not measured, so a slow cold frame does not lower the budget', async () => {
+  const ctx = await setup({});
   ctx.frame();
   await settleBudget(ctx);
   const at = ctx.viewer.autoRadial.budget;
-  ctx.clock.cost = 200;
-  const tip = ctx.viewer.getTree().tipIndex('taaaaaaaaaaaaaa');
-  assert.ok(tip >= 0);
-  ctx.clock.start = ctx.env.now();
-  ctx.clock.first = true;
-  ctx.viewer.zoomToNode(tip, true);
-  for (let k = 0; k < 6; k++) ctx.frame();
-  assert.equal(ctx.viewer.interacting, true, 'still moving');
-  assert.equal(ctx.viewer.autoRadial.budget, at, 'unchanged mid-gesture');
-  assert.ok(ctx.viewer.autoRadial.n >= 1 || ctx.viewer.autoRadial.iv > 0, 'but measured');
-  // the gesture ends: the refine timer settles, the next settled frame applies it
-  for (let k = 0; k < 200 && ctx.viewer.vs.animating; k++) ctx.frame();
-  await new Promise((r) => setTimeout(r, 30));
+  assert.ok(at > B.START_RADIAL);
+  const fullMs = ctx.viewer.fullMs;
+  assert.ok(fullMs > 0);
+  ctx.clock.cost = 300; // the cold frame of the new tree
+  ctx.viewer.setTree(parseNewick(balanced(8192)), { view: 'fit' });
+  assert.equal(ctx.viewer.fullMs, 0, 'the interaction LOD measures afresh');
+  assert.equal(ctx.viewer.autoRadial.n, 0);
   ctx.frame();
-  await settleBudget(ctx, 8);
-  assert.ok(ctx.viewer.autoRadial.budget < at, `lowered after the gesture: ${ctx.viewer.autoRadial.budget} < ${at}`);
+  assert.equal(ctx.viewer.autoRadial.n, 0, 'the first frame is not measured');
+  assert.equal(ctx.viewer.fullMs, 0);
+  assert.equal(ctx.viewer.autoRadial.budget, at);
+  assert.equal(ctx.viewer.autoRadial.pressed, false);
+  ctx.clock.cost = 1;
+  await settleBudget(ctx);
+  assert.ok(ctx.viewer.autoRadial.budget >= at, 'and the next frames are fast');
+  assert.equal(ctx.viewer.autoRadial.pressed, false);
+});
+
+test('the follow-up frames start again when an option or the layout changes, not only on input', async () => {
+  const ctx = await setup({});
+  ctx.frame();
+  await settleBudget(ctx);
+  ctx.viewer.budgetChain = 0;
+  ctx.viewer.setOptions({ radialMaxNodes: 1500 });
+  assert.equal(ctx.viewer.budgetChain, B.CHAIN_FRAMES);
+  assert.equal(ctx.viewer.budgetPending, true);
+  ctx.viewer.budgetChain = 0;
+  ctx.viewer.setOptions({ layout: 'rectangular' });
+  ctx.frame();
+  assert.ok(ctx.viewer.budgetChain > 0, 'the rectangular controller starts its follow-up frames');
 });
 
 // ---- searchCut with a limit

@@ -196,3 +196,32 @@ test('wantsStep: a single measurement outside the dead zone asks for another fra
   observeFrame(m, 20);
   assert.equal(B.wantsStep(m, false), false, 'on target');
 });
+
+test('pressed does not flap: a fast measurement with the limit off clears it only once the budget has passed the list the limit needed', () => {
+  const s = newBudgetState(8000);
+  // slow with the limit in force and a list of 6000: lowered, pressed, need 6000
+  settle(s, 60, { ...LIM, limited: true, drawn: 6000 });
+  assert.equal(s.pressed, true);
+  assert.equal(s.need, 6000);
+  assert.equal(s.budget, 4000);
+  // fast, limit off (the lists are cheaper): the budget rises to 8000 in two steps, and pressed stays until it passes 6000
+  settle(s, 5, { ...LIM, limited: false, drawn: 3000 });
+  assert.equal(s.budget, 8000);
+  assert.equal(s.pressed, false, '8000 is past the 6000 the limit needed');
+  // the limit is back, the machine is slow at it again: pressed again, and a smaller raise does not clear it
+  settle(s, 60, { ...LIM, limited: true, drawn: 7000 });
+  assert.equal(s.pressed, true);
+  assert.equal(s.budget, 4000);
+  settle(s, 16, { ...LIM, limited: false, drawn: 3000 }); // 16 ms: not fast enough to raise
+  assert.equal(s.pressed, true);
+  settle(s, 14, { ...LIM, limited: false, drawn: 3000 }); // fast (< 15): raised by 1.5, 6000 < 7000
+  assert.equal(s.budget, Math.round((4000 * 0.85 * 25) / 14));
+  assert.equal(s.pressed, true, 'the budget has not passed the 7000 the limit needed');
+  settle(s, 5, { ...LIM, limited: false, drawn: 3000 });
+  assert.equal(s.pressed, false);
+  // a cut that shows everything anyway clears it
+  settle(s, 60, { ...LIM, limited: true, drawn: 90000 });
+  assert.equal(s.pressed, true);
+  settle(s, 5, { ...LIM, saturated: true });
+  assert.equal(s.pressed, false);
+});

@@ -14,7 +14,10 @@
 //   in between          unchanged, so the budget does not bounce around the target
 // The budget stays within [floor, ceiling]. The measurements are smoothed (SMOOTH) and a step needs MIN_SAMPLES of them.
 //
-// `pressed` is set when a step lowered the budget and cleared when frames are fast again. The radial view's wedge limit (MAX_WEDGE_DEG,
+// `pressed` is set when a step lowered the budget. It is cleared by a fast measurement only when that measurement says the limit would not
+// slow the frames again: the budget has risen past the list length the limit needed (`need`, taken from the slow frame that set it), or
+// the cut shows everything anyway. A fast measurement taken with the limit off (cheaper lists) proves nothing about it, so the limit
+// does not flap on and off. The radial view's wedge limit (MAX_WEDGE_DEG,
 // see wedgeLimitPx) holds while it is clear, and gives way to the budget while it is set.
 
 /** Frame time (ms) that `'auto'` aims for: 40 fps. */
@@ -62,10 +65,12 @@ export interface BudgetState {
   iv: number;
   /** The last step lowered the budget and frames have not been fast since: the wedge limit gives way. */
   pressed: boolean;
+  /** While pressed: the list length (primitives) of the slow frame cut at the wedge limit, 0 if not known. */
+  need: number;
 }
 
 export function newBudgetState(start: number): BudgetState {
-  return { budget: start, ms: 0, n: 0, iv: 0, pressed: false };
+  return { budget: start, ms: 0, n: 0, iv: 0, pressed: false, need: 0 };
 }
 
 /** Fold the JS time of a full-quality frame into the state. */
@@ -86,6 +91,9 @@ export interface BudgetLimits {
   ceiling: number;
   /** The cut of the last frame fit the budget without folding anything for its sake: nothing to gain from a larger one. */
   saturated: boolean;
+  /** The measured frames were cut at the wedge limit (it was in force), and the primitives of the last list. Both only matter for `pressed`. */
+  limited?: boolean;
+  drawn?: number;
 }
 
 /** Whether what is measured so far would move the budget once there are enough measurements: the viewer then draws a frame to get them. */
@@ -105,10 +113,14 @@ export function stepBudget(s: BudgetState, lim: BudgetLimits): boolean {
   const slow = s.iv > TARGET_MS ? Math.max(s.ms, s.iv) : s.ms;
   if (slow > TARGET_MS) {
     s.budget = Math.max(floor, s.budget * Math.max(1 / MAX_STEP, TARGET_MS / slow));
+    if (lim.limited) s.need = Math.max(s.pressed ? s.need : 0, lim.drawn ?? 0);
     s.pressed = true;
   } else if (slow < RAISE_BELOW * TARGET_MS) {
-    s.pressed = false;
     if (!lim.saturated) s.budget = Math.min(lim.ceiling, s.budget * Math.min(MAX_STEP, (RAISE_AIM * TARGET_MS) / Math.max(slow, 0.1)));
+    if (lim.limited || lim.saturated || s.budget >= s.need) {
+      s.pressed = false;
+      s.need = 0;
+    }
   }
   s.budget = Math.round(s.budget);
   s.ms = 0;

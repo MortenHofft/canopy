@@ -724,10 +724,10 @@ export function searchCut(
   o: SearchOpts,
 ): { res: CutResult; minPx: number; retries: number } {
   const { base, budget, summaries } = o;
-  let lastM = -1;
+  const st: Search = { res: newCutResult(), n: 0, m: 0, passes: 1, limN: Infinity, lastM: -1 };
   // one small result object per pass (not per node): a pass that is kept must not be overwritten by the next one
   const run = (minPx: number, bud = budget): CutResult => {
-    lastM = minPx;
+    st.lastM = minPx;
     const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget: bud, summaries };
     return cut(proj, P, classOf, list, seen, newCutResult());
   };
@@ -739,63 +739,86 @@ export function searchCut(
   const capRung = Math.max(base, o.cap);
   const capN = capRung > base ? Math.ceil(Math.log(capRung / base) / Math.log(LEVEL_STEP) - 1e-9) : 0;
   const lvl = (n: number): number => (n === capN ? capRung : base * Math.pow(LEVEL_STEP, n));
-  // the limit's rung: the highest one at or under it (the base itself when the limit is below it); Infinity when there is none
-  let limN = o.limit !== undefined && o.limit < Infinity ? Math.max(0, Math.floor(Math.log(o.limit / base) / Math.log(LEVEL_STEP) + 1e-9)) : Infinity;
-  while (limN > 0 && limN < Infinity && lvl(limN) > o.limit! * (1 + 1e-9)) limN--; // the cap rung may sit above the ladder's
-  const hard = o.hardBudget ?? budget;
-  let n = Math.min(hintRung(o.hint, base, capRung, capN), limN);
-  let m = lvl(n);
-  let res = run(m);
-  let passes = 1;
-  // up the ladder while the list overflows, to the limit's rung at most; true if it still overflows at that rung
-  const climb = (): boolean => {
-    while (res.overflow && passes < MAX_PASSES && n < limN) {
-      n++;
-      m = lvl(n);
-      res = run(m);
-      passes++;
-    }
-    return res.overflow && n >= limN;
-  };
-  if (o.lod && res.visited < 80000) {
-    if (res.overflow) {
-      // at the limit's rung the budget gives way: the cut is made there with the hard budget; where even that overflows the ladder goes on
-      if (climb()) {
-        res = run(m, hard);
-        passes++;
-        if (res.overflow) {
-          limN = Infinity;
-          climb();
-        }
-      }
-    } else {
-      while (n > 0 && passes < MAX_PASSES) {
-        const r = run(lvl(n - 1));
-        passes++;
-        if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
-        n--;
-        m = lvl(n);
-        res = r;
-      }
-      if (lastM !== m) {
-        res = run(m);
-        passes++;
-      }
-    }
-  } else if (res.overflow && o.lod) {
-    // very expensive walks (caterpillar-like): no search, just double until it fits (or to the limit, where the hard budget applies)
-    const limit = o.limit ?? Infinity;
-    let hardDone = false;
-    while (res.overflow && passes < 24) {
-      if (!hardDone && m >= limit) {
-        hardDone = true;
-        res = run(m, hard);
-      } else {
-        m = hardDone ? m * 2 : Math.min(m * 2, limit);
-        res = run(m);
-      }
-      passes++;
-    }
+  st.limN = limitRung(o.limit, base, lvl);
+  st.n = Math.min(hintRung(o.hint, base, capRung, capN), st.limN);
+  st.m = lvl(st.n);
+  st.res = run(st.m);
+  if (o.lod && st.res.visited < 80000) {
+    if (st.res.overflow) climbWithLimit(st, lvl, run, o.hardBudget ?? budget);
+    else stepDown(st, lvl, run, list, budget);
+  } else if (st.res.overflow && o.lod) doubleToFit(st, run, o.limit ?? Infinity, o.hardBudget ?? budget);
+  return { res: st.res, minPx: st.m, retries: st.passes - 1 };
+}
+
+/** The state of one search: the last pass kept, its rung and threshold, the passes made, the highest rung allowed and the threshold last run. */
+interface Search {
+  res: CutResult;
+  n: number;
+  m: number;
+  passes: number;
+  limN: number;
+  lastM: number;
+}
+type Run = (minPx: number, bud?: number) => CutResult;
+
+/** The limit's rung: the highest one at or under `limit` (rung 0, the base, when the limit is below it); Infinity when there is none. */
+function limitRung(limit: number | undefined, base: number, lvl: (n: number) => number): number {
+  if (limit === undefined || limit >= Infinity) return Infinity;
+  let n = Math.max(0, Math.floor(Math.log(limit / base) / Math.log(LEVEL_STEP) + 1e-9));
+  while (n > 0 && lvl(n) > limit * (1 + 1e-9)) n--; // the cap rung may sit above the ladder's
+  return n;
+}
+
+/** Up the ladder while the list overflows, to the limit's rung at most; true if it still overflows at that rung. */
+function climb(st: Search, lvl: (n: number) => number, run: Run): boolean {
+  while (st.res.overflow && st.passes < MAX_PASSES && st.n < st.limN) {
+    st.n++;
+    st.m = lvl(st.n);
+    st.res = run(st.m);
+    st.passes++;
   }
-  return { res, minPx: m, retries: passes - 1 };
+  return st.res.overflow && st.n >= st.limN;
+}
+
+/** The list overflows the budget: climb. At the limit's rung the budget gives way: the cut is made there with the hard budget, and where
+ *  even that overflows the ladder goes on. */
+function climbWithLimit(st: Search, lvl: (n: number) => number, run: Run, hard: number): void {
+  if (!climb(st, lvl, run)) return;
+  st.res = run(st.m, hard);
+  st.passes++;
+  if (st.res.overflow) {
+    st.limN = Infinity;
+    climb(st, lvl, run);
+  }
+}
+
+/** The list fits: down the ladder while the next rung down also fits with room to spare, and leave the list of the rung returned. */
+function stepDown(st: Search, lvl: (n: number) => number, run: Run, list: DrawList, budget: number): void {
+  while (st.n > 0 && st.passes < MAX_PASSES) {
+    const r = run(lvl(st.n - 1));
+    st.passes++;
+    if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
+    st.n--;
+    st.m = lvl(st.n);
+    st.res = r;
+  }
+  if (st.lastM !== st.m) {
+    st.res = run(st.m);
+    st.passes++;
+  }
+}
+
+/** Very expensive walks (caterpillar-like): no search, just double until it fits; at the limit the hard budget applies once. */
+function doubleToFit(st: Search, run: Run, limit: number, hard: number): void {
+  let hardDone = false;
+  while (st.res.overflow && st.passes < 24) {
+    if (!hardDone && st.m >= limit) {
+      hardDone = true;
+      st.res = run(st.m, hard);
+    } else {
+      st.m = hardDone ? st.m * 2 : Math.min(st.m * 2, limit);
+      st.res = run(st.m);
+    }
+    st.passes++;
+  }
 }
