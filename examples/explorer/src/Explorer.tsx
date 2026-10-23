@@ -1489,9 +1489,6 @@ export function Explorer({
             cladeLabel,
             labelDensity: 'dense',
             highlightStyle,
-            // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are
-            // many, raise it (a small tree keeps every tip)
-            minCladePx: tree.tipCount > 1500 ? 14 : undefined,
             alignLabels,
             nodeLabels,
             formatNodeLabel,

@@ -1150,7 +1150,12 @@ await open('syn-yule-10000');
 await page.waitForTimeout(1500);
 // one look for every summary (#85): no Stripes toggle, the background and stripes are always drawn
 ok((await page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ }).count()) === 0, 'no Stripes toggle');
-ok((await ev(() => __v().options.minCladePx)) === 14, 'a big tree: smallest clade 14 px, so the summaries are tall enough to carry stripes');
+ok((await ev(() => __v().options.minCladePx)) === 3, 'a big tree: the library’s smallest clade, 3 px (#115)');
+// the stripe checks need summaries tall enough to carry stripes: 14 px here (the explorer used it for big trees before #115)
+await ev(() => {
+  __v().setOptions({ minCladePx: 14 });
+  __v().renderNow();
+});
 // count the stripe segments of a frame: lineTo calls while the stroke style is the summary colour, on the viewer's context
 const stripeCount = (colour) =>
   ev((colour) => {
@@ -2448,6 +2453,7 @@ for (const [id, tipsWanted] of [
     const rank = t.tipLabels.findIndex((l) => l.startsWith('Ochotona_princeps_saxatilis'));
     if (rank < 0) return null;
     const counts = [];
+    const was = v.options.minCladePx;
     for (const minCladePx of [14, 3]) {
       v.setOptions({ minCladePx });
       v.focusTip(rank, false);
@@ -2458,7 +2464,7 @@ for (const [id, tipsWanted] of [
       const s = v.getStats();
       counts.push({ minCladePx, rowPx: s.ky, tips: s.tips, summaries: s.summaries });
     }
-    v.setOptions({ minCladePx: 14 });
+    v.setOptions({ minCladePx: was });
     v.fit(false);
     v.renderNow();
     return counts;
@@ -2564,6 +2570,8 @@ for (const [id, tipsWanted] of [
   const ms = await loadVia('otl-2m-full');
   const view = await ev(() => {
     const v = __v();
+    // a threshold well above the rows checked (the explorer used 14 for big trees before #115; it now has the library's 3)
+    v.setOptions({ minCladePx: 14 });
     const t = v.getTree();
     const rank = t.tipLabels.indexOf('Pleganophorus_bispinosus_ott4616304');
     if (rank < 0) return null;
