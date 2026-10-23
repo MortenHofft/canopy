@@ -17,7 +17,7 @@ const deadCode = {
 };
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'data/**', 'site-dist/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'data/**', 'site-dist/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

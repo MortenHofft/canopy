@@ -139,10 +139,12 @@ test('a function: gets the full-tree id and the snapshot; a string, a number (fo
 });
 
 test('none inside a summary: collapsed clades get no label, expanded ones do', async () => {
-  // x (2 tips, 1 row) and y (2 tips) collapse into triangles when minCladePx is above their size; the root stays
+  // x (2 tips, 1 row) and y (2 tips) collapse into triangles when minCladePx is above their size and the rows are under the dot size; the root stays
   const big = await make({ nodeLabels: 'support' });
   assert.equal(texts(big.ctx()).length, 2);
-  const m = await make({ nodeLabels: 'support', minCladePx: 400 });
+  // a long polytomy beside them keeps the rows under the dot size, where minCladePx applies (#109)
+  const wide = '((a:1,b:1)95:2,(c:1,d:1)0.5:3,(' + Array.from({ length: 120 }, (_, k) => 'z' + k + ':1').join(',') + '):1)r;';
+  const m = await make({ nodeLabels: 'support', minCladePx: 400 }, { tree: wide });
   const S = m.viewer.getStats();
   assert.ok(S.summaries > 0, 'there are summaries');
   assert.deepEqual(texts(m.ctx()), []);

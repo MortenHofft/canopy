@@ -126,7 +126,7 @@ const T = makeTransform('rectangular', W, H, { x0: 0, x1: 1, y0: 0, y1: 512 }, a
 const proj = projectionFor(tree, L, T);
 const search = (budget, hint = 0, over = {}) => {
   const list = new DrawList();
-  const r = searchCut(proj, null, list, new Seen(), { lod: true, base: 3, budget, summaries: true, hint, ...over });
+  const r = searchCut(proj, null, list, new Seen(), { lod: true, base: 3, budget, summaries: true, hint, cap: Infinity, ...over });
   return { ...r, list };
 };
 const STEP = 1.15;
@@ -216,7 +216,7 @@ const cherry = narrowTree.parent[narrowTree.tipNode[0]];
 const kindsOf = (view, kind, base) => {
   const p = projectionFor(narrowTree, narrowL, makeTransform(kind, W, H, view, area, 128));
   const list = new DrawList();
-  searchCut(p, null, list, new Seen(), { lod: true, base, budget: 1_000_000, summaries: true, hint: 0 });
+  searchCut(p, null, list, new Seen(), { lod: true, base, budget: 1_000_000, summaries: true, hint: 0, cap: Infinity });
   const of = (node) =>
     Array.from({ length: list.count }, (_, e) => e)
       .filter((e) => list.node[e] === node)
@@ -251,7 +251,7 @@ test('radial, cold search (no hint) zoomed 64 times into a 20k comb: the ladder 
   const a = { ax: 0, ay: 0, aw: 800, ah: 600, clipL: 0, clipT: 0, clipR: 800, clipB: 600 };
   const p = projectionFor(comb, cl, makeTransform('radial', 800, 600, { x0: 0.6 - w / 2, x1: 0.6 + w / 2, y0: -h / 2, y1: h / 2 }, a, 20000));
   const list = new DrawList();
-  const r = searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 2000, summaries: true, hint: 0 });
+  const r = searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 2000, summaries: true, hint: 0, cap: Infinity });
   assert.equal(r.res.overflow, false, `fits (${r.retries} retries, minPx ${r.minPx})`);
   assert.ok(r.retries >= 60, `more than 60 passes: ${r.retries + 1}`);
   assert.ok(list.count <= 2000);
@@ -277,7 +277,7 @@ function inView(kind, view) {
   const T = makeTransform(kind, PW, PH, view, polyArea, polyL.rows, polyL.fan);
   const p = projectionFor(polyTree, polyL, T);
   const list = new DrawList();
-  searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0 });
+  searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0, cap: Infinity });
   const state = new Map();
   for (let e = 0; e < list.count; e++) {
     if (list.kind[e] === K_NODE) continue;
@@ -341,7 +341,7 @@ test('rectangular: panning in x does not split a run where small clades cross th
   const state = (x0) => {
     const p = projectionFor(t, l, makeTransform('rectangular', PW, PH, { x0, x1: x0 + 0.3, y0: 0, y1: PH / 3 }, polyArea, rows));
     const list = new DrawList();
-    searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0 });
+    searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 1_000_000, summaries: true, hint: 0, cap: Infinity });
     const s = new Array(t.tipCount).fill('-');
     for (let e = 0; e < list.count; e++) {
       if (list.kind[e] === K_NODE) continue;

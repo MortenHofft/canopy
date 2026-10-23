@@ -6,6 +6,7 @@
 import { fanTheta } from './layout.ts';
 import { K_NODE, K_SUMMARY, K_TIP, isSlice, type DrawList } from './lod.ts';
 import type { LayoutProjection, Pt } from './projection.ts';
+import { TIP_DOT_PX } from './sizes.ts';
 import type { Hit } from './types.ts';
 
 export const MARKER_PX = 12; // internal node markers are drawn (and hittable) when the clade is at least this tall
@@ -127,7 +128,7 @@ export class HitIndex {
         y = pt.y;
       if (i > 0) this.addSegment(this.addItem(i, T_STUB), pp.x, pp.y, x, y);
       if (kind === K_TIP) {
-        if (tipPitch >= 6) this.addPoint(this.addItem(i, T_TIPPT), x, y);
+        if (tipPitch >= TIP_DOT_PX) this.addPoint(this.addItem(i, T_TIPPT), x, y);
       } else if (kind === K_NODE) {
         if (proj.cladeSize(i) >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
         const it = this.addItem(i, T_CONN);
