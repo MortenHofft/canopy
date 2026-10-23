@@ -2227,7 +2227,7 @@ await open('edge-internal-support');
   const ids = new Set(groups.flatMap((g) => g[1]));
   const wanted = Object.values(catalogue).flatMap((g) => Object.keys(g));
   ok(
-    wanted.length === 21 && wanted.every((id) => ids.has(id)),
+    wanted.length === 22 && wanted.every((id) => ids.has(id)),
     `the picker lists all ${wanted.length} trees of the playground catalogue (${ids.size} in all)`,
   );
   ok(
