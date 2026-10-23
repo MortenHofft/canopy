@@ -112,7 +112,7 @@ export class HitIndex {
     this.nI = 0;
     const rect = proj.kind === 'rectangular';
     const { LAST } = L;
-    const tipPitch = proj.tipPitch;
+    const dotDepth = proj.minTipDepth(TIP_DOT_PX); // as drawMarkers: a tip has a dot when its depth reaches this
     const { pt, pp } = this;
     for (let e = 0; e < list.count; e++) {
       const i = list.node[e];
@@ -128,7 +128,7 @@ export class HitIndex {
         y = pt.y;
       if (i > 0) this.addSegment(this.addItem(i, T_STUB), pp.x, pp.y, x, y);
       if (kind === K_TIP) {
-        if (tipPitch >= TIP_DOT_PX) this.addPoint(this.addItem(i, T_TIPPT), x, y);
+        if (proj.depth(i) >= dotDepth) this.addPoint(this.addItem(i, T_TIPPT), x, y);
       } else if (kind === K_NODE) {
         if (proj.cladeSize(i) >= MARKER_PX) this.addPoint(this.addItem(i, T_NODEPT), x, y);
         const it = this.addItem(i, T_CONN);

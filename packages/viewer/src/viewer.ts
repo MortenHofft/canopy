@@ -46,7 +46,7 @@ import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
 import { LabelOverlay } from './overlay.ts';
 import type { OverviewHost } from './overview.ts';
-import { projectionFor, type LayoutProjection } from './projection.ts';
+import { projectionFor, tipDotRadius, type LayoutProjection } from './projection.ts';
 import { easeOut, RingAnim } from './ring-anim.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
@@ -85,6 +85,7 @@ import {
   stepBudget,
   wantsStep,
   wedgeLimitPx,
+  MAX_WEDGE_DEG,
   type BudgetState,
 } from './budget.ts';
 import { keptViewport, type TipTarget } from './view-keep.ts';
@@ -1979,8 +1980,11 @@ export class TreeViewer {
       lod: this.opts.lod,
       base,
       cap,
+      // radial: a clade whose deepest tip would get a dot is kept open up to the cap, by the arc at that tip's own radius (#110)
+      dotR: tipDotRadius(this.proj),
       budget,
       limit,
+      wedge: limit < Infinity ? (MAX_WEDGE_DEG * Math.PI) / 180 : Infinity,
       hardBudget: Math.max(budget, this.ctlCeiling),
       summaries,
       // a hint that is only a base (the cap was not in force or not reached) starts a search at the cap, not 19 rungs above it (#113)

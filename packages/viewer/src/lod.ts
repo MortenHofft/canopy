@@ -10,6 +10,9 @@
 //             by size, at any minPx and under any budget (#112): as a triangle it is no cheaper than its branches, and it hides its tips.
 //             It may still be a member of a run (rule R). The raise of rule D, the radial polytomy clause and the cap only move or add
 //             to this test, so they cannot fold it either
+//             Radial, decided per clade (#110): a clade whose deepest tip would get a dot (XMAX[i] * k >= dotR, see CutParams) is not folded by
+//             rules A and R or the polytomy clause while the threshold is at or under the cap, and with the adaptive budget's wedge limit
+//             (CutParams.wedge) a clade 4 degrees wide or more is not folded by size; the budget alone folds them, past the cap
 //   rule C    sub-pixel primitives that land on the same pixel cells as an earlier one are not emitted again
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
 //   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip, a clade of at most two tips or a
@@ -156,6 +159,15 @@ export interface CutParams {
   baseMinPx?: number; // the threshold without any budget pressure (default minPx)
   budget: number;
   summaries: boolean;
+  /** Radial: the radius (px) from which a tip gets a dot, `TIP_DOT_PX / da` (a tip's arc to its neighbour is `da` times its radius).
+   *  A clade whose deepest tip reaches it (XMAX * k >= dotR) is not folded by size, by rule R or by the polytomy rule while `minPx` is at
+   *  or under `cap`: the budget alone folds it, by raising the threshold past the cap (#110). Infinity or absent: none is protected. */
+  dotR?: number;
+  /** With `dotR`: the threshold up to which clades with a dotted tip are kept open (px). Above it the budget is forcing, and they fold. */
+  cap?: number;
+  /** Radial: a clade whose wedge (its tips' angle, rowEnd - rowStart rows of `da`) is at least this many radians is not folded by size, at
+   *  any threshold (the adaptive budget's wedge limit, per clade: #114, #110). Infinity or absent: none. */
+  wedge?: number;
 }
 
 function finishCut(
@@ -400,6 +412,10 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = CULL_PAD_PX;
+  // a clade whose deepest tip would get a dot (its radius r1 >= dotR) is not folded by size while the threshold is at or under the cap (#110)
+  const dotR = P.dotR ?? Infinity;
+  const guardR = minPx > (P.cap ?? Infinity) * (1 + 1e-9) ? Infinity : dotR;
+  const wedge = P.wedge ?? Infinity; // a clade this wide (rad) is kept open by size
   // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
   // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
   // frame, so which of two close clades survives does not flicker
@@ -447,7 +463,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
           summaries++;
           summaryTips += tipsRun;
-          if (minPx > base && runPx >= base) forced++;
+          if (minPx > base && (runPx >= base || runXmax * k >= dotR)) forced++;
         } else mergedTips += tipsRun;
       }
       runCount = 0;
@@ -506,7 +522,12 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       kind = K_SUMMARY; // the app collapsed it: a fan whatever the zoom and the options, never opened
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
     // (a clade of at most two tips is never folded by size, #112: it is no cheaper as a fan, and it hides the tips)
-    else if (lod && i > 0 && (arc < minPx ? leafEnd[i] - leafStart[i] > 2 : isSlice(tree, i) && arc < minPx * childCount[i]))
+    else if (
+      lod &&
+      i > 0 &&
+      r1 < guardR &&
+      (arc < minPx ? a1 - a0 < wedge && leafEnd[i] - leafStart[i] > 2 : isSlice(tree, i) && arc < minPx * childCount[i])
+    )
       kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
@@ -516,6 +537,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       if (
         i > 0 &&
         arc < minPx &&
+        r1 < guardR &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
         (kind === K_TIP || ((stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
@@ -598,7 +620,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           minPx > base &&
           (stub === null || stub[i] === 0) &&
           (collapsed === null || collapsed[i] === 0) &&
-          !(arc < base || (isSlice(tree, i) && arc < base * childCount[i]))
+          (r1 >= dotR || !(arc < base || (isSlice(tree, i) && arc < base * childCount[i])))
         )
           forced++;
       } else if (kind === K_TIP) tips++;
@@ -708,6 +730,11 @@ export interface SearchOpts {
    *  made there with `hardBudget` instead (a list that may exceed `budget`). Infinity or absent for none; below `base` it holds `base`.
    *  The radial wedge limit of the adaptive budget (budget.ts). */
   limit?: number;
+  /** Radial: the radius (px) from which a tip gets a dot (CutParams.dotR). The cap rung is where clades with a dotted tip stop being protected. */
+  dotR?: number;
+  /** With `limit`: the widest wedge (rad) that may be folded by size, per clade (CutParams.wedge); it holds while the limit does, and goes
+   *  with it where the budget gives way. */
+  wedge?: number;
   hardBudget?: number; // with `limit`: the budget at the limit's rung (default `budget`); a list that overflows even this goes on up the ladder
 }
 
@@ -728,7 +755,16 @@ export function searchCut(
   // one small result object per pass (not per node): a pass that is kept must not be overwritten by the next one
   const run = (minPx: number, bud = budget): CutResult => {
     st.lastM = minPx;
-    const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget: bud, summaries };
+    const P: CutParams = {
+      lod: o.lod,
+      minPx,
+      baseMinPx: base,
+      budget: bud,
+      summaries,
+      dotR: o.dotR,
+      cap: capRung,
+      wedge: st.limN < Infinity ? o.wedge : Infinity,
+    };
     return cut(proj, P, classOf, list, seen, newCutResult());
   };
   // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
@@ -815,6 +851,7 @@ function doubleToFit(st: Search, run: Run, limit: number, hard: number): void {
     if (!hardDone && st.m >= limit) {
       hardDone = true;
       st.res = run(st.m, hard);
+      st.limN = Infinity; // the budget has given way: so does the wedge limit
     } else {
       st.m = hardDone ? st.m * 2 : Math.min(st.m * 2, limit);
       st.res = run(st.m);

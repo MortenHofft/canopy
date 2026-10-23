@@ -31,7 +31,7 @@ const { computeLayout, ensureTrig, radialFan, setLayoutFan } = await import(path
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
-const { projectionFor } = await import(path.join(core, 'projection.ts'));
+const { projectionFor, tipDotRadius } = await import(path.join(core, 'projection.ts'));
 const { drawBody } = await import(path.join(core, 'draw.ts'));
 const { HitIndex } = await import(path.join(core, 'hit.ts'));
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
@@ -107,7 +107,15 @@ for (const c of cappedCases()) {
     const proj = projectionFor(s, L, makeTransform(c.layout, W, H, c.view, area, s.tipCount, FAN));
     const cap = collapseCap(proj.tipPitch, true, c.layout === 'rectangular');
     const list = new DrawList();
-    const r = searchCut(proj, classOf, list, new Seen(), { lod: true, base: Math.min(cap, 14), budget: c.budget, summaries: true, hint: 0, cap });
+    const r = searchCut(proj, classOf, list, new Seen(), {
+      lod: true,
+      base: Math.min(cap, 14),
+      budget: c.budget,
+      summaries: true,
+      hint: 0,
+      cap,
+      dotR: tipDotRadius(proj),
+    });
     const g = goldenCap[c.id];
     assert.deepEqual(r.res, g.res, 'CutResult');
     assert.equal(r.minPx, g.minPx, 'threshold');

@@ -22,7 +22,7 @@ const { DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
-const { projectionFor } = await import(path.join(core, 'projection.ts'));
+const { projectionFor, tipDotRadius } = await import(path.join(core, 'projection.ts'));
 const { collapseCap } = await import(path.join(core, 'sizes.ts'));
 const { W, H, TREES, VIEWS, allCases, cappedCases } = await import(path.join(here, '..', 'test', 'cut-golden-cases.mjs'));
 const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
@@ -73,7 +73,15 @@ export function captureCapped(c) {
   const proj = projectionFor(s, L, T);
   const cap = collapseCap(proj.tipPitch, true, c.layout === 'rectangular');
   const list = new DrawList();
-  const r = searchCut(proj, classOf, list, new Seen(), { lod: true, base: Math.min(cap, 14), budget: c.budget, summaries: true, hint: 0, cap });
+  const r = searchCut(proj, classOf, list, new Seen(), {
+    lod: true,
+    base: Math.min(cap, 14),
+    budget: c.budget,
+    summaries: true,
+    hint: 0,
+    cap,
+    dotR: tipDotRadius(proj),
+  });
   const entries = [];
   for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
   return { pitch: Math.round(proj.tipPitch * 1e3) / 1e3, res: r.res, minPx: r.minPx, retries: r.retries, entries };
