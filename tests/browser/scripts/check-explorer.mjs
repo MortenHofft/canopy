@@ -39,6 +39,9 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 860 }, acc
 page.setDefaultTimeout(8000);
 page.on('console', (m) => {
   if (m.type() !== 'error') return;
+  // a catalogue tree with a remote copy is first asked for under data/real-ladder/fetched/ (made by fetch.sh, absent in CI): its 404 is
+  // expected, as the page then loads the remote URL
+  if (/\/data\/real-ladder\/fetched\//.test(m.location()?.url ?? '')) return;
   console.log('CONSOLE.ERROR', m.text().slice(0, 300));
   failures++;
 });
