@@ -1,7 +1,8 @@
 // Browser check of the built demo site, served as Vercel serves it (tests/browser/scripts/static-site.mjs follows vercel.json's URL
 // rules): the hub lists every page of site/src/examples.json with a working link, thumbnail and source link; /<id>/ redirects to
 // /<id> and the page still loads its assets (the absolute base); the data files are there, the large OTL trees included unless the
-// build skipped them; then the pages' own checks run against the built site (check-playground.mjs, check-explorer.mjs).
+// build skipped them; then the pages' own checks run against the built site (check-playground.mjs, check-explorer.mjs, check-table.mjs,
+// check-unrooted.mjs).
 //   node tests/browser/scripts/check-site.mjs [--no-build]     (without --no-build it runs scripts/build-site.mjs first)
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -53,7 +54,12 @@ for (const e of examples) {
 ok(missing.length === 0, `no failed requests${missing.length ? ': ' + missing.join(', ') : ''}`);
 
 console.log('\ndata');
-for (const p of ['rich/fish-carangaria-mcc/Carangaria-MCC.tre', 'synthetic/meta/yule_1000.meta.tsv', 'real-ladder/trees/gtdb-190k-bacteria.nwk.gz']) {
+for (const p of [
+  'rich/fish-carangaria-mcc/Carangaria-MCC.tre',
+  'synthetic/meta/yule_1000.meta.tsv',
+  'real-ladder/trees/gtdb-190k-bacteria.nwk.gz',
+  'real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz',
+]) {
   const r = await fetch(`${url}/data/${p}`);
   ok(r.ok, `/data/${p}`);
 }
@@ -65,6 +71,8 @@ await browser.close();
 for (const [check, id] of [
   ['check-playground.mjs', 'playground'],
   ['check-explorer.mjs', 'explorer'],
+  ['check-table.mjs', 'table'],
+  ['check-unrooted.mjs', 'unrooted'],
 ]) {
   console.log(`\n${check} on ${url}/${id}`);
   // async: the static server runs in this process, so a synchronous spawn would block it from answering the check

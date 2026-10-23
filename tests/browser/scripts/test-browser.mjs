@@ -5,9 +5,11 @@
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
 //   explorer  examples/explorer (the styled explorer)    scripts/check-explorer.mjs
 //   playground examples/playground (every setting)     scripts/check-playground.mjs
+//   table     examples/table (TBrowse-like table)    scripts/check-table.mjs
+//   unrooted  examples/unrooted (layout spike, #42)  scripts/check-unrooted.mjs
 //   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
 //   site      the demo site as Vercel serves it        scripts/check-site.mjs (runs scripts/build-site.mjs, serves site-dist itself)
-//   node scripts/test-browser.mjs [--only test,vanilla,react,explorer,playground,no-build,site] [--no-build]
+//   node scripts/test-browser.mjs [--only test,vanilla,react,explorer,playground,table,unrooted,no-build,site] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -123,6 +125,18 @@ const SUITES = [
     name: 'playground',
     dir: path.join(repo, 'examples/playground'),
     check: 'check-playground.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
+  {
+    name: 'table',
+    dir: path.join(repo, 'examples/table'),
+    check: 'check-table.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
+  {
+    name: 'unrooted',
+    dir: path.join(repo, 'examples/unrooted'),
+    check: 'check-unrooted.mjs',
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
   // no Vite: the packages' own build (dist/browser), and the check serves the repository as static files

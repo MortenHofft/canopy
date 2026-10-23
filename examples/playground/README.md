@@ -13,7 +13,12 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from .
   token, add one line there.
 - [`../shared/catalogue.json`](../shared/catalogue.json) lists the trees, with their per-tip data (a TSV whose first column is the tip label) and
   alignments. The site build copies exactly these files. The two largest Open Tree of Life trees are not on `main`. They come from the
-  `data/otl-large` branch: the site build downloads them, and the dev server falls back to the branch's raw URL.
+  `data/otl-large` branch: the site build downloads them, and the dev server falls back to the branch's raw URL. Each entry has its
+  node count (`nodes`), which the unrooted page reads for its node limit.
+- The tree picker and the file of your own are shared with the explorer, the table view and the unrooted page:
+  [`../shared/picker.ts`](../shared/picker.ts) fills the grouped list with a last "your own" option that opens the file input, and
+  `loadTreeFile` in [`../shared/data.ts`](../shared/data.ts) reads the file (gzip by content, NEXUS when it starts with `#NEXUS`, else
+  Newick).
 - **Tree operations** from `@gbif-phylo/tree-ops`, as views of the loaded tree (as in `examples/react`), not edits:
   - **Show only this clade** (node menu, or the click action) with **← Back** and **↑ Up one level** above the tree, and in the
     shown root's menu (tree-ops' focus functions).

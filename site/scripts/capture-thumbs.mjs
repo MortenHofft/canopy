@@ -1,6 +1,7 @@
 // Screenshots of the built pages for the hub's cards (site/public/thumbs/<id>.jpg, 1024×640 JPEG). Run after `npm run build:site`,
 // then build again to publish them:  node site/scripts/capture-thumbs.mjs
-// Each page is put in a state that shows what it is about (the playground with data columns, the explorer with colours).
+// Each page is put in a state that shows what it is about (the playground with data columns, the explorer with colours, the table
+// scrolled a little, the unrooted spike's canvas fitted to the picture).
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,20 @@ await page.mouse.move(2, 2);
 await page.evaluate(() => window.scrollTo(0, 0)); // the clicks scrolled the pane into view
 await page.waitForTimeout(500);
 await page.screenshot({ path: out('explorer'), type: 'jpeg', quality: 72 });
+
+// table: the Ensembl family with its alignment, gene locations and heatmap, scrolled a little
+await page.goto(`${url}/table`);
+await page.waitForFunction(() => window.__table?.() && document.querySelector('.table-head__cell--column'), null, { timeout: 60000 });
+await page.mouse.move(300, 400);
+await page.mouse.wheel(0, 96);
+await page.mouse.move(2, 2);
+await page.waitForTimeout(500);
+await page.screenshot({ path: out('table'), type: 'jpeg', quality: 72 });
+
+// unrooted: the default tree (GTDB 1k with branch lengths), the canvas sized to the thumbnail
+await page.goto(`${url}/unrooted?size=420`);
+await page.waitForFunction(() => window.__unrooted, null, { timeout: 60000 });
+await page.screenshot({ path: out('unrooted'), type: 'jpeg', quality: 72 });
 
 await browser.close();
 close();

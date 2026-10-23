@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Unrooted layout spike · @gbif-phylo</title>
+  </head>
+  <body>
+    <header class="top">
+      <a class="back" href="/">← All demos</a>
+      <h1>Unrooted layout spike</h1>
+      <p class="lede">
+        The equal-angle spike of <a href="https://github.com/MortenHofft/gbif-phylo/issues/42">#42</a>, not part of the viewer: it draws every
+        branch on a plain canvas, with no zoom, pan or level of detail. The pictures, timings and decision are in
+        <a href="https://github.com/MortenHofft/gbif-phylo/blob/main/docs/design/unrooted.md">docs/design/unrooted.md</a>.
+      </p>
+    </header>
+    <div class="toolbar" role="toolbar" aria-label="Spike settings">
+      <label class="tool">
+        <span class="tool__name">Tree</span>
+        <select id="tree-select" aria-label="Tree"></select>
+      </label>
+      <input type="file" id="tree-file" hidden />
+      <label class="tool">
+        <input type="checkbox" id="lengths" />
+        <span>Branch lengths</span>
+      </label>
+      <label class="tool">
+        <input type="checkbox" id="labels" />
+        <span>Labels</span>
+      </label>
+      <span class="note" id="limit-note"></span>
+    </div>
+    <main class="card plot">
+      <div id="info" aria-live="polite">loading</div>
+      <canvas id="c"></canvas>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

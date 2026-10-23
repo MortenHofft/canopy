@@ -4,6 +4,7 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build:site",
   "outputDirectory": "site-dist",
+  "ignoreCommand": "case \"$VERCEL_GIT_COMMIT_REF\" in *--*|claude/*) exit 0 ;; *) exit 1 ;; esac",
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [{ "source": "/reactree", "destination": "/explorer", "permanent": true }],

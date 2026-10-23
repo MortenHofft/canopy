@@ -19,12 +19,19 @@ import {
   type TreeViewHandle,
 } from '@gbif-phylo/react';
 import {
+  cladeName,
   defaultControls,
+  defaultFormatCollapsedLabel,
   defaultFormatNodeLabel,
   detectAlphabet,
+  InMemorySource,
+  internalName,
+  namedDescendants,
   residueColours,
   residueGroups,
+  type CladeLabelFn,
   type Column,
+  type NamedDescendant,
   type TreeViewer,
   type Viewport,
 } from '@gbif-phylo/viewer';
@@ -40,6 +47,19 @@ type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
 /** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
 const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up one level or Back to the whole tree first';
+/** Drill-down (tree-ops autoCollapse): the rows of the overview of the clade shown, and of a collapsed clade expanded in place. */
+const OVERVIEW_ROWS = 50;
+const EXPAND_ROWS = 20;
+/** Open Tree's unnamed clades are labelled 'mrcaott99343ott3606205': no name, so they are not named in labels, summaries or the legend,
+ *  and "Prefer named clades" does not stop at them. */
+const OTL_SYNTHETIC = /^mrcaott\d+ott\d+$/;
+const cladeLabel: CladeLabelFn = (node, t) => {
+  const name = internalName(t.labels[t.toLocal(node)] ?? '');
+  return OTL_SYNTHETIC.test(name) ? null : name;
+};
+/** How many named descendants a collapsed clade's hover box and Info panel list. */
+const SUMMARY_NAMES = 5;
+const INFO_NAMES = 12;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
@@ -103,6 +123,9 @@ const pct = (v: number, lo: number, hi: number) => `${Math.min(1, Math.max(0, (v
 const sameWindow = (a: Viewport, b: Viewport) => a.x0 === b.x0 && a.x1 === b.x1 && a.y0 === b.y0 && a.y1 === b.y1;
 const fmt = (x: number) => x.toFixed(6).replace(/\.?0+$/, '');
 const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/** A pointer click on the triangle of a collapsed clade expands it (drill-down); a click on its branch, or Enter, opens its menu. */
+const expandsOnClick = (e: TreeNodeEvent) => e.collapsed && e.kind === 'summary' && e.via === 'pointer' && !e.run;
 
 /** The selected node (of the tree) in the ids of what is shown: itself, or the nearest ancestor the view keeps (collapse by support
  *  contracts inner nodes into their parent; the selection then moves to that clade, as the viewer's does to a collapsed clade). Null when
@@ -280,6 +303,74 @@ function SizeSliders({ viewer, radial }: { viewer: TreeViewer | null; radial: bo
   );
 }
 
+type Inside = { names: NamedDescendant[]; more: boolean };
+type Snapshot = ReturnType<InMemorySource['snapshot']>;
+
+/** The hover box of a collapsed clade: what a click does, its label, and the highest named clades inside it. */
+function CladeHoverBox(p: { action: string; label: string; inside: Inside }) {
+  return (
+    <span className="ex-tip ex-tip--menu ex-tip--clade">
+      {p.action}
+      <span className="ex-tip-clade">{p.label}</span>
+      {p.inside.names.length > 0 && (
+        <span className="ex-tip-inside">
+          <span className="ex-tip-inside-head">Inside</span>
+          {p.inside.names.map((d) => (
+            <span key={d.node}>{d.name}</span>
+          ))}
+          {p.inside.more && <span>…</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** The Info panel's rows for a clade: its tips and, when it is collapsed, the highest named clades inside it. Nothing for a tip. */
+function InfoClade(p: { tips: number | null; inside: Inside | null }) {
+  if (p.tips === null) return null;
+  return (
+    <>
+      <dl className="ex-info-rows ex-info-rows--clade">
+        <dt>Tips</dt>
+        <dd>{p.tips.toLocaleString('en')}</dd>
+      </dl>
+      {p.inside && p.inside.names.length > 0 && (
+        <div className="ex-info-inside">
+          <div className="ex-info-inside-head">Named clades inside</div>
+          <ul>
+            {p.inside.names.map((d) => (
+              <li key={d.node}>
+                <span>{d.name}</span>
+                <span className="ex-info-inside-tips">{d.tips.toLocaleString('en')}</span>
+              </li>
+            ))}
+            {p.inside.more && <li className="ex-info-inside-more">and more</li>}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** What the Info panel adds for the node `v` of `tree`: its tips (null for a tip) and, when `collapsed` holds it, what is inside it. */
+function infoClade(tree: TreeModel, snap: Snapshot, v: number, collapsed: number[], formatLabel: (s: string) => string) {
+  if (tree.childCount[v] === 0) return { tips: null, inside: null };
+  const inside = collapsed.includes(v) ? namedDescendants(snap, v, { formatLabel, cladeLabel }, { max: INFO_NAMES }) : null;
+  return { tips: tree.tipCountOf(v), inside };
+}
+
+/** The drill-down's order: by size, or with Prefer named unnamed clades first (tree-ops `by: 'named'`, named by the viewer's cladeName). */
+function namedOrder(preferNamed: boolean, snap: Snapshot, formatLabel: (s: string) => string): Pick<ops.AutoCollapseOptions, 'by' | 'isNamed'> {
+  return preferNamed ? { by: 'named', isNamed: (v) => cladeName(snap, v, { formatLabel, cladeLabel }) !== null } : {};
+}
+
+/** The toast after Collapse to 50 clades, `n` clades collapsed inside the clade shown. */
+function collapseMessage(n: number, preferNamed: boolean): string {
+  if (!n) return 'The clade shown fits open';
+  const how = preferNamed ? 'unnamed clades open first, then the largest named ones' : 'the largest clades open';
+  return `Collapsed to ${OVERVIEW_ROWS} rows: ${how}, ${n.toLocaleString('en')} collapsed. Click one to expand it`;
+}
+
 export function Explorer({
   published,
   fasta,
@@ -314,6 +405,8 @@ export function Explorer({
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  // drill-down: prefer stopping at named clades (tree-ops autoCollapse by: 'named', an experiment of #57)
+  const [preferNamed, setPreferNamed] = useState(false);
   // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
   // a click does not count, and a new tree or layout does not bring it back
   const [hintGone, setHintGone] = useState(false);
@@ -463,6 +556,17 @@ export function Explorer({
     },
     [truncate],
   );
+  // `tree` as the viewer's helpers read it (cladeName, namedDescendants): node ids of `tree`, the ids the actions and the inspector use
+  const treeSnap = useMemo(() => new InMemorySource(tree).snapshot(), [tree]);
+  /** The summary of the clade `v` of `tree`: its label as the viewer draws it when collapsed (the default formatCollapsedLabel), and
+   *  its highest named descendants. */
+  const summaryOf = (v: number, max: number): { label: string; inside: { names: NamedDescendant[]; more: boolean } } => {
+    const opts = { formatLabel, cladeLabel };
+    return {
+      label: defaultFormatCollapsedLabel(cladeName(treeSnap, v, opts), tree.tipCountOf(v)),
+      inside: namedDescendants(treeSnap, v, opts, { max }),
+    };
+  };
 
   // ---- search: case-insensitive substring of the displayed name (Reactree's rule; an underscore and a space are the same); matches
   // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label (about 0.1 s on 2.4
@@ -639,6 +743,30 @@ export function Explorer({
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
   };
+  // ---- drill-down (#57): the overview of the clade shown (its largest clades open, the rest collapsed, about OVERVIEW_ROWS rows), and
+  // on a collapsed clade expand in place (a click) or jump into it (Show only). tree-ops mergeAutoCollapse replaces the collapsed clades
+  // inside the clade by its own overview and keeps the others. Rows are counted on `tree`, before collapse by support.
+  const byName = () => namedOrder(preferNamed, treeSnap, formatLabel);
+  const overviewOfShown = () => {
+    const root = Math.max(0, ops.focusedNode(focus));
+    const next = ops.mergeAutoCollapse(tree, collapsed, { root, maxRows: OVERVIEW_ROWS, ...byName() });
+    // the clade shown alone stays collapsed in the view around it (as jumpInto leaves it), so Back returns to that view
+    if (root > 0 && collapsed.includes(root)) {
+      next.push(root);
+      next.sort((a, b) => a - b);
+    }
+    setCollapsed(next);
+    deselect();
+    const n = next.filter((v) => v > root && v < tree.subtreeEnd[root]).length;
+    flash(collapseMessage(n, preferNamed));
+  };
+  /** Open the collapsed clade `v` (of `tree`) with its own overview of about EXPAND_ROWS rows inside. */
+  const expandInPlace = (v: number) => setCollapsed((cs) => ops.mergeAutoCollapse(tree, cs, { root: v, maxRows: EXPAND_ROWS, ...byName() }));
+  /** Show only the collapsed clade `v`, with its overview inside. It stays collapsed in the view around it, so Back returns to that view. */
+  const jumpInto = (v: number) => {
+    setCollapsed((cs) => [...ops.mergeAutoCollapse(tree, cs, { root: v, maxRows: OVERVIEW_ROWS, ...byName() }), v].sort((a, b) => a - b));
+    navigate(ops.focusOn(tree, focus, v));
+  };
   const colourOf = (name: string) => cssVar(`--ex-palette-${name.toLowerCase()}`);
   /** Paint (or with ERASE, unpaint) the clade `v` of `tree`. The label is left out: the legend then names the clade by its node. */
   const paint = (v: number, name: string) => {
@@ -681,6 +809,13 @@ export function Explorer({
 
   // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
   const onToolClick = (e: TreeNodeEvent) => {
+    // a click on a collapsed clade expands it: no menu (its branch or Enter opens the menu), no selection
+    if (mode === 'none' && expandsOnClick(e)) {
+      e.preventDefault();
+      const v = toTree(e.node);
+      if (v >= 0) expandInPlace(v);
+      return;
+    }
     if (mode !== 'none') e.preventDefault(); // a tool acts on the click: it neither selects nor opens the menu
     onClick(e);
   };
@@ -729,7 +864,7 @@ export function Explorer({
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
-      onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)),
+      onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)), // the whole clade, unlike a click on it (expandInPlace)
     };
     const collapse: NodeMenuItem = {
       id: 'collapse',
@@ -770,7 +905,7 @@ export function Explorer({
       },
     };
     const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick', onSelect: () => copyNewick(v) };
-    if (isCollapsed) return [expand, info, only, colour];
+    if (isCollapsed) return [expand, info, { ...only, onSelect: () => jumpInto(v) }, colour];
     // inside a clade shown alone a reroot would split it (REROOT_IN_FOCUS): the menu leaves it out there
     const canReroot = !ops.canGoUp(focus) || shownRoot;
     if (isTip) return canReroot ? [info, reroot, swap, colour] : [info, swap, colour];
@@ -825,12 +960,17 @@ export function Explorer({
           />,
           activeColor === ERASE ? 'Erase color' : `Paint ${activeColor}`,
         );
-      default:
+      default: {
+        const action = expandsOnClick(e) ? 'Click to expand' : 'Click for actions';
+        // a collapsed clade: its label and the highest named clades inside it
+        if (e.collapsed) return <CladeHoverBox action={action} {...summaryOf(v, SUMMARY_NAMES)} />;
         return (
           <span className="ex-tip ex-tip--menu">
-            Click for actions<span className="ex-tip-name">{e.collapsed ? `${name} (collapsed)` : name}</span>
+            {action}
+            <span className="ex-tip-name">{name}</span>
           </span>
         );
+      }
     }
   };
 
@@ -921,8 +1061,9 @@ export function Explorer({
       root: any ? root : null,
       depth: tree.depth[info],
       support: Number.isNaN(sup) ? null : sup,
+      clade: infoClade(tree, treeSnap, info, collapsed, formatLabel),
     };
-  }, [infoOpen, selected, tree]);
+  }, [infoOpen, selected, tree, treeSnap, collapsed, formatLabel]);
 
   const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
   const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
@@ -1214,9 +1355,31 @@ export function Explorer({
           onToggle={() => setSupportOn((o) => !o)}
           onThreshold={setMinSupport}
         />
+        {(collapsed.length > 0 || shown.tipCount > OVERVIEW_ROWS) && <div className="ex-divider" />}
+        {shown.tipCount > OVERVIEW_ROWS && (
+          <>
+            <button
+              type="button"
+              className="ex-btn ex-clades"
+              title={`Collapse the clade shown to about ${OVERVIEW_ROWS} rows, its largest clades open. Click a collapsed clade to expand it; Show only in its menu (its branch, or Enter) jumps into it`}
+              onClick={overviewOfShown}
+            >
+              <J.IconClades />
+              Collapse to {OVERVIEW_ROWS} clades
+            </button>
+            <button
+              type="button"
+              className={`ex-btn ex-toggle${preferNamed ? ' active' : ''}`}
+              aria-pressed={preferNamed}
+              title="Prefer named clades (an experiment): Collapse and a click on a collapsed clade open unnamed clades first, so the rows tend to be named clades (taxa). Applies to the next collapse"
+              onClick={() => setPreferNamed((x) => !x)}
+            >
+              Prefer named
+            </button>
+          </>
+        )}
         {collapsed.length > 0 && (
           <>
-            <div className="ex-divider" />
             <button
               type="button"
               className="ex-btn ex-expand"
@@ -1315,6 +1478,7 @@ export function Explorer({
           onSelectionChange={(k) => setSelected(k === null || toTree(k) < 0 ? null : toTree(k))}
           options={{
             formatLabel,
+            cladeLabel,
             labelDensity: 'dense',
             highlightStyle,
             // summaries are at most about minCladePx tall, and only ones with room for two stripes get any: on a big tree, whose summaries are
@@ -1421,6 +1585,7 @@ export function Explorer({
                 </>
               )}
             </dl>
+            <InfoClade {...inspector.clade} />
             <button
               type="button"
               className="ex-info-copy"

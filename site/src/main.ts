@@ -9,7 +9,7 @@ declare const __BUILD__: { commit: string; branch: string; env: string; time: st
 interface Example {
   id: string;
   dir: string;
-  kind: 'playground' | 'showcase';
+  kind: 'playground' | 'showcase' | 'spike';
   title: string;
   description: string;
   tags: string[];
@@ -41,7 +41,7 @@ function card(e: Example): HTMLElement {
   return a;
 }
 
-for (const e of examples as Example[]) document.getElementById(e.kind === 'playground' ? 'playground-cards' : 'showcase-cards')!.append(card(e));
+for (const e of examples as Example[]) document.getElementById(`${e.kind}-cards`)!.append(card(e));
 
 const b = __BUILD__;
 const commit = b.commit ? `<a href="${REPO}/commit/${b.commit}">${b.commit}</a>` : 'unknown commit';

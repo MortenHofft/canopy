@@ -3,35 +3,41 @@
     "edge-internal-support": {
       "label": "Support values (6 tips)",
       "path": "rich/edge-cases/internal-labels-support.nwk",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 10
     },
     "edge-duplicate-labels": {
       "label": "Duplicate tip labels (9 tips)",
       "path": "rich/edge-cases/duplicate-tip-labels.nwk",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 16
     },
     "rich-hcv-19": {
       "label": "HCV 2k IQ-TREE (19 tips, nucleotide alignment)",
       "path": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre",
       "format": "nexus",
-      "fasta": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext.fasta.gz"
+      "fasta": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext.fasta.gz",
+      "nodes": 36
     },
     "rich-ens-protein-54": {
       "label": "Ensembl protein family (54 tips, protein alignment)",
       "path": "rich/ens-protein-54/tree.nwk",
       "format": "newick",
-      "fasta": "rich/ens-protein-54/alignment.fa"
+      "fasta": "rich/ens-protein-54/alignment.fa",
+      "nodes": 107
     },
     "rich-fish-carangaria-135": {
       "label": "Carangaria MCC (135 tips, dated)",
       "path": "rich/fish-carangaria-mcc/Carangaria-MCC.tre",
-      "format": "nexus"
+      "format": "nexus",
+      "nodes": 269
     },
     "rich-ens-protein-197": {
       "label": "Ensembl protein family (197 tips, protein alignment)",
       "path": "rich/ens-protein-197/tree.nwk",
       "format": "newick",
-      "fasta": "rich/ens-protein-197/alignment.fa.gz"
+      "fasta": "rich/ens-protein-197/alignment.fa.gz",
+      "nodes": 393
     }
   },
   "with GBIF data (a 200-tip match sample)": {
@@ -39,25 +45,29 @@
       "label": "European butterflies (496 tips, dated)",
       "path": "rich/butterflies-europe-496/Butterflies_Europe_phylogeny_dated.nwk.txt",
       "format": "newick",
-      "meta": "rich/butterflies-europe-496/gbif_match_sample.tsv"
+      "meta": "rich/butterflies-europe-496/gbif_match_sample.tsv",
+      "nodes": 991
     },
     "rich-corvoid-680": {
       "label": "Corvoid birds MCC (680 tips)",
       "path": "rich/corvoid-mcc-680/CC_MCC.tre.gz",
       "format": "nexus",
-      "meta": "rich/corvoid-mcc-680/gbif_match_sample.tsv"
+      "meta": "rich/corvoid-mcc-680/gbif_match_sample.tsv",
+      "nodes": 1359
     },
     "rich-fish-rabosky-1057": {
       "label": "Fishes, Rabosky (1,057 tips, dated)",
       "path": "rich/fish-rabosky-1057/Rabosky1057.tre",
       "format": "newick",
-      "meta": "rich/fish-rabosky-1057/gbif_match_sample.tsv"
+      "meta": "rich/fish-rabosky-1057/gbif_match_sample.tsv",
+      "nodes": 2113
     },
     "rich-mammals-4071": {
       "label": "Mammals (4,071 tips, dated)",
       "path": "rich/mammals-4071/mammals.tree",
       "format": "newick",
-      "meta": "rich/mammals-4071/gbif_match_sample.tsv"
+      "meta": "rich/mammals-4071/gbif_match_sample.tsv",
+      "nodes": 8141
     }
   },
   "synthetic": {
@@ -66,62 +76,73 @@
       "path": "synthetic/newick/yule_1000_support.nwk",
       "format": "newick",
       "meta": "synthetic/meta/yule_1000.meta.tsv",
-      "fasta": "synthetic/align/yule_1000.fasta"
+      "fasta": "synthetic/align/yule_1000.fasta",
+      "nodes": 1999
     },
     "syn-yule-1000-bootstrap": {
       "label": "Yule (1,000 tips, support 0 to 100)",
       "path": "synthetic/newick/yule_1000_bootstrap.nwk",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 1999
     },
     "syn-yule-10000": {
       "label": "Yule (10,000 tips, support, traits)",
       "path": "synthetic/newick/yule_10000_support.nwk.gz",
       "format": "newick",
-      "meta": "synthetic/meta/yule_10000.meta.tsv"
+      "meta": "synthetic/meta/yule_10000.meta.tsv",
+      "nodes": 19999
     },
     "syn-caterpillar-10000": {
       "label": "Caterpillar (10,000 tips, support)",
       "path": "synthetic/newick/caterpillar_10000_support.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 19999
     },
     "syn-polytomy-22800": {
       "label": "Polytomies (22,800 tips, support)",
       "path": "synthetic/newick/polytomy_mixed_22800_support.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 37600
     }
   },
   "large": {
     "otl-10k-amphibia": {
       "label": "Open Tree, Amphibia (10k tips)",
       "path": "real-ladder/trees/otl-10k-amphibia.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 14874
     },
     "gtdb-10k-archaea": {
       "label": "GTDB Archaea (10k tips)",
       "path": "real-ladder/trees/gtdb-10k-archaea.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 20243
     },
     "otl-100k-vertebrata": {
       "label": "Open Tree, Vertebrata (91k tips)",
       "path": "real-ladder/trees/otl-100k-vertebrata.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 138646
     },
     "gtdb-190k-bacteria": {
       "label": "GTDB Bacteria (190k tips)",
       "path": "real-ladder/trees/gtdb-190k-bacteria.nwk.gz",
-      "format": "newick"
+      "format": "newick",
+      "nodes": 379601
     },
     "otl-1m-metazoa": {
       "label": "Open Tree, Metazoa (1.49M tips, 15 MB)",
       "path": "real-ladder/fetched/otl-1m-metazoa.nwk.gz",
       "format": "newick",
-      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-1m-metazoa.nwk.gz"
+      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-1m-metazoa.nwk.gz",
+      "nodes": 1717413
     },
     "otl-2m-full": {
       "label": "Open Tree, all life (2.39M tips, 24 MB)",
       "path": "real-ladder/fetched/otl-2m-full.nwk.gz",
       "format": "newick",
-      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-2m-full.nwk.gz"
+      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-2m-full.nwk.gz",
+      "nodes": 2725682
     }
   }
 }

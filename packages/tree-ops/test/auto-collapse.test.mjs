@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { autoCollapse, subtree } from '../src/index.ts';
+import { autoCollapse, mergeAutoCollapse, splitInternalLabel, subtree } from '../src/index.ts';
 import { parseNewick, TreeModel } from '@gbif-phylo/io'; // fixtures: text -> TreeInput
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
@@ -28,15 +28,15 @@ function rowsOf(t, collapsed, root = 0) {
   return rows;
 }
 
-/** The same greedy, written the slow and obvious way: sort the collapsed clades at every step. */
-function reference(t, maxRows, root = 0, minTips = 1) {
+/** The same greedy, written the slow and obvious way: sort the collapsed clades at every step. `unnamed(v)`: opens before any named clade. */
+function reference(t, maxRows, root = 0, minTips = 1, unnamed = () => false) {
   if (t.childCount[root] === 0 || size(t, root) <= maxRows) return [];
   const whole = (c) => t.childCount[c] === 0 || size(t, c) < minTips;
   let open = [root];
   const out = [];
   let rows = 1;
   while (open.length) {
-    open.sort((a, b) => size(t, b) - size(t, a) || a - b);
+    open.sort((a, b) => unnamed(b) - unnamed(a) || size(t, b) - size(t, a) || a - b);
     const v = open.shift();
     let next = rows - 1;
     const kids = [];
@@ -178,4 +178,103 @@ test('autoCollapse on 2.4M tips at maxRows 50 takes milliseconds', () => {
   const ms = performance.now() - t0;
   assert.ok(rowsOf(t, ids) <= 50 && rowsOf(t, ids) >= 45);
   assert.ok(ms < 20, `took ${ms.toFixed(2)} ms`);
+});
+
+test('mergeAutoCollapse: expand a collapsed clade in place, its largest subclades open within the budget, the rest kept', () => {
+  const t = readTree('real-ladder/trees/otl-10k-amphibia.nwk.gz');
+  const top = autoCollapse(t, { maxRows: 50 });
+  // the largest collapsed clade of the overview whose children fit in 20 rows, and one more to keep
+  const big = top.filter((v) => autoCollapse(t, { root: v, maxRows: 20 })[0] !== v).reduce((a, b) => (size(t, b) > size(t, a) ? b : a));
+  const other = top.find((v) => v !== big);
+  const merged = mergeAutoCollapse(t, top, { root: big, maxRows: 20 });
+  assert.ok(!merged.includes(big), 'the clade is open');
+  assert.ok(merged.includes(other), 'a collapsed clade outside it stays collapsed');
+  const inside = merged.filter((v) => v >= big && v < t.subtreeEnd[big]);
+  assert.deepEqual(inside, autoCollapse(t, { root: big, maxRows: 20 }), 'inside it: its own overview');
+  checkResult(t, inside, 20, big);
+  assert.equal(rowsOf(t, merged), rowsOf(t, top) - 1 + rowsOf(t, inside, big), 'the clade adds its rows, the others stay');
+  assert.deepEqual(
+    merged,
+    [...merged].sort((a, b) => a - b),
+    'in preorder',
+  );
+  assert.equal(new Set(merged).size, merged.length, 'no duplicates');
+  assert.deepEqual(top, autoCollapse(t, { maxRows: 50 }), 'the input is not changed');
+});
+
+test('mergeAutoCollapse replaces the collapsed clades inside the clade, and a wide polytomy gets one row per child', () => {
+  // L = (a,b), R = ((c,d),(e,(f,g))); R1 = (c,d), R2 = (e,(f,g)), FG = (f,g)
+  const t = new TreeModel(parseNewick('((a,b),((c,d),(e,(f,g))));'));
+  const mrca = (...l) => t.mrcaOf(l.map((x) => t.tipIndex(x)));
+  const [L, R, R1, R2, FG] = [mrca('a', 'b'), mrca('c', 'g'), mrca('c', 'd'), mrca('e', 'g'), mrca('f', 'g')];
+  assert.deepEqual(mergeAutoCollapse(t, [L, R1, FG], { root: R, maxRows: 2 }), [L, R1, R2], 'R1 and FG replaced by R’s overview');
+  assert.deepEqual(mergeAutoCollapse(t, [L, R], { root: R, maxRows: 10 }), [L], 'R fits open: only L stays');
+  assert.deepEqual(mergeAutoCollapse(t, [L, R], { maxRows: 3 }), [L, R1, R2], 'the whole tree by default');
+  // a clade whose children don't fit: each child that is a clade is collapsed, not the clade itself
+  const star = '(' + Array.from({ length: 30 }, (_, i) => `(s${i}a,s${i}b)`).join(',') + ',x)';
+  const w = new TreeModel(parseNewick(`(${star},y);`));
+  const S = w.mrcaOf([w.tipIndex('s0a'), w.tipIndex('x')]);
+  const merged = mergeAutoCollapse(w, [S], { root: S, maxRows: 20 });
+  assert.equal(merged.length, 30);
+  assert.ok(merged.every((v) => w.parent[v] === S && w.childCount[v] === 2));
+  // minTips: a child clade smaller than it is left open there too
+  const m = new TreeModel(parseNewick(`((${Array.from({ length: 30 }, (_, i) => `(p${i},q${i})`).join(',')},(u,v,w)),z);`));
+  const P = m.mrcaOf([m.tipIndex('p0'), m.tipIndex('u')]);
+  const U = m.mrcaOf([m.tipIndex('u'), m.tipIndex('w')]);
+  assert.deepEqual(mergeAutoCollapse(m, [P], { root: P, maxRows: 20, minTips: 3 }), [U]);
+});
+
+// ---------------------------------------------------------------- by: 'named' (an experiment, #57)
+
+/** Open Tree's synthetic clade names ('mrcaott99343ott3606205') are no name; the rest as splitInternalLabel says. */
+const OTL_SYNTHETIC = /^mrcaott\d+ott\d+$/;
+const namedBy = (t) => (v) => {
+  const n = splitInternalLabel(t.labels[v]).name;
+  return n !== '' && !OTL_SYNTHETIC.test(n);
+};
+
+test("autoCollapse by: 'named' opens unnamed clades before named ones, whatever their size; the largest first in each", () => {
+  // A (named, 6 tips) = A1 + A2 (3 tips each); B (unnamed, 4 tips, only a support value) = (b1,b2) + (b3,b4)
+  const t = new TreeModel(parseNewick('(((a1,a2,a3)A1,(a4,a5,a6)A2)A,((b1,b2),(b3,b4))95);'));
+  const mrca = (...l) => t.mrcaOf(l.map((x) => t.tipIndex(x)));
+  const [A1, A2, A, B, B1, B2] = [mrca('a1', 'a3'), mrca('a4', 'a6'), mrca('a1', 'a6'), mrca('b1', 'b4'), mrca('b1', 'b2'), mrca('b3', 'b4')];
+  assert.deepEqual(autoCollapse(t, { maxRows: 3 }), [A1, A2, B], 'by size: A (6 tips) opens');
+  assert.deepEqual(autoCollapse(t, { maxRows: 3, by: 'named' }), [A, B1, B2], 'by name: B (unnamed) opens first, A stays a row');
+  assert.deepEqual(autoCollapse(t, { maxRows: 3, by: 'size' }), autoCollapse(t, { maxRows: 3 }), "'size' is the default");
+  // the app's rule decides what is named: with every node named it is by size again
+  assert.deepEqual(autoCollapse(t, { maxRows: 3, by: 'named', isNamed: () => true }), [A1, A2, B]);
+  // and the budget still holds when the unnamed clade's children don't fit
+  assert.deepEqual(autoCollapse(t, { maxRows: 2, by: 'named' }), [A, B]);
+});
+
+test("autoCollapse by: 'named' on GTDB (taxa on some nodes) and OTL (mrcaott… is no name): within the budget, the same as the greedy", () => {
+  for (const p of TREES) {
+    const t = readTree(p);
+    const isNamed = namedBy(t);
+    const unnamed = (v) => (isNamed(v) ? 0 : 1);
+    for (const maxRows of [1, 3, 50, 200]) {
+      const ids = autoCollapse(t, { maxRows, by: 'named', isNamed });
+      checkResult(t, ids, maxRows);
+      assert.deepEqual(ids, reference(t, maxRows, 0, 1, unnamed), `${p} maxRows ${maxRows}`);
+    }
+    // no names at all: the same as by size
+    assert.deepEqual(autoCollapse(t, { maxRows: 50, by: 'named', isNamed: () => false }), autoCollapse(t, { maxRows: 50 }), `${p}: no names`);
+  }
+});
+
+test("autoCollapse by: 'named' without isNamed reads the labels: support values are no name", () => {
+  const t = readTree('real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz');
+  const byLabel = (v) => splitInternalLabel(t.labels[v]).name !== '';
+  assert.deepEqual(autoCollapse(t, { maxRows: 50, by: 'named' }), autoCollapse(t, { maxRows: 50, by: 'named', isNamed: byLabel }));
+  // a tree whose internal labels are support values only: the same as by size
+  const s = new TreeModel(parseNewick('(((a,b)90,(c,d)80)70,((e,f)60,g)50);'));
+  for (const maxRows of [2, 3, 4, 5]) assert.deepEqual(autoCollapse(s, { maxRows, by: 'named' }), autoCollapse(s, { maxRows }));
+  assert.throws(() => autoCollapse(s, { maxRows: 3, by: 'name' }), RangeError);
+});
+
+test("mergeAutoCollapse passes by: 'named' on", () => {
+  const t = new TreeModel(parseNewick('((((a1,a2,a3)A1,(a4,a5,a6)A2)A,((b1,b2),(b3,b4))95)X,z);'));
+  const X = t.mrcaOf([t.tipIndex('a1'), t.tipIndex('b4')]);
+  assert.deepEqual(mergeAutoCollapse(t, [X], { root: X, maxRows: 3, by: 'named' }), autoCollapse(t, { root: X, maxRows: 3, by: 'named' }));
+  assert.notDeepEqual(mergeAutoCollapse(t, [X], { root: X, maxRows: 3, by: 'named' }), mergeAutoCollapse(t, [X], { root: X, maxRows: 3 }));
 });

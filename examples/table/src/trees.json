@@ -1,0 +1,31 @@
+{
+  "trees": {
+    "ens-protein-54": {
+      "label": "Ensembl protein family, Murinae (54 tips, protein alignment, members)",
+      "path": "rich/ens-protein-54/tree.nwk",
+      "format": "newick",
+      "fasta": "rich/ens-protein-54/alignment.fa",
+      "meta": "rich/ens-protein-54/members.tsv",
+      "source": "ensembl"
+    },
+    "hcv-19": {
+      "label": "HCV 2k IQ-TREE (19 tips, nucleotide alignment)",
+      "path": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext_IQTree_midpoint.tre",
+      "format": "nexus",
+      "fasta": "rich/hcv-2k-iqtree-alignment/2k1b_2k_ext.fasta.gz",
+      "source": "hcv"
+    },
+    "otl-canidae-200": {
+      "label": "Open Tree, Canidae (211 tips, no lengths)",
+      "path": "real-ladder/trees/otl-0200-canidae.nwk.gz",
+      "format": "newick",
+      "source": "otl"
+    },
+    "otl-testudines-1k": {
+      "label": "Open Tree, Testudines (888 tips, no lengths)",
+      "path": "real-ladder/trees/otl-1k-testudines.nwk.gz",
+      "format": "newick",
+      "source": "otl"
+    }
+  }
+}
