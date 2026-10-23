@@ -718,12 +718,9 @@ export function Explorer({
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
     const trueRoot = v === 0;
-    const tips = tree.tipCountOf(v).toLocaleString('en');
-    const what = isTip ? 'tip' : 'clade';
     const info: NodeMenuItem = {
       id: 'info',
       label: 'Info',
-      hint: 'branch length, root distance, depth, support',
       onSelect: () => {
         setSelected(v);
         setInfoOpen(true);
@@ -732,53 +729,47 @@ export function Explorer({
     const expand: NodeMenuItem = {
       id: 'expand',
       label: 'Expand',
-      hint: `show its ${tips} tips again`,
       onSelect: () => setCollapsed((cs) => cs.filter((c) => c !== v)),
     };
     const collapse: NodeMenuItem = {
       id: 'collapse',
       label: 'Collapse',
-      hint: `draw its ${tips} tips as one triangle`,
       onSelect: () => setCollapsed((cs) => [...cs, v]),
     };
     const only: NodeMenuItem = {
       id: 'subtree',
-      label: 'Show only this clade',
-      hint: `${tips} tips; Back or Up one level return`,
+      label: 'Show only',
       onSelect: () => navigate(ops.focusOn(tree, focus, v)),
     };
     const reroot: NodeMenuItem = {
       id: 'reroot',
       label: 'Reroot here',
-      hint: `root on the branch above this ${what}`,
       onSelect: () => apply((t) => ops.reroot(t, v), 'Reroot'),
     };
     const flip: NodeMenuItem = {
       id: 'flip',
       label: 'Flip',
-      hint: 'reverse the order of its branches',
       onSelect: () => apply((t) => ops.rotate(t, v), 'Flip'),
     };
     const swap: NodeMenuItem = {
       id: 'swap',
       label: 'Swap with…',
-      hint: 'then click a sibling branch',
       disabled: tree.childCount[tree.parent[v]] < 2,
       onSelect: () => {
         setMode('swap');
         setSwapFirst(v);
+        flash('Now click a sibling branch to swap with'); // what the item's label leaves out
       },
     };
     const colour: NodeMenuItem = {
       id: 'colour',
       label: 'Colour…',
-      hint: `pick a colour for this ${what}`,
       onSelect: (ev) => {
         const r = outer.current?.getBoundingClientRect();
         setPick({ node: v, x: r ? ev.clientX - r.left : 16, y: r ? ev.clientY - r.top : 92 });
       },
     };
-    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick of this clade', hint: `${tips} tips`, onSelect: () => copyNewick(v) };
+    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick', onSelect: () => copyNewick(v) };
     if (isCollapsed) return [expand, info, only, colour];
     // inside a clade shown alone a reroot would split it (REROOT_IN_FOCUS): the menu leaves it out there
     const canReroot = !ops.canGoUp(focus) || shownRoot;
@@ -789,10 +780,9 @@ export function Explorer({
       items.push({
         id: 'up',
         label: 'Up one level',
-        hint: 'show the clade that contains this one',
         onSelect: () => navigate(ops.focusUp(tree, focus)),
       });
-      items.push({ id: 'back', label: 'Back', hint: 'to the view before', onSelect: () => navigate(ops.focusBack(focus)) });
+      items.push({ id: 'back', label: 'Back', onSelect: () => navigate(ops.focusBack(focus)) });
     }
     items.push(info);
     if (trueRoot) return [...items, flip, colour];

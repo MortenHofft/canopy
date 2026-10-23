@@ -424,17 +424,38 @@ ok(
 await page.locator('.ex-info-head button').click();
 await ev(() => __v().setSelected(null));
 ok((await page.locator('.ex-info').count()) === 0, 'closing the inspector');
-// a clade: Info, Collapse, Show only this clade, Reroot here, Flip, Swap with…, Colour…, Copy Newick of this clade
+// a clade: Info, Collapse, Show only, Reroot here, Flip, Swap with…, Colour…, Copy Newick
 const rows = () => ev(() => __v().layout.rows);
 const before = await rows();
 const tips = await ev(() => __v().getTree().tipCount);
 const c1 = await ev(() => __clade(4, 10));
 await openMenu(c1);
 ok(
-  (await menuItems()).join('|') === 'Info|Collapse|Show only this clade|Reroot here|Flip|Swap with…|Colour…|Copy Newick of this clade',
+  (await menuItems()).join('|') === 'Info|Collapse|Show only|Reroot here|Flip|Swap with…|Colour…|Copy Newick',
   `a clade's menu: ${(await menuItems()).join(' | ')}`,
 );
 ok((await rows()) === before, 'a plain click on a clade collapses nothing (it opens the menu)');
+// one line per item, no descriptions; a header with the name, a close button and a line under it (#68)
+ok(
+  (await menu.locator('.phylo-node-menu__hint').count()) === 0 &&
+    (await menu.locator('.phylo-node-menu__item').allInnerTexts()).every((t) => !t.trim().includes('\n')),
+  'the menu items are single lines, with no descriptions',
+);
+{
+  const head = await ev(() => {
+    const h = document.querySelector('.phylo-node-menu__head');
+    const s = getComputedStyle(h);
+    return {
+      title: h.querySelector('.phylo-node-menu__title')?.textContent,
+      close: h.querySelectorAll('.phylo-node-menu__close').length,
+      line: s.borderBottomWidth,
+    };
+  });
+  ok(
+    head.title === `Clade, ${c1.tips} tips` && head.close === 1 && head.line === '1px',
+    `the menu header: name, close button, a line under it (${JSON.stringify(head)})`,
+  );
+}
 // the node the menu is for keeps a ring while the pointer is in the menu (#65): it is selected, and the selection ring stays
 {
   const item = await menu.locator('.phylo-node-menu__item').nth(2).boundingBox();
@@ -449,6 +470,17 @@ ok((await rows()) === before, 'a plain click on a clade collapses nothing (it op
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 ok((await menu.count()) === 0 && (await rows()) === before, 'Escape closes the menu');
+await openMenu(c1);
+await menu.locator('.phylo-node-menu__close').click();
+await page.waitForTimeout(150);
+ok(
+  (await menu.count()) === 0 && (await rows()) === before && (await page.locator('.ex-info').count()) === 0,
+  'the close button closes the menu, and does nothing else',
+);
+await openMenu(c1);
+await page.mouse.click(8, 8);
+await page.waitForTimeout(150);
+ok((await menu.count()) === 0 && (await rows()) === before, 'a click outside closes the menu');
 // the keyboard: the tree's cursor and Enter open the same menu
 await page.locator('.phylo-tree').focus();
 await page.keyboard.press('ArrowDown');
@@ -468,9 +500,9 @@ const tri = await ev((n) => {
   return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
 }, c1.node);
 ok(tri !== null, 'the collapsed clade is one triangle with the id of the clade');
-// a collapsed clade: Expand, Info, Show only this clade, Colour…
+// a collapsed clade: Expand, Info, Show only, Colour…
 await openMenu(tri);
-ok((await menuItems()).join('|') === 'Expand|Info|Show only this clade|Colour…', `a collapsed clade's menu: ${(await menuItems()).join(' | ')}`);
+ok((await menuItems()).join('|') === 'Expand|Info|Show only|Colour…', `a collapsed clade's menu: ${(await menuItems()).join(' | ')}`);
 await act('expand');
 ok((await rows()) === before && (await btn('Expand all').count()) === 0, 'Expand in the menu opens it again');
 await collapseAt(await ev(() => __clade(4, 10)));
@@ -518,6 +550,7 @@ await page.waitForTimeout(150);
     (await page.locator('.ex-tool.active', { hasText: 'Swap' }).count()) === 1 && (await page.locator('.ex-steps .done').count()) === 1,
     'Swap with… starts Swap mode with step 1 done',
   );
+  ok((await toast()).includes('click a sibling'), `and says what to do next, which the item no longer does (${await toast()})`);
   // the first pick keeps its mark (#65) while the pointer goes to the second, whose hover ring shows too
   await page.mouse.move(pr[1].x, pr[1].y, { steps: 6 });
   await page.waitForTimeout(250);
@@ -549,7 +582,7 @@ await openMenu(await ev(() => __clade(4, 10)));
 await act('colour');
 await page.locator('.ex-palette .ex-erase').click();
 ok((await ev(() => __v().getClades().length)) === 0, 'Erase in it removes the colour');
-// Copy Newick of this clade
+// Copy Newick
 await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 await openMenu(await ev(() => __clade(4, 10)));
 await act('copy');
@@ -1392,6 +1425,77 @@ console.log('Copy Newick without navigator.clipboard');
     had: window.__focusBefore?.tagName,
   }));
   ok(back.same && back.tag !== 'BODY', `the keyboard focus returns to the element that had it (${back.had})`);
+}
+
+// every popover has the one corner rounding of --ex-popover-radius, and what is inside one a smaller one from it (#68); the node menu
+// is styled as the inspector: the same panel and header
+console.log('one popover radius, the node menu styled as the inspector');
+{
+  await open('rich-fish-carangaria-135');
+  const radius = (sel) => ev((q) => (document.querySelector(q) ? getComputedStyle(document.querySelector(q)).borderTopLeftRadius : null), sel);
+  const r = {};
+  const items = {};
+  const c = await ev(() => __clade(4, 10));
+  await page.mouse.move(c.x, c.y, { steps: 3 });
+  await page.locator('.ex-tip').waitFor({ timeout: 3000 });
+  r['hover box'] = await radius('.ex-tip');
+  await openMenu(c);
+  await act('info');
+  await openMenu(c);
+  r.inspector = await radius('.ex-info');
+  r['node menu'] = await radius('.phylo-node-menu');
+  items['node menu item'] = await radius('.phylo-node-menu__item');
+  items['node menu close'] = await radius('.phylo-node-menu__close');
+  items['inspector close'] = await radius('.ex-info-head button');
+  const look = await ev(() => {
+    const pick = (q, props) => {
+      const s = getComputedStyle(document.querySelector(q));
+      return props.map((k) => s[k]).join(' ; ');
+    };
+    const panel = ['backgroundColor', 'borderTopColor', 'borderTopWidth', 'boxShadow'];
+    const head = ['paddingTop', 'paddingLeft', 'borderBottomWidth', 'borderBottomColor'];
+    const title = ['fontFamily', 'fontSize', 'fontWeight', 'color'];
+    return {
+      panel: [pick('.ex-info', panel), pick('.phylo-node-menu', panel)],
+      head: [pick('.ex-info-head', head), pick('.phylo-node-menu__head', head)],
+      title: [pick('.ex-info-name', title), pick('.phylo-node-menu__title', title)],
+    };
+  });
+  for (const [k, [a, b]] of Object.entries(look)) ok(a === b, `the node menu's ${k} looks like the inspector's (${b})`);
+  // a different radius reaches every popover open now
+  await ev(() => document.documentElement.style.setProperty('--ex-popover-radius', '4px'));
+  const changed = [await radius('.ex-info'), await radius('.phylo-node-menu'), await radius('.phylo-node-menu__item')];
+  await ev(() => document.documentElement.style.removeProperty('--ex-popover-radius'));
+  ok(changed.join(',') === '4px,4px,2.4px', `--ex-popover-radius changes the popovers and their items (${changed.join(', ')})`);
+  await page.keyboard.press('Escape'); // the menu, and the inspector with it
+  await page.waitForTimeout(150);
+  if (await page.locator('.ex-info').count()) await page.locator('.ex-info-head button').click();
+  await openMenu(c);
+  await act('colour');
+  r.palette = await radius('.ex-palette');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  await openMenu(c);
+  await act('copy');
+  await page.locator('.ex-toast').waitFor({ timeout: 3000 });
+  r.toast = await radius('.ex-toast');
+  await page.locator('.ex-export button').first().click();
+  await page.locator('.ex-menu').waitFor({ timeout: 3000 });
+  r['toolbar menu'] = await radius('.ex-menu');
+  items['toolbar menu item'] = await radius('.ex-menu button');
+  await page.locator('.ex-export button').first().click();
+  await page.locator('button[aria-label="Search tips"]').click();
+  await page.locator('.ex-search').waitFor({ timeout: 3000 });
+  r.search = await radius('.ex-search');
+  items['search close'] = await radius('.ex-search-close');
+  await page.keyboard.press('Escape');
+  const one = new Set(Object.values(r));
+  ok(one.size === 1 && !one.has(null) && !one.has('0px'), `one radius for every popover (${JSON.stringify(r)})`);
+  const inner = new Set(Object.values(items));
+  ok(
+    inner.size === 1 && parseFloat([...inner][0]) < parseFloat([...one][0]) && parseFloat([...inner][0]) > 0,
+    `a smaller one for what is inside them (${JSON.stringify(items)})`,
+  );
 }
 
 // the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
