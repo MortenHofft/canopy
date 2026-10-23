@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unrooted layout spike</title>
+    <style>
+      :root {
+        --phylo-background: #ffffff;
+        --phylo-foreground: #1f2937;
+        --phylo-branch: #4b5563;
+        --phylo-muted: #6b7280;
+      }
+      body { margin: 0; font: 13px system-ui, sans-serif; background: var(--phylo-background); color: var(--phylo-foreground); }
+      #info { padding: 8px 12px; font: 12px ui-monospace, monospace; color: var(--phylo-muted); }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="info">loading</div>
+    <canvas id="c"></canvas>
+    <script type="module" src="/src/unrooted.ts"></script>
+  </body>
+</html>
