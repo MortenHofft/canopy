@@ -95,9 +95,6 @@ export class DrawList {
 }
 
 /** Hash set of pixel-cell keys with O(1) reset (generation stamps). */
-/** What `cell` returns for a coordinate outside the cells; negative whatever kind * 8192 is added to it. */
-export const OUT_OF_CELLS = -(1 << 20);
-
 export class Seen {
   private k1 = new Float64Array(1 << 19);
   private k2 = new Int32Array(1 << 19);
@@ -115,7 +112,6 @@ export class Seen {
   /** true if the key was new (and is now recorded), false if already present. */
   add(a: number, b: number, c: number, d: number, e: number): boolean {
     if (this.n > 380000) return true; // table nearly full: stop deduplicating rather than loop
-    if (a < 0 || b < 0 || c < 0 || d < 0 || e < 0) return true; // a coordinate beyond the cells (OUT_OF_CELLS): the position is not known, nothing to merge on
     const key1 = (a * 8192 + b) * 8192 + c;
     const key2 = d * 8192 + e;
     const lo = key1 % 4294967296;
@@ -574,7 +570,20 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       let e = 0;
       if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * da * ri));
       else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(arc));
-      emit = seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
+      const ux = ri * ca * fq - ou,
+        uy = ri * sa * fq - ov,
+        vx = rp * ca * fq - ou,
+        vy = rp * sa * fq - ov;
+      if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
+        emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
+      else {
+        // an end beyond the cells (a deep zoom: the node and its parent are thousands of px away, only the rim is in view): key the
+        // part of the ray that is inside them, the fan out to the clade's rim for a summary (#111), not a clamped point. A connector
+        // (K_NODE) whose ray misses the cells keeps its clamped key: what is in view of it is its arc, not its ray.
+        const hit = clipRay(rp * fq, (kind === K_SUMMARY ? XMAX[i] * k : ri) * fq, ca, sa, ou, ov);
+        if (hit || kind !== K_NODE) emit = seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + kind * 8192, e);
+        else emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
+      }
     }
     if (emit) {
       if (out.count >= budget) {
@@ -600,14 +609,55 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
 }
 
 const HALF_PI = Math.PI / 2;
-/** Dedupe cell of a pixel (or scaled tree-space) coordinate: offset so small negatives stay distinct, in the 13 bits Seen.add packs.
- *  A coordinate outside them is OUT_OF_CELLS, which makes Seen.add report the key as new: clamping it instead put every far point
- *  of a deep zoom in the same cell, and primitives a whole row apart were merged (#111).
+/** Dedupe cell of a pixel (or scaled tree-space) coordinate: offset so small negatives stay distinct, clamped to the 13 bits Seen.add packs.
  *  Defined here, not imported, in the module of the loops that call it per node: measured 10-25% slower on a polytomy when imported. */
 export const cell = (v: number): number => {
   const c = Math.floor(v) + 1024;
-  return c < 0 || c > 8191 ? OUT_OF_CELLS : c;
+  return c < 0 ? 0 : c > 8191 ? 8191 : c;
 };
+/** The cells a coordinate has: floor(v) + 1024 in 0..8191, so v in CELL_LO..CELL_HI. */
+export const CELL_LO = -1024;
+export const CELL_HI = 7168;
+/** The key of clipRay: the cells of the far end x, y and the near end x, y. */
+export const CLIP = new Int32Array(4);
+/** The dedupe key of the ray segment from scaled radius `s0` to `s1` (s0 <= s1) in direction (ca, sa), seen from the window anchor (ou, ov):
+ *  the cells of the part of it inside the cells (CELL_LO..CELL_HI on both axes), far end first, left in CLIP. A segment that misses the
+ *  cells entirely is nowhere near the window and gets the key of its ring (see below), one shared key for all that are far from it too. Clamping the ends instead put every far node in the same
+ *  cell and merged primitives a whole row apart (#111); not deduping them (the first fix) emitted every node of a comb at a deep zoom. */
+export function clipRay(s0: number, s1: number, ca: number, sa: number, ou: number, ov: number): boolean {
+  let a = s0,
+    b = s1;
+  for (let ax = 0; ax < 2; ax++) {
+    const c = ax === 0 ? ca : sa,
+      o = ax === 0 ? ou : ov;
+    if (c > -1e-12 && c < 1e-12) {
+      if (-o < CELL_LO || -o >= CELL_HI) a = b + 1; // parallel to the axis and outside the cells
+      continue;
+    }
+    let t0 = (CELL_LO + o) / c,
+      t1 = (CELL_HI + o) / c;
+    if (t0 > t1) {
+      const t = t0;
+      t0 = t1;
+      t1 = t;
+    }
+    if (t0 > a) a = t0;
+    if (t1 < b) b = t1;
+  }
+  if (a > b) {
+    // the ray is nowhere near the window, but what hangs on it may be: a node's connector arc is a circle around the root, and it is
+    // in view when its radius is the window's (a ring: keyed by how far its radius is from the window centre's, in the cells), so
+    // the rays that miss the cells share a key only when no ring of theirs is near either
+    CLIP[0] = cell(s1 - Math.sqrt(ou * ou + ov * ov));
+    CLIP[1] = CLIP[2] = CLIP[3] = 0;
+    return false;
+  }
+  CLIP[0] = cell(b * ca - ou);
+  CLIP[1] = cell(b * sa - ov);
+  CLIP[2] = cell(a * ca - ou);
+  CLIP[3] = cell(a * sa - ov);
+  return true;
+}
 const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
 const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
 // passes of one search: enough rungs (1.15^99, about a million times the base) for a cold first frame (no hint) of a radial view zoomed
