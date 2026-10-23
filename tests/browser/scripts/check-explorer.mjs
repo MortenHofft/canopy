@@ -2245,6 +2245,34 @@ for (const [id, tipsWanted] of [
   const ms = await loadVia('otl-100k-vertebrata');
   const n = await tipCount();
   ok(n > 90000 && (await page.locator('.ex-note').count()) === 0, `otl-100k-vertebrata: ${n} tips (${ms} ms), `);
+  // zoomed to rows of 20 px, the explorer's minCladePx 14 draws the same tips as the library's 3: the cherry of near-identical
+  // Ochotona princeps subspecies and the single tip under Tribosphenomys keep their rows (#87)
+  const tipsAt20 = await ev(() => {
+    const v = __v();
+    const t = v.getTree();
+    const rank = t.tipLabels.findIndex((l) => l.startsWith('Ochotona_princeps_saxatilis'));
+    if (rank < 0) return null;
+    const counts = [];
+    for (const minCladePx of [14, 3]) {
+      v.setOptions({ minCladePx });
+      v.focusTip(rank, false);
+      v.renderNow();
+      const q = v.nodePosition(t.tipNode[rank]);
+      v.zoomBy(1, 20.5 / v.getStats().ky, q.x, q.y);
+      v.renderNow();
+      const s = v.getStats();
+      counts.push({ minCladePx, rowPx: s.ky, tips: s.tips, summaries: s.summaries });
+    }
+    v.setOptions({ minCladePx: 14 });
+    v.fit(false);
+    v.renderNow();
+    return counts;
+  });
+  ok(tipsAt20 !== null, 'the tip Ochotona princeps saxatilis is in the tree');
+  ok(
+    tipsAt20 !== null && tipsAt20.every((c) => c.rowPx >= 20 && c.summaries === 0) && tipsAt20[0].tips === tipsAt20[1].tips && tipsAt20[0].tips > 20,
+    `rows of 20 px: minCladePx 14 draws the tips minCladePx 3 does, no summaries (${JSON.stringify(tipsAt20)})`,
+  );
   await openMenu(
     await ev(() => {
       const t = __v().getTree();

@@ -1,11 +1,11 @@
 // Viewport cut: which nodes are drawn this frame, and how.
 //
 // The traversal is a single forward scan over the preorder arrays (no stack, no child lists): a node that is
-// culled (outside the viewport) or collapsed (a clade smaller than `minPx` in either direction, or one the app collapsed) is skipped
+// culled (outside the viewport) or collapsed (a clade whose rows are less than `minPx` tall, or one the app collapsed) is skipped
 // together with its whole subtree by jumping to subtreeEnd[i]. Cost is O(nodes visited), which is bounded by
 // the viewport for bushy trees, and the number of PRIMITIVES emitted is bounded by the draw budget:
-//   rule A/B  collapse a clade whose pixel height (radial: arc length at the tips) is < minPx, or whose width is
-//             < minPx while it is still shorter than 4*minPx (a tall thin comb keeps its rows, labels and links)
+//   rule A    collapse a clade whose pixel height (radial: arc length at the tips) is < minPx. Only the row direction counts: a clade
+//             of near-identical tips (tiny branch lengths) is narrow at any zoom, and its tips get their rows once they fit (#87)
 //   rule C    sub-pixel primitives that land on the same pixel cells as an earlier one are not emitted again
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
 //   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
@@ -280,8 +280,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     else if (sx > clipR + PAD) kind = K_STUB;
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a triangle whatever the zoom and the options, never opened
-    else if (lod && i > 0 && (yBot - yTop < minPx || (ox + XMAX[i] * kx - sx < minPx && yBot - yTop < 4 * minPx)))
-      kind = P.summaries ? K_SUMMARY : K_STUB;
+    else if (lod && i > 0 && yBot - yTop < minPx) kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -364,13 +363,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
       if (kind === K_SUMMARY) {
         summaries++;
         summaryTips += leafEnd[i] - leafStart[i];
-        if (
-          minPx > base &&
-          (stub === null || stub[i] === 0) &&
-          (collapsed === null || collapsed[i] === 0) &&
-          !(yBot - yTop < base || (ox + XMAX[i] * kx - sx < base && yBot - yTop < 4 * base))
-        )
-          forced++;
+        if (minPx > base && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0) && yBot - yTop >= base) forced++;
       } else if (kind === K_TIP) tips++;
     } else if (kind !== K_NODE) mergedTips += leafEnd[i] - leafStart[i];
     i = descend ? i + 1 : subtreeEnd[i];
@@ -503,8 +496,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a fan whatever the zoom and the options, never opened
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
-    else if (lod && i > 0 && (arc < minPx || (r1 - ri < minPx && arc < 4 * minPx) || (isSlice(tree, i) && arc < minPx * childCount[i])))
-      kind = P.summaries ? K_SUMMARY : K_STUB;
+    else if (lod && i > 0 && (arc < minPx || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -583,7 +575,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           minPx > base &&
           (stub === null || stub[i] === 0) &&
           (collapsed === null || collapsed[i] === 0) &&
-          !(arc < base || (r1 - ri < base && arc < 4 * base) || (isSlice(tree, i) && arc < base * childCount[i]))
+          !(arc < base || (isSlice(tree, i) && arc < base * childCount[i]))
         )
           forced++;
       } else if (kind === K_TIP) tips++;
@@ -602,6 +594,9 @@ export const cell = (v: number): number => {
 };
 const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
 const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
+// passes of one search: enough rungs (1.15^99, about a million times the base) for a cold first frame (no hint) of a radial view zoomed
+// into a comb, whose clades' arcs at the rim run to tens of thousands of px (#87); an overflowing pass stops at the budget, so they are cheap
+const MAX_PASSES = 100;
 
 export interface SearchOpts {
   lod: boolean;
@@ -641,14 +636,14 @@ export function searchCut(
   let passes = 1;
   if (o.lod && res.visited < 80000) {
     if (res.overflow) {
-      while (res.overflow && passes < 60) {
+      while (res.overflow && passes < MAX_PASSES) {
         n++;
         m = lvl(n);
         res = run(m);
         passes++;
       }
     } else {
-      while (n > 0 && passes < 60) {
+      while (n > 0 && passes < MAX_PASSES) {
         const r = run(lvl(n - 1));
         passes++;
         if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;

@@ -397,7 +397,7 @@ export interface ViewerOptions {
    *  At least 120 px. */
   treeWidth: TreeWidth;
   axis: boolean; // scale bar / time axis
-  minCladePx: number; // collapse clades smaller than this many pixels (either direction)
+  minCladePx: number; // collapse clades less than this many pixels tall (radial: arc at the tips); branch lengths do not count
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
   alignStyle: 'residues' | 'blocks';

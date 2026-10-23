@@ -428,7 +428,7 @@ test('radial: a fan with more than 256 rays in view draws every 2nd, 4th, ... ra
 test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary gets their tone', async () => {
   const sparse = `(${poly(10, 'p')}P,${poly(10, 'q')}Q)r;`;
   const m = await makeViewer(sparse, {
-    options: { layout: 'radial', minCladePx: 300 },
+    options: { layout: 'radial', minCladePx: 3000 },
     theme: THEME,
     size: [500, 500],
   });
@@ -574,7 +574,7 @@ test('rectangular: zooming a summary across the eight-gap limit keeps its darkne
 });
 
 test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {
-  const m = await make('radial', { minCladePx: 400 }, balanced(3), { theme: { summaryStripeGap: 24 } });
+  const m = await make('radial', { minCladePx: 4000 }, balanced(3), { theme: { summaryStripeGap: 24 } });
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 4, 'a clade of four tips: four rays');

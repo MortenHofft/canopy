@@ -1,5 +1,6 @@
 // Unit tests of the pieces of src/core/lod.ts the golden test does not reach directly: the dedupe set (Seen), the growing draw list
-// (DrawList) and the threshold search (searchCut) on a budget the tree overflows. The cut itself is pinned by cut-golden.test.mjs.
+// (DrawList), the threshold search (searchCut) on a budget the tree overflows and the collapse rule on a clade of near-zero branch
+// lengths (#87). The cut itself is pinned by cut-golden.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -181,12 +182,12 @@ test('searchCut: the previous threshold as a hint is kept (sticky), and a hint f
   assert.equal(loose.res.forced, 0);
 });
 
-test('searchCut: a budget nothing can meet climbs 59 rungs, reports the overflow, and still never writes past the budget', () => {
+test('searchCut: a budget nothing can meet climbs 99 rungs, reports the overflow, and still never writes past the budget', () => {
   const r = search(1);
   assert.equal(r.res.overflow, true);
-  assert.equal(r.retries, 59, 'passes are capped at 60');
+  assert.equal(r.retries, 99, 'passes are capped at 100');
   assert.ok(r.list.count <= 1);
-  assert.ok(r.minPx > 3 * STEP ** 50);
+  assert.ok(r.minPx > 3 * STEP ** 90);
   assert.ok(onLadder(r.minPx));
 });
 
@@ -202,4 +203,56 @@ test('searchCut: the caller-owned list holds the entries of the pass that was ke
   const r = search(150);
   assert.equal(r.res.summaries, Array.from({ length: r.list.count }, (_, e) => r.list.kind[e]).filter((k) => k === K_SUMMARY).length);
   assert.equal(r.res.tips, Array.from({ length: r.list.count }, (_, e) => r.list.kind[e]).filter((k) => k === K_TIP).length);
+});
+
+// ---- the collapse rule counts rows only (#87)
+
+// 128 tips whose first cherry has near-zero branch lengths: however far you zoom, it stays less than a pixel wide
+const NARROW = balanced(128).replace('(taaaaaaa:1,taaaaaab:1)', '(taaaaaaa:0.000001,taaaaaab:0.000001)');
+const narrowTree = new InMemorySource(parseNewick(NARROW)).snapshot();
+const narrowL = computeLayout(narrowTree, true);
+ensureTrig(narrowL);
+const cherry = narrowTree.parent[narrowTree.tipNode[0]];
+const kindsOf = (view, kind, base) => {
+  const p = projectionFor(narrowTree, narrowL, makeTransform(kind, W, H, view, area, 128));
+  const list = new DrawList();
+  searchCut(p, null, list, new Seen(), { lod: true, base, budget: 1_000_000, summaries: true, hint: 0 });
+  const of = (node) =>
+    Array.from({ length: list.count }, (_, e) => e)
+      .filter((e) => list.node[e] === node)
+      .map((e) => list.kind[e]);
+  return { cherry: of(cherry), a: of(narrowTree.tipNode[0]), b: of(narrowTree.tipNode[1]) };
+};
+
+test('a two-tip clade with near-zero branch lengths is not collapsed once its rows are taller than minCladePx', () => {
+  assert.ok(narrowTree.leafEnd[cherry] - narrowTree.leafStart[cherry] === 2 && narrowTree.length[narrowTree.tipNode[0]] < 1e-5);
+  // 20 px rows, minCladePx 14: the cherry is 40 px tall and well under a pixel wide
+  assert.deepEqual(kindsOf({ x0: 0, x1: 1, y0: 0, y1: 20 }, 'rectangular', 14), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
+  // 5 px rows: 10 px tall, under minCladePx, so it is a summary
+  assert.deepEqual(kindsOf({ x0: 0, x1: 1, y0: 0, y1: 80 }, 'rectangular', 14), { cherry: [K_SUMMARY], a: [], b: [] });
+});
+
+test('radial: a two-tip clade with near-zero branch lengths is not collapsed once its arc is longer than minCladePx', () => {
+  // radius 300 px over 128 tips: about 15 px of arc per tip, so the cherry's arc (about 29 px) is over 14 and under 4 * 14
+  assert.deepEqual(kindsOf({ x0: -1, x1: 1, y0: -1, y1: 1 }, 'radial', 14), { cherry: [K_NODE], a: [K_TIP], b: [K_TIP] });
+  assert.deepEqual(kindsOf({ x0: -1, x1: 1, y0: -1, y1: 1 }, 'radial', 40), { cherry: [K_SUMMARY], a: [], b: [] });
+});
+
+test('radial, cold search (no hint) zoomed 64 times into a 20k comb: the ladder climbs past 60 passes and the list fits the budget', () => {
+  // equal branches: the spine's clades are deep and their arcs at the rim run to tens of thousands of px, so the threshold that fits
+  // is about 6,000 times the base, more than 60 rungs up
+  let nwk = 't0:0.01';
+  for (let i = 1; i < 20000; i++) nwk = `(${nwk}:0.01,t${i}:0.01)`;
+  const comb = new InMemorySource(parseNewick(nwk + ';')).snapshot();
+  const cl = computeLayout(comb, true);
+  ensureTrig(cl);
+  const w = 2 / 64,
+    h = 1.5 / 64;
+  const a = { ax: 0, ay: 0, aw: 800, ah: 600, clipL: 0, clipT: 0, clipR: 800, clipB: 600 };
+  const p = projectionFor(comb, cl, makeTransform('radial', 800, 600, { x0: 0.6 - w / 2, x1: 0.6 + w / 2, y0: -h / 2, y1: h / 2 }, a, 20000));
+  const list = new DrawList();
+  const r = searchCut(p, null, list, new Seen(), { lod: true, base: 14, budget: 2000, summaries: true, hint: 0 });
+  assert.equal(r.res.overflow, false, `fits (${r.retries} retries, minPx ${r.minPx})`);
+  assert.ok(r.retries >= 60, `more than 60 passes: ${r.retries + 1}`);
+  assert.ok(list.count <= 2000);
 });

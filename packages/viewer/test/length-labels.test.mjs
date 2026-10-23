@@ -301,7 +301,7 @@ test('a stub cut by size, node in view: no length (with or without summaries)', 
 });
 
 test('radial: a stub never gets the rectangular stub-path label', async () => {
-  const m = await make({ layout: 'radial', showSummaries: false, minCladePx: 150 }, CUT);
+  const m = await make({ layout: 'radial', showSummaries: false, minCladePx: 1500 }, CUT);
   assert.deepEqual(
     frame(m).labels.map((l) => l.text),
     [],
