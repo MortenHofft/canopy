@@ -23,7 +23,7 @@ import { CULL_PAD_PX } from './constants.ts';
 import type { Layout } from './layout.ts';
 import { ensureTrig, fanTheta, sameFan } from './layout.ts';
 import type { Transform } from './geom.ts';
-import { K_RUN, cell, type Seen } from './lod.ts';
+import { CELL_HI, CELL_LO, CLIP, K_RUN, cell, clipRay, type Seen } from './lod.ts';
 import type { LayoutKind, TreeSnapshot } from './types.ts';
 
 export interface Pt {
@@ -268,13 +268,17 @@ export class RadialProjection implements ProjectionCore {
       mid = (sa0 + sa1) / 2,
       cm = Math.cos(mid),
       sm = Math.sin(mid);
-    return seen.add(
-      cell(rq * cm * fq - ou),
-      cell(rq * sm * fq - ov),
-      cell(rp * cm * fq - ou),
-      cell(rp * sm * fq - ov) + K_RUN * 8192,
-      Math.min(8191, Math.round((sa1 - sa0) * rq)),
-    );
+    const e = Math.min(8191, Math.round((sa1 - sa0) * rq));
+    const ux = rq * cm * fq - ou,
+      uy = rq * sm * fq - ov,
+      vx = rp * cm * fq - ou,
+      vy = rp * sm * fq - ov;
+    if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
+      return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + K_RUN * 8192, e);
+    // the part of the run's ray inside the cells (see clipRay); a run whose ray misses them is visible only through its rim and is not
+    // merged with another (see seenFar)
+    if (!clipRay(rp * fq, rq * fq, cm, sm, ou, ov)) return true;
+    return seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + K_RUN * 8192, e);
   }
 
   nodeXY(i: number, out: Pt): void {

@@ -192,12 +192,11 @@ function endGroup(): void {
  *  least 1. Rectangular stripes are at least a gap apart; radial rays are a gap apart at the outer edge and closer toward the apex (below
  *  1 px there, which only makes them merge). Returns 0 when the stripes are pushed (nothing pushed: it is off screen). Otherwise the summary
  *  gets the stripes' mean tone instead, and the return is the distance (px) its stripes would have, for that tone: when there is no room
- *  for two stripes `gap` px apart (one per hidden tip, at least `gap`), or when the stripes would be more than MAX_PITCH_GAPS gaps apart (a
+ *  for two stripes `gap` px apart (one per hidden tip, at least `gap`, so a summary of one tip has the width of its shape), or when the stripes would be more than MAX_PITCH_GAPS gaps apart (a
  *  few hidden tips over a tall summary, or a radial fan zoomed so far in that its visible rays are thinned that much). */
 function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): number {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
-  if (hidden < 2) return gap;
   if (proj.kind === 'rectangular') {
     const { T } = proj;
     const y0 = proj.t0,
