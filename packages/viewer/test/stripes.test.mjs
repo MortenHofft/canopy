@@ -9,6 +9,9 @@ const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import('../src/types.ts');
 const { THEME_CSS_VARS } = await import('../src/theme.ts');
 const { stripeToneAlpha } = await import('../src/draw.ts');
+const { partialSnapshot } = await import('./partial-snapshot.mjs');
+const { parseNewick } = await import('../../io/src/newick.ts');
+const { InMemorySource } = await import('../src/source.ts');
 
 afterEach(destroyAll);
 
@@ -559,14 +562,29 @@ test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px get
 });
 
 test('a summary of one tip gets the tone of one stripe over its width, not of stripes a gap apart: no darker than its neighbours (#111)', async () => {
-  // the unary clade X is a row of under 2 px, under minCladePx, so it is a summary of one hidden tip; Y, of 150 tips, has stripes
+  // the level of detail never folds a clade of one or two tips (#112), so a summary of one hidden tip is a stub: the unary clade X is not
+  // loaded (a partial snapshot), a row of under 2 px; Y, of 150 tips, has stripes
   const tips = Array.from({ length: 150 }, (_, k) => 'b' + k).join(',');
-  const m = await makeViewer(`((a0)X,(${tips})Y)r;`, { theme: { ...THEME, summaryStripeGap: 1 }, size: [500, 300] });
+  const full = new InMemorySource(parseNewick(`((a0)X,(${tips})Y)r;`)).snapshot();
+  const { snap } = partialSnapshot(full, [1]);
+  const src = {
+    nodeCount: full.nodeCount,
+    tipCount: full.tipCount,
+    hasLengths: true,
+    version: 0,
+    subscribe: () => () => {},
+    snapshot: () => snap,
+    ensureClade: async () => {},
+    tipLabels: async () => [],
+    destroy() {},
+  };
+  const m = await makeViewer(src, { theme: { ...THEME, summaryStripeGap: 1 }, size: [500, 300] });
   m.env.flush();
   const proj = m.viewer.proj;
   let x = -1;
   for (let e = 0; e < m.viewer.list.count; e++) if (m.viewer.list.kind[e] === 2 && m.viewer.list.node[e] === 1) x = e;
   assert.ok(x >= 0, 'X is a summary ' + [...Array(m.viewer.list.count).keys()].map((e) => m.viewer.list.node[e] + ':' + m.viewer.list.kind[e]));
+  assert.equal(snap.leafEnd[1] - snap.leafStart[1], 1, 'of one tip');
   proj.summaryExtent(1, -1, 0);
   const width = proj.t1 - proj.t0;
   assert.ok(width > 1.5 && width < 2.5, 'a row of about 1.9 px: ' + width);
