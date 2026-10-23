@@ -281,6 +281,7 @@ export class TreeViewer {
   private reducedFrame = false;
   private refineTimer = 0;
   private minPxHint = 0;
+  private hintRaised = false; // the hint is a threshold the budget raised past the cap, not a base (or the cap itself)
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
@@ -1842,9 +1843,13 @@ export class TreeViewer {
       cap,
       budget,
       summaries,
-      hint: useHint ? this.minPxHint : 0,
+      // a hint that is only a base (the cap was not in force or not reached) starts a search at the cap, not 19 rungs above it (#113)
+      hint: useHint ? (this.hintRaised ? this.minPxHint : Math.min(this.minPxHint, cap)) : 0,
     });
-    if (useHint) this.minPxHint = r.minPx;
+    if (useHint) {
+      this.minPxHint = r.minPx;
+      this.hintRaised = r.minPx > cap * (1 + 1e-9);
+    }
     return r;
   }
 

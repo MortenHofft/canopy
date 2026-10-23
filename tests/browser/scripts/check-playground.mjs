@@ -288,7 +288,6 @@ ok(
   (await page.locator('[data-setting=summaryStyle], [data-setting=stripeCollapsed], [data-setting=summaryStripeColour]').count()) === 0,
   'no summary style, stripeCollapsed or stripe colour setting',
 );
-await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
 // the level of detail folds nothing where the tips have room for dots (radial) or rows are 1 px tall (#109, #113): collapse a few clades by hand
 const collapseSome = () =>
   ev(() => {

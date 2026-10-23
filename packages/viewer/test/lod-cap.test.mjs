@@ -67,6 +67,55 @@ test('rectangular: rows of 1 to 6 px with minCladePx 14 fold nothing, and the th
   }
 });
 
+test('rectangular: rows of exactly 1.0 px fold nothing, rows of 0.99 px fold by minCladePx', async () => {
+  const nwk = balanced(1024);
+  const at = async (px) => {
+    const { viewer, env } = await makeViewer(nwk, { options: { layout: 'rectangular', minCladePx: MIN, refineMs: 0 }, size: [400, 300] });
+    env.flush();
+    let st;
+    viewer.on('frame', (s) => (st = s));
+    // the window that gives the pitch `px`: scale the fitted window's height by the pitch it gave
+    const v = viewer.getViewport();
+    const p0 = viewer.proj.tipPitch;
+    viewer.setViewport({ x0: v.x0, x1: v.x1, y0: v.y0, y1: v.y0 + (v.y1 - v.y0) * (p0 / px) });
+    viewer.invalidate();
+    env.flush();
+    return { ...st, pitch: viewer.proj.tipPitch };
+  };
+  const one = await at(1);
+  assert.ok(Math.abs(one.pitch - 1) < 1e-6, `pitch ${one.pitch}`);
+  assert.equal(one.summaries, 0);
+  assert.ok(one.minPxUsed < 1.0001, `minPxUsed ${one.minPxUsed}`);
+  const below = await at(0.99);
+  assert.ok(Math.abs(below.pitch - 0.99) < 1e-6, `pitch ${below.pitch}`);
+  assert.equal(below.minPxUsed, MIN);
+  assert.ok(below.summaries > 0);
+});
+
+test('rectangular: zooming from rows under 1 px to 1 px or more takes a couple of passes, not a walk down the ladder', async () => {
+  const { viewer, env } = await makeViewer(balanced(1024), { options: { layout: 'rectangular', minCladePx: MIN, refineMs: 0 }, size: [400, 300] });
+  env.flush();
+  const frames = [];
+  viewer.on('frame', (s) => frames.push({ ...s, pitch: viewer.proj.tipPitch }));
+  const v = viewer.getViewport();
+  const p0 = viewer.proj.tipPitch;
+  const zoomTo = (px) => {
+    viewer.setViewport({ x0: v.x0, x1: v.x1, y0: v.y0, y1: v.y0 + (v.y1 - v.y0) * (p0 / px) });
+    viewer.invalidate();
+    env.flush();
+    return frames[frames.length - 1];
+  };
+  for (const [from, to] of [
+    [0.99, 1.01],
+    [0.999, 1.0],
+  ]) {
+    zoomTo(from);
+    const f = zoomTo(to);
+    assert.ok(f.pitch >= 1 && f.minPxUsed < MIN, `pitch ${f.pitch}, minPxUsed ${f.minPxUsed}`);
+    assert.ok(f.budgetRetries <= 2, `${from} to ${to}: ${f.budgetRetries} retries`);
+  }
+});
+
 test('rectangular: rows of about 10 px with minCladePx 14 fold nothing, and the threshold reported is the capped one', async () => {
   const st = await frameAt('rectangular', MIN, 30);
   assert.equal(st.summaries, 0);

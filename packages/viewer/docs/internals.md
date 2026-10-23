@@ -362,3 +362,5 @@ The list of what is missing for production is in [docs/design/custom.md](../../.
 production"), with the unmeasured items restated at the end of that file under "Hardening (2026-10-21)". Not repeated here. In short, nothing
 here was measured on a real GPU, on a low-end device, in a browser other than headless Chromium, or with a screen reader; the Parquet source is a
 proof of concept (no tip labels in snapshots, no search, no eviction); columns are drawn in the rectangular layout only.
+
+The script also writes `test/cut-golden-cap.json` (9 cases of `cappedCases()`): the cut with the real `collapseCap` at rectangular rows of 0.9, 1, 2 and 6 px and radial pitches under and over 6 px (#109, #113). The first file passes no cap.
