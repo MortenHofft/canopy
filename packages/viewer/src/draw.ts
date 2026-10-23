@@ -599,7 +599,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const { proj, list, theme, colours } = S;
   const p: Pt = { x: 0, y: 0 };
   const tipPx = proj.tipPitch;
-  const dots = tipPx >= TIP_DOT_PX;
+  const dotDepth = proj.minTipDepth(TIP_DOT_PX); // a tip gets a dot when its depth reaches this (radial: where the arc between tips is wide enough, #110)
   const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
   const m = theme.nodeMarkerSize;
   // internal markers: small filled squares (cheap), only for clades big enough to click
@@ -616,7 +616,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
         const kind = list.kind[e];
         const i = list.node[e];
         if (kind === K_TIP) {
-          if (!dots) continue;
+          if (proj.depth(i) < dotDepth) continue;
           proj.nodeXY(i, p);
           ctx.moveTo(p.x + rTip, p.y);
           ctx.arc(p.x, p.y, rTip, 0, 6.2832);
@@ -1096,6 +1096,28 @@ function dashOf(v: string): number[] {
   return out.some((n) => n > 0) ? out : [];
 }
 
+/** The font size (px) of a label with `pitch` px between neighbouring labels: the theme's, less where the pitch is tight (never under 8). */
+function labelFontSize(labelSize: number, pitch: number): number {
+  return Math.max(8, Math.min(labelSize, Math.round(pitch * 0.78)));
+}
+
+/** The label fonts (normal and highlighted) for the current size; `use` rebuilds the strings only when the size changes. */
+class LabelFonts {
+  size = 0;
+  normal = '';
+  bold = '';
+  constructor(
+    private readonly style: string,
+    private readonly family: string,
+  ) {}
+  use(size: number): void {
+    if (size === this.size) return;
+    this.size = size;
+    this.normal = `${this.style}${size}px ${this.family}`;
+    this.bold = `${this.style}600 ${size}px ${this.family}`;
+  }
+}
+
 /** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay.
  *  Aligned (`alignLabels`, a phylogram): rectangular, the text starts in one column (alignedX); radial, on one circle (alignedR), still
  *  along the tip's ray. Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
@@ -1109,12 +1131,12 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const ar = alignedR(S);
   const pitch = labelPitch(S, ar);
   const need = labelMinPx(S.density, S.theme.labelSize);
-  if (pitch < need) return;
+  // radial, labels at their tips: the room is the arc at the tip's own radius, tested per tip (#110); the view's radii say when none has any
+  const perTip = !rect && Number.isNaN(ar);
+  if (perTip ? proj.minTipDepth(need) === Infinity : pitch < need) return;
   const hasCollapsed = S.cladeText !== null && L.collapsed !== null; // collapsed clades are labelled
-  const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
-  const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';
-  const fontN = `${style}${size}px ${theme.fontFamily}`;
-  const fontH = `${style}600 ${size}px ${theme.fontFamily}`;
+  const fonts = new LabelFonts(theme.labelFontStyle === 'italic' ? 'italic ' : '', theme.fontFamily);
+  fonts.use(labelFontSize(theme.labelSize, pitch));
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   const p: Pt = { x: 0, y: 0 };
@@ -1131,8 +1153,14 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     const r = col ? -1 : tree.tipRank[i];
     labelAnchor(S, e, col, p);
     if (rect ? labelCulled(T, p.x, p.y, ax) : radialLabelCulled(S, i, ar, p)) continue; // radial aligned: p is now on the circle
+    if (perTip) {
+      const room = T.da * (col ? L.XMAX[i] * T.k : proj.depth(i)); // the arc to the next tip, at the tip (the end of the clade's triangle)
+      if (room < need) continue;
+      fonts.use(labelFontSize(theme.labelSize, room));
+    }
+    const size = fonts.size;
     const hl = col ? highlight !== null && holdsHighlight(S, i) : highlight ? highlight[r] === 1 : false;
-    const f = hl ? fontH : fontN;
+    const f = hl ? fonts.bold : fonts.normal;
     if (f !== lastFont) {
       ctx.font = f;
       lastFont = f;

@@ -133,6 +133,17 @@ export function cappedCases() {
   cases.push({ id: 'cap/random/rectangular/6px/b20000', tree: 'random', layout: 'rectangular', view: rect(6), budget: 20000 });
   cases.push({ id: 'cap/balanced/radial/z1/b20000', tree: 'balanced', layout: 'radial', view: radial(0, 0, 1), budget: 20000 });
   cases.push({ id: 'cap/balanced/radial/z2/b20000', tree: 'balanced', layout: 'radial', view: radial(0, 0, 2), budget: 20000 });
+  // phylograms (tips at different radii): clades whose deepest tip has a dot stay open (#110)
+  for (const [tree, z] of [
+    ['random', 6],
+    ['ladder', 5],
+    ['polytomy', 3],
+    ['polytomy', 5],
+    ['balanced', 6],
+    ['stubs', 6],
+  ])
+    cases.push({ id: `cap/${tree}/radial/z${z}/b20000`, tree, layout: 'radial', view: radial(0, 0, z), budget: 20000 });
+  cases.push({ id: 'cap/random/radial/z6/b60', tree: 'random', layout: 'radial', view: radial(0, 0, 6), budget: 60 });
   cases.push({ id: 'cap/balanced/radial/z2/b40', tree: 'balanced', layout: 'radial', view: radial(0, 0, 2), budget: 40 });
   return cases;
 }
