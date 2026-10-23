@@ -9,6 +9,9 @@ const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import('../src/types.ts');
 const { THEME_CSS_VARS } = await import('../src/theme.ts');
 const { stripeToneAlpha } = await import('../src/draw.ts');
+const { partialSnapshot } = await import('./partial-snapshot.mjs');
+const { parseNewick } = await import('../../io/src/newick.ts');
+const { InMemorySource } = await import('../src/source.ts');
 
 afterEach(destroyAll);
 
@@ -556,6 +559,40 @@ test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px get
   m.viewer.setViewport({ x0: 0, x1: 1, y0: 0, y1: 5 });
   m.env.flush();
   assert.equal(groups(stripes(m.ctx())).length >= 1, true, 'striped at 60 px per row (20 px stripes)');
+});
+
+test('a summary of one tip gets the tone of one stripe over its width, not of stripes a gap apart: no darker than its neighbours (#111)', async () => {
+  // the level of detail never folds a clade of one or two tips (#112), so a summary of one hidden tip is a stub: the unary clade X is not
+  // loaded (a partial snapshot), a row of under 2 px; Y, of 150 tips, has stripes
+  const tips = Array.from({ length: 150 }, (_, k) => 'b' + k).join(',');
+  const full = new InMemorySource(parseNewick(`((a0)X,(${tips})Y)r;`)).snapshot();
+  const { snap } = partialSnapshot(full, [1]);
+  const src = {
+    nodeCount: full.nodeCount,
+    tipCount: full.tipCount,
+    hasLengths: true,
+    version: 0,
+    subscribe: () => () => {},
+    snapshot: () => snap,
+    ensureClade: async () => {},
+    tipLabels: async () => [],
+    destroy() {},
+  };
+  const m = await makeViewer(src, { theme: { ...THEME, summaryStripeGap: 1 }, size: [500, 300] });
+  m.env.flush();
+  const proj = m.viewer.proj;
+  let x = -1;
+  for (let e = 0; e < m.viewer.list.count; e++) if (m.viewer.list.kind[e] === 2 && m.viewer.list.node[e] === 1) x = e;
+  assert.ok(x >= 0, 'X is a summary ' + [...Array(m.viewer.list.count).keys()].map((e) => m.viewer.list.node[e] + ':' + m.viewer.list.kind[e]));
+  assert.equal(snap.leafEnd[1] - snap.leafStart[1], 1, 'of one tip');
+  proj.summaryExtent(1, -1, 0);
+  const width = proj.t1 - proj.t0;
+  assert.ok(width > 1.5 && width < 2.5, 'a row of about 1.9 px: ' + width);
+  const tones = toneAlphas(m);
+  assert.ok(
+    tones.some((t) => Math.abs(t - stripeToneAlpha(0.8, width)) < 1e-6) && !tones.some((t) => Math.abs(t - stripeToneAlpha(0.8, 1)) < 1e-6),
+    `the tone of one stripe ${width} px wide, not of stripes 1 px apart (${stripeToneAlpha(0.8, 1)}): ${tones}`,
+  );
 });
 
 test('rectangular: zooming a summary across the eight-gap limit keeps its darkness: the tone just past it matches the stripes just before it', async () => {
