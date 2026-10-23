@@ -21,6 +21,7 @@ Chromium).
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
 | [`src/icons-ours.tsx`](src/icons-ours.tsx) | icons drawn for this repository, in the same style (14 px, `currentColor`) |
 | [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../shared/catalogue.json`, shared) plus this example's `extras` and `overrides` |
+| [`src/TreePicker.tsx`](src/TreePicker.tsx) | the tree picker: the groups, and a last option that opens a file input, as the playground's (`../shared/picker.ts`) |
 
 ## What the explorer demonstrates
 
@@ -28,7 +29,7 @@ Each control and the API behind it.
 
 | Control | API |
 |---|---|
-| **Tree picker**: every tree of the playground's catalogue (19, in its four groups) and two of our own, from 6 tips to 2.4 million | `catalogue.json` shared with the playground; `fetchText` of `examples/shared/data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees) |
+| **Tree picker**: every tree of the playground's catalogue (21, in its four groups) and two of our own, from 6 tips to 2.4 million, and *A file from your computer…* (Newick or NEXUS, gzipped or not; not kept in the URL) | `catalogue.json` shared with the playground; `fetchText` of `examples/shared/data.ts` (gzip by content, a `remote` URL when `/data/<path>` is not served: the 1.5M and 2.4M OTL trees); a file through `loadTreeFile` of the same module, as in the playground |
 | **Click (no tool)**: the node menu | `<TreeView nodeMenu>`: the core `NodeMenu`, with items for what was clicked. Internal node: Info, Collapse, Show only, Reroot here, Flip, Swap with…, Colour…, Copy Newick. Collapsed clade (a click on its branch, or Enter; a click on its triangle expands it, see the drill-down below): Expand, Info, Show only, Colour…. Tip: Info, Reroot here, Swap with…, Colour…. Root: Info, Flip, Colour…. One line per item, no descriptions; styled as the inspector (the same panel, header and close button, `.phylo-node-menu*` classes in `explorer.css`). Its close button, a click outside and Escape close it. Enter on the keyboard cursor opens it too. Opening it selects the node, so the selection ring stays on it while the pointer is in the menu. The hover box says "Click for actions" |
 | **Selection**: a click selects the tip or clade (a ring), Info opens the inspector on it; both stay across Layout and Phylo/Clado switches, which centre the view on the selection | `<TreeView selected onSelectionChange>` (the viewer's `setSelected`, a click selecting by default); a tool's click calls `preventDefault()` so it selects nothing |
 | **Tools** (Reroot, Flip, Swap, Color): a click acts at once | `onNodeClick` / `onTipClick` (with `preventDefault()`: no selection), and `nodeMenu` returns `null` while a tool is active, so the menu stays out of the way. *Swap with…* in the menu starts Swap with the node picked, and a toast says to click a sibling branch. Swap's first pick keeps a dashed ring (`<TreeView marked>`, the viewer's `setMarked`) until the second click or Escape |

@@ -17,7 +17,8 @@ import { OverviewControl, Search, TreeViewer, type Column, type TreeEvent } from
 import { COL_GAP, HeaderRow, type HeaderCell } from './header.ts';
 import { readHeatColours, TISSUES } from './renderers.ts';
 import { RowScroller } from './scroll.ts';
-import { DEFAULT_TREE, TREES, loadTable, type TableData } from './sources.ts';
+import { DEFAULT_TREE, GROUPS, TREES, loadTable, loadTableFile, resolveTree, type TableData } from './sources.ts';
+import { treePicker } from '../../shared/picker.ts';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const fmt = (n: number) => n.toLocaleString('en');
@@ -33,8 +34,9 @@ interface Zone {
 }
 
 const params = new URLSearchParams(location.search);
-let treeId = params.get('tree') ?? DEFAULT_TREE;
-if (!TREES[treeId]) treeId = DEFAULT_TREE;
+/** The tree of the list shown; null: a file of the user's own (not in the URL). */
+const firstTree = resolveTree(params.get('tree') ?? DEFAULT_TREE) ?? DEFAULT_TREE;
+let treeId: string | null = firstTree;
 let rowHeight = clampInt(params.get('row'), 14, 48, 24);
 let fontSize = clampInt(params.get('font'), 9, 18, 12);
 /** By column id: 'tree', 'f.<field>' for a field of the Labels column, else the data column's id. `?cols=tree:420,f.species:190,!msa` */
@@ -58,7 +60,7 @@ function parseZones(s: string): Map<string, Zone> {
 
 function writeUrl(): void {
   const p = new URLSearchParams();
-  if (treeId !== DEFAULT_TREE) p.set('tree', treeId);
+  if (treeId !== null && treeId !== DEFAULT_TREE) p.set('tree', treeId);
   if (rowHeight !== 24) p.set('row', String(rowHeight));
   if (fontSize !== 12) p.set('font', String(fontSize));
   const cols = [...zones].map(([id, z]) => `${z.visible === false ? '!' : ''}${id}${z.width ? ':' + z.width : ''}`);
@@ -80,13 +82,17 @@ let scroller: RowScroller | null = null;
 let header: HeaderRow | null = null;
 let collapsed: number[] = [];
 
-const select = $<HTMLSelectElement>('#tree-select');
-for (const [id, e] of Object.entries(TREES)) select.add(new Option(e.label, id, false, id === treeId));
-select.addEventListener('change', () => {
-  treeId = select.value;
-  zones = new Map(); // the fields and columns are the new source's
-  void load();
+// a new tree starts from its own fields and columns: the tree and the zones change when it has loaded, so a failed load keeps both
+const picker = treePicker($<HTMLSelectElement>('#tree-select'), $<HTMLInputElement>('#tree-file'), GROUPS, treeId, {
+  onTree(id) {
+    void load(loadTable(id), TREES[id].label, id);
+  },
+  onFile(file) {
+    void load(loadTableFile(file), file.name, null);
+  },
 });
+/** The name of the file shown (treeId null), for the picker after a failed load. */
+let fileName = '';
 
 const rowInput = $<HTMLInputElement>('#row-height');
 const fontInput = $<HTMLInputElement>('#font-size');
@@ -302,14 +308,26 @@ frame.addEventListener('pointerleave', () => (hoverRow.textContent = 'Hover a ro
 
 // ---------------------------------------------------------------- load a tree
 
-async function load(): Promise<void> {
-  $('#status').textContent = 'Loading…';
+let loads = 0;
+
+/** Load a table and show it; `id` is the tree of the list (null: a file named `name`), which goes into the URL once it is shown. */
+async function load(p: Promise<TableData>, name: string, id: string | null): Promise<void> {
+  const ticket = ++loads;
+  $('#status').textContent = `Loading ${name}…`;
+  let next: TableData;
   try {
-    data = await loadTable(treeId);
+    next = await p;
   } catch (err) {
-    $('#status').textContent = String(err);
-    throw err;
+    if (ticket !== loads) return;
+    $('#status').textContent = `${name}: ${(err as Error).message}`;
+    picker.show(treeId, fileName); // the list names the tree still shown
+    return;
   }
+  if (ticket !== loads) return; // a later choice won
+  if (data) zones = new Map(); // not on the first load, whose zones are the URL's
+  treeId = id;
+  if (id === null) fileName = name;
+  data = next;
   collapsed = [];
   if (!viewer) create();
   else {
@@ -319,7 +337,7 @@ async function load(): Promise<void> {
   viewer!.setCollapsed(collapsed);
   applyColumns();
   scroller!.scrollTo(0);
-  $('#status').textContent = `${fmt(data.tree.tipCount)} tips · ${TREES[treeId].label}`;
+  $('#status').textContent = `${fmt(data.tree.tipCount)} tips · ${name}`;
   writeUrl();
 }
 
@@ -361,4 +379,4 @@ function create(): void {
   (window as unknown as { __table: () => TreeViewer | null }).__table = () => viewer;
 }
 
-void load();
+void load(loadTable(firstTree), TREES[firstTree].label, firstTree);

@@ -6,7 +6,7 @@ overview strip on the right is the scrollbar. Built on the public API of `@gbif-
 the viewer still lacks for such a view ([#50](https://github.com/MortenHofft/gbif-phylo/issues/50)). The gaps are listed below.
 
 ```
-npm run dev -w examples/table    # http://127.0.0.1:5312 (?tree=<id> from src/trees.json)
+npm run dev -w examples/table    # http://127.0.0.1:5312 (?tree=<id> from src/trees.json or ../shared/catalogue.json)
 ```
 
 ## What it shows
@@ -46,6 +46,13 @@ Tree subtrees without branch lengths (a cladogram, 211 and 888 tips: long enough
   out of the tip labels where they have them.
 - **Open Tree, Canidae** (211 tips) and **Open Tree, Testudines** (888 tips) from `data/real-ladder` (no branch lengths, so a
   cladogram): the name and the OTT id are read out of the tip labels.
+
+After these, the picker lists every tree of the playground's catalogue ([`../shared/catalogue.json`](../shared/catalogue.json), in its
+groups, without the two that are the same file as one of ours), and a last option, *A file from your computer…*, opens a file input
+(Newick or NEXUS, gzipped or not), as in the playground ([`../shared/picker.ts`](../shared/picker.ts), `loadTreeFile` in
+[`../shared/data.ts`](../shared/data.ts)). Such a tree gets the columns it has data for: **MSA** when the catalogue gives it an
+alignment, never **Gene location** (it needs the Ensembl members table), and always the sample **Expression** and **Score**. Its
+label is the one field, or the Open Tree name, OTT id and rank when most labels end in an OTT id. A file is not kept in the URL.
 
 **The Score and Expression values are sample data**: generated in `sources.ts` from a hash of each tip label, so they are the same on
 every load, and mean nothing.

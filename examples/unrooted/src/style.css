@@ -82,6 +82,18 @@ body {
   font: var(--text-xs) var(--font-mono);
   color: var(--fg3);
 }
+#info.over-limit {
+  max-width: 40rem;
+  font: var(--text-sm) / 1.4 var(--font-body);
+  color: var(--fg1);
+}
+.note {
+  font-size: var(--text-sm);
+  color: var(--fg3);
+}
 canvas {
   display: block;
+}
+canvas[hidden] {
+  display: none;
 }

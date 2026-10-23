@@ -2,8 +2,8 @@
 // Results in docs/design/unrooted.md.
 //   npm run dev -w examples/unrooted      (the dev server serves every tree under data/; the built site has only the listed ones)
 //   node bench/unrooted-shots.mjs [--url http://127.0.0.1:5313] [--out <dir>] [--runs 20]
-// For each tree: open the page, wait for window.__unrooted, time `runs` redraws (median, pixels flushed), and with --out save a PNG of
-// the canvas as <out>/unrooted-<name>.png.
+// For each tree: open the page (with ?limit=0, which lifts the page's node limit for the 100k tree), wait for window.__unrooted, time
+// `runs` redraws (median, pixels flushed), and with --out save a PNG of the canvas as <out>/unrooted-<name>.png.
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { chromiumPath } from '../scripts/chromium.mjs';
@@ -37,7 +37,7 @@ try {
   for (const [file, name, size] of TREES) {
     const page = await browser.newPage({ viewport: { width: size + 100, height: size + 240 }, deviceScaleFactor: 1 });
     page.on('pageerror', (e) => console.log('PAGEERR', e.message));
-    await page.goto(`${url}/?tree=${encodeURIComponent(file)}&size=${size}`);
+    await page.goto(`${url}/?tree=${encodeURIComponent(file)}&size=${size}&limit=0`);
     await page.waitForFunction(() => window.__unrooted, null, { timeout: 120000 });
     const r = await page.evaluate((n) => {
       const a = window.__unrooted;

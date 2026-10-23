@@ -13,7 +13,7 @@
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
-// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; the drill-down on GTDB 190k
+// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
 // (#57: Overview: 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
@@ -2232,6 +2232,44 @@ await open('edge-internal-support');
   );
   const remote = await page.locator('.page-head select option[value="otl-2m-full"]').count();
   ok(remote === 1, 'the 2.4M-tip tree with a remote URL is on offer');
+}
+
+console.log('\na file of one’s own, through the picker’s file input (examples/shared)');
+{
+  ok(
+    (await page.locator('.page-head select optgroup[label="your own"] option[value="__file"]').count()) === 1,
+    'the picker ends with "your own": a file from your computer',
+  );
+  await page
+    .locator('.page-head input[type=file]')
+    .setInputFiles({ name: 'mine.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a:1,b:2):1,(c:1,(d:1,e:1):2):1);') });
+  await page.waitForFunction(() => window.__explorer?.()?.getTree().tipCount === 5, null, { timeout: 30000 });
+  await page.evaluate(HELPERS);
+  await page.waitForTimeout(300);
+  ok(
+    (await tipCount()) === 5 && (await page.locator('.page-head select').inputValue()) === '__file-shown',
+    'the file is shown (5 tips) and the picker says so',
+  );
+  const gz = new Uint8Array(await new Response(new Blob(['(x:1,(y:1,z:1):1);']).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  await page.locator('.page-head input[type=file]').setInputFiles({ name: 'mine.nwk.gz', mimeType: 'application/gzip', buffer: Buffer.from(gz) });
+  await page.waitForFunction(() => window.__explorer?.()?.getTree().tipCount === 3, null, { timeout: 30000 });
+  ok(true, 'a gzipped file too (3 tips)');
+  // the file option in the list opens the file dialog every time, and the same file loads again (the list names the file shown)
+  for (const round of [1, 2]) {
+    await page.evaluate(() => (window.__before = window.__explorer?.()));
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.selectOption('.page-head select', '__file')]);
+    await chooser.setFiles({ name: 'four.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a,b),(c,d));') });
+    await page.waitForFunction(() => {
+      const v = window.__explorer?.();
+      return v && v !== window.__before && v.getTree().tipCount === 4;
+    });
+    const sel = await page.locator('.page-head select').evaluate((s) => [s.value, s.selectedOptions[0].textContent]);
+    ok(
+      sel[0] === '__file-shown' && sel[1] === 'four.nwk',
+      `the file option opens the file dialog, the file loads and the list names it (${round === 1 ? 'first time' : 'the same file again'})`,
+    );
+  }
+  await page.evaluate(HELPERS);
 }
 // Drill-down (#57) on a large tree: Overview collapses to about 50 rows, a click on a collapsed clade expands it in place (its children
 // in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Back returns

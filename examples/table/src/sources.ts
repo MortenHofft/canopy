@@ -3,24 +3,37 @@
 // (GBIF occurrences, traits) would plug different ones into the same table frame (main.ts).
 //
 // What is real and what is made up:
-//  - the trees, the alignments (FASTA) and the Ensembl members table (species, gene symbol, location) are files from data/;
+//  - the trees, the alignments (FASTA) and the Ensembl members table (species, gene symbol, location) are files from data/: this page's
+//    own four (src/trees.json), then every tree of the catalogue the playground uses, or a file of the user's own. A tree without an
+//    alignment or a members table has no MSA or gene location column;
 //  - the HCV and Open Tree fields are read out of the tip labels;
 //  - the Score and Expression values are SAMPLE DATA, generated here from a hash of the tip label, so they are the same on every load.
 
-import { parseFasta, parseTree, fetchText } from '../../shared/data.ts';
+import { fetchText, loadTreeFile, parseFasta, parseTree, withCatalogue } from '../../shared/data.ts';
+import type { TreeModel } from '@gbif-phylo/io';
 import type { Column, TreeData } from '@gbif-phylo/viewer';
 import { heatmapRenderer, locusRenderer, TISSUES, type Locus } from './renderers.ts';
-import catalogue from './trees.json';
+import own from './trees.json';
 
 export interface TreeEntry {
   label: string;
   path: string; // under data/
   format: 'newick' | 'nexus';
+  /** Where a catalogue tree too large for main lives (shared/data.ts). */
+  remote?: string;
   fasta?: string;
-  meta?: string; // TSV, first column the tip label
-  source: 'ensembl' | 'hcv' | 'otl';
+  meta?: string; // TSV, first column the tip label (an Ensembl members table; a catalogue tree's TSV is not read here)
+  /** How the tip fields are read: from the Ensembl members table, out of the HCV or Open Tree labels; none: the label itself, or the
+   *  Open Tree fields when the labels end in an OTT id. */
+  source?: 'ensembl' | 'hcv' | 'otl';
 }
-export const TREES = catalogue.trees as Record<string, TreeEntry>;
+/** The picker's groups: this page's own trees first (they have the data columns), then the catalogue the playground uses
+ *  (examples/shared/catalogue.json), without the catalogue trees that are one of ours. */
+const LIST = withCatalogue<TreeEntry>({ 'with data columns': own.trees as Record<string, TreeEntry> });
+export const GROUPS = LIST.groups as Record<string, Record<string, TreeEntry>>;
+export const TREES = LIST.entries as Record<string, TreeEntry>;
+/** The id of the entry shown for an id of the list or the catalogue (?tree=rich-hcv-19 opens our hcv-19), or null. */
+export const resolveTree = LIST.resolve;
 export const DEFAULT_TREE = 'ens-protein-54';
 
 /** A field of the tips: one value per tip label. The first visible field is the tree's own label (formatLabel); the others are text
@@ -52,20 +65,29 @@ export async function loadTable(id: string): Promise<TableData> {
   const e = TREES[id];
   if (!e) throw new Error(`unknown tree ${JSON.stringify(id)}; known: ${Object.keys(TREES).join(', ')}`);
   const [src, fa, meta] = await Promise.all([
-    fetchText(e.path),
+    fetchText(e.path, e.remote),
     e.fasta ? fetchText(e.fasta) : Promise.resolve(null),
-    e.meta ? fetchText(e.meta) : Promise.resolve(null),
+    e.source === 'ensembl' && e.meta ? fetchText(e.meta) : Promise.resolve(null),
   ]);
-  const tree = parseTree(src.text, e.format);
+  return tableOf(parseTree(src.text, e.format), e.source, fa?.text ?? null, meta?.text ?? null);
+}
+
+/** A tree file of the user's own: the label fields its labels allow and the sample columns, no alignment or gene location. */
+export async function loadTableFile(file: File): Promise<TableData> {
+  return tableOf((await loadTreeFile(file)).tree, undefined, null, null);
+}
+
+/** The fields and columns of a tree: an alignment when there is a FASTA, the gene location with an Ensembl members table, the sample
+ *  columns always. */
+function tableOf(tree: TreeModel, source: TreeEntry['source'], fasta: string | null, meta: string | null): TableData {
   const tips = tree.tipLabels as readonly string[];
-  const fields = e.source === 'ensembl' ? ensemblFields(tips, meta?.text ?? '') : e.source === 'hcv' ? hcvFields(tips) : otlFields(tips);
   const columns: DataColumn[] = [];
-  if (fa) {
-    const seqs = parseFasta(fa.text);
+  if (fasta !== null) {
+    const seqs = parseFasta(fasta);
     columns.push({ id: 'msa', name: 'MSA', width: 260, spec: (width) => ({ id: 'msa', kind: 'alignment', header: '', width, values: seqs }) });
   }
-  if (e.source === 'ensembl' && meta) {
-    const loci = ensemblLoci(meta.text);
+  if (source === 'ensembl' && meta !== null) {
+    const loci = ensemblLoci(meta);
     columns.push({
       id: 'locus',
       name: 'Gene location',
@@ -83,10 +105,23 @@ export async function loadTable(id: string): Promise<TableData> {
     },
     { id: 'score', name: 'Score', width: 90, spec: (width) => ({ id: 'score', kind: 'bar', header: '', width, values: score }) },
   );
-  return { tree, fields, columns };
+  return { tree, fields: fieldsOf(source, tips, meta ?? ''), columns };
 }
 
 // ---------------------------------------------------------------- fields per source
+
+function fieldsOf(source: TreeEntry['source'], tips: readonly string[], meta: string): Field[] {
+  if (source === 'ensembl') return ensemblFields(tips, meta);
+  if (source === 'hcv') return hcvFields(tips);
+  if (source === 'otl' || looksOtt(tips)) return otlFields(tips);
+  return [field('label', 'Label', true, 0, tips, (t) => t)];
+}
+
+/** Most labels end in an OTT id (an Open Tree tree): checked on up to 200 tips. */
+function looksOtt(tips: readonly string[]): boolean {
+  const some = tips.slice(0, 200);
+  return some.length > 0 && some.filter((t) => /_?ott\d+$/.test(t)).length >= some.length / 2;
+}
 
 function tsv(text: string): { head: string[]; rows: string[][] } {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());

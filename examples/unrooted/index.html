@@ -21,6 +21,7 @@
         <span class="tool__name">Tree</span>
         <select id="tree-select" aria-label="Tree"></select>
       </label>
+      <input type="file" id="tree-file" hidden />
       <label class="tool">
         <input type="checkbox" id="lengths" />
         <span>Branch lengths</span>
@@ -29,6 +30,7 @@
         <input type="checkbox" id="labels" />
         <span>Labels</span>
       </label>
+      <span class="note" id="limit-note"></span>
     </div>
     <main class="card plot">
       <div id="info" aria-live="polite">loading</div>
