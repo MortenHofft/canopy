@@ -68,7 +68,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
-import { resolveSize } from './sizes.ts';
+import { collapseCap, resolveSize } from './sizes.ts';
 import { keptViewport, type TipTarget } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
@@ -1829,10 +1829,17 @@ export class TreeViewer {
     if (this.effScale() !== this.dpr) this.setSize(this.W, this.H);
   }
 
-  private fitCut(base: number, budget: number, summaries: boolean, useHint: boolean): { res: CutResult; minPx: number; retries: number } {
+  private fitCut(
+    base: number,
+    cap: number,
+    budget: number,
+    summaries: boolean,
+    useHint: boolean,
+  ): { res: CutResult; minPx: number; retries: number } {
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
       base,
+      cap,
       budget,
       summaries,
       hint: useHint ? this.minPxHint : 0,
@@ -1861,15 +1868,16 @@ export class TreeViewer {
 
     // ---- cut
     const tc = performance.now();
-    const baseMinPx = Math.max(1, opts.minCladePx);
+    const cap = opts.lod ? collapseCap(this.proj.tipPitch) : Infinity; // #109
+    const baseMinPx = Math.min(cap, Math.max(1, opts.minCladePx));
     let budget = opts.lod ? Math.max(500, opts.drawBudget) : 600000;
     if (opts.lod && !rect && Number.isFinite(opts.radialMaxNodes)) budget = Math.max(100, Math.min(budget, opts.radialMaxNodes));
     let base = baseMinPx;
     if (reduced) {
       budget = Math.max(500, Math.floor(budget / 4));
-      if (this.lastFullDrawn > HEAVY_PRIMS) base = baseMinPx * REDUCED_MINPX;
+      if (this.lastFullDrawn > HEAVY_PRIMS) base = Math.min(cap, baseMinPx * REDUCED_MINPX);
     }
-    const cutRes = this.fitCut(base, budget, opts.showSummaries, !reduced);
+    const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, !reduced);
     const { minPx, retries } = cutRes;
     const res = cutRes.res;
     const cutMs = performance.now() - tc;

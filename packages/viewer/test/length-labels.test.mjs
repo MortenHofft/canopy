@@ -295,6 +295,7 @@ test('a stub cut by size, node in view: no length (with or without summaries)', 
   );
   for (const showSummaries of [false, true]) {
     const m = await make({ showSummaries, minCladePx: 150 }, CUT);
+    m.env.resize(m.target, 700, 24); // rows under the dot size, where minCladePx applies (#109)
     const texts = frame(m).labels.map((l) => l.text);
     assert.deepEqual(texts, [], `showSummaries ${showSummaries}: cut clades have no stem label`);
   }
@@ -302,6 +303,7 @@ test('a stub cut by size, node in view: no length (with or without summaries)', 
 
 test('radial: a stub never gets the rectangular stub-path label', async () => {
   const m = await make({ layout: 'radial', showSummaries: false, minCladePx: 1500 }, CUT);
+  m.env.resize(m.target, 40, 40); // tips closer than the dot size, where minCladePx applies (#109)
   assert.deepEqual(
     frame(m).labels.map((l) => l.text),
     [],

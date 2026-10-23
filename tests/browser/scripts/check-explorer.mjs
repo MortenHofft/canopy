@@ -2507,6 +2507,36 @@ for (const [id, tipsWanted] of [
   );
 }
 
+{
+  // #109: once rows are tall enough for tip dots, the level of detail folds nothing, whatever minCladePx says. The explorer's 14 turned the
+  // one-tip genera around Pleganophorus bispinosus on the full Open Tree (2.39M tips) into unlabelled triangles at rows of 13 px
+  const ms = await loadVia('otl-2m-full');
+  const view = await ev(() => {
+    const v = __v();
+    const t = v.getTree();
+    const rank = t.tipLabels.indexOf('Pleganophorus_bispinosus_ott4616304');
+    if (rank < 0) return null;
+    const out = [];
+    for (const rowPx of [13, 8, 6.5]) {
+      v.fit(false);
+      v.renderNow();
+      v.focusTip(rank, false);
+      v.renderNow();
+      const q = v.nodePosition(t.tipNode[rank]);
+      v.zoomBy(1, rowPx / v.getStats().ky, q.x, q.y);
+      v.renderNow();
+      const s = v.getStats();
+      out.push({ rowPx: s.ky, summaries: s.summaries, tips: s.tips, minPxUsed: s.minPxUsed, minCladePx: v.options.minCladePx });
+    }
+    return out;
+  });
+  ok(view !== null, `otl-2m-full loaded (${ms} ms) and has the tip Pleganophorus bispinosus`);
+  ok(
+    view !== null && view.every((c) => c.minCladePx === 14 && c.summaries === 0 && c.tips > 20 && c.minPxUsed <= c.rowPx),
+    `rows of 13, 8 and 6.5 px, minCladePx 14: no summaries, one-tip genera drawn as tips, minPxUsed at most the row height (${JSON.stringify(view)})`,
+  );
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks pass');
 process.exit(failures ? 1 : 0);
