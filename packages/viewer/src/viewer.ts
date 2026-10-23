@@ -1868,7 +1868,7 @@ export class TreeViewer {
 
     // ---- cut
     const tc = performance.now();
-    const cap = collapseCap(this.proj.tipPitch, opts.lod); // #109
+    const cap = collapseCap(this.proj.tipPitch, opts.lod, rect); // #109, #113
     const baseMinPx = Math.min(cap, Math.max(1, opts.minCladePx));
     let budget = opts.lod ? Math.max(500, opts.drawBudget) : 600000;
     if (opts.lod && !rect && Number.isFinite(opts.radialMaxNodes)) budget = Math.max(100, Math.min(budget, opts.radialMaxNodes));

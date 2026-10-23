@@ -1,6 +1,6 @@
-// The collapse threshold never exceeds the tip pitch once tips have dots (#109): a clade or a run of tips next to tips drawn with
-// dots and labels is not folded, whatever minCladePx says. Below the dot size minCladePx applies as before, and the budget still
-// raises the threshold when it must, up to the cap.
+// The collapse threshold never exceeds the tip pitch once rows are 1 px tall (rectangular, #113) or tips have dots (radial, #109): a
+// clade or a run of tips next to such tips is not folded, whatever minCladePx says. Below that minCladePx applies as before, and the
+// budget still raises the threshold when it must, past the cap.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -11,7 +11,7 @@ afterEach(destroyAll);
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const core = path.join(root, 'packages/viewer/src');
-const { collapseCap, TIP_DOT_PX } = await import(path.join(core, 'sizes.ts'));
+const { collapseCap, TIP_DOT_PX, RECT_CAP_MIN_PX } = await import(path.join(core, 'sizes.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
 const { computeLayout, ensureTrig } = await import(path.join(core, 'layout.ts'));
@@ -26,8 +26,8 @@ const NWK = `(${tips('p', 30)},(s1:1):0.5,(c0:1,c1:1):0.5,(s2:1):0.5,${tips('q',
 const MIN = 14;
 
 /** The last frame's stats of a 400 x 300 viewer; `view` (rectangular) sets the window in rows. */
-async function frameAt(layout, minCladePx, rows) {
-  const { viewer, env } = await makeViewer(NWK, { options: { layout, minCladePx, refineMs: 0 }, size: [400, 300] });
+async function frameAt(layout, minCladePx, rows, nwk = NWK) {
+  const { viewer, env } = await makeViewer(nwk, { options: { layout, minCladePx, refineMs: 0 }, size: [400, 300] });
   env.flush();
   let st;
   viewer.on('frame', (s) => (st = s));
@@ -37,14 +37,34 @@ async function frameAt(layout, minCladePx, rows) {
   }
   viewer.invalidate();
   env.flush();
-  return st;
+  return { ...st, pitch: viewer.proj.tipPitch };
 }
 
-test('collapseCap: the tip pitch from the dot size up, none below', () => {
-  assert.equal(collapseCap(TIP_DOT_PX - 0.01, true), Infinity);
-  assert.ok(Math.abs(collapseCap(TIP_DOT_PX, true) - TIP_DOT_PX) < 1e-3 && collapseCap(TIP_DOT_PX, true) < TIP_DOT_PX, 'a hair under the pitch');
-  assert.ok(Math.abs(collapseCap(13.5, true) - 13.5) < 2e-3);
-  assert.equal(collapseCap(13.5, false), Infinity, 'none with the level of detail off');
+test('collapseCap: the tip pitch from 1 px rows (rectangular) or the dot size (radial) up, none below', () => {
+  assert.equal(RECT_CAP_MIN_PX, 1);
+  assert.equal(collapseCap(RECT_CAP_MIN_PX - 0.01, true, true), Infinity);
+  assert.equal(collapseCap(TIP_DOT_PX - 0.01, true, false), Infinity);
+  for (const [pitch, rect] of [
+    [RECT_CAP_MIN_PX, true],
+    [TIP_DOT_PX, false],
+    [13.5, true],
+    [13.5, false],
+  ]) {
+    const c = collapseCap(pitch, true, rect);
+    assert.ok(c < pitch && Math.abs(c - pitch) < 2e-3, `a hair under the pitch ${pitch}: ${c}`);
+  }
+  assert.equal(collapseCap(13.5, false, true), Infinity, 'none with the level of detail off');
+  assert.equal(collapseCap(13.5, false, false), Infinity);
+});
+
+test('rectangular: rows of 1 to 6 px with minCladePx 14 fold nothing, and the threshold is the row height', async () => {
+  for (const px of [1.2, 1.5, 2, 3, 4.5, 6]) {
+    const st = await frameAt('rectangular', MIN, 255 / px, balanced(1024));
+    assert.ok(Math.abs(st.pitch - px) < 0.1 * px, `${px} px rows: pitch ${st.pitch}`);
+    assert.equal(st.summaries, 0, `${px} px rows`);
+    assert.ok(st.minPxUsed < MIN && st.minPxUsed >= st.pitch * 0.99, `${px} px rows: minPxUsed ${st.minPxUsed}`);
+    assert.equal(st.budgetHit, false);
+  }
 });
 
 test('rectangular: rows of about 10 px with minCladePx 14 fold nothing, and the threshold reported is the capped one', async () => {
@@ -54,11 +74,23 @@ test('rectangular: rows of about 10 px with minCladePx 14 fold nothing, and the 
   assert.equal(st.budgetHit, false);
 });
 
-test('rectangular: rows under the dot size still fold by minCladePx, as before', async () => {
-  // rows of about 3 px, under the dot size: minCladePx applies as before
-  const st = await frameAt('rectangular', MIN, 66 * 1.5);
+test('rectangular: rows under 1 px still fold by minCladePx, as before', async () => {
+  // rows under 1 px: minCladePx applies as before
+  const st = await frameAt('rectangular', MIN, 0, balanced(1024)); // the whole tree: 0.3 px rows
+  assert.ok(st.pitch < 1, `pitch ${st.pitch}`);
   assert.equal(st.minPxUsed, MIN);
   assert.ok(st.summaries > 0);
+});
+
+test('radial: pitches of 2 to 5 px still fold by minCladePx, as before', async () => {
+  for (const size of [60, 100, 160]) {
+    const { viewer, env } = await makeViewer(NWK, { options: { layout: 'radial', minCladePx: MIN, refineMs: 0 }, size: [size, size] });
+    env.flush();
+    const st = viewer.getStats();
+    assert.ok(viewer.proj.tipPitch < TIP_DOT_PX && viewer.proj.tipPitch >= 1, `pitch ${viewer.proj.tipPitch}`);
+    assert.equal(st.minPxUsed, MIN);
+    assert.ok(st.summaries > 0);
+  }
 });
 
 test('radial: a minCladePx far above the tip pitch is capped at it and nothing folds', async () => {
@@ -91,6 +123,27 @@ test('searchCut: when the list overflows at the cap the ladder goes on past it, 
   assert.ok(capped.list.count <= 100);
   assert.ok(capped.minPx >= free.minPx, 'never lower than where an uncapped search lands');
   assert.ok(capped.res.summaries > 0);
+});
+
+test('searchCut: a small budget climbs past a 1 px cap', () => {
+  const r = run({ cap: 1, budget: 100 });
+  assert.ok(r.minPx > 1 && r.res.overflow === false && r.list.count <= 100, `minPx ${r.minPx}, ${r.list.count} entries`);
+});
+
+test('rectangular: rows of 2 px with a draw budget they do not fit in: the threshold climbs past the row height, folding', async () => {
+  const { viewer, env } = await makeViewer(balanced(4096), {
+    options: { layout: 'rectangular', minCladePx: MIN, drawBudget: 500, refineMs: 0 },
+    size: [400, 600],
+  });
+  env.flush();
+  const v = viewer.getViewport();
+  viewer.setViewport({ x0: v.x0, x1: v.x1, y0: 0, y1: 300 });
+  viewer.invalidate();
+  env.flush();
+  const st = viewer.getStats();
+  assert.ok(viewer.proj.tipPitch >= 1, `pitch ${viewer.proj.tipPitch}`);
+  assert.ok(st.minPxUsed > viewer.proj.tipPitch && st.budgetHit && st.summaries > 0, `minPxUsed ${st.minPxUsed}, summaries ${st.summaries}`);
+  assert.equal(st.truncated, false);
 });
 
 test('searchCut: a cap below the base does not lower the base', () => {
