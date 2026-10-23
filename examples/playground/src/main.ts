@@ -36,6 +36,7 @@ import {
 import { TreeModel } from '@gbif-phylo/io';
 import * as ops from '@gbif-phylo/tree-ops';
 import { ENTRIES, GROUPS as TREE_GROUPS, loadEntry, loadFile, type Loaded } from './data.ts';
+import { treePicker } from '../../shared/picker.ts';
 import { BY_ID, GROUPS, PRESETS, SETTINGS, defaults, fromUrl, toUrl, toViewer, type Setting, type State, type Value } from './settings.ts';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -616,28 +617,15 @@ function buildColumnSwitches() {
 
 function buildTreePicker() {
   const sel = $<HTMLSelectElement>('#tree-select');
-  for (const [group, entries] of Object.entries(TREE_GROUPS)) {
-    const og = document.createElement('optgroup');
-    og.label = group;
-    for (const [id, e] of Object.entries(entries)) og.append(new Option(e.label, id));
-    sel.append(og);
-  }
-  const own = document.createElement('optgroup');
-  own.label = 'your own';
-  own.append(new Option('A file from your computer…', '__file'));
-  sel.append(own);
-  sel.value = treeId ?? '__file';
-  sel.addEventListener('change', () => {
-    if (sel.value === '__file') return $<HTMLInputElement>('#tree-file').click();
-    treeId = sel.value;
-    void show(loadEntry(sel.value), ENTRIES[sel.value].label);
-  });
-  $<HTMLInputElement>('#tree-file').addEventListener('change', (ev) => {
-    const f = (ev.target as HTMLInputElement).files?.[0];
-    if (!f) return;
-    treeId = null; // a local file cannot go in the URL
-    sel.value = '__file';
-    void show(loadFile(f), f.name);
+  treePicker(sel, $<HTMLInputElement>('#tree-file'), TREE_GROUPS, treeId, {
+    onTree(id) {
+      treeId = id;
+      void show(loadEntry(id), ENTRIES[id].label);
+    },
+    onFile(f) {
+      treeId = null; // a local file cannot go in the URL
+      void show(loadFile(f), f.name);
+    },
   });
 }
 

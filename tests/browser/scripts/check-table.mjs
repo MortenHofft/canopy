@@ -6,7 +6,8 @@
 // double click and the search focusing a tip do not zoom either) and stops at the first and last row; a header's handle resizes its
 // column (and the Labels handle the tree area) and the URL keeps the width; hovering a row over the columns names its tip; a click on a
 // clade collapses it to one row and a second click opens it; the field and column pickers add and remove columns; the other trees load
-// (a nucleotide alignment, a tree without an alignment, 888 tips scrolled to the end).
+// (a nucleotide alignment, a tree without an alignment, 888 tips scrolled to the end); the picker has the playground's catalogue after our
+// trees, a catalogue tree gets only the columns it has data for, and a file of one's own loads through the file input.
 import { createRequire } from 'node:module';
 import { chromiumPath } from './chromium.mjs';
 const require = createRequire(import.meta.url);
@@ -273,6 +274,48 @@ const ft = await frameBox();
 await wheelAt(ft.left + 150, ft.top + 300, 1e6);
 v = await view();
 ok(near(v.y1, await rows(), 1e-6) && near(v.y1 - v.y0, await fitRows()), `Testudines: scrolled to the last of ${await rows()} rows without zooming`);
+
+console.log('\nthe catalogue and a file of one’s own');
+const heads = () => page.evaluate(() => [...document.querySelectorAll('.table-head__cell:not([hidden])')].map((c) => c.dataset.col));
+const groups = await page.locator('#tree-select optgroup').evaluateAll((gs) => gs.map((g) => g.label));
+ok(
+  groups[0] === 'with data columns' && groups.includes('large') && groups.at(-1) === 'your own',
+  `the picker: our trees first, then the catalogue's groups, then a file (${groups.join(' | ')})`,
+);
+ok((await page.locator('#tree-select option[value="rich-hcv-19"]').count()) === 0, 'a catalogue tree that is one of ours is listed once');
+await page.selectOption('#tree-select', 'syn-yule-1000');
+await page.waitForFunction(() => /^1,000 tips/.test(document.querySelector('#status').textContent));
+await page.waitForTimeout(200);
+let hs = await heads();
+ok(
+  hs.includes('msa') && !hs.includes('locus') && hs.includes('expression') && hs.includes('score'),
+  `a catalogue tree with an alignment: MSA and the sample columns, no gene location (${hs.join(', ')})`,
+);
+ok(new URL(page.url()).searchParams.get('tree') === 'syn-yule-1000', 'and it goes into the URL');
+await page.selectOption('#tree-select', 'rich-butterflies-496');
+await page.waitForFunction(() => /^496 tips/.test(document.querySelector('#status').textContent));
+await page.waitForTimeout(200);
+hs = await heads();
+ok(
+  !hs.includes('msa') && !hs.includes('locus') && hs.includes('expression') && hs.includes('score'),
+  `without an alignment: the sample columns only (${hs.join(', ')})`,
+);
+await open('?tree=rich-hcv-19');
+ok((await page.locator('#tree-select').inputValue()) === 'hcv-19' && !!(await head('msa')), '?tree= with the catalogue id of one of ours opens ours');
+await page
+  .locator('#tree-file')
+  .setInputFiles({ name: 'mine.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a:1,b:2):1,(c:1,(d:1,e:1):2):1);') });
+await page.waitForFunction(() => /^5 tips · mine\.nwk/.test(document.querySelector('#status').textContent));
+await page.waitForTimeout(200);
+hs = await heads();
+ok(
+  (await page.evaluate(() => window.__table().getTree().tipCount)) === 5 && !hs.includes('msa') && hs.includes('expression') && hs.includes('score'),
+  `a file: 5 tips, the sample columns (${hs.join(', ')})`,
+);
+ok(
+  !new URL(page.url()).searchParams.has('tree') && (await page.locator('#tree-select').inputValue()) === '__file',
+  'no tree in the URL; the picker shows the file',
+);
 
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks pass');

@@ -1,8 +1,10 @@
 // Page of the unrooted layout spike (#42): draws unrootedLayout() of one tree on a plain canvas, every branch, no level of detail, no zoom
 // or pan. unrootedLayout is not exported by @gbif-phylo/viewer, so it is imported from the viewer's source by relative path (see the
 // README: a spike exception to "examples use the public API only").
-//   ?tree=<id in src/trees.json, or a path under data/>  ?lengths=0 (unit lengths)  ?labels=1|0 (default: on up to 250 tips)
-//   ?size=<css px, default: the window's width up to 760>
+//   ?tree=<id in src/trees.json or the catalogue, or a path under data/>  ?lengths=0 (unit lengths)  ?labels=1|0 (default: on up to
+//   250 tips)  ?size=<css px, default: the window's width up to 760>  ?limit=<nodes, 0: none; default NODE_LIMIT>
+// The picker has this page's trees, then the catalogue the playground uses (examples/shared) and a file of your own; a tree above
+// NODE_LIMIT is not drawn.
 // window.__unrooted has the counts and timings of the tree shown and redraw(runs) for the draw timing of
 // tests/browser/bench/unrooted-shots.mjs.
 
@@ -10,29 +12,64 @@ import '../../react/src/gbif-tokens.css';
 import '@gbif-phylo/viewer/gbif.css';
 import './style.css';
 import type { TreeModel } from '@gbif-phylo/io';
-import { fetchText, parseTree } from '../../shared/data.ts';
+import { fetchText, loadTreeFile, parseTree, withCatalogue } from '../../shared/data.ts';
+import { treePicker, type PickerItem } from '../../shared/picker.ts';
 import { unrootedLayout, type UnrootedLayout } from '../../../packages/viewer/src/unrooted.ts';
-import catalogue from './trees.json';
+import own from './trees.json';
 
 interface Entry {
   label: string;
   path: string; // under data/
   format: 'newick' | 'nexus';
+  remote?: string;
+  nodes?: number;
 }
-const TREES = catalogue.trees as Record<string, Entry>;
+
+/** The most nodes this page draws. It draws every branch with no level of detail, and the layout, the fit and every redraw are linear in
+ *  the nodes. Measured in docs/design/unrooted.md (headless Chromium, CPU canvas): a redraw takes about 5 ms at 14,874 and 20,243 nodes
+ *  (the 10k-tip Open Tree and GTDB trees) and 52 to 56 ms at 199,999 nodes. 25,000 nodes is about 7 ms by that rate, well inside a frame,
+ *  and keeps every 10k-tip tree of the catalogue in; above it a redraw starts to be felt, and the 1.5M and 2.4M-tip trees would take
+ *  seconds and hundreds of MB. Not the 2,000 the design note proposes for the viewer's layout: that limit is for readability. */
+const NODE_LIMIT = 25_000;
+const q = new URLSearchParams(location.search);
+const fmt = (n: number) => n.toLocaleString('en');
+/** ?limit= (0: none), for the timings of tests/browser/bench/unrooted-shots.mjs, which draws a 200k-node tree. */
+const limit = limitOf(q.get('limit'));
+
+function limitOf(v: string | null): number {
+  const n = Number(v);
+  if (v === null || !Number.isFinite(n) || n < 0) return NODE_LIMIT;
+  return n === 0 ? Infinity : n;
+}
+
+/** This page's trees first, then the catalogue's (the same file once); a tree known to be above the limit is listed but disabled. */
+const LIST = withCatalogue<Entry>({ 'picked for the spike': own.trees as Record<string, Entry> });
+const TREES = LIST.entries as Record<string, Entry>;
+const overLimit = (e: Entry) => e.nodes !== undefined && e.nodes > limit;
+const PICKER: Record<string, Record<string, PickerItem>> = Object.fromEntries(
+  Object.entries(LIST.groups).map(([g, entries]) => [
+    g,
+    Object.fromEntries(
+      Object.entries(entries as Record<string, Entry>).map(([id, e]) => [
+        id,
+        overLimit(e) ? { label: `${e.label}: ${fmt(e.nodes!)} nodes, over the limit`, disabled: true } : { label: e.label },
+      ]),
+    ),
+  ]),
+);
 const DEFAULT_TREE = 'gtdb-1k';
 
-const q = new URLSearchParams(location.search);
 const size = Number(q.get('size')) || Math.max(240, Math.min(760, window.innerWidth - 60));
 const info = document.getElementById('info')!;
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const select = document.getElementById('tree-select') as HTMLSelectElement;
+const fileInput = document.getElementById('tree-file') as HTMLInputElement;
 const lengthsBox = document.getElementById('lengths') as HTMLInputElement;
 const labelsBox = document.getElementById('labels') as HTMLInputElement;
 /** CPU canvas under automation (no GPU in headless Chromium), as on the test page. */
 const ctx = canvas.getContext('2d', { willReadFrequently: navigator.webdriver === true })!;
 
-/** ?tree= is an id of trees.json, or a path under data/ (any tree the dev server has; on the site only the listed ones are copied). */
+/** ?tree= is an id of trees.json or the catalogue, or a path under data/ (any tree the dev server has; on the site only the listed ones are copied). */
 function entryOf(tree: string): Entry {
   return TREES[tree] ?? { label: tree.split('/').pop()!, path: tree, format: /\.(tre|nex|nexus)$/i.test(tree) ? 'nexus' : 'newick' };
 }
@@ -129,7 +166,7 @@ function paint(tree: TreeModel, L: UnrootedLayout, labels: boolean, f: Fit): voi
 }
 
 interface SpikeApi {
-  /** The ?tree= value shown: an id of trees.json or a path under data/. */
+  /** The tree shown: its ?tree= value (an id of the list or a path under data/), or the name of a file of one's own. */
   tree: string;
   tips: number;
   nodes: number;
@@ -144,7 +181,11 @@ interface SpikeApi {
 
 // ---------------------------------------------------------------- state (in the URL)
 
-let treeId = q.get('tree') ?? DEFAULT_TREE;
+/** The tree of the list (or path under data/) shown; null: a file of one's own (not in the URL). */
+const firstTree = LIST.resolve(q.get('tree') ?? DEFAULT_TREE) ?? q.get('tree') ?? DEFAULT_TREE;
+let treeId: string | null = firstTree;
+/** What window.__unrooted.tree reports: treeId, or the file's name. */
+let shown = treeId ?? '';
 let lengths = q.get('lengths') !== '0';
 /** null: the default for the tree (on up to 250 tips). Set by ?labels= or the checkbox; a new tree goes back to the default. */
 let labelsChoice: boolean | null = q.has('labels') ? q.get('labels') === '1' : null;
@@ -152,7 +193,8 @@ let labelsChoice: boolean | null = q.has('labels') ? q.get('labels') === '1' : n
 function writeUrl(): void {
   const u = new URL(location.href);
   const p = u.searchParams;
-  p.set('tree', treeId);
+  if (treeId === null) p.delete('tree');
+  else p.set('tree', treeId);
   if (lengths) p.delete('lengths');
   else p.set('lengths', '0');
   if (labelsChoice === null) p.delete('labels');
@@ -160,41 +202,76 @@ function writeUrl(): void {
   history.replaceState(null, '', u);
 }
 
-for (const [id, e] of Object.entries(TREES)) select.add(new Option(e.label, id));
-if (!TREES[treeId]) select.add(new Option(entryOf(treeId).label, treeId));
-select.value = treeId;
+if (treeId !== null && !TREES[treeId]) select.add(new Option(entryOf(treeId).label, treeId));
+treePicker(select, fileInput, PICKER, treeId, {
+  onTree(id) {
+    pick(id, { id });
+  },
+  onFile(file) {
+    pick(null, { file });
+  },
+});
 lengthsBox.checked = lengths;
+
+function pick(id: string | null, src: Source): void {
+  treeId = id;
+  labelsChoice = null;
+  writeUrl();
+  load(src).catch(fail);
+}
 
 // ---------------------------------------------------------------- loading and drawing
 
+type Source = { id: string } | { file: File };
 let tree: TreeModel | null = null;
 let parseMs = 0;
 let loads = 0;
 
-async function load(): Promise<void> {
-  const id = treeId;
+async function load(src: Source): Promise<void> {
   const ticket = ++loads;
-  info.textContent = `loading ${entryOf(id).label}`;
-  const e = entryOf(id);
+  const name = 'id' in src ? entryOf(src.id).label : src.file.name;
+  const known = 'id' in src ? entryOf(src.id) : null;
+  if (known && overLimit(known)) return refuse(name, known.nodes!); // known from the catalogue: not even fetched
+  info.textContent = `loading ${name}`;
   const t = performance.now();
-  const { text } = await fetchText(e.path);
-  const parsed = parseTree(text, e.format);
+  const parsed = await read(src);
   if (ticket !== loads) return; // a later choice won
+  if (parsed.nodeCount > limit) return refuse(name, parsed.nodeCount);
   tree = parsed;
+  shown = 'id' in src ? src.id : src.file.name;
   parseMs = performance.now() - t;
   draw();
+}
+
+async function read(src: Source): Promise<TreeModel> {
+  if ('file' in src) return (await loadTreeFile(src.file)).tree;
+  const e = entryOf(src.id);
+  return parseTree((await fetchText(e.path, e.remote)).text, e.format);
+}
+
+/** A tree above the limit: a message instead of the drawing. */
+function refuse(name: string, nodes: number): void {
+  tree = null;
+  canvas.hidden = true;
+  (window as unknown as { __unrooted: SpikeApi | null }).__unrooted = null;
+  info.classList.add('over-limit');
+  info.textContent =
+    `${name}: ${fmt(nodes)} nodes, over this page's limit of ${fmt(limit)}. The page draws every branch with no level of detail, ` +
+    'so it does not draw larger trees.';
 }
 
 function draw(): void {
   if (!tree) return;
   const t = tree;
+  canvas.hidden = false;
+  info.classList.remove('over-limit');
   const L = unrootedLayout(t, lengths);
   const labels = labelsChoice ?? t.tipCount <= 250;
   labelsBox.checked = labels;
   const f = fit(t, L, labels);
   paint(t, L, labels, f);
   const api: SpikeApi = {
-    tree: treeId,
+    tree: shown,
     tips: t.tipCount,
     nodes: t.nodeCount,
     usedLengths: L.usedLengths,
@@ -215,7 +292,7 @@ function draw(): void {
   };
   (window as unknown as { __unrooted: SpikeApi }).__unrooted = api;
   const lengthsNote = L.usedLengths ? 'branch lengths' : lengths ? 'unit lengths (the tree has none)' : 'unit lengths';
-  info.textContent = `${t.tipCount.toLocaleString('en')} tips, ${t.nodeCount.toLocaleString('en')} nodes, ${lengthsNote}, layout ${L.layoutMs.toFixed(1)} ms`;
+  info.textContent = `${fmt(t.tipCount)} tips, ${fmt(t.nodeCount)} nodes, ${lengthsNote}, layout ${L.layoutMs.toFixed(1)} ms`;
 }
 
 function fail(e: unknown): void {
@@ -223,12 +300,6 @@ function fail(e: unknown): void {
   throw e;
 }
 
-select.addEventListener('change', () => {
-  treeId = select.value;
-  labelsChoice = null;
-  writeUrl();
-  load().catch(fail);
-});
 lengthsBox.addEventListener('change', () => {
   lengths = lengthsBox.checked;
   writeUrl();
@@ -240,4 +311,5 @@ labelsBox.addEventListener('change', () => {
   draw();
 });
 
-load().catch(fail);
+document.getElementById('limit-note')!.textContent = Number.isFinite(limit) ? `Trees above ${fmt(limit)} nodes are not drawn.` : '';
+load({ id: firstTree }).catch(fail);

@@ -1,8 +1,8 @@
-// Loading for the playground: the catalogue of trees (examples/shared), a tree file of the user's own, and the per-tip extras some trees
-// have (a TSV keyed by tip label, a FASTA alignment).
+// Loading for the playground: the catalogue of trees and a tree file of the user's own (both read by examples/shared/data.ts), and the
+// per-tip extras some trees have (a TSV keyed by tip label, a FASTA alignment).
 
 import type { TreeModel } from '@gbif-phylo/io';
-import { ENTRIES, GROUPS, type Entry, decode, fetchText, parseFasta, parseTree } from '../../shared/data.ts';
+import { ENTRIES, GROUPS, type Entry, fetchText, loadTreeFile, parseFasta, parseTree } from '../../shared/data.ts';
 
 export { ENTRIES, GROUPS, type Entry };
 
@@ -48,10 +48,7 @@ export async function loadEntry(id: string): Promise<Loaded> {
   };
 }
 
-/** A tree file the user picked (Newick or NEXUS, optionally gzipped). */
+/** A tree file the user picked (Newick or NEXUS, optionally gzipped; read by the examples' shared loadTreeFile). */
 export async function loadFile(file: File): Promise<Loaded> {
-  const src = await decode(new Uint8Array(await file.arrayBuffer()));
-  const t0 = performance.now();
-  const tree = parseTree(src.text);
-  return { tree, parseMs: performance.now() - t0, bytes: src.bytes, meta: null, fasta: null };
+  return { ...(await loadTreeFile(file)), meta: null, fasta: null };
 }
