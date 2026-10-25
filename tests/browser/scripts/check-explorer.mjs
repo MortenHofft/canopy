@@ -2597,7 +2597,7 @@ for (const [id, tipsWanted] of [
     const pane = await page.locator('.ex-pane').boundingBox();
     const at = await panel.boundingBox();
     ok(
-      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx [\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
+      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx (auto \()?[\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
       `${layout}: the debug panel shows numbers, under the tree pane (${text.split('\n')[text.split('\n').indexOf('frame') + 1] ?? text.slice(0, 80)})`,
     );
     const before = await ev(() => __v().getViewport());
@@ -2609,7 +2609,7 @@ for (const [id, tipsWanted] of [
       json.tree.id === 'rich-fish-carangaria-135' &&
         json.layout === layout &&
         typeof json.commit === 'string' &&
-        json.options.minCladePx > 0 &&
+        (json.options.minCladePx === 'auto' || json.options.minCladePx > 0) &&
         json.canvas.width > 0 &&
         json.viewport.x0 === before.x0 &&
         json.viewport.y1 === before.y1 &&
