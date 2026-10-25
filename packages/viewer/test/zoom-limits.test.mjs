@@ -92,3 +92,31 @@ test('radial, 200,000 tips in polytomies of 16, small pane: zoomed in as far as 
   for (let e = 0; e < v.list.count; e++) if (v.list.node[e] === node) kinds.push(v.list.kind[e]);
   assert.deepEqual(kinds, [1], 'the focused tip is drawn as a tip (K_TIP)');
 });
+
+test('radial, tips at 30% of the radius: zoom goes on until they are maxTipSpacing apart, and focusTip gives them label room', async () => {
+  // 20,000 tips in clades of 10, every other clade on short branches (tips at 0.3). The outer ring reaches maxTipSpacing (24 px) when
+  // the inner tips are only 7.2 px apart, under the 8 px of the dense label threshold, so a ceiling at the outer ring kept them unlabelled
+  const clades = Array.from({ length: 2000 }, (_, c) => {
+    const len = c % 2 ? 0.2 : 0.9;
+    return `(${Array.from({ length: 10 }, (_, s) => `c${c}s${s}:${len}`).join(',')}):0.1`;
+  });
+  const m = await makeViewer(`(${clades.join(',')});`, { options: { layout: 'radial', labelDensity: 'dense' }, size: [400, 400] });
+  m.env.flush();
+  const v = m.viewer;
+  const rank = 10 * 1001 + 4; // clade 1001: inner
+  const name = v.getTree().tipLabels[rank];
+  assert.match(name, /^c1001s/);
+  v.focusTip(rank);
+  m.env.flush();
+  const inner = 0.3 * v.T.k * v.T.da;
+  assert.ok(inner >= 23.9, `focusTip: inner tips ${inner.toFixed(1)} px apart`);
+  const drawn = m
+    .ctx()
+    .calls('fillText')
+    .some((e) => e[1] === name);
+  assert.ok(drawn, 'the focused inner tip is labelled');
+  for (let i = 0; i < 4; i++) v.zoomBy(8, 200, 200);
+  m.env.flush();
+  const deepest = 0.3 * v.T.k * v.T.da;
+  assert.ok(Math.abs(deepest - 24) < 0.1, `the deepest zoom leaves the inner tips maxTipSpacing apart (${deepest.toFixed(2)} px)`);
+});

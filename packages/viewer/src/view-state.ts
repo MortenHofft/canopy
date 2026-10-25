@@ -107,6 +107,22 @@ export function radialFitScale(W: number, H: number, fan: RadialFan = FULL_FAN, 
   return radialFit(W, H, fan, labelRoom).k;
 }
 
+/** Radial: the smallest radius (unit radius, 0..1) of a row's tip, a collapsed clade's at its outer edge. Labels need room at the tip's
+ *  own radius (#110), so the zoom ceiling is worked out there. Cached by layout: one pass over the nodes per layout. */
+const innerRadii = new WeakMap<Layout, number>();
+export function innerTipRadius(L: Layout): number {
+  let r = innerRadii.get(L);
+  if (r !== undefined) return r;
+  r = 1;
+  for (let i = 0; i < L.n; i++) {
+    if (L.hidden?.[i]) continue;
+    if (L.collapsed?.[i]) r = Math.min(r, L.XMAX[i]);
+    else if (L.LAST[i] < 0) r = Math.min(r, L.X[i]);
+  }
+  innerRadii.set(L, r);
+  return r;
+}
+
 export class ViewState {
   view: Viewport = { x0: 0, x1: 1, y0: 0, y1: 1 };
   /** True while the view is the fit view (a resize then re-fits instead of keeping the window). */
@@ -234,9 +250,10 @@ export class ViewState {
     const fan = this.env.L.fan;
     const kfit = radialFitScale(this.env.W, this.env.H, fan, this.radialLabelRoom());
     let k = a.aw / (v.x1 - v.x0);
-    // outer-circle arc between neighbouring tips = k * span / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
-    // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
-    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / fan.span;
+    // arc between neighbouring tips = k * span / N * r, at most maxTipSpacing at the innermost tip's radius r (the outer ring when every
+    // tip is on it), so tips on short branches can be zoomed until they have room for labels; but always up to RADIAL_GEOMETRIC_ZOOM times
+    // the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
+    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / fan.span / Math.max(innerTipRadius(this.env.L), 1e-9);
     // the hard ceiling is RADIAL_MAX_ZOOM times the fit or tips RADIAL_MAX_TIP_PX apart, whichever is deeper: a multiple of the fit alone
     // stopped a tree of millions of tips before its tips were far enough apart to be drawn one by one (#76)
     const hard = Math.max(kfit * RADIAL_MAX_ZOOM, (RADIAL_MAX_TIP_PX * this.env.L.rows) / fan.span);
@@ -372,9 +389,11 @@ export class ViewState {
       }
       return { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     }
+    // the wanted pitch at the tip's own radius (a collapsed clade's outer edge), not the outer ring's: a tip on a short branch gets label room
+    const r = L.collapsed?.[node] ? L.XMAX[node] : L.X[node];
     const k = Math.max(
       a.aw / (v.x1 - v.x0),
-      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / L.fan.span,
+      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / L.fan.span / Math.max(r, 1e-9),
     );
     const ang = fanAngle(L.fan, L.rows, L.ROW[node]);
     const px = L.X[node] * Math.cos(ang),

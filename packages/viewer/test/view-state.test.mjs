@@ -9,7 +9,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..',
 const { parseNewick } = await import(path.join(root, 'packages/io/src/newick.ts'));
 const { computeLayout } = await import(path.join(root, 'packages/viewer/src/layout.ts'));
 const { InMemorySource } = await import(path.join(root, 'packages/viewer/src/source.ts'));
-const { ViewState, radialFitScale } = await import(path.join(root, 'packages/viewer/src/view-state.ts'));
+const { ViewState, radialFitScale, innerTipRadius } = await import(path.join(root, 'packages/viewer/src/view-state.ts'));
 const K = await import(path.join(root, 'packages/viewer/src/constants.ts'));
 
 // A ladder of 60 tips with branch lengths, so rows, x and the clade sizes differ from node to node.
@@ -429,8 +429,8 @@ test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap,
     const c = vs.clampView({ x0: 0, x1: 1e-9, y0: 0, y1: 1e-9 });
     return vs.area.aw / (c.x1 - c.x0);
   };
-  // 10000 tips: the tip cap (24 px) is 38197 per unit radius, above 50 x the fit scale
-  near((maxScale({ maxTipSpacing: 24 }, 10000) * 2 * Math.PI) / 10000, 24, 1e-12);
+  // 10000 tips: the tip cap (24 px between the innermost tips, #110) is above 50 x the fit scale
+  near(((maxScale({ maxTipSpacing: 24 }, 10000) * 2 * Math.PI) / 10000) * innerTipRadius(L), 24, 1e-12);
   // 60 tips: the cap alone would be the fit scale; the geometric floor allows 50 x
   near(maxScale({ maxTipSpacing: 24 }), kfit * K.RADIAL_GEOMETRIC_ZOOM, 1e-12);
   near(maxScale({ maxTipSpacing: 1 }), kfit * K.RADIAL_GEOMETRIC_ZOOM, 1e-12);
@@ -440,8 +440,9 @@ test('maxTipSpacing, radial: the arc between neighbouring tips stops at the cap,
 
 test('radial, millions of tips: the zoom reaches the tip cap, beyond RADIAL_MAX_ZOOM times the fit (#76)', () => {
   const kfit = radialFitScale(800, 600);
+  const Lc = computeLayout(tree, false); // a cladogram: every tip on the outer ring
   const pitchAtMax = (maxTipSpacing, rows) => {
-    const { vs } = make({ layout: 'radial', L: { ...L, rows }, maxTipSpacing });
+    const { vs } = make({ layout: 'radial', L: { ...Lc, rows }, maxTipSpacing });
     const c = vs.clampView({ x0: 0, x1: 1e-12, y0: 0, y1: 1e-12 });
     return ((vs.area.aw / (c.x1 - c.x0)) * 2 * Math.PI) / rows;
   };
@@ -461,7 +462,7 @@ test('maxTipSpacing, radial, with a collapsed clade: the cap is maxTipSpacing px
   while (big.leafEnd[big.parent[c]] - big.leafStart[big.parent[c]] <= 12000 && big.parent[c] > 0) c = big.parent[c];
   const mask = new Uint8Array(big.nodeCount);
   mask[c] = 1;
-  const Lc = computeLayout(big, true, mask);
+  const Lc = computeLayout(big, false, mask); // a cladogram: the cap is at the outer ring
   assert.ok(Lc.rows < big.tipCount - 10000);
   const scale = (LL) => {
     const { vs } = make({ layout: 'radial', tree: big, L: LL, maxTipSpacing: 24 });
@@ -469,7 +470,7 @@ test('maxTipSpacing, radial, with a collapsed clade: the cap is maxTipSpacing px
     return vs.area.aw / (k.x1 - k.x0);
   };
   near((scale(Lc) * 2 * Math.PI) / Lc.rows, 24, 1e-12);
-  assert.ok(scale(Lc) < scale(computeLayout(big, true)), 'fewer rows: the scale at the cap is lower than per tip');
+  assert.ok(scale(Lc) < scale(computeLayout(big, false)), 'fewer rows: the scale at the cap is lower than per tip');
 });
 
 test('maxTipSpacing: wheel zoom-in stops at the cap and does not pan; focusViewport respects it', () => {
@@ -491,7 +492,7 @@ test('focusViewport, radial: the wanted tip pitch follows labelSize and the cap'
   const pitch = (over) => {
     const { vs } = make({ layout: 'radial', ...over });
     const f = vs.focusViewport(tree.tipNode[7]);
-    return (vs.area.aw / (f.x1 - f.x0)) * ((2 * Math.PI) / tree.tipCount);
+    return (vs.area.aw / (f.x1 - f.x0)) * ((2 * Math.PI) / tree.tipCount) * L.X[tree.tipNode[7]]; // at the tip's own radius
   };
   near(pitch({ labelSize: 26 }), 48, 1e-9);
   near(pitch({ labelSize: 26, maxTipSpacing: 30 }), 30, 1e-9);
