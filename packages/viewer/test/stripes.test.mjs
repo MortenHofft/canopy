@@ -392,9 +392,10 @@ test('one stripe per hidden tip when the rows are wider than the gap (not one pe
 });
 
 const TWO_POLY = `(${poly(800, 'p')}P,${poly(800, 'q')}Q)r;`; // two bands of 800 tips: one fan each at fit
+// minCladePx 3: with 'auto' (1 px in radial, #122) the zoomed views below open the polytomies, and these tests are about the fans' rays
 const twoPoly = () =>
   makeViewer(TWO_POLY, {
-    options: { layout: 'radial', ...CIRCLE },
+    options: { layout: 'radial', minCladePx: 3, ...CIRCLE },
     theme: THEME,
     size: [900, 900],
   });
@@ -473,7 +474,7 @@ test('radial, window through angle 0: the rays of both visible intervals are dra
 });
 
 const FOUR_K = `(${poly(4000, 'p')}P,${poly(4000, 'q')}Q)r;`;
-const fourK = () => makeViewer(FOUR_K, { options: { layout: 'radial', ...CIRCLE }, theme: THEME, size: [900, 900] });
+const fourK = () => makeViewer(FOUR_K, { options: { layout: 'radial', minCladePx: 3, ...CIRCLE }, theme: THEME, size: [900, 900] });
 
 test('radial, window not through angle 0: only rays at visible angles are drawn', async () => {
   const m = await fourK();

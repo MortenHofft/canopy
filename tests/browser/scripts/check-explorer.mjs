@@ -1153,7 +1153,7 @@ await open('syn-yule-10000');
 await page.waitForTimeout(1500);
 // one look for every summary (#85): no Stripes toggle, the background and stripes are always drawn
 ok((await page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ }).count()) === 0, 'no Stripes toggle');
-ok((await ev(() => __v().options.minCladePx)) === 3, 'a big tree: the library’s smallest clade, 3 px (#115)');
+ok((await ev(() => __v().options.minCladePx)) === 'auto', 'a big tree: the library’s smallest clade, auto (#115, #122)');
 // the stripe checks need summaries tall enough to carry stripes: 14 px here (the explorer used it for big trees before #115)
 await ev(() => {
   __v().setOptions({ minCladePx: 14 });
@@ -2597,7 +2597,7 @@ for (const [id, tipsWanted] of [
     const pane = await page.locator('.ex-pane').boundingBox();
     const at = await panel.boundingBox();
     ok(
-      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx [\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
+      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx (auto \()?[\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
       `${layout}: the debug panel shows numbers, under the tree pane (${text.split('\n')[text.split('\n').indexOf('frame') + 1] ?? text.slice(0, 80)})`,
     );
     const before = await ev(() => __v().getViewport());
@@ -2609,7 +2609,7 @@ for (const [id, tipsWanted] of [
       json.tree.id === 'rich-fish-carangaria-135' &&
         json.layout === layout &&
         typeof json.commit === 'string' &&
-        json.options.minCladePx > 0 &&
+        (json.options.minCladePx === 'auto' || json.options.minCladePx > 0) &&
         json.canvas.width > 0 &&
         json.viewport.x0 === before.x0 &&
         json.viewport.y1 === before.y1 &&
