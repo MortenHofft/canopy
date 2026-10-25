@@ -337,6 +337,17 @@ export const SETTINGS: Setting[] = [
     step: 0.05,
   },
   {
+    id: 'summaryLineOpacity',
+    label: 'Clade-as-line opacity (1 px threshold)',
+    group: 'Theme',
+    to: 'theme',
+    kind: 'range',
+    default: T.summaryLineOpacity,
+    min: 0,
+    max: 1,
+    step: 0.05,
+  },
+  {
     id: 'summaryStripeGap',
     label: 'Stripe gap (px)',
     hint: 'least distance between stripes',
@@ -764,7 +775,7 @@ export const SETTINGS: Setting[] = [
     kind: 'select',
     default: String(O.minCladePx),
     options: [
-      ['auto', 'Auto (radial: 1 px, the budget folds more)'],
+      ['auto', 'Auto (1 px, the budget folds more)'],
       ['1', '1 px (most detail)'],
       ['2', '2 px'],
       ['3', '3 px'],

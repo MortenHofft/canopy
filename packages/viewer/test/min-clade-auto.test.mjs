@@ -1,6 +1,6 @@
-// `minCladePx: 'auto'` (the default, #122): in the radial layout with `radialMaxNodes: 'auto'` the cut starts at 1 px, so nothing whose arc
-// at its farthest tip is 1 px or more is folded while the list fits, and only the budget, which follows the frame rate, folds more.
-// Elsewhere 'auto' is the 3 px the option had before, and a number is used as it is in either layout.
+// `minCladePx: 'auto'` (the default, #122): where the budget follows the frame rate (radial with `radialMaxNodes: 'auto'`, rectangular with
+// `drawBudget: 'auto'`) the cut starts at 1 px, so nothing 1 px or more tall (radial: its arc at its farthest tip) is folded while the list
+// fits, and only the budget folds more. With a fixed budget 'auto' is the 3 px the option had before, and a number is used as it is.
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeViewer, destroyAll } from './viewer-harness.mjs';
@@ -44,8 +44,18 @@ test("radial, 'auto' with a fixed radialMaxNodes, and a number with the adaptive
   }
 });
 
-test("rectangular, 'auto': the threshold under 1 px rows is 3 px, as before", async () => {
-  const { st, pitch } = await stats(balanced(1024), { layout: 'rectangular' }, [400, 300]);
+test("rectangular, 'auto' with the adaptive drawBudget: the threshold under 1 px rows is 1 px, and the clades it folds are lines", async () => {
+  const { st, pitch, viewer } = await stats(balanced(4096), { layout: 'rectangular' }, [400, 300]);
+  assert.equal(viewer.options.drawBudget, 'auto');
+  assert.ok(pitch < 1, `rows of ${pitch} px`);
+  assert.equal(st.minPxBase, 1);
+  assert.equal(st.minPxUsed, 1);
+  assert.ok(st.summaries > 0);
+  assert.equal(viewer.summaryLines, true, 'drawn and hovered as branches to their deepest tips (#126)');
+});
+
+test("rectangular, 'auto' with a fixed drawBudget: the threshold under 1 px rows is 3 px, as before", async () => {
+  const { st, pitch } = await stats(balanced(1024), { layout: 'rectangular', drawBudget: 20000 }, [400, 300]);
   assert.ok(pitch < 1, `rows of ${pitch} px`);
   assert.equal(st.minPxBase, 3);
   assert.ok(st.summaries > 0);

@@ -131,6 +131,9 @@ export interface TreeTheme extends ResidueTheme {
   summaryOpacity: number;
   /** Opacity of the hairline stripes over a summary's background (see api.md, "Summaries"). */
   summaryStripeOpacity: number;
+  /** Opacity of a summary drawn as a line to its deepest tip at the 1 px threshold (#126), in `summary` or its clade colour: lighter than
+   *  a branch, darker than a fan or triangle. */
+  summaryLineOpacity: number;
   /** The least distance between two stripes of a summary, CSS px, at least 1 (smaller values are taken as 1). A summary without room for
    *  two stripes gets their mean tone at this spacing instead. */
   summaryStripeGap: number;
@@ -199,6 +202,7 @@ export const FALLBACK_THEME: TreeTheme = {
   nodeMarkerSize: 4,
   summaryOpacity: 0.25,
   summaryStripeOpacity: 0.5,
+  summaryLineOpacity: 0.7,
   summaryStripeGap: 2,
   markerOpacity: 0.85,
   highlightOpacity: 0.16,
@@ -401,8 +405,8 @@ export interface ViewerOptions {
   treeWidth: TreeWidth;
   axis: boolean; // scale bar / time axis
   /** Collapse clades less than this many px tall (radial: their arc at their farthest tip); branch lengths do not count. `'auto'`
-   *  (the default): 1 px in the radial layout with `radialMaxNodes: 'auto'`, where only the budget, which follows the frame rate, raises
-   *  it; 3 px otherwise. A number is fixed, in either layout. */
+   *  (the default): 1 px where the budget follows the frame rate (radial with `radialMaxNodes: 'auto'`, rectangular with `drawBudget:
+   *  'auto'`), so only the budget raises it; 3 px with a fixed budget. A number is fixed, in either layout. */
   minCladePx: number | 'auto';
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
