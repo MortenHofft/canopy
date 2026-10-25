@@ -47,6 +47,9 @@ export const CEILING = 200000;
 /** The finest collapse threshold (CSS px): below it two clades are drawn on the same pixels, so nothing is gained. `minCladePx` and the
  *  search for a threshold stay at or above it. CSS px, not device px: the dedupe grid and every threshold are in CSS px. */
 export const MIN_THRESHOLD_PX = 1;
+/** `minCladePx: 'auto'` where no adaptive radial budget follows the frame rate (rectangular, a fixed `radialMaxNodes`): the threshold the
+ *  option had as a number before #122. With `radialMaxNodes: 'auto'` it is MIN_THRESHOLD_PX: the budget alone folds more. */
+export const AUTO_MIN_CLADE_PX = 3;
 /** Radial, `'auto'`: no summary wedge wider than this many degrees (arc at the outermost ring), unless frames are over the target. */
 export const MAX_WEDGE_DEG = 4;
 /** After a step that changed the budget, this many frames may be drawn to settle on a value, without any input. */

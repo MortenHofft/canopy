@@ -400,7 +400,10 @@ export interface ViewerOptions {
    *  At least 120 px. */
   treeWidth: TreeWidth;
   axis: boolean; // scale bar / time axis
-  minCladePx: number; // collapse clades less than this many pixels tall (radial: arc at the tips); branch lengths do not count
+  /** Collapse clades less than this many px tall (radial: their arc at their farthest tip); branch lengths do not count. `'auto'`
+   *  (the default): 1 px in the radial layout with `radialMaxNodes: 'auto'`, where only the budget, which follows the frame rate, raises
+   *  it; 3 px otherwise. A number is fixed, in either layout. */
+  minCladePx: number | 'auto';
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
   alignStyle: 'residues' | 'blocks';
@@ -476,7 +479,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   maxViewWidth: RECT_MAX_VIEW_W,
   treeWidth: 'auto',
   axis: true,
-  minCladePx: 3,
+  minCladePx: 'auto',
   alignStyle: 'residues',
   formatLabel: (s) => s.replace(/_/g, ' '),
   cladeLabel: null,
@@ -530,6 +533,7 @@ export interface FrameStats {
   tips: number;
   labels: number;
   minPxUsed: number; // effective collapse threshold after the budget rule
+  minPxBase: number; // the base threshold the budget rule starts from: minCladePx (its 'auto' resolved, #122), capped at the tip pitch
   budgetRetries: number; // how many times the threshold had to be raised to fit the budget
   budgetHit: boolean;
   truncated: boolean; // even the highest threshold overflowed (list was cut)

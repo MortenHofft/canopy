@@ -764,6 +764,7 @@ export const SETTINGS: Setting[] = [
     kind: 'select',
     default: String(O.minCladePx),
     options: [
+      ['auto', 'Auto (radial: 1 px, the budget folds more)'],
       ['1', '1 px (most detail)'],
       ['2', '2 px'],
       ['3', '3 px'],

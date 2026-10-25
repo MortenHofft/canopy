@@ -1153,7 +1153,7 @@ await open('syn-yule-10000');
 await page.waitForTimeout(1500);
 // one look for every summary (#85): no Stripes toggle, the background and stripes are always drawn
 ok((await page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ }).count()) === 0, 'no Stripes toggle');
-ok((await ev(() => __v().options.minCladePx)) === 3, 'a big tree: the library’s smallest clade, 3 px (#115)');
+ok((await ev(() => __v().options.minCladePx)) === 'auto', 'a big tree: the library’s smallest clade, auto (#115, #122)');
 // the stripe checks need summaries tall enough to carry stripes: 14 px here (the explorer used it for big trees before #115)
 await ev(() => {
   __v().setOptions({ minCladePx: 14 });

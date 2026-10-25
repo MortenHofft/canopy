@@ -77,6 +77,7 @@ import {
   FLOOR_RECT,
   MIN_SAMPLES,
   MIN_THRESHOLD_PX,
+  AUTO_MIN_CLADE_PX,
   START_RADIAL,
   START_RECT,
   newBudgetState,
@@ -288,6 +289,7 @@ export class TreeViewer {
     tips: 0,
     labels: 0,
     minPxUsed: 0,
+    minPxBase: 0,
     budgetRetries: 0,
     budgetHit: false,
     truncated: false,
@@ -1923,6 +1925,14 @@ export class TreeViewer {
     return budget;
   }
 
+  /** The base collapse threshold (px) before the cap: `minCladePx`, and for `'auto'` the finest threshold while the radial budget follows the
+   *  frame rate (#122), so only the budget folds more; after `resolveBudget`. */
+  private minCladeFor(): number {
+    const m = this.opts.minCladePx;
+    if (m !== 'auto') return m;
+    return this.wedgeLimited ? MIN_THRESHOLD_PX : AUTO_MIN_CLADE_PX;
+  }
+
   /** The radial wedge limit for this frame (px), Infinity for none: in force with `radialMaxNodes: 'auto'` while the budget has not been
    *  lowered for slow frames, and not in a reduced frame. */
   private wedgeLimitFor(reduced: boolean): number {
@@ -2018,8 +2028,8 @@ export class TreeViewer {
     // ---- cut
     const tc = performance.now();
     const cap = collapseCap(this.proj.tipPitch, opts.lod, rect); // #109, #113
-    const baseMinPx = Math.min(cap, Math.max(MIN_THRESHOLD_PX, opts.minCladePx));
     let budget = this.resolveBudget(rect);
+    const baseMinPx = Math.min(cap, Math.max(MIN_THRESHOLD_PX, this.minCladeFor()));
     let base = baseMinPx;
     if (reduced) {
       budget = Math.max(500, Math.floor(budget / 4));
@@ -2061,6 +2071,7 @@ export class TreeViewer {
     st.tips = res.tips;
     st.labels = this.labels.count;
     st.minPxUsed = minPx;
+    st.minPxBase = baseMinPx;
     st.budgetRetries = retries;
     st.budgetHit = minPx > base || res.overflow;
     st.truncated = res.overflow;
