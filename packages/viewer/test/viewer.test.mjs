@@ -175,6 +175,16 @@ test('the frame follows the size of the target and the device pixel ratio', asyn
   }
 });
 
+test('a resize draws the frame at once, before the paint, instead of leaving the cleared canvas for a frame', async () => {
+  const h = await makeViewer('((a,b),(c,d));', { size: [200, 100] });
+  h.env.flush();
+  h.ctx().reset();
+  h.env.resize(h.target, 300, 150);
+  assert.equal(h.env.pendingFrames(), 0, 'no frame left for later');
+  assert.deepEqual(h.ctx().calls('fillRect')[0], ['fillRect', 0, 0, 300, 150], 'the background over the new size');
+  assert.ok(h.ctx().calls('stroke').length > 0, 'the tree is drawn');
+});
+
 test('destroy: frames stop, the observer and the scheme listener are removed, the canvases released', async () => {
   const h = await makeViewer('((a,b),(c,d));');
   const main = h.canvas();

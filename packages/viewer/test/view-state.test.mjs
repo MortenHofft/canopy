@@ -271,6 +271,21 @@ test('visibleViewport (radial): null near the centre, a window centred on the no
   near((v.y0 + v.y1) / 2, L.X[tip] * Math.sin(ang), 1e-12);
 });
 
+test('resize: a zoomed rectangular view keeps its scale and its top left corner, the window grows with the container', () => {
+  const { vs, env } = make();
+  vs.setViewport({ x0: 0.2, x1: 0.6, y0: 10, y1: 30 });
+  const kx = vs.area.aw / 0.4,
+    ky = vs.area.ah / 20;
+  const keep = vs.beforeResize();
+  env.W = 1000;
+  env.H = 700;
+  vs.afterResize(keep);
+  near(vs.area.aw / (vs.view.x1 - vs.view.x0), kx, 1e-9);
+  near(vs.area.ah / (vs.view.y1 - vs.view.y0), ky, 1e-9);
+  near(vs.view.x0, 0.2, 1e-12);
+  near(vs.view.y0, 10, 1e-12);
+});
+
 test('resize: a fitted view follows the container, a zoomed radial view keeps its centre and scale', () => {
   let { vs, env } = make();
   env.H = 400;

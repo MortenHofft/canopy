@@ -270,22 +270,29 @@ export class ViewState {
 
   // ------------------------------------------------------------- resize
 
-  /** Call before the container size changes: what a later afterResize needs to keep a zoomed radial window centred on the same point
-   *  at the same scale. null when there is nothing to keep (rectangular, or no size yet). */
-  beforeResize(): { k: number; cx: number; cy: number } | null {
-    const v = this.view;
-    const k = this.env.layout === 'radial' && this.env.W > 0 ? this.area.aw / (v.x1 - v.x0) : 0;
-    return k ? { k, cx: (v.x0 + v.x1) / 2, cy: (v.y0 + v.y1) / 2 } : null;
+  /** Call before the container size changes: what a later afterResize needs to keep a zoomed window at the same scale, a radial one
+   *  centred on the same point, a rectangular one at the same top left corner. null when there is nothing to keep (no size yet). */
+  beforeResize(): { kx: number; ky: number; x: number; y: number } | null {
+    const v = this.view,
+      a = this.area;
+    if (!(this.env.W > 0 && v.x1 > v.x0 && v.y1 > v.y0)) return null;
+    const kx = a.aw / (v.x1 - v.x0),
+      ky = a.ah / (v.y1 - v.y0);
+    return this.env.layout === 'radial' ? { kx, ky: kx, x: (v.x0 + v.x1) / 2, y: (v.y0 + v.y1) / 2 } : { kx, ky, x: v.x0, y: v.y0 };
   }
 
-  /** The container has its new size: recompute the area; the fit view follows the size, a zoomed radial view keeps centre and scale. */
-  afterResize(keep: { k: number; cx: number; cy: number } | null): void {
+  /** The container has its new size: recompute the area; the fit view follows the size, a zoomed view keeps its scale (the drawing keeps
+   *  its size in pixels and the window grows or shrinks): radial about its centre, rectangular from its top left corner. */
+  afterResize(keep: { kx: number; ky: number; x: number; y: number } | null): void {
     this.computeArea();
     if (this.fitted || !(this.view.x1 > this.view.x0)) this.view = this.fitViewport();
     else if (keep) {
       const a = this.area;
-      const { k, cx, cy } = keep;
-      this.view = { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
+      const { kx, ky, x, y } = keep;
+      this.view =
+        this.env.layout === 'radial'
+          ? { x0: x - a.aw / 2 / kx, x1: x + a.aw / 2 / kx, y0: y - a.ah / 2 / kx, y1: y + a.ah / 2 / kx }
+          : this.clampView({ x0: x, x1: x + a.aw / kx, y0: y, y1: y + a.ah / ky });
     }
   }
 
