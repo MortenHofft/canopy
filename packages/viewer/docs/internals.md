@@ -111,6 +111,9 @@ only summaries get it in the cut (`seenSummary`: a summary whose ray misses the 
 clamped key inline, as clipping them, or even a call per node, cost 15-60% of a radial cut zoomed into a 200k comb (measured with the cut
 benchmark against `fa1f511`). `RadialProjection.dedupeRun` calls `clipRay` too and does not merge a run that misses.
 
+A summary at the 1 px threshold is drawn and hit as a branch to its deepest tip (`Scene.summaryLines`, `lineTip` in `lod.ts`, the
+layout's `DEEPEST`, #126): the cut is unchanged, only `drawBody` and `HitIndex.build` read it.
+
 A summary and a run are keyed by how far they reach (their XMAX, in both layouts), not by their node: keyed by the node, a clade with a long
 branch was merged into a shorter one in the same cells, and the long branch was only drawn at other zooms.
 
@@ -220,6 +223,7 @@ Scripts and tests:
 | `test/budget.test.mjs, budget-auto.test.mjs`                       | 450       | the adaptive budget (#114): the controller with a fake clock (halves at twice the target, lowers a little when slightly slow, raises when fast, limits, settle only, level off when nothing is left to show) and in the viewer (`'auto'` moves across frames, a number never does), and `searchCut`'s limit (no wedge past 4 degrees unless the budget must win) |
 | `test/radial-per-tip.test.mjs`                                    | 249       | radial dots, labels and folding decided per tip from the arc at its own radius, the per-clade wedge limit (#110)                                                                                               |
 | `test/radial-branch-width.test.mjs`                               | 47        | radial branch width: the theme width under 500 primitives, one device pixel from 900, faded in between; rectangular unchanged                                                                                  |
+| `test/summary-lines.test.mjs`                                     | 82        | summaries as branches at the 1 px threshold (#126): `Layout.DEEPEST`, the line to the deepest tip, the tip hovered at its end                                                                                  |
 | `test/lod-cap.test.mjs`                                           | 134       | the collapse threshold capped at the tip pitch once tips have dots, and the budget climbing past it (#109)                                                                                                     |
 | `test/cut-stub.test.mjs, partial-snapshot.mjs`                    | 306       | the partial-source path (stubs, `globalId`, rollups) through layout, cut and hit; `partial-snapshot.mjs` is a helper, a miniature of `ParquetSource.build()`                                                   |
 | `test/geom.test.mjs`                                              | 140       | transforms of both layouts, sector bounding boxes against a brute-force sample, `viewportEquals`                                                                                                               |

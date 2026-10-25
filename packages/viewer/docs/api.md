@@ -424,6 +424,11 @@ Every summary has one look: the triangles, fans and bands (of polytomies and of 
 the clades an app collapsed (`setCollapsed`). It is a faint background fill of the whole shape with hairline stripes over it, in the
 direction the hidden branches would run, so a summary reads as one shape, "more tree here", and not as branches.
 
+- **At the 1 px threshold, a branch (#126):** while the threshold in use is at its floor (`FrameStats.minPxUsed` 1, the budget allows
+  clades a pixel wide), a clade the level of detail folded by size is under a pixel wide and is drawn as a branch instead: one line in the
+  branch colour and width (or its clade colour) from its node to its deepest tip. Near the end of the line, hover and click are that tip's
+  (`kind: 'tip'`, its label, and the hover path from it to the root); elsewhere on it they are the clade's (`kind: 'summary'`). Bands of
+  polytomies and runs, clades an app collapsed and unloaded clades keep their shape, as does a clade whose deepest tip is not loaded.
 - **Background:** one fill per summary in `summary` (or the clade's colour) at `summaryOpacity`, drawn first.
 - **Stripes:** 1 px lines in the same colour at `summaryStripeOpacity`, over the background. The line width is not a token: the stripes are
   hairlines, thinner than any branch, so they read as a texture.

@@ -2,7 +2,7 @@
 // allocates per node. Strokes are batched into one path per colour class.
 
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
-import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
+import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice, lineTip } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
 import { labelMinPx, TIP_DOT_PX } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
@@ -29,6 +29,9 @@ export interface Scene {
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: number; // radial and dense: 0 = branches at the theme width, 1 = one device pixel (Skia hairline path, 10x cheaper on CPU raster), between: faded
   measure: TextMeasurer; // label widths, owned by the renderer
+  /** The threshold is at the floor (MIN_THRESHOLD_PX): every clade folded by size is under a pixel wide and is drawn as a branch from its
+   *  node to its deepest tip (lineTip), not as a fan or triangle (#126). */
+  summaryLines: boolean;
 }
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
@@ -449,6 +452,7 @@ function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cl
   for (let e = 0; e < list.count; e++) {
     if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
     if (passes > 1 && dimmed(S, e) !== pass) continue;
+    if (S.summaryLines && lineTip(proj.tree, proj.L, list.node[e], list.last[e]) >= 0) continue; // drawn with the branches
     n = addSummaryShape(ctx, proj, list, e, n, chunk);
     const lm = list.last[e];
     const pitch = pushStripes(proj, list.node[e], lm, lm >= 0 || isSlice(proj.tree, list.node[e], proj.L.collapsed), gap);
@@ -498,6 +502,13 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
         if (kind === K_NODE) {
           ctx.moveTo(p.x, clampY(proj.tip(firstChild[i]), T.H));
           ctx.lineTo(p.x, clampY(proj.tip(LAST[i]), T.H));
+        } else if (kind === K_SUMMARY && S.summaryLines) {
+          const t = lineTip(tree, L, i, -1);
+          if (t >= 0) {
+            proj.nodeXY(t, q);
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+          }
         }
       }
       if (any) ctx.stroke();
@@ -546,7 +557,15 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
           ctx.lineTo(p.x, p.y);
           segs++;
         }
-        if (list.kind[e] === K_NODE) {
+        if (list.kind[e] === K_SUMMARY && S.summaryLines) {
+          const t = lineTip(tree, L, i, -1);
+          if (t >= 0) {
+            proj.nodeXY(t, q);
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+            segs++;
+          }
+        } else if (list.kind[e] === K_NODE) {
           const fc = firstChild[i],
             lc = LAST[i];
           const r = proj.depth(i);
