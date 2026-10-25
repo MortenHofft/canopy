@@ -111,6 +111,9 @@ only summaries get it in the cut (`seenSummary`: a summary whose ray misses the 
 clamped key inline, as clipping them, or even a call per node, cost 15-60% of a radial cut zoomed into a 200k comb (measured with the cut
 benchmark against `fa1f511`). `RadialProjection.dedupeRun` calls `clipRay` too and does not merge a run that misses.
 
+A summary and a run are keyed by how far they reach (their XMAX, in both layouts), not by their node: keyed by the node, a clade with a long
+branch was merged into a shorter one in the same cells, and the long branch was only drawn at other zooms.
+
 Related, from the measured work: the two cut loops in `lod.ts` are separate on purpose (see below), and several helpers there (`cell`, the
 `K_*` kinds) are defined in the loops' module because an import binding measured slower (the comment on `cell` in `lod.ts` gives 10-25% slower on a polytomy; `90f1671`).
 

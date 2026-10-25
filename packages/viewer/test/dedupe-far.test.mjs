@@ -168,3 +168,37 @@ test('a deep zoom on the boundary of two collapsed clades of equal depth draws b
     assert.ok(drawn.includes(nodeA) && drawn.includes(nodeB), `z=${z}: both clades on the boundary are drawn, got ${drawn}`);
   }
 });
+
+// ---- a summary is told apart by how far it reaches, not only by its node: a clade with a long branch is not dropped for a short one
+
+test('two folded sibling clades in the same cells, the second reaching far: its summary is kept, radial and rectangular', () => {
+  // A and B are siblings under P, each three tips on sub-pixel rows (Q's 6000 tips make the rows small); A's tips end just past it, one of
+  // B's runs far out. Keyed by their node, B's summary had A's cells and was dropped, and with it the long branch
+  const filler = Array.from({ length: 6000 }, (_, k) => `q${k}:1`).join(',');
+  const snap = new InMemorySource(
+    parseNewick(`(((a0:0.02,a1:0.02,a2:0.02)A:0.01,(b0:0.02,b1:0.02,b2:0.4)B:0.01)P:0.4,(${filler})Q:0)root;`),
+  ).snapshot();
+  const L = computeLayout(snap, true);
+  ensureTrig(L);
+  const rows = snap.tipCount;
+  let b2 = 0;
+  while (!(snap.childCount[b2] === 0 && snap.tipLabels[snap.leafStart[b2]] === 'b2')) b2++;
+  const B = snap.parent[b2];
+  const W = 300,
+    H = 300;
+  const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
+  const views = { radial: { x0: -1.1, x1: 1.1, y0: -1.1, y1: 1.1 }, rectangular: { x0: 0, x1: 1, y0: 0, y1: H / 0.12 } }; // rectangular: rows of 0.12 px
+  for (const [kind, vp] of Object.entries(views)) {
+    const list = new DrawList();
+    searchCut(projectionFor(snap, L, makeTransform(kind, W, H, vp, area, rows)), null, list, new Seen(), {
+      lod: true,
+      base: 0.5, // P (0.7 px) stays open, A and B (0.4 px at most) fold
+      cap: Infinity,
+      budget: 5000,
+      summaries: true,
+      hint: 0,
+    });
+    const entries = [...Array(list.count).keys()].filter((e) => list.node[e] === B);
+    assert.ok(entries.length === 1 && list.kind[entries[0]] === K_SUMMARY, `${kind}: B is drawn as a summary (${entries.length} entries)`);
+  }
+});
