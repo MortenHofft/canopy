@@ -200,10 +200,10 @@ function resetsHint(p: Partial<ViewerOptions>): boolean {
 
 export class TreeViewer {
   // ------------------------------------------------------------- DOM
-  /** The tree element: role="tree", focusable, the canvases, labels and screen-reader list; the input controller listens on it. */
+  /** The tree element: role="tree", focusable, the canvases and labels; the input controller listens on it. */
   readonly root: HTMLDivElement;
   /** What the viewer appended to its target (class phylo-viewer): the tree element and, beside it (not inside the tree role), the
-   *  control layer. */
+   *  notice, the screen-reader list, the live region and the control layer. */
   readonly container: HTMLDivElement;
   private canvas: HTMLCanvasElement;
   private top: HTMLCanvasElement;
@@ -397,9 +397,10 @@ export class TreeViewer {
     this.uiLayer = mk('div', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none');
     this.uiLayer.className = 'phylo-ui';
     this.uiLayer.dataset.phyloUi = '';
-    this.root.append(this.canvas, this.top, this.overlay.layer, this.notice, this.overlay.srList, this.overlay.live);
-    // the control layer is the tree element's sibling: a tree may only own tree items, so menus, buttons and the search field stay out
-    this.container.append(this.root, this.uiLayer);
+    this.root.append(this.canvas, this.top, this.overlay.layer);
+    // the notice, the screen-reader list, the live region and the control layer are the tree element's siblings: a tree may only own
+    // tree items and groups, so lists, status regions, menus, buttons and the search field stay out
+    this.container.append(this.root, this.notice, this.overlay.srList, this.overlay.live, this.uiLayer);
     // the theme from CSS custom properties of the target (and its ancestors); re-read when the colour scheme preference changes
     this.cssTheme = themeFromCss(this.host, false);
     this.theme = this.composeTheme();

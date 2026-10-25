@@ -68,8 +68,8 @@ Properties
 
 | Member                             | Meaning                                                                                                                        |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `element`                          | what the viewer added to `target` (class `phylo-viewer`): the tree element and, beside it, the control layer                   |
-| `treeElement` / `root`             | the tree element: `role="tree"`, focusable, the canvases, labels and screen-reader list. Controls and popups are not inside it |
+| `element`                          | what the viewer added to `target` (class `phylo-viewer`): the tree element and, beside it, the notice, the screen-reader list, the live region and the control layer |
+| `treeElement` / `root`             | the tree element: `role="tree"`, focusable, the canvases and labels. The screen-reader list, the live region, controls and popups are not inside it (a tree owns only tree items and groups) |
 | `options: Readonly<ViewerOptions>` | the options in force                                                                                                           |
 | `size: {width, height}`            | container size in CSS px                                                                                                       |
 | `layout: Layout`                   | the current layout arrays (`X`, `ROW`, `XMAX`, `LAST`, `layoutMs`, ...), `layout.ts`                                           |
