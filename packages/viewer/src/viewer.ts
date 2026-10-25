@@ -414,7 +414,15 @@ export class TreeViewer {
     // the wheel over controls and the overview zooms the tree as it does over the tree, except inside parts that scroll themselves
     this.uiLayer.addEventListener('wheel', this.onUiWheel, { passive: false });
     this.ro = new ResizeObserver(() => {
-      if (!this.destroyed) this.measure();
+      if (this.destroyed) return;
+      this.measure();
+      // draw now, before the browser paints: a new canvas size clears the canvas (to black when it is opaque), and the frame scheduled
+      // for the next animation frame would come one paint too late
+      if (this.dirty && this.raf) {
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+        this.frame(performance.now());
+      }
     });
     this.ro.observe(this.host);
     this.measure();
@@ -1881,15 +1889,18 @@ export class TreeViewer {
     if (this.raf || this.destroyed) return;
     this.raf = requestAnimationFrame((now) => {
       this.raf = 0;
-      if (this.destroyed) return;
-      this.frameNow = now;
-      if (this.vs.animating) this.vs.stepAnim(now);
-      if (this.dirty) this.render();
-      if (this.pendingHover && !this.interacting) this.doHover();
-      if (this.topDirty) this.drawTop();
-      this.frameNow = NaN;
-      if (this.vs.animating) this.schedule();
+      if (!this.destroyed) this.frame(now);
     });
+  }
+
+  private frame(now: number): void {
+    this.frameNow = now;
+    if (this.vs.animating) this.vs.stepAnim(now);
+    if (this.dirty) this.render();
+    if (this.pendingHover && !this.interacting) this.doHover();
+    if (this.topDirty) this.drawTop();
+    this.frameNow = NaN;
+    if (this.vs.animating) this.schedule();
   }
 
   /** Canvas backing pixels per CSS pixel: the device pixel ratio, capped by the dprCap option. */
