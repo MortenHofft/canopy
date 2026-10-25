@@ -4,7 +4,7 @@
 // from the layout projection (positions, clade extents) when tested, only (node, type) is stored.
 
 import { fanTheta } from './layout.ts';
-import { K_NODE, K_SUMMARY, K_TIP, isSlice, type DrawList } from './lod.ts';
+import { K_NODE, K_SUMMARY, K_TIP, isSlice, lineTip, type DrawList } from './lod.ts';
 import type { LayoutProjection, Pt } from './projection.ts';
 import { TIP_DOT_PX } from './sizes.ts';
 import type { Hit } from './types.ts';
@@ -101,7 +101,9 @@ export class HitIndex {
     }
   }
 
-  build(list: DrawList, proj: LayoutProjection): void {
+  /** `lines`: summaries folded by size are drawn as a branch to their deepest tip (Scene.summaryLines): the line is the summary's, its end
+   *  the tip's, so the tip is hovered there as one drawn (#126). */
+  build(list: DrawList, proj: LayoutProjection, lines = false): void {
     const t0 = performance.now();
     const { tree, L, T } = proj;
     this.gw = Math.ceil(T.W / CELL) + 1;
@@ -152,9 +154,16 @@ export class HitIndex {
         }
       } else if (kind === K_SUMMARY) {
         const it = this.addItem(i, T_SUMMARY);
-        proj.summaryExtent(i, -1, 0);
-        this.addExtent(it, proj, 24);
-        if (!rect) this.addPoint(it, x, y);
+        const t = lines ? lineTip(tree, L, i, -1) : -1;
+        if (t >= 0) {
+          proj.nodeXY(t, pp);
+          this.addSegment(it, x, y, pp.x, pp.y);
+          this.addPoint(this.addItem(t, T_TIPPT), pp.x, pp.y);
+        } else {
+          proj.summaryExtent(i, -1, 0);
+          this.addExtent(it, proj, 24);
+          if (!rect) this.addPoint(it, x, y);
+        }
       }
     }
     this.valid = true;

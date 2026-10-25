@@ -36,6 +36,7 @@
 
 import { CULL_PAD_PX } from './constants.ts';
 import type { TreeSnapshot } from './types.ts';
+import type { Layout } from './layout.ts';
 import type { LayoutProjection, RadialProjection, RectProjection } from './projection.ts';
 
 // Primitive kinds of a draw-list entry and the polytomy-slice predicate. Defined in this module (not imported) because the cut loops read
@@ -60,6 +61,13 @@ export function isSlice(tree: TreeSnapshot, i: number, collapsed: Uint8Array | n
     (tree.stub === undefined || tree.stub === null || tree.stub[i] === 0) &&
     (collapsed === null || collapsed[i] === 0) // a clade the app collapsed is a triangle, whatever its children are
   );
+}
+
+/** The tip a summary of node `i` (run: `last` >= 0) is drawn to as a line in a frame of `summaryLines` (Scene, #126), else -1: a clade
+ *  folded by size whose deepest tip is loaded. A run, a polytomy slice and a clade the app collapsed keep their shape. */
+export function lineTip(tree: TreeSnapshot, L: Layout, i: number, last: number): number {
+  if (last >= 0 || (L.collapsed !== null && L.collapsed[i] === 1) || isSlice(tree, i)) return -1;
+  return L.DEEPEST[i];
 }
 
 /** A run (rule R) is a K_SUMMARY entry with last >= 0: `node` is its first member, `last` its last member (siblings, adjacent in

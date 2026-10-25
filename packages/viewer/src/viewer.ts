@@ -254,6 +254,8 @@ export class TreeViewer {
   private collapsedNodes: number[] = []; // node ids of the last setCollapsed
   private collapsedMask: Uint8Array | null = null; // by row of the snapshot: 1 = a clade to collapse (what computeLayout reads), null = none
   private list = new DrawList();
+  /** The last cut's threshold is at the floor: summaries folded by size are drawn and hit as a branch to their deepest tip (#126). */
+  private summaryLines = false;
   private seen = new Seen();
   private hit: HitIndex;
   private measurer = new TextMeasurer(); // label widths of this renderer's fonts only
@@ -2042,6 +2044,7 @@ export class TreeViewer {
     const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, !reduced, limit);
     const { minPx, retries } = cutRes;
     const res = cutRes.res;
+    this.summaryLines = minPx <= MIN_THRESHOLD_PX * (1 + 1e-9);
     const cutMs = performance.now() - tc;
     this.hit.invalidate();
     if (!reduced) this.lastFullDrawn = this.list.count;
@@ -2127,6 +2130,7 @@ export class TreeViewer {
       scale,
       thin: rect ? 0 : Math.min(1, Math.max(0, (this.list.count - THIN_FROM) / (THIN_TO - THIN_FROM))),
       measure: this.measurer,
+      summaryLines: this.summaryLines,
     };
     ctx.save();
     ctx.beginPath();
@@ -2288,7 +2292,7 @@ export class TreeViewer {
   // ================================================================= hit-testing, hover
 
   private ensureHit(): void {
-    if (!this.hit.valid) this.hit.build(this.list, this.proj);
+    if (!this.hit.valid) this.hit.build(this.list, this.proj, this.summaryLines);
   }
 
   private queryHit(x: number, y: number): Hit | null {

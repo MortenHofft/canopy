@@ -39,6 +39,8 @@ export interface Layout {
   X: Float64Array;
   ROW: Float64Array;
   XMAX: Float32Array; // largest X in the subtree (clade extent for collapsing and culling)
+  /** By node: a tip of its clade at XMAX (node index; the first in preorder of equals), -1 where none is loaded (a partial source). */
+  DEEPEST: Int32Array;
   LAST: Int32Array; // last child, -1 for tips
   layoutMs: number;
   /** The radial fan: where the rows start on the circle and how much of it they take (FULL_FAN until the viewer sets the options' fan
@@ -186,6 +188,7 @@ function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number
     X,
     ROW: R.row,
     XMAX,
+    DEEPEST: deepestTips(tree, XMAX),
     LAST,
     layoutMs: performance.now() - t0,
     fan: FULL_FAN,
@@ -194,6 +197,17 @@ function layoutFromRollup(tree: TreeSnapshot, branchLengths: boolean, t0: number
     BC: null,
     BS: null,
   };
+}
+
+/** By node, a tip of the clade at its XMAX (see Layout.DEEPEST). One pass up from the tips: a node takes the tip of its first child in
+ *  preorder that reaches as far and has one (XMAX is the children's largest, copied exactly, so equal compares exactly). */
+function deepestTips(tree: TreeSnapshot, XMAX: Float32Array): Int32Array {
+  const n = tree.nodeCount;
+  const { parent, childCount } = tree;
+  const D = new Int32Array(n);
+  for (let i = 0; i < n; i++) D[i] = childCount[i] === 0 ? i : -1; // a stub has children (unloaded): it starts with none
+  for (let i = n - 1; i > 0; i--) if (D[i] >= 0 && XMAX[i] === XMAX[parent[i]]) D[parent[i]] = D[i];
+  return D;
 }
 
 /** `collapsed`: by node, 1 = a clade to draw as one row (ignored for a partially loaded tree, and for a tip). */
@@ -269,6 +283,7 @@ export function computeLayout(tree: TreeSnapshot, branchLengths: boolean, collap
     X,
     ROW,
     XMAX,
+    DEEPEST: deepestTips(tree, XMAX),
     LAST,
     layoutMs: performance.now() - t0,
     fan: FULL_FAN,

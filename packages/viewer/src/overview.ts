@@ -224,6 +224,7 @@ export class Overview {
       scale: h.dpr,
       thin: 0,
       measure: h.measure,
+      summaryLines: false,
     };
     drawBody(ctx, S, 1);
     const hlRanks = h.hlRanks;
