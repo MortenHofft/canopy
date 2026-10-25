@@ -119,3 +119,31 @@ export function allCases() {
           cases.push({ id: `${tree}/${layout}/${view}/b${OPTIONS[o].budget}`, tree, layout, view, opts: OPTIONS[o] });
   return cases;
 }
+
+/** Cases that pass the real collapse cap (`collapseCap(tipPitch, true, layout === 'rectangular')`, #109 and #113) with the base
+ *  `min(cap, 14)`, as the viewer does with the explorer's minCladePx 14: rectangular at rows of 0.9, 1, 2 and 6 px (a view of H / px
+ *  rows from the top of the 900-tip tree), the same at 2 px under a budget of 40 (the threshold climbs past the cap), radial at pitches
+ *  under 6 px (no cap) and over it. Their goldens are in cut-golden-cap.json. */
+export function cappedCases() {
+  const rect = (px) => ({ x0: -0.03, x1: 1.03, y0: 0, y1: H / px });
+  const cases = [];
+  for (const px of [0.9, 1, 2, 6])
+    cases.push({ id: `cap/dense/rectangular/${px}px/b20000`, tree: 'dense', layout: 'rectangular', view: rect(px), budget: 20000 });
+  cases.push({ id: 'cap/dense/rectangular/2px/b40', tree: 'dense', layout: 'rectangular', view: rect(2), budget: 40 });
+  cases.push({ id: 'cap/random/rectangular/6px/b20000', tree: 'random', layout: 'rectangular', view: rect(6), budget: 20000 });
+  cases.push({ id: 'cap/balanced/radial/z1/b20000', tree: 'balanced', layout: 'radial', view: radial(0, 0, 1), budget: 20000 });
+  cases.push({ id: 'cap/balanced/radial/z2/b20000', tree: 'balanced', layout: 'radial', view: radial(0, 0, 2), budget: 20000 });
+  // phylograms (tips at different radii): clades whose deepest tip has a dot stay open (#110)
+  for (const [tree, z] of [
+    ['random', 6],
+    ['ladder', 5],
+    ['polytomy', 3],
+    ['polytomy', 5],
+    ['balanced', 6],
+    ['stubs', 6],
+  ])
+    cases.push({ id: `cap/${tree}/radial/z${z}/b20000`, tree, layout: 'radial', view: radial(0, 0, z), budget: 20000 });
+  cases.push({ id: 'cap/random/radial/z6/b60', tree: 'random', layout: 'radial', view: radial(0, 0, 6), budget: 60 });
+  cases.push({ id: 'cap/balanced/radial/z2/b40', tree: 'balanced', layout: 'radial', view: radial(0, 0, 2), budget: 40 });
+  return cases;
+}

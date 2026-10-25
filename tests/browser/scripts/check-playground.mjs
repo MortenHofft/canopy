@@ -83,6 +83,7 @@ await open();
 ok((await page.locator('#tree-info').innerText()).startsWith('135 tips'), 'the default tree is loaded (135 tips)');
 ok(query().get('tree') === 'rich-fish-carangaria-135' && [...query().keys()].length === 1, 'the URL holds only the tree while everything is default');
 ok((await page.locator('.setting.changed').count()) === 0, 'no setting marked as changed');
+ok((await opt('drawBudget')) === 'auto' && (await opt('radialMaxNodes')) === 'auto', "the draw budgets default to 'auto' (#114)");
 ok((await page.locator('.phylo-zoom').count()) === 1 && (await page.locator('.phylo-search').count()) === 1, 'default controls: zoom, fit, search');
 
 console.log('options');
@@ -92,6 +93,10 @@ await select('drawBudget', '2000');
 ok((await opt('drawBudget')) === 2000, 'numeric select → a number');
 await select('radialMaxNodes', 'Infinity');
 ok((await opt('radialMaxNodes')) === Infinity, "'Infinity' → Infinity");
+await select('drawBudget', 'auto');
+await select('radialMaxNodes', 'auto');
+ok((await opt('drawBudget')) === 'auto' && (await opt('radialMaxNodes')) === 'auto', "'auto' → the string (the adaptive budgets, #114)");
+ok(!query().has('s.drawBudget') && !query().has('s.radialMaxNodes'), "and 'auto' is the default, so out of the URL again");
 await select('layout', 'rectangular');
 await select('rowHeight', '12');
 ok((await opt('rowHeight')) === 12, 'row height 12');
@@ -288,18 +293,34 @@ ok(
   (await page.locator('[data-setting=summaryStyle], [data-setting=stripeCollapsed], [data-setting=summaryStripeColour]').count()) === 0,
   'no summary style, stripeCollapsed or stripe colour setting',
 );
-await ev(() => window.viewer.setOptions({ minCladePx: 20 })); // summaries tall enough for stripes (the select stops at 8)
+// the level of detail folds nothing where the tips have room for dots (radial) or rows are 1 px tall (#109, #113): collapse a few clades by hand
+const collapseSome = () =>
+  ev(() => {
+    const t = window.viewer.getTree();
+    const ids = [];
+    for (let i = 1; i < t.nodeCount && ids.length < 6; i++) {
+      const c = t.leafEnd[i] - t.leafStart[i];
+      if (t.firstChild[i] >= 0 && c >= 8) {
+        ids.push(i);
+        i = t.subtreeEnd[i] - 1;
+      }
+    }
+    window.viewer.setCollapsed(ids);
+  });
 const summaryColour = await theme('summary');
 await setInput('summary', '#ff0000');
 // strong red only: the background alone (summaryOpacity 0.25 over white) is too faint to count, the stripes and their tone are not
-const redPixels = () =>
-  ev(() => {
+const redPixels = async () => {
+  await collapseSome(); // a setting change re-applies the playground's collapse, so collapse again before each read
+  await settled();
+  return ev(() => {
     const c = document.querySelector('.phylo-tree canvas');
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     let n = 0;
     for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 170 && d[i + 2] < 170 && Math.abs(d[i + 1] - d[i + 2]) < 20) n++;
     return n;
   });
+};
 const stripedRed = await redPixels();
 ok(stripedRed > 100, `the summaries are drawn in the summary colour (${stripedRed} red pixels)`);
 await setInput('summaryStripeOpacity', '0');
@@ -316,10 +337,10 @@ ok(
 );
 await setInput('summaryStripeGap', '2');
 await select('layout', 'radial');
-// only the arc counts (#87): at the fit, hardly a clade of this tree spans less than 20 px along the arc, so raise it for summaries
-await ev(() => window.viewer.setOptions({ minCladePx: 60 }));
-await settled(); // the frame with the new threshold, before reading its pixels
+await collapseSome();
+await settled();
 ok((await redPixels()) > 100, 'radial: the same look');
+await ev(() => window.viewer.setCollapsed([]));
 await select('layout', 'rectangular');
 await ev(() => window.viewer.setOptions({ minCladePx: 3 }));
 await setInput('summary', summaryColour);

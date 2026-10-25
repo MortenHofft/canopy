@@ -22,8 +22,9 @@ const { DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
-const { projectionFor } = await import(path.join(core, 'projection.ts'));
-const { W, H, TREES, VIEWS, allCases } = await import(path.join(here, '..', 'test', 'cut-golden-cases.mjs'));
+const { projectionFor, tipDotRadius } = await import(path.join(core, 'projection.ts'));
+const { collapseCap } = await import(path.join(core, 'sizes.ts'));
+const { W, H, TREES, VIEWS, allCases, cappedCases } = await import(path.join(here, '..', 'test', 'cut-golden-cases.mjs'));
 const area = { ax: 0, ay: 0, aw: W, ah: H, clipL: 0, clipT: 0, clipR: W, clipB: H };
 const FAN = radialFan(DEFAULT_OPTIONS.radialOpening, DEFAULT_OPTIONS.radialRotation);
 const CIRCLE = radialFan(0, 0);
@@ -56,10 +57,34 @@ function capture(c, fan) {
     budget: c.opts.budget,
     summaries: true,
     hint: 0,
+    cap: Infinity,
   });
   const entries = [];
   for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
   return { res: r.res, minPx: r.minPx, retries: r.retries, entries };
+}
+
+/** A case of cappedCases(): the cut with the cap the viewer computes from the tip pitch (base min(cap, 14), hint 0). */
+export function captureCapped(c) {
+  const { s, L, classOf } = built[c.tree];
+  setLayoutFan(L, FAN);
+  ensureTrig(L);
+  const T = makeTransform(c.layout, W, H, c.view, area, s.tipCount, FAN);
+  const proj = projectionFor(s, L, T);
+  const cap = collapseCap(proj.tipPitch, true, c.layout === 'rectangular');
+  const list = new DrawList();
+  const r = searchCut(proj, classOf, list, new Seen(), {
+    lod: true,
+    base: Math.min(cap, 14),
+    budget: c.budget,
+    summaries: true,
+    hint: 0,
+    cap,
+    dotR: tipDotRadius(proj),
+  });
+  const entries = [];
+  for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
+  return { pitch: Math.round(proj.tipPitch * 1e3) / 1e3, res: r.res, minPx: r.minPx, retries: r.retries, entries };
 }
 
 const lines = [],
@@ -71,6 +96,8 @@ for (const c of allCases()) {
 fs.writeFileSync(out, '{\n' + lines.join(',\n') + '\n}\n');
 const outCircle = path.join(path.dirname(out), 'cut-golden-circle.json');
 fs.writeFileSync(outCircle, '{\n' + circle.join(',\n') + '\n}\n');
+const capLines = cappedCases().map((c) => JSON.stringify(c.id) + ':' + JSON.stringify(captureCapped(c)));
+fs.writeFileSync(path.join(path.dirname(out), 'cut-golden-cap.json'), '{\n' + capLines.join(',\n') + '\n}\n');
 console.log(`${lines.length} cases written to ${out}, ${circle.length} hashes to ${outCircle}`);
 
 /** The hash test/cut-golden.test.mjs compares for a case on the whole circle (sha256 of the golden record, 16 hex digits). */

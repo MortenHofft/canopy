@@ -92,3 +92,67 @@ test('radial, 200,000 tips in polytomies of 16, small pane: zoomed in as far as 
   for (let e = 0; e < v.list.count; e++) if (v.list.node[e] === node) kinds.push(v.list.kind[e]);
   assert.deepEqual(kinds, [1], 'the focused tip is drawn as a tip (K_TIP)');
 });
+
+test('radial, tips at 30% of the radius: zoom goes on until they are maxTipSpacing apart, and focusTip gives them label room', async () => {
+  // 20,000 tips in clades of 10, every other clade on short branches (tips at 0.3). The outer ring reaches maxTipSpacing (24 px) when
+  // the inner tips are only 7.2 px apart, under the 8 px of the dense label threshold, so a ceiling at the outer ring kept them unlabelled
+  const clades = Array.from({ length: 2000 }, (_, c) => {
+    const len = c % 2 ? 0.2 : 0.9;
+    return `(${Array.from({ length: 10 }, (_, s) => `c${c}s${s}:${len}`).join(',')}):0.1`;
+  });
+  const m = await makeViewer(`(${clades.join(',')});`, { options: { layout: 'radial', labelDensity: 'dense' }, size: [400, 400] });
+  m.env.flush();
+  const v = m.viewer;
+  const rank = 10 * 1001 + 4; // clade 1001: inner
+  const name = v.getTree().tipLabels[rank];
+  assert.match(name, /^c1001s/);
+  v.focusTip(rank);
+  m.env.flush();
+  const inner = 0.3 * v.T.k * v.T.da;
+  assert.ok(inner >= 23.9, `focusTip: inner tips ${inner.toFixed(1)} px apart`);
+  const drawn = m
+    .ctx()
+    .calls('fillText')
+    .some((e) => e[1] === name);
+  assert.ok(drawn, 'the focused inner tip is labelled');
+  for (let i = 0; i < 4; i++) v.zoomBy(8, 8, 200, 200);
+  m.env.flush();
+  const deepest = 0.3 * v.T.k * v.T.da;
+  assert.ok(Math.abs(deepest - 24) < 0.1, `the deepest zoom leaves the inner tips maxTipSpacing apart (${deepest.toFixed(2)} px)`);
+});
+
+test('radial, the zoom limit follows the window (#120): deep near the centre, at the outer ring where it is; a pan keeps the scale', async () => {
+  // 20,000 tips at the outer ring and one outgroup tip on a very short branch: the outgroup must not lift the limit at the outer ring
+  const clades = Array.from({ length: 2000 }, (_, c) => `(${Array.from({ length: 10 }, (_, s) => `c${c}s${s}:0.9`).join(',')}):0.1`);
+  const m = await makeViewer(`(out:0.001,${clades.join(',')});`, { options: { layout: 'radial' }, size: [400, 400] });
+  m.env.flush();
+  const v = m.viewer;
+  const k = () => v.T.k;
+  const pitch = () => v.T.k * v.T.da; // at the outer ring
+  // at the outer ring: as deep as allowed leaves tips maxTipSpacing (24 px) apart at the window's inner edge, a hair inside the ring
+  v.focusTip(10000);
+  m.env.flush();
+  for (let i = 0; i < 6; i++) v.zoomBy(8, 8, 200, 200);
+  m.env.flush();
+  assert.ok(pitch() >= 24 && pitch() < 24.5, `outer ring: tips ${pitch().toFixed(2)} px apart at the deepest zoom`);
+  const outerMax = k();
+  // near the centre: much deeper
+  v.setViewport({ x0: -0.01, x1: 0.01, y0: -0.01, y1: 0.01 });
+  for (let i = 0; i < 6; i++) v.zoomBy(8, 8, 200, 200);
+  m.env.flush();
+  const centreMax = k();
+  assert.ok(centreMax > 10 * outerMax, `centre ${centreMax.toFixed(0)} vs outer ring ${outerMax.toFixed(0)} px per unit radius`);
+  // a pan out to the outer ring keeps that scale; zooming in there does nothing, zooming out works
+  const vp = v.getViewport();
+  const w = vp.x1 - vp.x0,
+    h = vp.y1 - vp.y0;
+  v.setViewport({ x0: 0.95, x1: 0.95 + w, y0: 0, y1: h });
+  m.env.flush();
+  assert.ok(Math.abs(k() / centreMax - 1) < 1e-9, 'the pan kept the scale');
+  const at = v.getViewport();
+  v.zoomBy(2, 2, 200, 200);
+  assert.deepEqual(v.getViewport(), at, 'zooming in past the limit there changes nothing');
+  v.zoomBy(0.5, 0.5, 200, 200);
+  m.env.flush();
+  assert.ok(Math.abs(k() / centreMax - 0.5) < 1e-9, 'zooming out does');
+});

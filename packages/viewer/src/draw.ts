@@ -4,7 +4,7 @@
 import { ARC_SAGITTA_K, CLAMP_Y_PAD_PX, RADIAL_FAR_ARC_R } from './constants.ts';
 import { DrawList, K_NODE, K_STUB, K_SUMMARY, K_TIP, isSlice } from './lod.ts';
 import { MARKER_PX } from './hit.ts';
-import { labelMinPx } from './sizes.ts';
+import { labelMinPx, TIP_DOT_PX } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
 import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
 import type { LabelDensity, RadialRings, TreeTheme } from './types.ts';
@@ -97,7 +97,6 @@ const FILL_CHUNK = 32; // fans per fill() call, same reason
 const MAX_RADIAL_STRIPES = 256; // rays per fan: a fan zoomed far past the screen draws every 2nd, 4th, ... ray of its grid, not more of them
 const MAX_PITCH_GAPS = 8; // stripes further apart than this many gaps (a few hidden tips over a tall summary) are not drawn: the summary gets their mean tone
 const STRIPE_PX = 1; // line width of the stripes: hairlines, thinner than any branch, so they read as a texture and not as branches
-const TIP_DOT_PX = 6; // tip dots are drawn when rows are at least this tall
 const LABEL_GAP_PX = 8; // tip (or aligned column) to the start of the text
 const LEADER_END_GAP_PX = 3; // a leader stops this far before its label
 
@@ -193,12 +192,11 @@ function endGroup(): void {
  *  least 1. Rectangular stripes are at least a gap apart; radial rays are a gap apart at the outer edge and closer toward the apex (below
  *  1 px there, which only makes them merge). Returns 0 when the stripes are pushed (nothing pushed: it is off screen). Otherwise the summary
  *  gets the stripes' mean tone instead, and the return is the distance (px) its stripes would have, for that tone: when there is no room
- *  for two stripes `gap` px apart (one per hidden tip, at least `gap`), or when the stripes would be more than MAX_PITCH_GAPS gaps apart (a
+ *  for two stripes `gap` px apart (one per hidden tip, at least `gap`, so a summary of one tip has the width of its shape), or when the stripes would be more than MAX_PITCH_GAPS gaps apart (a
  *  few hidden tips over a tall summary, or a radial fan zoomed so far in that its visible rays are thinned that much). */
 function pushStripes(proj: LayoutProjection, i: number, lm: number, solidShape: boolean, gap: number): number {
   const { tree } = proj;
   const hidden = tree.leafEnd[lm >= 0 ? lm : i] - tree.leafStart[i];
-  if (hidden < 2) return gap;
   if (proj.kind === 'rectangular') {
     const { T } = proj;
     const y0 = proj.t0,
@@ -601,7 +599,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const { proj, list, theme, colours } = S;
   const p: Pt = { x: 0, y: 0 };
   const tipPx = proj.tipPitch;
-  const dots = tipPx >= TIP_DOT_PX;
+  const dotDepth = proj.minTipDepth(TIP_DOT_PX); // a tip gets a dot when its depth reaches this (radial: where the arc between tips is wide enough, #110)
   const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
   const m = theme.nodeMarkerSize;
   // internal markers: small filled squares (cheap), only for clades big enough to click
@@ -618,7 +616,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
         const kind = list.kind[e];
         const i = list.node[e];
         if (kind === K_TIP) {
-          if (!dots) continue;
+          if (proj.depth(i) < dotDepth) continue;
           proj.nodeXY(i, p);
           ctx.moveTo(p.x + rTip, p.y);
           ctx.arc(p.x, p.y, rTip, 0, 6.2832);
@@ -1098,6 +1096,36 @@ function dashOf(v: string): number[] {
   return out.some((n) => n > 0) ? out : [];
 }
 
+/** The font size (px) of a label with `pitch` px between neighbouring labels: the theme's, less where the pitch is tight (never under 8). */
+function labelFontSize(labelSize: number, pitch: number): number {
+  return Math.max(8, Math.min(labelSize, Math.round(pitch * 0.78)));
+}
+
+/** Radial, labels at their tips: the font size of the label of tip `i` (`col`: of the clade whose triangle ends at `i`'s radius, XMAX), from
+ *  the arc to the next tip at that radius; 0 when the arc is under `need`, so no label. */
+function tipLabelSize(S: Scene, i: number, col: boolean, need: number): number {
+  const { proj } = S;
+  const room = proj.T.da * (col ? proj.L.XMAX[i] * proj.T.k : proj.depth(i));
+  return room < need ? 0 : labelFontSize(S.theme.labelSize, room);
+}
+
+/** The label fonts (normal and highlighted) for the current size; `use` rebuilds the strings only when the size changes. */
+class LabelFonts {
+  size = 0;
+  normal = '';
+  bold = '';
+  constructor(
+    private readonly style: string,
+    private readonly family: string,
+  ) {}
+  use(size: number): void {
+    if (size === this.size) return;
+    this.size = size;
+    this.normal = `${this.style}${size}px ${this.family}`;
+    this.bold = `${this.style}600 ${size}px ${this.family}`;
+  }
+}
+
 /** Tip labels for drawn tips when rows (or arcs) are tall enough. Fills `labels` for hit-testing and the overlay.
  *  Aligned (`alignLabels`, a phylogram): rectangular, the text starts in one column (alignedX); radial, on one circle (alignedR), still
  *  along the tip's ray. Radial: only when the angular pitch per tip is at least the font size, at most RADIAL_LABEL_CAP labels, and one
@@ -1111,12 +1139,12 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
   const ar = alignedR(S);
   const pitch = labelPitch(S, ar);
   const need = labelMinPx(S.density, S.theme.labelSize);
-  if (pitch < need) return;
+  // radial, labels at their tips: the room is the arc at the tip's own radius, tested per tip (#110); the view's radii say when none has any
+  const perTip = !rect && Number.isNaN(ar);
+  if (perTip ? proj.minTipDepth(need) === Infinity : pitch < need) return;
   const hasCollapsed = S.cladeText !== null && L.collapsed !== null; // collapsed clades are labelled
-  const size = Math.max(8, Math.min(theme.labelSize, Math.round(pitch * 0.78)));
-  const style = theme.labelFontStyle === 'italic' ? 'italic ' : '';
-  const fontN = `${style}${size}px ${theme.fontFamily}`;
-  const fontH = `${style}600 ${size}px ${theme.fontFamily}`;
+  const fonts = new LabelFonts(theme.labelFontStyle === 'italic' ? 'italic ' : '', theme.fontFamily);
+  fonts.use(labelFontSize(theme.labelSize, pitch));
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   const p: Pt = { x: 0, y: 0 };
@@ -1133,8 +1161,14 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
     const r = col ? -1 : tree.tipRank[i];
     labelAnchor(S, e, col, p);
     if (rect ? labelCulled(T, p.x, p.y, ax) : radialLabelCulled(S, i, ar, p)) continue; // radial aligned: p is now on the circle
+    if (perTip) {
+      const sz = tipLabelSize(S, i, col, need);
+      if (sz === 0) continue;
+      fonts.use(sz);
+    }
+    const size = fonts.size;
     const hl = col ? highlight !== null && holdsHighlight(S, i) : highlight ? highlight[r] === 1 : false;
-    const f = hl ? fontH : fontN;
+    const f = hl ? fonts.bold : fonts.normal;
     if (f !== lastFont) {
       ctx.font = f;
       lastFont = f;

@@ -284,28 +284,47 @@ test('radial: the same rule along the branch, at 1.01x steps', async () => {
   assert.ok(seen > 30, `radial labels checked: ${seen}`);
 });
 
-// A clade the level of detail cuts as a stub while its node is in view has no stem label: only a stub pushed out of view to the right
-// does (see above). `minCladePx` above the clades' height cuts all three clades; their stems are long, so room is not what leaves them out.
-const CUT = '((a:1,b:1)x:60,(c:1,d:1)y:40,(e:50,f:50)z:20)r;';
-test('a stub cut by size, node in view: no length (with or without summaries)', async () => {
-  assert.deepEqual(
-    (await make({}, CUT).then(frame)).labels.map((l) => l.text).sort(),
-    ['20', '40', '50', '50', '60'],
-    'uncut: all three stems are labelled (and the tips e and f)',
-  );
+// A clade the level of detail cuts as a stub or summary while its node is in view has no stem label: only a stub pushed out of view to the
+// right does (see above). Since #109 the level of detail folds nothing while tips have room for dots and labels, unless the draw budget is
+// hit, so these trees hold 200 clades of three tips (a clade of one or two is never cut, #112) with long, distinct stems and the budget
+// (500 entries; radial 100) does the cutting.
+const CHERRIES = `(${Array.from({ length: 200 }, (_, i) => `(a${i}:1,b${i}:1,c${i}:1)x${i}:${(10 + i * 0.37).toFixed(2)}`).join(',')})r;`;
+const { K_NODE, K_TIP } = await import('../src/lod.ts');
+
+/** The nodes with a length label in the frame, the kinds in the draw list (by node), and how many clades the list cuts. */
+function cutAndLabelled(m) {
+  const f = frame(m);
+  const { list } = m.viewer;
+  const kindOf = new Map();
+  let cut = 0;
+  for (let e = 0; e < list.count; e++) {
+    kindOf.set(list.node[e], list.kind[e]);
+    if (list.kind[e] !== K_NODE && list.kind[e] !== K_TIP) cut++;
+  }
+  return { f, kindOf, cut };
+}
+
+test('a clade cut by the budget, node in view: no length (with or without summaries)', async () => {
+  const open = await make({ labelDensity: 'dense' }, CHERRIES);
+  open.env.resize(open.target, 700, 5100); // rows of 8.5 px: dots and labels
+  const all = cutAndLabelled(open);
+  assert.equal(all.cut, 0, 'nothing is cut with the budget to spare');
+  assert.ok(all.f.labels.filter((l) => l.node > 0).length >= 150, 'and the stems are labelled');
   for (const showSummaries of [false, true]) {
-    const m = await make({ showSummaries, minCladePx: 150 }, CUT);
-    const texts = frame(m).labels.map((l) => l.text);
-    assert.deepEqual(texts, [], `showSummaries ${showSummaries}: cut clades have no stem label`);
+    const m = await make({ showSummaries, labelDensity: 'dense', drawBudget: 500 }, CHERRIES);
+    m.env.resize(m.target, 700, 5100);
+    const { f, kindOf, cut } = cutAndLabelled(m);
+    assert.ok(cut > 0, `showSummaries ${showSummaries}: the budget cuts clades (${cut})`);
+    for (const l of f.labels) if (l.node > 0) assert.ok(kindOf.get(l.node) === K_NODE, `node ${l.node}: a stem label only on an open clade`);
+    assert.ok(f.labels.filter((l) => l.node > 0).length < 20, 'far fewer stems are labelled than with the budget to spare');
   }
 });
 
-test('radial: a stub never gets the rectangular stub-path label', async () => {
-  const m = await make({ layout: 'radial', showSummaries: false, minCladePx: 1500 }, CUT);
-  assert.deepEqual(
-    frame(m).labels.map((l) => l.text),
-    [],
-  );
+test('radial: a clade cut by the budget never gets the rectangular stub-path label', async () => {
+  const m = await make({ layout: 'radial', showSummaries: false, radialMaxNodes: 100 }, CHERRIES);
+  const { f, kindOf, cut } = cutAndLabelled(m);
+  assert.ok(cut > 0, `the budget cuts clades (${cut})`);
+  for (const l of f.labels) if (l.node > 0) assert.ok(kindOf.get(l.node) === K_NODE || kindOf.get(l.node) === K_TIP, `node ${l.node} is drawn open`);
 });
 
 test('radial: a tip near the centre gets no length where tips are closer than the density threshold, a deep tip does', async () => {

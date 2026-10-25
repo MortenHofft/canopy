@@ -107,6 +107,22 @@ export function radialFitScale(W: number, H: number, fan: RadialFan = FULL_FAN, 
   return radialFit(W, H, fan, labelRoom).k;
 }
 
+/** Radial: the smallest radius (unit radius, 0..1) of a row's tip, a collapsed clade's at its outer edge: no tip is nearer the centre
+ *  than this, whatever the window. Cached by layout: one pass over the nodes per layout. */
+const innerRadii = new WeakMap<Layout, number>();
+export function innerTipRadius(L: Layout): number {
+  let r = innerRadii.get(L);
+  if (r !== undefined) return r;
+  r = 1;
+  for (let i = 0; i < L.n; i++) {
+    if (L.hidden?.[i]) continue;
+    if (L.collapsed?.[i]) r = Math.min(r, L.XMAX[i]);
+    else if (L.LAST[i] < 0) r = Math.min(r, L.X[i]);
+  }
+  innerRadii.set(L, r);
+  return r;
+}
+
 export class ViewState {
   view: Viewport = { x0: 0, x1: 1, y0: 0, y1: 1 };
   /** True while the view is the fit view (a resize then re-fits instead of keeping the window). */
@@ -209,8 +225,10 @@ export class ViewState {
   }
 
   /** v with the zoom and pan limits applied (a new object). Rectangular: width and height between the zoom limits, the tree stays
-   *  inside the window when zoomed out and may overscroll by 15% when zoomed in. Radial: scale between the limits, centre near the root. */
-  clampView(v: Viewport): Viewport {
+   *  inside the window when zoomed out and may overscroll by 15% when zoomed in. Radial: scale between the limits, centre near the root;
+   *  the tip cap depends on where the window is (see below), and `keepK` (the current scale, for a move of the view) is a scale it may
+   *  keep however the cap stands there, so a pan never zooms out by itself. */
+  clampView(v: Viewport, keepK = 0): Viewport {
     const a = this.area;
     if (this.env.layout === 'rectangular') {
       const N = this.env.L.rows;
@@ -234,18 +252,19 @@ export class ViewState {
     const fan = this.env.L.fan;
     const kfit = radialFitScale(this.env.W, this.env.H, fan, this.radialLabelRoom());
     let k = a.aw / (v.x1 - v.x0);
-    // outer-circle arc between neighbouring tips = k * span / N (radius 1), at most maxTipSpacing; but always up to RADIAL_GEOMETRIC_ZOOM
-    // times the fit (a small tree reaches its tip cap at once, and short branches near the root still need pulling apart)
-    const tipCap = (this.env.maxTipSpacing * this.env.L.rows) / fan.span;
-    // the hard ceiling is RADIAL_MAX_ZOOM times the fit or tips RADIAL_MAX_TIP_PX apart, whichever is deeper: a multiple of the fit alone
-    // stopped a tree of millions of tips before its tips were far enough apart to be drawn one by one (#76)
-    const hard = Math.max(kfit * RADIAL_MAX_ZOOM, (RADIAL_MAX_TIP_PX * this.env.L.rows) / fan.span);
-    const kcap = Math.min(hard, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap));
-    k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     let cx = (v.x0 + v.x1) / 2,
       cy = (v.y0 + v.y1) / 2;
     cx = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cx));
     cy = Math.max(-RADIAL_PAN_LIMIT, Math.min(RADIAL_PAN_LIMIT, cy));
+    // the hard ceiling is RADIAL_MAX_ZOOM times the fit or tips RADIAL_MAX_TIP_PX apart, whichever is deeper: a multiple of the fit alone
+    // stopped a tree of millions of tips before its tips were far enough apart to be drawn one by one (#76)
+    const hard = Math.max(kfit * RADIAL_MAX_ZOOM, (RADIAL_MAX_TIP_PX * this.env.L.rows) / fan.span);
+    // the tip cap: neighbouring tips at most maxTipSpacing apart at the innermost radius in the window (#120), so near the centre one
+    // zooms deep and short branches with their tips get room; but always up to RADIAL_GEOMETRIC_ZOOM times the fit (a small tree reaches
+    // its tip cap at once, and short branches near the root still need pulling apart)
+    const tipCap = this.radialTipCap((this.env.maxTipSpacing * this.env.L.rows) / fan.span, cx, cy, hard);
+    const kcap = Math.min(hard, Math.max(kfit * RADIAL_GEOMETRIC_ZOOM, tipCap, keepK));
+    k = Math.min(kcap, Math.max(kfit * RADIAL_MIN_ZOOM, k));
     return { x0: cx - a.aw / 2 / k, x1: cx + a.aw / 2 / k, y0: cy - a.ah / 2 / k, y1: cy + a.ah / 2 / k };
   }
 
@@ -270,6 +289,37 @@ export class ViewState {
     }
   }
 
+  /** Radial: the largest scale k (px per unit radius, at most `hard`) for the window centred on (cx, cy) at which neighbouring tips at
+   *  the innermost radius r a tip can have in it are at most maxTipSpacing apart, k * r <= c (c = maxTipSpacing * rows / span). r is the
+   *  window's nearest point to the centre, never nearer than the tree's innermost tip, never beyond the outer ring. The window shrinks as
+   *  k grows, so k * r grows with k and a bisection finds it (a few dozen steps of arithmetic, per move of the view). */
+  private radialTipCap(c: number, cx: number, cy: number, hard: number): number {
+    const a = this.area;
+    const rTip = innerTipRadius(this.env.L);
+    const reach = (k: number) => {
+      const dx = Math.max(0, Math.abs(cx) - a.aw / 2 / k),
+        dy = Math.max(0, Math.abs(cy) - a.ah / 2 / k);
+      return k * Math.min(1, Math.max(rTip, Math.hypot(dx, dy)));
+    };
+    if (reach(hard) <= c) return hard;
+    // the window still reaches no nearer than the innermost tip there (as at the centre, or for a cladogram): exactly c / rTip
+    if (rTip > 0 && reach(c / rTip) <= c * (1 + 1e-12)) return c / rTip;
+    let lo = c, // reach(c) <= c: r is at most 1
+      hi = hard;
+    for (let i = 0; i < 100 && hi - lo > 1e-12 * hi; i++) {
+      const mid = (lo + hi) / 2;
+      if (reach(mid) <= c) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /** The current scale (px per unit radius) when the layout is radial, else 0: what a move of the view may keep (clampView's keepK). */
+  private keptScale(): number {
+    const v = this.view;
+    return this.env.layout === 'radial' && v.x1 > v.x0 ? this.area.aw / (v.x1 - v.x0) : 0;
+  }
+
   // ------------------------------------------------------------- changing the view
 
   setViewport(v: Viewport, animate = false): void {
@@ -278,7 +328,7 @@ export class ViewState {
     // the same window as now changes nothing, and must not stop an animation either: a controlled viewport echoes the window it was given
     if (viewportEquals(v, this.view)) return;
     this.cancelAnim();
-    this.view = this.clampView({ ...v });
+    this.view = this.clampView({ ...v }, this.keptScale());
     this.fitted = false;
     this.ev.changed(false);
   }
@@ -319,7 +369,7 @@ export class ViewState {
       // at a zoom limit nothing zooms, and the window must not slide toward the point either: an axis that is at its limit keeps its
       // window (the other axis may still zoom, e.g. y at maxTipSpacing while x is free)
       const v = this.view;
-      const c = this.clampView({ ...nv });
+      const c = this.clampView({ ...nv }, this.keptScale());
       const atLimit = (f: number, a0: number, a1: number, b0: number, b1: number) =>
         f === 1 || Math.abs(b1 - b0 - (a1 - a0)) <= 1e-12 * Math.abs(a1 - a0);
       const xLim = fx > 1 && atLimit(fx, v.x0, v.x1, c.x0, c.x1);
@@ -346,7 +396,7 @@ export class ViewState {
     if (fx < 1) wx = Math.min(v.x1, Math.max(v.x0, wx));
     if (fy < 1) wy = Math.min(v.y1, Math.max(v.y0, wy));
     const nv = { x0: wx - (wx - v.x0) / fx, x1: wx + (v.x1 - wx) / fx, y0: wy - (wy - v.y0) / fy, y1: wy + (v.y1 - wy) / fy };
-    return this.env.layout === 'radial' ? this.clampView(nv) : nv;
+    return this.env.layout === 'radial' ? this.clampView(nv, this.keptScale()) : nv;
   }
 
   // ------------------------------------------------------------- targets
@@ -372,9 +422,11 @@ export class ViewState {
       }
       return { x0, x1, y0: row - h / 2, y1: row + h / 2 };
     }
+    // the wanted pitch at the tip's own radius (a collapsed clade's outer edge), not the outer ring's: a tip on a short branch gets label room
+    const r = L.collapsed?.[node] ? L.XMAX[node] : L.X[node];
     const k = Math.max(
       a.aw / (v.x1 - v.x0),
-      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / L.fan.span,
+      (Math.min(scaledPx(FOCUS_TIP_RADIAL_PITCH_PX, this.env.labelSize), this.env.maxTipSpacing) * L.rows) / L.fan.span / Math.max(r, 1e-9),
     );
     const ang = fanAngle(L.fan, L.rows, L.ROW[node]);
     const px = L.X[node] * Math.cos(ang),
@@ -449,7 +501,7 @@ export class ViewState {
   // ------------------------------------------------------------- animation
 
   private animateTo(v: Viewport, isFit = false): void {
-    const to = isFit ? v : this.clampView({ ...v });
+    const to = isFit ? v : this.clampView({ ...v }, this.keptScale());
     this.anim = { from: { ...this.view }, to, t0: performance.now(), ms: ANIMATION_MS };
     this.fitted = false;
     this.fitAfterAnim = isFit;

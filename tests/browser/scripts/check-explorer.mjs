@@ -14,7 +14,8 @@
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
-// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns).
+// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
+// shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,6 +39,9 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 860 }, acc
 page.setDefaultTimeout(8000);
 page.on('console', (m) => {
   if (m.type() !== 'error') return;
+  // a catalogue tree with a remote copy is first asked for under data/real-ladder/fetched/ (made by fetch.sh, absent in CI): its 404 is
+  // expected, as the page then loads the remote URL
+  if (/\/data\/real-ladder\/fetched\//.test(m.location()?.url ?? '')) return;
   console.log('CONSOLE.ERROR', m.text().slice(0, 300));
   failures++;
 });
@@ -1149,7 +1153,12 @@ await open('syn-yule-10000');
 await page.waitForTimeout(1500);
 // one look for every summary (#85): no Stripes toggle, the background and stripes are always drawn
 ok((await page.locator('.ex-outer button', { hasText: /^\s*Stripes\s*$/ }).count()) === 0, 'no Stripes toggle');
-ok((await ev(() => __v().options.minCladePx)) === 14, 'a big tree: smallest clade 14 px, so the summaries are tall enough to carry stripes');
+ok((await ev(() => __v().options.minCladePx)) === 3, 'a big tree: the library’s smallest clade, 3 px (#115)');
+// the stripe checks need summaries tall enough to carry stripes: 14 px here (the explorer used it for big trees before #115)
+await ev(() => {
+  __v().setOptions({ minCladePx: 14 });
+  __v().renderNow();
+});
 // count the stripe segments of a frame: lineTo calls while the stroke style is the summary colour, on the viewer's context
 const stripeCount = (colour) =>
   ev((colour) => {
@@ -2221,7 +2230,7 @@ await open('edge-internal-support');
   const ids = new Set(groups.flatMap((g) => g[1]));
   const wanted = Object.values(catalogue).flatMap((g) => Object.keys(g));
   ok(
-    wanted.length === 21 && wanted.every((id) => ids.has(id)),
+    wanted.length === 22 && wanted.every((id) => ids.has(id)),
     `the picker lists all ${wanted.length} trees of the playground catalogue (${ids.size} in all)`,
   );
   ok(
@@ -2447,6 +2456,7 @@ for (const [id, tipsWanted] of [
     const rank = t.tipLabels.findIndex((l) => l.startsWith('Ochotona_princeps_saxatilis'));
     if (rank < 0) return null;
     const counts = [];
+    const was = v.options.minCladePx;
     for (const minCladePx of [14, 3]) {
       v.setOptions({ minCladePx });
       v.focusTip(rank, false);
@@ -2457,7 +2467,7 @@ for (const [id, tipsWanted] of [
       const s = v.getStats();
       counts.push({ minCladePx, rowPx: s.ky, tips: s.tips, summaries: s.summaries });
     }
-    v.setOptions({ minCladePx: 14 });
+    v.setOptions({ minCladePx: was });
     v.fit(false);
     v.renderNow();
     return counts;
@@ -2494,6 +2504,72 @@ for (const [id, tipsWanted] of [
     'nothing is disabled on a large tree',
   );
   ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
+  // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
+  // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
+  // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates
+  await page.locator('button[title=Circular]').click();
+  await page.waitForTimeout(500);
+  const budgetStats = () =>
+    ev(() => {
+      const s = __v().getStats();
+      return { budget: s.budget, forced: s.forced, minPx: s.minPxUsed, limit: s.minPxLimit, frameMs: s.frameMs, drawn: s.drawn, reduced: s.reduced };
+    });
+  const auto = await ev(() => {
+    const v = __v();
+    window.__minCladePx = v.options.minCladePx;
+    v.setOptions({ minCladePx: 1, radialMaxNodes: 'auto', drawBudget: 'auto' });
+    v.fit(false);
+    v.renderNow();
+    return { radialMaxNodes: v.options.radialMaxNodes, drawBudget: v.options.drawBudget, start: v.getStats().budget };
+  });
+  ok(auto.radialMaxNodes === 'auto' && auto.drawBudget === 'auto', "radialMaxNodes and drawBudget 'auto' (the defaults)");
+  ok(auto.start >= 100 && auto.start <= 200000, `the first frame's budget is ${auto.start}`);
+  const first = await budgetStats();
+  ok(
+    !Number.isFinite(first.limit) || first.minPx <= first.limit * (1 + 1e-9),
+    `radial full view: the threshold ${first.minPx.toFixed(1)} px is within the 4 degree wedge limit (${first.limit.toFixed(1)} px)`,
+  );
+  let moved = null;
+  for (let k = 0; k < 40 && moved === null; k++) {
+    await page.waitForTimeout(250);
+    const s = await budgetStats();
+    if (s.budget !== auto.start) moved = s;
+  }
+  // holding is right when the cut already shows everything (nothing forced) or frames are in the dead zone (60-100% of the 25 ms target);
+  // the budget must move only when the cut is short of it and frames are clearly fast (they vary with the machine's load)
+  const mustMove = first.forced > 0 && first.frameMs < 8;
+  ok(
+    moved !== null || !mustMove,
+    `after settled frames the budget moves when the cut is short of it and frames are fast (forced ${first.forced}, frame ${first.frameMs.toFixed(1)} ms: ${auto.start} -> ${moved ? moved.budget : 'held'})`,
+  );
+  await page.waitForTimeout(3000);
+  const rest = await budgetStats();
+  ok(
+    rest.budget >= 100 && rest.budget <= 200000,
+    `and stays within its limits: ${rest.budget} (forced ${rest.forced}, frame ${rest.frameMs.toFixed(1)} ms)`,
+  );
+  ok(
+    !Number.isFinite(rest.limit) || rest.minPx <= rest.limit * (1 + 1e-9),
+    `the wedge limit holds, or has given way to the budget (limit ${rest.limit})`,
+  );
+  const fixed = await ev(() => {
+    __v().setOptions({ radialMaxNodes: 1500 });
+    __v().renderNow();
+    return __v().getStats().budget;
+  });
+  await page.waitForTimeout(1500);
+  const fixedLater = await budgetStats();
+  ok(
+    fixed === 1500 && fixedLater.budget === 1500 && fixedLater.drawn <= 1500,
+    'a number stays fixed: radialMaxNodes 1500 gives a budget of 1500 over later frames',
+  );
+  await ev(() => {
+    __v().setOptions({ minCladePx: window.__minCladePx, radialMaxNodes: 'auto' });
+    __v().fit(false);
+    __v().renderNow();
+  });
+  await page.locator('button[title=Rectangular]').click();
+  await page.waitForTimeout(500);
   await drillDown(n2);
   // search is not capped (#58): every match is counted and highlighted
   await page.locator('button[aria-label="Search tips"]').click();
@@ -2504,6 +2580,88 @@ for (const [id, tipsWanted] of [
   ok(
     all > 5000 && count === `1 / ${all.toLocaleString('en')}`,
     `search highlights and counts every match, past the old 5,000 cap (${count}, ${all} highlighted)`,
+  );
+}
+
+// ---------------------------------------------------------------- the debug panel (?debug=1) and a view copied and restored (?view=)
+{
+  const debugRoundTrip = async (layout) => {
+    await open('rich-fish-carangaria-135', '&debug=1');
+    const panel = page.locator('.ex-debug');
+    if (layout === 'radial') await page.locator('button[title=Circular]').click();
+    const box = await page.locator('.ex-pane canvas').first().boundingBox();
+    await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.4);
+    for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -200);
+    await page.waitForTimeout(700);
+    const text = await panel.innerText();
+    const pane = await page.locator('.ex-pane').boundingBox();
+    const at = await panel.boundingBox();
+    ok(
+      at && at.y >= pane.y + pane.height - 1 && /minPx\s+[\d.]+ used \/ minCladePx [\d.]+/.test(text) && /viewport\s+x0 -?[\d.]/.test(text),
+      `${layout}: the debug panel shows numbers, under the tree pane (${text.split('\n')[text.split('\n').indexOf('frame') + 1] ?? text.slice(0, 80)})`,
+    );
+    const before = await ev(() => __v().getViewport());
+    await panel.locator('button', { hasText: 'Copy view' }).click();
+    await panel.locator('textarea').waitFor();
+    const json = JSON.parse(await panel.locator('textarea').inputValue());
+    const link = await panel.locator('input[aria-label="View URL"]').inputValue();
+    ok(
+      json.tree.id === 'rich-fish-carangaria-135' &&
+        json.layout === layout &&
+        typeof json.commit === 'string' &&
+        json.options.minCladePx > 0 &&
+        json.canvas.width > 0 &&
+        json.viewport.x0 === before.x0 &&
+        json.viewport.y1 === before.y1 &&
+        /\?debug=1&view=/.test(link),
+      `${layout}: Copy view gives the tree, layout, build, canvas, options and viewport (${JSON.stringify(json.viewport)})`,
+    );
+    await page.goto(link);
+    await page.waitForSelector('.ex-outer canvas', { timeout: 60000 });
+    await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
+    await page.evaluate(HELPERS);
+    await page.waitForTimeout(800);
+    const after = await ev(() => __v().getViewport());
+    const span = Math.max(before.x1 - before.x0, before.y1 - before.y0);
+    const off = Math.max(...['x0', 'x1', 'y0', 'y1'].map((k) => Math.abs(after[k] - before[k])));
+    ok(
+      off <= span * 1e-6 && (await ev(() => __v().options.layout)) === layout,
+      `${layout}: ?view= restores the layout and the viewport (off by ${off.toExponential(2)})`,
+    );
+  };
+  await debugRoundTrip('rectangular');
+  await debugRoundTrip('radial');
+}
+
+{
+  // #109: once rows are tall enough for tip dots, the level of detail folds nothing, whatever minCladePx says. The explorer's 14 turned the
+  // one-tip genera around Pleganophorus bispinosus on the full Open Tree (2.39M tips) into unlabelled triangles at rows of 13 px
+  const ms = await loadVia('otl-2m-full');
+  const view = await ev(() => {
+    const v = __v();
+    // a threshold well above the rows checked (the explorer used 14 for big trees before #115; it now has the library's 3)
+    v.setOptions({ minCladePx: 14 });
+    const t = v.getTree();
+    const rank = t.tipLabels.indexOf('Pleganophorus_bispinosus_ott4616304');
+    if (rank < 0) return null;
+    const out = [];
+    for (const rowPx of [13, 8, 6.5]) {
+      v.fit(false);
+      v.renderNow();
+      v.focusTip(rank, false);
+      v.renderNow();
+      const q = v.nodePosition(t.tipNode[rank]);
+      v.zoomBy(1, rowPx / v.getStats().ky, q.x, q.y);
+      v.renderNow();
+      const s = v.getStats();
+      out.push({ rowPx: s.ky, summaries: s.summaries, tips: s.tips, minPxUsed: s.minPxUsed, minCladePx: v.options.minCladePx });
+    }
+    return out;
+  });
+  ok(view !== null, `otl-2m-full loaded (${ms} ms) and has the tip Pleganophorus bispinosus`);
+  ok(
+    view !== null && view.every((c) => c.minCladePx === 14 && c.summaries === 0 && c.tips > 20 && c.minPxUsed <= c.rowPx),
+    `rows of 13, 8 and 6.5 px, minCladePx 14: no summaries, one-tip genera drawn as tips, minPxUsed at most the row height (${JSON.stringify(view)})`,
   );
 }
 

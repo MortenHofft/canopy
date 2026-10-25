@@ -8,7 +8,7 @@ views of the tree from `@gbif-phylo/tree-ops`. It is also the seed of a drop-in 
 licence; the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
 
 ```
-npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark)
+npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark, ?debug=1)
 ```
 
 The browser check is `tests/browser/scripts/check-explorer.mjs`; it drives every control and reads the result back from the viewer (headless
@@ -21,6 +21,7 @@ Chromium).
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
 | [`src/icons-ours.tsx`](src/icons-ours.tsx) | icons drawn for this repository, in the same style (14 px, `currentColor`) |
 | [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../shared/catalogue.json`, shared) plus this example's `extras` and `overrides` |
+| [`src/DebugPanel.tsx`](src/DebugPanel.tsx), [`src/debug.ts`](src/debug.ts) | the debug panel (`?debug=1`) and a view written down and restored (`?view=`) |
 | [`src/TreePicker.tsx`](src/TreePicker.tsx) | the tree picker: the groups, and a last option that opens a file input, as the playground's (`../shared/picker.ts`) |
 
 ## What the explorer demonstrates
@@ -61,6 +62,7 @@ Each control and the API behind it.
 | Pane background | `--phylo-background: var(--ex-surface-10)`: an opaque canvas in the pane's grey; no dotted grid. `dark` is derived from it |
 | Hover ring that grows in (Reactree's) | `options.hoverAnimation` (on by default) and the theme's `--phylo-hover-ring-duration`; off when the system asks for reduced motion |
 | Resize handle | the pane's height; the viewer follows its container |
+| **Debug panel** (`?debug=1`, e.g. `/explorer/?debug=1` on the site), under the tree pane: the build (commit and branch), the tree (its label and id, or a file's name; tips, nodes, rows, collapsed clades), the layout, the canvas in CSS px and `devicePixelRatio`, the viewport, kx, ky and the tip pitch, and the last frame's level of detail (the budget in force and the option it comes from, `auto` or a number, and with the radial `auto` budget the 4° wedge limit in px, marked when the budget has passed it). **Copy view** copies the view as JSON, **Copy URL** a link with `?view=` that restores it: the tree, layout, label size, aligned labels, the level-of-detail options and the collapsed clades, then the viewport once the tree is laid out. A note says when the canvas size, the build or the tree differs from the copied one (a file cannot travel in the URL: load it with the picker and its view applies) | the `frame` event (read a few times a second), `getStats()` (`frameMs`, `cutMs`, `visited`, `listLength`, `minPxUsed`, `minPxLimit`, `budget`, `budgetHit`, `budgetRetries`, `forced`, `reduced`, `scale`, `kx`, `ky`), `getViewport()` / `setViewport()` (after `ready`), `options` (`minCladePx`, `drawBudget`, `lod`, `showSummaries`, `radialMaxNodes`, `interactionLOD`, `labelDensity`, `radialOpening`, `dprCap`), `size`, `layout.rows`, `getTheme().labelSize`. The tip pitch is `ky` in rectangular (px per row) and in radial the arc between rows on the outermost tip circle, `kx · 2π · (1 − radialOpening) / layout.rows`. The build is the `__BUILD__` define of `vite.config.ts` (`scripts/build-info.mjs`, as the site hub's footer) |
 
 ### Large trees
 

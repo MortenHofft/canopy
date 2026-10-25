@@ -16,6 +16,7 @@ small:
 	$(PY) generate.py --out . --sizes 200,1000,10000
 	for f in newick/*_10000.nwk newick/yule_10000_support.nwk newick/caterpillar_10000_support.nwk; do gzip -9 -n -k -f $$f; done
 	$(PY) make_polytomy_mixed.py
+	$(PY) make_radial_depth.py
 	$(PY) check.py . --verify manifest.json
 
 large:

@@ -45,9 +45,10 @@ const kindsOf = (list, k) => {
   return out;
 };
 
-// 6 tips in 120 px: 20 px per tip. minPx 50 collapses the two 2-tip clades (40 px) and keeps CDE (60 px) open.
-const NWK = '((A:1,B:2)AB:1,(C:1,(D:2,E:3)DE:1)CDE:2,F:4)root;';
-const S = scene(NWK, 600, 120, 50);
+// 8 tips in 160 px: 20 px per tip. minPx 70 collapses the two 3-tip clades (60 px) and keeps CDE (80 px) open. (A clade of two tips is
+// never collapsed by size, #112.)
+const NWK = '((A:1,B:2,A2:1)AB:1,(C:1,(D:2,E:3,E2:1)DE:1)CDE:2,F:4)root;';
+const S = scene(NWK, 600, 160, 70);
 const id = (label) => S.tree.tipIndex(label);
 const parentOf = (label) => S.tree.parent[id(label)];
 const AB = parentOf('A');
@@ -139,7 +140,7 @@ test('a point far from everything returns null; so does a query before the index
 });
 
 test('tips closer than 6 px apart have no dot to hit', () => {
-  const dense = scene(NWK, 600, 30, 2); // 5 px per tip
+  const dense = scene(NWK, 600, 40, 2); // 5 px per tip
   assert.equal(dense.proj.tipPitch, 5);
   const { x, y } = dense.xy(dense.tree.tipIndex('C'));
   const hit = dense.q(x, y);

@@ -23,7 +23,8 @@ import { CULL_PAD_PX } from './constants.ts';
 import type { Layout } from './layout.ts';
 import { ensureTrig, fanTheta, sameFan } from './layout.ts';
 import type { Transform } from './geom.ts';
-import { K_RUN, cell, type Seen } from './lod.ts';
+import { CELL_HI, CELL_LO, CLIP, K_RUN, cell, clipRay, type Seen } from './lod.ts';
+import { TIP_DOT_PX } from './sizes.ts';
 import type { LayoutKind, TreeSnapshot } from './types.ts';
 
 export interface Pt {
@@ -48,6 +49,11 @@ export interface ProjectionCore {
   // ---- drawing and hit-testing
   /** Pixel distance between neighbouring tips (rect: row height, radial: along the circle of radius 1 * k, i.e. at the tips). */
   readonly tipPitch: number;
+  /** The least depth (px, as `depth(i)` of a tip) from which a tip has `need` px to its neighbour: -Infinity when every tip in view has, Infinity
+   *  when none has. Rectangular: the row height decides for all tips. Radial: a tip's arc to its neighbour is `da` times its own radius
+   *  (#110), so the outer ring has the room first; the view's nearest radius (all pass) and the outer ring's (none pass) leave the tips
+   *  to be tested one by one, `depth(i) >= minTipDepth(need)`. */
+  minTipDepth(need: number): number;
   /** Screen position of node i (its marker position). */
   nodeXY(i: number, out: Pt): void;
   /** Screen position where node i's branch starts (its parent's depth on the node's own tip-axis line; the node itself for the root). */
@@ -114,6 +120,10 @@ export class RectProjection implements ProjectionCore {
     const { X, parent, rowStart, rowEnd, kx, ky, oxs, oys } = this;
     const d = cell(oys + rowStart[first] * ky);
     return seen.add(cell(oxs + X[parent[first]] * kx), cell(oxs + xmax * kx), d, d + K_RUN * 8192, cell(oys + rowEnd[last] * ky));
+  }
+
+  minTipDepth(need: number): number {
+    return this.tipPitch >= need ? -Infinity : Infinity;
   }
 
   nodeXY(i: number, out: Pt): void {
@@ -268,13 +278,23 @@ export class RadialProjection implements ProjectionCore {
       mid = (sa0 + sa1) / 2,
       cm = Math.cos(mid),
       sm = Math.sin(mid);
-    return seen.add(
-      cell(rq * cm * fq - ou),
-      cell(rq * sm * fq - ov),
-      cell(rp * cm * fq - ou),
-      cell(rp * sm * fq - ov) + K_RUN * 8192,
-      Math.min(8191, Math.round((sa1 - sa0) * rq)),
-    );
+    const e = Math.min(8191, Math.round((sa1 - sa0) * rq));
+    const ux = rq * cm * fq - ou,
+      uy = rq * sm * fq - ov,
+      vx = rp * cm * fq - ou,
+      vy = rp * sm * fq - ov;
+    if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
+      return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + K_RUN * 8192, e);
+    // the part of the run's ray inside the cells (see clipRay); a run whose ray misses them is visible only through its rim and is not
+    // merged with another (see seenSummary in lod.ts)
+    if (!clipRay(rp * fq, rq * fq, cm, sm, ou, ov)) return true;
+    return seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + K_RUN * 8192, e);
+  }
+
+  minTipDepth(need: number): number {
+    const r = need / this.da;
+    if (r <= this.rMin) return -Infinity;
+    return r > Math.min(this.rMax, this.XMAX[0] * this.k) * (1 + 1e-9) ? Infinity : r;
   }
 
   nodeXY(i: number, out: Pt): void {
@@ -317,6 +337,12 @@ export class RadialProjection implements ProjectionCore {
 }
 
 export type LayoutProjection = RectProjection | RadialProjection;
+
+/** Radial: the radius (px) from which a tip has `TIP_DOT_PX` to its neighbour (the cut keeps the clades that reach it open, CutParams.dotR). Infinity
+ *  for rectangular: no clade is kept open by a tip's dot there (#110). */
+export function tipDotRadius(proj: LayoutProjection): number {
+  return proj.kind === 'radial' ? TIP_DOT_PX / proj.T.da : Infinity;
+}
 
 /** The projection of one frame: chosen from the transform's kind. */
 export function projectionFor(tree: TreeSnapshot, L: Layout, T: Transform): LayoutProjection {

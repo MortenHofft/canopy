@@ -164,11 +164,11 @@ test('forced counts only loaded clades that the budget collapsed, never a stub',
   const L = computeLayout(p, true);
   const T = makeTransform('rectangular', W, 360, { x0: 0, x1: 1, y0: 0, y1: 18 }, { ...area, ah: 360, clipB: 360 }, 18); // 20 px per tip
   const proj = projectionFor(p, L, T);
-  const base = searchCut(proj, null, new DrawList(), new Seen(), { lod: true, base: 3, budget: 1000, summaries: true, hint: 0 });
+  const base = searchCut(proj, null, new DrawList(), new Seen(), { lod: true, base: 3, budget: 1000, summaries: true, hint: 0, cap: Infinity });
   assert.equal(base.res.forced, 0, 'no budget pressure: nothing forced');
   assert.equal(base.res.summaries, 3, 'the three stubs');
   const list = new DrawList();
-  const r = searchCut(proj, null, list, new Seen(), { lod: true, base: 3, budget: 8, summaries: true, hint: 0 });
+  const r = searchCut(proj, null, list, new Seen(), { lod: true, base: 3, budget: 8, summaries: true, hint: 0, cap: Infinity });
   assert.ok(r.minPx > 3, 'the threshold was raised to fit');
   assert.equal(r.res.summaries, 6, 'three stubs and the three loaded clades, now collapsed');
   assert.equal(r.res.forced, 3, 'only the loaded ones were summarised because of the budget');
@@ -177,7 +177,7 @@ test('forced counts only loaded clades that the budget collapsed, never a stub',
   const all = partialSnapshot(t6, ids).snap;
   const L2 = computeLayout(all, true);
   const proj2 = projectionFor(all, L2, T);
-  const r2 = searchCut(proj2, null, new DrawList(), new Seen(), { lod: true, base: 3, budget: 3, summaries: true, hint: 0 });
+  const r2 = searchCut(proj2, null, new DrawList(), new Seen(), { lod: true, base: 3, budget: 3, summaries: true, hint: 0, cap: Infinity });
   assert.equal(r2.res.forced, 0);
   assert.ok(r2.minPx > 3, 'the search did raise the threshold');
 });

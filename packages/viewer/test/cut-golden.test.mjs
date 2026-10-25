@@ -31,12 +31,14 @@ const { computeLayout, ensureTrig, radialFan, setLayoutFan } = await import(path
 const { makeTransform } = await import(path.join(core, 'geom.ts'));
 const { DrawList, Seen, searchCut, K_SUMMARY } = await import(path.join(core, 'lod.ts'));
 const { InMemorySource } = await import(path.join(core, 'source.ts'));
-const { projectionFor } = await import(path.join(core, 'projection.ts'));
+const { projectionFor, tipDotRadius } = await import(path.join(core, 'projection.ts'));
 const { drawBody } = await import(path.join(core, 'draw.ts'));
 const { HitIndex } = await import(path.join(core, 'hit.ts'));
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import(path.join(core, 'types.ts'));
-const { W, H, TREES, VIEWS, allCases } = await import(path.join(here, 'cut-golden-cases.mjs'));
+const { W, H, TREES, VIEWS, allCases, cappedCases } = await import(path.join(here, 'cut-golden-cases.mjs'));
 const golden = JSON.parse(fs.readFileSync(path.join(here, 'cut-golden.json'), 'utf8'));
+const goldenCap = JSON.parse(fs.readFileSync(path.join(here, 'cut-golden-cap.json'), 'utf8'));
+const { collapseCap } = await import(path.join(core, 'sizes.ts'));
 const goldenCircle = JSON.parse(fs.readFileSync(path.join(here, 'cut-golden-circle.json'), 'utf8'));
 const FAN = radialFan(DEFAULT_OPTIONS.radialOpening, DEFAULT_OPTIONS.radialRotation);
 const CIRCLE = radialFan(0, 0);
@@ -80,10 +82,49 @@ function runCase(c, fan) {
     budget: c.opts.budget,
     summaries: true,
     hint: 0,
+    cap: Infinity,
   });
   const entries = [];
   for (let e = 0; e < list.count; e++) entries.push(list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]);
   return { res: r.res, minPx: r.minPx, retries: r.retries, entries };
+}
+
+// the cut with the collapse cap the viewer computes (#109, #113): rectangular rows of 0.9, 1, 2 and 6 px, radial pitches under and over 6 px
+test('the cap golden file covers every capped case', () => {
+  assert.deepEqual(
+    Object.keys(goldenCap).sort(),
+    cappedCases()
+      .map((c) => c.id)
+      .sort(),
+  );
+});
+
+for (const c of cappedCases()) {
+  test(`cut golden, capped: ${c.id}`, () => {
+    const { s, L, classOf } = built[c.tree];
+    setLayoutFan(L, FAN);
+    ensureTrig(L);
+    const proj = projectionFor(s, L, makeTransform(c.layout, W, H, c.view, area, s.tipCount, FAN));
+    const cap = collapseCap(proj.tipPitch, true, c.layout === 'rectangular');
+    const list = new DrawList();
+    const r = searchCut(proj, classOf, list, new Seen(), {
+      lod: true,
+      base: Math.min(cap, 14),
+      budget: c.budget,
+      summaries: true,
+      hint: 0,
+      cap,
+      dotR: tipDotRadius(proj),
+    });
+    const g = goldenCap[c.id];
+    assert.deepEqual(r.res, g.res, 'CutResult');
+    assert.equal(r.minPx, g.minPx, 'threshold');
+    assert.equal(r.retries, g.retries, 'retries');
+    assert.ok(list.count <= c.budget, 'within the budget');
+    assert.equal(list.count * 5, g.entries.length, 'draw list length');
+    for (let e = 0; e < list.count; e++)
+      assert.deepEqual([list.node[e], list.kind[e], list.cls[e], list.last[e], list.xmax[e]], g.entries.slice(e * 5, e * 5 + 5), `entry ${e}`);
+  });
 }
 
 for (const c of allCases()) {

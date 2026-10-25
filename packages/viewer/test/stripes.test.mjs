@@ -9,6 +9,9 @@ const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
 const { FALLBACK_THEME, DEFAULT_OPTIONS } = await import('../src/types.ts');
 const { THEME_CSS_VARS } = await import('../src/theme.ts');
 const { stripeToneAlpha } = await import('../src/draw.ts');
+const { partialSnapshot } = await import('./partial-snapshot.mjs');
+const { parseNewick } = await import('../../io/src/newick.ts');
+const { InMemorySource } = await import('../src/source.ts');
 
 afterEach(destroyAll);
 
@@ -379,7 +382,10 @@ test('the overview strip stripes a summary with room for stripes (a polytomy ban
 });
 
 test('one stripe per hidden tip when the rows are wider than the gap (not one per gap)', async () => {
-  const m = await make('rectangular', { minCladePx: 100 }, balanced(3), { theme: { summaryStripeGap: 6 } }); // 8 tips, 37 px rows: the cherries are 75 px summaries
+  // 8 tips, 37 px rows: the cherries, collapsed by the app (the level of detail folds nothing at rows this tall, #109), are 75 px summaries
+  const m = await make('rectangular', {}, balanced(3), { theme: { summaryStripeGap: 6 } });
+  m.viewer.setCollapsed([2, 5, 9, 12]);
+  m.env.flush();
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 2, 'a cherry has two hidden tips, so two stripes');
@@ -428,10 +434,11 @@ test('radial: a fan with more than 256 rays in view draws every 2nd, 4th, ... ra
 test('radial: stripes more than eight gaps apart (a few hidden tips over a wide ring segment) are not drawn: the summary gets their tone', async () => {
   const sparse = `(${poly(10, 'p')}P,${poly(10, 'q')}Q)r;`;
   const m = await makeViewer(sparse, {
-    options: { layout: 'radial', minCladePx: 3000 },
+    options: { layout: 'radial' },
     theme: THEME,
     size: [500, 500],
   });
+  m.viewer.setCollapsed([1, 12]); // the polytomies, collapsed by the app: the level of detail folds nothing where tips are this far apart (#109)
   m.env.flush();
   assert.ok(m.viewer.getStats().summaries >= 2, 'the polytomies are summarised');
   assert.equal(stripes(m.ctx()).length, 0);
@@ -525,8 +532,8 @@ for (const [name, vp] of [
 }
 
 test('rectangular, zoomed into a summary much taller than the screen: only the stripes of the visible rows are drawn', async () => {
-  const m = await make('rectangular', { minCladePx: 4000 }, balanced(11)); // clades of 1024 tips are summaries; 100 rows fill the screen
-  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 400 });
+  const m = await make('rectangular', { minCladePx: 4000 }, balanced(11)); // clades of 1024 tips are summaries; 360 rows (0.9 px) fill the screen (#113)
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 300, y1: 660 });
   m.ctx().reset();
   m.env.flush();
   const s = stripes(m.ctx());
@@ -554,6 +561,40 @@ test('rectangular: a collapsed clade of three tips in a row zoomed to 200 px get
   assert.equal(groups(stripes(m.ctx())).length >= 1, true, 'striped at 60 px per row (20 px stripes)');
 });
 
+test('a summary of one tip gets the tone of one stripe over its width, not of stripes a gap apart: no darker than its neighbours (#111)', async () => {
+  // the level of detail never folds a clade of one or two tips (#112), so a summary of one hidden tip is a stub: the unary clade X is not
+  // loaded (a partial snapshot), a row of under 2 px; Y, of 150 tips, has stripes
+  const tips = Array.from({ length: 150 }, (_, k) => 'b' + k).join(',');
+  const full = new InMemorySource(parseNewick(`((a0)X,(${tips})Y)r;`)).snapshot();
+  const { snap } = partialSnapshot(full, [1]);
+  const src = {
+    nodeCount: full.nodeCount,
+    tipCount: full.tipCount,
+    hasLengths: true,
+    version: 0,
+    subscribe: () => () => {},
+    snapshot: () => snap,
+    ensureClade: async () => {},
+    tipLabels: async () => [],
+    destroy() {},
+  };
+  const m = await makeViewer(src, { theme: { ...THEME, summaryStripeGap: 1 }, size: [500, 300] });
+  m.env.flush();
+  const proj = m.viewer.proj;
+  let x = -1;
+  for (let e = 0; e < m.viewer.list.count; e++) if (m.viewer.list.kind[e] === 2 && m.viewer.list.node[e] === 1) x = e;
+  assert.ok(x >= 0, 'X is a summary ' + [...Array(m.viewer.list.count).keys()].map((e) => m.viewer.list.node[e] + ':' + m.viewer.list.kind[e]));
+  assert.equal(snap.leafEnd[1] - snap.leafStart[1], 1, 'of one tip');
+  proj.summaryExtent(1, -1, 0);
+  const width = proj.t1 - proj.t0;
+  assert.ok(width > 1.5 && width < 2.5, 'a row of about 1.9 px: ' + width);
+  const tones = toneAlphas(m);
+  assert.ok(
+    tones.some((t) => Math.abs(t - stripeToneAlpha(0.8, width)) < 1e-6) && !tones.some((t) => Math.abs(t - stripeToneAlpha(0.8, 1)) < 1e-6),
+    `the tone of one stripe ${width} px wide, not of stripes 1 px apart (${stripeToneAlpha(0.8, 1)}): ${tones}`,
+  );
+});
+
 test('rectangular: zooming a summary across the eight-gap limit keeps its darkness: the tone just past it matches the stripes just before it', async () => {
   const m = await makeViewer('((a0,a1,a2)X,(b0,b1)Y)r;', { theme: { ...THEME, summaryStripeGap: 3 }, size: [500, 300] });
   m.viewer.setCollapsed([1]);
@@ -574,7 +615,9 @@ test('rectangular: zooming a summary across the eight-gap limit keeps its darkne
 });
 
 test('radial: one ray per hidden tip when the tips are wider apart than the gap', async () => {
-  const m = await make('radial', { minCladePx: 4000 }, balanced(3), { theme: { summaryStripeGap: 24 } });
+  const m = await make('radial', {}, balanced(3), { theme: { summaryStripeGap: 24 } });
+  m.viewer.setCollapsed([1, 8]); // the two clades of four tips (the level of detail folds nothing at this pitch, #109)
+  m.env.flush();
   const gs = groups(stripes(m.ctx()));
   assert.ok(gs.length >= 2);
   for (const g of gs) assert.equal(g.length, 4, 'a clade of four tips: four rays');

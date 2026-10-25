@@ -5,11 +5,18 @@
 // together with its whole subtree by jumping to subtreeEnd[i]. Cost is O(nodes visited), which is bounded by
 // the viewport for bushy trees, and the number of PRIMITIVES emitted is bounded by the draw budget:
 //   rule A    collapse a clade whose pixel height (radial: arc length at the tips) is < minPx. Only the row direction counts: a clade
-//             of near-identical tips (tiny branch lengths) is narrow at any zoom, and its tips get their rows once they fit (#87)
+//             of near-identical tips (tiny branch lengths) is narrow at any zoom, and its tips get their rows once they fit (#87).
+//             A clade of at most two tips of the tree (leafEnd - leafStart: tips, not rows) is never collapsed
+//             by size, at any minPx and under any budget (#112): as a triangle it is no cheaper than its branches, and it hides its tips.
+//             It may still be a member of a run (rule R). The raise of rule D, the radial polytomy clause and the cap only move or add
+//             to this test, so they cannot fold it either
+//             Radial, decided per clade (#110): a clade whose deepest tip would get a dot (XMAX[i] * k >= dotR, see CutParams) is not folded by
+//             rules A and R or the polytomy clause while the threshold is at or under the cap, and with the adaptive budget's wedge limit
+//             (CutParams.wedge) a clade 4 degrees wide or more is not folded by size; the budget alone folds them, past the cap
 //   rule C    sub-pixel primitives that land on the same pixel cells as an earlier one are not emitted again
 //             (this is what keeps a 200k caterpillar from emitting 400k segments)
-//   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip or a collapsed clade smaller
-//             than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
+//   rule R    a run of at least SLICE_MIN_CHILDREN adjacent siblings that would each be a tip, a clade of at most two tips or a
+//             collapsed clade smaller than minPx is ONE entry (a slice, see DrawList.last), so a polytomy of thousands of small children costs one
 //             primitive per run, while its large children stay their own entries (issue 13). Siblings outside the window still count
 //             towards their run (they are not drawn, and a run with no member in view is not drawn), so which tips form a run depends on
 //             the tree and the zoom, not on where the window is: a pan does not fold tips in view back into a slice (#77)
@@ -152,6 +159,15 @@ export interface CutParams {
   baseMinPx?: number; // the threshold without any budget pressure (default minPx)
   budget: number;
   summaries: boolean;
+  /** Radial: the radius (px) from which a tip gets a dot, `TIP_DOT_PX / da` (a tip's arc to its neighbour is `da` times its radius).
+   *  A clade whose deepest tip reaches it (XMAX * k >= dotR) is not folded by size, by rule R or by the polytomy rule while `minPx` is at
+   *  or under `cap`: the budget alone folds it, by raising the threshold past the cap (#110). Infinity or absent: none is protected. */
+  dotR?: number;
+  /** With `dotR`: the threshold up to which clades with a dotted tip are kept open (px). Above it the budget is forcing, and they fold. */
+  cap?: number;
+  /** Radial: a clade whose wedge (its tips' angle, rowEnd - rowStart rows of `da`) is at least this many radians is not folded by size, at
+   *  any threshold (the adaptive budget's wedge limit, per clade: #114, #110). Infinity or absent: none. */
+  wedge?: number;
 }
 
 function finishCut(
@@ -218,7 +234,8 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
   // caterpillars (V8's inlining budget, see `cut`). Change both together.
   // pending run of small siblings (rule R; only under a parent with at least SLICE_MIN_CHILDREN children, which keeps
   // binary trees off this path). Its first members are emitted as usual and taken back when the run reaches
-  // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member
+  // SLICE_MIN_CHILDREN, so the common case (no run) costs nothing; snap* are the counters before the run's first member. A member of at
+  // most two tips is open (K_NODE, #112) and descended into: the run stays pending while i is inside its subtree (i <= runEnd)
   const canRun = lod && P.summaries;
   let runCount = 0,
     runFirst = 0,
@@ -238,7 +255,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
-    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+    if (runCount !== 0 && (i >= n || i > runEnd || force)) {
       force = false;
       if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
@@ -281,7 +298,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
     else if (sx > clipR + PAD) kind = K_STUB;
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a triangle whatever the zoom and the options, never opened
-    else if (lod && i > 0 && yBot - yTop < minPx) kind = P.summaries ? K_SUMMARY : K_STUB;
+    else if (lod && i > 0 && yBot - yTop < minPx && leafEnd[i] - leafStart[i] > 2) kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -293,7 +310,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         i > 0 &&
         px < minPx &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind !== K_NODE && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
+        (kind === K_TIP || ((stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -335,7 +352,7 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
           i = runEnd;
           continue;
         }
-      } else if (runCount !== 0) {
+      } else if (runCount !== 0 && i >= runEnd) {
         if (runCount >= SLICE_MIN_CHILDREN) {
           force = true;
           continue;
@@ -395,6 +412,10 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
   const { lod, minPx, budget } = P;
   const base = P.baseMinPx ?? minPx;
   const PAD = CULL_PAD_PX;
+  // a clade whose deepest tip would get a dot (its radius r1 >= dotR) is not folded by size while the threshold is at or under the cap (#110)
+  const dotR = P.dotR ?? Infinity;
+  const guardR = minPx > (P.cap ?? Infinity) * (1 + 1e-9) ? Infinity : dotR;
+  const wedge = P.wedge ?? Infinity; // a clade this wide (rad) is kept open by size
   // dedupe cells live in tree space at a scale rounded down to a power of two (cells are 1 to 2 px), shifted by whole cells
   // only: a pan leaves every primitive's cell untouched, and zooming changes the grid once per doubling instead of every
   // frame, so which of two close clades survives does not flicker
@@ -430,7 +451,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     snapM = 0;
   let i = 0;
   while (i < n || runCount >= SLICE_MIN_CHILDREN) {
-    if (runCount !== 0 && (i >= n || i !== runEnd || force)) {
+    if (runCount !== 0 && (i >= n || i > runEnd || force)) {
       force = false;
       if (runCount >= SLICE_MIN_CHILDREN && runVis) {
         const tipsRun = leafEnd[runLast] - leafStart[runFirst];
@@ -442,7 +463,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           out.push(runFirst, K_SUMMARY, runCls, runLast, runXmax);
           summaries++;
           summaryTips += tipsRun;
-          if (minPx > base && runPx >= base) forced++;
+          if (minPx > base && (runPx >= base || runXmax * k >= dotR)) forced++;
         } else mergedTips += tipsRun;
       }
       runCount = 0;
@@ -500,7 +521,14 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
     else if (collapsed !== null && collapsed[i] === 1)
       kind = K_SUMMARY; // the app collapsed it: a fan whatever the zoom and the options, never opened
     // a polytomy of tips collapses once its children are closer than minPx on average, so thousands of siblings cost one slice
-    else if (lod && i > 0 && (arc < minPx || (isSlice(tree, i) && arc < minPx * childCount[i]))) kind = P.summaries ? K_SUMMARY : K_STUB;
+    // (a clade of at most two tips is never folded by size, #112: it is no cheaper as a fan, and it hides the tips)
+    else if (
+      lod &&
+      i > 0 &&
+      r1 < guardR &&
+      (arc < minPx ? a1 - a0 < wedge && leafEnd[i] - leafStart[i] > 2 : isSlice(tree, i) && arc < minPx * childCount[i])
+    )
+      kind = P.summaries ? K_SUMMARY : K_STUB;
     else {
       kind = K_NODE;
       descend = true;
@@ -509,8 +537,9 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       if (
         i > 0 &&
         arc < minPx &&
+        r1 < guardR &&
         childCount[parent[i]] >= SLICE_MIN_CHILDREN &&
-        (kind === K_TIP || (kind === K_SUMMARY && (stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
+        (kind === K_TIP || ((stub === null || stub[i] === 0) && (collapsed === null || collapsed[i] === 0)))
       ) {
         const cl = classOf ? classOf[i] : 0;
         if (runCount !== 0 && (parent[i] !== runParent || cl !== runCls)) {
@@ -552,7 +581,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           i = runEnd;
           continue;
         }
-      } else if (runCount !== 0) {
+      } else if (runCount !== 0 && i >= runEnd) {
         if (runCount >= SLICE_MIN_CHILDREN) {
           force = true;
           continue;
@@ -570,7 +599,13 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
       let e = 0;
       if (kind === K_NODE) e = Math.min(8191, Math.round((ROW[LAST[i]] - ROW[firstChild[i]]) * da * ri));
       else if (kind === K_SUMMARY) e = Math.min(8191, Math.round(arc));
-      emit = seen.add(cell(ri * ca * fq - ou), cell(ri * sa * fq - ov), cell(rp * ca * fq - ou), cell(rp * sa * fq - ov) + kind * 8192, e);
+      const ux = ri * ca * fq - ou,
+        uy = ri * sa * fq - ov,
+        vx = rp * ca * fq - ou,
+        vy = rp * sa * fq - ov;
+      // a summary is keyed by what of it is in the cells when an end is beyond them (#111); everything else by its clamped cells
+      if (kind === K_SUMMARY) emit = seenSummary(seen, e, ux, uy, vx, vy, rp * fq, XMAX[i] * k * fq, ca, sa, ou, ov);
+      else emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) {
@@ -585,7 +620,7 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
           minPx > base &&
           (stub === null || stub[i] === 0) &&
           (collapsed === null || collapsed[i] === 0) &&
-          !(arc < base || (isSlice(tree, i) && arc < base * childCount[i]))
+          (r1 >= dotR || !(arc < base || (isSlice(tree, i) && arc < base * childCount[i])))
         )
           forced++;
       } else if (kind === K_TIP) tips++;
@@ -602,18 +637,105 @@ export const cell = (v: number): number => {
   const c = Math.floor(v) + 1024;
   return c < 0 ? 0 : c > 8191 ? 8191 : c;
 };
+/** The cells a coordinate has: floor(v) + 1024 in 0..8191, so v in CELL_LO..CELL_HI. */
+export const CELL_LO = -1024;
+export const CELL_HI = 7168;
+/** The key of clipRay: the cells of the far end x, y and the near end x, y. */
+export const CLIP = new Int32Array(4);
+/** The dedupe key of the ray segment from scaled radius `s0` to `s1` (s0 <= s1) in direction (ca, sa), seen from the window anchor (ou, ov):
+ *  the cells of the part of it inside the cells (CELL_LO..CELL_HI on both axes), far end first, left in CLIP, and true. A segment that
+ *  misses the cells returns false, with the cell of its ring (its end's distance from the window centre) in CLIP[0]; seenSummary says what is
+ *  done with those. Clamping the ends instead put every far node in the same cell and merged primitives a whole row apart (#111); not
+ *  deduping them emitted every node of a comb at a deep zoom. */
+export function clipRay(s0: number, s1: number, ca: number, sa: number, ou: number, ov: number): boolean {
+  let a = s0,
+    b = s1;
+  for (let ax = 0; ax < 2; ax++) {
+    const c = ax === 0 ? ca : sa,
+      o = ax === 0 ? ou : ov;
+    if (c > -1e-12 && c < 1e-12) {
+      if (-o < CELL_LO || -o >= CELL_HI) a = b + 1; // parallel to the axis and outside the cells
+      continue;
+    }
+    let t0 = (CELL_LO + o) / c,
+      t1 = (CELL_HI + o) / c;
+    if (t0 > t1) {
+      const t = t0;
+      t0 = t1;
+      t1 = t;
+    }
+    if (t0 > a) a = t0;
+    if (t1 < b) b = t1;
+  }
+  if (a > b) {
+    // the ray is nowhere near the window, but what hangs on it may be: a node's connector arc is a circle around the root, and it is
+    // in view when its radius is the window's (a ring: keyed by how far its radius is from the window centre's, in the cells), so
+    // the rays that miss the cells share a key only when no ring of theirs is near either
+    CLIP[0] = cell(s1 - Math.sqrt(ou * ou + ov * ov));
+    CLIP[1] = CLIP[2] = CLIP[3] = 0;
+    return false;
+  }
+  CLIP[0] = cell(b * ca - ou);
+  CLIP[1] = cell(b * sa - ov);
+  CLIP[2] = cell(a * ca - ou);
+  CLIP[3] = cell(a * sa - ov);
+  return true;
+}
+/** The dedupe of a summary, true if it is new. With both ends in the cells, its cells, as for any primitive. With an end beyond them (a
+ *  deep zoom: the node and its parent are thousands of px away, only the rim is near), the part of its ray inside the cells, out to the
+ *  clade's rim, is its key, not a clamped point: clamping put far summaries a row apart in the same cells and dropped one (#111). A
+ *  summary whose ray misses the cells is visible only through its rim, and summaries are disjoint in angle, so only a handful can
+ *  straddle the window: none is merged. Connectors and tips keep their clamped key in the cut loop, without a call (a comb zoomed far in
+ *  has hundreds of thousands of them). `s0`, `s1`: the ray's scaled radii. */
+function seenSummary(
+  seen: Seen,
+  e: number,
+  ux: number,
+  uy: number,
+  vx: number,
+  vy: number,
+  s0: number,
+  s1: number,
+  ca: number,
+  sa: number,
+  ou: number,
+  ov: number,
+): boolean {
+  const key = K_SUMMARY * 8192;
+  if (ux >= CELL_LO && ux < CELL_HI && uy >= CELL_LO && uy < CELL_HI && vx >= CELL_LO && vx < CELL_HI && vy >= CELL_LO && vy < CELL_HI)
+    return seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + key, e);
+  return clipRay(s0, s1, ca, sa, ou, ov) ? seen.add(CLIP[0], CLIP[1], CLIP[2], CLIP[3] + key, e) : true;
+}
 const LEVEL_STEP = 1.15; // ratio between neighbouring collapse thresholds
 const LEVEL_DOWN_FILL = 0.9; // the next level down is taken only when its list uses at most this share of the budget
 // passes of one search: enough rungs (1.15^99, about a million times the base) for a cold first frame (no hint) of a radial view zoomed
 // into a comb, whose clades' arcs at the rim run to tens of thousands of px (#87); an overflowing pass stops at the budget, so they are cheap
 const MAX_PASSES = 100;
 
+/** The rung the previous full frame's threshold `hint` was on (0 for none, or at or below the base). */
+function hintRung(hint: number, base: number, capRung: number, capN: number): number {
+  if (hint <= base) return 0;
+  if (capRung < Infinity && Math.abs(hint - capRung) <= capRung * 1e-9) return capN;
+  return Math.round(Math.log(hint / base) / Math.log(LEVEL_STEP));
+}
+
 export interface SearchOpts {
   lod: boolean;
   base: number; // collapse threshold without budget pressure (px)
+  cap: number; // the threshold stays at or below this (px) while the list fits the budget, Infinity for none: the tip pitch once tips have dots (#109)
   budget: number;
   summaries: boolean;
   hint: number; // threshold of the previous full frame, 0 for none
+  /** The budget never raises the threshold above this (px): where the list still overflows at the highest rung at or under it, the cut is
+   *  made there with `hardBudget` instead (a list that may exceed `budget`). Infinity or absent for none; below `base` it holds `base`.
+   *  The radial wedge limit of the adaptive budget (budget.ts). */
+  limit?: number;
+  /** Radial: the radius (px) from which a tip gets a dot (CutParams.dotR). The cap rung is where clades with a dotted tip stop being protected. */
+  dotR?: number;
+  /** With `limit`: the widest wedge (rad) that may be folded by size, per clade (CutParams.wedge); it holds while the limit does, and goes
+   *  with it where the budget gives way. */
+  wedge?: number;
+  hardBudget?: number; // with `limit`: the budget at the limit's rung (default `budget`); a list that overflows even this goes on up the ladder
 }
 
 /** Run the cut, raising the collapse threshold until the draw list fits the budget, and no further than needed. Without
@@ -629,50 +751,111 @@ export function searchCut(
   o: SearchOpts,
 ): { res: CutResult; minPx: number; retries: number } {
   const { base, budget, summaries } = o;
-  let lastM = -1;
+  const st: Search = { res: newCutResult(), n: 0, m: 0, passes: 1, limN: Infinity, lastM: -1 };
   // one small result object per pass (not per node): a pass that is kept must not be overwritten by the next one
-  const run = (minPx: number): CutResult => {
-    lastM = minPx;
-    const P: CutParams = { lod: o.lod, minPx, baseMinPx: base, budget, summaries };
+  const run = (minPx: number, bud = budget): CutResult => {
+    st.lastM = minPx;
+    const P: CutParams = {
+      lod: o.lod,
+      minPx,
+      baseMinPx: base,
+      budget: bud,
+      summaries,
+      dotR: o.dotR,
+      cap: capRung,
+      wedge: st.limN < Infinity ? o.wedge : Infinity,
+    };
     return cut(proj, P, classOf, list, seen, newCutResult());
   };
   // The threshold moves on a fixed ladder base * STEP^n and is sticky: it rises only when the list overflows and falls only
   // when the next level down also fits with room to spare. The number of primitives is not monotone in the threshold (the
   // pixel-cell dedupe), so a search for "the smallest threshold that fits" jumped between frames at nearly the same zoom.
-  const lvl = (n: number): number => base * Math.pow(LEVEL_STEP, n);
-  let n = o.hint > base ? Math.round(Math.log(o.hint / base) / Math.log(LEVEL_STEP)) : 0;
-  let m = lvl(n);
-  let res = run(m);
-  let passes = 1;
-  if (o.lod && res.visited < 80000) {
-    if (res.overflow) {
-      while (res.overflow && passes < MAX_PASSES) {
-        n++;
-        m = lvl(n);
-        res = run(m);
-        passes++;
-      }
-    } else {
-      while (n > 0 && passes < MAX_PASSES) {
-        const r = run(lvl(n - 1));
-        passes++;
-        if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
-        n--;
-        m = lvl(n);
-        res = r;
-      }
-      if (lastM !== m) {
-        res = run(m);
-        passes++;
-      }
-    }
-  } else if (res.overflow && o.lod) {
-    // very expensive walks (caterpillar-like): no search, just double until it fits
-    while (res.overflow && passes < 24) {
-      m *= 2;
-      res = run(m);
-      passes++;
-    }
+  // The ladder has the cap as a rung of its own (the first rung at or above it is replaced by the cap), so a view whose tips have dots
+  // is cut at the cap and nothing is folded unless the list overflows there; past the cap the ladder goes on, folding instead of truncating.
+  const capRung = Math.max(base, o.cap);
+  const capN = capRung > base ? Math.ceil(Math.log(capRung / base) / Math.log(LEVEL_STEP) - 1e-9) : 0;
+  const lvl = (n: number): number => (n === capN ? capRung : base * Math.pow(LEVEL_STEP, n));
+  st.limN = limitRung(o.limit, base, lvl);
+  st.n = Math.min(hintRung(o.hint, base, capRung, capN), st.limN);
+  st.m = lvl(st.n);
+  st.res = run(st.m);
+  if (o.lod && st.res.visited < 80000) {
+    if (st.res.overflow) climbWithLimit(st, lvl, run, o.hardBudget ?? budget);
+    else stepDown(st, lvl, run, list, budget);
+  } else if (st.res.overflow && o.lod) doubleToFit(st, run, o.limit ?? Infinity, o.hardBudget ?? budget);
+  return { res: st.res, minPx: st.m, retries: st.passes - 1 };
+}
+
+/** The state of one search: the last pass kept, its rung and threshold, the passes made, the highest rung allowed and the threshold last run. */
+interface Search {
+  res: CutResult;
+  n: number;
+  m: number;
+  passes: number;
+  limN: number;
+  lastM: number;
+}
+type Run = (minPx: number, bud?: number) => CutResult;
+
+/** The limit's rung: the highest one at or under `limit` (rung 0, the base, when the limit is below it); Infinity when there is none. */
+function limitRung(limit: number | undefined, base: number, lvl: (n: number) => number): number {
+  if (limit === undefined || limit >= Infinity) return Infinity;
+  let n = Math.max(0, Math.floor(Math.log(limit / base) / Math.log(LEVEL_STEP) + 1e-9));
+  while (n > 0 && lvl(n) > limit * (1 + 1e-9)) n--; // the cap rung may sit above the ladder's
+  return n;
+}
+
+/** Up the ladder while the list overflows, to the limit's rung at most; true if it still overflows at that rung. */
+function climb(st: Search, lvl: (n: number) => number, run: Run): boolean {
+  while (st.res.overflow && st.passes < MAX_PASSES && st.n < st.limN) {
+    st.n++;
+    st.m = lvl(st.n);
+    st.res = run(st.m);
+    st.passes++;
   }
-  return { res, minPx: m, retries: passes - 1 };
+  return st.res.overflow && st.n >= st.limN;
+}
+
+/** The list overflows the budget: climb. At the limit's rung the budget gives way: the cut is made there with the hard budget, and where
+ *  even that overflows the ladder goes on. */
+function climbWithLimit(st: Search, lvl: (n: number) => number, run: Run, hard: number): void {
+  if (!climb(st, lvl, run)) return;
+  st.res = run(st.m, hard);
+  st.passes++;
+  if (st.res.overflow) {
+    st.limN = Infinity;
+    climb(st, lvl, run);
+  }
+}
+
+/** The list fits: down the ladder while the next rung down also fits with room to spare, and leave the list of the rung returned. */
+function stepDown(st: Search, lvl: (n: number) => number, run: Run, list: DrawList, budget: number): void {
+  while (st.n > 0 && st.passes < MAX_PASSES) {
+    const r = run(lvl(st.n - 1));
+    st.passes++;
+    if (r.overflow || list.count > LEVEL_DOWN_FILL * budget) break;
+    st.n--;
+    st.m = lvl(st.n);
+    st.res = r;
+  }
+  if (st.lastM !== st.m) {
+    st.res = run(st.m);
+    st.passes++;
+  }
+}
+
+/** Very expensive walks (caterpillar-like): no search, just double until it fits; at the limit the hard budget applies once. */
+function doubleToFit(st: Search, run: Run, limit: number, hard: number): void {
+  let hardDone = false;
+  while (st.res.overflow && st.passes < 24) {
+    if (!hardDone && st.m >= limit) {
+      hardDone = true;
+      st.res = run(st.m, hard);
+      st.limN = Infinity; // the budget has given way: so does the wedge limit
+    } else {
+      st.m = hardDone ? st.m * 2 : Math.min(st.m * 2, limit);
+      st.res = run(st.m);
+    }
+    st.passes++;
+  }
 }
