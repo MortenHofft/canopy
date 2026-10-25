@@ -27,6 +27,7 @@ const NUMBERS = [
   'nodeMarkerSize',
   'summaryOpacity',
   'summaryStripeOpacity',
+  'summaryLineOpacity',
   'summaryStripeGap',
   'markerOpacity',
   'highlightOpacity',

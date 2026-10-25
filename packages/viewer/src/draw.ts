@@ -438,7 +438,7 @@ function fillTones(ctx: CanvasRenderingContext2D, proj: LayoutProjection, list: 
 /** The summaries of one (dimming pass, colour class), both layouts: the background fill of every summary in `colour` at `summaryOpacity`
  *  (fans in chunks of FILL_CHUNK shapes), then the stripe tone over the summaries that get no stripes, then the stripes. `dim` is 1, or
  *  `dimOpacity` on the dimmed pass. */
-function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cls: number, colour: string, dim: number): void {
+function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cls: number, colour: string, dim: number, lineW: number): void {
   const { list, theme, proj } = S;
   const passes = S.hlPrefix ? 2 : 1;
   const nCls = S.colours.length;
@@ -452,7 +452,7 @@ function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cl
   for (let e = 0; e < list.count; e++) {
     if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
     if (passes > 1 && dimmed(S, e) !== pass) continue;
-    if (S.summaryLines && lineTip(proj.tree, proj.L, list.node[e], list.last[e]) >= 0) continue; // drawn with the branches
+    if (S.summaryLines && lineTip(proj.tree, proj.L, list.node[e], list.last[e]) >= 0) continue; // a line, below
     n = addSummaryShape(ctx, proj, list, e, n, chunk);
     const lm = list.last[e];
     const pitch = pushStripes(proj, list.node[e], lm, lm >= 0 || isSlice(proj.tree, list.node[e], proj.L.collapsed), gap);
@@ -461,6 +461,38 @@ function drawSummaries(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cl
   if (n) ctx.fill();
   if (toneN) fillTones(ctx, proj, list, stripeA, chunk);
   strokeStripes(ctx, colour, stripeA);
+  if (S.summaryLines) strokeSummaryLines(ctx, S, pass, cls, colour, theme.summaryLineOpacity * dim, lineW);
+}
+
+/** The summaries of a frame of `summaryLines` as branches from their node to their deepest tip (#126), in the summary colour (or the
+ *  clade's) at `summaryLineOpacity`: lighter than a branch, darker than a fan or triangle. */
+function strokeSummaryLines(ctx: CanvasRenderingContext2D, S: Scene, pass: number, cls: number, colour: string, alpha: number, lineW: number): void {
+  const { list, proj } = S;
+  const passes = S.hlPrefix ? 2 : 1;
+  const nCls = S.colours.length;
+  const p: Pt = { x: 0, y: 0 },
+    q: Pt = { x: 0, y: 0 };
+  ctx.strokeStyle = colour;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = lineW;
+  ctx.beginPath();
+  let segs = 0;
+  for (let e = 0; e < list.count; e++) {
+    if (list.kind[e] !== K_SUMMARY || (nCls > 1 && list.cls[e] !== cls)) continue;
+    if (passes > 1 && dimmed(S, e) !== pass) continue;
+    const t = lineTip(proj.tree, proj.L, list.node[e], list.last[e]);
+    if (t < 0) continue;
+    proj.nodeXY(list.node[e], p);
+    proj.nodeXY(t, q);
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(q.x, q.y);
+    if (++segs >= STROKE_CHUNK) {
+      ctx.stroke();
+      ctx.beginPath();
+      segs = 0;
+    }
+  }
+  if (segs) ctx.stroke();
 }
 
 /** Branches and collapsed clades. Positions and clade extents come from the layout projection; what is drawn differs by layout
@@ -502,20 +534,22 @@ export function drawBody(ctx: CanvasRenderingContext2D, S: Scene, lineW: number)
         if (kind === K_NODE) {
           ctx.moveTo(p.x, clampY(proj.tip(firstChild[i]), T.H));
           ctx.lineTo(p.x, clampY(proj.tip(LAST[i]), T.H));
-        } else if (kind === K_SUMMARY && S.summaryLines) {
-          const t = lineTip(tree, L, i, -1);
-          if (t >= 0) {
-            proj.nodeXY(t, q);
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(q.x, q.y);
-          }
         }
       }
       if (any) ctx.stroke();
     }
   // summaries: triangles (bands) from the node to the clade's extent
   for (let pass = 0; pass < passes; pass++)
-    for (let cls = 0; cls < nCls; cls++) drawSummaries(ctx, S, pass, cls, cls === 0 ? theme.summary : colours[cls], pass ? theme.dimOpacity : 1);
+    for (let cls = 0; cls < nCls; cls++)
+      drawSummaries(
+        ctx,
+        S,
+        pass,
+        cls,
+        cls === 0 ? theme.summary : colours[cls],
+        pass ? theme.dimOpacity : 1,
+        cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth),
+      );
   ctx.globalAlpha = 1;
 }
 
@@ -557,15 +591,7 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
           ctx.lineTo(p.x, p.y);
           segs++;
         }
-        if (list.kind[e] === K_SUMMARY && S.summaryLines) {
-          const t = lineTip(tree, L, i, -1);
-          if (t >= 0) {
-            proj.nodeXY(t, q);
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(q.x, q.y);
-            segs++;
-          }
-        } else if (list.kind[e] === K_NODE) {
+        if (list.kind[e] === K_NODE) {
           const fc = firstChild[i],
             lc = LAST[i];
           const r = proj.depth(i);
@@ -610,7 +636,10 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
     }
   // summaries: fans (apex at the node, outer edge at the clade's radius) and ring segments
   for (let pass = 0; pass < passes; pass++)
-    for (let cls = 0; cls < nCls; cls++) drawSummaries(ctx, S, pass, cls, cls === 0 ? theme.summary : colours[cls], pass ? theme.dimOpacity : 1);
+    for (let cls = 0; cls < nCls; cls++) {
+      const w = cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
+      drawSummaries(ctx, S, pass, cls, cls === 0 ? theme.summary : colours[cls], pass ? theme.dimOpacity : 1, w + (inv - w) * S.thin);
+    }
   ctx.globalAlpha = 1;
 }
 
