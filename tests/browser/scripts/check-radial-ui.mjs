@@ -69,7 +69,7 @@ ok(
   s.budget === 2000 && s.drawn <= 2000 && s.forced > 0 && s.summaries > 0,
   `fit: drawn ${s.drawn} <= budget ${s.budget}, ${s.forced} clades summarised`,
 );
-const noticeText = await page.locator('[data-treeview] [role=status]').first().textContent();
+const noticeText = await page.locator('.phylo-viewer .phylo-notice').textContent();
 ok(/clades? summarised, raise the limit in Library options/.test(noticeText ?? ''), `notice: "${noticeText}"`);
 
 // ---- find a summary with room to click

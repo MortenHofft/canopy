@@ -427,6 +427,18 @@ test('the fake style keeps one property map and a canvas resize resets its conte
   assert.equal(c.ctx.fillStyle, '#000000');
 });
 
+// ---------------------------------------------------------------- tree role
+
+test('the tree element owns only the canvases and the label group; the list, live region and notice are its siblings', async () => {
+  const { viewer } = await makeViewer('((a,b),c);');
+  assert.deepEqual(
+    viewer.root.children.map((c) => c.getAttribute('role') ?? c.tagName.toLowerCase()),
+    ['canvas', 'canvas', 'group'],
+  );
+  for (const el of [viewer.overlay.srList, viewer.overlay.live, viewer.container.querySelector('.phylo-notice')])
+    assert.equal(el?.parentNode, viewer.container);
+});
+
 // ---------------------------------------------------------------- clade names
 
 test('the keyboard announcement names a clade as the legend does: name and locale-formatted count, or "Clade of N tips"', async () => {
