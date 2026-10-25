@@ -377,7 +377,10 @@ function cutRect(proj: RectProjection, P: CutParams, classOf: Uint8Array | null,
         d = cell(oys + ROW[i] * ky);
         e = d;
       }
-      emit = seen.add(cell(oxs + (i > 0 ? X[p] : X[i]) * kx), cell(oxs + X[i] * kx), cell(oys + ROW[i] * ky), d + kind * 8192, e);
+      // a summary is keyed by how far it reaches (XMAX), as a run is: keyed by its node, a clade with a long branch was dropped for a
+      // shorter one in the same cells
+      const xe = kind === K_SUMMARY ? XMAX[i] : X[i];
+      emit = seen.add(cell(oxs + (i > 0 ? X[p] : X[i]) * kx), cell(oxs + xe * kx), cell(oys + ROW[i] * ky), d + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) {
@@ -603,9 +606,13 @@ function cutRadial(proj: RadialProjection, P: CutParams, classOf: Uint8Array | n
         uy = ri * sa * fq - ov,
         vx = rp * ca * fq - ou,
         vy = rp * sa * fq - ov;
-      // a summary is keyed by what of it is in the cells when an end is beyond them (#111); everything else by its clamped cells
-      if (kind === K_SUMMARY) emit = seenSummary(seen, e, ux, uy, vx, vy, rp * fq, XMAX[i] * k * fq, ca, sa, ou, ov);
-      else emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
+      // a summary is keyed by its parent and its rim (how far it reaches, as a run is: keyed by its node, a clade with a long branch was
+      // dropped for a shorter one in the same cells), by what of it is in the cells when an end is beyond them (#111); everything else by
+      // its clamped cells
+      if (kind === K_SUMMARY) {
+        const s1 = XMAX[i] * k * fq;
+        emit = seenSummary(seen, e, s1 * ca - ou, s1 * sa - ov, vx, vy, rp * fq, s1, ca, sa, ou, ov);
+      } else emit = seen.add(cell(ux), cell(uy), cell(vx), cell(vy) + kind * 8192, e);
     }
     if (emit) {
       if (out.count >= budget) {
@@ -681,7 +688,7 @@ export function clipRay(s0: number, s1: number, ca: number, sa: number, ou: numb
   CLIP[3] = cell(a * sa - ov);
   return true;
 }
-/** The dedupe of a summary, true if it is new. With both ends in the cells, its cells, as for any primitive. With an end beyond them (a
+/** The dedupe of a summary, true if it is new. With both ends (`u`: its rim, `v`: its parent) in the cells, their cells. With an end beyond them (a
  *  deep zoom: the node and its parent are thousands of px away, only the rim is near), the part of its ray inside the cells, out to the
  *  clade's rim, is its key, not a clamped point: clamping put far summaries a row apart in the same cells and dropped one (#111). A
  *  summary whose ray misses the cells is visible only through its rim, and summaries are disjoint in angle, so only a handful can
