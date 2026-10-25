@@ -27,7 +27,7 @@ export interface Scene {
   nodeLabels: NodeLabelsOption; // the option
   formatNode: (value: number, kind: NodeLabelKind) => string; // formatNodeLabel
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
-  thin: boolean; // radial and dense: branches are one device pixel wide (Skia hairline path, 10x cheaper on CPU raster)
+  thin: number; // radial and dense: 0 = branches at the theme width, 1 = one device pixel (Skia hairline path, 10x cheaper on CPU raster), between: faded
   measure: TextMeasurer; // label widths, owned by the renderer
 }
 
@@ -530,7 +530,8 @@ function drawBodyRadial(ctx: CanvasRenderingContext2D, S: Scene, proj: RadialPro
     for (let cls = 0; cls < nCls; cls++) {
       ctx.strokeStyle = cls === 0 ? theme.branch : colours[cls];
       ctx.globalAlpha = pass ? theme.dimOpacity : 1;
-      ctx.lineWidth = S.thin ? inv : cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
+      const w = cls === 0 ? lineW : Math.max(lineW, theme.cladeBranchWidth);
+      ctx.lineWidth = w + (inv - w) * S.thin;
       ctx.beginPath();
       let segs = 0;
       for (let e = 0; e < list.count; e++) {

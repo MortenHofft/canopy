@@ -222,7 +222,7 @@ export class Overview {
       nodeLabels: 'none',
       formatNode: String,
       scale: h.dpr,
-      thin: false,
+      thin: 0,
       measure: h.measure,
     };
     drawBody(ctx, S, 1);

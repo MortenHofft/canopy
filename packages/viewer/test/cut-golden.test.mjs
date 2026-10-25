@@ -192,7 +192,7 @@ function recorder() {
   );
   return { ctx, calls };
 }
-const scene = (proj, list) => ({ proj, list, theme: FALLBACK_THEME, colours: ['#000'], classOf: null, scale: 1, thin: false });
+const scene = (proj, list) => ({ proj, list, theme: FALLBACK_THEME, colours: ['#000'], classOf: null, scale: 1, thin: 0 });
 
 test('rectangular summary: drawn at least 2 px wide and 1.5 px tall', () => {
   const { proj, list, i } = tinySummary('rectangular');

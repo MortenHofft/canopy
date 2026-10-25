@@ -92,7 +92,8 @@ import {
 import { keptViewport, type TipTarget } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
-const THIN_PRIMS = 700; // radial: from this many primitives on, branches are one device pixel wide
+const THIN_FROM = 500; // radial: from this many primitives on, branches thin towards one device pixel,
+const THIN_TO = 900; // reaching it here (a fade, so zooming across the band does not make them jump in width)
 const REDUCED_MINPX = 1.6; // collapse threshold factor while interacting (only when the last full frame was heavy)
 const HEAVY_PRIMS = 1000;
 const AUTO_LOD_MS = 12; // interactionLOD 'auto': reduce while moving once full-quality frames take longer than this (JS time, smoothed)
@@ -2124,7 +2125,7 @@ export class TreeViewer {
       nodeLabels: opts.nodeLabels,
       formatNode: opts.formatNodeLabel,
       scale,
-      thin: !rect && this.list.count >= THIN_PRIMS,
+      thin: rect ? 0 : Math.min(1, Math.max(0, (this.list.count - THIN_FROM) / (THIN_TO - THIN_FROM))),
       measure: this.measurer,
     };
     ctx.save();
