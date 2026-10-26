@@ -9,7 +9,7 @@
 
 import '@gbif-phylo/viewer/viewer.css';
 import './style.css';
-import { applySidecar, parseNewick, parseSidecar } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@gbif-phylo/io';
 import {
   BaseControl,
   Fit,
@@ -46,8 +46,9 @@ interface TipMeta {
 
 const [newick, tsv] = await Promise.all([fetchText('synthetic/newick/yule_1000.nwk'), fetchText('synthetic/meta/yule_1000.meta.tsv')]);
 const tree = parseNewick(newick);
-// the same table is a sidecar: its first column must be named ID (this file calls it tip_label), the others become tree.annotations
-applySidecar(tree, parseSidecar(tsv.replace(/^tip_label/, 'ID')));
+// the same table is a sidecar, kept apart from the tree: its first column must be named ID (this file calls it tip_label). Only the
+// row positions are indexed; a cell is read when it is asked for (the popup below) or when a column colours the tree
+const sidecar = parseSidecar(tsv.replace(/^tip_label/, 'ID')).bind(tree);
 const meta = new Map<string, TipMeta>();
 for (const line of tsv.split('\n').slice(1)) {
   const [tip, occ, country, trait] = line.split('\t');
@@ -142,7 +143,7 @@ function showCard(e: TreeEvent): void {
   const dl = document.createElement('dl');
   for (const [k, v] of [
     ['Occurrences', m ? m.occurrences.toLocaleString('en') : 'no data'],
-    ['Country', m?.country ?? 'no data'],
+    ['Country', String(sidecar.get(e.node, 'country_code') ?? 'no data')],
     ['Trait', m ? m.trait.toFixed(2) : 'no data'],
   ]) {
     const dt = document.createElement('dt');
@@ -201,7 +202,7 @@ document.getElementById('colour-by')!.addEventListener('change', (ev) => {
     if (cornerControls.includes(cladeLegend) && document.querySelector<HTMLInputElement>('#show-controls')!.checked) viewer.addControl(cladeLegend);
     return;
   }
-  const by = colourBy(tree, key, viewer.getTheme(), { palette: COUNTRY_PALETTE, header: 'Country' });
+  const by = colourBy(tree, sidecar.categories(key), viewer.getTheme(), { palette: COUNTRY_PALETTE, header: 'Country' });
   viewer.removeControl(cladeLegend); // one entry per tip would be a legend of a thousand lines
   attributeLegend = new Legend({ title: 'Country', items: by.items });
   viewer.addControl(attributeLegend);

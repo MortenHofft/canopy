@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once                                                                                                                                                  |
 | `@gbif-phylo/viewer/gbif.css`   | optional: GBIF design tokens mapped to the `--phylo-*` properties                                                                                                                                                                   |
 | `@gbif-phylo/react`             | `<TreeView>` ([below](#treeview))                                                                                                                                                                                                   |
-| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` and `applySidecar`; `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` (a lazy `Sidecar` bound to a tree); `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -288,21 +288,23 @@ The viewer draws the header. A renderer that throws is reported once and the fra
 
 ### Colouring by an attribute
 
-`colourBy(tree, key, theme, options?)` colours the tips by one annotation, for example a sidecar column read by `@gbif-phylo/io`
-(`applySidecar`, then `colourBy(tree, 'country', viewer.getTheme())`). `tree` is anything with `tipCount`, `tipNode` and `annotations`, so a
-`TreeModel` fits. It returns data and changes nothing:
+`colourBy(tree, categories, theme, options?)` colours the tips by one categorical attribute, for example a column of a sidecar table read by
+`@gbif-phylo/io` (`parseSidecar(text).bind(tree).categories('country')`: integer codes by node, so nothing is kept per tip or per cell).
+`tree` is anything with `tipCount` and `tipNode`, so a `TreeModel` fits. It returns data and changes nothing:
 
 ```ts
-const by = colourBy(tree, 'country', viewer.getTheme(), { palette: myColours }); // { clades, items, column, coloured }
+const by = colourBy(tree, binding.categories('country'), viewer.getTheme(), { palette: myColours }); // { clades, items, column, coloured }
 viewer.setClades(by.clades); // tip branches, dots and labels
 viewer.setColumns([...columns, by.column]); // a column of swatches
 viewer.addControl(new Legend({ title: 'Country', items: by.items })); // fixed items: the default legend would list one entry per tip
 ```
 
-Values are compared as strings (a numeric column is categories too). The most frequent values take the palette's colours in turn (default
-the theme's `categorical`, five colours: pass a longer `palette` for more); the rest share `other` (default the theme's `muted`) and the legend
-ends with an "Other" entry that counts them. Tips without a value are not coloured and have no swatch. A clade collapsed or summarised by the
-level of detail shows its summary colour, not its tips'. See [`examples/vanilla`](../../../examples/vanilla/src/main.ts).
+The most frequent values take the palette's colours in turn (default the theme's `categorical`, five colours: pass a longer `palette` for
+more); the rest share `other` (default the theme's `muted`) and the legend ends with an "Other" entry that counts them. Tips without a value
+are not coloured and have no swatch. The cost is `setClades`' own: about 55 ms for 100,000 tips and 0.4 s for 500,000 (measured with one
+entry per tip), once per change of the column; drawing is unchanged, a colour class per row. A clade collapsed or summarised by the level
+of detail shows its summary colour, not its tips'. To show a tip's other values, read them on demand from the binding (`binding.get`,
+`binding.record`) in a popup. See [`examples/vanilla`](../../../examples/vanilla/src/main.ts).
 
 ## Theme or option
 

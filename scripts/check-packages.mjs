@@ -80,7 +80,7 @@ const SCENARIOS = [
   },
   {
     name: 'io: parseNewick + sidecar',
-    code: `import { parseNewick, parseSidecar, applySidecar } from '@gbif-phylo/io'; const t = parseNewick('(a,b);'); console.log(applySidecar(t, parseSidecar('ID,x\\na,1')));`,
+    code: `import { parseNewick, parseSidecar } from '@gbif-phylo/io'; const t = parseNewick('(a,b);'); console.log(parseSidecar('ID,x\\na,1').bind(t).categories('x'));`,
     forbid: [],
   },
   {

@@ -63,27 +63,40 @@ tree.tipIndices('Homo_sapiens'); // [3, 4, 7]
 
 ## Sidecar table (TSV or CSV)
 
-A table next to the tree adds columns to its nodes: country, host, date. The first column is named `ID` (any case) and holds a tip label,
-or the name of an internal node; the other columns become annotations on that node, in `tree.annotations`, next to any BEAST or NHX ones.
-The delimiter is a tab if the header line has one, else a comma; fields may be "quoted" (commas, newlines and `""` inside). A cell that
-reads as a number becomes a number (`007` stays a string), an empty cell sets nothing, and a sidecar value replaces an annotation of the
-same key.
+A table next to the tree adds columns to its nodes: country, host, date, even a sequence. The first column is named `ID` (any case) and holds
+a tip label, or the name of an internal node. The delimiter is a tab if the header line has one, else a comma; fields may be "quoted"
+(commas, newlines and `""` inside).
+
+The table is kept apart from the tree and is read lazily, so a large table, or a long sequence in every row, does not grow the tree or
+cost anything until it is used:
 
 ```ts
-import { parseNewick, parseSidecar, applySidecar } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@gbif-phylo/io';
 
 const tree = parseNewick(newickText); // or parseNexus(text).tree
-const report = applySidecar(tree, parseSidecar(tsvText)); // throws SidecarError if the first column is not ID
-tree.annotations.get(tree.tipIndex('Puma_concolor'), 'country'); // 'US'
+const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID; only row positions are indexed
+const b = sidecar.bind(tree); // match rows to nodes: an Int32Array by node (b.rowOf) and a report
 
-report.unmatchedIds; // rows that named no tip and no internal node
-report.tipsWithoutRow; // tip labels no row named
-report.duplicateIds; // IDs in more than one row (the later row wins)
+b.report.unmatchedIds; // rows that named no tip and no internal node
+b.report.tipsWithoutRow; // tip labels no row named
+b.report.duplicateIds; // IDs of rows that matched a node an earlier row had matched (the later row wins)
+
+b.get(node, 'country'); // one cell of one node: 'US', or a number if it reads as one ('007' stays a string); undefined if none
+b.record(node); // all its non-empty cells by column, for a popup
+const cat = b.categories('country'); // one column as integer codes by node, most frequent value first: for colouring
 ```
 
-A label several tips carry gives the row to every one of them. Nothing is dropped silently: show the report, so a mismatch between the two
-files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy` turns a column into tip colours, a legend and a
-swatch column.
+- **Memory.** The sidecar keeps the text it was given (a cell is a slice of it) and 4 bytes per row; a binding is 4 bytes per node, a
+  `categories` result 4 bytes per node. Nothing is stored per cell, and nothing is written into `tree.annotations`.
+- **Time.** On a laptop-class machine, 100,000 rows with a 1 kB sequence each (103 MB of text) parse in about 30 ms, bind in 90 ms and give
+  a column of categories in 35 ms; a cell or a row is read in microseconds. 1,000,000 rows bind in about 1.3 s, most of it the tree's own
+  label index. A text is one JavaScript string, so about 500 MB at most.
+- **Edits of the tree.** Node numbers change when tree-ops edits a tree. Call `bind` again on the result (matching is by label, so nothing is
+  lost); a binding is for the tree it was made from.
+
+A label several tips carry gives the row to every one of them. Nothing is dropped silently: show the report, so a mismatch between the
+two files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
+colours, a legend and a swatch column.
 
 ## Annotations
 

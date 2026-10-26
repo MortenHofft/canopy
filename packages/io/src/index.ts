@@ -12,5 +12,5 @@ export {
   type WriteOptions,
 } from './newick.ts';
 export { TreeModel, splitInternalLabel, type RawTree, type ParserWarning } from './tree.ts';
-export { parseSidecar, applySidecar, SidecarError, type SidecarTable, type SidecarReport } from './sidecar.ts';
+export { parseSidecar, Sidecar, SidecarBinding, SidecarError, type Categories, type SidecarReport } from './sidecar.ts';
 export { Annotations, supportFrom, type AnnotationRecord, type AnnotationScalar, type AnnotationValue } from './annotations.ts';
