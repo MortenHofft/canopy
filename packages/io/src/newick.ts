@@ -77,6 +77,23 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     if (strict) throw new NewickError(`[${code}] ${message}`, position);
     warnings.push({ code, message, position });
   };
+  // Validate NHX syntax even when annotations are off: '[&&NHX:name=value:...]'. Each ':'-
+  // separated entry (after the leading 'NHX') must contain '='. A missing '=' is a well-known
+  // ete-side mistake and worth telling the publisher.
+  const checkNhxAt = (from: number, to: number): void => {
+    if (text.charCodeAt(from + 1) !== 38 || text.charCodeAt(from + 2) !== 38) return;
+    const inner = text.slice(from + 3, to - 1);
+    if (!inner.startsWith('NHX')) return;
+    const parts = inner.slice(3).split(':');
+    for (const part of parts) {
+      const t = part.trim();
+      if (t === '') continue;
+      if (!t.includes('=')) {
+        warn('invalid-nhx-syntax', `NHX entry ${JSON.stringify(t)} is missing '='`, from);
+        return; // report once per comment
+      }
+    }
+  };
   const nodeAnn = new Map<number, AnnotationRecord>();
   const edgeAnn = new Map<number, AnnotationRecord>();
   let afterColon = false; // the comment is after the ':' of the node, so BEAST means the edge (NHX comments are always the node's)
@@ -173,6 +190,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     } else if (c === 91) {
       const e = skipComment(text, p, annot);
       if (annot && !expect) note(p, e, afterColon);
+      checkNhxAt(p, e);
       p = e;
     } else if (c === 40) {
       if (!expect) throw new NewickError("unexpected '('", p);
@@ -238,6 +256,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
         if (text.charCodeAt(p) === 91) {
           const e = skipComment(text, p, annot);
           if (annot) note(p, e, true);
+          checkNhxAt(p, e);
           p = e;
         } else p++;
       }
@@ -554,8 +573,30 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         .trim()
         .replace(/^'(.*)'$/s, '$1');
       const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
-      if (translate.size) tree.relabelTips((l) => translate.get(l));
+      const extraWarnings: ParserWarning[] = [];
+      if (translate.size) {
+        // Any tip label that looks like a TRANSLATE id (a bare integer) but isn't in the table
+        // is a reference to a missing translation. Report, then leave the tip label verbatim so
+        // the viewer still shows something.
+        const missing: string[] = [];
+        tree.relabelTips((l) => {
+          const nl = translate.get(l);
+          if (nl !== undefined) return nl;
+          if (/^\d+$/.test(l)) missing.push(l);
+          return undefined;
+        });
+        if (missing.length) {
+          const w: ParserWarning = {
+            code: 'unknown-translate-id',
+            message: `tree references ${missing.length} TRANSLATE id${missing.length === 1 ? '' : 's'} not in the table: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ', ...' : ''}`,
+            position: 0,
+          };
+          if (strict) throw new NewickError(`[${w.code}] ${w.message}`, w.position);
+          extraWarnings.push(w);
+        }
+      }
       if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
+      for (const w of extraWarnings) (tree.warnings as ParserWarning[]).push(w);
       return { tree, treeName: name, treesSeen: seen, translateEntries: translate.size };
     }
   }

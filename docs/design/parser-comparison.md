@@ -53,13 +53,13 @@ corpus pays off even without a bug in the parser itself.
 
 **Score (89 fixtures total):**
 
-| Lib | Well-formed (63) | Malformed rejected (26) | Overall |
-|---|---:|---:|---:|
-| **gbif-phylo/io** | **62/63  (98%)** | 19/26  (73%) | **81/89  (91%)** |
-| patristic | 57/63  (90%) | 10/26  (38%) | 67/89  (75%) |
-| newick-js | 48/63  (76%) | 13/26  (50%) | 61/89  (69%) |
-| phylio | 39/63  (62%) | 22/26  (85%) | 61/89  (69%) |
-| DendroPy (reference) | 48/89 — see below | | |
+| Lib | Well-formed (64) | Malformed rejected (default) (25) | Overall (default) | Overall (ours strict) |
+|---|---:|---:|---:|---:|
+| **gbif-phylo/io** | **63/64 (98%)** | **19/25 (76%)** | **82/89 (92%)** | **88/89 (99%)** |
+| patristic | 58/64 (91%) | 10/25 (40%) | 68/89 (76%) | — |
+| newick-js | 49/64 (77%) | 13/25 (52%) | 62/89 (70%) | — |
+| phylio | 40/64 (63%) | 22/25 (88%) | 62/89 (70%) | — |
+| DendroPy (reference) | 48/89 — see below | | | |
 
 **None of the other JS libs pass our test suite.** Each has at least a dozen tests they fail on
 inputs we handle: phylio rejects BEAST annotations, quoted labels, and no-trailing-`;`; newick-js

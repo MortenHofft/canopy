@@ -96,6 +96,35 @@ test('double colon: strict mode throws', () => {
   assert.throws(() => parseNewick('(A:1:2,B);', { strict: true }), /double-colon/);
 });
 
+// NHX syntax: default warns, strict throws.
+test('invalid-nhx-syntax: default mode warns', () => {
+  const t = parseNewick('(((A,B),C)[&&NHX:nameI]);');
+  assert.ok(t.warnings.some((w) => w.code === 'invalid-nhx-syntax'));
+});
+test('invalid-nhx-syntax: strict mode throws', () => {
+  assert.throws(() => parseNewick('(((A,B),C)[&&NHX:nameI]);', { strict: true }), /invalid-nhx-syntax/);
+});
+test('invalid-nhx-syntax: valid NHX does NOT fire', () => {
+  const t = parseNewick('(((A,B),C)[&&NHX:S=Human:name=root]);');
+  assert.ok(!t.warnings.some((w) => w.code === 'invalid-nhx-syntax'));
+});
+
+// NEXUS TRANSLATE references not in the table.
+test('unknown-translate-id: default mode warns', () => {
+  const r = parseNexus('#NEXUS\nBEGIN TREES;\n  TRANSLATE 1 Alpha, 2 Beta;\n  TREE t = ((1,2),3);\nEND;\n');
+  assert.ok(r.tree.warnings.some((w) => w.code === 'unknown-translate-id'));
+});
+test('unknown-translate-id: strict mode throws', () => {
+  assert.throws(
+    () => parseNexus('#NEXUS\nBEGIN TREES;\n  TRANSLATE 1 Alpha, 2 Beta;\n  TREE t = ((1,2),3);\nEND;\n', { strict: true }),
+    /unknown-translate-id/,
+  );
+});
+test('unknown-translate-id: complete TRANSLATE table does NOT fire', () => {
+  const r = parseNexus('#NEXUS\nBEGIN TREES;\n  TRANSLATE 1 Alpha, 2 Beta, 3 Gamma;\n  TREE t = ((1,2),3);\nEND;\n');
+  assert.ok(!r.tree.warnings.some((w) => w.code === 'unknown-translate-id'));
+});
+
 // NEXUS header missing: warning in default, throw in strict.
 test('NEXUS without #NEXUS header: default mode warns', () => {
   const r = parseNexus('BEGIN TREES;\n  TREE t = (A:1,B:2);\nEND;\n');

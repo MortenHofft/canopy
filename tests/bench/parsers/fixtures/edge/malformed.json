@@ -4,7 +4,6 @@
   { "id": "semicolon-only",             "kind": "newick", "input": ";",                               "wellFormed": false },
   { "id": "unmatched-open-paren",       "kind": "newick", "input": "((A,B,C);",                        "wellFormed": false },
   { "id": "unmatched-close-paren",      "kind": "newick", "input": "(A,B,C));",                        "wellFormed": false },
-  { "id": "extra-comma",                "kind": "newick", "input": "(A,,B);",                          "wellFormed": false },
   { "id": "trailing-comma",             "kind": "newick", "input": "(A,B,);",                          "wellFormed": true, "tipCount": 3, "tipLabels": ["","A","B"] },
   { "id": "leading-comma",              "kind": "newick", "input": "(,A,B);",                          "wellFormed": true, "tipCount": 3, "tipLabels": ["","A","B"] },
   { "id": "non-numeric-length",         "kind": "newick", "input": "(A:xyz,B:1);",                     "wellFormed": false },

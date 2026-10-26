@@ -7,8 +7,9 @@ wild (JS, Python, Java). The full design brief and the per-fixture tables live i
 
 ## TL;DR
 
-- **Correctness**: 81/89 on the edge-case suite. Next best — Forester (70), DendroPy (67),
-  patristic (67), newick-js (61), phylio (61).
+- **Correctness**: 82/89 on the edge-case suite (default mode); 88/89 if you count strict-mode
+  rejections, where `{ strict: true }` catches 25/25 malformed inputs. Next best — Forester (70),
+  DendroPy (67), patristic (67), newick-js (61), phylio (61).
 - **Deep trees**: the only parser we tested, in any language, that completes the 10 000-tip
   caterpillar in the browser without stack-overflowing. phylio, newick-js, patristic *and*
   DendroPy all crash on it; Forester (JVM default stack) is the only other one that survives.
@@ -52,18 +53,29 @@ so a slow or stuck parser can be killed on wall-clock timeout. 1 warmup + 5 time
 
 Across 89 edge-case fixtures (63 well-formed, 26 malformed):
 
-| Lib | well-formed | malformed rejected | overall |
+| Lib | well-formed | malformed rejected (default) | overall (default) |
 |---|---:|---:|---:|
-| **gbif-phylo/io** | **62/63  (98%)** | **19/26  (73%)** | **81/89  (91%)** |
-| patristic | 57/63  (90%) | 10/26  (38%) | 67/89  (75%) |
-| newick-js | 48/63  (76%) | 13/26  (50%) | 61/89  (69%) |
-| phylio | 39/63  (62%) | 22/26  (85%) | 61/89  (69%) |
+| **gbif-phylo/io** | **63/64  (98%)** | **19/25  (76%)** | **82/89  (92%)** |
+| patristic | 58/64  (91%) | 10/25  (40%) | 68/89  (76%) |
+| newick-js | 49/64  (77%) | 13/25  (52%) | 62/89  (70%) |
+| phylio | 40/64  (63%) | 22/25  (88%) | 62/89  (70%) |
 | DendroPy (Python ref) | — | — | 67/89  (75%) |
 | Forester (Java, GBIF backend) | — | — | 70/89  (79%) |
 
-Our one well-formed fail is `("say ""hi""":2);`, a patristic-specific doubled-double-quote
+With `{ strict: true }` we additionally reject every would-be warning: 25/25 malformed caught,
+pushing combined coverage to **88/89**. The one remaining miss is `("say ""hi""":2);`, a
+patristic-specific doubled-double-quote escape nobody else implements.
+
+Our one well-formed miss is `("say ""hi""":2);`, a patristic-specific doubled-double-quote
 escape. Every other well-formed fixture — including real BEAST, NHX, nested comments, Unicode,
 NEXUS TRANSLATE and the 10 k-tip caterpillar — parses correctly.
+
+The 6 malformed inputs we accept in default mode are lenient-by-design: non-numeric branch
+lengths, dangling colons, double colons, missing `#NEXUS` header, missing TRANSLATE entries,
+and invalid NHX syntax. Each produces a `ParserWarning` the viewer can surface so the publisher
+sees what's wrong; passing `{ strict: true }` turns every one into a `NewickError`. Real-world
+GBIF files sometimes carry one of these — rendering them with a warning is more useful than
+refusing the file.
 
 ## DendroPy as reference, and where we diverge
 

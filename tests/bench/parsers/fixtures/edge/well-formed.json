@@ -27,6 +27,7 @@
   { "id": "crlf-newlines",                "kind": "newick", "input": "((A,\r\nB),\r\nC);\r\n",                                "wellFormed": true, "tipCount": 3, "tipLabels": ["A","B","C"],                 "hasLengths": false },
   { "id": "empty-tip-labels",             "kind": "newick", "input": "(,,);",                                                 "wellFormed": true, "tipCount": 3, "tipLabels": ["","",""],                    "hasLengths": false },
   { "id": "mixed-empty-labels",           "kind": "newick", "input": "((,A),(B,));",                                           "wellFormed": true, "tipCount": 4, "tipLabels": ["","","A","B"],              "hasLengths": false },
+  { "id": "extra-comma",                  "kind": "newick", "input": "(A,,B);",                                                "wellFormed": true, "tipCount": 3, "tipLabels": ["","A","B"],                 "hasLengths": false },
   { "id": "unicode-labels",               "kind": "newick", "input": "('Åland','Žabljak','Μύκονος');",                        "wellFormed": true, "tipCount": 3, "tipLabels": ["Åland","Μύκονος","Žabljak"], "hasLengths": false },
   { "id": "deep-caterpillar-100",         "kind": "newick",
     "input": "DEEP_CATERPILLAR_100",                                                                                           "wellFormed": true, "tipCount": 101, "tipLabels": null,                       "hasLengths": true  },

@@ -38,6 +38,8 @@ Each `ParserWarning` has `{ code, message, position }`. Codes are stable identif
 | `double-colon` | `(A:1:2,B);` — a second `:` overwrites the first length (last wins) |
 | `extra-paren-root` | `((A:1,B:1):10);` — root wraps a single unlabeled internal child |
 | `missing-nexus-header` | NEXUS file didn't start with `#NEXUS` |
+| `unknown-translate-id` | NEXUS TREE references a numeric id not in the TRANSLATE table |
+| `invalid-nhx-syntax` | `[&&NHX:name]` entry has no `=` |
 
 Structurally broken input (unmatched parens, unterminated quote or comment), double-quoted labels
 (`("A","B");`), and a quote mid-token (`(A'q',B);`) always throw `NewickError` regardless of
