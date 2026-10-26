@@ -110,6 +110,8 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
   let closed = -1; // internal node whose ')' was just read (a following label names it)
   let expect = true; // a node (leaf or '(') is expected next
   let p = 0;
+  let lastComma = -1; // the ',' that produced the current `expect`; -1 if none, used to blame
+  //    the trailing-comma case ('(A,B,);') on the comma rather than the ')'
 
   const newLeaf = (label: string): number => {
     const i = count++;
@@ -194,6 +196,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
         warn('empty-tip', 'unnamed empty tip from a stray comma', p);
       }
       expect = true;
+      lastComma = p;
       cur = -1;
       closed = -1;
       afterColon = false;
@@ -201,8 +204,10 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     } else if (c === 41) {
       if (sp === 0) throw new NewickError("unbalanced ')'", p);
       if (expect) {
+        // Trailing comma inside this parens, e.g. '(A,B,);'. Blame the stray ',' not the ')'
+        // (keeps the position consistent with the middle- and leading-comma cases).
         newLeaf('');
-        warn('empty-tip', 'unnamed empty tip before closing parenthesis (trailing comma?)', p);
+        warn('empty-tip', 'unnamed empty tip before closing parenthesis (trailing comma?)', lastComma >= 0 ? lastComma : p);
       }
       const i = stack[--sp];
       subtreeEnd[i] = count;
@@ -211,6 +216,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
       closed = i;
       afterColon = false;
       expect = false;
+      lastComma = -1;
       p++;
     } else if (c === 59) {
       break scan;
@@ -278,22 +284,31 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
   if (expect) throw new NewickError('tree ends where a node was expected', p);
 
   // Missing trailing ';': we exited the scan loop without seeing ';', so p is at the end of the
-  // input (or at the first non-ws/comment after the tree). Standard Newick requires ';'. The
-  // viewer tolerates it; publishers should fix it.
+  // input (or past the last comment). Standard Newick requires ';'. The viewer tolerates it;
+  // publishers should fix it. Walk back to the last non-whitespace so the warning points at the
+  // end of the tree rather than at trailing newlines.
   if (p === n || text.charCodeAt(p) !== 59) {
-    warn('missing-trailing-semicolon', `tree is not terminated with ';'`, p);
+    let eot = p - 1;
+    while (eot > 0 && isWs(text.charCodeAt(eot))) eot--;
+    warn('missing-trailing-semicolon', `tree is not terminated with ';'`, Math.max(0, eot));
   }
 
   // ape-style extra-paren root edge: '((A,B):10);' parses as a root with a single internal child
   // carrying the "root edge" length. We keep the structure (do not rewrite) but surface it so the
   // publisher knows the file is non-standard; ape does the same.
-  if (count >= 2 && parent[1] === 0 && (count < 3 || parent[2] !== 0)) {
-    // root has exactly one child
+  // Guard against false positives on '((A));' or '((Clade));' (single tip wrapped) — those are
+  // unary chains, not an extra-root-paren case; require the unary child to itself have ≥2 kids.
+  if (count >= 2 && parent[1] === 0) {
     let rootKids = 0;
     for (let i = 1; i < count && rootKids < 2; i++) if (parent[i] === 0) rootKids++;
-    if (rootKids === 1 && labels[1] === '' && count > 2) {
-      // single child is unlabeled and has its own children → unary intermediate node = extra parens
-      warn('extra-paren-root', 'root has a single unlabeled internal child (extra parentheses?)', 0);
+    if (rootKids === 1 && labels[1] === '') {
+      let innerKids = 0;
+      for (let i = 2; i < count && innerKids < 2; i++) if (parent[i] === 1) innerKids++;
+      if (innerKids >= 2) {
+        // Point at the inner '(' (the extra one), not the root paren.
+        const innerParenAt = text.indexOf('(', text.indexOf('(') + 1);
+        warn('extra-paren-root', 'root has a single unlabeled internal child (extra parentheses?)', innerParenAt >= 0 ? innerParenAt : 0);
+      }
     }
   }
 

@@ -2,17 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNewick, parseNexus, NewickError } from '@gbif-phylo/io';
 
-// Each case: input, expected warning codes (in order, after the parse), and the stuff still parseable.
+// Each case: input, expected warning codes (in order), tip count, and the expected position of
+// each warning in the input. Positions are the character offset of the problematic token.
 const LENIENT = [
-  { input: '(A:1,B:2)', codes: ['missing-trailing-semicolon'], tipCount: 2 },
-  { input: '(A:xyz,B:1);', codes: ['non-numeric-length'], tipCount: 2 },
-  { input: '(A:,B:1);', codes: ['dangling-colon'], tipCount: 2 },
-  { input: '(A,B,);', codes: ['empty-tip'], tipCount: 3 },
-  { input: '(,A,B);', codes: ['empty-tip'], tipCount: 3 },
-  { input: '((A:1,B:1):10);', codes: ['extra-paren-root'], tipCount: 2 },
+  { input: '(A:1,B:2)', codes: ['missing-trailing-semicolon'], tipCount: 2, positions: [8] }, // the ')'
+  { input: '(A:xyz,B:1);', codes: ['non-numeric-length'], tipCount: 2, positions: [3] }, // 'xyz'
+  { input: '(A:,B:1);', codes: ['dangling-colon'], tipCount: 2, positions: [2] }, // the ':'
+  { input: '(A,B,);', codes: ['empty-tip'], tipCount: 3, positions: [4] }, // the trailing ','
+  { input: '(,A,B);', codes: ['empty-tip'], tipCount: 3, positions: [1] }, // the leading ','
+  { input: '(A,,B);', codes: ['empty-tip'], tipCount: 3, positions: [3] }, // the middle ','
+  { input: '((A:1,B:1):10);', codes: ['extra-paren-root'], tipCount: 2, positions: [1] }, // the inner '('
 ];
 
-for (const { input, codes, tipCount } of LENIENT) {
+for (const { input, codes, tipCount, positions } of LENIENT) {
   test(`default mode: ${input} parses with warnings ${JSON.stringify(codes)}`, () => {
     const t = parseNewick(input);
     assert.equal(t.tipCount, tipCount);
@@ -26,6 +28,13 @@ for (const { input, codes, tipCount } of LENIENT) {
       assert.equal(typeof w.message, 'string');
       assert.equal(typeof w.position, 'number');
     }
+    if (positions) {
+      assert.deepEqual(
+        t.warnings.map((w) => w.position),
+        positions,
+        `warning positions for ${JSON.stringify(input)}`,
+      );
+    }
   });
 
   test(`strict mode: ${input} throws NewickError`, () => {
@@ -34,6 +43,17 @@ for (const { input, codes, tipCount } of LENIENT) {
       () => parseNewick(input, { strict: true }),
       (e) => e.message.includes(`[${codes[0]}]`),
     );
+  });
+}
+
+// extra-paren-root must NOT fire on single-tip chains (unary wrappers around a tip, not an extra
+// root paren). Only trees where the inner unary wrapper contains an actual subtree (>=2 kids)
+// should trigger it.
+for (const input of ['(A);', '((A));', '((Clade));', '(A:1);']) {
+  test(`extra-paren-root does NOT fire on ${JSON.stringify(input)}`, () => {
+    const t = parseNewick(input);
+    const codes = t.warnings.map((w) => w.code);
+    assert.ok(!codes.includes('extra-paren-root'), `unexpected extra-paren-root in ${JSON.stringify(codes)}`);
   });
 }
 

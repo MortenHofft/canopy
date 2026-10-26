@@ -1,9 +1,11 @@
 // Run every real/synthetic tree in data/ through our parser and report:
-//   - how many trees are "clean" (parseable with no warnings)
+//   - how many trees are "clean" (parseable with no warnings; strict mode also succeeds)
 //   - how many warn (parseable in default mode, strict mode would throw)
 //   - how many hard-error (don't parse at all)
 //
-// Also runs with { strict: true } to confirm the warning codes we see.
+// Every tree is parsed twice (default + strict) and the two outcomes must agree on cleanliness.
+// If a tree has zero warnings in default mode but strict throws, that's a bug in our implementation
+// and the script fails loudly.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -92,6 +94,7 @@ function main() {
   const warn = []; // parsed, has warnings
   const error = []; // doesn't parse
 
+  const strictBugs = []; // default clean but strict throws, or vice versa
   for (const f of files) {
     let text;
     try {
@@ -102,10 +105,21 @@ function main() {
     }
     try {
       const { tree, kind } = parseOne(f, text);
+      // Cross-check: a file with zero warnings in default mode must also parse under strict,
+      // and a file with warnings in default mode must throw under strict.
+      let strictOk = false;
+      try {
+        parseStrict(f, text);
+        strictOk = true;
+      } catch {
+        strictOk = false;
+      }
       if (tree.warnings.length === 0) {
         clean.push({ f, kind, tipCount: tree.tipCount });
+        if (!strictOk) strictBugs.push({ f, note: 'default clean but strict threw' });
       } else {
         warn.push({ f, kind, tipCount: tree.tipCount, warnings: [...tree.warnings] });
+        if (strictOk) strictBugs.push({ f, note: `default had warnings but strict passed (codes: ${tree.warnings.map((w) => w.code).join(', ')})` });
       }
     } catch (e) {
       error.push({ f, msg: e instanceof NewickError ? e.message : String(e) });
@@ -145,12 +159,21 @@ function main() {
     }
   }
 
+  if (strictBugs.length) {
+    console.log('');
+    console.log(`${C.red}Strict/default mode disagreement — bug in the parser:${C.reset}`);
+    for (const b of strictBugs) console.log(`  ${fmtPath(b.f.path)}  ${b.note}`);
+  }
+
   console.log('');
   console.log(`${C.cyan}Verdict${C.reset}`);
-  if (error.length === 0 && warn.length === 0) {
+  if (error.length === 0 && warn.length === 0 && strictBugs.length === 0) {
     console.log('All data/ trees parse cleanly in strict mode.');
-  } else if (error.length === 0) {
+  } else if (error.length === 0 && strictBugs.length === 0) {
     console.log(`All data/ trees parse in default mode. ${warn.length} would need fixing to pass strict.`);
+  } else if (strictBugs.length) {
+    console.log(`${strictBugs.length} strict/default disagreement(s) — investigate.`);
+    process.exit(1);
   } else {
     console.log(`${error.length} tree(s) don't parse. Investigate before shipping strict mode as default.`);
   }

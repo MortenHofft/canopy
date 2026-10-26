@@ -55,7 +55,7 @@ corpus pays off even without a bug in the parser itself.
 
 | Lib | Well-formed (63) | Malformed rejected (26) | Overall |
 |---|---:|---:|---:|
-| **gbif-phylo/io** | **62/63  (98%)** | 17/26  (65%) | **79/89  (89%)** |
+| **gbif-phylo/io** | **62/63  (98%)** | 19/26  (73%) | **81/89  (91%)** |
 | patristic | 57/63  (90%) | 10/26  (38%) | 67/89  (75%) |
 | newick-js | 48/63  (76%) | 13/26  (50%) | 61/89  (69%) |
 | phylio | 39/63  (62%) | 22/26  (85%) | 61/89  (69%) |
@@ -310,7 +310,8 @@ The viewer should surface `tree.warnings.length > 0` as a top-of-page banner ("T
 formatting issues; parsed anyway", expandable to the list, each with its character position). A
 validation CLI sets `strict: true` instead and reports the first problem as an error.
 
-See `packages/io/test/warnings.test.mjs` for the executable spec (23 cases).
+See `packages/io/test/warnings.test.mjs` for the executable spec (30 new tests covering every
+warning code, strict-mode throws, position correctness, and the false-positive guards).
 
 ### What we *should* steal, concretely
 
