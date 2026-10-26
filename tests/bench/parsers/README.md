@@ -30,6 +30,9 @@ node --conditions=@gbif-phylo/source --experimental-transform-types --no-warning
 # Timing bench (minutes; each parser/fixture pair runs in its own child, with a wall-clock timeout)
 TIMEOUT_MS=15000 ITER=5 OUT=results/latest.json \
   node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/bench.mjs
+
+# DendroPy oracle (needs pip install dendropy; reports where DendroPy and the JS libs diverge)
+node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/oracle.mjs
 ```
 
 Env vars:
@@ -46,9 +49,15 @@ Env vars:
 - `src/correctness.mjs` - edge-case runner. Verdicts: `ok`, `wrong`, `error`, `crash`.
 - `src/bench.mjs` + `src/bench-worker.mjs` - timing runner. Child-process isolation per pair so a
   slow or stuck parser can't hang the suite.
-- `src/edge-fixtures.mjs` + `fixtures/edge/*.json` - hand-crafted edge cases.
+- `src/edge-fixtures.mjs` + `fixtures/edge/*.json` - edge cases. Three files:
+  - `well-formed.json` and `malformed.json` are our own hand-crafted set.
+  - `borrowed.json` is lifted from phylio's, patristic's, and newick-js's own test suites, each
+    entry carrying a `source` string naming the upstream test file.
 - `src/fixtures.mjs` - timing-bench fixture list, resolving to `data/` in the repo root. Gzipped
   files are inflated in memory.
+- `src/oracle.mjs` + `src/dendropy-oracle.py` - DendroPy cross-check. Each edge-case fixture is
+  fed to a Python subprocess running DendroPy; the matrix shows where the JS libs diverge from
+  the Python reference. Needs `pip install dendropy`.
 
 ## What correctness means here
 

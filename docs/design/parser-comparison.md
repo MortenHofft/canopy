@@ -24,18 +24,39 @@ without also pulling in a renderer.
 
 ## Correctness
 
-`tests/bench/parsers/src/correctness.mjs` runs 57 hand-crafted edge cases (38 well-formed, 19
-malformed) and records one of four verdicts per lib: `ok`, `wrong` (parsed, but shape disagrees
-with expectation), `error` (clean throw), `crash` (threw a non-Error, hung, or returned null).
+`tests/bench/parsers/src/correctness.mjs` runs 81 edge cases (56 well-formed, 25 malformed) and
+records one of four verdicts per lib: `ok`, `wrong` (parsed, but shape disagrees with expectation),
+`error` (clean throw), `crash` (threw a non-Error, hung, or returned null).
+
+The fixtures come from three places:
+
+- `fixtures/edge/well-formed.json`, `fixtures/edge/malformed.json` — our own hand-crafted set
+  (minimal/trifurcation/polytomy/unary; quoted labels with spaces, commas, parens, apostrophe
+  escapes, semicolons; comments, nested comments, multiline comments; BEAST and NHX annotations;
+  various whitespace; empty labels; Unicode; deep caterpillar; NEXUS corners; and 25 malformed
+  inputs).
+- `fixtures/edge/borrowed.json` — fixtures *lifted from the alternative libs' own test suites*
+  (phylio's `test/Bio/Phylogeny/Newick.purs` and `test/data/*.newick`, patristic's
+  `test/newick.test.js` and `test/deep.test.js`, newick-js's `src/index.spec.ts`), with a `source`
+  field on each entry. Running these through our parser caught two real bugs in our own fixture
+  expectations (an off-by-one on `(Alpha,Beta,...,,);` and a tip-count mistake on a nested wiki
+  example). Both are fixed; a wider corpus pays off even without a bug in the parser itself.
+- A **DendroPy oracle** (`src/dendropy-oracle.py`, driven by `src/oracle.mjs`) parses the same 57
+  fixtures as a tie-breaker when a lib's answer looks surprising. DendroPy is the Python
+  reference; it isn't infallible (it has strong opinions on `_`-to-space and on unlabeled tips)
+  but it is the most widely-used phylogenetics parser in bioinformatics.
 
 **Score:**
 
-| Lib | Well-formed (38) | Malformed rejected (19) |
+| Lib | Well-formed (56) | Malformed rejected (25) |
 |---|---:|---:|
-| **gbif-phylo/io** | **38/38** | 11/19 |
-| phylio | 23/38 | 16/19 |
-| newick-js | 30/38 | 8/19 |
-| patristic | 33/38 | 6/19 |
+| **gbif-phylo/io** | **55/56** | 17/25 |
+| phylio | 36/56 | 21/25 |
+| newick-js | 42/56 | 13/25 |
+| patristic | 50/56 | 10/25 |
+
+Our one well-formed failure is `patristic-doubled-dquotes` — `("say ""hi""":2);` — a non-standard
+double-quote escape that only patristic's own tests use.
 
 ### Where each lib goes wrong
 
@@ -160,24 +181,43 @@ alternatives would ship a worse viewer.
 
 ### What we *should* steal
 
-- **phylio's strict malformed rejection**: 16/19 vs our 11/19. Specifically on `(A:xyz,B);`,
-  `(A:,B);`, `(A:1:2,B);`, `("A","B");`, `(A'quoted',B);` — all cases where phylio throws and we
-  silently build a nonsense tree. These should become opt-in strict-mode diagnostics (`{ strict:
-  true }`) rather than default failures: real files sometimes carry these, and the viewer should
-  tolerate them, but a validation tool shouldn't.
-- **Their test corpora as fixtures.** phylio's and newick-js's test files cover inputs we don't
-  have. Vendor them under `tests/bench/parsers/fixtures/` with their licence files, and run them
-  through our parser as part of `npm test` in `packages/io`.
+- **Strict malformed rejection**, mostly from phylio and DendroPy: 21/25 and (DendroPy) similar vs
+  our 17/25. Specifically `(A:xyz,B);`, `(A:,B);`, `(A:1:2,B);`, `("A","B");`, `(A'quoted',B);`,
+  and `BEGIN TREES` without `#NEXUS` — all cases where phylio and DendroPy throw and we silently
+  build a nonsense tree. These are candidates for an opt-in `{ strict: true }` mode rather than
+  default failures: real GBIF files sometimes carry these quirks and the viewer should tolerate
+  them, but a validation CLI shouldn't.
+- **Keep the borrowed-fixture corpus.** `fixtures/edge/borrowed.json` is already in-tree. Promote
+  a copy under `packages/io/test/corpora/` and wire it into `npm test` so every change to the
+  parser runs against the full combined set — writing the comparison bench already caught two of
+  our own fixture bugs; running the full suite in CI keeps the parser honest.
 
 ### What we should *not* do
 
-- Port DendroPy or ape to JS/wasm. They're correctness references, not speed references. For
-  cross-checks on tricky files, run DendroPy as a Python subprocess in CI (one shot, iterate the
-  rich fixtures, diff tree shape with ours) rather than shipping a megabyte of wasm.
+- Port DendroPy or ape to JS/wasm. They're correctness references, not speed references, and the
+  oracle we wrote (`src/oracle.mjs` + `src/dendropy-oracle.py`) does the only job that would need
+  them, as a subprocess that runs on the fixtures. No wasm needed.
 - Replace our parsers. The three candidates each fail on either real inputs we must handle or on
   the shape of `TreeModel` we need. The cost of switching exceeds the maintenance cost of ~700
   lines of iterative parser code we already have, and would regress correctness on inputs we
   currently pass.
+
+### DendroPy oracle findings
+
+Running the DendroPy oracle on the 57-fixture edge set exposed three categories of disagreement
+between us and DendroPy:
+
+- **Design choices, not bugs.** DendroPy converts `_` to space on Newick input (NEXUS convention
+  bleeding into Newick), drops unlabeled tips rather than keeping them with `""` labels, and
+  rejects a missing trailing `;`. We disagree on all three deliberately — the viewer wants
+  verbatim labels, keeps empty leaves (they still carry structure), and tolerates missing `;`
+  because real files often lack it.
+- **Fixture bugs.** `extra-comma` `(A,,B);` was marked malformed in our fixture but every lib
+  including DendroPy parses it as three tips. The spec is ambiguous; treating it as valid is the
+  consensus. Fixed in-tree.
+- **Real leniency we should add a strict mode for.** `(A:xyz,B);`, `(A:,B);`, `(A:1:2,B);`,
+  `("A","B");`, `BEGIN TREES` without `#NEXUS` — DendroPy rejects, phylio rejects, we accept. Same
+  list as above.
 
 ## How to reproduce
 

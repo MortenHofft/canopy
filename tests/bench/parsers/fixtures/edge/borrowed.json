@@ -1,0 +1,30 @@
+[
+  { "id": "phylio-empty-root-only",         "kind": "newick", "input": "();",                                        "wellFormed": true, "tipCount": 1, "tipLabels": [""], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-single-semicolon",        "kind": "newick", "input": ";",                                         "wellFormed": false, "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-unquoted-space-in-label", "kind": "newick", "input": "(A node, B node);",                         "wellFormed": true, "tipCount": 2, "tipLabels": ["A node","B node"], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-wiki-two",                "kind": "newick", "input": "(A,B,(C,D));",                              "wellFormed": true, "tipCount": 4, "tipLabels": ["A","B","C","D"], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-wiki-eight",              "kind": "newick", "input": "((B:0.2,(C:0.3,D:0.4)E:0.5)F:0.1)A;",       "wellFormed": true, "tipCount": 3, "tipLabels": ["B","C","D"], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-chained-annotations",     "kind": "newick", "input": "(8[&prob=1.0]:2.94e-1[&length_mean=2.9e-1])[&prob=1.0][&length_mean=0];", "wellFormed": true, "tipCount": 1, "tipLabels": ["8"], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-comment-as-support",      "kind": "newick", "input": "(Archaea:0.43325[100]):0.88776;",           "wellFormed": true, "tipCount": 1, "tipLabels": ["Archaea"], "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-unclosed-bracket",        "kind": "newick", "input": "(Archaea:0.43325[100):0.88776;",            "wellFormed": false, "source": "phylio test/Bio/Phylogeny/Newick.purs" },
+  { "id": "phylio-extended-network",        "kind": "newick", "input": "(A,B,((C,(Y)x#1)c,(x#1,D)d)e)f;",           "wellFormed": true, "tipCount": null, "tipLabels": null, "source": "phylio test/Bio/Phylogeny/Newick.purs — Extended Newick (hybrid #H1 reticulation)" },
+  { "id": "phylio-pangolin-multiline",      "kind": "newick",
+    "input": "(\n(\n(\npangolin-CoV-2020:0.07824,\nBat:0.01934)\n:0.01856,\n(\nAlpha:0.00083,\nGamma:0.00123)\n:0.00000)\n:0.00000,\n(\nDelta:0.00103,\nWuhan:0.00015)\n:0.00000,\nBeta:0.00060);",
+    "wellFormed": true, "tipCount": 7, "tipLabels": ["Alpha","Bat","Beta","Delta","Gamma","Wuhan","pangolin-CoV-2020"], "source": "phylio test/data/pangolin.newick" },
+
+  { "id": "patristic-unquoted-space-mid",   "kind": "newick", "input": "(A B:1,C_D:2);",                            "wellFormed": true, "tipCount": 2, "tipLabels": ["A B","C_D"], "source": "patristic test/newick.test.js — unquoted spaces inside labels" },
+  { "id": "patristic-multi-tree",           "kind": "newick", "input": "(A:1,B:2);(C,D);",                          "wellFormed": true, "tipCount": 2, "tipLabels": ["A","B"], "source": "patristic test/newick.test.js — stops at first ;" },
+  { "id": "patristic-weird-numbers",        "kind": "newick", "input": "(A:1e-3,B:-2,C:.5,D:+4);",                  "wellFormed": true, "tipCount": 4, "tipLabels": ["A","B","C","D"], "source": "patristic test/newick.test.js — .5 and +4 number formats" },
+  { "id": "patristic-brackets-in-quoted",   "kind": "newick", "input": "('Homo sapiens':1,'a,b:c;(d)':2,'[not a comment]':3,' A ':4);", "wellFormed": true, "tipCount": 4, "tipLabels": [" A ","Homo sapiens","[not a comment]","a,b:c;(d)"], "source": "patristic test/newick.test.js — brackets inside quoted labels" },
+  { "id": "patristic-doubled-dquotes",      "kind": "newick", "input": "(\"say \"\"hi\"\"\":2);",                  "wellFormed": true, "tipCount": 1, "tipLabels": ["say \"hi\""], "source": "patristic test/newick.test.js — doubled double-quote escapes" },
+  { "id": "patristic-comment-inside-length","kind": "newick", "input": "(A:1,B:[c3]2);",                           "wellFormed": true, "tipCount": 2, "tipLabels": ["A","B"], "source": "patristic test/newick.test.js — comment between : and number" },
+  { "id": "patristic-comment-scatter",      "kind": "newick", "input": "[start](A[c1]:1[c2],B:[c3]2,[c4]C)[root]:[c5]3[end];", "wellFormed": true, "tipCount": 3, "tipLabels": ["A","B","C"], "source": "patristic test/newick.test.js — comments at every position" },
+  { "id": "patristic-comma-outside",        "kind": "newick", "input": "A,B;",                                     "wellFormed": false, "source": "patristic test/newick.test.js — , outside parens" },
+  { "id": "patristic-caterpillar-10k",      "kind": "newick", "input": "DEEP_CATERPILLAR_10000",                   "wellFormed": true, "tipCount": 10000, "tipLabels": null, "source": "patristic test/deep.test.js — 100k original; 10k here" },
+
+  { "id": "newick-js-no-comma",             "kind": "newick", "input": "(A(B,C));",                                 "wellFormed": false, "source": "newick-js src/index.spec.ts — missing comma between A and (B,C)" },
+  { "id": "newick-js-whitespace-chaos",     "kind": "newick", "input": "(    (  \n\nA\t,\tB   )\n\n,\r\r(\t   C,    D)   \n\n   )    \n;", "wellFormed": true, "tipCount": 4, "tipLabels": ["A","B","C","D"], "source": "newick-js src/index.spec.ts" },
+  { "id": "newick-js-many-empty-mixed",     "kind": "newick", "input": "(Alpha,Beta,Gamma,Delta,,Epsilon,,,);",     "wellFormed": true, "tipCount": 9, "tipLabels": ["","","","","Alpha","Beta","Delta","Epsilon","Gamma"], "source": "newick-js src/index.spec.ts" },
+  { "id": "newick-js-nested-unclosed",      "kind": "newick", "input": "(A,(B)",                                   "wellFormed": false, "source": "newick-js src/index.spec.ts" },
+  { "id": "newick-js-extra-content",        "kind": "newick", "input": "A,B",                                     "wellFormed": false, "source": "newick-js src/index.spec.ts — content after root" }
+]
