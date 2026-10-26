@@ -58,6 +58,12 @@ Env vars:
 - `src/oracle.mjs` + `src/dendropy-oracle.py` - DendroPy cross-check. Each edge-case fixture is
   fed to a Python subprocess running DendroPy; the matrix shows where the JS libs diverge from
   the Python reference. Needs `pip install dendropy`.
+- `src/forester-oracle.mjs` + `src/ForesterOracle.java` - Forester (Java) cross-check. Each
+  edge-case fixture is fed to a Java subprocess running Forester's `NHXParser` /
+  `NexusPhylogeniesParser`; the matrix shows where we and Forester disagree. Prereq:
+  `javac -cp /home/user/cmzmasek/forester/forester/java/forester.jar -d build
+   src/ForesterOracle.java`. Forester is GPL-3; it runs as an external process and no Forester
+  code is linked into gbif-phylo.
 
 ## What correctness means here
 

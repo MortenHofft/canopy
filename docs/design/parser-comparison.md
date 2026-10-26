@@ -114,6 +114,47 @@ strict mode), some are deliberate design differences, and in one case we're bett
 DendroPy. If a future disagreement doesn't fit one of these buckets, it's a real bug and should
 be investigated.
 
+### Forester (Java) — the one GBIF Backend will probably use
+
+Forester (Christian Zmasek, GPL-3, powers Archaeopteryx) is the Java phylogenetics library GBIF
+backend plans to use for Newick / NEXUS / PhyloXML validation server-side. Running our 89 edge-case
+fixtures through its `NHXParser` + `NexusPhylogeniesParser` via a thin Java driver
+(`tests/bench/parsers/src/ForesterOracle.java`, driven by `src/forester-oracle.mjs`) gave:
+
+| | correct per fixture expectation | agreement with us (same verdict family) |
+|---|---:|---:|
+| **gbif-phylo/io** | **81/89 (91%)** | — |
+| Forester | 70/89 (79%) | 84/89 (94%) |
+
+Forester handles the 10 000-tip caterpillar cleanly — the JVM's bigger default stack puts it in a
+league of its own among non-Node runtimes we tested — and agrees with us on nearly every real
+input shape. The 5 disagreements fall into two clean groups:
+
+**Forester stricter than us (1 case).** `(A:1:2,B);` double-colon → Forester throws
+`NHXFormatException: more than one distance`; we warn and let last-colon win. Our `strict: true`
+matches Forester here.
+
+**We stricter than Forester (4 cases).** Forester silently accepts things we hard-error on:
+
+- `("A","B");` → Forester reads the double quotes as valid quoting, parses 2 tips. We reject.
+- `(A'q',B);` quote mid-token → Forester parses to 2 tips. We reject.
+- `("say ""hi""":2);` doubled-double-quote escape → Forester accepts. We reject (ambivalent).
+- `(A(B,C));` missing comma → Forester parses to 2 tips. We reject (unexpected `(`).
+
+On the 11 fixtures where Forester scored "wrong" per our expectations, the pattern is Forester's
+NEXUS-leaning conventions: `replaceUnderscores` is on by default so `C_D` becomes `C D`,
+unquoted spaces in labels get split differently, and brackets inside quoted labels confuse its
+NHX machinery. These are deliberate design choices in Forester — defensible for a NEXUS-oriented
+tool, different from our "preserve verbatim and warn" model.
+
+**Practical statement for GBIF backend × our viewer:** 94% verdict-family agreement means a tree
+Forester validates server-side will almost always parse cleanly in our viewer (and vice versa).
+The 4 cases where we hard-error and Forester silently builds a nonsense tree are places where
+*our* behavior protects the user from a wrong tree — a publisher who ships `("A","B");` thinking
+double-quotes are legal gets a clear error from us, not a mis-parsed tree. The 1 case where
+Forester is stricter (`double-colon`) is covered by our `strict: true` mode. See the full
+disagreement table in the `src/forester-oracle.mjs` output.
+
 ### DendroPy also fails on deep trees — and Nextstrain already works around it
 
 The oracle run turned up a finding we didn't expect: **DendroPy itself crashes with
