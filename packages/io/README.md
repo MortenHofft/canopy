@@ -61,6 +61,30 @@ if (dup.size) console.warn(`${dup.size} tip labels are on more than one tip, e.g
 tree.tipIndices('Homo_sapiens'); // [3, 4, 7]
 ```
 
+## Sidecar table (TSV or CSV)
+
+A table next to the tree adds columns to its nodes: country, host, date. The first column is named `ID` (any case) and holds a tip label,
+or the name of an internal node; the other columns become annotations on that node, in `tree.annotations`, next to any BEAST or NHX ones.
+The delimiter is a tab if the header line has one, else a comma; fields may be "quoted" (commas, newlines and `""` inside). A cell that
+reads as a number becomes a number (`007` stays a string), an empty cell sets nothing, and a sidecar value replaces an annotation of the
+same key.
+
+```ts
+import { parseNewick, parseSidecar, applySidecar } from '@gbif-phylo/io';
+
+const tree = parseNewick(newickText); // or parseNexus(text).tree
+const report = applySidecar(tree, parseSidecar(tsvText)); // throws SidecarError if the first column is not ID
+tree.annotations.get(tree.tipIndex('Puma_concolor'), 'country'); // 'US'
+
+report.unmatchedIds; // rows that named no tip and no internal node
+report.tipsWithoutRow; // tip labels no row named
+report.duplicateIds; // IDs in more than one row (the later row wins)
+```
+
+A label several tips carry gives the row to every one of them. Nothing is dropped silently: show the report, so a mismatch between the two
+files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy` turns a column into tip colours, a legend and a
+swatch column.
+
 ## Annotations
 
 BEAST / FigTree `[&key=value,...]` comments and NHX `[&&NHX:key=value:...]` comments are skipped by default, which costs nothing. Pass `{ annotations: true }` to `parseNewick` or `parseNexus` to keep them in `tree.annotations` (`null` otherwise). `parseNexus` takes the options as `parseNexus(text, options)` (with `treeIndex` in them if needed) or `parseNexus(text, treeIndex, options)`.

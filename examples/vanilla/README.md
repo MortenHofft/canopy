@@ -5,6 +5,7 @@ One page, [`src/main.ts`](src/main.ts), that shows each part of the library:
 - the built-in controls in the corners, and one outside the viewer in the page header
 - a control of its own
 - a bar column and a custom heat-strip column
+- the metadata table read as a sidecar (`applySidecar`), and "Colour by country" (`colourBy`: tip colours, a swatch column, a legend)
 - its own popup for tips, using `Overlay`
 - the node menu for clades
 - the tooltip

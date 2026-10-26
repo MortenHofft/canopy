@@ -15,4 +15,5 @@ export * from './overlays/index.ts';
 export { cladeName, internalName, namedDescendants, defaultFormatCollapsedLabel, type CladeLabelFn, type NamedDescendant } from './clade-name.ts';
 export { internalSupport, defaultFormatNodeLabel, type NodeLabelFn, type NodeLabelsOption, type NodeLabelKind } from './node-label.ts';
 export { themeFromCss, THEME_CSS_VARS } from './theme.ts';
+export { colourBy, type ColourBy, type ColourByOptions, type ColourByTree } from './colour-by.ts';
 export { residueColours, residueGroups, detectAlphabet, type Alphabet, type ResolvedAlphabet, type ResidueGroup } from './residues.ts';

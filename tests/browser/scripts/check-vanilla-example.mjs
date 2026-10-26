@@ -210,6 +210,32 @@ await page.locator('#show-controls').check();
 await sleep(200);
 ok((await ev(() => document.querySelectorAll('.phylo-controls .phylo-control').length)) === 5, 'checking puts them back');
 
+// ---- colour by a sidecar column: tips coloured, a legend of the values, a swatch column; back to none
+await page.locator('#colour-by').selectOption('country_code');
+await sleep(300);
+const by = await ev(() => {
+  const v = window.__example.viewer;
+  return {
+    clades: v.getClades().length,
+    tips: v.getTree().tipCount,
+    entries: [...document.querySelectorAll('.phylo-legend__label')].map((e) => e.textContent),
+    swatch: !!v.columnCell('colour-by:country_code', 0),
+  };
+});
+ok(by.clades > 0 && by.clades <= by.tips, `colouring by country colours the tips with a value (${by.clades} of ${by.tips})`);
+ok(
+  by.entries.length > 1 && by.entries.length <= 9 && !by.entries.some((e) => /^Clade/.test(e)),
+  `the legend lists the countries, not clades (${by.entries})`,
+);
+ok(by.swatch, 'and a swatch column is added');
+await page.locator('#colour-by').selectOption('');
+await sleep(200);
+const none = await ev(() => ({
+  clades: window.__example.viewer.getClades().length,
+  swatch: !!window.__example.viewer.columnCell('colour-by:country_code', 0),
+}));
+ok(none.clades === 0 && !none.swatch, `none puts the colours and the columns back (${JSON.stringify(none)})`);
+
 // ---- dark theme from CSS custom properties: the canvas and the controls follow
 const bgPixel = () =>
   ev(() => {

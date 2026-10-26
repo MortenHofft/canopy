@@ -9,7 +9,7 @@
 
 import '@gbif-phylo/viewer/viewer.css';
 import './style.css';
-import { parseNewick } from '@gbif-phylo/io';
+import { applySidecar, parseNewick, parseSidecar } from '@gbif-phylo/io';
 import {
   BaseControl,
   Fit,
@@ -22,6 +22,7 @@ import {
   Tooltip,
   TreeViewer,
   Zoom,
+  colourBy,
   type Column,
   type ColumnRenderer,
   type Control,
@@ -45,6 +46,8 @@ interface TipMeta {
 
 const [newick, tsv] = await Promise.all([fetchText('synthetic/newick/yule_1000.nwk'), fetchText('synthetic/meta/yule_1000.meta.tsv')]);
 const tree = parseNewick(newick);
+// the same table is a sidecar: its first column must be named ID (this file calls it tip_label), the others become tree.annotations
+applySidecar(tree, parseSidecar(tsv.replace(/^tip_label/, 'ID')));
 const meta = new Map<string, TipMeta>();
 for (const line of tsv.split('\n').slice(1)) {
   const [tip, occ, country, trait] = line.split('\t');
@@ -117,7 +120,8 @@ class TipsInView extends BaseControl {
 // ---------------------------------------------------------------- the viewer
 
 const target = document.getElementById('tree')!;
-const cornerControls: Control[] = [new Zoom(), new Fit(), new Search({ highlight: true }), new Legend(), new OverviewControl(), new TipsInView()];
+const cladeLegend = new Legend();
+const cornerControls: Control[] = [new Zoom(), new Fit(), new Search({ highlight: true }), cladeLegend, new OverviewControl(), new TipsInView()];
 const viewer = new TreeViewer({
   target,
   tree,
@@ -163,6 +167,7 @@ viewer.on('click', (e) => {
 
 // the built-in node menu for clades, with actions of ours
 const palette = viewer.getTheme().categorical;
+const COUNTRY_PALETTE = ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8', '#3e9b6f', '#c9a227', '#8c6d5a']; // eight values, then 'Other'
 viewer.addControl(
   new NodeMenu({
     items: (e) =>
@@ -183,6 +188,26 @@ viewer.addControl(
           ],
   }),
 );
+
+// colour by a sidecar column: tip colours (setClades), a swatch column and a legend of the values; 'none' puts everything back
+let attributeLegend: Legend | null = null;
+document.getElementById('colour-by')!.addEventListener('change', (ev) => {
+  const key = (ev.target as HTMLSelectElement).value;
+  if (attributeLegend) viewer.removeControl(attributeLegend);
+  attributeLegend = null;
+  if (!key) {
+    viewer.setClades([]);
+    viewer.setColumns(columns);
+    if (cornerControls.includes(cladeLegend) && document.querySelector<HTMLInputElement>('#show-controls')!.checked) viewer.addControl(cladeLegend);
+    return;
+  }
+  const by = colourBy(tree, key, viewer.getTheme(), { palette: COUNTRY_PALETTE, header: 'Country' });
+  viewer.removeControl(cladeLegend); // one entry per tip would be a legend of a thousand lines
+  attributeLegend = new Legend({ title: 'Country', items: by.items });
+  viewer.addControl(attributeLegend);
+  viewer.setClades(by.clades);
+  viewer.setColumns([...columns, by.column]);
+});
 
 // ---------------------------------------------------------------- page controls and the event log
 

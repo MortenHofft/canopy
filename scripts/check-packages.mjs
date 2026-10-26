@@ -73,7 +73,16 @@ for (const name of PACKAGES) {
 
 // ---- 3: tree shaking. `forbid` are substrings of bundled input paths (relative to the repository) that must be absent.
 const SCENARIOS = [
-  { name: 'io: parseNewick only', code: `import { parseNewick } from '@gbif-phylo/io'; console.log(parseNewick('(a,b);'));`, forbid: [] },
+  {
+    name: 'io: parseNewick only',
+    code: `import { parseNewick } from '@gbif-phylo/io'; console.log(parseNewick('(a,b);'));`,
+    forbid: ['packages/io/dist/sidecar.js'],
+  },
+  {
+    name: 'io: parseNewick + sidecar',
+    code: `import { parseNewick, parseSidecar, applySidecar } from '@gbif-phylo/io'; const t = parseNewick('(a,b);'); console.log(applySidecar(t, parseSidecar('ID,x\\na,1')));`,
+    forbid: [],
+  },
   {
     // The annotation reader is part of the parser (`{ annotations: true }` is a plain option), so it is bundled with it: about 2.7 kB
     // minified more than parseNewick without it. Making it separable would need the caller to import and pass it in; not worth the API.
@@ -135,6 +144,7 @@ const SCENARIOS = [
     forbid: [
       'node_modules/react',
       'packages/io/',
+      'packages/viewer/dist/colour-by.js',
       'packages/viewer/dist/controls/',
       'packages/viewer/dist/overlays/',
       'packages/viewer/dist/overview.js',

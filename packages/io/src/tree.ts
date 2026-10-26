@@ -66,8 +66,9 @@ export class TreeModel {
   readonly tipNode: Int32Array; // tip rank -> node index
   readonly tipRank: Int32Array; // node index -> tip rank, -1 for internal nodes
   readonly labels: string[];
-  /** BEAST / NHX `[&...]` annotations, only when parsed with `{ annotations: true }`; null otherwise. */
-  readonly annotations: Annotations | null;
+  /** BEAST / NHX `[&...]` annotations, only when parsed with `{ annotations: true }`; null otherwise. `applySidecar` fills it from a
+   *  TSV/CSV (and creates it if null), which is why it is not readonly. */
+  annotations: Annotations | null;
   readonly tipLabels: string[]; // by tip rank
   readonly hasLengths: boolean; // at least one edge has a length
   readonly maxDepth: number;

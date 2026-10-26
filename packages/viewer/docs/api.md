@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once                                                                                                                                                  |
 | `@gbif-phylo/viewer/gbif.css`   | optional: GBIF design tokens mapped to the `--phylo-*` properties                                                                                                                                                                   |
 | `@gbif-phylo/react`             | `<TreeView>` ([below](#treeview))                                                                                                                                                                                                   |
-| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`; `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` and `applySidecar`; `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -285,6 +285,24 @@ A `ColumnRenderer` draws a custom column:
 
 The viewer draws the header. A renderer that throws is reported once and the frame goes on. See the heat strip in
 [`examples/vanilla/src/main.ts`](../../../examples/vanilla/src/main.ts).
+
+### Colouring by an attribute
+
+`colourBy(tree, key, theme, options?)` colours the tips by one annotation, for example a sidecar column read by `@gbif-phylo/io`
+(`applySidecar`, then `colourBy(tree, 'country', viewer.getTheme())`). `tree` is anything with `tipCount`, `tipNode` and `annotations`, so a
+`TreeModel` fits. It returns data and changes nothing:
+
+```ts
+const by = colourBy(tree, 'country', viewer.getTheme(), { palette: myColours }); // { clades, items, column, coloured }
+viewer.setClades(by.clades); // tip branches, dots and labels
+viewer.setColumns([...columns, by.column]); // a column of swatches
+viewer.addControl(new Legend({ title: 'Country', items: by.items })); // fixed items: the default legend would list one entry per tip
+```
+
+Values are compared as strings (a numeric column is categories too). The most frequent values take the palette's colours in turn (default
+the theme's `categorical`, five colours: pass a longer `palette` for more); the rest share `other` (default the theme's `muted`) and the legend
+ends with an "Other" entry that counts them. Tips without a value are not coloured and have no swatch. A clade collapsed or summarised by the
+level of detail shows its summary colour, not its tips'. See [`examples/vanilla`](../../../examples/vanilla/src/main.ts).
 
 ## Theme or option
 
