@@ -266,6 +266,32 @@ The architectural rule — no runtime deps in `io` — holds up here on its own 
 preference. We're not writing in-house because we can; we're writing in-house because the
 alternatives would ship a worse viewer.
 
+### Cross-lib view of the warnings boundary inputs
+
+Running the 21 boundary inputs the warnings system cares about
+(`tests/bench/parsers/src/invariants-cross-lib.mjs`) against every lib produces a surprisingly
+clean picture:
+
+- **Everyone handles the "shouldn't false-fire" shapes identically.** `(A);`, `((A));`,
+  `((Clade));`, `(A:1);`, `((A,B)Clade:0.5);` — all four parsers return 1-2 tips correctly.
+  Our `extra-paren-root` guard is a design concern specific to us, not a cross-lib robustness
+  issue.
+- **Our strict mode and phylio's default mode converge on the lenient cases.** phylio errors
+  on 5 of the 10 "we warn" inputs: missing semicolon, non-numeric length, dangling colon,
+  double colon, triple colon. These are the same cases our `strict: true` throws on. So the
+  practical statement is: **our strict mode = phylio's default**, with the added benefit that
+  phylio can't parse real OpenTree trees and our strict mode can.
+- **No lib silently corrupts tip counts on these boundary inputs.** Where they parse, they
+  parse to the same tip count we do. The disagreement is "parse vs error", not "parse vs wrong
+  parse".
+- **Everyone is deterministic.** Parsing the same input twice always yields the same result in
+  every lib.
+
+The practical consequence for the writeup: when we warn on lenient input, phylio errors on
+roughly half. The user who sets `strict: true` on our parser gets validation at least as
+strict as phylio's default, plus the correctness, speed, and deep-tree parsing wins. The user
+who leaves strict off gets a tree they can render, with warnings publishers can act on.
+
 ### Warnings + strict mode (implemented)
 
 Our 65% malformed-rejection rate was on purpose — real GBIF trees carry quirks and the viewer
