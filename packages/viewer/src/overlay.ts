@@ -14,6 +14,19 @@ import type { LayoutKind, TreeSnapshot, TreeTheme } from './types.ts';
 
 const SR_DELAY_MS = 160; // the list of tips in view follows the view this long after its last change
 
+// Only schemes that cannot execute script are allowed as a tip href. A consumer that passes a tip
+// id straight through — e.g. `(id) => id` — would otherwise XSS themselves on a tree whose label
+// is `'javascript:alert(1)'`. Fragment-only, path-only, protocol-relative and relative URLs are
+// safe because they don't carry a scheme. Anything with a scheme must match the allowlist.
+const SAFE_HREF_SCHEME = /^(?:https?|mailto|tel|ftp):/i;
+function safeHref(h: string): string {
+  if (h === '' || h.startsWith('#') || h.startsWith('/') || h.startsWith('./') || h.startsWith('../') || h.startsWith('?')) return h;
+  if (SAFE_HREF_SCHEME.test(h)) return h;
+  // Scheme that isn't allowlisted (javascript:, data:, vbscript:, blob: for navigation, etc.)
+  // → neutralise to '#'. The link stays clickable but goes nowhere; preferable to a silent XSS.
+  return '#';
+}
+
 /** The options the overlay reads. */
 export interface OverlayOptions {
   readonly tipHref: ((tipId: string) => string) | null;
@@ -108,7 +121,7 @@ export class LabelOverlay {
         el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
         if (mode === 'a') {
           const a = el as HTMLAnchorElement;
-          a.href = opts.tipHref!(id);
+          a.href = safeHref(opts.tipHref!(id));
           a.target = '_blank';
           a.rel = 'noopener noreferrer';
         } else {

@@ -266,6 +266,32 @@ The architectural rule — no runtime deps in `io` — holds up here on its own 
 preference. We're not writing in-house because we can; we're writing in-house because the
 alternatives would ship a worse viewer.
 
+### Security review: label-XSS threat model
+
+A paranoid review covered the full pipeline: `tree.labels[i]` can hold `<script>`, `javascript:`,
+`__proto__`, RTL overrides, and 10 MB strings (the parser treats them as opaque text, which is
+correct), so the question is whether any sink in `packages/viewer/`, `packages/react/`, or the
+examples turns a label into executable HTML or an unsafe URL. **No critical or high findings.**
+Every DOM surface uses `textContent`, JSX children, `setAttribute`, or `dataset` — all of which
+treat the string as text. React `dangerouslySetInnerHTML` is used zero times across the repo.
+
+One Medium finding was worth hardening in this PR: the `tipHref` option in `LabelOverlay` passed
+the consumer's return value straight to `HTMLAnchorElement.href`. A consumer who naively wrote
+`(id) => id` would be exploitable on a tree whose label is `'javascript:alert(1)'`. The library
+now routes every href through a safe-scheme allowlist (`http`, `https`, `mailto`, `tel`, `ftp`,
+plus fragments, path, query, and relative URLs); anything else collapses to `#`. All current
+examples use `encodeURIComponent` + a fixed base URL and are unaffected.
+
+Two Lows were also fixed: `columns.ts` and the playground now use `Object.hasOwn` instead of `in`
+/ bracket lookup, so a tip label of `__proto__`, `constructor`, or `toString` can't accidentally
+pull `Object.prototype` or a native function out of the lookup table.
+
+Open items the review flagged that we did not act on here (noted for follow-up): no label-length
+cap on the parser (10 MB parses in ~77 ms, but a hostile 1 GB input could freeze the tab); RTL
+and zero-width characters survive to the DOM (consumers who want to neutralise them can plug
+their own `formatLabel`); and `site/src/main.ts` builds its cards via `innerHTML` interpolation
+on build-time JSON (not a label-XSS path, but worth defence-in-depth).
+
 ### Cross-lib view of the warnings boundary inputs
 
 Running the 21 boundary inputs the warnings system cares about

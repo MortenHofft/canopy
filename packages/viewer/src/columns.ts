@@ -47,13 +47,19 @@ function tipNodeIds(tree: TreeSnapshot): ArrayLike<number> {
   return out;
 }
 
-/** The value of each rank: by node id when `nodeValues` has the tip, else by its label. */
+/** The value of each rank: by node id when `nodeValues` has the tip, else by its label.
+ *  Uses `Object.hasOwn` so a tip label of `__proto__`, `constructor`, or `toString` doesn't
+ *  accidentally return `Object.prototype` or a built-in function from the prototype chain. */
 function valueOf<V>(tree: TreeSnapshot, values: Record<string, V>, nodeValues: ReadonlyMap<number, V> | undefined): (r: number) => V | undefined {
-  if (!nodeValues || nodeValues.size === 0) return (r) => values[tree.tipLabels[r]];
+  const own = (r: number): V | undefined => {
+    const l = tree.tipLabels[r];
+    return Object.hasOwn(values, l) ? values[l] : undefined;
+  };
+  if (!nodeValues || nodeValues.size === 0) return own;
   const ids = tipNodeIds(tree);
   return (r) => {
     const v = ids[r] >= 0 ? nodeValues.get(ids[r]) : undefined;
-    return v !== undefined ? v : values[tree.tipLabels[r]];
+    return v !== undefined ? v : own(r);
   };
 }
 
