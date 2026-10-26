@@ -221,55 +221,51 @@ The architectural rule — no runtime deps in `io` — holds up here on its own 
 preference. We're not writing in-house because we can; we're writing in-house because the
 alternatives would ship a worse viewer.
 
-### Proposed: warnings + strict mode
+### Warnings + strict mode (implemented)
 
-Our 65% malformed-rejection rate is on purpose — real GBIF trees carry quirks and the viewer should
-tolerate them — but silently returning a nonsense tree isn't acceptable either. Publishers need
-feedback or the files stay broken. Proposed design, following what ape and ete already do:
+Our 65% malformed-rejection rate was on purpose — real GBIF trees carry quirks and the viewer
+should tolerate them — but silently returning a nonsense tree isn't acceptable either. Publishers
+need feedback or the files stay broken. The parser now attaches a `warnings: ParserWarning[]` to
+every `TreeModel` (empty on clean parses) and accepts `{ strict: true }` to throw instead:
 
 ```ts
-// unchanged signature in the common case
+import { parseNewick, type ParserWarning } from '@gbif-phylo/io';
+
 const tree = parseNewick(text);
+// tree.warnings is readonly ParserWarning[], always present (empty for clean parses)
+for (const w of tree.warnings) {
+  console.warn(`[${w.code}] ${w.message} (at char ${w.position})`);
+}
 
-// with warnings:
-const result = parseNewick(text, { warnings: true });
-// → { tree, warnings: [{ code, message, position?, severity: 'warn' | 'info' }, ...] }
-
-// strict mode: any warning throws
-const tree = parseNewick(text, { strict: true });
+parseNewick(text, { strict: true }); // → throws NewickError on the first would-be warning
 ```
 
-**Behavior categories, from Morten's rule "fail when the intent is ambivalent, warn when it's
-recoverable":**
+**Behavior categories**, following Morten's rule "fail when the intent is ambivalent, warn when
+it's recoverable":
 
-| Input | Default | Strict | Rationale |
-|---|---|---|---|
-| `(A:xyz,B);` (non-numeric length) | **warn** + parse as missing length | throw | intent is "A has no length"; recoverable |
-| `(A:,B);` (dangling colon) | **warn** + parse as missing length | throw | same |
-| `(A,B,);`, `(,A,B);` (trailing/leading comma) | **warn** + treat as empty tip | throw | both the "extra empty" and "ignore" readings have adherents; we pick empty-tip and tell the user |
-| `BEGIN TREES` without `#NEXUS` | **warn** + parse as NEXUS | throw | obvious intent; nothing lost by warning |
-| `((A,B):10);` (ape-style root edge) | **warn** + parse as `(A,B):10` | throw | ape's documented behavior; strictly non-standard but recoverable |
-| `(A:1:2,B);` (double colon) | **error** | error | genuinely ambivalent: NHX-style `name:length:extra`, or malformed? |
-| `("A","B");` (double quotes) | **error** | error | ambivalent: patristic treats as a doubled-dquote escape, phylio rejects, standard says single quotes only |
-| `(A'quoted',B);` (quote mid-token) | **error** | error | ambivalent: forgotten open quote or quoted-as-suffix? |
-| `(A[&&NHX:x]);` with missing `=` | **error** | error | NHX syntax is well-defined and this isn't it |
-| unmatched parens, unterminated quote, unterminated comment, random garbage | **error** | error | structurally broken |
+| Input | Default | Strict | Code | Rationale |
+|---|---|---|---|---|
+| `(A:xyz,B);` (non-numeric length) | **warn** + NaN length | throw | `non-numeric-length` | intent clear ("no length"); recoverable |
+| `(A:,B);` (dangling colon) | **warn** + NaN length | throw | `dangling-colon` | same |
+| `(A,,B);` middle, `(A,B,);` trailing, `(,A,B);` leading | **warn** + empty tip | throw | `empty-tip` | legal per spec; worth surfacing on real input |
+| `(A:1,B:2)` no trailing `;` | **warn** | throw | `missing-trailing-semicolon` | spec says `;` required; many files lack it |
+| `((A:1,B:1):10);` ape-style root edge | **warn**, structure kept | throw | `extra-paren-root` | ape's documented behavior |
+| `(A:1:2,B);` double colon | **warn**, last-colon wins | throw | `double-colon` | real-world generators use `(sub:len,tip)` as a shortcut; last-wins is predictable |
+| `BEGIN TREES` without `#NEXUS` | **warn** + parse | throw | `missing-nexus-header` | spec requires header; files often lack it |
+| `("A","B");` double-quoted labels | **error** | error | — | ambivalent: patristic treats as a doubled-dquote escape, standard says single quotes; fail hard |
+| `(A'q',B);` quote mid-token | **error** | error | — | ambivalent: forgotten open quote or quoted suffix |
+| unmatched parens, unterminated quote/comment, random garbage | **error** | error | — | structurally broken |
 
-**Return shape**: the `warnings` array has `{ code, message, position?, severity }` so UIs can
-distinguish *recoverable* (`warn`) from *inform-only* (`info`, e.g. "no trailing semicolon") and
-link to the character position of the issue. Warning codes are stable identifiers like
-`non-numeric-length`, `dangling-colon`, `missing-nexus-header`, `trailing-empty-tip`.
+Double-colon was proposed as a hard error in the initial design, but it is used deliberately in
+viewer test generators (`ladder`, `comb`) as a shortcut for `(sub:len,tip)` and in some real
+BEAST-like files, so demoting to a warning preserves callers that worked before while surfacing
+the quirk.
 
-**UX in the viewer**: a top-of-page banner "This tree has 3 formatting issues; parsed anyway",
-expandable to the list. In the explorer and table views, a persistent flag in the status line
-links to the warnings panel. The point is publishers see the warnings next to their rendered tree
-and can fix the file. (A library consumer in a validator role sets `strict: true` and gets a
-hard failure instead.)
+The viewer should surface `tree.warnings.length > 0` as a top-of-page banner ("This tree has 3
+formatting issues; parsed anyway", expandable to the list, each with its character position). A
+validation CLI sets `strict: true` instead and reports the first problem as an error.
 
-**Implementation sketch**: our parser already tracks positions internally. A `warnings[]` carrier
-threaded through the parse state, with `pushWarning(code, position)` at each lenient-branch site.
-Strict mode wraps the parse and throws the first warning before returning. No change to the
-TreeModel.
+See `packages/io/test/warnings.test.mjs` for the executable spec (23 cases).
 
 ### What we *should* steal, concretely
 

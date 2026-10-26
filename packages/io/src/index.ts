@@ -11,5 +11,5 @@ export {
   type ParseOptions,
   type WriteOptions,
 } from './newick.ts';
-export { TreeModel, splitInternalLabel, type RawTree } from './tree.ts';
+export { TreeModel, splitInternalLabel, type RawTree, type ParserWarning } from './tree.ts';
 export { Annotations, supportFrom, type AnnotationRecord, type AnnotationScalar, type AnnotationValue } from './annotations.ts';

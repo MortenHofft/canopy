@@ -73,7 +73,7 @@ function fmtInput(text) {
   return text.slice(0, 45).replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '...';
 }
 
-function main() {
+async function main() {
   const fixtures = loadEdgeFixtures();
   const results = {}; // fixture.id -> parserId -> verdict
   const notes = {};
@@ -95,22 +95,31 @@ function main() {
   const cellWidth = 7;
 
   const header =
-    'FIXTURE'.padEnd(idWidth) + '  ' +
-    'KIND'.padEnd(kindWidth) + '  ' +
-    'INPUT'.padEnd(inputWidth) + '  ' +
+    'FIXTURE'.padEnd(idWidth) +
+    '  ' +
+    'KIND'.padEnd(kindWidth) +
+    '  ' +
+    'INPUT'.padEnd(inputWidth) +
+    '  ' +
     PARSER_IDS.map((p) => PARSERS[p].name.padEnd(cellWidth + 7)).join('');
   console.log(header);
   console.log('-'.repeat(header.length));
 
-  let wellFormed = { total: 0 };
-  let malformed = { total: 0 };
-  for (const pid of PARSER_IDS) { wellFormed[pid] = 0; malformed[pid] = 0; }
+  const wellFormed = { total: 0 };
+  const malformed = { total: 0 };
+  for (const pid of PARSER_IDS) {
+    wellFormed[pid] = 0;
+    malformed[pid] = 0;
+  }
 
   for (const f of fixtures) {
     const row =
-      f.id.padEnd(idWidth) + '  ' +
-      f.kind.padEnd(kindWidth) + '  ' +
-      fmtInput(f.input).padEnd(inputWidth) + '  ' +
+      f.id.padEnd(idWidth) +
+      '  ' +
+      f.kind.padEnd(kindWidth) +
+      '  ' +
+      fmtInput(f.input).padEnd(inputWidth) +
+      '  ' +
       PARSER_IDS.map((pid) => {
         const v = results[f.id][pid];
         if (v === 'skip') return `${COLORS.dim}skip${COLORS.reset}`.padEnd(cellWidth + 11);
@@ -161,7 +170,7 @@ function main() {
   // JSON output
   const outPath = process.env.OUT ?? null;
   if (outPath) {
-    const { writeFileSync } = require('node:fs');
+    const { writeFileSync } = await import('node:fs');
     writeFileSync(outPath, JSON.stringify({ fixtures, results, notes }, null, 2));
     console.log(`\nWrote ${outPath}`);
   }

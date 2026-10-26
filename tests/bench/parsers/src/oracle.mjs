@@ -41,8 +41,12 @@ async function runDendropy(fixtures) {
     const child = spawn('python3', ['src/dendropy-oracle.py'], { cwd: process.cwd() });
     let out = '';
     let err = '';
-    child.stdout.on('data', (b) => { out += b.toString(); });
-    child.stderr.on('data', (b) => { err += b.toString(); });
+    child.stdout.on('data', (b) => {
+      out += b.toString();
+    });
+    child.stderr.on('data', (b) => {
+      err += b.toString();
+    });
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(`dendropy exited ${code}: ${err.slice(0, 300)}`));
       const results = {};
@@ -52,7 +56,7 @@ async function runDendropy(fixtures) {
         try {
           const r = JSON.parse(s);
           results[r.id] = r;
-        } catch (e) {
+        } catch {
           console.error('bad oracle line:', s.slice(0, 80));
         }
       }
@@ -77,7 +81,9 @@ function verdictOfJs(fixture, r) {
 const SHORT = { ok: 'ok  ', wrong: 'WRNG', error: 'err ', crash: 'CRSH', skip: 'skip' };
 const COLOR_BY_VERDICT = { ok: 'green', wrong: 'yellow', error: 'dim', crash: 'red', skip: 'dim' };
 
-function paint(v) { return `${COLORS[COLOR_BY_VERDICT[v]]}${SHORT[v]}${COLORS.reset}`; }
+function paint(v) {
+  return `${COLORS[COLOR_BY_VERDICT[v]]}${SHORT[v]}${COLORS.reset}`;
+}
 
 async function main() {
   const fixtures = loadEdgeFixtures();
@@ -94,9 +100,12 @@ async function main() {
   const colWidth = 15;
 
   const header =
-    'FIXTURE'.padEnd(idWidth) + '  ' +
-    'DendroPy'.padStart(colWidth) + '  ' +
-    PARSER_IDS.map((p) => PARSERS[p].name.padStart(colWidth)).join('  ') + '  ' +
+    'FIXTURE'.padEnd(idWidth) +
+    '  ' +
+    'DendroPy'.padStart(colWidth) +
+    '  ' +
+    PARSER_IDS.map((p) => PARSERS[p].name.padStart(colWidth)).join('  ') +
+    '  ' +
     'DISAGREE'.padStart(colWidth);
   console.log(header);
   console.log('-'.repeat(header.length));
@@ -104,8 +113,12 @@ async function main() {
   // Count agreements per lib with DendroPy, and overall accuracy per lib
   const agree = { oracle: 0 };
   const total = { oracle: 0 };
-  for (const pid of PARSER_IDS) { agree[pid] = 0; total[pid] = 0; }
-  const correctJs = {}; for (const pid of PARSER_IDS) correctJs[pid] = 0;
+  for (const pid of PARSER_IDS) {
+    agree[pid] = 0;
+    total[pid] = 0;
+  }
+  const correctJs = {};
+  for (const pid of PARSER_IDS) correctJs[pid] = 0;
   let correctOracle = 0;
 
   const disagreements = [];
@@ -138,7 +151,8 @@ async function main() {
   console.log('');
   console.log(`${COLORS.cyan}Agreement with DendroPy (same verdict family: ok vs error)${COLORS.reset}`);
   for (const pid of PARSER_IDS) {
-    const a = agree[pid]; const t = total[pid];
+    const a = agree[pid];
+    const t = total[pid];
     console.log(`  ${PARSERS[pid].name.padEnd(18)} ${a}/${t} agreements`);
   }
   console.log('');
@@ -167,4 +181,7 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

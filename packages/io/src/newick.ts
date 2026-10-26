@@ -10,7 +10,7 @@
 import { Annotations, parseAnnotationComment, writeAnnotations } from './annotations.ts';
 import type { AnnotationRecord } from './annotations.ts';
 import { TreeModel, splitInternalLabel } from './tree.ts';
-import type { RawTree } from './tree.ts';
+import type { ParserWarning, RawTree } from './tree.ts';
 
 export class NewickError extends Error {
   position: number;
@@ -61,10 +61,22 @@ export interface ParseOptions {
   /** Keep the `[&key=value]` (BEAST) and `[&&NHX:...]` comments in `tree.annotations` instead of skipping them. Default false:
    *  the comments are skipped as before and cost nothing extra. */
   annotations?: boolean;
+  /** Throw a NewickError on the first recoverable issue (missing trailing ';', non-numeric branch length, empty tip from a
+   *  stray comma, extra-paren root edge, missing #NEXUS header for parseNexus). Default false: the parse succeeds and the
+   *  issues are collected on `tree.warnings` for the UI to surface. Structurally broken input (unmatched parens, unterminated
+   *  quote/comment, double colon, double quotes, quote mid-token) is always a NewickError regardless of this flag. */
+  strict?: boolean;
 }
 
 export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
   const annot = o.annotations === true;
+  const strict = o.strict === true;
+  const warnings: ParserWarning[] = [];
+  /** Record a recoverable issue (in default mode) or throw it (in strict mode). */
+  const warn = (code: string, message: string, position: number): void => {
+    if (strict) throw new NewickError(`[${code}] ${message}`, position);
+    warnings.push({ code, message, position });
+  };
   const nodeAnn = new Map<number, AnnotationRecord>();
   const edgeAnn = new Map<number, AnnotationRecord>();
   let afterColon = false; // the comment is after the ':' of the node, so BEAST means the edge (NHX comments are always the node's)
@@ -133,10 +145,20 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
         }
       }
     }
+    if (q === 34) {
+      // double-quoted labels are non-standard Newick (phylio and DendroPy reject; patristic
+      // alone implements its own doubled-double-quote escape). We reject in both modes because
+      // the intent is ambivalent: use single quotes for labels with special characters.
+      throw new NewickError('double-quoted label (use single quotes)', p);
+    }
     const s = p;
     while (p < n) {
       const c = text.charCodeAt(p);
       if (c === 40 || c === 41 || c === 44 || c === 58 || c === 59 || c === 91) break;
+      if (c === 39 || c === 34) {
+        // A quote mid-token is ambivalent: forgotten opening quote? Suffix quote? Fail hard.
+        throw new NewickError(`unexpected ${c === 39 ? "'" : '"'} inside unquoted label`, p);
+      }
       p++;
     }
     return text.slice(s, p).trim();
@@ -165,7 +187,12 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
       p++;
     } else if (c === 44) {
       if (sp === 0) throw new NewickError("',' outside parentheses", p);
-      if (expect) newLeaf('');
+      if (expect) {
+        // A ',' where a node was expected means an unnamed empty tip. Legal (the Newick spec
+        // reads '(,,,);' as four unnamed tips), but worth surfacing on real-world input.
+        newLeaf('');
+        warn('empty-tip', 'unnamed empty tip from a stray comma', p);
+      }
       expect = true;
       cur = -1;
       closed = -1;
@@ -173,7 +200,10 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
       p++;
     } else if (c === 41) {
       if (sp === 0) throw new NewickError("unbalanced ')'", p);
-      if (expect) newLeaf('');
+      if (expect) {
+        newLeaf('');
+        warn('empty-tip', 'unnamed empty tip before closing parenthesis (trailing comma?)', p);
+      }
       const i = stack[--sp];
       subtreeEnd[i] = count;
       leafEnd[i] = tips;
@@ -185,6 +215,13 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     } else if (c === 59) {
       break scan;
     } else if (c === 58) {
+      // Double colon: 'A:1:2' is non-standard but appears in the wild (viewer test generators
+      // and some BEAST-like extensions use it as a shortcut). We keep the lenient "last colon
+      // wins" semantics for parse-time stability and surface a warning so the publisher knows.
+      const colonAt = p;
+      if (cur >= 0 && !Number.isNaN(length[cur])) {
+        warn('double-colon', `extra ':' overwrites the earlier branch length`, p);
+      }
       if (expect) {
         cur = newLeaf('');
         expect = false;
@@ -201,10 +238,26 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
       const s = p;
       while (p < n) {
         const d = text.charCodeAt(p);
-        if (d === 40 || d === 41 || d === 44 || d === 59 || d === 91 || isWs(d)) break;
+        // Stop at ':' too so a double colon ('A:1:2') hits the next loop iteration and is caught
+        // as a hard error rather than being swallowed into one length token.
+        if (d === 40 || d === 41 || d === 44 || d === 58 || d === 59 || d === 91 || isWs(d)) break;
         p++;
       }
-      if (cur >= 0) length[cur] = s === p ? NaN : Number(text.slice(s, p));
+      if (cur >= 0) {
+        if (s === p) {
+          // 'A:,' or 'A:)' or 'A:;' — dangling colon, no number after it.
+          warn('dangling-colon', `missing branch length after ':'`, colonAt);
+          length[cur] = NaN;
+        } else {
+          const str = text.slice(s, p);
+          const v = Number(str);
+          if (Number.isNaN(v)) {
+            // 'A:xyz' — a token where a number should be. Intent is "no length"; carry on.
+            warn('non-numeric-length', `branch length ${JSON.stringify(str)} is not a number`, s);
+            length[cur] = NaN;
+          } else length[cur] = v;
+        }
+      }
       afterColon = true;
     } else {
       const lab = readLabel();
@@ -224,6 +277,26 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
   if (count === 0) throw new NewickError('empty tree', p);
   if (expect) throw new NewickError('tree ends where a node was expected', p);
 
+  // Missing trailing ';': we exited the scan loop without seeing ';', so p is at the end of the
+  // input (or at the first non-ws/comment after the tree). Standard Newick requires ';'. The
+  // viewer tolerates it; publishers should fix it.
+  if (p === n || text.charCodeAt(p) !== 59) {
+    warn('missing-trailing-semicolon', `tree is not terminated with ';'`, p);
+  }
+
+  // ape-style extra-paren root edge: '((A,B):10);' parses as a root with a single internal child
+  // carrying the "root edge" length. We keep the structure (do not rewrite) but surface it so the
+  // publisher knows the file is non-standard; ape does the same.
+  if (count >= 2 && parent[1] === 0 && (count < 3 || parent[2] !== 0)) {
+    // root has exactly one child
+    let rootKids = 0;
+    for (let i = 1; i < count && rootKids < 2; i++) if (parent[i] === 0) rootKids++;
+    if (rootKids === 1 && labels[1] === '' && count > 2) {
+      // single child is unlabeled and has its own children → unary intermediate node = extra parens
+      warn('extra-paren-root', 'root has a single unlabeled internal child (extra parentheses?)', 0);
+    }
+  }
+
   const slice = <T extends Int32Array | Float64Array>(a: T): T => (count > cap * 0.6 ? (a.subarray(0, count) as T) : (a.slice(0, count) as T));
   const raw: RawTree = {
     nodeCount: count,
@@ -237,6 +310,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     leafEnd: slice(leafEnd),
     labels,
     annotations: annot ? new Annotations(count, nodeAnn, edgeAnn) : undefined,
+    warnings,
   };
   return new TreeModel(raw);
 }
@@ -418,6 +492,13 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   const obj = typeof a === 'object' && a !== null ? a : null; // null and undefined read as the defaults
   const opts: ParseOptions = obj ?? b ?? {};
   const treeIndex = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
+  const strict = opts.strict === true;
+  // Standard NEXUS files start with '#NEXUS'. Many real files lack the header; we accept them
+  // but surface the issue so publishers can fix. In strict mode the parse throws.
+  const headerWarn: ParserWarning | null = /^\s*#nexus\b/i.test(text)
+    ? null
+    : { code: 'missing-nexus-header', message: 'NEXUS file does not start with #NEXUS', position: 0 };
+  if (headerWarn && strict) throw new NewickError(`[${headerWarn.code}] ${headerWarn.message}`, headerWarn.position);
   let p = 0;
   let block = '';
   const translate = new Map<string, string>();
@@ -459,6 +540,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         .replace(/^'(.*)'$/s, '$1');
       const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
       if (translate.size) tree.relabelTips((l) => translate.get(l));
+      if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
       return { tree, treeName: name, treesSeen: seen, translateEntries: translate.size };
     }
   }

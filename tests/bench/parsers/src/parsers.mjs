@@ -63,7 +63,11 @@ export const PARSERS = {
       for (const v of vs) if (!degree.has(v)) tips.push(v.label ?? '');
       tips.sort();
       let anyLen = false;
-      for (const e of es) if (Number.isFinite(e[2]) && e[2] !== 0) { anyLen = true; break; }
+      for (const e of es)
+        if (Number.isFinite(e[2]) && e[2] !== 0) {
+          anyLen = true;
+          break;
+        }
       return out(tips.length, vs.size, tips, anyLen, r);
     },
   },

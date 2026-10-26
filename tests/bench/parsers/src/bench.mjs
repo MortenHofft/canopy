@@ -21,18 +21,26 @@ const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 15000);
 function runWorker(parserId, fixtureId) {
   return new Promise((resolveP) => {
     const req = JSON.stringify({ parserId, fixtureId, iterations: ITERATIONS });
-    const child = spawn(process.execPath,
-      ['--conditions=@gbif-phylo/source', '--experimental-transform-types', '--no-warnings', WORKER, req],
-      { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['--conditions=@gbif-phylo/source', '--experimental-transform-types', '--no-warnings', WORKER, req], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let out = '';
     let err = '';
     let killed = false;
     const timer = setTimeout(() => {
       killed = true;
-      try { child.kill('SIGKILL'); } catch {}
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // already exited
+      }
     }, TIMEOUT_MS);
-    child.stdout.on('data', (b) => { out += b.toString(); });
-    child.stderr.on('data', (b) => { err += b.toString(); });
+    child.stdout.on('data', (b) => {
+      out += b.toString();
+    });
+    child.stderr.on('data', (b) => {
+      err += b.toString();
+    });
     child.on('close', (code) => {
       clearTimeout(timer);
       if (killed) return resolveP({ timedOut: true });
@@ -61,7 +69,9 @@ function fmtTips(tps) {
   if (tps > 1e3) return (tps / 1e3).toFixed(0) + 'k';
   return tps.toFixed(0);
 }
-function fmtMB(bytes) { return (bytes / 1024 / 1024).toFixed(2) + 'MB'; }
+function fmtMB(bytes) {
+  return (bytes / 1024 / 1024).toFixed(2) + 'MB';
+}
 
 async function main() {
   console.log(`${COLORS.cyan}${COLORS.bold}Parser timing benchmark${COLORS.reset}`);
@@ -74,9 +84,12 @@ async function main() {
   const cellWidth = 24;
 
   const header =
-    'FIXTURE'.padEnd(idWidth) + '  ' +
-    'SIZE'.padStart(sizeWidth) + '  ' +
-    'TIPS'.padStart(tipsWidth) + '  ' +
+    'FIXTURE'.padEnd(idWidth) +
+    '  ' +
+    'SIZE'.padStart(sizeWidth) +
+    '  ' +
+    'TIPS'.padStart(tipsWidth) +
+    '  ' +
     PARSER_IDS.map((p) => PARSERS[p].name.padStart(cellWidth)).join('');
   console.log(header);
   console.log('-'.repeat(header.length));
@@ -85,8 +98,12 @@ async function main() {
 
   for (const f of BENCH_FIXTURES) {
     let bytes = 0;
-    try { bytes = Buffer.byteLength(loadFixture(f), 'utf8'); }
-    catch (e) { console.log(`${f.id}: load failed: ${e.message}`); continue; }
+    try {
+      bytes = Buffer.byteLength(loadFixture(f), 'utf8');
+    } catch (e) {
+      console.log(`${f.id}: load failed: ${e.message}`);
+      continue;
+    }
 
     results[f.id] = {};
     const row = [];
@@ -107,17 +124,12 @@ async function main() {
       } else {
         const s = stats(r.times);
         const tps = (r.tipCount / s.median) * 1000;
-        const mbs = (bytes / s.median) * 1000 / 1024 / 1024;
+        const mbs = ((bytes / s.median) * 1000) / 1024 / 1024;
         row.push(`${fmt(s.median).padStart(7)} ${fmtTips(tps).padStart(5)}t/s ${mbs.toFixed(1).padStart(4)}MB/s`.padStart(cellWidth));
         if (tipCount === '?') tipCount = r.tipCount;
       }
     }
-    console.log(
-      f.id.padEnd(idWidth) + '  ' +
-      fmtMB(bytes).padStart(sizeWidth) + '  ' +
-      String(tipCount).padStart(tipsWidth) + '  ' +
-      row.join('')
-    );
+    console.log(f.id.padEnd(idWidth) + '  ' + fmtMB(bytes).padStart(sizeWidth) + '  ' + String(tipCount).padStart(tipsWidth) + '  ' + row.join(''));
   }
 
   // Speedup summary
@@ -151,7 +163,9 @@ async function main() {
     if (!rs || rs.length === 0) continue;
     const gm = Math.exp(rs.reduce((a, b) => a + Math.log(b), 0) / rs.length);
     const col = gm > 1.5 ? 'green' : gm < 0.75 ? 'red' : 'yellow';
-    console.log(`  ${PARSERS[pid].name.padEnd(18)} ${COLORS[col]}${gm.toFixed(2)}x${COLORS.reset} vs ours (n=${rs.length} fixtures where both finished)`);
+    console.log(
+      `  ${PARSERS[pid].name.padEnd(18)} ${COLORS[col]}${gm.toFixed(2)}x${COLORS.reset} vs ours (n=${rs.length} fixtures where both finished)`,
+    );
   }
 
   if (process.env.OUT) {
@@ -161,4 +175,7 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
