@@ -131,3 +131,142 @@ test('warning positions point at the offending character', () => {
   // 'xyz' starts at index 3
   assert.equal(w.position, 3);
 });
+
+// ----------------------------------------------------------------------------- generalized invariants
+//
+// These tests guard the whole warnings system against the class of bug an adversarial code review
+// surfaced (positions pointing at the wrong character, warning predicates over-firing on lookalike
+// inputs, strict mode disagreeing with default mode). Each is a property that must hold on EVERY
+// input, so new warning codes added later are automatically covered.
+
+// Negative-space suite: for every warning code, a list of inputs that look similar but should NOT
+// trigger it. If a future change to a warning's predicate makes it too loose, these fail.
+const NEGATIVE_CASES = {
+  'missing-trailing-semicolon': ['(A,B);', 'A;', '((A,B)Clade:0.5);'],
+  'non-numeric-length': ['(A:1,B:2);', '(A:1e-5,B:+2);', '(A:-0.5,B:0.5);'],
+  'dangling-colon': ['(A:1,B:2);', '((A,B):0.5,C);'],
+  'empty-tip': ['(A,B);', '((A,B),C);', '(A);'],
+  'extra-paren-root': ['(A);', '((A));', '((Clade));', '(A:1);', '(A,B);', '((A,B),C);'],
+  'double-colon': ['(A:1,B:2);', '((A,B):0.5,C);'],
+  'missing-nexus-header': [], // Newick inputs don't test NEXUS; this is tested separately
+};
+
+for (const [code, inputs] of Object.entries(NEGATIVE_CASES)) {
+  for (const input of inputs) {
+    test(`${code} must NOT fire on ${JSON.stringify(input)}`, () => {
+      const t = parseNewick(input);
+      const codes = t.warnings.map((w) => w.code);
+      assert.ok(!codes.includes(code), `unexpected ${code} in warnings: ${JSON.stringify(codes)}`);
+    });
+  }
+}
+
+// Position-within-bounds invariant: EVERY warning's position must be a valid character offset.
+// Catches a hard-coded 0 as a position (bug the review found), and any position that drifts past
+// the end of input due to trailing whitespace handling.
+const POSITION_BOUNDS_INPUTS = [
+  '(A:1,B:2)',
+  '(A:xyz,B:1);',
+  '(A:,B:1);',
+  '(A,B,);',
+  '(,A,B);',
+  '(A,,B);',
+  '((A:1,B:1):10);',
+  '(A:xyz,B:,,C:1)', // multiple warnings
+  '(A,B)\n\n\n', // trailing whitespace
+  '((A:1,B:2):0.5,C);', // clean
+  '(A:1:2,B);',
+  '(A:1:2:3,B);',
+];
+for (const input of POSITION_BOUNDS_INPUTS) {
+  test(`every warning position is in [0, ${input.length}) for ${JSON.stringify(input)}`, () => {
+    const t = parseNewick(input);
+    for (const w of t.warnings) {
+      assert.ok(w.position >= 0, `position ${w.position} is negative on ${w.code}`);
+      assert.ok(w.position < input.length, `position ${w.position} is past end-of-input (length ${input.length}) on ${w.code}`);
+      // The character at the position should not be whitespace (that would mean we blamed a
+      // non-content character). Exception: for '(A,B,);' the position is a comma, '(': they're
+      // never whitespace; this is a general sanity check.
+      const code = input.charCodeAt(w.position);
+      assert.ok(
+        code !== 32 && code !== 9 && code !== 10 && code !== 13,
+        `warning ${w.code} points at a whitespace character (${JSON.stringify(input[w.position])}) at ${w.position}`,
+      );
+    }
+  });
+}
+
+// Cross-mode consistency: for every input, { strict: true } throws if and only if the default-mode
+// parse has at least one warning. A disagreement means strict mode has a path that produces a
+// warning not thrown, or throws something default mode doesn't record.
+const CROSS_MODE_INPUTS = [
+  // clean
+  '((A:1,B:2):0.5,C);',
+  '(A,B);',
+  '(A:1);',
+  // various warnings
+  '(A:1,B:2)',
+  '(A:xyz,B:1);',
+  '(A:,B:1);',
+  '(A,,B);',
+  '(A,B,);',
+  '(,A,B);',
+  '((A:1,B:1):10);',
+  '(A:1:2,B);',
+  // mixed
+  '(A:xyz,B:,,C:1)',
+];
+for (const input of CROSS_MODE_INPUTS) {
+  test(`cross-mode: strict throws iff default has warnings for ${JSON.stringify(input)}`, () => {
+    const t = parseNewick(input);
+    const defaultHasWarnings = t.warnings.length > 0;
+    let strictThrew = false;
+    try {
+      parseNewick(input, { strict: true });
+    } catch {
+      strictThrew = true;
+    }
+    assert.equal(
+      strictThrew,
+      defaultHasWarnings,
+      `inconsistent: default warnings=${t.warnings.length}, strict threw=${strictThrew} for ${JSON.stringify(input)}`,
+    );
+  });
+}
+
+// Determinism: parsing the same input twice produces the same warnings in the same order with
+// the same positions. Rules out any non-deterministic state leak (e.g. a shared mutable array,
+// or an uninitialised counter).
+test('warnings are deterministic across repeated parses', () => {
+  const input = '(A:xyz,B:,,C:1)';
+  const a = parseNewick(input);
+  const b = parseNewick(input);
+  assert.deepEqual(
+    a.warnings.map((w) => ({ code: w.code, position: w.position })),
+    b.warnings.map((w) => ({ code: w.code, position: w.position })),
+  );
+});
+
+// (A,,B,,C,,); emits one empty-tip per stray comma. Rules out single-fire-and-silence bugs.
+test('every stray comma emits its own empty-tip warning', () => {
+  const t = parseNewick('(A,,,B);');
+  const emptyTips = t.warnings.filter((w) => w.code === 'empty-tip');
+  // Two internal strays between A and B, so two empty tips, so two warnings.
+  assert.equal(emptyTips.length, 2);
+  // Positions should be strictly increasing.
+  for (let i = 1; i < emptyTips.length; i++) {
+    assert.ok(emptyTips[i].position > emptyTips[i - 1].position, 'positions not strictly increasing');
+  }
+});
+
+// warnings is a readonly array on the public type but must be a fresh array per parse (not shared
+// across TreeModels). Rules out a module-level singleton.
+test('warnings arrays are not shared between trees', () => {
+  const a = parseNewick('(A:xyz,B);');
+  const b = parseNewick('((A:1,B:1):10);');
+  assert.notEqual(a.warnings, b.warnings, 'two trees share the same warnings array');
+  assert.notDeepEqual(
+    a.warnings.map((w) => w.code),
+    b.warnings.map((w) => w.code),
+  );
+});
