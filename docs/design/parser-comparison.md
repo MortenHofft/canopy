@@ -24,39 +24,81 @@ without also pulling in a renderer.
 
 ## Correctness
 
-`tests/bench/parsers/src/correctness.mjs` runs 81 edge cases (56 well-formed, 25 malformed) and
+`tests/bench/parsers/src/correctness.mjs` runs 89 edge cases (63 well-formed, 26 malformed) and
 records one of four verdicts per lib: `ok`, `wrong` (parsed, but shape disagrees with expectation),
 `error` (clean throw), `crash` (threw a non-Error, hung, or returned null).
 
-The fixtures come from three places:
+The fixtures come from four places (each entry carries a `source` field naming its origin):
 
 - `fixtures/edge/well-formed.json`, `fixtures/edge/malformed.json` — our own hand-crafted set
   (minimal/trifurcation/polytomy/unary; quoted labels with spaces, commas, parens, apostrophe
-  escapes, semicolons; comments, nested comments, multiline comments; BEAST and NHX annotations;
-  various whitespace; empty labels; Unicode; deep caterpillar; NEXUS corners; and 25 malformed
+  escapes, semicolons; comments, nested, multiline, inside branch lengths; BEAST and NHX
+  annotations; whitespace; empty labels; Unicode; deep caterpillar; NEXUS corners; 26 malformed
   inputs).
-- `fixtures/edge/borrowed.json` — fixtures *lifted from the alternative libs' own test suites*
-  (phylio's `test/Bio/Phylogeny/Newick.purs` and `test/data/*.newick`, patristic's
-  `test/newick.test.js` and `test/deep.test.js`, newick-js's `src/index.spec.ts`), with a `source`
-  field on each entry. Running these through our parser caught two real bugs in our own fixture
-  expectations (an off-by-one on `(Alpha,Beta,...,,);` and a tip-count mistake on a nested wiki
-  example). Both are fixed; a wider corpus pays off even without a bug in the parser itself.
-- A **DendroPy oracle** (`src/dendropy-oracle.py`, driven by `src/oracle.mjs`) parses the same 57
-  fixtures as a tie-breaker when a lib's answer looks surprising. DendroPy is the Python
-  reference; it isn't infallible (it has strong opinions on `_`-to-space and on unlabeled tips)
-  but it is the most widely-used phylogenetics parser in bioinformatics.
+- `fixtures/edge/borrowed.json` — lifted verbatim from phylio's, patristic's, and newick-js's own
+  test suites.
+- `fixtures/edge/borrowed-wider.json` — more cases from **phylotree.js**, **ape** (R, GPL-2+, so
+  ideas only — the strings themselves aren't code), **ete** (Python, GPL-3+, same), **lwphylo**,
+  and **biojs-io-newick**. Covers HyPhy `{tag}` syntax, BEAST `{dict}` annotation values, ape's
+  "extra-paren root edge" idiom `((A:1,B:1):10);`, ete's `2/3` multi-support convention, and
+  ete's "a quoted label can be an entire mini-tree" trick.
+- A **DendroPy oracle** (`src/dendropy-oracle.py`, driven by `src/oracle.mjs`) parses the same
+  fixtures as a tie-breaker. DendroPy is the Python reference; it isn't infallible (strong
+  opinions on `_`-to-space, drops unlabeled tips, rejects missing `;`) but it is the most
+  widely-used phylogenetics parser in bioinformatics.
 
-**Score:**
+Running the borrowed fixtures caught two real bugs in our own hand-crafted set (an off-by-one on
+`(Alpha,Beta,...,,);` and a tip-count mistake on a nested wiki example). Both are fixed; a wider
+corpus pays off even without a bug in the parser itself.
 
-| Lib | Well-formed (56) | Malformed rejected (25) |
-|---|---:|---:|
-| **gbif-phylo/io** | **55/56** | 17/25 |
-| phylio | 36/56 | 21/25 |
-| newick-js | 42/56 | 13/25 |
-| patristic | 50/56 | 10/25 |
+**Score (89 fixtures total):**
 
-Our one well-formed failure is `patristic-doubled-dquotes` — `("say ""hi""":2);` — a non-standard
-double-quote escape that only patristic's own tests use.
+| Lib | Well-formed (63) | Malformed rejected (26) | Overall |
+|---|---:|---:|---:|
+| **gbif-phylo/io** | **62/63  (98%)** | 17/26  (65%) | **79/89  (89%)** |
+| patristic | 57/63  (90%) | 10/26  (38%) | 67/89  (75%) |
+| newick-js | 48/63  (76%) | 13/26  (50%) | 61/89  (69%) |
+| phylio | 39/63  (62%) | 22/26  (85%) | 61/89  (69%) |
+| DendroPy (reference) | 48/89 — see below | | |
+
+**None of the other JS libs pass our test suite.** Each has at least a dozen tests they fail on
+inputs we handle: phylio rejects BEAST annotations, quoted labels, and no-trailing-`;`; newick-js
+corrupts comments and BEAST; patristic parses empty input as a tree. That's the second concrete
+reason to keep writing our own in-house (the first was the stack-overflow on deep trees).
+
+Our one well-formed failure is `patristic-doubled-dquotes` — `("say ""hi""":2);` — a
+non-standard double-quote escape that only patristic implements. Fine to miss.
+
+### DendroPy also fails on deep trees — and Nextstrain already works around it
+
+The oracle run turned up a finding we didn't expect: **DendroPy itself crashes with
+`RecursionError: maximum recursion depth exceeded` on the 10 000-tip caterpillar**. The Python
+reference implementation has the same architectural problem the three JS libs have. Porting
+DendroPy to JS/wasm would not fix the deep-tree issue — the recursive structure is baked into
+DendroPy's reader too.
+
+Nextstrain's **augur** pipeline (what feeds auspice, their visualization tool) uses `Bio.Phylo`
+for Newick and has a dedicated regex parser for BEAST NEXUS at `augur/import_/beast.py`. On
+`augur import beast` their argparse has:
+
+```
+beast_parser.add_argument('--recursion-limit', default=False, type=int,
+    help="Set a custom recursion limit (dangerous!)")
+```
+
+and the parser prints "Recursion limit reached. You can try raising this with the
+`--recursion-limit` option (Be careful with this)." when it hits the Python default. That's a
+production bioinformatics pipeline shipping a user-facing knob for the exact same problem the
+10 000-tip caterpillar exposes. **Nextstrain's own viewer (auspice) is JSON-first and does not
+parse Newick in the browser at all** — they do all Newick/NEXUS work in Python server-side via
+Augur, convert to a JSON tree, and ship that. That's the architecture they chose because the
+browser-side parsing problem is hard. Our iterative parser is the only one in this comparison
+that lets the browser do Newick directly without needing a Python pre-processor.
+
+Nextstrain is a reasonable point of comparison: it is one of the most-used phylogenetics
+visualizations in the world (public-health genomics, SARS-CoV-2, flu), and they explicitly chose
+not to parse in the browser. We're going the other way because our target users publish static
+tree files to GBIF archives and need the browser to be the whole pipeline.
 
 ### Where each lib goes wrong
 
@@ -179,18 +221,64 @@ The architectural rule — no runtime deps in `io` — holds up here on its own 
 preference. We're not writing in-house because we can; we're writing in-house because the
 alternatives would ship a worse viewer.
 
-### What we *should* steal
+### Proposed: warnings + strict mode
 
-- **Strict malformed rejection**, mostly from phylio and DendroPy: 21/25 and (DendroPy) similar vs
-  our 17/25. Specifically `(A:xyz,B);`, `(A:,B);`, `(A:1:2,B);`, `("A","B");`, `(A'quoted',B);`,
-  and `BEGIN TREES` without `#NEXUS` — all cases where phylio and DendroPy throw and we silently
-  build a nonsense tree. These are candidates for an opt-in `{ strict: true }` mode rather than
-  default failures: real GBIF files sometimes carry these quirks and the viewer should tolerate
-  them, but a validation CLI shouldn't.
-- **Keep the borrowed-fixture corpus.** `fixtures/edge/borrowed.json` is already in-tree. Promote
-  a copy under `packages/io/test/corpora/` and wire it into `npm test` so every change to the
-  parser runs against the full combined set — writing the comparison bench already caught two of
-  our own fixture bugs; running the full suite in CI keeps the parser honest.
+Our 65% malformed-rejection rate is on purpose — real GBIF trees carry quirks and the viewer should
+tolerate them — but silently returning a nonsense tree isn't acceptable either. Publishers need
+feedback or the files stay broken. Proposed design, following what ape and ete already do:
+
+```ts
+// unchanged signature in the common case
+const tree = parseNewick(text);
+
+// with warnings:
+const result = parseNewick(text, { warnings: true });
+// → { tree, warnings: [{ code, message, position?, severity: 'warn' | 'info' }, ...] }
+
+// strict mode: any warning throws
+const tree = parseNewick(text, { strict: true });
+```
+
+**Behavior categories, from Morten's rule "fail when the intent is ambivalent, warn when it's
+recoverable":**
+
+| Input | Default | Strict | Rationale |
+|---|---|---|---|
+| `(A:xyz,B);` (non-numeric length) | **warn** + parse as missing length | throw | intent is "A has no length"; recoverable |
+| `(A:,B);` (dangling colon) | **warn** + parse as missing length | throw | same |
+| `(A,B,);`, `(,A,B);` (trailing/leading comma) | **warn** + treat as empty tip | throw | both the "extra empty" and "ignore" readings have adherents; we pick empty-tip and tell the user |
+| `BEGIN TREES` without `#NEXUS` | **warn** + parse as NEXUS | throw | obvious intent; nothing lost by warning |
+| `((A,B):10);` (ape-style root edge) | **warn** + parse as `(A,B):10` | throw | ape's documented behavior; strictly non-standard but recoverable |
+| `(A:1:2,B);` (double colon) | **error** | error | genuinely ambivalent: NHX-style `name:length:extra`, or malformed? |
+| `("A","B");` (double quotes) | **error** | error | ambivalent: patristic treats as a doubled-dquote escape, phylio rejects, standard says single quotes only |
+| `(A'quoted',B);` (quote mid-token) | **error** | error | ambivalent: forgotten open quote or quoted-as-suffix? |
+| `(A[&&NHX:x]);` with missing `=` | **error** | error | NHX syntax is well-defined and this isn't it |
+| unmatched parens, unterminated quote, unterminated comment, random garbage | **error** | error | structurally broken |
+
+**Return shape**: the `warnings` array has `{ code, message, position?, severity }` so UIs can
+distinguish *recoverable* (`warn`) from *inform-only* (`info`, e.g. "no trailing semicolon") and
+link to the character position of the issue. Warning codes are stable identifiers like
+`non-numeric-length`, `dangling-colon`, `missing-nexus-header`, `trailing-empty-tip`.
+
+**UX in the viewer**: a top-of-page banner "This tree has 3 formatting issues; parsed anyway",
+expandable to the list. In the explorer and table views, a persistent flag in the status line
+links to the warnings panel. The point is publishers see the warnings next to their rendered tree
+and can fix the file. (A library consumer in a validator role sets `strict: true` and gets a
+hard failure instead.)
+
+**Implementation sketch**: our parser already tracks positions internally. A `warnings[]` carrier
+threaded through the parse state, with `pushWarning(code, position)` at each lenient-branch site.
+Strict mode wraps the parse and throws the first warning before returning. No change to the
+TreeModel.
+
+### What we *should* steal, concretely
+
+- The **borrowed-fixture corpus**. `fixtures/edge/{borrowed,borrowed-wider}.json` is in-tree with
+  provenance. Promote under `packages/io/test/corpora/` and wire into `npm test` so every change
+  to the parser runs against the full combined set.
+- **ete's** idea that a parser accepts a `mode` argument (`parser=0` strict, `parser=1` lenient).
+  Our `{ strict: true }` is the two-mode equivalent.
+- **ape's** warning for the extra-paren root edge, baked into our warnings system from day one.
 
 ### What we should *not* do
 

@@ -1,0 +1,49 @@
+[
+  { "id": "phylotree-hyphy-tags",            "kind": "newick",
+    "input": "((Pig{Test}:0.1,Cow{Test}:0.2){Test}:0.1,(Human{Ref}:0.01,Chimp{Ref}:0.01){Ref}:0.1,Mouse:0.5);",
+    "wellFormed": true, "tipCount": 5, "tipLabels": null,
+    "source": "phylotree.js test/data/CD2-relax.new — HyPhy model-tag syntax {tag} after labels; parsers differ on whether {tag} is label text (ours, newick-js, patristic) or a separate annotation (phylotree); labels not asserted",
+    "source_license": "MIT" },
+
+  { "id": "phylotree-beast-dict-annotation", "kind": "newick",
+    "input": "((3[&rate=1.5E-4,rate_95%_HPD={4.2E-6,4.2E-4},S_range={0.0,2.0},height=183.0]:3.57,12[&rate=9.2E-5]:6.81):0.6,5:7.0);",
+    "wellFormed": true, "tipCount": 3, "tipLabels": ["12","3","5"],
+    "source": "phylotree.js test/data/beast.new — BEAST [&...] with nested {dict} values and % in keys",
+    "source_license": "MIT" },
+
+  { "id": "ape-extra-paren-root-edge",       "kind": "newick",
+    "input": "((A:1,B:1):10);",
+    "wellFormed": true, "tipCount": 2, "tipLabels": ["A","B"],
+    "source": "ape (R) read.tree docs — 'badly represented root edge'; ape parses with a warning (equivalent to (A:1,B:1):10;)",
+    "source_license": "GPL-2+ (idea only; the input string is a fact, not code)" },
+
+  { "id": "ete-multisupport",                "kind": "newick",
+    "input": "((a,b)2/3:4,(c,d)5/6:7);",
+    "wellFormed": true, "tipCount": 4, "tipLabels": ["a","b","c","d"],
+    "source": "etetoolkit/ete tests/test_tree.py::test_newick_multisupport — internal label '2/3' is a dual-support convention",
+    "source_license": "GPL-3+ (idea; input is a short literal)" },
+
+  { "id": "ete-nhx-missing-equals",          "kind": "newick",
+    "input": "(((A, B), C)[&&NHX:nameI]);",
+    "wellFormed": false,
+    "source": "etetoolkit/ete tests/test_tree.py — NHX entry without '=' is invalid; ete raises NewickError",
+    "source_license": "GPL-3+ (idea)" },
+
+  { "id": "ete-quoted-tree-as-name",         "kind": "newick",
+    "input": "(('((X,Y)Z:0.1,W:0.2)':1,'B':2):3,'D':4);",
+    "wellFormed": true, "tipCount": 3, "tipLabels": ["((X,Y)Z:0.1,W:0.2)","B","D"],
+    "source": "etetoolkit/ete tests/test_tree.py::test_quoted_names — a label can be an entire quoted mini-tree (contents stay literal)",
+    "source_license": "GPL-3+ (idea; input simplified from ete's)" },
+
+  { "id": "lwphylo-tabs-newlines-only",      "kind": "newick",
+    "input": "(A:1\n,\n\tB:2\n)\n;",
+    "wellFormed": true, "tipCount": 2, "tipLabels": ["A","B"],
+    "source": "lwphylo src/utils/readTree.js — token splitter removes ' \\t' sequences; test that newlines don't break tokens either",
+    "source_license": "ISC (idea)" },
+
+  { "id": "biojs-io-newick-simple",          "kind": "newick",
+    "input": "((human,chimp),mouse);",
+    "wellFormed": true, "tipCount": 3, "tipLabels": ["chimp","human","mouse"],
+    "source": "biojs-io-newick test.js — the canonical BioJS test tree",
+    "source_license": "Apache-2.0" }
+]

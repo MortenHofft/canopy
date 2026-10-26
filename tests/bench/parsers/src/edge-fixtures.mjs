@@ -25,6 +25,7 @@ export function loadEdgeFixtures() {
   const wf = JSON.parse(readFileSync(resolve(edgeDir, 'well-formed.json'), 'utf8'));
   const mf = JSON.parse(readFileSync(resolve(edgeDir, 'malformed.json'), 'utf8'));
   const br = JSON.parse(readFileSync(resolve(edgeDir, 'borrowed.json'), 'utf8'));
-  const all = [...wf, ...mf, ...br].map((f) => ({ ...f, input: expand(f.input) }));
+  const bw = JSON.parse(readFileSync(resolve(edgeDir, 'borrowed-wider.json'), 'utf8'));
+  const all = [...wf, ...mf, ...br, ...bw].map((f) => ({ ...f, input: expand(f.input) }));
   return all;
 }
