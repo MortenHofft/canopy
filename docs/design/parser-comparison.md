@@ -69,6 +69,51 @@ reason to keep writing our own in-house (the first was the stack-overflow on dee
 Our one well-formed failure is `patristic-doubled-dquotes` — `("say ""hi""":2);` — a
 non-standard double-quote escape that only patristic implements. Fine to miss.
 
+### Our own `data/` is clean under the new rules
+
+Every tree file we ship — 118 `.nwk` / `.nex` / `.tree` / `.nhx` across `data/synthetic/`,
+`data/rich/`, `data/real-ladder/` — parses with **zero warnings** in strict mode. So turning on
+`{ strict: true }` by default is viable for our own corpus, and the warnings are reserved for
+genuinely messy files from publishers rather than firing on our own test data.
+
+Run with `node tests/bench/parsers/src/data-corpus-check.mjs`.
+
+### How to read a DendroPy disagreement
+
+DendroPy's overall score on our 89 edge-case fixtures is **67/89 (75%)** vs our 81/89 (91%).
+That means DendroPy also fails some of our tests. We use it as a tie-breaker, not an oracle,
+and when DendroPy and we disagree the right reading is one of these four:
+
+**1. DendroPy makes a different design choice (both defensible).** 6 cases. DendroPy converts
+`_` to space on Newick input (NEXUS convention bleeding over), drops unlabeled tips rather than
+keeping them with `""` labels, and rejects a missing trailing `;` or `#NEXUS` header. Our design
+is to preserve verbatim and warn: losing nodes silently is worse for a viewer, and `_` is a
+legitimate character in GTDB and OpenTree taxon ids. These aren't bugs on either side; they're
+different models.
+
+**2. DendroPy is stricter where we warn (and strict mode agrees).** 4 cases:
+`non-numeric-length`, `dangling-colon`, `missing-nexus-header`, `missing-trailing-semicolon`.
+DendroPy throws. We throw in `strict: true` and warn in default. So our strict mode and
+DendroPy's default agree on these; the difference is only whether the viewer still gets a tree.
+
+**3. Different error handling of empty/unterminated input.** 3 cases. DendroPy returns an empty
+TreeList (which our oracle counted as `crash`) on inputs like `;`, `[comment];`, and single
+semicolon; we throw a cleaner `NewickError`. Both reject, just at different levels.
+
+**4. DendroPy's architectural limitation.** 1 case — the 10 000-tip caterpillar
+(`patristic-caterpillar-10k`). DendroPy stack-overflows with `RecursionError: maximum recursion
+depth exceeded`. **We're objectively more correct here**, period.
+
+The remaining disagreements (7 cases) are places where we're more lenient than DendroPy on things
+other libs also accept: HyPhy `{tag}` syntax, unquoted spaces in labels, invalid NHX,
+missing TRANSLATE entries. Each is a judgment call that we document in the warnings table.
+
+The practical rule for interpreting the oracle: a DendroPy disagreement is a **flag for review**,
+not a verdict. For every one of ours above we checked the specific case — some we matched (via
+strict mode), some are deliberate design differences, and in one case we're better than
+DendroPy. If a future disagreement doesn't fit one of these buckets, it's a real bug and should
+be investigated.
+
 ### DendroPy also fails on deep trees — and Nextstrain already works around it
 
 The oracle run turned up a finding we didn't expect: **DendroPy itself crashes with
