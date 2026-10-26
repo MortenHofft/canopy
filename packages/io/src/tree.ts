@@ -8,6 +8,19 @@
 
 import type { Annotations } from './annotations.ts';
 
+/** A recoverable issue the parser found: the tree parsed, but something about the input was wrong
+ *  and the user should know. Default-mode parses collect warnings on the tree; `{ strict: true }`
+ *  throws a NewickError on the first one. Codes are stable identifiers (see parser-comparison.md
+ *  for the full table). */
+export interface ParserWarning {
+  /** Stable identifier, e.g. 'non-numeric-length', 'dangling-colon', 'missing-trailing-semicolon'. */
+  code: string;
+  /** Human-readable description, including the offending text when short. */
+  message: string;
+  /** Character offset into the source where the issue was detected. */
+  position: number;
+}
+
 export interface RawTree {
   nodeCount: number;
   tipCount: number;
@@ -20,6 +33,7 @@ export interface RawTree {
   leafEnd: Int32Array;
   labels: string[]; // tip label for tips, internal node name ('' if none) for internal nodes
   annotations?: Annotations; // from a parse with { annotations: true }
+  warnings?: readonly ParserWarning[]; // recoverable issues the parser found (empty if clean)
 }
 
 const NUMERIC_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::(.*))?$/s;
@@ -58,6 +72,11 @@ export class TreeModel {
   readonly hasLengths: boolean; // at least one edge has a length
   readonly maxDepth: number;
   readonly maxCumLength: number;
+  /** Recoverable issues the parser found. Empty for a clean parse, non-empty when the input was
+   *  parseable but had problems the UI should surface (non-numeric lengths, dangling colons,
+   *  missing trailing ';', missing #NEXUS header, extra-paren root edge, trailing empty tips...).
+   *  `{ strict: true }` throws a NewickError on the first warning instead of collecting it. */
+  readonly warnings: readonly ParserWarning[];
   private _tipIndex: Map<string, number> | null = null;
   private _dupTips: Map<string, number[]> | null = null;
   private _heights: Int32Array | null = null;
@@ -75,6 +94,7 @@ export class TreeModel {
     this.leafEnd = raw.leafEnd;
     this.labels = raw.labels;
     this.annotations = raw.annotations ?? null;
+    this.warnings = raw.warnings ?? [];
     if (this.annotations && this.annotations.nodeCount !== n)
       throw new Error(`annotations are for a tree of ${this.annotations.nodeCount} nodes, this one has ${n}`);
 

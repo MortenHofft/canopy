@@ -587,7 +587,7 @@ function buildColumnSwitches() {
     return;
   }
   const t = loaded.tree;
-  const matched = (vals: Record<string, unknown>) => t.tipLabels.reduce((n, l) => n + (l in vals ? 1 : 0), 0);
+  const matched = (vals: Record<string, unknown>) => t.tipLabels.reduce((n, l) => n + (Object.hasOwn(vals, l) ? 1 : 0), 0);
   const note = document.createElement('p');
   note.className = 'muted';
   const first = meta?.columns[0]?.values ?? loaded.fasta ?? {};

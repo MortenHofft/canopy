@@ -230,6 +230,44 @@ test('radial labels are rotated to the tip angle; flipped ones read towards the 
   o.destroy();
 });
 
+test("link mode: tipHref return values with unsafe URL schemes are neutralised to '#'", () => {
+  // A naive consumer who passes the tip id straight into the href (e.g. (id) => id) must not
+  // be exploitable when a tree carries a label like 'javascript:alert(1)' or 'data:text/html,...'.
+  const o = new LabelOverlay(() => {});
+  // Build a tree where tip 0 has an attacker label.
+  const attackerTree = {
+    ...tree,
+    tipLabels: ['javascript:alert(1)', ...tree.tipLabels.slice(1)],
+  };
+  o.update(labels([[0, 100, 40]]), attackerTree, opts({ tipHref: (id) => id }), theme, 'rectangular');
+  const a = o.layer.children[0];
+  assert.equal(a.tag, 'a');
+  // The href is normalised to '#' because 'javascript:' is not in the safe-scheme allowlist.
+  // Clicking the link now does nothing instead of running the attacker's code.
+  assert.equal(a.href, '#');
+  o.destroy();
+});
+
+test('link mode: safe schemes, fragments, and relative URLs are preserved verbatim', () => {
+  const o = new LabelOverlay(() => {});
+  const cases = [
+    ['https://example.org/A', 'https'],
+    ['http://example.org/A', 'http'],
+    ['mailto:a@b.com', 'mailto'],
+    ['#section', 'fragment'],
+    ['/absolute/path', 'absolute path'],
+    ['./relative', 'relative dot'],
+    ['../up', 'relative up'],
+    ['?query=1', 'query only'],
+  ];
+  for (const [url, kind] of cases) {
+    o.update(labels([[0, 100, 40]]), tree, opts({ tipHref: () => url }), theme, 'rectangular');
+    assert.equal(o.layer.children[0].href, url, `${kind} preserved`);
+    o.clear();
+  }
+  o.destroy();
+});
+
 test('link mode: real anchors that open the tip page safely; switching modes or theme font rebuilds the labels', () => {
   const o = new LabelOverlay(() => {});
   const href = (id) => `https://example.org/${id}`;

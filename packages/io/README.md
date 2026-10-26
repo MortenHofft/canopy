@@ -10,6 +10,42 @@ Parsers for phylogenetic tree files and the tree model they produce.
 
 Only single-quoted labels are handled, not double-quoted ones. Underscores in labels are kept, so tip ids equal the text in the file.
 
+## Warnings and strict mode
+
+Real-world tree files carry quirks: a missing trailing `;`, a stray comma, a non-numeric branch
+length. The parser accepts these and surfaces them as warnings on the tree, so the viewer can
+tell the publisher without refusing to render the file. A validator that would rather fail hard
+passes `{ strict: true }`.
+
+```ts
+const tree = parseNewick(text);              // never throws for recoverable issues
+if (tree.warnings.length) {                   // readonly ParserWarning[]
+  for (const w of tree.warnings) console.warn(`[${w.code}] ${w.message} (char ${w.position})`);
+}
+
+parseNewick(text, { strict: true });          // throws NewickError on the first warning
+parseNexus(text, { strict: true });           // same for NEXUS, plus 'missing-nexus-header'
+```
+
+Each `ParserWarning` has `{ code, message, position }`. Codes are stable identifiers:
+
+| Code | Meaning |
+|---|---|
+| `non-numeric-length` | `(A:xyz,B);` — branch length isn't a number; treated as missing |
+| `dangling-colon` | `(A:,B);` — `:` with no number after it; treated as missing |
+| `empty-tip` | `(A,,B);`, `(A,B,);`, `(,A,B);` — a stray comma created an unnamed tip |
+| `missing-trailing-semicolon` | tree input didn't end with `;` |
+| `double-colon` | `(A:1:2,B);` — a second `:` overwrites the first length (last wins) |
+| `extra-paren-root` | `((A:1,B:1):10);` — root wraps a single unlabeled internal child |
+| `missing-nexus-header` | NEXUS file didn't start with `#NEXUS` |
+
+Structurally broken input (unmatched parens, unterminated quote or comment), double-quoted labels
+(`("A","B");`), and a quote mid-token (`(A'q',B);`) always throw `NewickError` regardless of
+`strict`. `{ strict: true }` promotes every warning in the table above to a `NewickError` of
+the form `[<code>] <message> (at character <pos>)`.
+
+A clean parse has an empty `warnings` array in both modes.
+
 ## Duplicate tip labels
 
 Tip labels are lookup keys, not the identity of a tip: the same label can be on several tips (several sequences of one species, labels
