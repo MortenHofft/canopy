@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseNexus } from '@gbif-phylo/io';
 
-const TAXA = (title = '', labels = 'A B C') => `BEGIN TAXA;${title ? ` TITLE ${title};` : ''} DIMENSIONS NTAX=3; TAXLABELS ${labels}; END;\n`;
+const TAXA = (title = '', labels = 'A B C') =>
+  `BEGIN TAXA;${title ? ` TITLE ${title};` : ''} DIMENSIONS NTAX=${(labels.match(/'[^']*'|\S+/g) ?? []).length}; TAXLABELS ${labels}; END;\n`;
 const TREES = (link = '', tree = '(A,B,C)') => `BEGIN TREES;${link ? ` LINK TAXA=${link};` : ''} TREE t = ${tree};\nEND;\n`;
 const codes = (nex) => parseNexus(nex).ignored.map((n) => n.code);
 
@@ -160,4 +161,14 @@ test("an unquoted '_' reads as a space when rows, taxa and tips are compared", (
     ['nexus-sequences-ignored'],
   );
   assert.match(r.ignored[0].message, /3 sequences/);
+});
+
+test('NTAX that disagrees with the taxa listed is reported, and the file is read', () => {
+  const r = parseNexus('#NEXUS\nbegin taxa; dimensions ntax=2; taxlabels A B C; end;\n' + TREES());
+  assert.deepEqual(r.tree.tipLabels, ['A', 'B', 'C']);
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['nexus-ntax-mismatch'],
+  );
+  assert.match(r.ignored[0].message, /NTAX=2 but lists 3/);
 });

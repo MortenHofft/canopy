@@ -436,7 +436,7 @@ export interface NexusResult {
   translateEntries: number;
   /** What the parser skipped or could not connect to the tree (empty for a file that holds nothing but the trees and
    *  the taxa they use). Codes: nexus-ignored-block, nexus-block-unreadable, nexus-scan-stopped, nexus-other-trees,
-   *  nexus-taxa-unused, nexus-taxa-ambiguous, nexus-taxa-link-unresolved, nexus-taxa-mismatch, nexus-taxon-numbers,
+   *  nexus-taxa-unused, nexus-taxa-ambiguous, nexus-taxa-link-unresolved, nexus-taxa-mismatch, nexus-ntax-mismatch, nexus-taxon-numbers,
    *  nexus-sequences-ignored, nexus-sequences-unlinked. */
   ignored: NexusNote[];
 }
@@ -770,6 +770,9 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         `The TAXA block${x.title ? ` "${x.title}"` : ''} (${x.labels.length} taxa) is not connected to the tree that was read`,
         x.at,
       );
+  }
+  if (used && used.ntax >= 0 && used.ntax !== used.labels.length) {
+    note('nexus-ntax-mismatch', 'taxa', `The TAXA block says NTAX=${used.ntax} but lists ${used.labels.length} taxa`, used.at);
   }
   if (used) {
     const names = new Set(used.labels.map(nameKey));

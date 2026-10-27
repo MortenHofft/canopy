@@ -55,6 +55,7 @@ A tip is named, in this order, by its TRANSLATE token, by a taxon label, or by a
 | `nexus-taxa-ambiguous` | several TAXA blocks and the TREES block has no `LINK TAXA=`; the last one before it was assumed |
 | `nexus-taxa-link-unresolved` | `LINK TAXA=` names a title no TAXA block has |
 | `nexus-taxa-mismatch` | tips that are not in the TAXA block, and taxa with no tip (by label) |
+| `nexus-ntax-mismatch` | the TAXA block says `NTAX=n` but lists another number of taxa (DendroPy refuses such a file; we read it) |
 | `nexus-taxon-numbers` | some tips were taxon numbers (not a TRANSLATE token, not a taxon label) and were replaced by the label at that position in the TAXA block |
 | `nexus-sequences-ignored` | a CHARACTERS or DATA block is not read; every row matches a tip by label |
 | `nexus-sequences-unlinked` | the same, but some rows match no tip or some tips have no row (the message gives the counts), or the rows could not be told apart from wrapped lines |
