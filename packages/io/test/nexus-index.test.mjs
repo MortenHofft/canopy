@@ -155,7 +155,7 @@ test('options reach every tree: annotations and strict', () => {
   assert.throws(() => nexusIndex('begin trees; tree a = (A,B); end;', { strict: true }), /missing-nexus-header/);
 });
 
-test('an index of thousands of trees reads each one without a rescan', () => {
+test('a file of thousands of trees: the index, the last tree and every tree', () => {
   const n = 5000;
   let nex = '#NEXUS\nbegin taxa; dimensions ntax=3; taxlabels A B C; end;\nbegin trees; translate 1 A, 2 B, 3 C;\n';
   for (let i = 0; i < n; i++) nex += `tree STATE_${i * 1000} = [&U] (1:${i + 1},(2:1,3:1):1);\n`;
@@ -163,8 +163,103 @@ test('an index of thousands of trees reads each one without a rescan', () => {
   const index = nexusIndex(nex);
   assert.equal(index.trees.length, n);
   assert.equal(index.trees[n - 1].state, (n - 1) * 1000);
-  // reading the last tree costs one tree, whatever comes before it
   const last = index.parse(n - 1).tree;
   assert.equal(last.length[last.tipNode[0]], n);
   assert.equal([...nexusTrees(nex)].length, n);
+});
+
+test('tree info: the offsets, the weight and rooted flag in odd places, the state names', () => {
+  const nex = `#NEXUS
+begin trees;
+  tree b = [&W 1/0] (x,y);
+  tree c = [&W 1e400] (x,y);
+  tree d = [&W 2e-1] (x,y);
+  tree gen_30 = (x,y);
+  tree STATE.4 = (x,y);
+  tree e = [& R ] (x,y);
+  [c] tree a = [&R &W 2] (x,y);
+end;`;
+  const t = nexusIndex(nex).trees;
+  assert.deepEqual(
+    t.slice(0, 3).map((x) => x.weight),
+    [null, null, 0.2],
+  );
+  assert.deepEqual(
+    t.slice(3, 5).map((x) => x.state),
+    [null, null],
+  );
+  assert.equal(t[5].rooted, true);
+  assert.equal(nex.slice(t[6].start, t[6].end), 'tree a = [&R &W 2] (x,y)'); // from the keyword, a comment before it left out
+  assert.deepEqual([t[6].rooted, t[6].weight], [true, 2]);
+  // an END read into the command (no ';') is not part of the tree
+  const open = '#NEXUS\nbegin trees; tree a = (x,y)\nend;';
+  const [a] = nexusIndex(open).trees;
+  assert.equal(open.slice(a.start, a.end), 'tree a = (x,y)');
+});
+
+test('the index cannot be changed from outside, and trees do not share a header warning', () => {
+  const nex = 'begin trees; tree a = (A,B); tree b = (A,B); end;';
+  const index = nexusIndex(nex);
+  assert.ok(Object.isFrozen(index.trees[0]) && Object.isFrozen(index.ignored));
+  const [a, b] = [index.parse(0).tree, index.parse(1).tree];
+  assert.deepEqual(
+    a.warnings.map((w) => w.code),
+    ['missing-nexus-header'],
+  );
+  assert.notEqual(a.warnings[0], b.warnings[0]);
+});
+
+test('parse(i) brings the notes that depend on its tips, the sequence notes too', () => {
+  const nex = `#NEXUS
+begin taxa; dimensions ntax=2; taxlabels A B; end;
+begin characters; dimensions nchar=2; format datatype=dna; matrix
+A AC
+B GT
+; end;
+begin trees; tree t = (A,B); tree u = (A,C); end;`;
+  const index = nexusIndex(nex);
+  assert.deepEqual(index.ignored, []);
+  assert.deepEqual(
+    index.parse(0).ignored.map((n) => n.code),
+    ['nexus-sequences-ignored'],
+  );
+  assert.deepEqual(
+    index.parse(1).ignored.map((n) => n.code),
+    ['nexus-taxa-mismatch', 'nexus-sequences-unlinked'],
+  );
+  assert.deepEqual(
+    parseNexus(nex).ignored.map((n) => n.code),
+    ['nexus-sequences-ignored', 'nexus-other-trees'],
+  );
+});
+
+test('a TITLE and a LINK match the way names do: case and an unquoted _ for a space do not matter', () => {
+  const nex = "#NEXUS\nbegin taxa; title 'My Taxa'; dimensions ntax=2; taxlabels A B; end;\nbegin trees; link taxa = My_taxa; tree t = (1,2); end;";
+  const index = nexusIndex(nex);
+  assert.deepEqual(index.ignored, []);
+  assert.deepEqual(index.parse(0).tree.tipLabels, ['A', 'B']);
+});
+
+test('TRANSLATE entries that are not a token and a name are reported, not guessed', () => {
+  const nex = '#NEXUS\nbegin trees; translate 1 Homo sapiens, 2 Pan, 3 Gorilla; tree t = (1,2,3); end;';
+  const index = nexusIndex(nex);
+  assert.deepEqual(
+    index.ignored.map((n) => n.code),
+    ['nexus-translate-malformed'],
+  );
+  assert.match(index.ignored[0].message, /1 TRANSLATE entries.*Homo sapiens/);
+  assert.deepEqual(index.parse(0).tree.tipLabels, ['1', 'Pan', 'Gorilla']);
+  const odd = nexusIndex('#NEXUS\nbegin trees; translate 1 A 2 B 3; tree t = (1,2); end;');
+  assert.deepEqual(
+    odd.ignored.map((n) => n.code),
+    ['nexus-translate-malformed'],
+  );
+});
+
+test('a file with thousands of blocks is indexed without a quadratic step', () => {
+  let nex = '#NEXUS\n';
+  for (let i = 0; i < 20000; i++) nex += `begin taxa; dimensions ntax=1; taxlabels t${i}; end; begin trees; tree x${i} = (t${i},u); end;\n`;
+  const index = nexusIndex(nex);
+  assert.equal(index.trees.length, 20000);
+  assert.deepEqual([...index.parse(19999).tree.tipLabels], ['t19999', 'u']);
 });

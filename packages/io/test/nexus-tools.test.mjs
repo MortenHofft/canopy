@@ -391,3 +391,37 @@ test('the first block is reported at its BEGIN, not at #NEXUS', () => {
   const nex = '#NEXUS\n\nbegin sets;\n charset x = 1-2;\nend;\nbegin trees; tree t = (a,b); end;';
   assert.equal(parseNexus(nex).ignored[0].position, nex.indexOf('begin sets'));
 });
+
+test('an END after a tree with no ";" is found whatever comment stands before or after it', () => {
+  const long = '[' + 'x'.repeat(300) + ']';
+  for (const tail of ['(a,b)[&c]END;', '(a,b) END [x[y]z];', `(a,b) END ${long};`, '(a,b)\nendblock\n[&c]']) {
+    const r = parseNexus(`#NEXUS\nbegin trees; tree a = ${tail}`);
+    assert.equal(toNewick(r.tree), '(a,b);', tail.slice(0, 30));
+    assert.deepEqual(
+      r.tree.warnings.map((w) => w.code),
+      ['missing-trailing-semicolon'],
+      tail.slice(0, 30),
+    );
+  }
+});
+
+test('parseNexus reports the links of the tree it returns, not those of other TREES blocks', () => {
+  const nex = `#NEXUS
+begin taxa; title one; dimensions ntax=2; taxlabels a b; end;
+begin taxa; title two; dimensions ntax=2; taxlabels x y; end;
+begin trees; link taxa = one; tree t = (a,b); end;
+begin trees; link taxa = nope; tree u = (a,b); end;
+begin trees; tree v = (a,b); end;`;
+  assert.deepEqual(
+    parseNexus(nex, 0).ignored.map((n) => n.code),
+    ['nexus-taxa-unused', 'nexus-other-trees'],
+  );
+  assert.deepEqual(
+    parseNexus(nex, 1).ignored.map((n) => n.code),
+    ['nexus-taxa-unused', 'nexus-taxa-unused', 'nexus-taxa-link-unresolved', 'nexus-other-trees'],
+  );
+  assert.deepEqual(
+    parseNexus(nex, 2).ignored.map((n) => n.code),
+    ['nexus-taxa-unused', 'nexus-taxa-mismatch', 'nexus-taxa-ambiguous', 'nexus-other-trees'],
+  );
+});
