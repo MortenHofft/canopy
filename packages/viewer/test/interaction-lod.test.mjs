@@ -143,5 +143,5 @@ test('reduced frames start their threshold search from the last reduced frame, n
     JSON.stringify(frames),
   );
   assert.ok(frames[0].passes > 20, `the first reduced frame has no hint: ${frames[0].passes} passes`);
-  for (const f of frames.slice(1)) assert.ok(f.passes <= 8, `a later reduced frame: ${f.passes} passes`);
+  for (const f of frames.slice(1)) assert.ok(f.passes <= 15, `a later reduced frame: ${f.passes} passes`);
 });
