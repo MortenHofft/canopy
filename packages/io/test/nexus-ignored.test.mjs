@@ -130,3 +130,14 @@ test('line endings: CRLF and old Mac CR-only files read their sequence rows the 
     );
   }
 });
+
+test("an unquoted '_' reads as a space when rows, taxa and tips are compared", () => {
+  // from Biopython's Tests/Nexus/test_Nexus_input.nex: one taxon spelled both ways in an interleaved matrix
+  const rows = "'B b' ACGT\n A ACGT\n C ACGT\n\n B_b ACGT\n A ACGT\n C ACGT";
+  const r = parseNexus('#NEXUS\n' + TAXA('', "A 'B b' C") + DATA(rows) + TREES('', '(A,B_b,C)'));
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['nexus-sequences-ignored'],
+  );
+  assert.match(r.ignored[0].message, /3 sequences/);
+});

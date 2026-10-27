@@ -526,7 +526,7 @@ interface NexusBlock {
   labels: string[];
   ntax: number;
   nchar: number;
-  /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block. */
+  /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block, with '_' read as a space. */
   rows: Set<string>;
   unreadable: boolean;
 }
@@ -556,6 +556,9 @@ const linkValue = (head: string, key: RegExp): string => {
   const m = key.exec(head);
   return m ? firstWord(m[1].trim()).toLowerCase() : '';
 };
+
+/** NEXUS reads an unquoted '_' as a space, so t2_the_name and 't2 the name' are one taxon: names are compared this way. */
+const nameKey = (l: string): string => l.replace(/_/g, ' ');
 
 const sample = (xs: string[]): string => xs.slice(0, 3).join(', ') + (xs.length > 3 ? `, … (${xs.length} in all)` : '');
 
@@ -636,7 +639,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       } else if ((block === 'characters' || block === 'data') && kw === 'matrix') {
         for (const line of head.replace(/^\s*matrix\b/i, '').split(/\r\n|\r|\n/)) {
           const l = line.trim();
-          if (l) cur.rows.add(firstWord(l));
+          if (l) cur.rows.add(nameKey(firstWord(l)));
         }
       } else if (block === 'trees' && kw === 'translate') {
         const toks = tokens(head.replace(/^\s*translate\b/i, ''));
@@ -691,8 +694,8 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       found.block?.at ?? 0,
     );
 
-  const tips = new Set<string>();
-  for (let r = 0; r < tree.tipCount; r++) tips.add(tree.labels[tree.tipNode[r]]);
+  const tips = new Map<string, string>(); // name key -> tip label
+  for (let r = 0; r < tree.tipCount; r++) tips.set(nameKey(tree.labels[tree.tipNode[r]]), tree.labels[tree.tipNode[r]]);
 
   // Which TAXA block the tree's block refers to: the one named by LINK, else the last one before it.
   const taxaBlocks = blocks.filter((bl) => bl.name === 'taxa');
@@ -725,10 +728,10 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       );
   }
   if (used) {
-    const names = new Set(used.labels);
-    const noTaxon = [...tips].filter((l) => !names.has(l));
-    const noTip = used.labels.filter((l) => !tips.has(l));
-    if (!translate.size && tips.size && [...tips].every((l) => /^[1-9]\d*$/.test(l)) && noTaxon.length === tips.size) {
+    const names = new Set(used.labels.map(nameKey));
+    const noTaxon = [...tips].filter(([k]) => !names.has(k)).map(([, l]) => l);
+    const noTip = used.labels.filter((l) => !tips.has(nameKey(l)));
+    if (!translate.size && tips.size && noTaxon.length === tips.size && noTaxon.every((l) => /^[1-9]\d*$/.test(l))) {
       note(
         'nexus-numeric-tips',
         'trees',
@@ -758,16 +761,16 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       continue;
     }
     const noTip = [...bl.rows].filter((l) => !tips.has(l));
-    const noRow = [...tips].filter((l) => !bl.rows.has(l));
+    const noRow = [...tips].filter(([k]) => !bl.rows.has(k)).map(([, l]) => l);
     if (noTip.length || noRow.length) {
       note(
         'nexus-sequences-unlinked',
         bl.name,
-        `${what}; ${bl.rows.size - noTip.length} rows match a tip by exact label, ${noTip.length} rows match none (${sample(noTip)}), ${noRow.length} tips have no row (${sample(noRow)})`,
+        `${what}; ${bl.rows.size - noTip.length} rows match a tip by label, ${noTip.length} rows match none (${sample(noTip)}), ${noRow.length} tips have no row (${sample(noRow)})`,
         bl.at,
       );
     } else {
-      note('nexus-sequences-ignored', bl.name, `${what}; every row matches a tip by exact label`, bl.at);
+      note('nexus-sequences-ignored', bl.name, `${what}; every row matches a tip by label`, bl.at);
     }
   }
   notes.sort((x, y) => x.position - y.position);
