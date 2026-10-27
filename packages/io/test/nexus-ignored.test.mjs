@@ -87,10 +87,12 @@ test('taxon numbers: TRANSLATE token first, then taxon label, then position in t
   const withTable = '#NEXUS\n' + TAXA() + 'BEGIN TREES; TRANSLATE 1 C, 2 B, 3 A; TREE t = (1,2,3); END;';
   assert.deepEqual(parseNexus(withTable).tree.tipLabels, ['C', 'B', 'A']);
   assert.deepEqual(codes(withTable), []);
-  // a taxon label wins over the position: the taxon called "2" stays "2", the number 3 is the third taxon
-  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA('', '2 A B') + TREES('', '(2,3,A)')).tree.tipLabels, ['2', 'B', 'A']);
-  // out of range, or no TAXA block: left alone
-  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA() + TREES('', '(1,2,7)')).tree.tipLabels, ['A', 'B', '7']);
+  // numbers count only when every tip is one: a tree that mixes names and numbers keeps the numbers as names
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA('', '2 A B') + TREES('', '(2,3,A)')).tree.tipLabels, ['2', '3', 'A']);
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA('', 'Otter Mink Badger') + TREES('', '(Otter,2,Badger)')).tree.tipLabels, ['Otter', '2', 'Badger']);
+  // out of range, or no TAXA block: left alone, all of them
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA() + TREES('', '(1,2,7)')).tree.tipLabels, ['1', '2', '7']);
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA() + TREES('', '(0,1,2)')).tree.tipLabels, ['0', '1', '2']);
   assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (1,2); end;').tree.tipLabels, ['1', '2']);
 });
 

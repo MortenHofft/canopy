@@ -442,6 +442,64 @@ between us and DendroPy:
   `("A","B");`, `BEGIN TREES` without `#NEXUS` — DendroPy rejects, phylio rejects, we accept. Same
   list as above.
 
+## NEXUS against DendroPy and other test suites
+
+Measured 2026-10-27 with DendroPy 5.1.3 (issue #136). Two runs, both in `tests/bench/parsers/src`.
+
+**Whole files, `nexus-dendropy-corpus.mjs`.** Every file that starts with `#NEXUS` in DendroPy's own test data (82 files: MrBayes `.t`/`.con` and
+BEAST output of the primates, cetaceans and pythonidae sets, PAUP and Mesquite files, TreeBASE exports, hand-made TRANSLATE and multi-block cases).
+For the first, second and last tree of each file: tip labels, node count, number and sum of branch lengths, root degree, and one hash of the shape with
+every edge length, plus the number of trees. **81 of 82 agree.** The one file DendroPy refuses (`mixed/GEBA.mixed.nexus`) starts with a UTF-8 byte order mark
+("Expecting '#NEXUS'"); we read it. DendroPy needs its `DataSet` API for the two files with several TAXA blocks (`TreeList` raises `TooManyTaxaError`);
+the helper falls back to it.
+
+**Small cases, `nexus-edge-compare.mjs`.** 165 fixtures in `fixtures/edge/nexus-*.json`, taken from or inspired by other test suites by four research
+passes (delegated to agents, each fixture then run through DendroPy; the agents' reading of the upstream tests is not independently checked):
+
+| Source | Fixtures | Licence | Copied |
+|---|---|---|---|
+| DendroPy tests | 41 | BSD-3-Clause | 2 verbatim, 39 rephrased |
+| Biopython tests | 34 | Biopython License Agreement | 6 verbatim, 28 rephrased |
+| forester (Java), R `ape`, R `treeio` | 52 | GPL-3, GPL-2/3, Artistic-2.0 | none: ideas only, inputs written from scratch |
+| phylotree.js and others | 38 | MIT, BSD, Biopython (and own inputs) | 18 verbatim, 20 rephrased |
+
+The `ape` GitHub repository has no `tests/` directory, so its ideas come from `R/read.nexus.R`, NEWS and the manual page. phytools, ETE, scikit-bio, auspice and augur,
+IQ-TREE and Mesquite sample files were not looked at. `@vibbioinfocore/phylio`, patristic and newick-js have no NEXUS tests. Notices for the verbatim ones are in
+`fixtures/edge/NOTICE-nexus.md`. The MrBayes `.con.tre` and BEAST 2 inputs are written by hand in the format of their output (**unverified** against a real run).
+
+All 165 behave as recorded (`packages/io/test/nexus-edge-fixtures.test.mjs`, no DendroPy needed). DendroPy and we give the same answer on 148; the 17 where we differ are all
+deliberate or are DendroPy limits, and each fixture that departs from its source's expectation says why (`oursWhy`).
+
+### Bugs the comparison found (all fixed)
+
+| Found by | What was wrong |
+|---|---|
+| DendroPy corpus (`multitreeblocks2.nex`) | Tips given as numbers with no TRANSLATE entry stayed `1`, `2`; the standard (and DendroPy) name them by position in the TAXA block |
+| Biopython fixtures | A bracket inside a quoted name (`'isn''that [a] strange name?'`) was cut out of TRANSLATE and TAXLABELS |
+| `ape` idea | A quoted tree name holding `=` (`tree 'a=b' = ...`) failed, and `''` in a tree name was not unescaped |
+| forester idea | Numbers resolved per tip would rename an accession such as `92829` in a tree that mixes names and numbers: now all-or-nothing, as in forester |
+| DendroPy-style fixture | A tree with no `;` before `END` got the label `end` on its root, silently: now the warning `missing-trailing-semicolon` (strict throws) |
+| Own probe | Sequence rows were mis-split in files with CR-only line endings; `t2_the_name` and `'t2 the name'` were two taxa |
+| DendroPy | `NTAX` that disagrees with the labels was not reported: now `nexus-ntax-mismatch` |
+
+### Where we differ on purpose
+
+- **Case.** NEXUS names are case-insensitive and DendroPy returns the TAXA block's spelling for a tip written in another case. We keep the tip as written: labels are join keys to GBIF.
+- **Several TAXA blocks, no `LINK`.** DendroPy raises `LinkRequiredError`; we use the last TAXA block before the trees and say so (`nexus-taxa-ambiguous`).
+- **Duplicate tip labels, a branch length with no number, a missing `#NEXUS` header, an unnamed tree, a missing final `;`:** read (the last three with a warning, strict mode throws on the warnings); DendroPy rejects some of them.
+- **`UTREE`:** read. DendroPy 5.1.3 finds no tree.
+- **Numbers as taxon numbers:** all-or-nothing (forester), not per tip (DendroPy), see above.
+- **Only the requested tree is parsed.** A broken later tree is not noticed until it is opened.
+- **Not NEXUS:** double-quoted names throw (forester and `ape` accept them).
+
+Reproduce (needs `pip install dendropy` and a checkout of DendroPy for the first):
+
+```bash
+cd tests/bench/parsers
+node --experimental-transform-types --no-warnings src/nexus-dendropy-corpus.mjs <dendropy>/tests/unittests/data
+node --experimental-transform-types --no-warnings src/nexus-edge-compare.mjs [--all]
+```
+
 ## How to reproduce
 
 ```bash

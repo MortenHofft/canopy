@@ -442,7 +442,7 @@ export interface NexusResult {
 }
 
 /** Next ';'-terminated statement starting at p, respecting 'quotes' and [comments]; end = position after ';'. */
-function nexusStatement(text: string, p: number, quoted: boolean): { stmt: string; end: number } | null {
+function nexusStatement(text: string, p: number, quoted: boolean): { stmt: string; end: number; terminated: boolean } | null {
   const n = text.length;
   const s = p;
   while (p < n) {
@@ -459,11 +459,11 @@ function nexusStatement(text: string, p: number, quoted: boolean): { stmt: strin
           break;
         }
       }
-    } else if (c === 59) return { stmt: text.slice(s, p), end: p + 1 };
+    } else if (c === 59) return { stmt: text.slice(s, p), end: p + 1, terminated: true };
     else p++;
   }
   const rest = text.slice(s).trim();
-  return rest ? { stmt: rest, end: n } : null;
+  return rest ? { stmt: rest, end: n, terminated: false } : null;
 }
 
 /** `s` without its [comments]; a 'quoted' name keeps any brackets it holds. */
@@ -674,12 +674,25 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       } else if (block === 'trees' && (kw === 'tree' || kw === 'utree')) {
         if (total++ !== treeIndex) continue;
         // body: name = [comment] newick, with comments still in place (parseNewick skips them)
-        // '=' inside a quoted tree name is not expected; first '=' outside [] is the separator
+        // the first '=' outside [comments] and 'quoted names' is the separator
         let b = 0;
         let eq = -1;
         for (let i = 0; i < st.stmt.length; i++) {
           const c = st.stmt.charCodeAt(i);
-          if (c === 91) b++;
+          if (c === 39 && b === 0) {
+            i++;
+            for (;;) {
+              const e = st.stmt.indexOf("'", i);
+              if (e < 0) {
+                i = st.stmt.length;
+                break;
+              }
+              i = e + 1;
+              if (st.stmt.charCodeAt(i) !== 39) break;
+              i++;
+            }
+            i--;
+          } else if (c === 91) b++;
           else if (c === 93) b--;
           else if (c === 61 && b === 0) {
             eq = i;
@@ -690,18 +703,30 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         const name = stripComments(st.stmt.slice(0, eq))
           .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
           .trim()
-          .replace(/^'(.*)'$/s, '$1');
-        const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
+          .replace(/^'(.*)'$/s, (_, q: string) => q.replace(/''/g, "'"));
+        // No ';' after the tree: the END of the block was read into the statement, or the file stopped
+        let body = st.stmt.slice(eq + 1);
+        const endAt = /\s(?:end|endblock)\s*$/i.exec(body)?.index ?? -1;
+        if (endAt >= 0) body = body.slice(0, endAt);
+        const noSemicolon = endAt >= 0 || !st.terminated;
+        if (noSemicolon && strict) {
+          throw new NewickError('[missing-trailing-semicolon] the TREE command has no ";" after the tree', from + st.stmt.length);
+        }
+        const tree = parseNewick(body + ';', opts);
         // A tip is named by its TRANSLATE token, else by a taxon label, else by a taxon number (its 1-based position in the
-        // TAXA block): the order of the NEXUS standard, and DendroPy's.
+        // TAXA block): the order of the NEXUS standard, and DendroPy's. Numbers count only when every tip the table does not
+        // name is an in-range number that is no taxon label (as in forester): a tree that mixes names and numbers has numbers
+        // that are names (an accession such as 92829), and renaming one of them would be wrong without a word.
         const labels = taxaOf(cur)?.labels ?? [];
         const known = new Set(labels);
+        const rest = tree.tipLabels.filter((l) => !translate.has(l));
+        const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(l));
         let byNumber = 0;
         if (translate.size || labels.length) {
           tree.relabelTips((l) => {
             const t = translate.get(l);
             if (t !== undefined) return t;
-            if (labels.length && !known.has(l) && /^[1-9]\d*$/.test(l) && Number(l) <= labels.length) {
+            if (numbered) {
               byNumber++;
               return labels[Number(l) - 1];
             }
@@ -709,7 +734,15 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
           });
         }
         if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
+        if (noSemicolon) {
+          (tree.warnings as ParserWarning[]).push({
+            code: 'missing-trailing-semicolon',
+            message: `The TREE command has no ";" after the tree (${endAt >= 0 ? 'END follows it' : 'the file ends'})`,
+            position: from + st.stmt.length,
+          });
+        }
         found = { tree, name, seen: total, block: cur, byNumber };
+        if (endAt >= 0) cur = null; // the END was part of this statement
       }
     }
   } catch (e) {

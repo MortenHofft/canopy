@@ -4,7 +4,8 @@
 // With no file: every fixtures/edge/nexus-*.json. Needs `pip install dendropy`. Imports the parser from the sources.
 //
 // A fixture has { id, input, wellFormed, tipCount, tipLabels, source, licence, copied, note }; tipCount and tipLabels
-// (of the first tree, sorted) may be null for "not asserted". Per fixture, three results are compared:
+// (of the first tree, sorted) may be null for "not asserted". `ours` ("parses" or "throws") with `oursWhy` records a deliberate
+// difference from the source library's expectation; `oursWarns` lists warning codes we must raise. Per fixture, three results are compared:
 //   expected    what the fixture says: parses with these tips, or is malformed
 //   ours        parseNexus, tree 0
 //   dendropy    TreeList (DataSet when there are several TAXA blocks), preserve_underscores, tree 0
@@ -48,9 +49,9 @@ const dp = py.stdout
 
 const sameLabels = (a, b) => a.length === b.length && [...a].sort().every((x, i) => x === [...b].sort()[i]);
 /** 'ok' parsed and matches the expectation, 'wrong' parsed but not as expected, 'error' threw. */
-function judge(fx, r) {
-  if (r.error) return fx.wellFormed ? 'error' : 'ok';
-  if (!fx.wellFormed) return 'wrong';
+function judge(fx, r, wellFormed = fx.wellFormed) {
+  if (r.error) return wellFormed ? 'error' : 'ok';
+  if (!wellFormed) return 'wrong';
   if (fx.tipCount != null && r.tips !== fx.tipCount) return 'wrong';
   if (fx.tipLabels != null && !sameLabels(r.labels, fx.tipLabels)) return 'wrong';
   return 'ok';
@@ -69,7 +70,8 @@ const rows = fixtures.map((fx, i) => {
   if (d0.error) d = { error: d0.error.slice(0, 100) };
   else if (!d0.trees || !d0.trees['0']) d = { error: 'no trees' };
   else d = { tips: d0.trees['0'].tips, labels: d0.trees['0'].labels };
-  const ours = judge(fx, o);
+  // `ours` on a fixture says what we do on purpose where that is not what the fixture's source expects (see oursWhy)
+  const ours = judge(fx, o, fx.ours ? fx.ours === 'parses' : fx.wellFormed);
   const dendropy = judge(fx, d);
   const agree = o.error || d.error ? !!o.error === !!d.error : o.tips === d.tips && sameLabels(o.labels, d.labels);
   return { id: fx.id, wellFormed: fx.wellFormed, ours, dendropy, agree, o, d, fx };

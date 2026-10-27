@@ -276,3 +276,28 @@ begin trees; translate 1 'isn''that [a] strange name?', 2 'x]y', 3 z; tree t = [
   assert.deepEqual(parseNexus("#NEXUS\nbegin trees; tree t = ('a [b] c',d);end;").tree.tipLabels, ['a [b] c', 'd']);
   assert.deepEqual(parseNexus("#NEXUS\nbegin trees; tree t = (a[comment 'with' quotes],d);end;").tree.tipLabels, ['a', 'd']);
 });
+
+test("a quoted tree name may hold '=' and parentheses", () => {
+  assert.equal(parseNexus("#NEXUS\nbegin trees; tree 'a=b (c)' = [&R] (x,y,z); end;").treeName, 'a=b (c)');
+  assert.equal(parseNexus("#NEXUS\nbegin trees; tree 'it''s=1' = (x,y,z); end;").treeName, "it's=1");
+  assert.deepEqual(parseNexus("#NEXUS\nbegin trees; tree 'a=b' = (x,y,z); end;").tree.tipLabels, ['x', 'y', 'z']);
+});
+
+test('a tree with no ";" before END, or at the end of the file, is read with a warning (strict throws); END is not a label', () => {
+  for (const nex of [
+    '#NEXUS\nbegin trees;\n tree t = (A,B,C)\nend;',
+    '#NEXUS\nbegin trees;\n tree t = (A,B,C)\nendblock;',
+    '#NEXUS\nbegin trees; tree t = (A,B,C)',
+  ]) {
+    const r = parseNexus(nex);
+    assert.deepEqual(r.tree.tipLabels, ['A', 'B', 'C']);
+    assert.equal(r.tree.labels[0], '');
+    assert.deepEqual(
+      r.tree.warnings.map((w) => w.code),
+      ['missing-trailing-semicolon'],
+    );
+    assert.throws(() => parseNexus(nex, { strict: true }), /missing-trailing-semicolon/);
+  }
+  assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (A,B,C); end;').tree.warnings, []);
+  assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (A,B)end; end;').tree.labels[0], 'end'); // a root called "end"
+});

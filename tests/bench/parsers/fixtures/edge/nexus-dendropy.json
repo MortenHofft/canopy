@@ -1,0 +1,650 @@
+[
+ {
+  "id": "dendropy-multi-trees-blocks-quoted-names",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nbegin taxa;\n\tdimensions ntax=15;\n\ttaxlabels\n        a b c e f g h i j k l m n o p\n\t;\nend;\n\nBEGIN TREES;\n    tree 'the first tree' = ((i:1,(j:2,k:3)e:4)b:5,((l:6,m:7)g:8,(n:9,(o:10,p:11)h:12)f:13)c:14)a:15;\n    tree 'the SECOND tree' = ((i:1,(j:2,k:3)e:4)b:5,((l:6,m:7)g:8,(n:9,(o:10,p:11)h:12)f:13)c:14)a:15;\nEND;\n\nBEGIN TREES;\n    tree 'The Third Tree'  = ((i:1,(j:2,k:3)e:4)b:5,((l:6,m:7)g:8,(n:9,(o:10,p:11)h:12)f:13)c:14)a:15;\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 8,
+  "tipLabels": [
+   "i",
+   "j",
+   "k",
+   "l",
+   "m",
+   "n",
+   "o",
+   "p"
+  ],
+  "source": "tests/unittests/data/trees/multitreeblocks.nex; test_dataio_nexus_reader_tree_list.py::NexusMultiTreeListTestCase.test_multiple_trees1 and test_dataio_nexus_reader_dataset.py::DataSetNexusTreesTestCase.test_multiple_trees",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Two TREES blocks sharing one TAXA block, tree names with spaces and mixed case, internal nodes labelled with taxon names (the file has 3 blocks and 9 trees; the library expects 9 trees in one TreeList and 3 tree lists in a DataSet; this fixture is cut to 2 blocks and 3 trees)."
+ },
+ {
+  "id": "dendropy-multitreeblocks2-title-link-translate",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nBEGIN TAXA;\n\tTITLE X2; DIMENSIONS NTAX=4; TAXLABELS x2.1 x2.2 x2.3 x2.4;\nEND;\n\nBEGIN TREES;\n\tTITLE x2.trees1;\n\tLINK Taxa = X2;\n\tTRANSLATE\n\t    1 x2.1,\n\t    2 x2.2,\n\t    3 x2.3,\n\t    4 x2.4\n\t    ;\n    TREE 1 = (1,(2,(3,4)));\n    TREE 2 = (1,(2,(3,4)));\nEND;\n\nBEGIN TREES;\n\tTITLE x2.trees2;\n\tLINK Taxa = X2;\n    TREE 1 = (1,(2,(3,4)));\n    TREE 2 = (1,(2,(3,4)));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "x2.1",
+   "x2.2",
+   "x2.3",
+   "x2.4"
+  ],
+  "source": "tests/unittests/data/trees/multitreeblocks2.nex; test_dataio_nexus_reader_tree_list.py::NexusMultiTreeListTestCase.test_multiple_trees2",
+  "licence": "BSD-3-Clause",
+  "copied": "verbatim",
+  "note": "TITLE/LINK on TAXA and TREES blocks, TRANSLATE in the first block only, dotted labels; the library expects 4 trees and exactly 4 taxa (x2.1..x2.4), i.e. the second block's bare numbers resolve through the TAXA block, not as new taxa."
+ },
+ {
+  "id": "dendropy-numbers-without-translate-second-block",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nBEGIN TAXA;\n\tTITLE X2; DIMENSIONS NTAX=4; TAXLABELS x2.1 x2.2 x2.3 x2.4;\nEND;\n\nBEGIN TREES;\n\tTITLE x2.trees2;\n\tLINK Taxa = X2;\n    TREE 1 = (1,(2,(3,4)));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "x2.1",
+   "x2.2",
+   "x2.3",
+   "x2.4"
+  ],
+  "source": "tests/unittests/data/trees/multitreeblocks2.nex (second TREES block alone); test_dataio_nexus_reader_tree_list.py::NexusMultiTreeListTestCase.test_multiple_trees2",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Tip numbers with no TRANSLATE resolve to the 1-based position in the linked TAXA block; in the full file the library asserts the namespace stays at 4 labels, DendroPy gives x2.1..x2.4 here."
+ },
+ {
+  "id": "dendropy-translate-no-taxa-block-untranslated-internal",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nBEGIN TREES;\n    TRANSLATE\n         1 a,\n         2 b,\n         3 c,\n         4 e,\n         5 f,\n         6 g,\n         7 h,\n         8 i,\n         9 j,\n        10 k,\n        11 l,\n        12 m,\n        13 n,\n        14 o,\n        15 p\n    ;\n    [        ((i:17,(j:3, k:3)e:14)b:33,(( l:6, m:6)g:30,(n:23, ( o:11, p:11)h:12)f:13)c:14)a:15;]\n    TREE 1 = ((8:17,(9:3,10:3)e:14)b:33,((11:6,12:6)g:30,(13:23,(14:11,15:11)h:12)f:13)c:14)a:15;\n    TREE 2 = ((8:17,(9:3,10:3)e:14)b:33,((11:6,12:6)g:30,(13:23,(14:11,15:11)h:12)f:13)c:14)a:15;\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 8,
+  "tipLabels": [
+   "i",
+   "j",
+   "k",
+   "l",
+   "m",
+   "n",
+   "o",
+   "p"
+  ],
+  "source": "tests/unittests/data/trees/curated-with-translate-block-and-no-taxa-block-and-untranslated-internal-taxa.nex; test_dataio_nexus_reader_tree_list.py::NexusStandardTreesWithTranslateBlockButNoTaxaBlockTestCase.test_with_translate_but_no_taxa_block",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TRANSLATE without a TAXA block, a whole Newick tree sitting in a comment before the first TREE, tree names that are numbers, internal nodes labelled with plain (untranslated) names; the library expects 3 trees named 1,2,3 matching the curated tree (cut to 2 here)."
+ },
+ {
+  "id": "dendropy-translate-taxa-block-numeric-internal-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nbegin taxa;\n\tdimensions ntax=15;\n\ttaxlabels\n        a b c e f g h i j k l m n o p\n\t;\nend;\n\nBEGIN TREES;\n    TRANSLATE\n         1 a,\n         2 b,\n         3 c,\n         4 e,\n         5 f,\n         6 g,\n         7 h,\n         8 i,\n         9 j,\n        10 k,\n        11 l,\n        12 m,\n        13 n,\n        14 o,\n        15 p\n    ;\n    TREE 1 = ((8:17, (9:3, 10:3)4:14)2:33, ((11:6, 12:6)6:30, (13:23, (14:11, 15:11)7:12)5:13)3:14)1:15;\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 8,
+  "tipLabels": [
+   "i",
+   "j",
+   "k",
+   "l",
+   "m",
+   "n",
+   "o",
+   "p"
+  ],
+  "source": "tests/unittests/data/trees/curated-with-translate-block-and-internal-taxa.nex; test_dataio_nexus_reader_dataset.py::DataSetNexusTreesTestCase.test_with_translate",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TAXA block plus TRANSLATE where internal-node labels are translate numbers too (4 -> e, 2 -> b); the library expects the curated tree with internal taxa resolved; tips are i..p."
+ },
+ {
+  "id": "dendropy-truncated-tree-statement",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n    TREE t1 =\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_nexus_reader_tree_list.py::NexusReaderTruncatedTreeStatementTestCase.test_tree_statement_without_definition",
+  "licence": "BSD-3-Clause",
+  "copied": "verbatim",
+  "note": "Stream ends right after 'TREE t1 ='; the library expects NexusReaderError (the old bug was a bare AttributeError)."
+ },
+ {
+  "id": "dendropy-numbers-via-taxa-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS A B C;\nEND;\nBEGIN TREES;\n TREE t = (1,(2,3));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py::NexusTaxonSymbolMapperTest.test_standard_lookup_and_create (require_taxon_for_symbol(str(idx+1)))",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Numeric tokens with no TRANSLATE resolve to taxa-block position; the library's symbol-mapper test asserts both label and 1-based number resolve to the same taxon."
+ },
+ {
+  "id": "dendropy-numbers-vs-labels-conflict",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS 3 2 1;\nEND;\nBEGIN TREES;\n TREE t = (1,(2,3));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py::NexusTaxonSymbolMapperTest.test_tricky_token_lookup (idea only)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Taxon labels that are themselves numbers in a different order than their positions: token 1 could mean label '1' or position 1 (label '3'); the standard is ambiguous and the library's tests do not cover this exact input; DendroPy 5.1.3 gave labels 1,2,3 (label wins over position), so tipLabels is left null."
+ },
+ {
+  "id": "dendropy-case-insensitive-taxa-match",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS AAA BBB CCC;\nEND;\nBEGIN TREES;\n TREE t = (aaa,(Bbb,ccC));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py::testDefaultCaseSensitivityChars / testCaseInsensitiveChars (idea only, for trees)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Tree labels differing in case from the TAXA block; the library tests case-insensitive matching for character matrices, not trees; DendroPy gave AAA BBB CCC (TAXA-block spelling), so tipLabels is null because a parser may keep the spelling as written."
+ },
+ {
+  "id": "dendropy-nexus-ntax-less-than-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS AAA BBB CCC DDD EEE;\nEND;\nBEGIN TREES;\n TREE t = (AAA,(BBB,CCC));\nEND;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py::NexusTooManyTaxaTest.testTooManyTaxaNonInterleaved",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "NTAX=2 but five TAXLABELS; the library expects TooManyTaxaError for a character matrix (the library's input has only the TAXA block; here a TREES block was added and DendroPy 5.1.3 raises the same error when reading trees).",
+  "ours": "parses",
+  "oursWhy": "read, and reported as nexus-ntax-mismatch (DendroPy refuses)"
+ },
+ {
+  "id": "dendropy-translate-two-blocks-different-maps",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate 1 A, 2 B, 3 C;\n tree t1 = (1,(2,3));\nend;\nbegin trees;\n translate 1 X, 2 Y, 3 Z;\n tree t2 = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/test_dataio_nexus_reader_dataset.py::DataSetNexusTreesTestCase.test_multiple_trees (idea only)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Two TREES blocks with different TRANSLATE tables; the first tree is A,B,C and the second X,Y,Z (verified in DendroPy); library tests do not cover the table scoping."
+ },
+ {
+  "id": "dendropy-empty-trees-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\nend;\n",
+  "wellFormed": true,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TREES block with no tree; expected no trees, DendroPy returned an empty tree list; tipCount null as there is no first tree.",
+  "ours": "throws",
+  "oursWhy": "no tree to show: an error that says what the file holds"
+ },
+ {
+  "id": "dendropy-translate-reordered-numeric-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate 1 2, 2 1, 3 3;\n tree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "2",
+   "1",
+   "3"
+  ],
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py::NexusTaxonSymbolMapperTest.test_tricky_token_lookup (idea only)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TRANSLATE values that are themselves numbers; translation is one pass, so token 1 gives label '2', not a second lookup (DendroPy gave 2,1,3)."
+ },
+ {
+  "id": "dendropy-translate-quoted-values",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate\n  1 'Homo sapiens',\n  2 Pan_troglodytes,\n  3 'it''s';\n tree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Homo sapiens",
+   "Pan_troglodytes",
+   "it's"
+  ],
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::test_quoted_underscores / test_unquoted_underscores_preserved (idea only, in TRANSLATE)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Quoted TRANSLATE values with a space and a doubled apostrophe, plus an unquoted underscore value kept as written (DendroPy preserve_underscores=True); by the standard an unquoted underscore means a space, and DendroPy's default converts it."
+ },
+ {
+  "id": "dendropy-translate-with-comments",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate [first]\n  1 A, [one]\n  2 B,\n  3 [three] C\n ;\n tree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Comments inside the TRANSLATE command, including between key and value; DendroPy ignores them."
+ },
+ {
+  "id": "dendropy-translate-partial-leaves-bare-label",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate 1 A, 2 B;\n tree t = (1,(2,C));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Tip C is not in the TRANSLATE table and stays as written; DendroPy gives A,B,C."
+ },
+ {
+  "id": "dendropy-two-taxa-blocks-link",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n TITLE first; DIMENSIONS NTAX=3; TAXLABELS A B C;\nEND;\nBEGIN TAXA;\n TITLE second; DIMENSIONS NTAX=3; TAXLABELS X Y Z;\nEND;\nBEGIN TREES;\n TITLE tr; LINK TAXA=second;\n TREE t = (1,(2,3));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "X",
+   "Y",
+   "Z"
+  ],
+  "source": "tests/unittests/data/trees/multitreeblocks2.nex (LINK idea, two blocks) ",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "LINK TAXA picks the second of two TAXA blocks; numbers resolve against it (X,Y,Z), verified with DendroPy."
+ },
+ {
+  "id": "dendropy-two-taxa-blocks-no-link",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n TITLE first; DIMENSIONS NTAX=3; TAXLABELS A B C;\nEND;\nBEGIN TAXA;\n TITLE second; DIMENSIONS NTAX=3; TAXLABELS X Y Z;\nEND;\nBEGIN TREES;\n TREE t = (1,(2,3));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": null,
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Two TAXA blocks and a TREES block with no LINK; the standard is ambiguous (first, last or error) and DendroPy 5.1.3 raises LinkRequiredError, which is not tested by the library, so wellFormed is true and tipLabels is null."
+ },
+ {
+  "id": "dendropy-taxlabels-metadata-comments",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin taxa;\n dimensions ntax=3;\n taxlabels\n  A [&x=1,y={1,2}]\n  B [free comment]\n  C;\nend;\nbegin trees;\n tree t = (A[&r=1]:1,(B:1,C:1)[&support=0.9]:2);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/data/trees/dendropy-test-trees-multifurcating-rooted-annotated.nexus (comments inside TAXLABELS); test_dataio_nexus_reader_tree_list.py::test_collection_comments_and_annotations",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Comments and [&...] metadata after TAXLABELS entries; the library expects them attached as annotations, so labels are unaffected."
+ },
+ {
+  "id": "dendropy-rooted-annotated-comment-pile",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n    DIMENSIONS NTAX=3;\n    TAXLABELS t1 t2 t3;\nEND;\nBEGIN TREES;\n    TREE Tree1 = [&R] [&k_$_a=false,n=54,v={9.3,90.5},s=\"replevy 299 pseudoramulus\"][plain comment one][plain comment two](t1:1,(t2:1,t3:1):1);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "t1",
+   "t2",
+   "t3"
+  ],
+  "source": "tests/unittests/data/trees/dendropy-test-trees-multifurcating-rooted-annotated.nexus; test_dataio_nexus_reader_tree_list.py::test_collection_comments_and_annotations",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "[&R], a [&...] block with $ _ { } and a double-quoted string with spaces, then plain comments, all before the Newick; the library expects metadata and plain comments to be kept separately; the tree itself is plain."
+ },
+ {
+  "id": "dendropy-newick-multi-position-comments",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (([xxx]A[A][A]:[A][A]1[A][A],\n [xxx]B[B][B]:[B][B]1[B][B])\n [xxx]AB[AB][AB]:[AB][AB]1[AB][AB],\n ([xxx]C[C][C]:[C][C]1[C][C],\n [xxx]D[D][D]:[D][D]1[D][D])\n [xxx]CD[CD][CD]:[CD][CD]1[CD][CD])\n [xxx]Root[Root][Root]:[Root][Root]1[Root][Root];\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::CommentReadingTests.test_multi_position_comments (wrapped in NEXUS)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Comments before the label, after the label, before and after the branch length of every node; the library expects 7 comments per node and length 1; DendroPy gives tips A,B,C,D."
+ },
+ {
+  "id": "dendropy-newick-comments-in-nexus-tree-names",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree 'my tree; 1' = (A,B);\n tree t[comment]2 = (A,(B,C));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "A",
+   "B"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "A quoted tree name containing a semicolon and a comment glued into an unquoted name; DendroPy reads two trees, first is A,B."
+ },
+ {
+  "id": "dendropy-nested-comments-and-bang",
+  "kind": "nexus",
+  "input": "#NEXUS\n[!Generated by foo\nspanning lines]\nbegin trees;\n tree t [outer [inner] still outer] = [!shown] [&R] (A[c1],(B,[x]C));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Nested [ ] comment, [!...] comment before and inside, comment between tree name and '='; the standard allows nesting; DendroPy reads A,B,C."
+ },
+ {
+  "id": "dendropy-block-keywords-in-comment",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n [end; begin trees; tree x = (Q,R);]\n tree t = (A,(B,C));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Block and tree commands inside a comment must not be seen; DendroPy reads one tree A,B,C."
+ },
+ {
+  "id": "dendropy-commands-inside-quoted-translate-values",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate 1 'end;', 2 'tree x = (', 3 ']';\n tree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "end;",
+   "tree x = (",
+   "]"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Quoted TRANSLATE values containing ';', '(' and ']' must stay inside the quote; DendroPy gives end;, 'tree x = (' and ]."
+ },
+ {
+  "id": "dendropy-quoted-labels-punctuation",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = ('Homo sapiens':1,'O''Brien':1,'a:b':1,'x,y':1,'p(q)':1,'a;b':1,'a[b]':1,Mus_musculus:1);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 8,
+  "tipLabels": [
+   "Homo sapiens",
+   "O'Brien",
+   "a:b",
+   "x,y",
+   "p(q)",
+   "a;b",
+   "a[b]",
+   "Mus_musculus"
+  ],
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::test_quoted_underscores (idea, extended)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Quoted labels with space, doubled apostrophe, colon, comma, parentheses, semicolon and bracket, plus an unquoted underscore kept as written (DendroPy preserve_underscores=True)."
+ },
+ {
+  "id": "dendropy-quoted-taxlabels-semicolon",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin taxa;\n dimensions ntax=3;\n taxlabels 'a b' 'c;d' E_f;\nend;\nbegin trees;\n tree t = ('a b',('c;d',E_f));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a b",
+   "c;d",
+   "E_f"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TAXLABELS with quoted entries holding a space and a semicolon; DendroPy keeps them whole."
+ },
+ {
+  "id": "dendropy-unquoted-underscores-with-internal-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (a_1:3.14e-2,(b_2:1.2,(c_3:0.5,d_4:0.7)e_5:111)f_6:222)g_7:333;\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "a_1",
+   "b_2",
+   "c_3",
+   "d_4"
+  ],
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::test_unquoted_underscores_preserved (wrapped in NEXUS)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Unquoted underscores in leaf and internal labels with scientific-notation lengths; with preserve_underscores the library expects a_1 etc.; its default converts to 'a 1' as the standard says; internal labels e_5 f_6 g_7 are not tips."
+ },
+ {
+  "id": "dendropy-skip-sets-private-characters-assumptions",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS A B C;\nEND;\nBEGIN CHARACTERS;\n DIMENSIONS NCHAR=2;\n FORMAT DATATYPE=DNA;\n MATRIX\n A AC\n B AG\n C AT\n ;\nEND;\nbegin sets;\n taxset x = A B;\nend;\nbegin mrbayes_private;\n lset nst=6; tree fake = (X,Y);\nend;\nBEGIN TREES;\n TREE r = (A,(B,C));\nEND;\nbegin assumptions;\n options deftype=unord;\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/test_dataio_nexus_taxon_handling.py (TAXA + CHARACTERS document); data/trees/*.nex",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TAXA, CHARACTERS, SETS and an unknown private block (containing a fake 'tree' command) around the TREES block; only the real tree is read, DendroPy gives A,B,C."
+ },
+ {
+  "id": "dendropy-unknown-commands-in-trees-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n title x;\n properties partition=foo;\n tree t = (A,(B,C));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Unknown command (PROPERTIES) and TITLE inside TREES; DendroPy skips them."
+ },
+ {
+  "id": "dendropy-missing-end-at-eof",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (A,(B,C));\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TREES block without END; at EOF; standard requires END; but DendroPy 5.1.3 accepts it and reads A,B,C (lenient; the library's tests do not cover it)."
+ },
+ {
+  "id": "dendropy-missing-tree-semicolon-before-end",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (A,(B,C))\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "TREE command ended by END; with no ';' of its own; DendroPy 5.1.3 accepts it (lenient; the library's own newick tests expect an error for a bare statement without ';' in the newick schema)."
+ },
+ {
+  "id": "dendropy-tree-star-and-utree",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree * best = (A,(B,C));\n utree u = (A,B,(C,D));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar and the old PAUP UTREE command)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "'TREE *' default marker and the old UTREE command; DendroPy reads both trees, first is A,B,C."
+ },
+ {
+  "id": "dendropy-rooting-and-weight-comments",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t1 = [&W 1/2] [&U] (A,(B,C));\n tree t2 = [&W 0.25][&R] ((A,B),C);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/data/trees/dendropy-test-trees-multifurcating-rooted-annotated.nexus ([&R] pattern); test_dataio_nexus_reader_tree_list.py::test_collection_comments_and_annotations",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "[&W 1/2] weight and [&U]/[&R] flags before the Newick; they are not part of the tree; DendroPy gives A,B,C for both."
+ },
+ {
+  "id": "dendropy-crlf-line-endings",
+  "kind": "nexus",
+  "input": "#NEXUS\r\nBEGIN TAXA;\r\n DIMENSIONS NTAX=3;\r\n TAXLABELS A B C;\r\nEND;\r\nBEGIN TREES;\r\n TRANSLATE\r\n  1 A,\r\n  2 B,\r\n  3 C;\r\n TREE t = (1,(2,3));\r\nEND;\r\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Windows line endings throughout; DendroPy reads A,B,C."
+ },
+ {
+  "id": "dendropy-mixed-case-keywords",
+  "kind": "nexus",
+  "input": "#nexus\nBeGiN TrEeS;\n TrEe T = (A,(B,C));\nEnD;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "tests/unittests/data/trees/*.nex (lowercase begin/end style)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Lowercase '#nexus' and mixed-case commands; keywords are case-insensitive, DendroPy reads A,B,C."
+ },
+ {
+  "id": "dendropy-duplicate-tip-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (A,A,B);\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::NewickTreeDuplicateTaxa.test_duplicate_taxa1",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Duplicate tip label; the library's own newick test expects NewickReaderDuplicateTaxonError by default (a DendroPy taxon-identity rule, not NEXUS syntax: a lenient viewer may reasonably accept it and show tips A,A,B); DendroPy 5.1.3 raises here as well.",
+  "ours": "parses",
+  "oursWhy": "duplicate tips are kept; TreeModel.duplicateTipLabels() reports them"
+ },
+ {
+  "id": "dendropy-invalid-statement-1",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (a,(b,c)) (b,(a,c));\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::NewickTreeInvalidStatements.test_invalid_trees (wrapped in NEXUS)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Invalid tree statement (two Newick trees in one statement); the library expects DataParseError in the newick schema and DendroPy 5.1.3 raises NewickReaderMalformedStatementError when the same text is in a NEXUS TREE command."
+ },
+ {
+  "id": "dendropy-invalid-statement-2",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (a,(b,c)):;\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::NewickTreeInvalidStatements.test_invalid_trees (wrapped in NEXUS)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Invalid tree statement (branch length missing a number); the library expects DataParseError in the newick schema and DendroPy 5.1.3 raises NewickReaderMalformedStatementError when the same text is in a NEXUS TREE command.",
+  "ours": "parses",
+  "oursWhy": "a branch length with no number is read as missing, with the warning dangling-colon",
+  "oursWarns": [
+   "dangling-colon"
+  ]
+ },
+ {
+  "id": "dendropy-unbalanced-parens-second-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = (A,(B,C));\n tree u = (A,(B,D;\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/test_dataio_newick_reader_tree.py::NewickTreeInvalidStatements.test_invalid_trees (unbalanced idea, wrapped in NEXUS)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "A good first tree and a second with unbalanced parentheses; DendroPy raises for the whole file, so no partial result (the library tests only single newick statements).",
+  "ours": "parses",
+  "oursWhy": "only the requested tree is parsed: a broken later tree is not noticed until it is opened"
+ },
+ {
+  "id": "dendropy-unterminated-quote",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n tree t = ('A,B);\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "tests/unittests/(none: derived from the NEXUS grammar)",
+  "licence": "BSD-3-Clause",
+  "copied": "rephrased",
+  "note": "Unterminated single quote swallowing the rest of the document; DendroPy raises UnterminatedQuoteError (not covered by the library's own tests, so treat as the standard's view)."
+ }
+]
