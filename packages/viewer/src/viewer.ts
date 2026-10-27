@@ -473,7 +473,9 @@ export class TreeViewer {
         rowHeight: () => (this.opts.rowHeight === null ? null : resolveSize(this.opts.rowHeight, this.theme.labelSize)),
         maxTipSpacing: () => {
           const m = resolveSize(this.opts.maxTipSpacing, this.theme.labelSize);
-          if (m > 0) return m;
+          // never less than minCladePx (#95): clades and polytomies under it stay summaries, so deeper zoom must reach it
+          // never less than minCladePx (#95): clades and polytomies under it stay summaries, so deeper zoom must reach it
+          if (m > 0) return Math.max(m, this.minCladeFor(this.opts.layout === 'rectangular'));
           if (!this.warnedSpacing) {
             this.warnedSpacing = true;
             console.warn(`canopy: maxTipSpacing ${String(this.opts.maxTipSpacing)} is not a size (px, 'auto' or '<n>em'); no cap is applied`);
