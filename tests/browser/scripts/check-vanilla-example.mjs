@@ -210,6 +210,44 @@ await page.locator('#show-controls').check();
 await sleep(200);
 ok((await ev(() => document.querySelectorAll('.phylo-controls .phylo-control').length)) === 5, 'checking puts them back');
 
+// ---- colour by a sidecar column: tips coloured, a legend of the values, a swatch column; back to none
+await page.locator('#colour-by').selectOption('country_code');
+await sleep(300);
+const by = await ev(() => {
+  const v = window.__example.viewer;
+  return {
+    clades: v.getClades().length,
+    tips: v.getTree().tipCount,
+    entries: [...document.querySelectorAll('#legend-slot li')].map((e) => e.textContent),
+    inViewer: document.querySelectorAll('.phylo-legend').length,
+    swatch: !!v.columnCell('colour-by:country_code', 0),
+  };
+});
+ok(by.clades > 0 && by.clades <= by.tips, `colouring by country colours the tips with a value (${by.clades} of ${by.tips})`);
+ok(
+  by.entries.length > 1 && by.entries.length <= 9 && !by.entries.some((e) => /^Clade/.test(e)),
+  `the page's own legend lists the countries, not clades (${by.entries})`,
+);
+ok(by.inViewer === 0, 'and the viewer has no legend control of its own then');
+ok(by.swatch, 'and a swatch column is added');
+await page.locator('#show-controls').uncheck();
+await page.locator('#show-controls').check();
+await sleep(200);
+ok(
+  (await ev(() => document.querySelectorAll('.phylo-legend').length)) === 0,
+  'toggling Controls while coloured by a column does not bring back the per-tip clade legend',
+);
+await page.locator('#colour-by').selectOption('');
+await sleep(200);
+const none = await ev(() => ({
+  clades: window.__example.viewer.getClades().length,
+  swatch: !!window.__example.viewer.columnCell('colour-by:country_code', 0),
+}));
+ok(
+  none.clades === 0 && !none.swatch && (await ev(() => document.getElementById('legend-slot').hidden)),
+  `none puts the colours and the columns back (${JSON.stringify(none)})`,
+);
+
 // ---- dark theme from CSS custom properties: the canvas and the controls follow
 const bgPixel = () =>
   ev(() => {

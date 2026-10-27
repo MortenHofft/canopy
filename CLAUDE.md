@@ -89,6 +89,7 @@ npm workspaces (Node >= 22.7):
   - Do not use `pkill -f`.
 - **API conventions.**
   - Controls and popups are controls (`BaseControl`: listeners through `listen` / `domListen`) and use only the public API. The overview is the exception: it uses `viewerInternals`.
+  - **Headless first.** Whatever a control shows is also exposed as state, events and methods (for the legend: `legendItems(viewer)`, the `cladeschange` and related events, `zoomToNode`), so an app can draw its own. The built-in controls, `target` and the Explorer are renderings of that API, not the only way to use it. Put the logic in a pure function in its own module that the control calls, so a custom renderer and the control cannot drift apart and importing the function does not bring the control classes (add a `check:packages` scenario). See "Headless: your own controls" in `packages/viewer/docs/api.md`.
   - Built-in reactions to clicks and hovers listen with `{ asDefault: true }`, so apps can `preventDefault()` them.
   - Visual values are `TreeTheme` tokens (CSS `--phylo-*`), never constants in the drawing code.
 - **Rules of the core.** No recursion and no per-node allocation in the cut, draw and hit code. The two cut loops in `src/lod.ts` are separate copies on purpose (measured, see the header of `src/projection.ts`), so change them together.

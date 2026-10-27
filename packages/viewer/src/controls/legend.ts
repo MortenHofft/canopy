@@ -2,7 +2,8 @@
 // zooms to it. Hidden while there is nothing to show.
 
 import { BaseControl, type ControlOptions } from '../control.ts';
-import { cladeName, type CladeLabelFn } from '../clade-name.ts';
+import type { CladeLabelFn } from '../clade-name.ts';
+import { legendItems } from '../legend-items.ts';
 import type { TreeViewer } from '../viewer.ts';
 
 export interface LegendItem {
@@ -56,17 +57,7 @@ export class Legend extends BaseControl {
   /** The entries shown: the fixed items, or one per coloured clade (named by its label, else the clade's name with its tip count as detail, else 'Clade of N tips'). */
   items(v: TreeViewer): LegendItem[] {
     if (this.opts.items) return this.opts.items;
-    const t = v.getTree();
-    return v.getClades().map((c) => {
-      const row = t.globalId === null ? c.node : t.toLocal(c.node);
-      if (c.label !== undefined) return { colour: c.colour, label: c.label, node: c.node };
-      const tips = row >= 0 ? t.leafEnd[row] - t.leafStart[row] : 0;
-      const n = `${tips.toLocaleString('en')} tips`;
-      const name = cladeName(t, row, { formatLabel: v.options.formatLabel, cladeLabel: this.opts.cladeLabel ?? v.options.cladeLabel });
-      const tip = row >= 0 && t.childCount[row] === 0;
-      if (name === null) return { colour: c.colour, label: tip ? 'Unnamed tip' : `Clade of ${n}`, node: c.node };
-      return tip ? { colour: c.colour, label: name, node: c.node } : { colour: c.colour, label: name, detail: n, node: c.node };
-    });
+    return legendItems(v, { cladeLabel: this.opts.cladeLabel });
   }
 
   private render(v: TreeViewer): void {

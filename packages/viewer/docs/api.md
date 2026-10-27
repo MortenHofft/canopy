@@ -10,7 +10,7 @@ said otherwise.
 | `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once                                                                                                                                                  |
 | `@gbif-phylo/viewer/gbif.css`   | optional: GBIF design tokens mapped to the `--phylo-*` properties                                                                                                                                                                   |
 | `@gbif-phylo/react`             | `<TreeView>` ([below](#treeview))                                                                                                                                                                                                   |
-| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`; `@gbif-phylo/io/browser` as one file |
+| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` (a lazy `Sidecar` bound to a tree); `@gbif-phylo/io/browser` as one file |
 
 ## Quick start
 
@@ -233,6 +233,32 @@ Built-in controls (each in its own module; options extend `{ position, target, c
 `defaultControls({ zoom, fit, layoutToggle, search, legend, overview })` returns the usual set: zoom and fit on, the others off; each key is
 `true`, `false` or that control's options. `ICONS` holds the default icons (16 px SVG in `currentColor`).
 
+### Headless: your own controls
+
+The built-in controls are one way to draw state the viewer already exposes; none of them knows anything an app cannot read. For a different
+look or place (a legend in a side panel, a table, a framework component), skip the control and draw the data yourself: read the state,
+listen to the events that change it, and call the methods an interaction would call.
+
+| What                | State to read                                           | Events that change it                                                                   | On interaction                   |
+| ------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
+| The clade legend    | `legendItems(viewer, { cladeLabel? })`: `LegendItem[]`  | `cladeschange`, `treechange`, `sourcechange`, `optionschange` (`formatLabel`, `cladeLabel`) | `viewer.zoomToNode(item.node, true)` |
+| A colour-by legend  | `colourBy(...).items`, plain data                       | your own (you decide when the column changes)                                           | none (entries have no node)      |
+
+`legendItems` is the function the `Legend` control calls, so a legend of your own names its clades exactly as the built-in one does. It is in
+its own module: importing it does not bring the control classes.
+
+```ts
+import { legendItems } from '@gbif-phylo/viewer';
+const draw = () => myLegend.render(legendItems(viewer)); // any renderer: DOM, React state, a canvas
+for (const type of ['cladeschange', 'treechange', 'sourcechange', 'optionschange'] as const) viewer.on(type, draw); // optionschange: formatLabel, cladeLabel
+draw();
+// in the click handler of an entry: viewer.zoomToNode(item.node, true)
+```
+
+The `target` option of a control only moves the built-in markup to an element of the page; it keeps the control's markup and styles. Use it for
+the quick case, and the pattern above when the page should own the markup. [`examples/vanilla`](../../../examples/vanilla/src/main.ts) draws its
+country legend this way. The Explorer is the opinionated version: one way we think works well, built from the same public API.
+
 ## Overlays and popups ([`src/overlays/`](../src/overlays))
 
 All three are controls with position `'custom'`: add them with `addControl`.
@@ -285,6 +311,27 @@ A `ColumnRenderer` draws a custom column:
 
 The viewer draws the header. A renderer that throws is reported once and the frame goes on. See the heat strip in
 [`examples/vanilla/src/main.ts`](../../../examples/vanilla/src/main.ts).
+
+### Colouring by an attribute
+
+`colourBy(tree, categories, theme, options?)` colours the tips by one categorical attribute, for example a column of a sidecar table read by
+`@gbif-phylo/io` (`parseSidecar(text).bind(tree).categories('country')`: integer codes by node, so nothing is kept per tip or per cell).
+`tree` is anything with `tipCount` and `tipNode`, so a `TreeModel` fits. It returns data and changes nothing:
+
+```ts
+const by = colourBy(tree, binding.categories('country'), viewer.getTheme(), { palette: myColours }); // { clades, items, column, coloured }
+viewer.setClades(by.clades); // tip branches, dots and labels
+viewer.setColumns([...columns, by.column]); // a column of swatches
+viewer.addControl(new Legend({ title: 'Country', items: by.items })); // fixed items: the default legend would list one entry per tip
+// or draw by.items yourself (Headless: your own controls)
+```
+
+The most frequent values take the palette's colours in turn (default the theme's `categorical`, five colours: pass a longer `palette` for
+more); the rest share `other` (default the theme's `muted`) and the legend ends with an "Other" entry that counts them. Tips without a value
+are not coloured and have no swatch. The cost is `setClades`' own: about 55 ms for 100,000 tips and 0.4 s for 500,000 (measured with one
+entry per tip), once per change of the column; drawing is unchanged, a colour class per row. A clade collapsed or summarised by the level
+of detail shows its summary colour, not its tips'. The result belongs to the tree its codes were made for (node ids): after `setTree` or a tree-ops edit, bind the sidecar to the new tree and call `colourBy` again, on `treechange`; the swatch column reads the codes by the node ids of the tree it is drawn for and would show the old colours on the wrong rows. To show a tip's other values, read them on demand from the binding (`binding.get`,
+`binding.record`) in a popup. See [`examples/vanilla`](../../../examples/vanilla/src/main.ts).
 
 ## Theme or option
 
