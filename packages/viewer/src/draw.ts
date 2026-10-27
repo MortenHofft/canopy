@@ -380,9 +380,33 @@ export function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProje
   ctx.moveTo(cx + r0 * proj.L.COS![i], cy + r0 * proj.L.SIN![i]);
   ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
   const len = (a1 - a0) * r1;
-  if (len * len > ARC_SAGITTA_K * r1 && r1 < RADIAL_FAR_ARC_R) ctx.arc(cx, cy, r1, a0, a1);
-  else ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  const far = r1 >= RADIAL_FAR_ARC_R && !proj.all;
+  if (!far && len * len > ARC_SAGITTA_K * r1) ctx.arc(cx, cy, r1, a0, a1);
+  else {
+    // far off, the outer edge is an arc over the visible angles only (as the bands do, #77), joined to the fan's own corners by chords
+    // out of view, so the edges towards the apex stay where they are and the fill reaches the tips in view, not a chord across the whole
+    // fan (#94). A wrapped window shows 0..hi and lo..2pi: the pieces go in increasing angle, so the path runs along the edge.
+    if (far && !proj.wrap) fanArcPiece(ctx, proj, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi));
+    else if (far) {
+      fanArcPiece(ctx, proj, r1, a0, Math.min(a1, proj.hi));
+      fanArcPiece(ctx, proj, r1, Math.max(a0, proj.lo), a1);
+    }
+    ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  }
   ctx.closePath();
+}
+
+/** The outer edge of a far fan (see fanSummaryShape) over the visible angles a0..a1, as an arc where it is visibly curved, else a straight
+ *  line; nothing when a1 <= a0. */
+function fanArcPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r1: number, a0: number, a1: number): void {
+  if (!(a1 > a0)) return;
+  const { cx, cy } = proj.T;
+  const len = (a1 - a0) * r1;
+  if (len * len > ARC_SAGITTA_K * r1) ctx.arc(cx, cy, r1, a0, a1);
+  else {
+    ctx.lineTo(cx + r1 * Math.cos(a0), cy + r1 * Math.sin(a0));
+    ctx.lineTo(cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1));
+  }
 }
 
 /** One ring segment of a band (see fanSummaryShape): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
