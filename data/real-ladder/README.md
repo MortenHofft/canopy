@@ -6,7 +6,7 @@ Real published phylogenies at roughly 200, 1k, 10k, 100k and 1M tips, for benchm
 
 * **Two families, because no single source has everything.** The Open Tree of Life (OTL) family has species-name tips (joinable to the GBIF backbone) and reaches 1M tips, but it is **topology only: it has no branch lengths**. The GTDB family and the fish tree have **real branch lengths** but cover fewer sizes, and GTDB tips are genome accessions, not species names.
 * **Dated (ultrametric) tree:** only the Fish Tree of Life (11,638 tips, millions of years). Its licence is unclear, so it is **fetched, not committed**. **Non-ultrametric trees:** GTDB (substitutions per site, assumed) and the fish RAxML tree. No dated tree above 12k tips was obtained (see *Not found*).
-* The 1M rung (OTL Metazoa, 1.49M tips) is **not committed** (15 MB gzipped); run `./fetch.sh otl`.
+* The 1M rung (OTL Metazoa, 1.49M tips) and the full OTL tree (2.39M tips) are **not committed** (15 MB and 24 MB gzipped); run `./fetch.sh otl`, which takes them from this repo's `data/otl-large` branch and checks them against the manifest.
 * Committed: 11 files, 5.2 MB in total. Fetched: the rest.
 * GTDB files are CC BY-SA 4.0 (ShareAlike), not CC0/CC-BY: see *Sources and licences*.
 
@@ -21,6 +21,7 @@ Real published phylogenies at roughly 200, 1k, 10k, 100k and 1M tips, for benchm
 | 10k | [otl-10k-amphibia](trees/otl-10k-amphibia.nwk.gz) | 10,018 | 4,856 | OTL synthesis opentree16.1 | CC0 | Clade extraction below 'Amphibia_ott544595'. | 444 KB / 126 KB | `67cadc63876657b623ad9f068d804301f636f496f5fc0d66b095c38b47782c4c` | committed |
 | 100k | [otl-100k-vertebrata](trees/otl-100k-vertebrata.nwk.gz) | 90,938 | 47,708 | OTL synthesis opentree16.1 | CC0 | Clade extraction below 'Vertebrata_ott801601' (90,938 tips, -9% from 100k). | 3.9 MB / 1.1 MB | `93d744bb2217b68f185949951ac3d5d50a2db91880617caa7292ca713bdc14e7` | committed |
 | 1M | `otl-1m-metazoa` (`fetched/`) | 1,490,245 | 227,168 | OTL synthesis opentree16.1 | CC0 | Clade extraction below 'Metazoa_ott691846' (1.49M tips; mostly arthropods). | 50.7 MB / 14.3 MB | `00b46794cf8bb561d2a15f7ae93fdf854779a278fb3048fba61f3599de17d543` | fetched |
+| extra: full OTL tree | `otl-2m-full` (`fetched/`) | 2,385,875 | 339,807 | OTL synthesis opentree16.1 | CC0 | Whole synthetic tree opentree16.1, re-serialised. | 82.4 MB / 22.9 MB | `86bcd162bf307763225f0ba8e473c89b541231994269746e080a23fae66a9305` | fetched |
 | 1k (alt, random) | [otl-1k-vertebrata-random](trees/otl-1k-vertebrata-random.nwk.gz) | 1,000 | 897 | OTL synthesis opentree16.1 | CC0 | Random tip sample: the 1,000 tips of Vertebrata_ott801601 with the smallest sha256('gbif-phylo-ladder-1:'+tip label); ancestors kept, single-child nodes collapsed (no lengths exist). | 52 KB / 22 KB | `41b26c1e719ea34562c2e698dedc567c736a76bb4ae6fbbcc83bbfd5002a22cc` | committed |
 | 10k (alt, random) | [otl-10k-vertebrata-random](trees/otl-10k-vertebrata-random.nwk.gz) | 10,000 | 6,660 | OTL synthesis opentree16.1 | CC0 | As above with 10,000 tips. | 469 KB / 170 KB | `7e61e91d419182cd13e00aa998eb360481a2ef418721cf4c0bb87225273daeec` | committed |
 | 200 (with lengths) | [gtdb-0200-iainarchaeia](trees/gtdb-0200-iainarchaeia.nwk.gz) | 215 | 214 | GTDB R11-RS232 | CC BY-SA 4.0 | Clade extraction from ar53_r232 below the node labelled '99.0:p__Iainarchaeota; c__Iainarchaeia'. | 10 KB / 4 KB | `ddb84ea0b9799e517309cc164c45cf4fbb38fe806998e048264195e9cc12863f` | committed |
@@ -44,6 +45,7 @@ Branch-length columns are over all edges that carry a length (root edge excluded
 | otl-10k-amphibia | no | n/a | n/a | - | - | - | - | - | 42 | 408 | 188 | every internal node is named |
 | otl-100k-vertebrata | no | n/a | n/a | - | - | - | - | - | 76 | 448 | 6194 | every internal node is named |
 | otl-1m-metazoa | no | n/a | n/a | - | - | - | - | - | 99 | 8550 | 61282 | every internal node is named |
+| otl-2m-full | no | n/a | n/a | - | - | - | - | - | 111 | 12964 | 83305 | every internal node is named |
 | otl-1k-vertebrata-random | no | n/a | n/a | - | - | - | - | - | 35 | 11 | 0 | every internal node is named |
 | otl-10k-vertebrata-random | no | n/a | n/a | - | - | - | - | - | 57 | 55 | 0 | every internal node is named |
 | gtdb-0200-iainarchaeia | yes | no | subst./site (assumed, unverified) | 0.00326 | 0.07023 | 0.6804 | 9.689 | 0 / 0 / 0 | 22 | 2 | 0 | support value, optionally followed by a colon and  |
@@ -113,7 +115,8 @@ Items marked unverified were not checked against a primary source.
 * `otl-1k-testudines`: Clade extraction below 'Testudines_ott639666'.
 * `otl-10k-amphibia`: Clade extraction below 'Amphibia_ott544595'.
 * `otl-100k-vertebrata`: Clade extraction below 'Vertebrata_ott801601' (90,938 tips, -9% from 100k).
-* `otl-1m-metazoa`: Clade extraction below 'Metazoa_ott691846' (1.49M tips; mostly arthropods). The whole synthetic tree has 2,385,875 tips, above the 2M cap.
+* `otl-1m-metazoa`: Clade extraction below 'Metazoa_ott691846' (1.49M tips; mostly arthropods). The whole synthetic tree (otl-2m-full) has 2,385,875 tips.
+* `otl-2m-full`: Whole synthetic tree opentree16.1, re-serialised. Taken from the data/otl-large branch by fetch.sh.
 * `otl-1k-vertebrata-random`: Random tip sample: the 1,000 tips of Vertebrata_ott801601 with the smallest sha256('gbif-phylo-ladder-1:'+tip label); ancestors kept, single-child nodes collapsed (no lengths exist).
 * `otl-10k-vertebrata-random`: As above with 10,000 tips.
 * `gtdb-0200-iainarchaeia`: Clade extraction from ar53_r232 below the node labelled '99.0:p__Iainarchaeota; c__Iainarchaeia'. Branch lengths unchanged; root edge dropped.
@@ -130,7 +133,7 @@ Items marked unverified were not checked against a primary source.
 
 ```
 ./fetch.sh            # all sources (about 130 MB), writes fetched/*.nwk.gz, checks sha256 against manifest.json
-./fetch.sh otl        # only the OTL source (needed for the 1M rung)
+./fetch.sh otl        # only the two large OTL trees (1M and 2M rungs, 39 MB), from the data/otl-large branch
 python3 -I scripts/nwk.py stats trees/otl-10k-amphibia.nwk.gz   # tips, depth, lengths, sizes as JSON
 ```
 

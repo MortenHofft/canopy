@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Download the source trees, verify sha256, and (re)derive the ladder rungs.
 #   ./fetch.sh                 all sources, all rungs  (about 130 MB download)
-#   ./fetch.sh otl             only the Open Tree of Life source (86 MB; needed for the 1M rung)
+#   ./fetch.sh otl             only the two large Open Tree of Life trees (39 MB; 1M and 2M rungs), from the data/otl-large branch
 #   ./fetch.sh gtdb fish       several sources
 # Environment: CACHE (default ./.cache, git-ignored), OUT (default ./fetched, git-ignored).
 # Downloads are treated as untrusted data: they are only hashed, decompressed by Python and parsed.
@@ -19,8 +19,20 @@ get() { # dir url sha256
   echo "ok $f"
 }
 
+# The large OTL trees come from this repo's data/otl-large branch, not from files.opentreeoflife.org (the host can be
+# unreachable, and the files may move). The branch is the primary copy; manifest.json holds the sha256 they must match.
+OTL_BRANCH_URL="https://raw.githubusercontent.com/MortenHofft/canopy/data/otl-large/trees"
+get_branch() { # id
+  local f="$OUT/$1.nwk.gz" sha
+  mkdir -p "$OUT"
+  if [ ! -f "$f" ]; then curl -fsSL --retry 3 -o "$f.part" "$OTL_BRANCH_URL/$1.nwk.gz" && mv "$f.part" "$f"; fi
+  sha="$(python3 -I -c 'import json,sys; print([r["sha256_nwk"] for r in json.load(open(sys.argv[1]))["rungs"] if r["id"] == sys.argv[2]][0])' "$HERE/manifest.json" "$1")"
+  [ "$(gzip -dc "$f" | sha256sum | cut -d' ' -f1)" = "$sha" ] || { echo "sha256 mismatch for $f (expected $sha)" >&2; exit 1; }
+  echo "ok $f"
+}
+
 for s in "${SRC[@]}"; do case "$s" in
-  otl)  get opentree16.1 https://files.opentreeoflife.org/synthesis/opentree16.1/output/labelled_supertree/labelled_supertree_simplified_ottnames.tre 8101a8d13b6114fcadd4d4e199ab7238442ede705d227ee15d8d7a9056d96d11 ;;
+  otl)  get_branch otl-1m-metazoa; get_branch otl-2m-full ;;
   gtdb) # pinned release (not "latest") so the checksums stay valid; saved under the names ladder.py expects
         mkdir -p "$CACHE/gtdb"
         for pair in "bac120_r232.tree.gz bac120.tree.gz 8c51060f740da69ff7076ed0305250a881b23093413108450c90fc233fd54c19" \
@@ -39,11 +51,12 @@ esac; done
 # ladder.py derives only rungs whose source file exists; pass ids explicitly to limit work
 IDS=()
 for s in "${SRC[@]}"; do case "$s" in
-  otl)  IDS+=(otl-0200-canidae otl-1k-testudines otl-10k-amphibia otl-100k-vertebrata otl-1m-metazoa otl-2m-full otl-1k-vertebrata-random otl-10k-vertebrata-random) ;;
   gtdb) IDS+=(gtdb-0200-iainarchaeia gtdb-1k-nitrososphaeria gtdb-10k-archaea gtdb-100k-bacteria-random gtdb-190k-bacteria) ;;
   fish) IDS+=(fish-0200-random fish-1k-random fish-12k-timetree fish-12k-raxml) ;;
 esac; done
-python3 -I "$HERE/scripts/ladder.py" "$CACHE" "$OUT" "${IDS[@]}"
+if [ ${#IDS[@]} -gt 0 ]; then
+  python3 -I "$HERE/scripts/ladder.py" "$CACHE" "$OUT" "${IDS[@]}"
 
-# verify against the manifest (sha256 of the uncompressed Newick)
-python3 -I "$HERE/scripts/make_manifest.py" verify "$HERE/manifest.json" "$OUT"
+  # verify against the manifest (sha256 of the uncompressed Newick)
+  python3 -I "$HERE/scripts/make_manifest.py" verify "$HERE/manifest.json" "$OUT"
+fi

@@ -69,7 +69,8 @@ RUNGS = {
     "otl-1k-testudines": ("1k", "otl", "Clade extraction below 'Testudines_ott639666'."),
     "otl-10k-amphibia": ("10k", "otl", "Clade extraction below 'Amphibia_ott544595'."),
     "otl-100k-vertebrata": ("100k", "otl", "Clade extraction below 'Vertebrata_ott801601' (90,938 tips, -9% from 100k)."),
-    "otl-1m-metazoa": ("1M", "otl", "Clade extraction below 'Metazoa_ott691846' (1.49M tips; mostly arthropods). The whole synthetic tree has 2,385,875 tips, above the 2M cap."),
+    "otl-1m-metazoa": ("1M", "otl", "Clade extraction below 'Metazoa_ott691846' (1.49M tips; mostly arthropods). The whole synthetic tree (otl-2m-full) has 2,385,875 tips."),
+    "otl-2m-full": ("extra: full OTL tree", "otl", "Whole synthetic tree opentree16.1, re-serialised. Taken from the data/otl-large branch by fetch.sh."),
     "otl-1k-vertebrata-random": ("1k (alt, random)", "otl", "Random tip sample: the 1,000 tips of Vertebrata_ott801601 with the smallest sha256('gbif-phylo-ladder-1:'+tip label); ancestors kept, single-child nodes collapsed (no lengths exist)."),
     "otl-10k-vertebrata-random": ("10k (alt, random)", "otl", "As above with 10,000 tips."),
     "gtdb-0200-iainarchaeia": ("200 (with lengths)", "gtdb", "Clade extraction from ar53_r232 below the node labelled '99.0:p__Iainarchaeota; c__Iainarchaeia'. Branch lengths unchanged; root edge dropped."),
@@ -161,7 +162,7 @@ def readme():
     w("## Read this first\n")
     w("* **Two families, because no single source has everything.** The Open Tree of Life (OTL) family has species-name tips (joinable to the GBIF backbone) and reaches 1M tips, but it is **topology only: it has no branch lengths**. The GTDB family and the fish tree have **real branch lengths** but cover fewer sizes, and GTDB tips are genome accessions, not species names.")
     w("* **Dated (ultrametric) tree:** only the Fish Tree of Life (11,638 tips, millions of years). Its licence is unclear, so it is **fetched, not committed**. **Non-ultrametric trees:** GTDB (substitutions per site, assumed) and the fish RAxML tree. No dated tree above 12k tips was obtained (see *Not found*).")
-    w("* The 1M rung (OTL Metazoa, 1.49M tips) is **not committed** (15 MB gzipped); run `./fetch.sh otl`.")
+    w("* The 1M rung (OTL Metazoa, 1.49M tips) and the full OTL tree (2.39M tips) are **not committed** (15 MB and 24 MB gzipped); run `./fetch.sh otl`, which takes them from this repo's `data/otl-large` branch and checks them against the manifest.")
     w("* Committed: %d files, %s in total. Fetched: the rest." % (sum(r["status"] == "committed" for r in m["rungs"]), human(sum(r["bytes_gzip9"] for r in m["rungs"] if r["status"] == "committed"))))
     w("* GTDB files are CC BY-SA 4.0 (ShareAlike), not CC0/CC-BY: see *Sources and licences*.\n")
     w("## Rungs\n")
@@ -215,7 +216,7 @@ def readme():
         w("* `%s`: %s" % (r["id"], r["derivation"]))
     w("")
     w("## Reproducing\n")
-    w("```\n./fetch.sh            # all sources (about 130 MB), writes fetched/*.nwk.gz, checks sha256 against manifest.json\n./fetch.sh otl        # only the OTL source (needed for the 1M rung)\npython3 -I scripts/nwk.py stats trees/otl-10k-amphibia.nwk.gz   # tips, depth, lengths, sizes as JSON\n```\n")
+    w("```\n./fetch.sh            # all sources (about 130 MB), writes fetched/*.nwk.gz, checks sha256 against manifest.json\n./fetch.sh otl        # only the two large OTL trees (1M and 2M rungs, 39 MB), from the data/otl-large branch\npython3 -I scripts/nwk.py stats trees/otl-10k-amphibia.nwk.gz   # tips, depth, lengths, sizes as JSON\n```\n")
     w("Tools in `scripts/`: `nwk.py` (iterative parser, `stats`, `clades`, `extract`, `sample`, `check`), `ladder.py` (rung definitions and derivation), `make_manifest.py` (manifest, README, verification). Tip counts were cross-checked with a separate regular-expression count on every output file, and the OTL total (2,385,875) matches the count reported by the Open Tree API.\n")
     w("## Not found / not done\n")
     w("* No **dated tree above 12k tips**: Zanne et al. 2014 (32k tips, Dryad doi:10.5061/dryad.63q27, CC0 per the Dryad API) and Rabosky 2018's Dryad archive could not be downloaded (Dryad API needs a bearer token; direct file URLs return 403). Smith and Brown 2018 (79k) lives on GitHub releases, which the proxy blocks (the repository carries no licence file that could be seen). Upham mammals, Jetz birds, VertLife and TimeTree were not attempted.")
