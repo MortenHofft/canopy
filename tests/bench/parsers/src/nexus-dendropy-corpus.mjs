@@ -27,11 +27,21 @@ if (!root || root.startsWith('--')) {
 const jsonOut = argv.includes('--json') ? argv[argv.indexOf('--json') + 1] : null;
 const here = dirname(fileURLToPath(import.meta.url));
 
+/** UTF-8, or latin-1 for a file that is not UTF-8 (the same rule as dendropy-nexus-summary.py). */
+function readText(path) {
+  const b = readFileSync(path);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(b);
+  } catch {
+    return b.toString('latin1');
+  }
+}
+
 const files = [];
 for (const d of ['trees', 'mixed']) {
   for (const f of readdirSync(join(root, d)).sort()) {
     const p = join(root, d, f);
-    if (/^\s*#nexus\b/i.test(readFileSync(p, 'latin1').slice(0, 2000))) files.push(p);
+    if (/^\s*#nexus\b/i.test(readText(p).slice(0, 2000))) files.push(p);
   }
 }
 
@@ -92,13 +102,12 @@ function ours(text, i) {
 const rows = [];
 for (const f of files) {
   const name = f.slice(root.length + 1);
-  const text = readFileSync(f, 'latin1');
+  const text = readText(f);
   const d = dp.get(f);
-  let r;
   let treeCount = null;
   let err = null;
   try {
-    r = { first: ours(text, 0) };
+    ours(text, 0); // throws when there is no tree 0
     treeCount = parseNexus(text, 0).treeCount;
   } catch (e) {
     err = e.message;

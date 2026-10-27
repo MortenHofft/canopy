@@ -6,8 +6,8 @@ Usage: dendropy-nexus-summary.py file.nex ...   (one JSON object per file on std
 
 For each file: the number of trees and, for the first, second and last tree, the tip labels (sorted), tip and node
 counts, the number of branch lengths and their sum, and the root's number of children. Underscores are kept
-(preserve_underscores) because gbif-phylo keeps them too. Files are read as latin-1 so that a stray non-UTF-8 byte
-does not decide the outcome; the JS side reads them the same way.
+(preserve_underscores) because gbif-phylo keeps them too. Files are read as UTF-8, or as latin-1 if they are not UTF-8,
+so that a stray byte does not decide the outcome; the JS side reads them the same way.
 """
 import hashlib
 import json
@@ -69,8 +69,11 @@ for path in sys.argv[1:]:
     out = {"file": path}
     signal.alarm(60)
     try:
-        with open(path, encoding="latin-1") as fh:
-            text = fh.read()
+        raw = open(path, "rb").read()
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw.decode("latin-1")
         try:
             trees = dendropy.TreeList.get(data=text, schema="nexus", preserve_underscores=True)
         except dendropy.dataio.nexusreader.NexusReader.TooManyTaxaError:
