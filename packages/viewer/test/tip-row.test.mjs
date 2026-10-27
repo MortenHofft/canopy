@@ -44,7 +44,8 @@ test('tipRow: a label is its first tip (warning when several carry it), a number
   };
   // ids are bounded by the full tree's node count (the source's), not by the snapshot's row count (#91)
   assert.equal(tipRow(partial, 105, 'focusTip', 200), 5);
-  assert.equal(tipRow(partial, 7, 'focusTip', 200), -1, 'a number inside the tree but not loaded: no warning');
+  assert.equal(tipRow(partial, 7, 'focusTip', 200), -1);
+  assert.equal(tipRow(partial, 105, 'focusTip'), 5, 'without a limit a partial snapshot is not bounded');
   const seen2 = [];
   console.warn = (...a) => seen2.push(a.join(' '));
   try {

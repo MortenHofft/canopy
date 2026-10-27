@@ -16,8 +16,9 @@ export interface TipLookup {
  *  such tip or its row is not loaded. With `where`, a label that several tips carry, a number that is not a node and an internal node are
  *  each reported with a `console.warn` naming `where`.
  *  `nodeLimit` is one past the largest node id of the full tree (`TreeSource.nodeCount`); a snapshot's own `nodeCount` is its row count,
- *  which is smaller for a partial source, so pass the source's. */
-export function tipRow(snap: TipLookup, tip: TipRef, where?: string, nodeLimit: number = snap.nodeCount): number {
+ *  which is smaller for a partial source, so pass the source's. Left out, an in-memory snapshot is bounded by its own `nodeCount` and a
+ *  partial one is not bounded. */
+export function tipRow(snap: TipLookup, tip: TipRef, where?: string, nodeLimit: number = snap.globalId === null ? snap.nodeCount : Infinity): number {
   return typeof tip === 'string' ? labelRow(snap, tip, where) : nodeRow(snap, tip, where, nodeLimit);
 }
 
