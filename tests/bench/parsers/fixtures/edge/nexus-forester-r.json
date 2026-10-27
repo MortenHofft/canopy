@@ -1,0 +1,832 @@
+[
+ {
+  "id": "forester-taxa-index-all-numeric",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS Otter Mink Badger;\nEND;\nBEGIN TREES;\n TREE t1 = [&R] ((1,2),3);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Otter",
+   "Mink",
+   "Badger"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTaxlabelsIndices (1)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Tree tips that are all 1-based numbers, all within NTAX, are indices into TAXLABELS; forester resolves them."
+ },
+ {
+  "id": "forester-taxa-index-mixed-numeric-name",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS Otter Mink;\nEND;\nBEGIN TREES;\n TREE t1 = [&R] (2,(Badger,Stoat));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "2",
+   "Badger",
+   "Stoat"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTaxlabelsIndices (2)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Mixed numeric and named tips: forester treats the number as a literal name (not index 2 = Mink); DendroPy disagrees and returns Mink, Badger, Stoat, so the standard is ambiguous here."
+ },
+ {
+  "id": "forester-taxa-index-one-out-of-range",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS Otter Mink Badger;\nEND;\nBEGIN TREES;\n TREE t1 = [&R] ((1,2),99);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "1",
+   "2",
+   "99"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTaxlabelsIndices (3)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "One out-of-range number makes forester read the whole tree as literal names (all-or-nothing, no half-renamed tree); DendroPy indexes per tip and returns Otter, Mink, 99."
+ },
+ {
+  "id": "forester-taxa-index-zero",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS Otter Mink;\nEND;\nBEGIN TREES;\n TREE t1 = [&R] (0,1);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "0",
+   "1"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTaxlabelsIndices (5)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Index 0 is not a valid 1-based taxon number, so forester keeps '0' and '1' as literal names (all-or-nothing); DendroPy keeps '0' but resolves 1 to Otter."
+ },
+ {
+  "id": "forester-numeric-accession-tips-no-taxa",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t1 = ((92829:0.1,41:0.2):0.3,7:0.4);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "92829",
+   "41",
+   "7"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (8)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Bare numeric accessions as tip names with no TAXA or TRANSLATE must stay literal names; forester once threw IndexOutOfBounds and lost the file."
+ },
+ {
+  "id": "forester-translate-numeric-no-taxa",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE\n  1 Otter,\n  2 Mink\n ;\n TREE t1 = [&R] (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "Otter",
+   "Mink"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTaxlabelsIndices (4)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Trees block with a TRANSLATE table and no TAXA block; the explicit table always resolves (DendroPy agrees)."
+ },
+ {
+  "id": "forester-translate-quoted-escaped-apostrophe",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE\n  1 'Dunn''s lark',\n  2 'St. Helena''s plover'\n ;\n TREE t1 = [&R] (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "Dunn's lark",
+   "St. Helena's plover"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (5)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Quoted TRANSLATE values with spaces and doubled apostrophes ('') must un-double to one apostrophe and stay one label each."
+ },
+ {
+  "id": "forester-taxlabels-quoted-spaces-apostrophes",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS 'Dunn''s lark' 'St. Helena''s plover';\nEND;\nBEGIN TREES;\n TREE t1 = [&R] (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "Dunn's lark",
+   "St. Helena's plover"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (4)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Two quoted TAXLABELS each with a space and an escaped apostrophe; a naive whitespace split yields four labels and shifts every index."
+ },
+ {
+  "id": "forester-quoted-tip-in-body-escaped",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t1 = [&R] ('Marsh''s shrew',plain,'two words');\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Marsh's shrew",
+   "plain",
+   "two words"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (6)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Quoted tip labels inside the tree string itself, with a doubled apostrophe and a space."
+ },
+ {
+  "id": "forester-tree-name-quoted-both-styles",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE 'Wren''s tree' = [&R] (A,B);\n TREE 'Robin''s tree' = [&R] (C,D);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "A",
+   "B"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (3)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Tree names single-quoted with a doubled apostrophe must not leak into the tree or end early; DendroPy agrees. First tree only is listed."
+ },
+ {
+  "id": "forester-tree-name-double-quoted",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE \"Robin's tree\" = [&R] (C,D);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "C",
+   "D"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (3) and testNexusTreeParsing (nexus_test_4.nex)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Double-quoted tree name holding an apostrophe: forester and ape accept it, but the standard only has single-quoted names and DendroPy rejects it (Expecting '='), so it is a lenient-reader case rather than strictly well formed.",
+  "ours": "throws",
+  "oursWhy": "double quotes are not NEXUS; an apostrophe inside one confuses the statement splitter"
+ },
+ {
+  "id": "forester-tree-name-with-parens-and-spaces",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE 'Genus alpha MLT (Imported_tree_0)' = [&U] ((x:0.5,y:0.25):0.1,z:0.7);\n TREE 'Genus alpha BAT (con_50_majrule)' = [&U] ((x,y),z);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "x",
+   "y",
+   "z"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsing (S15613.nex, tree names from PAUP*/Mesquite)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Quoted tree names containing parentheses, spaces and underscores (PAUP*/Mesquite style) must not be mistaken for the Newick body; two trees share a base name."
+ },
+ {
+  "id": "forester-translate-words-tokens-and-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nBegin Taxa;\n TaxLabels \"Otter\"  Mink\n   Badger;\nEnd;\nBegin Trees;\n Translate  river Otter,   weasel\n   Mink, digger\n      'Badger'     ;\n Tree T0=[&U]((river,weasel),digger);\n Tree T1=[&R]((Otter,\n   Mink),Badger);\nEnd;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Otter",
+   "Mink",
+   "Badger"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsingTranslating (nexus_test_6.nex)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Word tokens in TRANSLATE (not numbers), entries wrapped over lines, a double-quoted label in TAXLABELS; tree 2 uses the labels directly instead of the tokens, which forester accepts. DendroPy raises a TypeError when a TAXA block meets non-numeric tokens (the same table without TAXA works), so tipLabels follow forester's test."
+ },
+ {
+  "id": "forester-utree-multiline-last-tree-no-semicolon",
+  "kind": "nexus",
+  "input": "#NEXUS\n\n[!Data from: a made-up survey.\n    Character 4 re-coded for OTU 7.]\n\nbegin assumptions;\n    options deftype = ord;\nend;\n\n  begin  trees;  \n  utree   'tree 0' =(1:0.2,2:0.3,(3:0.2,(4:0.1,5:0.4):0.3):0.1):0.0;\n\ntree \"tree 1\"= (1:0.2,\n2:0.3,(3:0.2,(4:0.1,\n5:0.4):0.3):0.1):0.0\n  end;\n",
+  "wellFormed": false,
+  "tipCount": 5,
+  "tipLabels": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsing (nexus_test_4.nex)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Unknown ASSUMPTIONS block before TREES, bang comment with a period, UTREE keyword, double-quoted tree name, tree wrapped over lines, and a last tree with no ';' before END; forester accepts the missing ';' though the standard requires it (hence wellFormed=false). DendroPy rejects the double-quoted name and ignores UTREE.",
+  "ours": "parses",
+  "oursWhy": "tree 0 is read; the last tree has no \";\" and is not parsed unless asked for"
+ },
+ {
+  "id": "forester-tree-keyword-casing-and-flags",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE 'tree 8'=[&U]((a,b),c);\n tree 'tree 9'=[&R]((a,b),c);\n UTree 'tree 10'=[&U]((a,b),c);\n tree  'tree     13' =[&R]\n\n ((a,b),c);\nENDBLOCK;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsing (nexus_test_4.nex, trees 8-13)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Mixed-case TREE/UTREE keywords, [&U]/[&R] flags, a tree name with run of spaces, a newline between '=' and the body, and ENDBLOCK as terminator. forester expects trees 8,10 unrooted and 9,13 rooted."
+ },
+ {
+  "id": "forester-tree-without-name",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\ntree=[&U]((a,b),c);\nEND;",
+  "wellFormed": false,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsing (nexus_test_3.nex)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "TREE with no name (the standard requires one) and END; with no trailing newline; forester and ape read it leniently, tree name empty and unrooted.",
+  "ours": "parses",
+  "oursWhy": "lenient: a tree with no name is read (ape and forester do the same)"
+ },
+ {
+  "id": "forester-figtree-annotated-taxlabels",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin taxa;\n\tdimensions ntax=4;\n\ttaxlabels\n\t'Lima_Peru'[&!color=#-8381639]\n\tQuito\n\t'O''Higgins'[&!color=#0000ff]\n\tSucre[a plain comment]\n;\nend;\n\nbegin trees;\n\ttree TREE1 = [&R] (('Lima_Peru':1.0,Quito:1.0)[&!color=#ff0000]:1.0,('O''Higgins':1.0,Sucre:1.0):1.0);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "Lima_Peru",
+   "Quito",
+   "O'Higgins",
+   "Sucre"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/io/parsers/nexus/NexusTaxlabelAnnotationTest.java (FigTree coloured taxa)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "FigTree writes [&!color=...] glued to TAXLABELS entries and plain [comments] after others; they must not leak into names (quoted label keeps its underscore)."
+ },
+ {
+  "id": "forester-taxlabel-annotation-with-spaces-index-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin taxa;\n dimensions ntax=4;\n taxlabels\n  'Alpha'[&!name=\"first one\",!color=#112233]\n  Beta\n  Gamma[&note=x]\n  Delta;\nend;\nbegin trees;\n tree t = ((1,2),(3,4));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "Alpha",
+   "Beta",
+   "Gamma",
+   "Delta"
+  ],
+  "source": "forester (cmzmasek/forester), NexusTaxlabelAnnotationTest.java (testAnnotationWithSpaces, testIndexedTipsGetCleanNames)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "A TAXLABELS annotation containing a quoted string with a space: a whitespace split would create extra taxa and shift every numeric tip index."
+ },
+ {
+  "id": "forester-bracket-inside-quoted-label",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = ('alpha[1]beta':1,gamma:2,delta:3);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "alpha[1]beta",
+   "gamma",
+   "delta"
+  ],
+  "source": "forester (cmzmasek/forester), NexusTaxlabelAnnotationTest.java (testSplit, 'a[b]c' stays one label)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "A bracket inside a quoted label: forester treats it as part of the label (not a comment); the standard is ambiguous on comment-in-quote, so readers may differ."
+ },
+ {
+  "id": "forester-comment-semicolon-and-lines-before-trees",
+  "kind": "nexus",
+  "input": "#NEXUS\n[!Exported by a made-up tool; version 2;\n second line (with parens) and, commas]\nBEGIN TREES;\n TREE t = (a,b,c);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusTreeParsing (nexus_test_4.nex header comment) plus ape NEWS ('files with semicolons inside comment blocks')",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "A multi-line bang comment holding ';' '(' ',' right after #NEXUS must be skipped whole; a ';'-splitter that runs before comment stripping breaks."
+ },
+ {
+  "id": "forester-data-block-before-trees-quoted-row",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS 'Dunn''s lark' plain;\nEND;\nBEGIN CHARACTERS;\n DIMENSIONS NCHAR=4;\n FORMAT DATATYPE=DNA;\n MATRIX\n  'Dunn''s lark' ACGT\n  plain TTTT\n ;\nEND;\nBEGIN TREES;\n TREE t1 = [&R] (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "Dunn's lark",
+   "plain"
+  ],
+  "source": "forester (cmzmasek/forester), forester/java/src/org/forester/test/Test.java, testNexusQuotedLabels (7)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "TAXA plus a CHARACTERS block (quoted row id with an escaped apostrophe) before TREES; the matrix is irrelevant to a tree reader but must be skipped without confusing the ';' scan."
+ },
+ {
+  "id": "forester-taxlabels-case-and-underscore-twins",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS Taxon_A taxon_a;\nEND;\nBEGIN TREES;\n TREE t = (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "Taxon_A",
+   "taxon_a"
+  ],
+  "source": "forester (cmzmasek/forester), NexusPhylogeniesParser.java (annotation join: 'Taxon_A and taxon_a are two taxa')",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Two taxa differing only in case; forester keeps both as distinct, but DendroPy compares labels case-insensitively and returns Taxon_A and a literal '2', so readers disagree (NEXUS names are formally case-insensitive)."
+ },
+ {
+  "id": "forester-underscore-unquoted-vs-quoted",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (Homo_sapiens:1,'Pan_troglodytes':1,'Gorilla gorilla':1);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Homo_sapiens",
+   "Pan_troglodytes",
+   "Gorilla gorilla"
+  ],
+  "source": "forester (cmzmasek/forester), NexusPhylogeniesParser.java (joinKey comment: Nexus treats '_' and ' ' as equivalent)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Standard says an unquoted '_' means space, a quoted '_' is literal; the fixture expects underscores kept as written (GBIF join keys), so a reader that converts them must be switched off."
+ },
+ {
+  "id": "ape-translate-token-is-also-a-label",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE a b, b c, c a;\n TREE t = (a,b,c);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "b",
+   "c",
+   "a"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R .translateTOKENS (tokens first, then labels, then numbers) and NEWS 5.8-3 (translate fully between tokens and labels)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Tokens that coincide with other entries' labels: substitution must be a single simultaneous pass (a->b, b->c, c->a), not chained; ape matches tokens before labels."
+ },
+ {
+  "id": "ape-translate-label-with-spaces",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE\n  1 'Canis lupus',\n  2 'Vulpes vulpes',\n  3 Lynx_lynx\n ;\n TREE t = ((1,2),3);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Canis lupus",
+   "Vulpes vulpes",
+   "Lynx_lynx"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS (read.nexus failed with labels containing spaces in TRANSLATE, PR #29) and R/read.nexus.R .decodeTRANSLATE",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Quoted labels with spaces plus a bare underscore label in one table (ape PR #29); ape's decoder also copes with double quotes, but DendroPy only accepts single quotes so the fixture uses those."
+ },
+ {
+  "id": "ape-translate-nonconsecutive-keys",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=4;\n TAXLABELS A B C D;\nEND;\nBEGIN TREES;\n TRANSLATE 1 A, 2 B, 4 C, 5 D;\n TREE t = [&R] ((1:0.2,2:0.4):0.5,(4:0.7,5:0.9):1.0);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (non-consecutive translate table, MEGA output, #132) and ape R/read.nexus.R (REF only when keys are 1..n)",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "TRANSLATE keys 1,2,4,5 with no 3 (MEGA); tokens are opaque keys, not positions, so the table must be a map."
+ },
+ {
+  "id": "ape-translate-node-label-matches-token",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE 1 A, 2 B, 3 C, 4 D;\n TREE t = (((1,2)3,4)90,3);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "A",
+   "B",
+   "D",
+   "C"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS 5.8-3 (translation extended to node labels) and R/read.nexus.R",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Internal labels '3' and '90': ape 5.8-3 also runs node labels through the table (3 becomes C); the standard only translates taxa, so the internal label should stay '3' (tip labels are unaffected)."
+ },
+ {
+  "id": "ape-taxon-named-translate",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (Translate:1,Other:2,Third:3);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Translate",
+   "Other",
+   "Third"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (warning: is a taxon labelled \"Translate\"?)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "A tip literally named Translate inside the tree string must not be taken for the TRANSLATE command; ape's grep-based scan warns here."
+ },
+ {
+  "id": "ape-tree-star-marker-and-commands-in-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n TITLE ctaxa;\n DIMENSIONS NTAX=3;\n TAXLABELS a b c;\nEND;\nBEGIN TREES;\n TITLE mytrees;\n LINK TAXA = ctaxa;\n TREE * consensus = [&R] ((a,b),c);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS ('read.nexus() should be robust to commands inserted in the TREES block') and R/read.nexus.R (tree name regex strips '*')",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "TITLE and LINK commands inside TREES and Mesquite's default-tree marker 'TREE *'; the name is 'consensus' and the star must not become part of it."
+ },
+ {
+  "id": "ape-semicolon-and-brackets-inside-tree-comment",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = ((a[note; with semi, comma and (paren)],b)[x]:1,c:2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS ('read.nexus() failed to remove correctly the comments within trees', semicolons in comments) and R/read.nexus.R",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Square-bracket comment inside the Newick string containing ';', ',' and parentheses: comments must be removed before structural scanning."
+ },
+ {
+  "id": "ape-nested-comment-in-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (a[outer [inner] still outer],b,c);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R comment removal ('this might not work if there are square brackets within the comments')",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "NEXUS comments may nest; ape's regex stops at the first ']' and mishandles it, so this is a case where a regex reader and a proper reader disagree (checked against DendroPy)."
+ },
+ {
+  "id": "ape-root-edge-extra-parentheses",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = ((A:1,B:1):10);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "A",
+   "B"
+  ],
+  "source": "ape (emmanuelparadis/ape), man/read.nexus.Rd (badly represented root edge) and NEWS",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "A root with a single child (extra outer parentheses): ape warns and reads it as (A:1,B:1):10; legal Newick with a degree-1 root, tips A and B."
+ },
+ {
+  "id": "ape-singleton-internal-nodes",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (((A:1):1):1,(B:1,C:1):2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS (read.tree/read.nexus can read trees with singleton nodes)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Degree-2 internal nodes (a chain of single-child clades) must be kept or collapsed without losing tips."
+ },
+ {
+  "id": "ape-single-tip-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (solo:0.5);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 1,
+  "tipLabels": [
+   "solo"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R .treeBuild/.cladoBuild (only-one-tip branches, NEWS: single-tip trees)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "One-tip tree with no comma anywhere; ape needs special code because it has no comma to split on."
+ },
+ {
+  "id": "ape-multiline-tree-crlf",
+  "kind": "nexus",
+  "input": "#NEXUS\r\nBEGIN TREES;\r\n TREE t = ((a:1,\r\n   b:1):1,\r\n   c:2);\r\nEND;\r\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), NEWS (read.nexus() failed to read a file with a single tree with line breaks in the Newick string; Windows files)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Windows CRLF line endings with a tree broken over several lines; stray CR must not stick to labels or break the keyword match."
+ },
+ {
+  "id": "ape-cr-only-line-endings",
+  "kind": "nexus",
+  "input": "#NEXUS\rBEGIN TREES;\r TREE t = ((a,b),c);\rEND;\r",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (scan(sep=newline)) line handling; classic Mac OS line endings",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Old Mac CR-only line endings: one long physical line; ape's line-based scan would not cope, a character scanner must."
+ },
+ {
+  "id": "ape-everything-on-one-line",
+  "kind": "nexus",
+  "input": "#NEXUS begin trees; translate 1 A, 2 B, 3 C; tree t = ((1,2),3); end;",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "A",
+   "B",
+   "C"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (2025-03-16 improved detection: TRANSLATE need not be on its own line)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Whole file on one line with TRANSLATE and the tree on the same line as the BEGIN."
+ },
+ {
+  "id": "ape-spacing-before-semicolons",
+  "kind": "nexus",
+  "input": "#NEXUS\nBegin   Trees ;\n Tree  t1  =  (a , b , ( c , d ) ) ;\nEnd ;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "a",
+   "b",
+   "c",
+   "d"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (greps for the exact string 'BEGIN TREES;' and 'END;', so spaces before ';' defeat it)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Extra whitespace around keywords and before ';' is legal; a literal-string search for 'BEGIN TREES;' misses it. Whitespace inside the Newick must be ignored."
+ },
+ {
+  "id": "ape-tree-name-contains-equals",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE 'rate=slow' = (x,y,z);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "x",
+   "y",
+   "z"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (tree name found by splitting at the first ' *= *')",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "A quoted tree name that contains '=': splitting the line at the first '=' puts half the name into the tree body."
+ },
+ {
+  "id": "ape-tip-line-starting-with-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (\n treefrog:1,\n endemic_sp:1,\n translator:2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "treefrog",
+   "endemic_sp",
+   "translator"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (line filter '^[[:blank:]]*tree.*= *', TRANSLATE grep)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Tip names that begin like keywords (tree..., end..., translat...) on their own lines; line-oriented keyword greps can mistake them for commands."
+ },
+ {
+  "id": "ape-two-trees-blocks-different-translate",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TRANSLATE 1 a, 2 b, 3 c;\n TREE first = (1,(2,3));\nEND;\nBEGIN TREES;\n TRANSLATE 1 x, 2 y, 3 z;\n TREE second = (1,(2,3));\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R (warns when TRANSLATE occurs more than once; only the first block is read)",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Two TREES blocks each with its own table: a TRANSLATE belongs to its block, so the first tree is a,b,c and the second x,y,z; ape warns and reads only the first block."
+ },
+ {
+  "id": "ape-tree-weights-and-comments",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t1 = [&W 1/3] [&R] (a:1,(b:1,c:1):1);\n TREE t2 = [&W 2/3] [&U] (a:1,(b:1,c:1):1);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "ape (emmanuelparadis/ape), R/read.nexus.R comment stripping (every [..] before the tree is dropped); NEXUS standard (Maddison et al. 1997) tree weights [&W]",
+  "licence": "GPL-2 | GPL-3",
+  "copied": "rephrased",
+  "note": "Tree weight and rootedness comments both before the body; ape discards them all, so tree weights and rooted flags are lost there."
+ },
+ {
+  "id": "ape-empty-trees-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS a b;\nEND;\nBEGIN TREES;\nEND;\n",
+  "wellFormed": true,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R ('read.beast reports a file that does not contain a tree' -> error 'cannot find a Newick tree')",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Valid NEXUS with an empty TREES block: zero trees, and a reader should report 'no tree' rather than crash (treeio errors); tip counts do not apply.",
+  "ours": "throws",
+  "oursWhy": "no tree to show: an error that says what the file holds"
+ },
+ {
+  "id": "ape-no-trees-block-at-all",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=2;\n TAXLABELS a b;\nEND;\n",
+  "wellFormed": true,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "treeio (YuLab-SMU/treeio), test-beast.R ('cannot find a Newick tree'); ape read.nexus requires BEGIN TREES (grep i1)",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Valid NEXUS file with no TREES block at all: zero trees; ape's read.nexus would index with an empty match and fail.",
+  "ours": "throws",
+  "oursWhy": "no tree to show: an error that says what the file holds"
+ },
+ {
+  "id": "treeio-annotation-positions",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (x[&r=1]:2,(y:[&r=2]1,z:1[&r=3]):1[&r=4]);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "x",
+   "y",
+   "z"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (read.beast.newick, annotations before/after the length)",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Annotation comment before the colon, between the colon and the length, and after the length; all three placements occur in BEAST/MrBayes/FigTree output."
+ },
+ {
+  "id": "treeio-beast-annotation-commas-braces-colons",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS p q r;\nEND;\nBEGIN TREES;\n TRANSLATE 1 p, 2 q, 3 r;\n TREE TREE1 = [&R] ((1[&len=1.0,mut=\"A:T\",place=\"New York, NY\"]:1.0,2[&len=1.0]:1.0)[&post=1.0,range={0.5,1.5},HPD95={2.0,3.0},set={\"a\",\"b\"}]:0.5,3[&len=1.5]:1.5);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "p",
+   "q",
+   "r"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (':' inside an annotation value, #136 mutation=\"A:T\") and R/beast.R annotation splitting",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Annotation values containing commas, braces, nested quotes and a colon inside a quoted string; none may be read as Newick structure."
+ },
+ {
+  "id": "treeio-beast2-colon-in-annotation-key",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n DIMENSIONS NTAX=3;\n TAXLABELS a b c;\nEND;\nBEGIN TREES;\n TRANSLATE 1 a, 2 b, 3 c;\n TREE TREE1 = [&R] ((1[&clock.rate:part=0,site.count:part=2]:1,2[&clock.rate:part=-1,site.count:part=0.5]:1)[&clock.rate:part=-1]:1,3[&clock.rate:part=2]:2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (BEAST2 partition name 'blockcount.t:hi', #136), inst/extdata/BEAST/beast2_mcc.tree idea",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "BEAST2 keys carry a ':partition' suffix, so a ':' occurs inside [&...] before the real branch length colon; the length scanner must skip comments."
+ },
+ {
+  "id": "treeio-mrbayes-double-comment-branch",
+  "kind": "nexus",
+  "input": "#NEXUS\n\n[ID: 1234567890]\nbegin taxa;\n\tdimensions ntax=3;\n\ttaxlabels\n\t\tAlpha_1\n\t\tBeta_2\n\t\tGamma_3\n\t\t;\nend;\nbegin trees;\n\ttranslate\n\t\t1\tAlpha_1,\n\t\t2\tBeta_2,\n\t\t3\tGamma_3\n\t\t;\n   tree con_50_majrule = [&U] (1[&prob=1.0e+000,prob_range={1.0e+000,1.0e+000},prob(percent)=\"100\",prob+-sd=\"100+-0\"]:1.5e-001[&length_mean=1.5e-001,length_95%HPD={1.0e-001,2.0e-001}],2[&prob=1.0e+000]:2.0e-001[&length_mean=2.0e-001],3[&prob=1.0e+000]:3.0e-001[&length_mean=3.0e-001]);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Alpha_1",
+   "Beta_2",
+   "Gamma_3"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), inst/extdata/MrBayes/Gq_nxs.tre idea (R/beast.R read.mrbayes); MrBayes con tree format",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "MrBayes style: bang comment before TAXA, tab-separated TRANSLATE, a comment both before and after each ':length', keys like prob(percent) and prob+-sd, scientific notation, polytomy at the root, [&U]."
+ },
+ {
+  "id": "treeio-lsd2-utree-numeric-name",
+  "kind": "nexus",
+  "input": "#NEXUS\n[ Dating output made up for a test;\n  intervals are only reported for some nodes ]\n\nBEGIN TREES;\n\n\tUTREE 1 = (((A[&date=0.0,CI_date={0.0,0.0}]:0.11,B:0.12)[&date=0.15,CI_date={0.10,0.20}]:0.23,C:0.34)[&date=0.5]:0.1,D:0.2);\n\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (UTREE keyword of an LSD2 timetree, #111) and inst/extdata/LSD2/timetree.nex idea",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "UTREE with a numeric tree name, no TAXA or TRANSLATE, a multi-line comment before BEGIN TREES, and only some nodes annotated; DendroPy does not know UTREE and returns no trees, so only the keyword handling is probed."
+ },
+ {
+  "id": "treeio-quoted-translate-space-before-underscore",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin taxa;\n\tdimensions ntax=3;\n\ttaxlabels\n\t\t'X_1990'\n\t\t'AB123456.1 _COL_2015'\n\t\t'Y_1991'\n\t\t;\nend;\nbegin trees;\n\ttranslate\n\t\t1 'X_1990',\n\t\t2 'AB123456.1 _COL_2015',\n\t\t3 'Y_1991'\n\t\t;\ntree TREE1 = [&R] ((1[&h=0.0]:1.0,2[&h=0.0]:1.0)[&h=1.0]:0.5,3[&h=0.0]:1.5)[&h=1.5];\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "X_1990",
+   "AB123456.1 _COL_2015",
+   "Y_1991"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R ('read.beast keeps the space inside a quoted taxon name', #71) and inst/extdata/BEAST/beast_mcc_spaced.tree idea",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Single-quoted label with a space then an underscore ('AB123456.1 _COL_2015') in TAXLABELS and TRANSLATE, plus an annotation on the root after the last paren; ape's read.nexus once split it and returned the wrong tip count."
+ },
+ {
+  "id": "treeio-negative-and-exponent-branch-lengths",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\n TREE t = (a:2,(b:-10e-6,c:1.5E+2):-0.25);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "treeio (YuLab-SMU/treeio), tests/testthat/test-beast.R (xx: '-10e-6' length and read.beast.newick edge.length -1e-05)",
+  "licence": "Artistic-2.0",
+  "copied": "rephrased",
+  "note": "Negative branch length, negative exponent and an upper-case E exponent with a sign; numeric parsing must not choke on the sign or the 'e'."
+ },
+ {
+  "id": "forester-link-taxa-second-block",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TAXA;\n TITLE first;\n DIMENSIONS NTAX=2;\n TAXLABELS a b;\nEND;\nBEGIN TAXA;\n TITLE second;\n DIMENSIONS NTAX=2;\n TAXLABELS p q;\nEND;\nBEGIN TREES;\n LINK TAXA = second;\n TREE t = (1,2);\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "p",
+   "q"
+  ],
+  "source": "forester (cmzmasek/forester), NexusPhylogeniesParser.java (commented-out LINK_TAXA_PATTERN, LINK sub-command skipped in matrix blocks); ape NEWS (commands inserted in the TREES block)",
+  "licence": "GPL-3.0",
+  "copied": "rephrased",
+  "note": "Numeric tips resolve against the TAXA block named by LINK, not the first block; DendroPy returns p,q; forester's LINK handling for the trees block is unverified (its LINK pattern is commented out)."
+ }
+]

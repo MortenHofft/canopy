@@ -1,0 +1,558 @@
+[
+ {
+  "id": "biopython-translate-odd-layout-quoted",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nbegin trees;\ntranslate\n\n3 t1,\n4 't2 the name'\n,1 'isn''that [a] strange name?',\n2 'one should be punished, for (that)!'\n,\n9 t5,\n7 t6  ,\n8 t7,\n5\nt8, 6 t9;\n\ntree tree1 = [&R] [&W3.5] (1,(2,3),(4,(5,6,(7,(8,9)))));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 9,
+  "tipLabels": [
+   "isn'that [a] strange name?",
+   "one should be punished, for (that)!",
+   "t1",
+   "t2 the name",
+   "t8",
+   "t9",
+   "t6",
+   "t7",
+   "t5"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex (trees block; read by OldSelfTests.test_data_sets_trees_unknown_block, NexusTest1)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "TRANSLATE with ids out of order, commas on their own lines and leading commas, quoted labels with doubled apostrophe, brackets, comma and parentheses; tree has [&R] and [&W3.5]; the library only checks it parses and later prints the quoted names."
+ },
+ {
+  "id": "biopython-translate-three-trees-same-name",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate\n\n3 t1,\n4 't2 the name'\n,1 'isn''that [a] strange name?',\n2 'one should be punished, for (that)!'\n,\n9 t5,\n7 t6  ,\n8 t7,\n5\nt8, 6 t9;\n\ntree tree1 = [&R] [&W3.5] (1,(2,3),(4,(5,6,(7,(8,9)))));\ntree tree1 = (1,(2,(4,(5,6,(7,(8,(9,3)))))));\ntree tree1 = (1,(2:0.5,(4:0.3,(5:1.2,6:3.4,(7:1,(8:99.9,(9:99,3:0.98)12:13)33:0.44)1:2.0)3:4.0)0.3:0.4)10:100);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 9,
+  "tipLabels": [
+   "isn'that [a] strange name?",
+   "one should be punished, for (that)!",
+   "t1",
+   "t2 the name",
+   "t8",
+   "t9",
+   "t6",
+   "t7",
+   "t5"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex (trees block)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "Three trees all named tree1 (duplicate names, last has branch lengths and numeric internal labels); library keeps all three in order (test indexes n.trees[2]); first tree is the answer for a viewer."
+ },
+ {
+  "id": "biopython-translate-underscore-names-first-tree-pick",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 Homo_sapiens, 2 'Pan troglodytes', 3 Gorilla_gorilla;\ntree a = ((1,2),3);\ntree b = ((3,2),1);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Homo_sapiens",
+   "Pan troglodytes",
+   "Gorilla_gorilla"
+  ],
+  "source": "Bio/Nexus/Nexus.py _translate/_tree (behaviour; no library test)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Underscore versus quoted-space labels through TRANSLATE; first of two trees must be used. Derived from the standard, not asserted by the library."
+ },
+ {
+  "id": "biopython-comments-nested-and-special",
+  "kind": "nexus",
+  "input": "#NEXUS\n\n[ NEXUS test file. Weird, but NEXUS standard compatible.]\n[ this is a [nested ] comment]\n[ a special commend was [& not cut out] here]\n\nbegin trees;\ntree t = ((a,b),c);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "Plain comments (nested, and one containing [& inside) between blocks must be stripped; library parses the whole file and expects no error."
+ },
+ {
+  "id": "biopython-data-block-interleaved-before-trees",
+  "kind": "nexus",
+  "input": "#NEXUS\n\nbegin data;\ndimensions ntax=3 nchar=24;\nformat datatype=dna gap=- missing=? interleave=yes;\nmatrix\n[interleaved matrix: second taxon name is spelled either with quotes or with underscores,\nbut must be treated as the same name]\nt1                  A-C-G-Tc-gtg\n't2 the name'       A-C-GcTc-gtg\nt3                  A-CcGcTc-gtg\n\nt1                  ------ac-gtg\nt2_the_name         ----acac-gtg\n[last taxon of the matrix]\nt3                  --acacac-gtg\n;\nend;\n\nbegin trees;\ntree t = (t1,'t2 the name',t3);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "t1",
+   "t2 the name",
+   "t3"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex (data block, adapted)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Non-tree DATA block with interleaved rows where one name is quoted-with-space in block 1 and underscored in block 2; library expects them treated as the same taxon (NexusTest1). The tree must be unaffected (DendroPy reads it; Biopython keeps quotes on stored names after TRANSLATE)."
+ },
+ {
+  "id": "biopython-unknown-block-spam-before-trees",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin spam;\nthis is a unknown block;\nand should be completely ignored;\nend;\n\nbegin trees;\ntree t = (a,(b,c));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex (begin spam block)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Unknown block with free text and semicolons before TREES; library reads it into unknown_blocks and ignores it."
+ },
+ {
+  "id": "biopython-unknown-block-comment-header-treebase",
+  "kind": "nexus",
+  "input": "#NEXUS\n\n[!This data set was downloaded from TreeBASE, a relational database of phylogenetic knowledge.\nStudy reference: Agnarsson I. et al. 2011. A time-calibrated species-level phylogeny of bats (Chiroptera, Mammalia). PLoS Currents.\nTreeBASE Study URI:  http://purl.org/phylo/treebase/phylows/study/TB2:S12003]\n\nBEGIN TAXA;\n        TITLE  Taxa;\n        DIMENSIONS NTAX=4;\n        TAXLABELS\n            Artibeus_cf__jamaicensis\n            Bos_frontalis\n            Erinaceus_europaeus\n            Manis_pentadactyla\n;\nEND;\n\nBEGIN TREES;\n      TITLE Bayesian_Result;\n      LINK TAXA = Taxa;\n      TREE Fig._1 = [&R] (Erinaceus_europaeus:0.59788,(Manis_pentadactyla:0.618122,(Bos_frontalis:0.2,Artibeus_cf__jamaicensis:0.3)1.00:0.468885)0.98:0.1);\n[!  TreeBASE tree URI: http://purl.org/phylo/treebase/phylows/tree/TB2:Tr48974]\nEND;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "Erinaceus_europaeus",
+   "Manis_pentadactyla",
+   "Bos_frontalis",
+   "Artibeus_cf__jamaicensis"
+  ],
+  "source": "Tests/Nexus/bats.nex (OldSelfTests.test_trees_and_taxa_block)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "TreeBASE layout: [! header comment with colons and parens, TAXA with TAXLABELS, TITLE and LINK TAXA in TREES, tree name 'Fig._1', support labels on internal nodes; shrunk from the 658-taxon file, library only asserts it reads; DendroPy agrees on the labels."
+ },
+ {
+  "id": "biopython-tree-star-default",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree * best = [&U] ((a:1,b:2):0.5,c:3);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _tree (comment: 'a star can be used to make it the default tree'); no test",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "TREE * name marks the default tree; library skips the star. Not asserted by its tests."
+ },
+ {
+  "id": "biopython-utree-command",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\nutree one = (a,b,(c,d));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "a",
+   "b",
+   "c",
+   "d"
+  ],
+  "source": "Bio/Nexus/Nexus.py _utree (no test; docstring 'unrooted tree (ex: clustalx)')",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Obsolete UTREE command, used by ClustalX, treated like TREE with rooted=False; DendroPy 5.1.3 finds no tree (IndexError) so readers disagree."
+ },
+ {
+  "id": "biopython-rooting-flags-U-then-R",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t1 = [&U] ((a,b),(c,d));\ntree t2 = [&R] ((a,b),(c,d));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "a",
+   "b",
+   "c",
+   "d"
+  ],
+  "source": "Bio/Nexus/Nexus.py _tree",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Rooting flag comments in front of the tree string; library sets rooted from them and requires '&' as first char (any other [x..] there raises NexusError)."
+ },
+ {
+  "id": "biopython-weight-fraction-comment",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = [&W 1/2] ((a,b),c);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _tree (float(value))",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Standard allows [&W 1/2] as a rational; Biopython does float('1/2') and is expected to fail (see _tree), so readers that mirror it will raise; a viewer should ignore the weight; DendroPy reads the tree fine. Library has no test for this."
+ },
+ {
+  "id": "biopython-comments-leaf-internal-numeric-tips",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = ((12:0.13,19[&comment1]:0.13)[&comment2]:0.1,(20:0.171,11:0.171):0.13)[&comment3];\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "12",
+   "19",
+   "20",
+   "11"
+  ],
+  "source": "Tests/test_Nexus.py TestSelf.test_NexusComments",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "Numeric tip names without TRANSLATE, [&..] comments after a leaf name, after an internal node and after the root with no closing branch length; library expects these comments stored per node."
+ },
+ {
+  "id": "biopython-beast-annotations-with-commas",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = (((9[&rate_range={1.3E-5,0.10958320752991428},height_95%_HPD={0.309132419999969,0.3091324199999691},height_median=0.309132419999969]:0.055354097721950546,5[&rate_range={1.3E-5,0.10958320752991428},height_95%_HPD={0.309132419999969,0.3091324199999691}]:0.055354097721950546)[&height_95%_HPD={0.3110921040545068,0.38690865205576275},length_range={0.09675588357303178,0.4332959544380489}]:0.20039426358269385)[&height_95%_HPD={0.5289500597932948,0.6973881165460601}]:0.23042678598484334)[&height_95%_HPD={0.7527502510685965,0.821862094763501},posterior=1.0,length=0.0];\nend;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "9",
+   "5"
+  ],
+  "source": "Tests/test_Nexus.py test_NexusComments (second tree, shortened)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "TreeAnnotator-style [&key={a,b}] comments whose commas, braces and percent signs must not split children; here a unary chain of internal nodes also appears; library expects the leaf names 9 and 5 and the branch lengths."
+ },
+ {
+  "id": "biopython-internal-text-labels",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = (Cephalotaxus:125.000000,(Taxus:100.000000,Torreya:100.000000)TT1:25.000000)Taxaceae:90.000000;\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Cephalotaxus",
+   "Taxus",
+   "Torreya"
+  ],
+  "source": "Tests/test_Nexus.py test_TreeTest2",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "Text labels on internal nodes and root (names, not support); library expects node taxa Taxaceae, TT1 on the internals; tips are the three leaves."
+ },
+ {
+  "id": "biopython-internal-numeric-labels-support",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = (Cephalotaxus:125.000000,(Taxus:100.000000,Torreya:100.000000)25.000000)90.000000;\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "Cephalotaxus",
+   "Taxus",
+   "Torreya"
+  ],
+  "source": "Tests/test_Nexus.py test_TreeTest2 (ts1c)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "verbatim",
+  "note": "Numeric internal labels (support values) and a numeric root label; library reads 25 and 90 as branch length of those nodes, not as taxa, and has_support() is False."
+ },
+ {
+  "id": "biopython-tree-no-translate-names-with-branch-lengths",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree tree1 = (t1:0.98,(t5:99.0,(t7:99.9,((t6:1.0,(t8:1.2,t9:3.4)33:0.44)9:2.0,('t2 the name':0.3))4:0.0)13:1.0)0:0);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 7,
+  "tipLabels": [
+   "t1",
+   "t5",
+   "t7",
+   "t6",
+   "t8",
+   "t9",
+   "t2 the name"
+  ],
+  "source": "Bio/Nexus/Nexus.py Tree._parse; derived from TreeTest1",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Quoted tip name with a space directly in the Newick (no TRANSLATE) mixed with plain ones; labels per the standard (quotes removed); Biopython and DendroPy both read it, but Biopython keeps the quotes in the stored name; its own tests only use quoted names through TRANSLATE."
+ },
+ {
+  "id": "biopython-quoted-label-with-parens-comma-colon",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = ('one, (two)','a:b','it''s',plain);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "one, (two)",
+   "a:b",
+   "it's",
+   "plain"
+  ],
+  "source": "Bio/Nexus/Trees.py (comment: ( ) and : not allowed in taxon names) and test_TreeTest1",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Standard NEXUS allows these in quoted labels; Biopython's Newick parser counts raw parentheses and finds colons, so it splits it into mangled labels while DendroPy returns the labels correctly; its own tests only reach such names via TRANSLATE."
+ },
+ {
+  "id": "biopython-translate-label-missing-in-tree",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 a, 2 b;\ntree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "Bio/Nexus/Nexus.py _tree ('Unable to substitute %s using translate data.')",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Tip id 3 has no TRANSLATE entry; Biopython raises NexusError; the NEXUS standard says the label is then the literal token, so tip labels left null (reader disagreement: DendroPy returns a, b and the literal 3)."
+ },
+ {
+  "id": "biopython-translate-numeric-labels-ambiguity",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 3, 2 1, 3 2;\ntree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "3",
+   "1",
+   "2"
+  ],
+  "source": "Bio/Nexus/Nexus.py _translate (int(identifier)) and _tree",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "TRANSLATE whose labels are themselves numbers; substitution is one pass over tokens, so the tree (1,(2,3)) becomes (3,(1,2))."
+ },
+ {
+  "id": "biopython-translate-no-taxa-block-trees-only",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n translate\n  1 Alpha,\n  2 Beta,\n  3 Gamma,\n  4 Delta\n  ;\n tree test = ((1:0.1,2:0.2):0.05,(3:0.3,4:0.4):0.06);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "Alpha",
+   "Beta",
+   "Gamma",
+   "Delta"
+  ],
+  "source": "Bio/Phylo/NexusIO.py (NEX_TEMPLATE shows writer layout) / Bio/Nexus/Nexus.py",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Tree-only file with no TAXA block; translate across several lines, last entry without trailing comma."
+ },
+ {
+  "id": "biopython-writer-layout-taxa-then-trees",
+  "kind": "nexus",
+  "input": "#NEXUS\nBegin Taxa;\n Dimensions NTax=4;\n TaxLabels A B C D;\nEnd;\nBegin Trees;\n Tree tree1=((A:0.1,B:0.2):0.3,(C:0.4,D:0.5):0.6);\nEnd;\n",
+  "wellFormed": true,
+  "tipCount": 4,
+  "tipLabels": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "source": "Bio/Phylo/NexusIO.py NEX_TEMPLATE / TREE_TEMPLATE",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "The exact layout Bio.Phylo.NexusIO.write emits (mixed-case keywords, no spaces around '=' in 'tree tree1=(...)', no translate)."
+ },
+ {
+  "id": "biopython-tree-equals-without-spaces-and-mixed-case",
+  "kind": "nexus",
+  "input": "#NEXUS\nBEGIN TREES;\nTREE   x=((a,b),c);\nEnd;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _tree / _get_block",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Upper/mixed-case keywords and '=' glued to the name."
+ },
+ {
+  "id": "biopython-tree-multiline-newick",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t =\n  ((a:1,\n    b:2)\n   ,\n   c:3\n  )\n;\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Trees.py (strips \\n and \\r before parsing)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Tree string spread over lines, including a line break before the terminating semicolon; library joins lines (note: a quoted label spanning lines would lose its newline)."
+ },
+ {
+  "id": "biopython-crlf-line-endings",
+  "kind": "nexus",
+  "input": "#NEXUS\r\nbegin trees;\r\ntranslate\r\n 1 a,\r\n 2 b,\r\n 3 'c d';\r\ntree t = (1,(2,3));\r\nend;\r\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c d"
+  ],
+  "source": "Bio/Nexus/Nexus.py _adjust_lines (converts \\r\\n and \\r)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Windows line endings, including inside TRANSLATE; library normalises them."
+ },
+ {
+  "id": "biopython-cr-only-line-endings",
+  "kind": "nexus",
+  "input": "#NEXUS\rbegin trees;\rtree t = ((a,b),c);\rend;\r",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _adjust_lines (converts bare \\r)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Classic Mac line endings; library converts a bare CR to a newline."
+ },
+ {
+  "id": "biopython-sets-block-between-data-and-trees",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin data;\ndimensions ntax=3 nchar=6;\nformat datatype=dna;\nmatrix\nt1 ACGTAC\nt2 ACGTAA\nt3 ACGAAA\n;\nend;\nbegin sets;\ncharset c1=1-3;\ntaxset normal=1 3;\ntaxpartition taxpart=g1:1 3, g2: 2;\nend;\nbegin trees;\ntree t = ((t1,t3),t2);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "t1",
+   "t3",
+   "t2"
+  ],
+  "source": "Tests/Nexus/test_Nexus_input.nex (sets block, simplified)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "SETS block with charset, taxset and taxpartition between DATA and TREES must not disturb tree reading."
+ },
+ {
+  "id": "biopython-multiple-nexus-tokens-merged-file",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree first = ((a,b),c);\nend;\n#NEXUS\nbegin trees;\ntree second = ((d,e),f);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py read() (comment: '#NEXUS token - in merged treefiles, this might appear multiple times')",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Concatenated tree files each starting with #NEXUS; library drops the repeated token and reads both trees in order; first tree is a,b,c."
+ },
+ {
+  "id": "biopython-unbalanced-parentheses",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 t1, 2 't2 the name', 3 t5, 4 t6, 5 t7, 6 t8, 7 t9;\ntree tree1 = (((((((1,2),3),4),5),6),7);\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "Tests/test_Nexus.py test_TreeTest1",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Deliberately unbalanced parentheses (one extra open): library's Tree._parse raises TreeError 'Parentheses do not match'; no library test asserts the failure on a file, so tip labels null; DendroPy also rejects it, and wellFormed=false is a judgement, not a library assertion."
+ },
+ {
+  "id": "biopython-unmatched-closing-bracket",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = ((a,b),c);\n]\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "Bio/Nexus/Nexus.py _kill_comments_and_break_lines ('unmatched ]')",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Stray ']' outside a comment: library raises NexusError; not exercised by its tests, so wellFormed is a judgement from the code, not an assertion; DendroPy silently accepts it (readers disagree).",
+  "ours": "parses",
+  "oursWhy": "a stray ] is part of a name; DendroPy accepts it too",
+  "oursTipLabels": [
+   "a",
+   "b",
+   "c"
+  ]
+ },
+ {
+  "id": "biopython-unmatched-opening-bracket",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n[ comment never closed\ntree t = ((a,b),c);\nend;\n",
+  "wellFormed": false,
+  "tipCount": null,
+  "tipLabels": null,
+  "source": "Bio/Nexus/Nexus.py _kill_comments_and_break_lines ('unmatched [')",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Unterminated comment swallows the rest of the file; library raises NexusError (code, not asserted by a test), and DendroPy fails too (IndexError)."
+ },
+ {
+  "id": "biopython-bracket-inside-quoted-label",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 'a [b] c', 2 'd]e', 3 f;\ntree t = (1,(2,3));\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a [b] c",
+   "d]e",
+   "f"
+  ],
+  "source": "Bio/Nexus/Nexus.py _kill_comments_and_break_lines docstring; test_Nexus taxlabels \"isn'that [a] strange name?\"",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Brackets inside single quotes are not comments; the library's taxlabels test expects the bracketed text kept."
+ },
+ {
+  "id": "biopython-semicolon-inside-quoted-label",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntranslate 1 'a;b', 2 c;\ntree t = (1,2);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 2,
+  "tipLabels": [
+   "a;b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _kill_comments_and_break_lines (';' inside quotes does not end a command)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Semicolon inside a quoted label must not terminate the TRANSLATE command."
+ },
+ {
+  "id": "biopython-apostrophe-quote-in-comment",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\n[the user's note: it's here]\ntree t = ((a,b),c);\nend;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py _kill_comments_and_break_lines (quotes inside comments are not special)",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "Odd apostrophes inside a [comment] must not start a quote; library ignores quote characters while in a comment."
+ },
+ {
+  "id": "biopython-end-after-endblock-alias",
+  "kind": "nexus",
+  "input": "#NEXUS\nbegin trees;\ntree t = ((a,b),c);\nendblock;\n",
+  "wellFormed": true,
+  "tipCount": 3,
+  "tipLabels": [
+   "a",
+   "b",
+   "c"
+  ],
+  "source": "Bio/Nexus/Nexus.py read() (block end detection uses startswith('end'))",
+  "licence": "Biopython License Agreement (BSD-3-Clause style)",
+  "copied": "rephrased",
+  "note": "ENDBLOCK is the older spelling of END; library accepts any command starting with 'end'."
+ }
+]

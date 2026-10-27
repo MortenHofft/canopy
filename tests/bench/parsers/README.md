@@ -65,6 +65,18 @@ Env vars:
    src/ForesterOracle.java`. Forester is GPL-3; it runs as an external process and no Forester
   code is linked into gbif-phylo.
 
+## NEXUS
+
+Two scripts compare our `parseNexus` with DendroPy (they import the parser from the sources, so they need no `npm install`; they need `pip install dendropy`):
+
+- `src/nexus-dendropy-corpus.mjs <dendropy>/tests/unittests/data` runs both parsers over every NEXUS file in DendroPy's test data and compares them tree by tree
+  (labels, counts, branch lengths, a hash of the shape and edge lengths). `src/dendropy-nexus-summary.py` is its DendroPy side.
+- `src/nexus-edge-compare.mjs [--all]` runs the small fixtures `fixtures/edge/nexus-*.json` (taken from or inspired by tests of DendroPy, Biopython, forester, `ape`, `treeio`,
+  phylotree.js) through the fixture's expectation, our parser and DendroPy, and lists where they disagree. A fixture's `ours` and `oursWhy` record a deliberate difference.
+  Sources and licences: each fixture, and `fixtures/edge/NOTICE-nexus.md`. The same fixtures run without DendroPy in `packages/io/test/nexus-edge-fixtures.test.mjs`.
+
+The results and the bugs they found are in `docs/design/parser-comparison.md`.
+
 ## What correctness means here
 
 - A **well-formed** fixture passes if the parser returns the expected `tipCount` and `tipLabels`
