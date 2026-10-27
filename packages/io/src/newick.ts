@@ -375,7 +375,7 @@ function writeTree(t: TreeModel, o: WriteOptions, tip: (i: number) => string, in
   const ann = o.annotations === true ? t.annotations : null;
   let warned = false;
   const skipped = (what: string): void => {
-    if (!warned) console.warn(`gbif-phylo io: annotations not written: ${what} (further skipped entries are not reported)`);
+    if (!warned) console.warn(`canopy io: annotations not written: ${what} (further skipped entries are not reported)`);
     warned = true;
   };
   const nodeNote = (i: number): string => (ann ? writeAnnotations(ann.node.get(i), skipped) : '');

@@ -1,11 +1,11 @@
-// Custom column renderers of this example (ColumnRenderer of @gbif-phylo/viewer): a heatmap with the value written in each cell, and a
+// Custom column renderers of this example (ColumnRenderer of @canopy/viewer): a heatmap with the value written in each cell, and a
 // gene location track. Both turn the values into arrays by tip rank once (prepare) and draw only the visible rows (draw).
 //
 // The heatmap's colours are CSS custom properties of the page (--table-heat-low, --table-heat-high, --table-heat-text,
 // --table-heat-text-strong in style.css, GBIF tokens), read by readHeatColours(); a cell is the low colour with the high colour over it at
 // the value's share, which is a linear ramp between the two without parsing any colour.
 
-import type { ColumnRenderer } from '@gbif-phylo/viewer';
+import type { ColumnRenderer } from '@canopy/viewer';
 
 export interface HeatColours {
   low: string;

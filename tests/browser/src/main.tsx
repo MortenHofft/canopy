@@ -5,11 +5,11 @@
 
 import React, { useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import { flushSync } from 'react-dom';
-import { parseNewick, type TreeModel } from '@gbif-phylo/io';
-import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
-import type { LayoutKind } from '@gbif-phylo/viewer';
+import { parseNewick, type TreeModel } from '@canopy/io';
+import { TreeView, type CladeProp, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
+import type { LayoutKind } from '@canopy/viewer';
 
 interface MountOptions {
   treeId: string;

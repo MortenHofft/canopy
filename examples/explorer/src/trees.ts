@@ -4,7 +4,7 @@
 // at /data/ by the dev server, copied there by the site build, which reads both JSON files); a tree too large for main falls back to
 // its `remote` URL. Gzipped files are inflated by content, whatever the host does (data.ts).
 
-import { parseNewick, parseNexus, supportFrom, type TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, supportFrom, type TreeModel } from '@canopy/io';
 import own from './trees.json';
 import { GROUPS as CATALOGUE, fetchText, parseFasta, type Entry as CatalogueEntry } from '../../shared/data.ts';
 

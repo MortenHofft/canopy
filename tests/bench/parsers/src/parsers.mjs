@@ -7,14 +7,14 @@
 //
 // `kind` is 'newick' or 'nexus'. A lib that doesn't support `kind` throws Error('unsupported').
 
-import * as ours from '@gbif-phylo/io';
+import * as ours from '@canopy/io';
 import * as phylio from '@vibbioinfocore/phylio';
 import * as newickJs from 'newick-js';
 import * as patristic from 'patristic';
 
 export const PARSERS = {
   ours: {
-    name: 'gbif-phylo/io',
+    name: 'canopy/io',
     newick: true,
     nexus: true,
     parse(text, kind) {

@@ -19,7 +19,7 @@ export function defaultFormatNodeLabel(value: number, kind: NodeLabelKind): stri
 const SUPPORT_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::.*)?$/s;
 
 /** The support value of an internal node label: its numeric prefix (`'0.95'`, `'100'`, `'98.0:c__Nitrososphaeria'`), NaN when the label
- *  is empty or a name. The same rule as `splitInternalLabel` in @gbif-phylo/io, which the viewer does not depend on. */
+ *  is empty or a name. The same rule as `splitInternalLabel` in @canopy/io, which the viewer does not depend on. */
 export function internalSupport(label: string): number {
   if (label === '') return NaN;
   const c = label.charCodeAt(0);

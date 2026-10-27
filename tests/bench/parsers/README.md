@@ -1,6 +1,6 @@
 # Parser bench + correctness suite
 
-A side-by-side comparison of our Newick/NEXUS parsers (`@gbif-phylo/io`) against the main JS
+A side-by-side comparison of our Newick/NEXUS parsers (`@canopy/io`) against the main JS
 alternatives: **phylio** (`@vibbioinfocore/phylio`), **newick-js**, and **patristic**.
 
 This is a *decision aid*, not a release artifact. The question is: **can we justify writing our own
@@ -25,14 +25,14 @@ npm install --ignore-scripts
 
 ```bash
 # Correctness matrix (fast, ~1s)
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/correctness.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/correctness.mjs
 
 # Timing bench (minutes; each parser/fixture pair runs in its own child, with a wall-clock timeout)
 TIMEOUT_MS=15000 ITER=5 OUT=results/latest.json \
-  node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/bench.mjs
+  node --conditions=@canopy/source --experimental-transform-types --no-warnings src/bench.mjs
 
 # DendroPy oracle (needs pip install dendropy; reports where DendroPy and the JS libs diverge)
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/oracle.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/oracle.mjs
 ```
 
 Env vars:
@@ -63,7 +63,7 @@ Env vars:
   `NexusPhylogeniesParser`; the matrix shows where we and Forester disagree. Prereq:
   `javac -cp /home/user/cmzmasek/forester/forester/java/forester.jar -d build
    src/ForesterOracle.java`. Forester is GPL-3; it runs as an external process and no Forester
-  code is linked into gbif-phylo.
+  code is linked into Canopy.
 
 ## NEXUS
 

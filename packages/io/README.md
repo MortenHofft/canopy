@@ -1,4 +1,4 @@
-# @gbif-phylo/io
+# @canopy/io
 
 Parsers for phylogenetic tree files and the tree model they produce.
 
@@ -7,7 +7,7 @@ Parsers for phylogenetic tree files and the tree model they produce.
 - `nexusIndex(text, options?)` and `nexusTrees(text, options?)`: for NEXUS files with many trees (posterior samples, bootstrap sets). `nexusIndex` makes one fast pass that parses no tree and returns `index.trees` (for each tree: `index`, `name`, the offsets `start`/`end` of its TREE command in the text (JavaScript string indices, UTF-16 code units, not bytes), `isDefault` for `TREE *`, `rooted` from `[&R]`/`[&U]`, `weight` from `[&W n]` (null unless a finite number), and `state`, the MCMC state in the names `STATE_n` (BEAST) and `gen.n` (MrBayes)), the notes about the file (`index.ignored`) and `index.parse(i)`, which reads tree `i` alone with the TRANSLATE table and TAXA block that apply to it, in time that does not depend on `i`. `nexusTrees` is a generator over the same: `for (const { tree, info } of nexusTrees(text)) ...`. Each result also has `translateEntries` and the notes that depend on that tree's tips (`ignored`: taxa mismatch, taxon numbers, the sequence blocks against the tips). An error in one tree is thrown when that tree is asked for; the trees before it stay readable. The index and its `trees` are frozen. Made-up posterior of 10,000 trees of 200 tips (`npm run bench:posterior`, one random tree repeated; Node 22, this sandbox, one run each): 43 MB, index 65 ms, one tree 1.5 to 10 ms, all trees 2.4 s, heap 63 MB; with a comment on every node (`-- --annotated`): 163 MB, index 376 ms, all trees 4.0 s, heap 184 MB. Real files: `npm run bench`.
 - `toNewick(tree, options?)`: writes a tree back to Newick. `{ annotations: true }` writes `tree.annotations` back in BEAST syntax.
 - `toNexus(tree, options?)`: writes a NEXUS file (a TAXA block and the tree, through a TRANSLATE table unless `translate: false`; `treeName`; `annotations: true` as for `toNewick`).
-- `TreeModel`: a rooted tree on typed arrays in preorder. The descendant tips of every node are a contiguous rank range, and every query is iterative. It satisfies the `TreeData` interface of `@gbif-phylo/viewer`, so it can be passed to the viewer as it is.
+- `TreeModel`: a rooted tree on typed arrays in preorder. The descendant tips of every node are a contiguous rank range, and every query is iterative. It satisfies the `TreeData` interface of `@canopy/viewer`, so it can be passed to the viewer as it is.
 
 Only single-quoted labels are handled, not double-quoted ones. Underscores in labels are kept, so tip ids equal the text in the file.
 
@@ -98,7 +98,7 @@ The table is kept apart from the tree and is read lazily, so a large table, or a
 cost anything until it is used:
 
 ```ts
-import { parseNewick, parseSidecar } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@canopy/io';
 
 const tree = parseNewick(newickText); // or parseNexus(text).tree
 const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID or a quoted field is not closed; only row positions are indexed
@@ -122,7 +122,7 @@ const cat = b.categories('country'); // one column as integer codes by node, mos
   lost); a binding is for the tree it was made from.
 
 A label several tips carry gives the row to every one of them. When an ID names both a tip and an internal node, the tip gets the row; of several internal nodes with one name, the first does. A row with an empty ID matches nothing and is listed in `unmatchedIds`. A quote opens a quoted field only at its start (`12" screen` is text). `categories` leaves out values that no tip has (a sidecar for a larger tree). Nothing is dropped silently: show the report, so a mismatch between the
-two files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
+two files (a renamed tip, a different spelling) is seen. `@canopy/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
 colours, a legend and a swatch column.
 
 ## Annotations

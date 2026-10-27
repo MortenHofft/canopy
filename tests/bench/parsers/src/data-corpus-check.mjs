@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, parseNexus, NewickError } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, NewickError } from '@canopy/io';
 
 const here = resolve(fileURLToPath(import.meta.url), '..');
 const DATA = resolve(here, '..', '..', '..', '..', 'data');

@@ -1,6 +1,6 @@
-# How gbif-phylo compares to other tree parsers
+# How Canopy compares to other tree parsers
 
-A short summary of how we tested `@gbif-phylo/io` against the main Newick / NEXUS parsers in the
+A short summary of how we tested `@canopy/io` against the main Newick / NEXUS parsers in the
 wild (JS, Python, Java). The full design brief and the per-fixture tables live in
 [docs/design/parser-comparison.md](design/parser-comparison.md); the executable suites live under
 [tests/bench/parsers/](../tests/bench/parsers/).
@@ -55,7 +55,7 @@ Across 89 edge-case fixtures (63 well-formed, 26 malformed):
 
 | Lib | well-formed | malformed rejected (default) | overall (default) |
 |---|---:|---:|---:|
-| **gbif-phylo/io** | **63/64  (98%)** | **19/25  (76%)** | **82/89  (92%)** |
+| **canopy/io** | **63/64  (98%)** | **19/25  (76%)** | **82/89  (92%)** |
 | patristic | 58/64  (91%) | 10/25  (40%) | 68/89  (76%) |
 | newick-js | 49/64  (77%) | 13/25  (52%) | 62/89  (70%) |
 | phylio | 40/64  (63%) | 22/25  (88%) | 62/89  (70%) |
@@ -108,7 +108,7 @@ Node 22, cloud-sandbox container. 1 warmup + 5 timed iterations per pair; each p
 own child process with a 15 s wall-clock timeout. Relative ordering holds across machines; the
 absolute numbers will shift.
 
-| Fixture | Size | Tips | **gbif-phylo/io** | phylio | newick-js | patristic |
+| Fixture | Size | Tips | **canopy/io** | phylio | newick-js | patristic |
 |---|---:|---:|---:|---:|---:|---:|
 | synth-balanced-1000 | 42 KB | 1 000 | **5.0 ms** | SLOW >15 s | 10.0 ms | 3.2 ms |
 | real-mammals-4071 | 135 KB | 4 071 | **7.0 ms** | SLOW >15 s | 165 ms | 7.5 ms |
@@ -134,15 +134,15 @@ cd tests/bench/parsers
 npm install --ignore-scripts
 
 # Correctness matrix (fast)
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/correctness.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/correctness.mjs
 
 # DendroPy oracle (needs pip install dendropy)
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/oracle.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/oracle.mjs
 
 # Forester oracle (needs forester.jar on the classpath; see tests/bench/parsers/README.md)
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/forester-oracle.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/forester-oracle.mjs
 
 # Timing bench (~10 min)
 TIMEOUT_MS=15000 ITER=5 OUT=results/latest.json \
-  node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/bench.mjs
+  node --conditions=@canopy/source --experimental-transform-types --no-warnings src/bench.mjs
 ```

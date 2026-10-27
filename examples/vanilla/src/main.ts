@@ -1,5 +1,5 @@
-// @gbif-phylo/viewer without a framework. What this page shows, top to bottom:
-//  - a tree and its metadata loaded with fetch and parsed with @gbif-phylo/io
+// @canopy/viewer without a framework. What this page shows, top to bottom:
+//  - a tree and its metadata loaded with fetch and parsed with @canopy/io
 //  - built-in controls in the corners (zoom, fit, search, legend, overview), one outside the viewer (the layout toggle in the page header)
 //  - a control of our own (tips in view), built on BaseControl and the viewchange event
 //  - columns: a built-in bar column and a custom renderer (a heat strip of a trait value)
@@ -7,9 +7,9 @@
 //  - the built-in tooltip, a dark theme that is only CSS custom properties, and an event log
 // `npm run dev` in this folder, then open the printed URL. ?cpu=1 uses the CPU canvas (headless browsers without a GPU).
 
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import './style.css';
-import { parseNewick, parseSidecar } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@canopy/io';
 import {
   BaseControl,
   Fit,
@@ -28,7 +28,7 @@ import {
   type Control,
   type LegendItem,
   type TreeEvent,
-} from '@gbif-phylo/viewer';
+} from '@canopy/viewer';
 
 // ---------------------------------------------------------------- data
 

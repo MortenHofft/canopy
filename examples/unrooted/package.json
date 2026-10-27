@@ -1,5 +1,5 @@
 {
-  "name": "@gbif-phylo/example-unrooted",
+  "name": "@canopy/example-unrooted",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@gbif-phylo/io": "0.1.0",
-    "@gbif-phylo/viewer": "0.1.0"
+    "@canopy/io": "0.1.0",
+    "@canopy/viewer": "0.1.0"
   },
   "devDependencies": {
     "vite": "5.4.11"

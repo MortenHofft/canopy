@@ -6,7 +6,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { autoCollapse, mergeAutoCollapse, splitInternalLabel, subtree } from '../src/index.ts';
-import { parseNewick, TreeModel } from '@gbif-phylo/io'; // fixtures: text -> TreeInput
+import { parseNewick, TreeModel } from '@canopy/io'; // fixtures: text -> TreeInput
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const readTree = (p) => parseNewick(zlib.gunzipSync(fs.readFileSync(path.join(DATA, p))).toString('utf8'));

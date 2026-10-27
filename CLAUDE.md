@@ -26,10 +26,10 @@ other frontend, by GBIF and by others. The research and the comparison of other 
 
 npm workspaces (Node >= 22.7):
 
-- `packages/viewer`: `@gbif-phylo/viewer`, the core.
+- `packages/viewer`: `@canopy/viewer`, the core.
   - [docs/api.md](packages/viewer/docs/api.md) is the API reference.
   - [docs/internals.md](packages/viewer/docs/internals.md) covers the frame pipeline, invariants, module map, how to extend it, and the cut goldens.
-- `packages/react`: `@gbif-phylo/react`, `<TreeView>`.
+- `packages/react`: `@canopy/react`, `<TreeView>`.
 - `packages/tree-ops`: tree operations. No DOM, no rendering.
 - `packages/io`: Newick/NEXUS parsers and `TreeModel`.
 - `examples/vanilla`: the framework-free example (controls, events, a custom popup and column, a dark theme), checked by
@@ -57,7 +57,7 @@ npm workspaces (Node >= 22.7):
 
 ## Code
 
-- **Package entry points.** Each package's `exports` has a `@gbif-phylo/source` condition pointing at `src/*.ts`. Tests (`node --conditions=@gbif-phylo/source`), the
+- **Package entry points.** Each package's `exports` has a `@canopy/source` condition pointing at `src/*.ts`. Tests (`node --conditions=@canopy/source`), the
   examples and the test page (Vite `resolve.conditions`) and typecheck (`customConditions` in `tsconfig.base.json`) use the source.
   Consumers get `dist/` (per-file ES modules from `tsc -p tsconfig.build.json`, `.ts` imports rewritten to `.js`).
 - **Root scripts:**

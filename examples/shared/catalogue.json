@@ -140,14 +140,14 @@
       "label": "Open Tree, Metazoa (1.49M tips, 15 MB)",
       "path": "real-ladder/fetched/otl-1m-metazoa.nwk.gz",
       "format": "newick",
-      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-1m-metazoa.nwk.gz",
+      "remote": "https://raw.githubusercontent.com/MortenHofft/canopy/data/otl-large/trees/otl-1m-metazoa.nwk.gz",
       "nodes": 1717413
     },
     "otl-2m-full": {
       "label": "Open Tree, all life (2.39M tips, 24 MB)",
       "path": "real-ladder/fetched/otl-2m-full.nwk.gz",
       "format": "newick",
-      "remote": "https://raw.githubusercontent.com/MortenHofft/gbif-phylo/data/otl-large/trees/otl-2m-full.nwk.gz",
+      "remote": "https://raw.githubusercontent.com/MortenHofft/canopy/data/otl-large/trees/otl-2m-full.nwk.gz",
       "nodes": 2725682
     }
   }

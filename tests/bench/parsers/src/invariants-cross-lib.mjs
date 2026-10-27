@@ -167,7 +167,7 @@ function main() {
 
   // Our-only invariant: warnings are set and empty on clean parses.
   console.log('');
-  console.log(`${C.cyan}gbif-phylo/io-only: warnings populated correctly${C.reset}`);
+  console.log(`${C.cyan}canopy/io-only: warnings populated correctly${C.reset}`);
   const ours = PARSERS.ours;
   let correct = 0;
   for (const { input, expectTips } of INPUTS) {

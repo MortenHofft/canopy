@@ -1,13 +1,13 @@
-# @gbif-phylo/react
+# @canopy/react
 
-`<TreeView>`, a React component over [`@gbif-phylo/viewer`](../viewer). Props hold the state, callbacks report interaction, and a `ref`
+`<TreeView>`, a React component over [`@canopy/viewer`](../viewer). Props hold the state, callbacks report interaction, and a `ref`
 gives the imperative handle. React 18 or later is a peer dependency.
 
 ```tsx
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import { useMemo } from 'react';
-import { TreeView } from '@gbif-phylo/react';
-import { defaultControls } from '@gbif-phylo/viewer';
+import { TreeView } from '@canopy/react';
+import { defaultControls } from '@canopy/viewer';
 
 function Tree({ tree, onPick }) {
   const controls = useMemo(() => defaultControls({ search: true, legend: true }), []); // create controls once
@@ -32,7 +32,7 @@ Four hooks give React the `TreeViewer` behind a `<TreeView>` and what changes on
 
 ```tsx
 import { useRef } from 'react';
-import { TreeView, useTreeViewer, useViewport, useTreeEvent, useTreeTheme, type TreeViewHandle } from '@gbif-phylo/react';
+import { TreeView, useTreeViewer, useViewport, useTreeEvent, useTreeTheme, type TreeViewHandle } from '@canopy/react';
 
 function Tree({ tree }) {
   const ref = useRef<TreeViewHandle>(null);
@@ -58,4 +58,4 @@ function Tree({ tree }) {
 
 They take `null` (before the viewer exists) and are strict-mode safe: every subscription is made in an effect and undone in its
 cleanup. `ref.current.renderer()` still returns the viewer for one-off calls from event handlers (`toBlob`, `zoomToNode`, ...).
-[`examples/react`](../../examples/react) puts it together with tree operations from `@gbif-phylo/tree-ops`.
+[`examples/react`](../../examples/react) puts it together with tree operations from `@canopy/tree-ops`.

@@ -30,7 +30,7 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
 
 ## Design decisions
 
-* **Framework-free core, thin wrappers.** `@gbif-phylo/viewer` has no runtime dependencies. `@gbif-phylo/react` adds props, identity rules and
+* **Framework-free core, thin wrappers.** `@canopy/viewer` has no runtime dependencies. `@canopy/react` adds props, identity rules and
   React content for the tooltip. Another framework's wrapper would be the same thin layer, or none: a page can use the viewer directly, as
   `examples/vanilla` does.
 * **Everything on the viewer is a control.** Controls, popups and overlays share one protocol (`element` and `setViewer`). The built-ins use
@@ -64,12 +64,12 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   all reachable through tokens or CSS now. Choosing the new defaults is the next round of work.
 * **No selection model.** "Selected" is the app's state (`setHighlighted`, `setClades`). An animated selection would need a `select` event and
   a drawing state; neither exists.
-* **Not published.** The package names (`@gbif-phylo/*`) are placeholders, all packages are `private`, and there is no release process or
+* **Not published.** The package names (`@canopy/*`) are placeholders, all packages are `private`, and there is no release process or
   changelog policy yet.
 * **No web component.** A `<phylo-tree>` custom element would make the viewer usable declaratively, configured by HTML attributes with no
   script written by the page. It would be a thin wrapper like the React one, and it was not written. It is not needed to avoid a build step:
   the viewer is plain ES modules with no dependencies, so a page imports it in a `<script type="module">`. The single-file builds
-  (`@gbif-phylo/viewer/browser`, 33.6 kB gzip with every control; `@gbif-phylo/io/browser`, 3.4 kB) do this in two requests through an import
+  (`@canopy/viewer/browser`, 33.6 kB gzip with every control; `@canopy/io/browser`, 3.4 kB) do this in two requests through an import
   map, with `viewer.css` as a stylesheet. `examples/no-build` does exactly that, and `tests/browser/scripts/check-no-build.mjs` checks it from a
   plain static server.
 * **Opaque canvas by default.** The main canvas is created with `alpha: false`, which lets a browser skip blending when it composites it; it

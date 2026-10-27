@@ -2,7 +2,7 @@
 //
 // Forester is one of the Java libraries the GBIF backend uses for tree validation, so it's a
 // relevant reference point. The oracle is a sibling of src/oracle.mjs (which uses DendroPy as
-// the Python reference). We never link Forester into gbif-phylo; it runs as an external process
+// the Python reference). We never link Forester into Canopy; it runs as an external process
 // and we compare verdicts.
 //
 // Prereq: `javac -cp /home/user/cmzmasek/forester/forester/java/forester.jar -d build
@@ -105,7 +105,7 @@ async function main() {
   const idWidth = Math.max(...fixtures.map((f) => f.id.length));
   const colWidth = 15;
   const header =
-    'FIXTURE'.padEnd(idWidth) + '  ' + 'Forester'.padStart(colWidth) + '  ' + 'gbif-phylo/io'.padStart(colWidth) + '  ' + 'AGREE'.padStart(colWidth);
+    'FIXTURE'.padEnd(idWidth) + '  ' + 'Forester'.padStart(colWidth) + '  ' + 'canopy/io'.padStart(colWidth) + '  ' + 'AGREE'.padStart(colWidth);
   console.log(header);
   console.log('-'.repeat(header.length));
 
@@ -140,10 +140,10 @@ async function main() {
   console.log('');
   console.log(`${COLORS.cyan}Correctness vs fixture expectations${COLORS.reset}`);
   console.log(`  Forester           ${foresterCorrect}/${fixtures.length}`);
-  console.log(`  gbif-phylo/io      ${oursCorrect}/${fixtures.length}`);
+  console.log(`  canopy/io      ${oursCorrect}/${fixtures.length}`);
 
   console.log('');
-  console.log(`${COLORS.cyan}Where Forester and gbif-phylo/io disagree${COLORS.reset}`);
+  console.log(`${COLORS.cyan}Where Forester and canopy/io disagree${COLORS.reset}`);
   for (const d of disagreements) {
     const frDesc = d.fr.verdict === 'parsed' ? `${d.fr.tipCount}t` : (d.fr.note ?? '').slice(0, 70);
     const orDesc = d.or.verdict === 'parsed' ? `${d.or.tipCount}t` : (d.or.note ?? '').slice(0, 70);

@@ -5,7 +5,7 @@
     "kind": "playground",
     "title": "Playground",
     "description": "The plain viewer with every option, theme token and built-in control in one panel. Show only a clade, collapse clades or weakly supported branches. Try it on trees from 6 tips to 2.4 million, or on a file of your own. The URL keeps your settings, so a view can be shared.",
-    "tags": ["@gbif-phylo/viewer", "tree-ops", "no framework", "all options"],
+    "tags": ["@canopy/viewer", "tree-ops", "no framework", "all options"],
     "data": "../shared/catalogue.json"
   },
   {
@@ -23,7 +23,7 @@
     "kind": "showcase",
     "title": "Table view",
     "description": "A table like TBrowse: one row per tip at a fixed height, the wheel scrolls rows instead of zooming, and the tree is one column among data columns (label fields, an alignment, gene location, an expression heatmap, a score), each with a header and a resize handle. The overview strip is the scrollbar. Four trees with their own data columns, every tree of the playground, or a file of your own. Built on the public API; its README lists what the viewer cannot do for it yet.",
-    "tags": ["@gbif-phylo/viewer", "no framework", "custom columns"],
+    "tags": ["@canopy/viewer", "no framework", "custom columns"],
     "data": ["src/trees.json", "../shared/catalogue.json"]
   },
   {

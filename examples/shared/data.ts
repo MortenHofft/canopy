@@ -3,7 +3,7 @@
 // by content, a `remote` URL as the fallback), reading a tree file of the user's own, parsing a tree and a FASTA. The tree picker that
 // offers both is picker.ts. Not a package: a folder the examples import by relative path.
 
-import { parseNewick, parseNexus, type TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, type TreeModel } from '@canopy/io';
 import catalogue from './catalogue.json';
 
 export interface Entry {

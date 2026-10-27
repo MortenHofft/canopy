@@ -2,7 +2,7 @@
 // level-of-detail bug headless, and that view read back from ?view=. A view is the tree, the layout, the canvas size, the viewport and
 // every option and theme value the cut and the labels read; it is kept in the URL as base64url JSON (plain JSON is read too).
 
-import type { Viewport, ViewerOptions } from '@gbif-phylo/viewer';
+import type { Viewport, ViewerOptions } from '@canopy/viewer';
 
 declare const __BUILD__: { commit: string; branch: string; env: string; time: string } | undefined;
 

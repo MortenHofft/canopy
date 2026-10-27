@@ -4,7 +4,7 @@
 // an effect and undone in its cleanup, and each follows the viewer when <TreeView> re-creates it.
 
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
-import type { Listener, ListenOptions, TreeTheme, TreeViewer, ViewerEventType, Viewport } from '@gbif-phylo/viewer';
+import type { Listener, ListenOptions, TreeTheme, TreeViewer, ViewerEventType, Viewport } from '@canopy/viewer';
 import type { TreeViewHandle } from './TreeView.tsx';
 
 /** The `TreeViewer` behind the `<TreeView>` that `ref` is passed to, as state: `null` until it is mounted, and a new value when the

@@ -15,7 +15,7 @@ const NUMERIC_PREFIX = /^\s*[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?\s*(?::(.*)
 
 /**
  * The name part of an internal node label. Labels in the wild are names ('Canidae_ott770319'), support values ('0.95', '100') or both
- * ('98.0:c__Nitrososphaeria'); a support-only label has no name (''). The same rule as `splitInternalLabel` in @gbif-phylo/io, which the
+ * ('98.0:c__Nitrososphaeria'); a support-only label has no name (''). The same rule as `splitInternalLabel` in @canopy/io, which the
  * viewer does not depend on.
  */
 export function internalName(label: string): string {

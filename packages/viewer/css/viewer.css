@@ -1,5 +1,5 @@
 /*
- * @gbif-phylo/viewer: styles of the viewer's DOM (controls, tooltip, node menu, legend, search, overview, notice, focus).
+ * @canopy/viewer: styles of the viewer's DOM (controls, tooltip, node menu, legend, search, overview, notice, focus).
  * The tree itself is drawn on a canvas; its colours come from the same custom properties (read by the viewer, see themeFromCss).
  *
  * Theme it by setting the --phylo-* custom properties on any ancestor (:root, a page section, the viewer's target). Every rule

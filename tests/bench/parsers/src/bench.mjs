@@ -21,7 +21,7 @@ const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 15000);
 function runWorker(parserId, fixtureId) {
   return new Promise((resolveP) => {
     const req = JSON.stringify({ parserId, fixtureId, iterations: ITERATIONS });
-    const child = spawn(process.execPath, ['--conditions=@gbif-phylo/source', '--experimental-transform-types', '--no-warnings', WORKER, req], {
+    const child = spawn(process.execPath, ['--conditions=@canopy/source', '--experimental-transform-types', '--no-warnings', WORKER, req], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
@@ -134,7 +134,7 @@ async function main() {
 
   // Speedup summary
   console.log('');
-  console.log(`${COLORS.cyan}Speed ratio vs gbif-phylo/io  (>1.0 = we are faster)${COLORS.reset}`);
+  console.log(`${COLORS.cyan}Speed ratio vs canopy/io  (>1.0 = we are faster)${COLORS.reset}`);
   const otherIds = PARSER_IDS.filter((p) => p !== 'ours');
   console.log('FIXTURE'.padEnd(idWidth) + '  ' + otherIds.map((p) => PARSERS[p].name.padStart(16)).join(''));
   console.log('-'.repeat(idWidth + 2 + otherIds.length * 16));

@@ -1,7 +1,7 @@
 # Example: no build step
 
 [`index.html`](index.html) uses the viewer as a plain ES module: `viewer.css` as a stylesheet, and the single-file builds
-(`@gbif-phylo/viewer/browser`, `@gbif-phylo/io/browser`) through an import map, in a `<script type="module">`. There is no bundler and no
+(`@canopy/viewer/browser`, `@canopy/io/browser`) through an import map, in a `<script type="module">`. There is no bundler and no
 package.json. In the repository, build the packages and serve the repository root with any static server:
 
 ```

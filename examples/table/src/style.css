@@ -1,5 +1,5 @@
 /* Table view page. Only GBIF design tokens (../../react/src/gbif-tokens.css); the viewer's --phylo-* properties come from
-   @gbif-phylo/viewer/gbif.css, and the heatmap's colours are the --table-heat-* properties below (read by renderers.ts). */
+   @canopy/viewer/gbif.css, and the heatmap's colours are the --table-heat-* properties below (read by renderers.ts). */
 
 :root {
   --table-heat-low: var(--bg-surface);

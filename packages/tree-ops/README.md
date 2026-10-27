@@ -2,7 +2,7 @@
 
 Operations a user applies to a phylogenetic tree: reroot, midpoint root, ladderise, rotate, swap, reorder, collapse, prune, show one clade, collapse to an overview of the largest clades. Pure TypeScript on typed arrays. No rendering, React, DOM or dependencies (it typechecks against the ES2022 library alone).
 
-This package is the **data side**. The viewer (`@gbif-phylo/viewer`, `<TreeView>`) knows nothing about these operations. The two meet only in a page, which offers the operations as actions (a node menu, a toolbar) and swaps in the tree that comes back. See `examples/react/src/main.tsx`.
+This package is the **data side**. The viewer (`@canopy/viewer`, `<TreeView>`) knows nothing about these operations. The two meet only in a page, which offers the operations as actions (a node menu, a toolbar) and swaps in the tree that comes back. See `examples/react/src/main.tsx`.
 
 ```
 viewer (draws, reports clicks)          page (integration)                     tree-ops (data)
@@ -36,8 +36,8 @@ The names follow common viewer usage: FigTree uses Reroot, Midpoint root, Rotate
 
 ## Contract
 
-- **In:** a `TreeInput` (see `src/types.ts`): preorder arrays (`parent`, `firstChild`, `nextSibling`, `childCount`, `length`, `support`, `labels`, tip ranges). `@gbif-phylo/io`'s `TreeModel` satisfies it structurally.
-- **Out:** `{ tree: TreeArrays, map, changed }`. `tree` holds the arrays a model is built from (`new TreeModel(result.tree)`). `map` maps old node index to new (-1 if removed), for carrying selections and colours across. For `@gbif-phylo/io` annotations use `tree.annotations.remap(result.map, tree, result.tree)`: node annotations follow `map`, edge annotations follow their undirected edge through a `reroot` (see the io README). `changed` is false when there was nothing to do; `tree` is then the input.
+- **In:** a `TreeInput` (see `src/types.ts`): preorder arrays (`parent`, `firstChild`, `nextSibling`, `childCount`, `length`, `support`, `labels`, tip ranges). `@canopy/io`'s `TreeModel` satisfies it structurally.
+- **Out:** `{ tree: TreeArrays, map, changed }`. `tree` holds the arrays a model is built from (`new TreeModel(result.tree)`). `map` maps old node index to new (-1 if removed), for carrying selections and colours across. For `@canopy/io` annotations use `tree.annotations.remap(result.map, tree, result.tree)`: node annotations follow `map`, edge annotations follow their undirected edge through a `reroot` (see the io README). `changed` is false when there was nothing to do; `tree` is then the input.
 - **Never mutates the input.** Undo and "reset to the published tree" mean keeping the old object.
 
 ## Conventions
@@ -56,7 +56,7 @@ npm run bench:bytes -- file.nwk[.gz] ...  # memory per node of a parsed tree and
 npm run typecheck                         # tsc, ES2022 lib only (no DOM)
 ```
 
-The tests and benchmark use `@gbif-phylo/io`'s Newick parser and `TreeModel` as **fixtures** (text in, tree queries out). `src/` imports nothing outside itself.
+The tests and benchmark use `@canopy/io`'s Newick parser and `TreeModel` as **fixtures** (text in, tree queries out). `src/` imports nothing outside itself.
 
 Results and numbers: [../../docs/design/tree-ops.md](../../docs/design/tree-ops.md).
 

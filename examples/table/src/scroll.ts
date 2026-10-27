@@ -8,7 +8,7 @@
 // What it cannot do from outside: a pinch or a zoom is drawn by the viewer and then undone here (in the same task, so normally no frame
 // shows it), and the viewer keeps its zoom cursor and behaviour everywhere else. See the README, "Gaps".
 
-import type { TreeViewer, Viewport } from '@gbif-phylo/viewer';
+import type { TreeViewer, Viewport } from '@canopy/viewer';
 
 const LINE_PX = 16; // a wheel 'line' (deltaMode 1)
 

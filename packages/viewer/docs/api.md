@@ -1,23 +1,23 @@
-# API reference: `@gbif-phylo/viewer` and `<TreeView>`
+# API reference: `@canopy/viewer` and `<TreeView>`
 
 One or two lines per entry; the detail is in the source comments, linked per section. Types are in [`src/types.ts`](../src/types.ts) unless
 said otherwise.
 
 | Import                          | What                                                                                                                                                                                                                                |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@gbif-phylo/viewer`            | everything below: `TreeViewer`, controls, overlays, column and theme types. One ES module per source file and no side effects, so a bundler keeps only what you import (`scripts/check-packages.mjs` checks this)                   |
-| `@gbif-phylo/viewer/browser`    | the same as one self-contained, minified ES module (`dist/browser/viewer.js`) for pages without a build step: load it with an import map or by URL. It includes every control                                                       |
-| `@gbif-phylo/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once                                                                                                                                                  |
-| `@gbif-phylo/viewer/gbif.css`   | optional: GBIF design tokens mapped to the `--phylo-*` properties                                                                                                                                                                   |
-| `@gbif-phylo/react`             | `<TreeView>` ([below](#treeview))                                                                                                                                                                                                   |
-| `@gbif-phylo/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` (a lazy `Sidecar` bound to a tree); `@gbif-phylo/io/browser` as one file |
+| `@canopy/viewer`            | everything below: `TreeViewer`, controls, overlays, column and theme types. One ES module per source file and no side effects, so a bundler keeps only what you import (`scripts/check-packages.mjs` checks this)                   |
+| `@canopy/viewer/browser`    | the same as one self-contained, minified ES module (`dist/browser/viewer.js`) for pages without a build step: load it with an import map or by URL. It includes every control                                                       |
+| `@canopy/viewer/viewer.css` | styles of the viewer's DOM: controls, popups, legend, search, notice. Load it once                                                                                                                                                  |
+| `@canopy/viewer/gbif.css`   | optional: GBIF design tokens mapped to the `--phylo-*` properties                                                                                                                                                                   |
+| `@canopy/react`             | `<TreeView>` ([below](#treeview))                                                                                                                                                                                                   |
+| `@canopy/io`                | `parseNewick`, `parseNexus`, `toNewick`, `toNexus`, `TreeModel` (a `TreeData`), and for BEAST / NHX annotations (`{ annotations: true }`, `tree.annotations`) `Annotations` and `supportFrom`, and for a TSV/CSV sidecar `parseSidecar` (a lazy `Sidecar` bound to a tree); `@canopy/io/browser` as one file |
 
 ## Quick start
 
 ```ts
-import '@gbif-phylo/viewer/viewer.css';
-import { parseNewick } from '@gbif-phylo/io';
-import { TreeViewer, defaultControls, Tooltip } from '@gbif-phylo/viewer';
+import '@canopy/viewer/viewer.css';
+import { parseNewick } from '@canopy/io';
+import { TreeViewer, defaultControls, Tooltip } from '@canopy/viewer';
 
 const viewer = new TreeViewer({
   target: document.getElementById('tree')!, // give it a size; the viewer fills it and follows its size
@@ -49,7 +49,7 @@ lookup that returns one tip (`tipNode`, `<TreeView>`'s `focus`, `focusTip`, `loc
 preorder; `focus` and `focusTip` warn (`console.warn`) when the label is on several tips, so pass the node id to reach another one.
 `tipNodes(label)` lists them all. Column `values` keyed by label give every tip with the label the same value; for values that belong to one
 tip, key them by node id in `nodeValues`. The built-in `Search` lists each matching tip (with '2 of 3' when its label is on several) and
-focuses and highlights the chosen one by node id. `@gbif-phylo/io` reports the labels that more than one tip carries
+focuses and highlights the chosen one by node id. `@canopy/io` reports the labels that more than one tip carries
 (`tree.duplicateTipLabels()`), so an app can warn about them after parsing; `TreeData.tipIndices(label)` is how the viewer finds every tip
 of a label (a `TreeData` without it names only the tip `tipIndex` returns). Labels stay the join key to your data (GBIF taxa, where many
 tips can map to one taxon), so nothing here requires them to be unique.
@@ -248,7 +248,7 @@ listen to the events that change it, and call the methods an interaction would c
 its own module: importing it does not bring the control classes.
 
 ```ts
-import { legendItems } from '@gbif-phylo/viewer';
+import { legendItems } from '@canopy/viewer';
 const draw = () => myLegend.render(legendItems(viewer)); // any renderer: DOM, React state, a canvas
 for (const type of ['cladeschange', 'treechange', 'sourcechange', 'optionschange'] as const) viewer.on(type, draw); // optionschange: formatLabel, cladeLabel
 draw();
@@ -295,7 +295,7 @@ The colours are theme tokens (`residue*`, below). `residueColours(theme, alphabe
 `residueGroups(alphabet)` the groups with their labels, so an app can draw a legend that cannot go stale:
 
 ```ts
-import { residueColours, residueGroups, detectAlphabet } from '@gbif-phylo/viewer';
+import { residueColours, residueGroups, detectAlphabet } from '@canopy/viewer';
 const alphabet = detectAlphabet(Object.values(values)); // 'protein' | 'nucleotide', as 'auto' decides
 const colours = residueColours(viewer.getTheme(), alphabet); // { A: '#...', C: ..., ..., Z: ..., other: '#...' }
 const legend = residueGroups(alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
@@ -315,7 +315,7 @@ The viewer draws the header. A renderer that throws is reported once and the fra
 ### Colouring by an attribute
 
 `colourBy(tree, categories, theme, options?)` colours the tips by one categorical attribute, for example a column of a sidecar table read by
-`@gbif-phylo/io` (`parseSidecar(text).bind(tree).categories('country')`: integer codes by node, so nothing is kept per tip or per cell).
+`@canopy/io` (`parseSidecar(text).bind(tree).categories('country')`: integer codes by node, so nothing is kept per tip or per cell).
 `tree` is anything with `tipCount` and `tipNode`, so a `TreeModel` fits. It returns data and changes nothing:
 
 ```ts
@@ -659,7 +659,7 @@ list costs (at most 600 labels, 300 radial).
   does not fit is left out; nothing is shrunk or moved.
 - **Dimming.** With `highlightStyle` `'dim'` or `'both'`, the label of a dimmed node is drawn at `dimOpacity`, as its branch is.
 - **Looks.** `nodeLabelSize`, `supportColour`, `lengthColour` (theme, `--phylo-*`; `''` = `muted`). Labels are not DOM and are not hit-tested.
-- **Support that is not in the labels.** A BEAST MCC tree keeps its posterior in `[&posterior=0.98]`, which `@gbif-phylo/io` reads with
+- **Support that is not in the labels.** A BEAST MCC tree keeps its posterior in `[&posterior=0.98]`, which `@canopy/io` reads with
   `{ annotations: true }`. Copy it to where `tree.support` is, and `'support'` shows it:
 
   ```ts
@@ -708,7 +708,7 @@ Detail and the invariants: [`types.ts`](../src/types.ts), [`source.ts`](../src/s
 [internals.md](internals.md).
 
 - `TreeData`: the tree as typed arrays in preorder: `nodeCount, tipCount, parent, firstChild, nextSibling, childCount, subtreeEnd, length` (NaN when
-  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, optional `support` (by node, NaN for none; `nodeLabels: 'support'` reads it), `heights()`, `tipIndex(label)` (the first tip with the label), optional `tipIndices(label)` (every tip with it). `@gbif-phylo/io`'s
+  missing), `leafStart, leafEnd` (tip rank range), `tipNode, tipRank, tipLabels, labels, hasLengths`, optional `support` (by node, NaN for none; `nodeLabels: 'support'` reads it), `heights()`, `tipIndex(label)` (the first tip with the label), optional `tipIndices(label)` (every tip with it). `@canopy/io`'s
   `TreeModel` satisfies it.
 - `TreeSnapshot extends TreeData`: what the viewer reads each frame, over the rows currently loaded. Adds `stub` (1 = a clade whose rows are
   not loaded), `globalId` (row to preorder id of the full tree), `rollup` (`cumLength, maxCum, depth, maxDepth, row` per row), `toLocal(globalId)`.
@@ -719,7 +719,7 @@ Detail and the invariants: [`types.ts`](../src/types.ts), [`source.ts`](../src/s
 
 ## `<TreeView>`
 
-`@gbif-phylo/react` ([`TreeView.tsx`](../../react/src/TreeView.tsx)); load `@gbif-phylo/viewer/viewer.css` as well. The identity rules of the
+`@canopy/react` ([`TreeView.tsx`](../../react/src/TreeView.tsx)); load `@canopy/viewer/viewer.css` as well. The identity rules of the
 props (what counts as changed) are in the JSDoc of `TreeViewProps` and in [internals.md](internals.md#react-identity).
 
 Props (all optional, but one of `tree` / `source` is needed):
@@ -768,7 +768,7 @@ Exported helpers:
 
 | Export         | Signature                                                                                                                                                                                     |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `internalName` | `(label: string) => string`: the label without its support value, `''` if it was only a support. The same rule as `splitInternalLabel(label).name` in `@gbif-phylo/io` (a test compares them) |
+| `internalName` | `(label: string) => string`: the label without its support value, `''` if it was only a support. The same rule as `splitInternalLabel(label).name` in `@canopy/io` (a test compares them) |
 | `cladeName`    | `(tree: TreeSnapshot, row: number, opts: { formatLabel, cladeLabel? }) => string \| null`: the display name of the snapshot row `row`; passes `cladeLabel` the full-tree id of the node       |
 | `CladeLabelFn` | `(node: number, tree: TreeSnapshot) => string \| null \| undefined`                                                                                                                           |
 | `namedDescendants` | `(tree: TreeSnapshot, row: number, opts: { formatLabel, cladeLabel? }, limits?: { max = 5, maxVisits = 2000 }) => { names: { node, name, tips }[], more: boolean }`: the highest named descendants of a clade, to summarise a collapsed one. The shallowest internal nodes below it with a name by `cladeName` (so `cladeLabel` hides synthetic names and support values are none), breadth-first, not looking below a named node; it stops after `max` names or `maxVisits` children looked at (tips included), so a huge clade costs no more than a small one, and `more` says it stopped early (or met rows of a partial source that are not loaded). `node` is the full-tree id. Get `tree` from `viewer.getTree()` and the row with `tree.toLocal(node)` |

@@ -1,4 +1,4 @@
-# Example: @gbif-phylo/viewer without a framework
+# Example: @canopy/viewer without a framework
 
 One page, [`src/main.ts`](src/main.ts), that shows each part of the library:
 

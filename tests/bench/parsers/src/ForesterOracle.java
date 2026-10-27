@@ -7,7 +7,7 @@
 // Not run as part of the normal test suite; invoked from src/forester-oracle.mjs.
 //
 // Forester is GPL-3 licensed. We call it as an external process (classpath isolation), compare
-// its parse outcome against our fixtures, and never link its code into gbif-phylo.
+// its parse outcome against our fixtures, and never link its code into Canopy.
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.StringReader;

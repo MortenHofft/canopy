@@ -72,7 +72,7 @@ export function tipRow(snap: TipLookup, tip: string | number, where?: string): n
 function labelRow(snap: TipLookup, label: string, where?: string): number {
   const row = snap.tipIndex(label);
   const n = where && row >= 0 ? (snap.tipIndices?.(label).length ?? 1) : 1;
-  if (n > 1) console.warn(`gbif-phylo: ${where}: ${n} tips have the label ${JSON.stringify(label)}; the first is used (pass a node id for another)`);
+  if (n > 1) console.warn(`canopy: ${where}: ${n} tips have the label ${JSON.stringify(label)}; the first is used (pass a node id for another)`);
   return row;
 }
 
@@ -81,11 +81,11 @@ function nodeRow(snap: TipLookup, node: number, where?: string): number {
   const inMemory = snap.globalId === null;
   const isNode = Number.isInteger(node) && node >= 0 && (!inMemory || node < snap.nodeCount);
   if (!isNode) {
-    if (where) console.warn(`gbif-phylo: ${where}: ${String(node)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
+    if (where) console.warn(`canopy: ${where}: ${String(node)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
     return -1;
   }
   const row = inMemory ? node : snap.toLocal(node);
   if (row < 0 || snap.childCount[row] === 0) return row;
-  if (where) console.warn(`gbif-phylo: ${where}: ${node} is an internal node, not a tip; ignored`);
+  if (where) console.warn(`canopy: ${where}: ${node} is an internal node, not a tip; ignored`);
   return -1;
 }

@@ -1,13 +1,13 @@
-# @gbif-phylo/viewer
+# @canopy/viewer
 
 A phylogenetic tree viewer for the web with no framework dependency. It renders very large trees, up to a million tips, on Canvas 2D by
 drawing a level-of-detail cut of the tree each frame. It has rectangular and radial layouts, aligned per-tip columns, keyboard navigation
-and accessible tip links. Use it from plain JavaScript or any framework; [`@gbif-phylo/react`](../react) wraps it for React.
+and accessible tip links. Use it from plain JavaScript or any framework; [`@canopy/react`](../react) wraps it for React.
 
 ```ts
-import '@gbif-phylo/viewer/viewer.css';
-import { parseNewick } from '@gbif-phylo/io';
-import { TreeViewer, defaultControls, Tooltip } from '@gbif-phylo/viewer';
+import '@canopy/viewer/viewer.css';
+import { parseNewick } from '@canopy/io';
+import { TreeViewer, defaultControls, Tooltip } from '@canopy/viewer';
 
 const viewer = new TreeViewer({
   target: document.getElementById('tree')!,
@@ -32,13 +32,13 @@ The viewer is plain ES modules with no dependencies, so a page can use it direct
 package, two requests in all:
 
 ```html
-<link rel="stylesheet" href="/vendor/gbif-phylo/viewer.css" />
+<link rel="stylesheet" href="/vendor/canopy/viewer.css" />
 <script type="importmap">
-  { "imports": { "@gbif-phylo/viewer": "/vendor/gbif-phylo/viewer.js", "@gbif-phylo/io": "/vendor/gbif-phylo/io.js" } }
+  { "imports": { "@canopy/viewer": "/vendor/canopy/viewer.js", "@canopy/io": "/vendor/canopy/io.js" } }
 </script>
 <script type="module">
-  import { TreeViewer, defaultControls } from '@gbif-phylo/viewer';
-  import { parseNewick } from '@gbif-phylo/io';
+  import { TreeViewer, defaultControls } from '@canopy/viewer';
+  import { parseNewick } from '@canopy/io';
   const tree = parseNewick(await (await fetch('/trees/my.nwk')).text());
   new TreeViewer({ target: document.getElementById('tree'), tree, controls: defaultControls() });
 </script>

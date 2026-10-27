@@ -1,5 +1,5 @@
 // Page of the unrooted layout spike (#42): draws unrootedLayout() of one tree on a plain canvas, every branch, no level of detail, no zoom
-// or pan. unrootedLayout is not exported by @gbif-phylo/viewer, so it is imported from the viewer's source by relative path (see the
+// or pan. unrootedLayout is not exported by @canopy/viewer, so it is imported from the viewer's source by relative path (see the
 // README: a spike exception to "examples use the public API only").
 //   ?tree=<id in src/trees.json or the catalogue, or a path under data/>  ?lengths=0 (unit lengths)  ?labels=1|0 (default: on up to
 //   250 tips)  ?size=<css px, default: the window's width up to 760>  ?limit=<nodes, 0: none; default NODE_LIMIT>
@@ -9,9 +9,9 @@
 // tests/browser/bench/unrooted-shots.mjs.
 
 import '../../react/src/gbif-tokens.css';
-import '@gbif-phylo/viewer/gbif.css';
+import '@canopy/viewer/gbif.css';
 import './style.css';
-import type { TreeModel } from '@gbif-phylo/io';
+import type { TreeModel } from '@canopy/io';
 import { fetchText, loadTreeFile, parseTree, withCatalogue } from '../../shared/data.ts';
 import { treePicker, type PickerItem } from '../../shared/picker.ts';
 import { unrootedLayout, type UnrootedLayout } from '../../../packages/viewer/src/unrooted.ts';

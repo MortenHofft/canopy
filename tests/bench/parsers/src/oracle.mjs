@@ -164,7 +164,7 @@ async function main() {
 
   // DendroPy-only disagreements worth attention: cases where DendroPy and OURS differ.
   console.log('');
-  console.log(`${COLORS.cyan}Where DendroPy and gbif-phylo/io differ (potential bugs in ours or in our fixture expectation)${COLORS.reset}`);
+  console.log(`${COLORS.cyan}Where DendroPy and canopy/io differ (potential bugs in ours or in our fixture expectation)${COLORS.reset}`);
   for (const f of fixtures) {
     const or = oracle[f.id];
     if (!or) continue;

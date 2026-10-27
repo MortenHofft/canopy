@@ -4,8 +4,8 @@
 // panel sets the viewport once the tree is laid out.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useTreeEvent } from '@gbif-phylo/react';
-import type { TreeViewer } from '@gbif-phylo/viewer';
+import { useTreeEvent } from '@canopy/react';
+import type { TreeViewer } from '@canopy/viewer';
 import { BUILD, VIEW_OPTIONS, viewJson, viewUrl, type DebugInfo, type SavedView, type TreeName, type ViewOptions } from './debug.ts';
 
 /** How often the panel reads the viewer again while frames are drawn. */

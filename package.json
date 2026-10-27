@@ -1,5 +1,5 @@
 {
-  "name": "gbif-phylo",
+  "name": "canopy",
   "private": true,
   "description": "Monorepo of the phylogenetic tree viewer: a framework-free viewer, a React wrapper, tree operations and tree file parsers.",
   "type": "module",

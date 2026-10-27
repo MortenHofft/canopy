@@ -1,6 +1,6 @@
 // Internal node labels in the wild are names ('Canidae_ott770319'), support values ('0.95', '100') or both
 // ('98.0:c__Nitrososphaeria', the GTDB style). A support value belongs to the EDGE above the node, a name to the NODE, so
-// rerooting has to take them apart. The same rule as @gbif-phylo/io's Newick parser (packages/io/src/tree.ts splitInternalLabel);
+// rerooting has to take them apart. The same rule as @canopy/io's Newick parser (packages/io/src/tree.ts splitInternalLabel);
 // kept here so the package has no imports outside itself.
 
 const NUMERIC_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::(.*))?$/s;

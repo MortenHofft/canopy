@@ -1,6 +1,6 @@
 # Collapse to 50 clades: by size or preferring named clades (#57)
 
-An experiment for [#57](https://github.com/MortenHofft/gbif-phylo/issues/57), to judge whether `by: 'named'` is worth keeping. Nothing here is
+An experiment for [#57](https://github.com/MortenHofft/canopy/issues/57), to judge whether `by: 'named'` is worth keeping. Nothing here is
 settled.
 
 ## What was compared

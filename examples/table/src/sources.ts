@@ -1,5 +1,5 @@
 // The data sources of this example: for each tree, the tip fields (what the Labels column can show) and the data columns, as column specs
-// of @gbif-phylo/viewer keyed by tip label. Nothing here is TBrowse's: a source decides its own fields and columns, and another source
+// of @canopy/viewer keyed by tip label. Nothing here is TBrowse's: a source decides its own fields and columns, and another source
 // (GBIF occurrences, traits) would plug different ones into the same table frame (main.ts).
 //
 // What is real and what is made up:
@@ -10,8 +10,8 @@
 //  - the Score and Expression values are SAMPLE DATA, generated here from a hash of the tip label, so they are the same on every load.
 
 import { fetchText, loadTreeFile, parseFasta, parseTree, withCatalogue } from '../../shared/data.ts';
-import type { TreeModel } from '@gbif-phylo/io';
-import type { Column, TreeData } from '@gbif-phylo/viewer';
+import type { TreeModel } from '@canopy/io';
+import type { Column, TreeData } from '@canopy/viewer';
 import { heatmapRenderer, locusRenderer, TISSUES, type Locus } from './renderers.ts';
 import own from './trees.json';
 

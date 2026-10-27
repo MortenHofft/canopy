@@ -1,6 +1,6 @@
 # Example: the unrooted layout spike
 
-The page of the equal-angle spike ([#42](https://github.com/MortenHofft/gbif-phylo/issues/42)): `unrootedLayout()` of one tree, drawn on
+The page of the equal-angle spike ([#42](https://github.com/MortenHofft/canopy/issues/42)): `unrootedLayout()` of one tree, drawn on
 a plain canvas. Every branch is drawn, with no level of detail, no zoom or pan and no hit testing. It is not a view of the viewer; the
 viewer has no `layout: 'unrooted'`. The pictures, the timings and the decision are in
 [docs/design/unrooted.md](../../docs/design/unrooted.md).
@@ -29,11 +29,11 @@ timings of the bench script. A file is not kept in the URL.
 
 ## A spike exception: not the public API
 
-The other examples use the public API of the packages only. This one cannot: `unrootedLayout` is not exported by `@gbif-phylo/viewer`,
+The other examples use the public API of the packages only. This one cannot: `unrootedLayout` is not exported by `@canopy/viewer`,
 and stays unexported until the viewer has a real unrooted layout. [`src/main.ts`](src/main.ts) imports it from the viewer's source by
 relative path (`../../../packages/viewer/src/unrooted.ts`), which works inside this repository only. The drawing (fit, branches, labels)
 is the page's own code.
 
-The colours are the viewer's `--phylo-*` properties from `@gbif-phylo/viewer/gbif.css`, on the GBIF design tokens.
+The colours are the viewer's `--phylo-*` properties from `@canopy/viewer/gbif.css`, on the GBIF design tokens.
 
 Checked by `tests/browser/scripts/check-unrooted.mjs` (`npm run test:browser -w tests/browser -- --only unrooted`).

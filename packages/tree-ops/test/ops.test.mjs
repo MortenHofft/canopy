@@ -7,9 +7,9 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as ops from '../src/index.ts';
-// Test fixtures only: @gbif-phylo/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
+// Test fixtures only: @canopy/io's Newick parser and TreeModel turn text into a TreeInput and the result arrays back into
 // something with tree queries (mrca, descendantTips). The package itself imports nothing outside src/.
-import { parseNewick, parseNexus, supportFrom, toNewick, TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, supportFrom, toNewick, TreeModel } from '@canopy/io';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 // MRCA of tips named by label: the labels go through tipIndices (TreeModel.mrcaOf takes node numbers only)

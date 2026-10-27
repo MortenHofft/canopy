@@ -1,5 +1,5 @@
 {
-  "name": "@gbif-phylo/io",
+  "name": "@canopy/io",
   "version": "0.1.0",
   "private": true,
   "description": "Iterative, quote-aware Newick and NEXUS parsers and a Newick writer, producing a preorder TreeModel on typed arrays.",
@@ -8,7 +8,7 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "@gbif-phylo/source": "./src/index.ts",
+      "@canopy/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
@@ -23,9 +23,9 @@
   ],
   "scripts": {
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node ../../scripts/bundle-browser.mjs io",
-    "bench": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings bench/nexus.mjs",
-    "bench:posterior": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings bench/posterior.mjs",
+    "bench": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/nexus.mjs",
+    "bench:posterior": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/posterior.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
+    "test": "node --conditions=@canopy/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
   }
 }

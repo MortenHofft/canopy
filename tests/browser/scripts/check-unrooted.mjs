@@ -59,7 +59,7 @@ ok(ink1 > 2000, `the canvas is drawn (${ink1} non-background pixels)`);
 ok((await page.locator('#tree-select option').count()) >= 4, 'the picker lists the trees');
 ok(/932 tips/.test(await page.locator('#info').innerText()), 'the info line names the tree');
 ok(
-  (await page.locator('a[href="https://github.com/MortenHofft/gbif-phylo/blob/main/docs/design/unrooted.md"]').count()) === 1,
+  (await page.locator('a[href="https://github.com/MortenHofft/canopy/blob/main/docs/design/unrooted.md"]').count()) === 1,
   'the page links the design note',
 );
 

@@ -3,7 +3,7 @@
 // defaultControls. Placement on a real viewer is covered by the browser check of the vanilla example.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNewick } from '@gbif-phylo/io';
+import { parseNewick } from '@canopy/io';
 import { installFakeDom } from './fake-dom.mjs';
 
 installFakeDom();

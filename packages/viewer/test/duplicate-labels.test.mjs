@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, TreeModel } from '@gbif-phylo/io';
+import { parseNewick, TreeModel } from '@canopy/io';
 
 const { makeViewer, destroyAll } = await import('./viewer-harness.mjs');
 const { reroot } = await import('../../tree-ops/src/index.ts');

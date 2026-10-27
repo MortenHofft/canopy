@@ -1,4 +1,4 @@
-// Public surface of @gbif-phylo/io: tree file parsers and the TreeModel they produce.
+// Public surface of @canopy/io: tree file parsers and the TreeModel they produce.
 export {
   parseNewick,
   parseNexus,
