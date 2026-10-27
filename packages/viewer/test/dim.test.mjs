@@ -235,7 +235,7 @@ test('band, zoomed in: matches on rows partly in view are drawn, matches above a
   const tips = Array.from({ length: n }, (_, k) => `t${k}`);
   const m = await makeViewer(`(${tips.join(',')})r;`, { options: { highlightStyle: 'band' } });
   const v = m.viewer;
-  v.focusTip(100, false);
+  v.focusTip('t100', false);
   v.renderNow();
   const T = v.T;
   const top = Math.floor((T.clipT - T.oy) / T.ky); // the first row in view, maybe partly

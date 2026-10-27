@@ -5,7 +5,7 @@
 
 import React, { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { changedKeys, liveTooltipEvent, stripUndefined, tipRow, useShallowStable, useStable } from './props.ts';
+import { changedKeys, liveTooltipEvent, stripUndefined, useShallowStable, useStable } from './props.ts';
 import {
   TreeViewer,
   InMemorySource,
@@ -25,6 +25,7 @@ import {
   type FrameStats,
   type LayoutKind,
   type TipRef,
+  tipRow,
   type TreeEvent,
   type ViewerOptions,
   type TreeData,
@@ -345,19 +346,14 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
     const f = latest.current.focus;
     const r = liveRenderer(R, rendRef);
     if (!f || !r) return;
-    const snap = sourceRef.current.snapshot();
-    const n = tipRow(snap, f.tipId, '<TreeView> focus');
-    if (n >= 0) r.focusTip(snap.tipRank[n]);
+    r.focusTip(f.tipId);
   }, [R, rendRef, focusSeq]);
 
   useImperativeHandle(
     ref,
     () => ({
       fit: () => rendRef.current?.fit(true),
-      focusTip: (id) => {
-        const n = tipRow(source.snapshot(), id, 'TreeViewHandle.focusTip');
-        if (n >= 0) rendRef.current?.focusTip(source.snapshot().tipRank[n], true);
-      },
+      focusTip: (id) => rendRef.current?.focusTip(id, true),
       zoomToNode: (node) => rendRef.current?.zoomToNode(node, true),
       getViewport: () => rendRef.current!.getViewport(),
       setViewport: (v) => rendRef.current?.setViewport(v),
@@ -368,10 +364,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       },
       locateNode: (node) => rendRef.current?.locateNode(node) ?? null,
       nodeBounds: (node) => rendRef.current?.nodeBounds(node) ?? null,
-      columnCell: (c, id) => {
-        const n = tipRow(source.snapshot(), id);
-        return n < 0 ? null : (rendRef.current?.columnCell(c, source.snapshot().tipRank[n]) ?? null);
-      },
+      columnCell: (c, id) => rendRef.current?.columnCell(c, id) ?? null,
       getStats: () => rendRef.current!.getStats(),
       benchmark: (n) => rendRef.current!.benchmark(n),
       renderer: () => rendRef.current,

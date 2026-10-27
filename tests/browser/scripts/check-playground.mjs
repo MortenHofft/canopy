@@ -957,7 +957,7 @@ console.log('data columns');
 await page.selectOption('#tree-select', 'syn-yule-1000');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('1,000 tips'), null, { timeout: 30000 });
 await page.waitForTimeout(400);
-const cell = (id) => ev((id) => window.viewer.columnCell(id, 0), id);
+const cell = (id) => ev((id) => window.viewer.columnCell(id, window.viewer.getTree().tipNode[0]), id);
 ok((await cell('m:occurrence_count')) !== null && (await cell('alignment')) !== null, 'occurrence bars and the alignment shown by default');
 ok((await page.locator('#data-columns .muted').innerText()).includes('of 1,000 tips have data'), 'says how many tips have data');
 // the alignment alphabet and the residue colour tokens: read the colours the column is drawn in
@@ -971,7 +971,7 @@ const alnColours = () =>
     const k = c.width / bb.width;
     const seen = new Set();
     for (let row = 0; row < 8; row++) {
-      const r = window.viewer.columnCell('alignment', row);
+      const r = window.viewer.columnCell('alignment', window.viewer.getTree().tipNode[row]);
       if (!r) continue;
       for (let i = 0; i < 100; i++) {
         const d = c
@@ -1058,7 +1058,7 @@ await open('?tree=syn-yule-1000');
 const rowPx = () =>
   ev(() => {
     const v = window.viewer.getViewport();
-    return window.viewer.columnCell('alignment', Math.floor((v.y0 + v.y1) / 2))?.height ?? null; // a row in view
+    return window.viewer.columnCell('alignment', window.viewer.getTree().tipNode[Math.floor((v.y0 + v.y1) / 2)])?.height ?? null; // a row in view
   });
 const wheelIn = async (n) => {
   const box = await page.locator('#tree canvas').first().boundingBox();
@@ -1105,7 +1105,7 @@ await open('?tree=rich-hcv-19&s.maxViewWidth=6');
 const geometry = () =>
   ev(() => {
     const v = window.viewer;
-    const c = v.columnCell('alignment', 0);
+    const c = v.columnCell('alignment', v.getTree().tipNode[0]);
     const left = document.querySelector('#tree').getBoundingClientRect().left; // cells come in page coordinates
     return { W: v.size.width, cell: c && { x: c.x - left, width: c.width }, view: v.getViewport() };
   });

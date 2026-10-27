@@ -130,7 +130,7 @@ test('Search: prefix matches first, case-insensitive on the displayed label, cap
       assert.equal(s.list.children.length, 1);
       assert.equal(s.input.getAttribute('aria-expanded'), 'true');
       s.input.dispatch('keydown', { key: 'Enter' });
-      assert.deepEqual(v.calls, [['focusTip', 1, true]]);
+      assert.deepEqual(v.calls, [['focusTip', 3, true]]);
       assert.equal(s.list.hidden, true);
       assert.equal(s.input.value, 'Apis cerana');
       s.setViewer(null);
@@ -189,7 +189,7 @@ test('Search: highlight and onSelect', () => {
   li.click();
   assert.deepEqual(v.calls, [
     ['setHighlighted', [5]],
-    ['focusTip', 2, true],
+    ['focusTip', 5, true],
   ]);
   const picked = [];
   const s2 = new Search({ onSelect: (id, _v, node) => picked.push(id, node) });
@@ -223,7 +223,7 @@ test('Search: a label that several tips carry lists each tip, says which it is, 
       s.input.dispatch('keydown', { key: 'Enter' });
       assert.deepEqual(v.calls, [
         ['setHighlighted', [5]],
-        ['focusTip', 3, true],
+        ['focusTip', 5, true],
       ]);
       s.setViewer(null);
       done();

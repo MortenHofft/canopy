@@ -189,6 +189,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/draw.ts`                     | 643       | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer`                                   |
 | `src/hit.ts`                      | 314       | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                       |
 | `src/columns.ts`                  | 379       | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                      |
+| `src/tip-row.ts`                  | 42        | `tipRow`: a tip named by label or node id (`TipRef`) to its snapshot row, with the warnings; behind `focusTip`, `columnCell` and `<TreeView>`'s handle (no DOM) |
 | `src/view-keep.ts`                | 92        | `keptViewport`: where the window goes when `setTree` replaces the tree (the tips in view sent through a tip map; no DOM)                             |
 | `src/view-state.ts`               | 384       | `ViewState`: viewport, area, fit, limits, zoom, target windows, animation (no DOM)                                                                   |
 | `src/input.ts`                    | 306       | `InputController`: wheel, pointer, pinch, click, key events to calls on a host (ignores the control layer)                                           |

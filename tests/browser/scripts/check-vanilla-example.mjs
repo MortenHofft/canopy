@@ -186,7 +186,7 @@ const probe = await ev(() => {
   const ctx = v.ctx;
   const dpr = ctx.canvas.width / r.width;
   for (let k = 0; k < t.tipCount; k++) {
-    const c = v.columnCell('trait', k);
+    const c = v.columnCell('trait', t.tipNode[k]);
     if (!c || c.height < 0.5) continue;
     const x = Math.round((c.x - r.left + c.width / 2) * dpr),
       y = Math.round((c.y - r.top + c.height / 2) * dpr);
@@ -220,7 +220,7 @@ const by = await ev(() => {
     tips: v.getTree().tipCount,
     entries: [...document.querySelectorAll('#legend-slot li')].map((e) => e.textContent),
     inViewer: document.querySelectorAll('.phylo-legend').length,
-    swatch: !!v.columnCell('colour-by:country_code', 0),
+    swatch: !!v.columnCell('colour-by:country_code', v.getTree().tipNode[0]),
   };
 });
 ok(by.clades > 0 && by.clades <= by.tips, `colouring by country colours the tips with a value (${by.clades} of ${by.tips})`);
@@ -241,7 +241,7 @@ await page.locator('#colour-by').selectOption('');
 await sleep(200);
 const none = await ev(() => ({
   clades: window.__example.viewer.getClades().length,
-  swatch: !!window.__example.viewer.columnCell('colour-by:country_code', 0),
+  swatch: !!window.__example.viewer.columnCell('colour-by:country_code', window.__example.viewer.getTree().tipNode[0]),
 }));
 ok(
   none.clades === 0 && !none.swatch && (await ev(() => document.getElementById('legend-slot').hidden)),
@@ -404,7 +404,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     return s;
   };
   for (const how of ['click', 'keyboard']) {
-    await ev(() => window.__example.viewer.focusTip(300));
+    await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
     await sleep(700);
     off = null;
     const s0 = await state();
@@ -448,7 +448,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await page.mouse.up();
     await sleep(300);
     await follows(`${how}, drag released`);
-    await ev(() => window.__example.viewer.focusTip(300));
+    await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
     await sleep(700);
     await focusAnchor();
     // wheel: zoom about a point away from the tip, then back (the -120 steps move the tip out and are regression coverage of parking)
@@ -458,7 +458,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
       await follows(`${how}, wheel ${dy}`);
     }
     await sleep(300);
-    await ev(() => window.__example.viewer.focusTip(300));
+    await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
     await sleep(700);
     await focusAnchor();
     // keyboard pan: the view follows the cursor with arrow keys
@@ -472,7 +472,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
       await follows(`${how}, key ${key}`, true);
     }
     // pan the tip out of the plot with the drag, then check, then back
-    await ev(() => window.__example.viewer.focusTip(300));
+    await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
     await sleep(700);
     await page.mouse.move(box.x, box.y);
     await page.mouse.down();
@@ -487,7 +487,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
     await sleep(300);
   }
   // a theme or label-size change rebuilds the anchors; keyboard focus stays on the same tip's anchor (and keeps its ring: CSS)
-  await ev(() => window.__example.viewer.focusTip(300));
+  await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
   await sleep(700);
   await ev(() => document.activeElement?.blur?.());
   await page.keyboard.press('Tab');
@@ -499,7 +499,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
   await ev(() => window.__example.viewer.setTheme({}));
   await sleep(300);
   // :focus-visible is live CSS: click a label (no ring), then a key press makes the ring appear without a new focus event
-  await ev(() => window.__example.viewer.focusTip(300));
+  await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
   await sleep(700);
   {
     await ev(() => document.activeElement?.blur?.());
@@ -515,7 +515,7 @@ ok(owner.zooms, 'destroying the first viewer leaves the control working on the s
   }
   // radial: the rotated anchor stays next to its tip (the label is 140 px wide at most) through a drag and wheel steps
   await ev(() => window.__example.viewer.setOptions({ layout: 'radial' }));
-  await ev(() => window.__example.viewer.focusTip(300));
+  await ev(() => window.__example.viewer.focusTip(window.__example.viewer.getTree().tipNode[300]));
   await sleep(900);
   await ev((t) => [...window.__example.viewer.element.querySelectorAll('[data-tip-id]')].find((e) => e.dataset.tipId === t)?.focus(), tipId);
   // the label's pixels (drawn in a unique colour) must lie inside the anchor's rotated box: >= 90% of them

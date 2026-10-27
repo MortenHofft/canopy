@@ -90,6 +90,7 @@ import {
   MAX_BLOCK_PX,
   type BudgetState,
 } from './budget.ts';
+import { tipRow } from './tip-row.ts';
 import { keptViewport, type TipTarget } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
@@ -1553,12 +1554,14 @@ export class TreeViewer {
     this.vs.zoomBy(fx, fy, px, py);
   }
 
-  /** Bring the tip of this rank into view at a readable size. A tip inside a collapsed clade is not drawn: the clade is brought into view
-   *  instead (nothing is expanded). */
-  focusTip(rank: number, animate = false): void {
-    if (rank < 0 || rank >= this.tree.tipCount) return;
+  /** Bring a tip into view at a readable size: a label (the first tip with it, with a warning when several carry it) or a node id (that
+   *  tip). Ignored when there is no such tip or its row is not loaded. A tip inside a collapsed clade is not drawn: the clade is brought
+   *  into view instead (nothing is expanded). */
+  focusTip(tip: TipRef, animate = false): void {
+    const row = tipRow(this.tree, tip, 'focusTip');
+    const rank = row < 0 ? -1 : this.tree.tipRank[row];
+    if (rank < 0) return; // no such tip, or the tip's row is not loaded
     let node = this.tree.tipNode[rank];
-    if (node < 0) return; // the tip's row is not loaded
     if (this.L.rowNode && this.L.rowOfRank) node = this.L.rowNode[this.L.rowOfRank[rank]]; // inside a collapsed clade: the clade
     this.activeNode = -1;
     this.vs.setViewport(this.vs.focusViewport(node), animate);
@@ -1654,7 +1657,11 @@ export class TreeViewer {
     return { x: r.left + x0, y: r.top + y0, width: x1 - x0, height: y1 - y0 };
   }
 
-  columnCell(colId: string, rank: number): { x: number; y: number; width: number; height: number } | null {
+  /** Client-px box of a column cell for a tip (a label: the first tip with it; a node id), or null. */
+  columnCell(colId: string, tip: TipRef): { x: number; y: number; width: number; height: number } | null {
+    const row = tipRow(this.tree, tip);
+    const rank = row < 0 ? -1 : this.tree.tipRank[row];
+    if (rank < 0) return null;
     this.renderNow();
     const c = this.columns.find((k) => k.spec.id === colId);
     if (!c) return null;

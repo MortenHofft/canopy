@@ -142,11 +142,12 @@ export class HeaderRow {
   private columnX(cell: HeaderCell): number | null {
     const v = this.viewer;
     const L = v.layout;
+    const t = v.getTree();
     const { y0, y1 } = v.getViewport();
     for (let row = Math.max(0, Math.floor(y0)); row < Math.min(L.rows, Math.ceil(y1)); row++) {
       const rank = L.rankOfRow ? L.rankOfRow[row] : row;
       if (L.collapsed && L.rowNode && L.collapsed[L.rowNode[row]]) continue; // a collapsed clade's row is blank in every column
-      const box = v.columnCell(cell.id, rank);
+      const box = v.columnCell(cell.id, t.tipNode[rank]);
       if (box) return box.x - (cell.bar ? 2 : 0);
     }
     return null;

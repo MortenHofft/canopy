@@ -213,7 +213,7 @@ export class Search extends BaseControl {
     this.input.value = v.options.formatLabel(tipId);
     if (this.opts.onSelect) return this.opts.onSelect(tipId, v, node);
     if (this.opts.highlight) v.setHighlighted([node >= 0 ? node : tipId]); // the node: this tip, not every tip with its label
-    v.focusTip(rank, true);
+    if (node >= 0) v.focusTip(node, true);
   }
 
   private close(): void {
