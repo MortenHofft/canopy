@@ -6,7 +6,7 @@
 //  - a click on a tip reads that tip's row of the sidecar and its sequence (one row group each);
 //  - the Network panel counts what all this cost.
 // `npm run dev` here, `node scripts/generate.mjs` and `node scripts/serve.mjs` for the data (README.md), then
-//   http://127.0.0.1:5309/?url=http://127.0.0.1:5210/<dataset>[&cpu=1][&budget=2000][&layout=radial][&gap=65536][&plan=0]
+//   http://127.0.0.1:5309/?url=http://127.0.0.1:5210/<dataset>[&cpu=1][&budget=2000][&layout=radial][&gap=65536][&plan=0][&cache=default]
 
 import '@gbif-phylo/viewer/viewer.css';
 import './style.css';
@@ -25,7 +25,11 @@ const fmtBytes = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(2)} MB` : `${(b
 
 let source: ParquetSource;
 try {
-  source = await ParquetSource.open(url, { gap: params.has('gap') ? +params.get('gap')! : undefined, plan: params.get('plan') !== '0' });
+  source = await ParquetSource.open(url, {
+    gap: params.has('gap') ? +params.get('gap')! : undefined,
+    plan: params.get('plan') !== '0',
+    cache: (params.get('cache') as RequestCache | null) ?? undefined,
+  });
 } catch (e) {
   document.body.innerHTML = `<p style="padding:16px">Could not open <code>${url}</code>: ${String(e)}<br />Generate a dataset with <code>node scripts/generate.mjs --tips 100000 --out ../../data/parquet/t100k</code> and serve it with <code>node scripts/serve.mjs --root ../../data/parquet --port 5210</code> (see README.md).</p>`;
   throw e;

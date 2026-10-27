@@ -1,0 +1,901 @@
+{
+ "id": "E9",
+ "title": "The recommended layout at scale: one file per sidecar column, 16k-row groups, sequences in shards of 65536 tips with 256-row groups",
+ "rows": [
+  {
+   "name": "100k columns+shards seq500",
+   "params": {
+    "gen": {
+     "tips": 100000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "sidecarFiles": "columns",
+     "seqRg": 256,
+     "seqShard": 65536
+    }
+   },
+   "result": {
+    "dataset": "100k_columns_shards_seq500",
+    "tips": 100000,
+    "nodes": 199999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 256,
+     "cat_encoding": "code",
+     "sidecar_files": "columns",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 2716358,
+      "footer": 8190,
+      "row_groups": 13
+     },
+     "tips.parquet": {
+      "bytes": 961389,
+      "footer": 8156,
+      "row_groups": 49
+     },
+     "overview.parquet": {
+      "bytes": 203320,
+      "footer": 1808,
+      "row_groups": 2
+     },
+     "sidecar_country.parquet": {
+      "bytes": 57100,
+      "footer": 608,
+      "row_groups": 7
+     },
+     "sidecar_host.parquet": {
+      "bytes": 65924,
+      "footer": 584,
+      "row_groups": 7
+     },
+     "sidecar_year.parquet": {
+      "bytes": 43734,
+      "footer": 570,
+      "row_groups": 7
+     },
+     "sidecar_lat.parquet": {
+      "bytes": 343564,
+      "footer": 590,
+      "row_groups": 7
+     },
+     "sequence_0000.parquet": {
+      "bytes": 5562798,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0001.parquet": {
+      "bytes": 2923915,
+      "footer": 14406,
+      "row_groups": 135
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 349,
+       "requests": 2,
+       "bytes": 58084
+      },
+      "colour": {
+       "ms": 60.39999999990687,
+       "requests": 2,
+       "bytes": 57096
+      },
+      "zoom": {
+       "ms": 102.59999999962747,
+       "requests": 2,
+       "bytes": 229632
+      },
+      "inspect": {
+       "ms": 28.5,
+       "requests": 10,
+       "bytes": 151125
+      },
+      "inspect2": {
+       "ms": 29.300000000279397,
+       "requests": 6,
+       "bytes": 128360
+      },
+      "end": {
+       "heapMB": 18.123893,
+       "frameMs": 2,
+       "requests": 22,
+       "bytes": 624297
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 542.7999999998137,
+       "requests": 2,
+       "bytes": 58084
+      },
+      "colour": {
+       "ms": 372.20000000018626,
+       "requests": 2,
+       "bytes": 57096
+      },
+      "zoom": {
+       "ms": 585.7999999998137,
+       "requests": 2,
+       "bytes": 229632
+      },
+      "inspect": {
+       "ms": 702.5,
+       "requests": 10,
+       "bytes": 151125
+      },
+      "inspect2": {
+       "ms": 337.89999999990687,
+       "requests": 6,
+       "bytes": 128360
+      },
+      "end": {
+       "heapMB": 17.940632,
+       "frameMs": 2.5,
+       "requests": 22,
+       "bytes": 624297
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "1000k columns+shards seq500",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "sidecarFiles": "columns",
+     "seqRg": 256,
+     "seqShard": 65536
+    }
+   },
+   "result": {
+    "dataset": "1000k_columns_shards_seq500",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 256,
+     "cat_encoding": "code",
+     "sidecar_files": "columns",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar_country.parquet": {
+      "bytes": 566749,
+      "footer": 5009,
+      "row_groups": 62
+     },
+     "sidecar_host.parquet": {
+      "bytes": 659599,
+      "footer": 4820,
+      "row_groups": 62
+     },
+     "sidecar_year.parquet": {
+      "bytes": 435020,
+      "footer": 4696,
+      "row_groups": 62
+     },
+     "sidecar_lat.parquet": {
+      "bytes": 3402112,
+      "footer": 4965,
+      "row_groups": 62
+     },
+     "sequence_0000.parquet": {
+      "bytes": 5563061,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0001.parquet": {
+      "bytes": 5551334,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0002.parquet": {
+      "bytes": 5571000,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0003.parquet": {
+      "bytes": 5569010,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0004.parquet": {
+      "bytes": 5560966,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0005.parquet": {
+      "bytes": 5573241,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0006.parquet": {
+      "bytes": 5532269,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0007.parquet": {
+      "bytes": 5551781,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0008.parquet": {
+      "bytes": 5542115,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0009.parquet": {
+      "bytes": 5554123,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0010.parquet": {
+      "bytes": 5561250,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0011.parquet": {
+      "bytes": 5559373,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0012.parquet": {
+      "bytes": 5565351,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0013.parquet": {
+      "bytes": 5546761,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0014.parquet": {
+      "bytes": 5552126,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0015.parquet": {
+      "bytes": 1446497,
+      "footer": 7127,
+      "row_groups": 67
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 365.60000000009313,
+       "requests": 2,
+       "bytes": 68869
+      },
+      "colour": {
+       "ms": 105.5,
+       "requests": 2,
+       "bytes": 566745
+      },
+      "zoom": {
+       "ms": 127,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 53.59999999962747,
+       "requests": 10,
+       "bytes": 237080
+      },
+      "inspect2": {
+       "ms": 29.200000000186265,
+       "requests": 6,
+       "bytes": 141495
+      },
+      "end": {
+       "heapMB": 38.869333,
+       "frameMs": 12.699999999720603,
+       "requests": 22,
+       "bytes": 1313012
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 554.2000000001863,
+       "requests": 2,
+       "bytes": 68869
+      },
+      "colour": {
+       "ms": 861.0999999996275,
+       "requests": 2,
+       "bytes": 566745
+      },
+      "zoom": {
+       "ms": 662.1999999997206,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 685.6000000000931,
+       "requests": 10,
+       "bytes": 237080
+      },
+      "inspect2": {
+       "ms": 390.39999999990687,
+       "requests": 6,
+       "bytes": 141495
+      },
+      "end": {
+       "heapMB": 37.652215,
+       "frameMs": 10.199999999720603,
+       "requests": 22,
+       "bytes": 1313012
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "5000k columns+shards seq500",
+   "params": {
+    "gen": {
+     "tips": 5000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "sidecarFiles": "columns",
+     "seqRg": 256,
+     "seqShard": 65536
+    }
+   },
+   "result": {
+    "dataset": "5000k_columns_shards_seq500",
+    "tips": 5000000,
+    "nodes": 9999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 256,
+     "cat_encoding": "code",
+     "sidecar_files": "columns",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 133771695,
+      "footer": 380749,
+      "row_groups": 611
+     },
+     "tips.parquet": {
+      "bytes": 48314681,
+      "footer": 412553,
+      "row_groups": 2442
+     },
+     "overview.parquet": {
+      "bytes": 3441339,
+      "footer": 3521,
+      "row_groups": 4
+     },
+     "sidecar_country.parquet": {
+      "bytes": 2830564,
+      "footer": 24917,
+      "row_groups": 306
+     },
+     "sidecar_host.parquet": {
+      "bytes": 3293170,
+      "footer": 24028,
+      "row_groups": 306
+     },
+     "sidecar_year.parquet": {
+      "bytes": 2175327,
+      "footer": 23286,
+      "row_groups": 306
+     },
+     "sidecar_lat.parquet": {
+      "bytes": 16943512,
+      "footer": 24493,
+      "row_groups": 306
+     },
+     "sequence_0000.parquet": {
+      "bytes": 5556151,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0001.parquet": {
+      "bytes": 5561544,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0002.parquet": {
+      "bytes": 5543277,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0003.parquet": {
+      "bytes": 5561671,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0004.parquet": {
+      "bytes": 5566369,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0005.parquet": {
+      "bytes": 5554970,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0006.parquet": {
+      "bytes": 5563750,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0007.parquet": {
+      "bytes": 5573687,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0008.parquet": {
+      "bytes": 5562105,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0009.parquet": {
+      "bytes": 5547691,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0010.parquet": {
+      "bytes": 5531666,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0011.parquet": {
+      "bytes": 5548339,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0012.parquet": {
+      "bytes": 5565455,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0013.parquet": {
+      "bytes": 5543383,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0014.parquet": {
+      "bytes": 5544728,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0015.parquet": {
+      "bytes": 5564602,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0016.parquet": {
+      "bytes": 5557196,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0017.parquet": {
+      "bytes": 5558571,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0018.parquet": {
+      "bytes": 5564410,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0019.parquet": {
+      "bytes": 5534108,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0020.parquet": {
+      "bytes": 5547950,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0021.parquet": {
+      "bytes": 5577519,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0022.parquet": {
+      "bytes": 5559964,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0023.parquet": {
+      "bytes": 5565501,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0024.parquet": {
+      "bytes": 5549185,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0025.parquet": {
+      "bytes": 5565102,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0026.parquet": {
+      "bytes": 5569780,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0027.parquet": {
+      "bytes": 5545318,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0028.parquet": {
+      "bytes": 5570331,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0029.parquet": {
+      "bytes": 5563489,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0030.parquet": {
+      "bytes": 5575901,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0031.parquet": {
+      "bytes": 5551264,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0032.parquet": {
+      "bytes": 5561026,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0033.parquet": {
+      "bytes": 5567357,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0034.parquet": {
+      "bytes": 5561580,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0035.parquet": {
+      "bytes": 5551075,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0036.parquet": {
+      "bytes": 5548700,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0037.parquet": {
+      "bytes": 5555179,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0038.parquet": {
+      "bytes": 5547116,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0039.parquet": {
+      "bytes": 5588363,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0040.parquet": {
+      "bytes": 5567378,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0041.parquet": {
+      "bytes": 5567758,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0042.parquet": {
+      "bytes": 5549913,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0043.parquet": {
+      "bytes": 5562397,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0044.parquet": {
+      "bytes": 5549609,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0045.parquet": {
+      "bytes": 5547360,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0046.parquet": {
+      "bytes": 5587221,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0047.parquet": {
+      "bytes": 5553384,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0048.parquet": {
+      "bytes": 5561193,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0049.parquet": {
+      "bytes": 5570327,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0050.parquet": {
+      "bytes": 5552510,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0051.parquet": {
+      "bytes": 5552549,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0052.parquet": {
+      "bytes": 5576210,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0053.parquet": {
+      "bytes": 5541277,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0054.parquet": {
+      "bytes": 5583345,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0055.parquet": {
+      "bytes": 5556735,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0056.parquet": {
+      "bytes": 5556712,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0057.parquet": {
+      "bytes": 5544094,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0058.parquet": {
+      "bytes": 5545618,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0059.parquet": {
+      "bytes": 5563091,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0060.parquet": {
+      "bytes": 5558237,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0061.parquet": {
+      "bytes": 5552135,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0062.parquet": {
+      "bytes": 5568723,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0063.parquet": {
+      "bytes": 5575061,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0064.parquet": {
+      "bytes": 5559791,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0065.parquet": {
+      "bytes": 5548705,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0066.parquet": {
+      "bytes": 5557224,
+      "footer": 27351,
+      "row_groups": 256
+     },
+     "sequence_0067.parquet": {
+      "bytes": 5554824,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0068.parquet": {
+      "bytes": 5553759,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0069.parquet": {
+      "bytes": 5562554,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0070.parquet": {
+      "bytes": 5543832,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0071.parquet": {
+      "bytes": 5571416,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0072.parquet": {
+      "bytes": 5566399,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0073.parquet": {
+      "bytes": 5554312,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0074.parquet": {
+      "bytes": 5553260,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0075.parquet": {
+      "bytes": 5578102,
+      "footer": 27353,
+      "row_groups": 256
+     },
+     "sequence_0076.parquet": {
+      "bytes": 1635511,
+      "footer": 8090,
+      "row_groups": 76
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 806.2000000001863,
+       "requests": 2,
+       "bytes": 84977
+      },
+      "colour": {
+       "ms": 674.1000000000931,
+       "requests": 2,
+       "bytes": 2830560
+      },
+      "zoom": {
+       "ms": 608.2000000001863,
+       "requests": 2,
+       "bytes": 1035037
+      },
+      "inspect": {
+       "ms": 78.39999999990687,
+       "requests": 10,
+       "bytes": 625834
+      },
+      "inspect2": {
+       "ms": 25.100000000093132,
+       "requests": 6,
+       "bytes": 135881
+      },
+      "end": {
+       "heapMB": 163.375843,
+       "frameMs": 16.899999999906868,
+       "requests": 22,
+       "bytes": 4712289
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 636.8999999999069,
+       "requests": 2,
+       "bytes": 84977
+      },
+      "colour": {
+       "ms": 3101.6999999997206,
+       "requests": 2,
+       "bytes": 2830560
+      },
+      "zoom": {
+       "ms": 1827.3000000002794,
+       "requests": 2,
+       "bytes": 1035037
+      },
+      "inspect": {
+       "ms": 831.6999999997206,
+       "requests": 10,
+       "bytes": 625834
+      },
+      "inspect2": {
+       "ms": 373,
+       "requests": 6,
+       "bytes": 135881
+      },
+      "end": {
+       "heapMB": 141.186046,
+       "frameMs": 11.5,
+       "requests": 22,
+       "bytes": 4712289
+      },
+      "errors": []
+     }
+    }
+   }
+  }
+ ]
+}

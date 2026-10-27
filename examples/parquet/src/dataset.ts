@@ -61,6 +61,8 @@ export interface DatasetOptions {
   /** Before decoding, ask for the byte ranges of all the column chunks a read needs in one go, so that the range file can merge the ones
    *  that lie less than `gap` bytes apart (hyparquet asks for one row group after the other). Default true. */
   plan?: boolean;
+  /** The `cache` option of fetch for the range requests. Default 'no-store': see rangefile.ts for why the default mode serialises them. */
+  cache?: RequestCache;
 }
 
 const compressors = { SNAPPY: snappyUncompressor(), ZSTD: (input: Uint8Array) => zstd(input) };
@@ -112,7 +114,7 @@ export class Dataset {
     if (!f) {
       const info = this.man.files[name];
       if (!info) throw new Error(`the manifest has no file ${name}`);
-      f = new RangeFile(`${this.base}/${name}`, info.bytes, this.opts.gap ?? 65536, this.fetchImpl, this.stats);
+      f = new RangeFile(`${this.base}/${name}`, info.bytes, this.opts.gap ?? 65536, this.fetchImpl, this.stats, this.opts.cache);
       this.files.set(name, f);
     }
     return f;

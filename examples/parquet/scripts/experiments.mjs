@@ -10,6 +10,7 @@
 //   E7 shards         the sequence file cut into files of N tips, so that small row groups do not make a big footer (1M tips, 500 bases)
 //   E8 wide sidecar   many columns: one file against one file per column, for colouring and for reading one tip's row (1M tips, 16 columns)
 //   E9 recommended    the layout the results suggest (one file per sidecar column, sharded sequences) from 100,000 to 5,000,000 tips
+//   E10 fetch cache   the fetch cache mode of the range requests: 'default' makes Chromium run the requests of one file one at a time (1M tips)
 //   E6 overview       rows of the first overview level: what the first view costs and how big a stub is (1M tips)
 
 import fs from 'node:fs';
@@ -94,6 +95,15 @@ const EXPERIMENTS = {
       name: `${tips / 1000}k columns+shards seq500`,
       gen: { tips, seqLength: 500, seqRate: 0.5, sidecarFiles: 'columns', seqRg: 256, seqShard: 65536 },
     })),
+  },
+  E10: {
+    title: "The fetch cache mode of the range requests: Chromium's default serialises the requests of one file (1M tips, no sequences)",
+    cases: [
+      { name: 'single rg16k, cache no-store', gen: { tips: M }, dataset: 'single', page: 'cache=no-store' },
+      { name: 'single rg16k, cache default', gen: { tips: M }, dataset: 'single', page: 'cache=default' },
+      { name: 'columns rg16k, cache no-store', gen: { tips: M, sidecarFiles: 'columns' }, dataset: 'columns', page: 'cache=no-store' },
+      { name: 'columns rg16k, cache default', gen: { tips: M, sidecarFiles: 'columns' }, dataset: 'columns', page: 'cache=default' },
+    ],
   },
   E6: {
     title: 'Rows of the first overview level (1M tips, no sequences)',

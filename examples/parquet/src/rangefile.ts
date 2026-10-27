@@ -2,6 +2,11 @@
 // it has downloaded (a later slice inside it costs nothing), shares a request in flight between callers, and merges requests that arrive in
 // the same tick and lie less than `gap` bytes apart into one. No suffix ranges (not CORS-safelisted) and no HEAD: the byte length comes from
 // the manifest.
+//
+// The requests are made with cache: 'no-store'. With the default cache mode Chromium takes a lock on the HTTP cache entry of a URL, and every
+// range of one Parquet file has the same URL, so the requests of one file run one after the other, however many are in flight (measured:
+// 24 range requests of one file finished 155 ms apart on a 150 ms link; with 'no-store' or 'reload' they ran six at a time, see
+// docs/design/parquet-sidecar-benchmark.md). This reader keeps what it fetched in memory, so it does not need the browser's cache for that.
 
 export interface RequestStats {
   requests: number;
@@ -38,6 +43,7 @@ export class RangeFile {
     private readonly gap: number,
     private readonly fetchImpl: Fetch,
     readonly stats: RequestStats,
+    private readonly cache: RequestCache = 'no-store',
   ) {}
 
   private find(s: number, e: number): Block | null {
@@ -115,7 +121,7 @@ export class RangeFile {
     if (this.whole) return { s: 0, e: this.byteLength, buf: this.whole };
     this.stats.requests++;
     const t0 = performance.now();
-    const res = await this.fetchImpl(this.url, { headers: { Range: `bytes=${s}-${e - 1}` } });
+    const res = await this.fetchImpl(this.url, { headers: { Range: `bytes=${s}-${e - 1}` }, cache: this.cache });
     if (res.status === 200) {
       // the server ignored Range: keep the whole object
       const buf = await res.arrayBuffer();

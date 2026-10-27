@@ -67,6 +67,8 @@ const TABLES = {
 };
 TABLES.E7 = TABLES.E4;
 TABLES.E8 = TABLES.E2;
+TABLES.E9 = TABLES.E1;
+TABLES.E10 = TABLES.E3;
 
 const want = process.argv.slice(2);
 for (const id of Object.keys(TABLES)) {
