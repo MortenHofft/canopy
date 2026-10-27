@@ -1,0 +1,28 @@
+{
+  "name": "@gbif-phylo/example-parquet",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Experiment: a tree and its sidecar as Parquet files, read with HTTP range requests. Not part of the libraries.",
+  "scripts": {
+    "dev": "vite --port 5309 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\"",
+    "generate": "node scripts/generate.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "@gbif-phylo/io": "0.1.0",
+    "@gbif-phylo/viewer": "0.1.0",
+    "fzstd": "0.1.1",
+    "hyparquet": "1.31.5",
+    "hysnappy": "1.1.1"
+  },
+  "devDependencies": {
+    "hyparquet-writer": "0.17.0",
+    "vite": "5.4.11"
+  }
+}

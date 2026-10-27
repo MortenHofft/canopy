@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A tree and its sidecar as Parquet</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="bar">
+      <strong>Parquet tree</strong>
+      <span id="dataset" class="muted"></span>
+      <span class="spacer"></span>
+      <label
+        >Colour by
+        <select id="colour-by">
+          <option value="">none</option>
+        </select></label
+      >
+      <span id="layout-slot"></span>
+    </header>
+    <main>
+      <div id="tree" class="tree"></div>
+      <aside>
+        <section>
+          <h2>Network</h2>
+          <p id="stats" aria-live="polite"></p>
+        </section>
+        <section id="legend-slot" hidden>
+          <h2></h2>
+          <ul></ul>
+        </section>
+        <section id="inspect" hidden>
+          <h2>Tip</h2>
+          <div class="body"></div>
+        </section>
+        <section>
+          <h2>Requests</h2>
+          <ol id="log"></ol>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

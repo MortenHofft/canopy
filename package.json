@@ -15,6 +15,7 @@
     "examples/playground",
     "examples/table",
     "examples/unrooted",
+    "examples/parquet",
     "site",
     "tests/browser"
   ],
