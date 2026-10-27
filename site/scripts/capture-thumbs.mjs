@@ -79,7 +79,7 @@ pages.unrooted = async () => {
 };
 
 const ids = process.argv.slice(2);
-const unknown = ids.filter((id) => !(id in pages));
+const unknown = ids.filter((id) => !Object.hasOwn(pages, id));
 if (unknown.length) {
   console.error(`unknown page id: ${unknown.join(', ')} (known: ${Object.keys(pages).join(', ')})`);
   process.exit(1);
