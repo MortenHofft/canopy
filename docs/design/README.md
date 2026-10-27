@@ -18,6 +18,7 @@ the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results
 | [custom-renderer.md](custom-renderer.md) | The research that preceded it: why our own renderer, and its architecture |
 | [data-layer.md](data-layer.md) | Data layer research: formats, loading, partial trees |
 | [treesource-slice.md](treesource-slice.md) | The `TreeSource` slice: partially loaded trees (its `ParquetSource` is on `research`) |
+| [parquet-sidecar-benchmark.md](parquet-sidecar-benchmark.md) | A tree and its sidecar as Parquet read with range requests: the benchmark, the partitioning that works, and what was not measured (#139; code in `examples/parquet`) |
 | [tree-ops.md](tree-ops.md), [tree-ops-libraries.md](tree-ops-libraries.md) | Tree operations: results and the libraries looked at |
 | [undo-memory.md](undo-memory.md) | What one more tree costs in memory (bytes per node, 10k to 1.5M tips) and the bounded undo of the examples (#44) |
 | [highlight-cost.md](highlight-cost.md) | What highlighting 10k to 1M tips costs on the 2.39M-tip OTL tree, before and after bounding the bands by pixels, and the label scan of a search (#58) |
