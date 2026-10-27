@@ -1,5 +1,7 @@
 # Custom React renderer: feasibility, architecture and effort
 
+> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../packages/viewer/docs/api.md)).
+
 Part A of the "build it ourselves" assessment. Judged against [goal.md](../goal.md) criteria 1 to 16. Companion document: [data-layer.md](data-layer.md).
 
 Evidence conventions: **verified** = read in source or docs fetched during this research (URL or file given); **measured** = run by us (own prototype, Node 22, 4 vCPU sandbox, no browser available, so no frame-rate numbers); **UNVERIFIED** = general knowledge or not confirmed. Repos were cloned read-only into the scratchpad and nothing from them was executed.
