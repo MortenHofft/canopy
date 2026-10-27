@@ -76,6 +76,13 @@ const SCENARIOS = [
   {
     name: 'io: parseNewick only',
     code: `import { parseNewick } from '@gbif-phylo/io'; console.log(parseNewick('(a,b);'));`,
+    forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js'],
+  },
+  {
+    // The XML reader is a module of its own: an app that reads Newick does not carry it, and one that reads phyloXML does not carry
+    // the sidecar. It does import NewickError from the Newick module, which is the only part of that module that is bundled.
+    name: 'io: parsePhyloXml only',
+    code: `import { parsePhyloXml } from '@gbif-phylo/io'; console.log(parsePhyloXml('<phyloxml><phylogeny><clade/></phylogeny></phyloxml>'));`,
     forbid: ['packages/io/dist/sidecar.js'],
   },
   {
