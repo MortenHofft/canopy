@@ -39,6 +39,13 @@ export interface PhyloXmlResult {
 
 const isWs = (c: number): boolean => c === 32 || c === 10 || c === 13 || c === 9;
 
+const NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+/** A decimal or exponent number, NaN for anything else (not hex, `Infinity` or an empty string). */
+const num = (s: string): number => {
+  const t = s.trim();
+  return NUMBER.test(t) ? Number(t) : NaN;
+};
+
 /** The name of an element or attribute without its namespace prefix. */
 const local = (name: string): string => name.slice(name.indexOf(':') + 1);
 
@@ -51,7 +58,7 @@ function decode(s: string): string {
   return s.replace(ENTITY, (m, hex: string | undefined, dec: string | undefined, name: string | undefined) => {
     if (name) return NAMED[name];
     const cp = hex ? parseInt(hex, 16) : Number(dec);
-    return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : m;
+    return cp > 0 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : m;
   });
 }
 
@@ -69,17 +76,17 @@ const CAPTURED: Record<string, readonly string[]> = {
   events: ['type', 'duplications', 'speciations', 'losses', 'confidence'],
   color: ['red', 'green', 'blue'],
 };
-const CONTAINERS: Record<string, readonly string[]> = {
-  clade: ['clade', 'taxonomy', 'sequence', 'events', 'color'],
-};
+/** Elements of a clade that are entered, not read as text. */
+const CLADE_CONTAINERS: readonly string[] = ['clade', 'taxonomy', 'sequence', 'events', 'color'];
 
 /** Read phylogeny number `treeIndex` (0-based) from a phyloXML document. */
 export function parsePhyloXml(text: string, treeIndex?: number, o?: PhyloXmlOptions): PhyloXmlResult;
 export function parsePhyloXml(text: string, o: PhyloXmlOptions): PhyloXmlResult;
-export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: PhyloXmlOptions = {}): PhyloXmlResult {
+export function parsePhyloXml(text: string, a?: number | PhyloXmlOptions, b: PhyloXmlOptions = {}): PhyloXmlResult {
   const obj = typeof a === 'object' && a !== null ? a : null;
   const opts: PhyloXmlOptions = obj ?? b ?? {};
-  const want = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
+  const want = typeof a === 'number' ? a : (opts.treeIndex ?? 0);
+  if (!Number.isInteger(want) || want < 0) throw new NewickError(`treeIndex must be a non-negative integer, not ${want}`, 0);
   const annot = opts.annotations === true;
   const strict = opts.strict === true;
   const bySci = opts.labelBy === 'scientific_name';
@@ -120,11 +127,13 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
   const nsAt: (string[] | null)[] = []; // by element depth: the prefixes the element declares
   const decls: string[] = []; // the declarations of the tag being read, prefix and URI in turn
   const roles = new Map<string, string>(); // qualified name -> role, valid until a declaration comes into or goes out of scope
-  const ignoredCount = new Map<string, { n: number; at: number }>();
+  const ignoredCount = new Map<string, { n: number; at: number; parent: string; name: string }>();
   let ignoreAt = -1; // open.length of the element whose content is skipped (-1: none)
   let quiet = false; // the skipped content is a phylogeny that was not asked for: not counted
   let phylo = -1; // index of the current phylogeny
   let selected = false;
+  let doneSelected = false; // the phylogeny that was asked for has been read to its end tag
+  let stopped: NewickError | null = null; // an error after that: the rest of the file is not read
   let seen = 0;
   let treeName = '';
   let rooted: boolean | null = null;
@@ -132,19 +141,26 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
   let sawRoot = false;
   let capKey = ''; // the element whose text is being captured
   let capText = '';
-  let capAttr = ''; // the `type` attribute of a confidence
+  let capAttr = ''; // the `type` of a confidence, the `ref` of a property
   let capDepth = 0;
   const attrs: string[] = [];
 
-  const skip = (path: string, at: number): void => {
+  /** Skip the content of the element just opened and count it as not read. */
+  const skip = (parentName: string, name: string, at: number): void => {
     ignoreAt = open.length;
     if (quiet) return;
+    const path = `${parentName}/${name}`;
     const e = ignoredCount.get(path);
     if (e) e.n++;
-    else ignoredCount.set(path, { n: 1, at });
+    else ignoredCount.set(path, { n: 1, at, parent: parentName, name });
+  };
+  /** Skip the content of the element just opened without a note (it sits inside an element that is read as text). */
+  const skipQuiet = (): void => {
+    ignoreAt = open.length;
+    quiet = true;
   };
   const number = (s: string, what: string, at: number): number => {
-    const v = s.trim() === '' ? NaN : Number(s);
+    const v = num(s);
     if (Number.isNaN(v)) warn('non-numeric-length', `${what} "${s.trim().slice(0, 30)}" is not a number`, at);
     return v;
   };
@@ -221,6 +237,7 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     open.push(name);
     if (ignoreAt >= 0) return;
     if (open.length === 1) {
+      if (sawRoot) throw new NewickError('more than one root element', at);
       if (name !== 'phyloxml' && name !== 'phylogeny') throw new NewickError(`not phyloXML: the root element is <${name}>`, at);
       sawRoot = true;
       if (name === 'phylogeny') startPhylogeny();
@@ -228,7 +245,7 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     }
     if (parentName === 'phyloxml') {
       if (name === 'phylogeny') startPhylogeny();
-      else skip(`phyloxml/${name}`, at);
+      else skip('phyloxml', name, at);
       return;
     }
     if (!selected) return; // inside an unselected phylogeny (ignoreAt is set at its start)
@@ -236,17 +253,16 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     if (parentName === 'phylogeny') {
       if (name === 'clade') openClade(at);
       else if (name === 'name') capture('phylogeny/name');
-      else skip(`phylogeny/${name}`, at);
+      else skip('phylogeny', name, at);
     } else if (parentName === 'clade') {
       if (name === 'clade') openClade(at);
       else if (CAPTURED.clade.includes(name)) capture(`clade/${name}`);
-      else if (!CONTAINERS.clade.includes(name)) skip(`clade/${name}`, at); // the containers are entered
+      else if (!CLADE_CONTAINERS.includes(name)) skip('clade', name, at); // the containers are entered
     } else if (grand === 'clade' && CAPTURED[parentName]?.includes(name)) {
       capture(`${parentName}/${name}`);
     } else if (grand === 'clade' && CAPTURED[parentName]) {
-      skip(`${parentName}/${name}`, at); // an element of taxonomy, sequence, events or color that is not read
-    }
-    // anything else is inside an element that is entered but not captured (the children of a text element)
+      skip(parentName, name, at); // an element of taxonomy, sequence, events or color that is not read
+    } else skipQuiet(); // inside an element that is read as text: not part of the tree, and not a note either
   };
   const startPhylogeny = (): void => {
     phylo++;
@@ -278,14 +294,19 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     const i = stack[sp - 1];
     switch (key) {
       case 'clade/name':
-        names[i] = t;
+        if (!names[i]) names[i] = t;
         if (annot && t) put('name', t);
         break;
-      case 'clade/branch_length':
-        if (Number.isNaN(length[i])) length[i] = number(t, 'branch_length', at);
+      case 'clade/branch_length': {
+        const v = number(t, 'branch_length', at);
+        if (Number.isNaN(length[i])) length[i] = v;
+        else if (!Number.isNaN(v) && v !== length[i])
+          warn('conflicting-branch-length', 'the clade has a branch_length attribute and element that differ; the attribute is used', at);
         break;
+      }
       case 'clade/confidence': {
-        const v = t === '' ? NaN : Number(t);
+        const v = num(t);
+        if (Number.isNaN(v) && t !== '') warn('non-numeric-support', `confidence "${t.slice(0, 30)}" is not a number`, at);
         if (!Number.isNaN(v)) {
           if (Number.isNaN(support[i])) support[i] = v;
           if (annot) put(`confidence${capAttr ? '.' + capAttr : ''}`, v);
@@ -293,13 +314,13 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
         break;
       }
       case 'clade/width':
-        if (annot && t !== '' && !Number.isNaN(Number(t))) put('width', Number(t));
+        if (annot && !Number.isNaN(num(t))) put('width', num(t));
         break;
       case 'clade/node_id':
         if (annot && t) put('node_id', t);
         break;
       case 'clade/property':
-        if (annot && capAttr) put(`property.${capAttr}`, t !== '' && !Number.isNaN(Number(t)) ? Number(t) : t);
+        if (annot && capAttr) put(`property.${capAttr}`, Number.isNaN(num(t)) ? t : num(t));
         break;
       case 'taxonomy/scientific_name':
         if (!sci[i]) sci[i] = t;
@@ -320,19 +341,19 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
         if (annot && t) put(key.replace('/', '.'), t);
         break;
       case 'events/confidence': {
-        const v = t === '' ? NaN : Number(t);
+        const v = num(t);
         if (annot && !Number.isNaN(v)) put(`events.confidence${capAttr ? '.' + capAttr : ''}`, v);
         break;
       }
       case 'events/duplications':
       case 'events/speciations':
       case 'events/losses':
-        if (annot && t !== '' && !Number.isNaN(Number(t))) put(key.replace('/', '.'), Number(t));
+        if (annot && !Number.isNaN(num(t))) put(key.replace('/', '.'), num(t));
         break;
       case 'color/red':
       case 'color/green':
       case 'color/blue':
-        if (annot && t !== '' && !Number.isNaN(Number(t))) put(`color.${key.slice(6)}`, Number(t));
+        if (annot && !Number.isNaN(num(t))) put(`color.${key.slice(6)}`, num(t));
         break;
     }
   };
@@ -350,120 +371,133 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     }
     if (capKey && open.length === capDepth) endCapture(at);
     if (name === 'clade' && selected && open.length > 1 && sp > 0) closeClade();
-    if (name === 'phylogeny') selected = false;
+    if (name === 'phylogeny') {
+      if (selected) doneSelected = true;
+      selected = false;
+    }
     open.pop();
   };
 
-  // the scan
+  // the scan. An error after the phylogeny that was asked for does not fail its read: the rest of the file is left unread (and noted)
   let p = 0;
-  while (p < n) {
-    const lt = text.indexOf('<', p);
-    if (lt < 0) break;
-    if (lt > p && capKey && ignoreAt < 0) capText += decode(text.slice(p, lt));
-    const c = text.charCodeAt(lt + 1);
-    if (c === 33) {
-      if (text.startsWith('<!--', lt)) {
-        const e = text.indexOf('-->', lt + 4);
-        if (e < 0) throw new NewickError('unterminated comment', lt);
-        p = e + 3;
-      } else if (text.startsWith('<![CDATA[', lt)) {
-        const e = text.indexOf(']]>', lt + 9);
-        if (e < 0) throw new NewickError('unterminated CDATA section', lt);
-        if (capKey && ignoreAt < 0) capText += text.slice(lt + 9, e);
-        p = e + 3;
+  try {
+    while (p < n) {
+      const lt = text.indexOf('<', p);
+      if (lt < 0) break;
+      if (lt > p && capKey && ignoreAt < 0) capText += decode(text.slice(p, lt));
+      const c = text.charCodeAt(lt + 1);
+      if (c === 33) {
+        if (text.startsWith('<!--', lt)) {
+          const e = text.indexOf('-->', lt + 4);
+          if (e < 0) throw new NewickError('unterminated comment', lt);
+          p = e + 3;
+        } else if (text.startsWith('<![CDATA[', lt)) {
+          const e = text.indexOf(']]>', lt + 9);
+          if (e < 0) throw new NewickError('unterminated CDATA section', lt);
+          if (capKey && ignoreAt < 0) capText += text.slice(lt + 9, e);
+          p = e + 3;
+        } else {
+          // <!DOCTYPE ...>, with an internal subset in [...] and quoted strings that may hold '>'
+          let q = lt + 2;
+          let br = 0;
+          for (; q < n; q++) {
+            const d = text.charCodeAt(q);
+            if (d === 34 || d === 39) {
+              const e = text.indexOf(text[q], q + 1);
+              if (e < 0) throw new NewickError('unterminated quote in DOCTYPE', q);
+              q = e;
+            } else if (d === 60 && text.startsWith('<!--', q)) {
+              const e = text.indexOf('-->', q + 4);
+              if (e < 0) throw new NewickError('unterminated comment in DOCTYPE', q);
+              q = e + 2;
+            } else if (d === 91) br++;
+            else if (d === 93) br--;
+            else if (d === 62 && br <= 0) break;
+          }
+          if (q >= n) throw new NewickError('unterminated DOCTYPE', lt);
+          p = q + 1;
+        }
+      } else if (c === 63) {
+        const e = text.indexOf('?>', lt + 2);
+        if (e < 0) throw new NewickError('unterminated processing instruction', lt);
+        p = e + 2;
+      } else if (c === 47) {
+        const e = text.indexOf('>', lt + 2);
+        if (e < 0) throw new NewickError('unterminated end tag', lt);
+        const qname = text.slice(lt + 2, e).trim();
+        endElement(roleOf(qname), lt);
+        popNs(open.length);
+        p = e + 1;
       } else {
-        // <!DOCTYPE ...>, with an internal subset in [...] and quoted strings that may hold '>'
-        let q = lt + 2;
-        let br = 0;
-        for (; q < n; q++) {
-          const d = text.charCodeAt(q);
-          if (d === 34 || d === 39) {
-            const e = text.indexOf(text[q], q + 1);
-            if (e < 0) throw new NewickError('unterminated quote in DOCTYPE', q);
-            q = e;
-          } else if (d === 91) br++;
-          else if (d === 93) br--;
-          else if (d === 62 && br <= 0) break;
-        }
-        if (q >= n) throw new NewickError('unterminated DOCTYPE', lt);
-        p = q + 1;
-      }
-    } else if (c === 63) {
-      const e = text.indexOf('?>', lt + 2);
-      if (e < 0) throw new NewickError('unterminated processing instruction', lt);
-      p = e + 2;
-    } else if (c === 47) {
-      const e = text.indexOf('>', lt + 2);
-      if (e < 0) throw new NewickError('unterminated end tag', lt);
-      const qname = text.slice(lt + 2, e).trim();
-      endElement(roleOf(qname), lt);
-      popNs(open.length);
-      p = e + 1;
-    } else {
-      let q = lt + 1;
-      while (q < n && !isWs(text.charCodeAt(q)) && text.charCodeAt(q) !== 62 && text.charCodeAt(q) !== 47) q++;
-      const qname = text.slice(lt + 1, q);
-      if (qname === '' || qname === ':') throw new NewickError("'<' with no element name", lt);
-      attrs.length = 0;
-      decls.length = 0;
-      let self = false;
-      for (;;) {
-        while (q < n && isWs(text.charCodeAt(q))) q++;
-        if (q >= n) throw new NewickError(`unterminated <${qname}> tag`, lt);
-        const d = text.charCodeAt(q);
-        if (d === 62) {
-          q++;
-          break;
-        }
-        if (d === 47 && text.charCodeAt(q + 1) === 62) {
-          self = true;
-          q += 2;
-          break;
-        }
-        const s = q;
-        while (q < n && !isWs(text.charCodeAt(q)) && text.charCodeAt(q) !== 61 && text.charCodeAt(q) !== 62 && text.charCodeAt(q) !== 47) q++;
-        const rawName = text.slice(s, q);
-        const an = local(rawName);
-        while (q < n && isWs(text.charCodeAt(q))) q++;
-        let value = '';
-        if (text.charCodeAt(q) === 61) {
-          q++;
+        let q = lt + 1;
+        while (q < n && !isWs(text.charCodeAt(q)) && text.charCodeAt(q) !== 62 && text.charCodeAt(q) !== 47) q++;
+        const qname = text.slice(lt + 1, q);
+        if (qname === '' || qname === ':') throw new NewickError("'<' with no element name", lt);
+        attrs.length = 0;
+        decls.length = 0;
+        let self = false;
+        for (;;) {
           while (q < n && isWs(text.charCodeAt(q))) q++;
-          const quote = text.charCodeAt(q);
-          if (quote !== 34 && quote !== 39) throw new NewickError(`attribute ${an} of <${qname}> has no quoted value`, q);
-          const e = text.indexOf(text[q], q + 1);
-          if (e < 0) throw new NewickError(`unterminated attribute value in <${qname}>`, q);
-          value = decode(text.slice(q + 1, e));
-          q = e + 1;
+          if (q >= n) throw new NewickError(`unterminated <${qname}> tag`, lt);
+          const d = text.charCodeAt(q);
+          if (d === 62) {
+            q++;
+            break;
+          }
+          if (d === 47 && text.charCodeAt(q + 1) === 62) {
+            self = true;
+            q += 2;
+            break;
+          }
+          const s = q;
+          while (q < n && !isWs(text.charCodeAt(q)) && text.charCodeAt(q) !== 61 && text.charCodeAt(q) !== 62 && text.charCodeAt(q) !== 47) q++;
+          if (q === s) throw new NewickError(`unexpected "${text[q]}" in the <${qname}> tag`, q);
+          const rawName = text.slice(s, q);
+          const an = local(rawName);
+          while (q < n && isWs(text.charCodeAt(q))) q++;
+          let value = '';
+          if (text.charCodeAt(q) === 61) {
+            q++;
+            while (q < n && isWs(text.charCodeAt(q))) q++;
+            const quote = text.charCodeAt(q);
+            if (quote !== 34 && quote !== 39) throw new NewickError(`attribute ${an} of <${qname}> has no quoted value`, q);
+            const e = text.indexOf(text[q], q + 1);
+            if (e < 0) throw new NewickError(`unterminated attribute value in <${qname}>`, q);
+            value = decode(text.slice(q + 1, e));
+            q = e + 1;
+          }
+          if (rawName === 'xmlns') decls.push('', value);
+          else if (rawName.startsWith('xmlns:')) decls.push(rawName.slice(6), value);
+          else if (rawName === an) attrs.push(an, value); // phyloXML attributes have no prefix: a prefixed one is of another namespace
         }
-        if (rawName === 'xmlns') decls.push('', value);
-        else if (rawName.startsWith('xmlns:')) decls.push(rawName.slice(6), value);
-        else if (an !== '') attrs.push(an, value);
-      }
-      const k = open.length; // the depth the element gets
-      if (decls.length) {
-        const pushed: string[] = [];
-        for (let d = 0; d < decls.length; d += 2) {
-          const prefix = decls[d];
-          const uris = ns.get(prefix);
-          if (uris) uris.push(decls[d + 1]);
-          else ns.set(prefix, [decls[d + 1]]);
-          pushed.push(prefix);
+        const k = open.length; // the depth the element gets
+        if (decls.length) {
+          const pushed: string[] = [];
+          for (let d = 0; d < decls.length; d += 2) {
+            const prefix = decls[d];
+            const uris = ns.get(prefix);
+            if (uris) uris.push(decls[d + 1]);
+            else ns.set(prefix, [decls[d + 1]]);
+            pushed.push(prefix);
+          }
+          nsAt[k] = pushed;
+          roles.clear();
+        } else nsAt[k] = null;
+        const role = roleOf(qname);
+        startElement(role, lt);
+        if (self) {
+          endElement(role, lt);
+          popNs(k);
         }
-        nsAt[k] = pushed;
-        roles.clear();
-      } else nsAt[k] = null;
-      const role = roleOf(qname);
-      startElement(role, lt);
-      if (self) {
-        endElement(role, lt);
-        popNs(k);
+        p = q;
       }
-      p = q;
     }
+  } catch (e) {
+    if (!doneSelected || !(e instanceof NewickError)) throw e;
+    stopped = e;
   }
   if (!sawRoot) throw new NewickError('not phyloXML: no element found', 0);
-  if (open.length) throw new NewickError(`<${open[open.length - 1]}> is not closed`, n);
+  if (open.length && !stopped) throw new NewickError(`<${open[open.length - 1]}> is not closed`, n);
   if (!selected && phylo < want) {
     throw new NewickError(`no phylogeny number ${want} in phyloXML (saw ${seen})`, n);
   }
@@ -491,8 +525,16 @@ export function parsePhyloXml(text: string, a: number | PhyloXmlOptions = 0, b: 
     ignored.push({
       code: 'phyloxml-ignored-element',
       path,
-      message: `${e.n} <${path.slice(path.lastIndexOf('/') + 1)}> element${e.n === 1 ? '' : 's'} (in <${path.slice(0, path.lastIndexOf('/'))}>) not read`,
+      message: `${e.n} <${e.name}> element${e.n === 1 ? '' : 's'} (in <${e.parent}>) not read`,
       position: e.at,
+    });
+  }
+  if (stopped) {
+    ignored.push({
+      code: 'phyloxml-scan-stopped',
+      path: '',
+      message: `The rest of the file was not read, so treeCount counts only up to here: ${stopped.message}`,
+      position: stopped.position,
     });
   }
   ignored.sort((x, y) => x.position - y.position);

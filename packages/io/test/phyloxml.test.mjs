@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parsePhyloXml, toNewick } from '../src/index.ts';
+import { parseNewick, parsePhyloXml, toNewick } from '../src/index.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.resolve(HERE, '../../../data');
@@ -130,7 +130,7 @@ test('XML details: prefixes, entities, CDATA, comments, DOCTYPE, PIs, quotes, wh
 <phy:phyloxml xmlns:phy="http://www.phyloxml.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="a b">
   <phy:phylogeny rooted='true'>
     <!-- a comment with <clade> in it -->
-    <phy:clade phy:branch_length='1e-2'>
+    <phy:clade branch_length='1e-2' phy:branch_length='7'>
       <phy:clade><phy:name>  A &amp; B &lt;1&gt; &#65;&#x42; &quot;q&quot; &apos;s&apos;  </phy:name></phy:clade>
       <phy:clade><phy:name><![CDATA[C <raw> & D]]></phy:name></phy:clade>
       <phy:clade><phy:name>E<!-- inside -->F</phy:name></phy:clade>
@@ -140,11 +140,11 @@ test('XML details: prefixes, entities, CDATA, comments, DOCTYPE, PIs, quotes, wh
 </phy:phyloxml>`;
   const r = parsePhyloXml(x);
   assert.deepEqual(r.tree.tipLabels, ['A & B <1> AB "q" \'s\'', 'C <raw> & D', 'EF', 'G']);
-  assert.equal(r.tree.length[0], 0.01);
+  assert.equal(r.tree.length[0], 0.01); // a prefixed attribute is of another namespace: not the branch length
 });
 
 test('a very deep tree and a very wide one do not recurse or overflow', () => {
-  const depth = 200000;
+  const depth = 1000000;
   let x = '';
   for (let i = 0; i < depth; i++) x += '<clade branch_length="1">';
   x += '<name>tip</name>';
@@ -303,4 +303,178 @@ test('the confidence of an <events> element is not branch support, it is an anno
   assert.ok(Number.isNaN(r.tree.support[0]));
   assert.equal(r.tree.annotations.get(0, 'events.confidence.duplication_confidence_score'), 0.8);
   assert.deepEqual(r.ignored, []);
+});
+
+// found by the review of this change
+test('an element inside a text element is not part of the tree', () => {
+  // the clade inside <name> must not close or open anything of the real tree
+  const r = parsePhyloXml(doc('<clade><clade><name>A<clade/></name><clade><name>A1</name></clade></clade></clade>'));
+  assert.equal(toNewick(r.tree), '((A1)A);');
+  assert.deepEqual(r.ignored, []);
+  for (const inner of ['<phylogeny/>', '<phylogeny><clade/></phylogeny>', '<clade><name>x</name></clade>', '<name>y</name>']) {
+    for (const outer of ['name', 'node_id', 'width', 'property', 'confidence']) {
+      const x = doc(`<clade><clade><name>A</name><${outer}>v${inner}</${outer}></clade><clade><name>B</name></clade></clade>`);
+      assert.equal(toNewick(parsePhyloXml(x).tree), '(A,B);', `${inner} in ${outer}`);
+    }
+  }
+  assert.equal(
+    toNewick(
+      parsePhyloXml(doc('<clade><clade><name>A</name><taxonomy><scientific_name>S<clade/></scientific_name></taxonomy></clade></clade>')).tree,
+    ),
+    '(A);', // the root with its one clade, A: the <clade/> in the scientific name is not a clade
+  );
+});
+
+test('a "/" or "=" where an attribute name should be throws, it does not loop', () => {
+  for (const x of [
+    '<phyloxml><phylogeny><clade><name/ ></clade></phylogeny></phyloxml>',
+    '<phyloxml><phylogeny><clade a/="1"></clade></phylogeny></phyloxml>',
+    '<phyloxml><phylogeny><clade ="1"></clade></phylogeny></phyloxml>',
+  ]) {
+    assert.throws(
+      () => parsePhyloXml(x),
+      (e) => e.name === 'NewickError' && /unexpected/.test(e.message) && typeof e.position === 'number',
+      x,
+    );
+  }
+});
+
+test('treeIndex: in the options with an undefined second argument, and only a non-negative integer', () => {
+  const x =
+    '<phyloxml><phylogeny><name>one</name><clade><name>A</name></clade></phylogeny><phylogeny><name>two</name><clade><name>B</name></clade></phylogeny></phyloxml>';
+  assert.equal(parsePhyloXml(x, undefined, { treeIndex: 1 }).treeName, 'two');
+  assert.equal(parsePhyloXml(x, { treeIndex: 1 }).treeName, 'two');
+  assert.equal(parsePhyloXml(x).treeName, 'one');
+  for (const bad of [-1, 0.5, NaN, Infinity]) assert.throws(() => parsePhyloXml(x, bad), /treeIndex must be a non-negative integer/);
+});
+
+test('an error after the phylogeny that was asked for does not fail its read', () => {
+  const ok = '<phylogeny><clade><name>A</name></clade></phylogeny>';
+  const x = `<phyloxml>${ok}<phylogeny><clade></phylogeny></phyloxml>`;
+  const r = parsePhyloXml(x);
+  assert.deepEqual(r.tree.tipLabels, ['A']);
+  assert.equal(r.treeCount, 2); // counts up to the break
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['phyloxml-scan-stopped'],
+  );
+  assert.match(r.ignored[0].message, /does not match <clade>/);
+  assert.throws(() => parsePhyloXml(x, 1), /does not match <clade>/);
+  assert.throws(() => parsePhyloXml(`<phyloxml><phylogeny><clade></phylogeny>${ok}</phyloxml>`), /does not match <clade>/);
+});
+
+test('a note names the element and its parent even when a namespace holds a "/"', () => {
+  const r = parsePhyloXml(doc('<clade><name>A</name><o:foo xmlns:o="http://example.org/a/b"/></clade>'));
+  assert.equal(r.ignored.length, 1);
+  assert.equal(r.ignored[0].message, '1 <{http://example.org/a/b}foo> element (in <clade>) not read');
+});
+
+test('numbers: only decimals and exponents; both length forms that differ warn; a support that is not a number warns', () => {
+  for (const bad of ['0x10', 'Infinity', 'INF', '1,5', '1..2', '', ' ']) {
+    const r = parsePhyloXml(doc(`<clade><clade branch_length="${bad}"><name>A</name></clade><clade><name>B</name></clade></clade>`));
+    assert.ok(Number.isNaN(r.tree.length[1]), bad);
+    assert.deepEqual(
+      r.tree.warnings.map((w) => w.code),
+      ['non-numeric-length'],
+      bad,
+    );
+  }
+  for (const good of ['0.5', '.5', '5.', '+1', '-2', '1e-3', ' 7 ']) {
+    const r = parsePhyloXml(doc(`<clade><clade><name>A</name><branch_length>${good}</branch_length></clade><clade><name>B</name></clade></clade>`));
+    assert.equal(r.tree.length[1], Number(good.trim()), good);
+    assert.deepEqual(r.tree.warnings, [], good);
+  }
+  const both = (a, e) =>
+    doc(`<clade><clade branch_length="${a}"><name>A</name><branch_length>${e}</branch_length></clade><clade><name>B</name></clade></clade>`);
+  assert.deepEqual(parsePhyloXml(both('0.5', '0.5')).tree.warnings, []);
+  const r = parsePhyloXml(both('0.5', '0.7'));
+  assert.equal(r.tree.length[1], 0.5);
+  assert.deepEqual(
+    r.tree.warnings.map((w) => w.code),
+    ['conflicting-branch-length'],
+  );
+  assert.throws(() => parsePhyloXml(both('0.5', '0.7'), { strict: true }), /conflicting-branch-length/);
+  const c = parsePhyloXml(doc('<clade><confidence type="x">high</confidence><clade><name>A</name></clade></clade>'));
+  assert.deepEqual(
+    c.tree.warnings.map((w) => w.code),
+    ['non-numeric-support'],
+  );
+  assert.ok(Number.isNaN(c.tree.support[0]));
+  assert.throws(() => parsePhyloXml(doc('<clade><confidence>high</confidence><clade/></clade>'), { strict: true }), /non-numeric-support/);
+});
+
+test('several <name> elements: the first is the label and the annotation', () => {
+  const r = parsePhyloXml(doc('<clade><clade><name>first</name><name>second</name></clade></clade>'), { annotations: true });
+  assert.equal(r.tree.tipLabels[0], 'first');
+  assert.equal(r.tree.annotations.get(r.tree.tipNode[0], 'name'), 'first');
+});
+
+test('content after the root element is noted and not read; lone surrogates are not decoded; DOCTYPE comments may hold quotes', () => {
+  for (const tail of ['<phyloxml/>', '<x/>']) {
+    const r = parsePhyloXml(`<phyloxml><phylogeny><clade><name>A</name></clade></phylogeny></phyloxml>${tail}`);
+    assert.deepEqual(r.tree.tipLabels, ['A']);
+    assert.deepEqual(
+      r.ignored.map((n) => n.code),
+      ['phyloxml-scan-stopped'],
+    );
+    assert.match(r.ignored[0].message, /more than one root element/);
+  }
+  const r = parsePhyloXml(doc('<clade><clade><name>a&#xD800;b&#0;c&#x110000;d</name></clade></clade>'));
+  assert.equal(r.tree.tipLabels[0], 'a&#xD800;b&#0;c&#x110000;d');
+  const d = parsePhyloXml(
+    `<!DOCTYPE phyloxml [ <!-- it's a comment with a ' quote --> <!ELEMENT a ANY> ]><phyloxml><phylogeny><clade><clade><name>A</name></clade></clade></phylogeny></phyloxml>`,
+  );
+  assert.deepEqual(d.tree.tipLabels, ['A']);
+});
+
+test('the tree arrays are those parseNewick builds for the same tree (random trees, past the first array growth)', () => {
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let k = 0; k < 120; k++) {
+    const n = 1 + Math.floor(rnd() * 300);
+    // a random tree as nested arrays, built iteratively: join random neighbours until one is left; some nodes carry no length or a name
+    const nodes = [];
+    for (let i = 0; i < n; i++) nodes.push({ name: `t${i}`, len: rnd() < 0.2 ? null : Number(rnd().toFixed(4)), kids: [] });
+    while (nodes.length > 1) {
+      const i = Math.floor(rnd() * (nodes.length - 1));
+      const [a, b] = nodes.splice(i, 2);
+      nodes.splice(i, 0, { name: rnd() < 0.3 ? `n${nodes.length}` : '', len: rnd() < 0.2 ? null : Number(rnd().toFixed(4)), kids: [a, b] });
+    }
+    // write both texts with an explicit stack
+    let xml = '';
+    let nwk = '';
+    const todo = [[nodes[0], 0]];
+    while (todo.length) {
+      const [node, state] = todo.pop();
+      if (state === 0) {
+        const lenAttr = node.len !== null && rnd() < 0.5 ? ` branch_length="${node.len}"` : '';
+        node.asAttr = lenAttr !== '';
+        xml += `<clade${lenAttr}>${node.name ? `<name>${node.name}</name>` : ''}`;
+        if (node.len !== null && !node.asAttr) xml += `<branch_length>${node.len}</branch_length>`;
+        if (node.kids.length) {
+          nwk += '(';
+          todo.push([node, 1]);
+          for (let i = node.kids.length - 1; i >= 0; i--) {
+            todo.push([node.kids[i], 0]);
+            if (i > 0) todo.push([{ sep: true }, 2]);
+          }
+        } else nwk += node.name + (node.len !== null ? `:${node.len}` : '');
+      } else if (state === 1) {
+        nwk += ')' + node.name + (node.len !== null ? `:${node.len}` : '');
+        xml += '</clade>';
+      } else nwk += ',';
+      if (state === 0 && !node.kids.length) xml += '</clade>';
+    }
+    const px = parsePhyloXml(doc(xml)).tree;
+    const nw = parseNewick(nwk + ';');
+    assert.equal(px.nodeCount, nw.nodeCount, `tree ${k}`);
+    assert.equal(px.tipCount, nw.tipCount, `tree ${k}`);
+    for (const f of ['parent', 'subtreeEnd', 'depth', 'leafStart', 'leafEnd', 'childCount', 'tipNode', 'tipRank'])
+      assert.deepEqual([...px[f]], [...nw[f]], `tree ${k} ${f}`);
+    for (let i = 0; i < px.nodeCount; i++) {
+      const same = i === 0 ? true : Object.is(px.length[i], nw.length[i]);
+      assert.ok(same, `tree ${k} length ${i}: ${px.length[i]} vs ${nw.length[i]}`);
+    }
+    assert.deepEqual(px.tipLabels, nw.tipLabels, `tree ${k}`);
+  }
 });

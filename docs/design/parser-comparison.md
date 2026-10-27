@@ -524,6 +524,10 @@ The PANTHER files declare no XML namespace; Biopython finds no phylogeny in them
 |---|---|
 | forester `phyloxml_test_t4.xml` | Namespace prefixes were dropped, so `<o:phylogeny>`, `<o:clade>` and `<o:name>` of another namespace were read as phyloXML. Now only the phyloXML namespace (or none) is read, and the rest is counted under `{namespace}name` |
 | forester `phyloxml_test_atv.xml` | The confidence inside `<events>` (the confidence of a duplication or speciation) is not the support of the branch. Biopython lists it among the clade's confidences; we keep it as the annotation `events.confidence.<type>`, and the helper leaves it out on Biopython's side |
+| Adversarial review | An element inside an element read as text (`<name>A<clade/></name>`) reached the clade logic: a silently wrong tree, or an error from `TreeModel`. Now skipped without a note |
+| Adversarial review | A `/` or `=` where an attribute name belongs looped for ever (`<name/ >`): now an error |
+| Adversarial review | `parsePhyloXml(text, undefined, { treeIndex: 1 })` returned tree 0; a bad `treeIndex` gave a misleading message; an error in a later phylogeny failed the read of an earlier one (now the note `phyloxml-scan-stopped`); the note for an element of a namespace holding a `/` was garbled; a prefixed attribute of another namespace was read as the branch length; `0x10` and `Infinity` were numbers; an attribute and an element that differ passed silently; a `<confidence>` that is not a number was dropped silently; a second root element and a lone surrogate entity were accepted |
+| Adversarial review (comparison script) | The support check compared only a count and a sum, and the events-confidence workaround removed the first matching confidence, not the last: now the sorted lists are compared |
 | A profile | Resolving the namespace of every tag took 11% of the time; a small cache cut the parse of a 25 MB made-up file from 1.05 s to 0.71 s (one run each; runs in this sandbox differ by about a third, a later run took 1.1 s) |
 
 ### Where we differ on purpose

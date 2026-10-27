@@ -5,7 +5,7 @@
 Usage: biopython-phyloxml-summary.py [--all] file.xml[.gz] ...   (one JSON object per file on stdout)
 
 For each file: the number of phylogenies and, for the first, second and last (every one with --all), the tip labels (sorted), tip and node counts, the
-number of branch lengths and their sum, the number of supports (the first numeric confidence of a clade) and their sum, the root's
+number of branch lengths and their sum, the number of supports (the first numeric confidence of a clade), their sum and the sorted list of them, the root's
 number of children, and a hash of the shape with every edge length (the same as signature() in nexus-shape.mjs). A node is named by
 its <name>, else its taxonomy's scientific name, else the first of taxonomy code, common name, sequence name and accession, as
 parsePhyloXml does by default.
@@ -46,7 +46,8 @@ def first_support(c):
     # event, not of the branch, so it is left out here (as parsePhyloXml leaves it out of the support).
     own = list(c.confidences)
     if c.events is not None and c.events.confidence is not None:
-        for conf in own:
+        # Biopython appends it after the clade's own confidences, so it is the last one that matches
+        for conf in reversed(own):
             if conf.type == c.events.confidence.type and conf.value == c.events.confidence.value:
                 own.remove(conf)
                 break
@@ -96,6 +97,7 @@ def summary(tree):
         "lensum": sum(lens),
         "nsup": len(sups),
         "supsum": sum(sups),
+        "sups": sorted(sups),
         "rootChildren": len(root.clades),
         "sig": hashlib.sha1("\n".join(items).encode()).hexdigest()[:16],
     }

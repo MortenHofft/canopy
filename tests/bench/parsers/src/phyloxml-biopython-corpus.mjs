@@ -63,6 +63,7 @@ function ours(src, i) {
   let lensum = 0;
   let nsup = 0;
   let supsum = 0;
+  const sups = [];
   for (let n = 0; n < t.nodeCount; n++) {
     if (n > 0 && !Number.isNaN(t.length[n])) {
       nlen++;
@@ -71,6 +72,7 @@ function ours(src, i) {
     if (!Number.isNaN(t.support[n])) {
       nsup++;
       supsum += t.support[n];
+      sups.push(t.support[n]);
     }
   }
   return {
@@ -81,6 +83,7 @@ function ours(src, i) {
     lensum,
     nsup,
     supsum,
+    sups: sups.sort((a, b) => a - b),
     rootChildren: t.children(0).length,
     sig: signature(t),
   };
@@ -125,6 +128,7 @@ for (const f of files) {
       else if (!close(o.lensum, s.lensum)) diffs.push(`tree ${i} length sum ${o.lensum} vs ${s.lensum}`);
       if (o.nsup !== s.nsup) diffs.push(`tree ${i} supports ${o.nsup} vs ${s.nsup}`);
       else if (!close(o.supsum, s.supsum)) diffs.push(`tree ${i} support sum ${o.supsum} vs ${s.supsum}`);
+      else if (o.sups.some((v, k) => !close(v, s.sups[k]))) diffs.push(`tree ${i} the supports differ (the sorted lists)`);
       if (o.sig !== s.sig) diffs.push(`tree ${i} shape or branch lengths differ`);
       if (o.rootChildren !== s.rootChildren) diffs.push(`tree ${i} root degree ${o.rootChildren} vs ${s.rootChildren}`);
     }
