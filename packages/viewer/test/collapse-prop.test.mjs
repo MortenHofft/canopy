@@ -159,7 +159,7 @@ test('viewer: every row hits / labels / columns agree', async () => {
       assert.ok(Math.abs(v.labels.y[k] - (v.T.oy + (r + 0.5) * v.T.ky)) < 1, 'label on its row');
     }
     for (let k = 0; k < t.tipCount; k++) {
-      const c = v.columnCell('c', k);
+      const c = v.columnCell('c', t.tipNode[k]);
       const visible = !L.hidden?.[t.tipNode[k]];
       assert.equal(c !== null, visible, `cell of rank ${k}`);
     }

@@ -80,7 +80,7 @@ test('radial, 200,000 tips in polytomies of 16, small pane: zoomed in as far as 
   const m = await makeViewer(`(${genera.join(',')});`, { options: { layout: 'radial', minCladePx: 14 }, size: [96, 96] });
   m.env.flush();
   const rank = 16 * 7000 + 5;
-  m.viewer.focusTip(rank);
+  m.viewer.focusTip(m.viewer.getTree().tipNode[rank]);
   m.env.flush();
   m.viewer.zoomBy(64, 64, 48, 48);
   m.env.flush();
@@ -106,7 +106,7 @@ test('radial, tips at 30% of the radius: zoom goes on until they are maxTipSpaci
   const rank = 10 * 1001 + 4; // clade 1001: inner
   const name = v.getTree().tipLabels[rank];
   assert.match(name, /^c1001s/);
-  v.focusTip(rank);
+  v.focusTip(name);
   m.env.flush();
   const inner = 0.3 * v.T.k * v.T.da;
   assert.ok(inner >= 23.9, `focusTip: inner tips ${inner.toFixed(1)} px apart`);
@@ -130,7 +130,7 @@ test('radial, the zoom limit follows the window (#120): deep near the centre, at
   const k = () => v.T.k;
   const pitch = () => v.T.k * v.T.da; // at the outer ring
   // at the outer ring: as deep as allowed leaves tips maxTipSpacing (24 px) apart at the window's inner edge, a hair inside the ring
-  v.focusTip(10000);
+  v.focusTip(v.getTree().tipNode[10000]);
   m.env.flush();
   for (let i = 0; i < 6; i++) v.zoomBy(8, 8, 200, 200);
   m.env.flush();

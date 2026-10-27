@@ -348,10 +348,10 @@ test('columns: the collapsed clade is one blank row, the other rows move up with
   const ys = bars().map((e) => Math.round((e[2] - T.oy) / T.ky - 0.1));
   assert.deepEqual(ys, [1, 2, 3, 4], 'c, d, e, f on rows 1..4; row 0 (the clade) draws nothing');
   // cells: a tip is found on its row; a hidden tip has no cell
-  assert.ok(v.columnCell('v', node(v.tree, 'c') && v.tree.tipRank[node(v.tree, 'c')]), 'c');
-  assert.equal(v.columnCell('v', 0), null, 'a is inside the collapsed clade');
-  assert.equal(v.columnCell('v', 1), null);
-  const c = v.columnCell('v', 2);
+  assert.ok(v.columnCell('v', node(v.tree, 'c')), 'c');
+  assert.equal(v.columnCell('v', node(v.tree, 'a')), null, 'a is inside the collapsed clade');
+  assert.equal(v.columnCell('v', node(v.tree, 'b')), null);
+  const c = v.columnCell('v', node(v.tree, 'c'));
   assert.ok(Math.abs(c.y - (v.root.getBoundingClientRect().top + T.oy + 1 * T.ky + T.ky * 0.1)) < 1e-6, 'c is on row 1');
 });
 
@@ -401,11 +401,11 @@ test('focusTip on a tip inside a collapsed clade focuses the clade and expands n
   const x = parentOf(t, 'a');
   v.setCollapsed([x]);
   m.env.flush();
-  v.focusTip(1); // b, inside x
+  v.focusTip('b'); // inside x
   const w = v.getViewport();
   assert.ok(w.y0 < 0.5 && w.y1 > 0.5, 'row 0, the clade, is in view');
   assert.equal(v.L.collapsed[x], 1, 'still collapsed');
-  v.focusTip(5); // f is on row 4
+  v.focusTip('f'); // f is on row 4
   const w2 = v.getViewport();
   assert.ok(w2.y0 <= 4.5 && w2.y1 >= 4.5, 'the row of f (row 4, not rank 5) is in view');
 });

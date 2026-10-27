@@ -29,7 +29,7 @@ test('partial source: setCollapsed is ignored, no crash, through frames, clicks 
   m.env.flush();
   assert.equal(v.L.collapsed, null);
   assert.equal(v.L.rows, full.tipCount);
-  v.focusTip(1);
+  v.focusTip(v.getTree().tipNode[1]);
   m.env.flush();
   for (let x = 0; x < 400; x += 20) for (let y = 0; y < 300; y += 20) v.hitTest(x, y);
   v.setTree(src, { collapsed: [1] });

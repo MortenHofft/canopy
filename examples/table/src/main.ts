@@ -286,7 +286,7 @@ function rowAt(clientY: number): { label: string } | { clade: number } | null {
   for (let row = Math.max(0, Math.floor(y0)); row < Math.min(L.rows, Math.ceil(y1)); row++) {
     const rank = L.rankOfRow ? L.rankOfRow[row] : row;
     for (const id of ids) {
-      const box = v.columnCell(id, rank);
+      const box = v.columnCell(id, t.tipNode[rank]);
       if (!box) continue;
       const r = row + Math.floor((clientY - box.y) / box.height);
       if (r < 0 || r >= L.rows) return null;

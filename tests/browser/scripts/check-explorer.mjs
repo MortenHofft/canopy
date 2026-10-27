@@ -1185,7 +1185,7 @@ console.log('alignment');
 await open('rich-hcv-19');
 await btn('Alignment').click();
 await page.waitForTimeout(300);
-const cell = await ev(() => __v().columnCell('alignment', 0));
+const cell = await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]));
 ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
 ok((await page.locator('.ex-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
 ok(
@@ -1211,7 +1211,7 @@ const cellColours = await ev(() => {
   const k = c.width / b.width;
   const seen = new Set();
   for (let r = 0; r < 6; r++) {
-    const cell = v.columnCell('alignment', r);
+    const cell = v.columnCell('alignment', v.getTree().tipNode[r]);
     if (!cell) continue;
     for (let i = 0; i < 80; i++) {
       const x = Math.round((cell.x + ((i + 0.5) / 80) * cell.width - b.left) * k);
@@ -1228,7 +1228,10 @@ ok(
 );
 await btn('Alignment').click();
 await page.waitForTimeout(200);
-ok((await ev(() => __v().columnCell('alignment', 0))) === null && (await page.locator('.ex-legend').count()) === 0, 'Alignment off');
+ok(
+  (await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]))) === null && (await page.locator('.ex-legend').count()) === 0,
+  'Alignment off',
+);
 
 // ---------------------------------------------------------------- show only a clade, Up one level, Back
 console.log('show only this clade, Up one level, Back');
@@ -2035,7 +2038,7 @@ await page.waitForTimeout(400);
   // columnCell is in page coordinates: compare with the viewer's box
   const o = await ev(() => {
     const r = __v().treeElement.getBoundingClientRect();
-    return { left: r.left, right: r.right, w: r.width, tw: __v().options.treeWidth, cell: __v().columnCell('alignment', 0) };
+    return { left: r.left, right: r.right, w: r.width, tw: __v().options.treeWidth, cell: __v().columnCell('alignment', __v().getTree().tipNode[0]) };
   });
   ok(o.tw === '40%', `the tree is given 40% of the width (treeWidth ${o.tw})`);
   ok(
@@ -2047,12 +2050,12 @@ await page.waitForTimeout(400);
 // ---------------------------------------------------------------- the playground's catalogue
 console.log('search: a label on several tips (#18)');
 await open('edge-duplicate-labels');
-// record the ranks the explorer asks the viewer to focus (on 9 tips the whole tree is in view, so the viewport cannot tell)
+// record the tips (as ranks) the explorer asks the viewer to focus (on 9 tips the whole tree is in view, so the viewport cannot tell)
 await ev(() => {
   const v = __v();
   const focusTip = v.focusTip.bind(v);
   window.__focused = [];
-  v.focusTip = (r, a) => (window.__focused.push(r), focusTip(r, a));
+  v.focusTip = (n, a) => (window.__focused.push(v.getTree().tipRank[n]), focusTip(n, a));
 });
 await page.locator('button[aria-label="Search tips"]').click();
 await page.keyboard.type('homo');
@@ -2459,7 +2462,7 @@ for (const [id, tipsWanted] of [
     const was = v.options.minCladePx;
     for (const minCladePx of [14, 3]) {
       v.setOptions({ minCladePx });
-      v.focusTip(rank, false);
+      v.focusTip(t.tipNode[rank], false);
       v.renderNow();
       const q = v.nodePosition(t.tipNode[rank]);
       v.zoomBy(1, 20.5 / v.getStats().ky, q.x, q.y);
@@ -2648,7 +2651,7 @@ for (const [id, tipsWanted] of [
     for (const rowPx of [13, 8, 6.5]) {
       v.fit(false);
       v.renderNow();
-      v.focusTip(rank, false);
+      v.focusTip(t.tipNode[rank], false);
       v.renderNow();
       const q = v.nodePosition(t.tipNode[rank]);
       v.zoomBy(1, rowPx / v.getStats().ky, q.x, q.y);

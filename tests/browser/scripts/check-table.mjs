@@ -60,7 +60,7 @@ const cell = (id) =>
     const v = window.__table();
     const { y0, y1 } = v.getViewport();
     for (let r = Math.ceil(y0); r < y1; r++) {
-      const b = v.columnCell(id, r);
+      const b = v.columnCell(id, v.getTree().tipNode[r]);
       if (b) return b;
     }
     return null;

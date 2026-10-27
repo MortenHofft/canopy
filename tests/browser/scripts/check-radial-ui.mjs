@@ -369,13 +369,13 @@ const fmtV = (v) => `x ${v.x0.toFixed(4)}..${v.x1.toFixed(4)} y ${v.y0.toFixed(2
     r.zoomToNode(P, false);
     r.setColumns(cols);
     r.renderNow();
-    const rank = (i) => t.base.leafStart[P] + i;
+    const rank = (i) => r.getTree().tipNode[t.base.leafStart[P] + i]; // the node id of the i-th tip of P
     out.cell0 = r.columnCell('bar', rank(0));
     out.cellMissing = r.columnCell('bar', rank(4)); // i = 4: no bar value
     out.cellTxt = r.columnCell('txt', rank(1));
     out.cellAln = r.columnCell('aln', rank(2));
     out.cellNone = r.columnCell('nope', rank(0));
-    out.cellOut = r.columnCell('bar', t.base.leafEnd[P] + 50);
+    out.cellOut = r.columnCell('bar', r.getTree().tipNode[t.base.leafEnd[P] + 50]);
     // pixels: the bar of tip 0 (value 1000 = the maximum, full width) against the empty background to its right
     const rect = r.root.getBoundingClientRect();
     const dpr = r.canvas.width / r.size.width;
