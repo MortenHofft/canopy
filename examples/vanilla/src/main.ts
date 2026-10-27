@@ -26,6 +26,7 @@ import {
   type Column,
   type ColumnRenderer,
   type Control,
+  type LegendItem,
   type TreeEvent,
 } from '@gbif-phylo/viewer';
 
@@ -190,13 +191,27 @@ viewer.addControl(
   }),
 );
 
-// colour by a sidecar column: tip colours (setClades), a swatch column and a legend of the values; 'none' puts everything back
-let attributeLegend: Legend | null = null;
+// colour by a sidecar column: tip colours (setClades), a swatch column and a legend of the values; 'none' puts everything back.
+// The legend is not the viewer's control: `by.items` is plain data, drawn here as a list in the page's side panel and styled by the page
+const legendSlot = document.getElementById('legend-slot')!;
+function showLegend(title: string, items: LegendItem[]): void {
+  legendSlot.hidden = items.length === 0;
+  legendSlot.querySelector('h2')!.textContent = title;
+  legendSlot.querySelector('ul')!.replaceChildren(
+    ...items.map((it) => {
+      const li = document.createElement('li');
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = it.colour;
+      li.append(sw, `${it.label} (${it.detail})`);
+      return li;
+    }),
+  );
+}
 document.getElementById('colour-by')!.addEventListener('change', (ev) => {
   const key = (ev.target as HTMLSelectElement).value;
-  if (attributeLegend) viewer.removeControl(attributeLegend);
-  attributeLegend = null;
   if (!key) {
+    showLegend('', []);
     viewer.setClades([]);
     viewer.setColumns(columns);
     if (cornerControls.includes(cladeLegend) && document.querySelector<HTMLInputElement>('#show-controls')!.checked) viewer.addControl(cladeLegend);
@@ -204,8 +219,7 @@ document.getElementById('colour-by')!.addEventListener('change', (ev) => {
   }
   const by = colourBy(tree, sidecar.categories(key), viewer.getTheme(), { palette: COUNTRY_PALETTE, header: 'Country' });
   viewer.removeControl(cladeLegend); // one entry per tip would be a legend of a thousand lines
-  attributeLegend = new Legend({ title: 'Country', items: by.items });
-  viewer.addControl(attributeLegend);
+  showLegend('Country', by.items);
   viewer.setClades(by.clades);
   viewer.setColumns([...columns, by.column]);
 });

@@ -233,6 +233,32 @@ Built-in controls (each in its own module; options extend `{ position, target, c
 `defaultControls({ zoom, fit, layoutToggle, search, legend, overview })` returns the usual set: zoom and fit on, the others off; each key is
 `true`, `false` or that control's options. `ICONS` holds the default icons (16 px SVG in `currentColor`).
 
+### Headless: your own controls
+
+The built-in controls are one way to draw state the viewer already exposes; none of them knows anything an app cannot read. For a different
+look or place (a legend in a side panel, a table, a framework component), skip the control and draw the data yourself: read the state,
+listen to the events that change it, and call the methods an interaction would call.
+
+| What                | State to read                                           | Events that change it                                                                   | On interaction                   |
+| ------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
+| The clade legend    | `legendItems(viewer, { cladeLabel? })`: `LegendItem[]`  | `cladeschange`, `treechange`, `sourcechange`, `optionschange` (`formatLabel`, `cladeLabel`) | `viewer.zoomToNode(item.node, true)` |
+| A colour-by legend  | `colourBy(...).items`, plain data                       | your own (you decide when the column changes)                                           | none (entries have no node)      |
+
+`legendItems` is the function the `Legend` control calls, so a legend of your own names its clades exactly as the built-in one does. It is in
+its own module: importing it does not bring the control classes.
+
+```ts
+import { legendItems } from '@gbif-phylo/viewer';
+const draw = () => myLegend.render(legendItems(viewer)); // any renderer: DOM, React state, a canvas
+for (const type of ['cladeschange', 'treechange', 'sourcechange'] as const) viewer.on(type, draw);
+draw();
+// in the click handler of an entry: viewer.zoomToNode(item.node, true)
+```
+
+The `target` option of a control only moves the built-in markup to an element of the page; it keeps the control's markup and styles. Use it for
+the quick case, and the pattern above when the page should own the markup. [`examples/vanilla`](../../../examples/vanilla/src/main.ts) draws its
+country legend this way. The Explorer is the opinionated version: one way we think works well, built from the same public API.
+
 ## Overlays and popups ([`src/overlays/`](../src/overlays))
 
 All three are controls with position `'custom'`: add them with `addControl`.
@@ -297,6 +323,7 @@ const by = colourBy(tree, binding.categories('country'), viewer.getTheme(), { pa
 viewer.setClades(by.clades); // tip branches, dots and labels
 viewer.setColumns([...columns, by.column]); // a column of swatches
 viewer.addControl(new Legend({ title: 'Country', items: by.items })); // fixed items: the default legend would list one entry per tip
+// or draw by.items yourself (Headless: your own controls)
 ```
 
 The most frequent values take the palette's colours in turn (default the theme's `categorical`, five colours: pass a longer `palette` for

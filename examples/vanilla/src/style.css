@@ -101,3 +101,21 @@ aside h2 {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+#legend-slot ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+#legend-slot li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+}
+#legend-slot .swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}

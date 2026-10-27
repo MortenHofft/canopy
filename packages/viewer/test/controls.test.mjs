@@ -9,6 +9,7 @@ import { installFakeDom } from './fake-dom.mjs';
 installFakeDom();
 const { BaseControl } = await import('../src/control.ts');
 const { Zoom, Fit, LayoutToggle, Search, Legend, OverviewControl, defaultControls } = await import('../src/controls/index.ts');
+const { legendItems } = await import('../src/legend-items.ts');
 const { Emitter } = await import('../src/events.ts');
 const { InMemorySource } = await import('../src/source.ts');
 const { DEFAULT_OPTIONS } = await import('../src/types.ts');
@@ -255,6 +256,31 @@ test('Legend: one entry per coloured clade, named by label, node name or tip cou
     fixed.items(v).map((i) => i.label),
     ['Native'],
   );
+});
+
+test('legendItems: the same entries as the Legend control, with node ids to zoom to, and the cladeLabel override', () => {
+  const v = fakeViewer();
+  v.clades = [
+    { node: 1, colour: '#f00' },
+    { node: 4, colour: '#0f0' },
+    { node: 0, colour: '#00f', label: 'Everything' },
+  ];
+  const items = legendItems(v);
+  assert.deepEqual(items, new Legend().items(v));
+  assert.deepEqual(
+    items.map((i) => [i.label, i.node]),
+    [
+      ['Apis', 1],
+      ['Clade of 2 tips', 4],
+      ['Everything', 0],
+    ],
+  );
+  assert.deepEqual(
+    legendItems(v, { cladeLabel: () => 'X' }).map((i) => i.label),
+    ['X', 'X', 'Everything'],
+  );
+  v.clades = [];
+  assert.deepEqual(legendItems(v), []);
 });
 
 test('Legend: a clade is named by its label without support, through formatLabel, with its tip count; no name falls back to the count', () => {

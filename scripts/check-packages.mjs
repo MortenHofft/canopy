@@ -151,6 +151,11 @@ const SCENARIOS = [
     ],
   },
   {
+    name: 'viewer: TreeViewer + legendItems (no control classes)',
+    code: `import { TreeViewer, legendItems } from '@gbif-phylo/viewer'; console.log(TreeViewer, legendItems);`,
+    forbid: ['packages/viewer/dist/controls/', 'packages/viewer/dist/control.js'],
+  },
+  {
     name: 'viewer: TreeViewer + Zoom',
     code: `import { TreeViewer, Zoom } from '@gbif-phylo/viewer'; console.log(TreeViewer, Zoom);`,
     forbid: ['packages/viewer/dist/overview.js', 'controls/search.js', 'controls/legend.js', 'controls/defaults.js'],

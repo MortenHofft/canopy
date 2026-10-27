@@ -218,15 +218,17 @@ const by = await ev(() => {
   return {
     clades: v.getClades().length,
     tips: v.getTree().tipCount,
-    entries: [...document.querySelectorAll('.phylo-legend__label')].map((e) => e.textContent),
+    entries: [...document.querySelectorAll('#legend-slot li')].map((e) => e.textContent),
+    inViewer: document.querySelectorAll('.phylo-legend').length,
     swatch: !!v.columnCell('colour-by:country_code', 0),
   };
 });
 ok(by.clades > 0 && by.clades <= by.tips, `colouring by country colours the tips with a value (${by.clades} of ${by.tips})`);
 ok(
   by.entries.length > 1 && by.entries.length <= 9 && !by.entries.some((e) => /^Clade/.test(e)),
-  `the legend lists the countries, not clades (${by.entries})`,
+  `the page's own legend lists the countries, not clades (${by.entries})`,
 );
+ok(by.inViewer === 0, 'and the viewer has no legend control of its own then');
 ok(by.swatch, 'and a swatch column is added');
 await page.locator('#colour-by').selectOption('');
 await sleep(200);
@@ -234,7 +236,10 @@ const none = await ev(() => ({
   clades: window.__example.viewer.getClades().length,
   swatch: !!window.__example.viewer.columnCell('colour-by:country_code', 0),
 }));
-ok(none.clades === 0 && !none.swatch, `none puts the colours and the columns back (${JSON.stringify(none)})`);
+ok(
+  none.clades === 0 && !none.swatch && (await ev(() => document.getElementById('legend-slot').hidden)),
+  `none puts the colours and the columns back (${JSON.stringify(none)})`,
+);
 
 // ---- dark theme from CSS custom properties: the canvas and the controls follow
 const bgPixel = () =>
