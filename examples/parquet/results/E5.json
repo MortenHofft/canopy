@@ -1,0 +1,369 @@
+{
+ "id": "E5",
+ "title": "Row groups of nodes.parquet: what opening a clade costs (1M tips, no sequences)",
+ "rows": [
+  {
+   "name": "node rg 4096",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "rg": 4096
+    }
+   },
+   "result": {
+    "dataset": "node_rg_4096",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 4096,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 27390728,
+      "footer": 296183,
+      "row_groups": 489
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 259.39999999990687,
+       "requests": 2,
+       "bytes": 69343
+      },
+      "colour": {
+       "ms": 278.70000000018626,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 148.8000000002794,
+       "requests": 2,
+       "bytes": 407743
+      },
+      "inspect": {
+       "ms": 39.1999999997206,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 19,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 37.854293,
+       "frameMs": 10.5,
+       "requests": 74,
+       "bytes": 1486842
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 566.8999999999069,
+       "requests": 2,
+       "bytes": 69343
+      },
+      "colour": {
+       "ms": 9811.69999999972,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 804.3999999999069,
+       "requests": 2,
+       "bytes": 407743
+      },
+      "inspect": {
+       "ms": 523.6000000000931,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 462.6999999997206,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 38.909229,
+       "frameMs": 11.199999999720603,
+       "requests": 74,
+       "bytes": 1486842
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "node rg 16384",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "rg": 16384
+    }
+   },
+   "result": {
+    "dataset": "node_rg_16384",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 281.5,
+       "requests": 2,
+       "bytes": 66619
+      },
+      "colour": {
+       "ms": 263.6999999997206,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 135,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 34.3000000002794,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 17.800000000279397,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 38.363808,
+       "frameMs": 12.599999999627471,
+       "requests": 74,
+       "bytes": 1375198
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 551.7999999998137,
+       "requests": 2,
+       "bytes": 66619
+      },
+      "colour": {
+       "ms": 9754.799999999814,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 691.5,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 532.6999999997206,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 461.89999999990687,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 38.665508,
+       "frameMs": 11.099999999627471,
+       "requests": 74,
+       "bytes": 1375198
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "node rg 65536",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "rg": 65536
+    }
+   },
+   "result": {
+    "dataset": "node_rg_65536",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 65536,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26165078,
+      "footer": 19638,
+      "row_groups": 31
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 327.90000000037253,
+       "requests": 2,
+       "bytes": 65933
+      },
+      "colour": {
+       "ms": 195.79999999981374,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 193.09999999962747,
+       "requests": 2,
+       "bytes": 885296
+      },
+      "inspect": {
+       "ms": 26.600000000093132,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 19.700000000186265,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 46.02214,
+       "frameMs": 9.200000000186265,
+       "requests": 74,
+       "bytes": 1960985
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 609,
+       "requests": 2,
+       "bytes": 65933
+      },
+      "colour": {
+       "ms": 9750,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 1253.1999999997206,
+       "requests": 2,
+       "bytes": 885296
+      },
+      "inspect": {
+       "ms": 533.1999999997206,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 462.3000000002794,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 48.811695,
+       "frameMs": 9.300000000279397,
+       "requests": 74,
+       "bytes": 1960985
+      },
+      "errors": []
+     }
+    }
+   }
+  }
+ ]
+}
