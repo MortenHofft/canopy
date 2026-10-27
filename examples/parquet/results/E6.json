@@ -1,0 +1,369 @@
+{
+ "id": "E6",
+ "title": "Rows of the first overview level (1M tips, no sequences)",
+ "rows": [
+  {
+   "name": "first level 512 rows",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "firstBudget": 512
+    }
+   },
+   "result": {
+    "dataset": "first_level_512_rows",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 512
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 874221,
+      "footer": 3389,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 216.09999999962747,
+       "requests": 2,
+       "bytes": 24857
+      },
+      "colour": {
+       "ms": 248,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 170.6999999997206,
+       "requests": 2,
+       "bytes": 736279
+      },
+      "inspect": {
+       "ms": 31.5,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 18,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 43.083422,
+       "frameMs": 13.399999999906868,
+       "requests": 74,
+       "bytes": 1770892
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 480.29999999981374,
+       "requests": 2,
+       "bytes": 24857
+      },
+      "colour": {
+       "ms": 9786.099999999627,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 1135.8999999999069,
+       "requests": 2,
+       "bytes": 736279
+      },
+      "inspect": {
+       "ms": 533.6000000000931,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 462.20000000018626,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 49.201657,
+       "frameMs": 14,
+       "requests": 74,
+       "bytes": 1770892
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "first level 2048 rows",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "firstBudget": 2048
+    }
+   },
+   "result": {
+    "dataset": "first_level_2048_rows",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 273.6999999997206,
+       "requests": 2,
+       "bytes": 66619
+      },
+      "colour": {
+       "ms": 263.89999999990687,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 139.8000000002794,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 29.600000000093132,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 18.100000000093132,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 38.444127,
+       "frameMs": 14.400000000372529,
+       "requests": 74,
+       "bytes": 1375198
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 592.7000000001863,
+       "requests": 2,
+       "bytes": 66619
+      },
+      "colour": {
+       "ms": 9768.100000000093,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 670.1000000000931,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 522.6000000000931,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 461.60000000009313,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 38.665848,
+       "frameMs": 12.100000000093132,
+       "requests": 74,
+       "bytes": 1375198
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "first level 8192 rows",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "firstBudget": 8192
+    }
+   },
+   "result": {
+    "dataset": "first_level_8192_rows",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 0,
+     "seq_rate": 0.05,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 8192
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3109927,
+      "footer": 2713,
+      "row_groups": 3
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 362.60000000009313,
+       "requests": 2,
+       "bytes": 222837
+      },
+      "colour": {
+       "ms": 269.3000000002794,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 156.39999999990687,
+       "requests": 2,
+       "bytes": 294857
+      },
+      "inspect": {
+       "ms": 26.799999999813735,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 14.100000000093132,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 40.895465,
+       "frameMs": 4,
+       "requests": 74,
+       "bytes": 1527450
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 794.3999999999069,
+       "requests": 2,
+       "bytes": 222837
+      },
+      "colour": {
+       "ms": 9820.600000000093,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 706.9000000003725,
+       "requests": 2,
+       "bytes": 294857
+      },
+      "inspect": {
+       "ms": 532.6000000000931,
+       "requests": 4,
+       "bytes": 255835
+      },
+      "inspect2": {
+       "ms": 460.89999999990687,
+       "requests": 3,
+       "bytes": 175219
+      },
+      "end": {
+       "heapMB": 42.654344,
+       "frameMs": 5,
+       "requests": 74,
+       "bytes": 1527450
+      },
+      "errors": []
+     }
+    }
+   }
+  }
+ ]
+}
