@@ -494,7 +494,7 @@ direction the hidden branches would run, so a summary reads as one shape, "more 
   collapsed clade in a zoomed-in row; or a radial fan thinned that far): stripes that far apart are bands, not a texture; its tone uses that distance, so zooming across the limit does not change its darkness. The level of detail
   summarises clades of three or more tips smaller than `minCladePx`, so a summary is at most about `minCladePx` px tall (bands of polytomies and of runs excepted): with
   3 px (`'auto'` with a fixed budget) most summaries get the tone, and a `minCladePx` of 12 or more (or a draw budget that raises the threshold) gives most of them
-  stripes. The explorer sets 14 on trees over 1,500 tips.
+  stripes. 
 - **Darkness.** The background sets the shape's tone; the stripes add `summaryStripeOpacity` over `1 / pitch` of it, so a summary is darkest
   where its stripes are densest (at the least gap, or toward a fan's apex) and the tone fill matches the stripes it stands in for. With the defaults
   (0.25, 0.5, 2 px) a striped or toned summary averages about 0.44 of its colour (computed from the opacities, not measured), lighter than the old solid fill at 0.6.
