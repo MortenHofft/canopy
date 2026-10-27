@@ -122,3 +122,26 @@ test('false never reduces, even when full frames are slow', async () => {
   const seen = await moving({ interactionLOD: false }, 30);
   assert.ok(seen.length > 0 && seen.every((r) => !r), `no reduced frame: ${seen}`);
 });
+
+test('reduced frames start their threshold search from the last reduced frame, not from the bottom of the ladder (#93)', async () => {
+  // an equal-branch comb of 20k tips, radial, zoomed in step by step while moving: a cold search climbs 35 to 60 rungs per frame
+  let nwk = 't0:1';
+  for (let i = 1; i < 20000; i++) nwk = `(${nwk},t${i}:1):1`;
+  const options = { layout: 'radial', minCladePx: 14, drawBudget: 2000, radialMaxNodes: 2000, interactionLOD: true, refineMs: 1e5 };
+  const { viewer, env } = await makeViewer(nwk + ';', { options, size: [800, 600] });
+  env.flush();
+  const frames = [];
+  viewer.on('frame', (s) => frames.push({ reduced: s.reduced, passes: s.budgetRetries + 1, drawn: s.drawn, budget: s.budget }));
+  for (const f of [2, 2, 2, 2, 2, 2, 1.02, 1.02]) {
+    viewer.noteInput(); // the view moves, as on a wheel or drag
+    viewer.zoomBy(f, f, 400, 300);
+    env.flush();
+  }
+  assert.equal(frames.length, 8);
+  assert.ok(
+    frames.every((f) => f.reduced && f.budget === 500 && f.drawn <= 500),
+    JSON.stringify(frames),
+  );
+  assert.ok(frames[0].passes > 20, `the first reduced frame has no hint: ${frames[0].passes} passes`);
+  for (const f of frames.slice(1)) assert.ok(f.passes <= 8, `a later reduced frame: ${f.passes} passes`);
+});
