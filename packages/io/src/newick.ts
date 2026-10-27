@@ -466,16 +466,34 @@ function nexusStatement(text: string, p: number, quoted: boolean): { stmt: strin
   return rest ? { stmt: rest, end: n } : null;
 }
 
+/** `s` without its [comments]; a 'quoted' name keeps any brackets it holds. */
 function stripComments(s: string): string {
   let out = '';
+  let from = 0;
   let p = 0;
   while (p < s.length) {
-    const b = s.indexOf('[', p);
-    if (b < 0) return out + s.slice(p);
-    out += s.slice(p, b);
-    p = skipComment(s, b);
+    const c = s.charCodeAt(p);
+    if (c === 91) {
+      out += s.slice(from, p);
+      p = skipComment(s, p);
+      from = p;
+    } else if (c === 39) {
+      p++;
+      for (;;) {
+        const e = s.indexOf("'", p);
+        if (e < 0) {
+          p = s.length;
+          break;
+        }
+        if (s.charCodeAt(e + 1) === 39) p = e + 2;
+        else {
+          p = e + 1;
+          break;
+        }
+      }
+    } else p++;
   }
-  return out;
+  return out + s.slice(from);
 }
 
 /** Tokens split on whitespace; 'quoted' tokens unquoted; ',' is its own token. */

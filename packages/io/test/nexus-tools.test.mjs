@@ -265,3 +265,14 @@ test('malformed input throws a NewickError with a position, whatever the mode', 
     }
   }
 });
+
+test("brackets inside a 'quoted' name are part of the name, in TRANSLATE and TAXLABELS and in the tree", () => {
+  // idea from Biopython Tests/Nexus/test_Nexus_input.nex: a taxon called isn'that [a] strange name?
+  const nex = `#NEXUS
+begin taxa; dimensions ntax=3; taxlabels 'isn''that [a] strange name?' 'x]y' z; end;
+begin trees; translate 1 'isn''that [a] strange name?', 2 'x]y', 3 z; tree t = [&R] (1,2,3); end;`;
+  assert.deepEqual(parseNexus(nex).tree.tipLabels, ["isn'that [a] strange name?", 'x]y', 'z']);
+  assert.deepEqual(parseNexus(nex).ignored, []); // the TAXA block lists the same names
+  assert.deepEqual(parseNexus("#NEXUS\nbegin trees; tree t = ('a [b] c',d);end;").tree.tipLabels, ['a [b] c', 'd']);
+  assert.deepEqual(parseNexus("#NEXUS\nbegin trees; tree t = (a[comment 'with' quotes],d);end;").tree.tipLabels, ['a', 'd']);
+});

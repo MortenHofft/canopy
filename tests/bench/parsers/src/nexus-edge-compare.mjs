@@ -67,7 +67,7 @@ const rows = fixtures.map((fx, i) => {
   const d0 = dp[i];
   let d;
   if (d0.error) d = { error: d0.error.slice(0, 100) };
-  else if (!d0.trees || !d0.trees['0']) d = { tips: 0, labels: [] };
+  else if (!d0.trees || !d0.trees['0']) d = { error: 'no trees' };
   else d = { tips: d0.trees['0'].tips, labels: d0.trees['0'].labels };
   const ours = judge(fx, o);
   const dendropy = judge(fx, d);
