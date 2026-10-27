@@ -87,6 +87,7 @@ import {
   wantsStep,
   wedgeLimitPx,
   MAX_WEDGE_DEG,
+  MAX_BLOCK_PX,
   type BudgetState,
 } from './budget.ts';
 import { keptViewport, type TipTarget } from './view-keep.ts';
@@ -1948,11 +1949,12 @@ export class TreeViewer {
     return this.wedgeLimited || (rect && this.ctl !== null) ? MIN_THRESHOLD_PX : AUTO_MIN_CLADE_PX;
   }
 
-  /** The radial wedge limit for this frame (px), Infinity for none: in force with `radialMaxNodes: 'auto'` while the budget has not been
-   *  lowered for slow frames, and not in a reduced frame. */
+  /** The limit for this frame (px), Infinity for none: in force with an adaptive budget (rectangular: `MAX_BLOCK_PX`; radial: the wedge
+   *  limit, with `radialMaxNodes: 'auto'`) while the budget has not been lowered for slow frames, and not in a reduced frame. */
   private wedgeLimitFor(reduced: boolean): number {
-    if (!this.wedgeLimited || reduced || this.ctl === null || this.ctl.pressed) return Infinity;
-    return wedgeLimitPx(this.L.XMAX[0] * this.T.k);
+    if (reduced || this.ctl === null || this.ctl.pressed) return Infinity;
+    if (this.opts.layout === 'rectangular') return MAX_BLOCK_PX;
+    return this.wedgeLimited ? wedgeLimitPx(this.L.XMAX[0] * this.T.k) : Infinity;
   }
 
   private useController(s: BudgetState, floor: number, ceiling: number): void {

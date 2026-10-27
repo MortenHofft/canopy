@@ -133,6 +133,19 @@ test('radial, frames on target: no summary wedge wider than MAX_WEDGE_DEG, whate
   assert.ok(last.widest <= last.limit * (1 + 1e-9), `after: ${last.widest.toFixed(2)} px <= ${last.limit.toFixed(2)} px`);
 });
 
+test('rectangular, frames on target: the threshold is limited to MAX_BLOCK_PX, and the limit gives way to slow frames (#119)', async () => {
+  const ctx = await setup({ layout: 'rectangular' });
+  ctx.frame();
+  assert.equal(ctx.viewer.getStats().minPxLimit, B.MAX_BLOCK_PX);
+  ctx.clock.cost = 100;
+  await settleBudget(ctx, 12);
+  assert.equal(ctx.viewer.autoRect.pressed, true);
+  assert.equal(ctx.viewer.getStats().minPxLimit, Infinity);
+  const fixed = await setup({ layout: 'rectangular', drawBudget: 3000 });
+  fixed.frame();
+  assert.equal(fixed.viewer.getStats().minPxLimit, Infinity, 'a fixed budget has no limit');
+});
+
 test('a number stays fixed: the budget does not move, and no frame follows', async () => {
   for (const [options, expected] of [
     [{ drawBudget: 5000, radialMaxNodes: 300 }, 300],
