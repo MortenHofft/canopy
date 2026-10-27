@@ -953,6 +953,17 @@ for (const id of synthetic) {
 await open(resume);
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
 
+console.log('support exactly at the threshold is kept (#92)');
+await open('?tree=syn-yule-1000');
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('1,000 tips'), null, { timeout: 30000 });
+await toggle('supportCollapse', true);
+await setInput('minSupport', '70');
+await page.waitForFunction(() => window.viewer.getTree().nodeCount < 1999, null, { timeout: 30000 }).catch(() => {});
+// 70 * 0.01 is 0.7000000000000001, which dropped a support of exactly 0.70; the explorer keeps 1,676 nodes at the same threshold
+ok((await nodes()) === 1676, `syn-yule-1000 collapsed below 70 keeps a support of exactly 0.70 (${await nodes()} nodes, expected 1676)`);
+await open(resume);
+await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('135 tips'), null, { timeout: 30000 });
+
 console.log('data columns');
 await page.selectOption('#tree-select', 'syn-yule-1000');
 await page.waitForFunction(() => document.querySelector('#tree-info').textContent.startsWith('1,000 tips'), null, { timeout: 30000 });
