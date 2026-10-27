@@ -67,4 +67,4 @@ npm run build:site                      # the demo site (hub, playground, showca
 
 ## Licence
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). Third-party material in the examples (the explorer's toolbar icons, MIT) is listed in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES).
