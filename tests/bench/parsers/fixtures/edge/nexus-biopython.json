@@ -473,7 +473,12 @@
   "copied": "rephrased",
   "note": "Stray ']' outside a comment: library raises NexusError; not exercised by its tests, so wellFormed is a judgement from the code, not an assertion; DendroPy silently accepts it (readers disagree).",
   "ours": "parses",
-  "oursWhy": "a stray ] is part of a name; DendroPy accepts it too"
+  "oursWhy": "a stray ] is part of a name; DendroPy accepts it too",
+  "oursTipLabels": [
+   "a",
+   "b",
+   "c"
+  ]
  },
  {
   "id": "biopython-unmatched-opening-bracket",

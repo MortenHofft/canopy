@@ -160,7 +160,12 @@
   "copied": "rephrased",
   "note": "NTAX=2 but five TAXLABELS; the library expects TooManyTaxaError for a character matrix (the library's input has only the TAXA block; here a TREES block was added and DendroPy 5.1.3 raises the same error when reading trees).",
   "ours": "parses",
-  "oursWhy": "read, and reported as nexus-ntax-mismatch (DendroPy refuses)"
+  "oursWhy": "read, and reported as nexus-ntax-mismatch (DendroPy refuses)",
+  "oursTipLabels": [
+   "AAA",
+   "BBB",
+   "CCC"
+  ]
  },
  {
   "id": "dendropy-translate-two-blocks-different-maps",
@@ -590,7 +595,12 @@
   "copied": "rephrased",
   "note": "Duplicate tip label; the library's own newick test expects NewickReaderDuplicateTaxonError by default (a DendroPy taxon-identity rule, not NEXUS syntax: a lenient viewer may reasonably accept it and show tips A,A,B); DendroPy 5.1.3 raises here as well.",
   "ours": "parses",
-  "oursWhy": "duplicate tips are kept; TreeModel.duplicateTipLabels() reports them"
+  "oursWhy": "duplicate tips are kept; TreeModel.duplicateTipLabels() reports them",
+  "oursTipLabels": [
+   "A",
+   "A",
+   "B"
+  ]
  },
  {
   "id": "dendropy-invalid-statement-1",
@@ -619,6 +629,11 @@
   "oursWhy": "a branch length with no number is read as missing, with the warning dangling-colon",
   "oursWarns": [
    "dangling-colon"
+  ],
+  "oursTipLabels": [
+   "a",
+   "b",
+   "c"
   ]
  },
  {
@@ -633,7 +648,12 @@
   "copied": "rephrased",
   "note": "A good first tree and a second with unbalanced parentheses; DendroPy raises for the whole file, so no partial result (the library tests only single newick statements).",
   "ours": "parses",
-  "oursWhy": "only the requested tree is parsed: a broken later tree is not noticed until it is opened"
+  "oursWhy": "only the requested tree is parsed: a broken later tree is not noticed until it is opened",
+  "oursTipLabels": [
+   "A",
+   "B",
+   "C"
+  ]
  },
  {
   "id": "dendropy-unterminated-quote",

@@ -441,44 +441,56 @@ export interface NexusResult {
   ignored: NexusNote[];
 }
 
-/** Next ';'-terminated statement starting at p, respecting 'quotes' and [comments]; end = position after ';'. */
-function nexusStatement(text: string, p: number, quoted: boolean): { stmt: string; end: number; terminated: boolean } | null {
+/** A reader of the ';'-terminated statements of a NEXUS text, respecting 'quotes' and [comments]: `next(p)` gives the statement
+ *  that starts at p and `end`, the position after its ';'. It jumps between the next ';', '[' and quote with indexOf and keeps
+ *  where they are, so a long MATRIX costs little. */
+function nexusStatements(text: string, quoted: boolean): (p: number) => { stmt: string; end: number; terminated: boolean } | null {
   const n = text.length;
-  const s = p;
-  while (p < n) {
-    const c = text.charCodeAt(p);
-    if (c === 91) p = skipComment(text, p, quoted);
-    else if (c === 39) {
-      p++;
-      for (;;) {
-        const e = text.indexOf("'", p);
-        if (e < 0) throw new NewickError('unterminated quote in NEXUS', p);
-        if (text.charCodeAt(e + 1) === 39) p = e + 2;
-        else {
-          p = e + 1;
-          break;
+  let ns = -2; // next ';', '[' and "'" at or after the last position asked for: -2 not looked for yet, -1 none
+  let nb = -2;
+  let nq = -2;
+  return (s) => {
+    let p = s;
+    for (;;) {
+      if (ns !== -1 && ns < p) ns = text.indexOf(';', p);
+      if (nb !== -1 && nb < p) nb = text.indexOf('[', p);
+      if (nq !== -1 && nq < p) nq = text.indexOf("'", p);
+      const inside = (i: number): boolean => i >= 0 && (ns < 0 || i < ns); // before the ';'
+      if (inside(nb) && (!inside(nq) || nb < nq)) p = skipComment(text, nb, quoted);
+      else if (inside(nq)) {
+        p = nq + 1;
+        for (;;) {
+          const e = text.indexOf("'", p);
+          if (e < 0) throw new NewickError('unterminated quote in NEXUS', p);
+          if (text.charCodeAt(e + 1) === 39) p = e + 2;
+          else {
+            p = e + 1;
+            break;
+          }
         }
+      } else if (ns >= 0) return { stmt: text.slice(s, ns), end: ns + 1, terminated: true };
+      else {
+        const rest = text.slice(s).trim();
+        return rest ? { stmt: rest, end: n, terminated: false } : null;
       }
-    } else if (c === 59) return { stmt: text.slice(s, p), end: p + 1, terminated: true };
-    else p++;
-  }
-  const rest = text.slice(s).trim();
-  return rest ? { stmt: rest, end: n, terminated: false } : null;
+    }
+  };
 }
 
-/** `s` without its [comments]; a 'quoted' name keeps any brackets it holds. */
+/** `s` without its [comments]; a 'quoted' name keeps any brackets it holds. Jumps between the brackets and quotes with indexOf. */
 function stripComments(s: string): string {
   let out = '';
   let from = 0;
-  let p = 0;
-  while (p < s.length) {
-    const c = s.charCodeAt(p);
-    if (c === 91) {
-      out += s.slice(from, p);
-      p = skipComment(s, p);
+  let nb = s.indexOf('[');
+  let nq = s.indexOf("'");
+  while (nb >= 0 || nq >= 0) {
+    let p: number;
+    if (nb >= 0 && (nq < 0 || nb < nq)) {
+      out += s.slice(from, nb);
+      p = skipComment(s, nb);
       from = p;
-    } else if (c === 39) {
-      p++;
+    } else {
+      p = nq + 1;
       for (;;) {
         const e = s.indexOf("'", p);
         if (e < 0) {
@@ -491,9 +503,54 @@ function stripComments(s: string): string {
           break;
         }
       }
-    } else p++;
+    }
+    if (nb >= 0 && nb < p) nb = s.indexOf('[', p);
+    if (nq >= 0 && nq < p) nq = s.indexOf("'", p);
   }
   return out + s.slice(from);
+}
+
+/** Where an END or ENDBLOCK word starts that was read into a TREE command because its ';' is missing, else -1: the last word of
+ *  the command, set off by whitespace (comments count as whitespace), after the tree's closing parenthesis. */
+function swallowedEnd(body: string): number {
+  let depth = 0;
+  let closed = false;
+  let ws = true;
+  let start = -1;
+  let stop = -1;
+  let depthAtStart = 0;
+  let closedAtStart = false;
+  for (let p = 0; p < body.length; p++) {
+    const c = body.charCodeAt(p);
+    if (c === 91) {
+      p = skipComment(body, p) - 1;
+      ws = true;
+      continue;
+    }
+    if (isWs(c)) {
+      ws = true;
+      continue;
+    }
+    if (ws) {
+      start = p;
+      depthAtStart = depth;
+      closedAtStart = closed;
+    }
+    ws = false;
+    if (c === 39) {
+      for (p++; p < body.length; p++) {
+        if (body.charCodeAt(p) === 39 && body.charCodeAt(p + 1) !== 39) break;
+        if (body.charCodeAt(p) === 39) p++;
+      }
+    } else if (c === 40) depth++;
+    else if (c === 41) {
+      depth--;
+      closed = true;
+    }
+    stop = p + 1;
+  }
+  if (start < 0 || depthAtStart !== 0 || !closedAtStart) return -1;
+  return /^(?:end|endblock)$/i.test(body.slice(start, stop)) ? start : -1;
 }
 
 /** Tokens split on whitespace; 'quoted' tokens unquoted; ',' is its own token. */
@@ -544,8 +601,8 @@ interface NexusBlock {
   labels: string[];
   ntax: number;
   nchar: number;
-  /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block, with '_' read as a space. */
-  rows: Set<string>;
+  /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block: name key (see nameKey) to the name as written. */
+  rows: Map<string, string>;
   unreadable: boolean;
 }
 
@@ -575,8 +632,8 @@ const linkValue = (head: string, key: RegExp): string => {
   return m ? firstWord(m[1].trim()).toLowerCase() : '';
 };
 
-/** NEXUS reads an unquoted '_' as a space, so t2_the_name and 't2 the name' are one taxon: names are compared this way. */
-const nameKey = (l: string): string => l.replace(/_/g, ' ');
+/** NEXUS reads an unquoted '_' as a space and does not tell cases apart, so t2_the_name and 'T2 the name' are one taxon: names are compared this way. */
+const nameKey = (l: string): string => l.replace(/_/g, ' ').toLowerCase();
 
 const sample = (xs: string[]): string => xs.slice(0, 3).join(', ') + (xs.length > 3 ? `, … (${xs.length} in all)` : '');
 
@@ -604,7 +661,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   };
   const translate = new Map<string, string>();
   let total = 0;
-  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null; byNumber: number } | null = null;
+  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null; byNumber: number; entries: number } | null = null;
   /** The TAXA block a TREES block refers to: the one named by its LINK, else the last one before it. */
   const taxaOf = (tb: NexusBlock | null): NexusBlock | null => {
     if (!tb) return null;
@@ -613,6 +670,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
     const before = taxa.filter((x) => x.at < tb.at);
     return before.length ? before[before.length - 1] : null;
   };
+  const nextStatement = nexusStatements(text, opts.annotations === true);
   const tokens = (s: string): string[] => {
     try {
       return nexusTokens(s);
@@ -624,13 +682,18 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   try {
     for (;;) {
       const from = p;
-      const st = nexusStatement(text, p, opts.annotations === true);
+      const st = nextStatement(p);
       if (!st) break;
       p = st.end;
+      // past the tree that is returned, the other trees are only counted
+      if (found && cur?.name === 'trees' && /^\s*u?tree\b/i.test(st.stmt)) {
+        total++;
+        continue;
+      }
       const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');
       const m = /^\s*(\*?\s*\w+)/.exec(head);
       if (!m) continue;
-      const at = from + (st.stmt.length - st.stmt.trimStart().length);
+      const at = from + (/^\s*(?:#nexus\b\s*)?/i.exec(st.stmt)?.[0].length ?? 0);
       const kw = m[1].replace(/[\s*]/g, '').toLowerCase();
       if (kw === 'begin') {
         cur = {
@@ -642,7 +705,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
           labels: [],
           ntax: -1,
           nchar: -1,
-          rows: new Set(),
+          rows: new Map(),
           unreadable: false,
         };
         blocks.push(cur);
@@ -666,11 +729,16 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       } else if ((block === 'characters' || block === 'data') && kw === 'matrix') {
         for (const line of head.replace(/^\s*matrix\b/i, '').split(/\r\n|\r|\n/)) {
           const l = line.trim();
-          if (l) cur.rows.add(nameKey(firstWord(l)));
+          if (l) {
+            const w = firstWord(l);
+            cur.rows.set(nameKey(w), w);
+          }
         }
       } else if (block === 'trees' && kw === 'translate') {
         const toks = tokens(head.replace(/^\s*translate\b/i, ''));
-        for (let i = 0; i + 1 < toks.length; i += 3) translate.set(toks[i], toks[i + 1]);
+        // token value pairs, the comma between them is optional
+        const pairs = toks.filter((t) => t !== ',');
+        for (let i = 0; i + 1 < pairs.length; i += 2) translate.set(pairs[i], pairs[i + 1]);
       } else if (block === 'trees' && (kw === 'tree' || kw === 'utree')) {
         if (total++ !== treeIndex) continue;
         // body: name = [comment] newick, with comments still in place (parseNewick skips them)
@@ -706,7 +774,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
           .replace(/^'(.*)'$/s, (_, q: string) => q.replace(/''/g, "'"));
         // No ';' after the tree: the END of the block was read into the statement, or the file stopped
         let body = st.stmt.slice(eq + 1);
-        const endAt = /\s(?:end|endblock)\s*$/i.exec(body)?.index ?? -1;
+        const endAt = swallowedEnd(body);
         if (endAt >= 0) body = body.slice(0, endAt);
         const noSemicolon = endAt >= 0 || !st.terminated;
         if (noSemicolon && strict) {
@@ -718,9 +786,9 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         // name is an in-range number that is no taxon label (as in forester): a tree that mixes names and numbers has numbers
         // that are names (an accession such as 92829), and renaming one of them would be wrong without a word.
         const labels = taxaOf(cur)?.labels ?? [];
-        const known = new Set(labels);
+        const known = new Set(labels.map(nameKey));
         const rest = tree.tipLabels.filter((l) => !translate.has(l));
-        const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(l));
+        const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(nameKey(l)));
         let byNumber = 0;
         if (translate.size || labels.length) {
           tree.relabelTips((l) => {
@@ -741,7 +809,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
             position: from + st.stmt.length,
           });
         }
-        found = { tree, name, seen: total, block: cur, byNumber };
+        found = { tree, name, seen: total, block: cur, byNumber, entries: translate.size };
         if (endAt >= 0) cur = null; // the END was part of this statement
       }
     }
@@ -832,7 +900,17 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   for (const bl of blocks) {
     if (bl.name !== 'characters' && bl.name !== 'data') continue;
     const what = `The ${bl.name.toUpperCase()} block (${bl.rows.size} sequences${bl.nchar >= 0 ? `, ${bl.nchar} characters` : ''}) is not read`;
-    if (bl.ntax >= 0 && bl.rows.size > bl.ntax) {
+    if (bl.link && used && bl.link !== used.title) {
+      note(
+        'nexus-sequences-unlinked',
+        bl.name,
+        `${what}; it links to the TAXA block "${bl.link}", not the one the tree uses, so it was not compared with the tips`,
+        bl.at,
+      );
+      continue;
+    }
+    const expected = bl.ntax >= 0 ? bl.ntax : bl.name === 'characters' && used ? used.labels.length : -1;
+    if (expected >= 0 && bl.rows.size > expected) {
       note(
         'nexus-sequences-unlinked',
         bl.name,
@@ -841,7 +919,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       );
       continue;
     }
-    const noTip = [...bl.rows].filter((l) => !tips.has(l));
+    const noTip = [...bl.rows].filter(([k]) => !tips.has(k)).map(([, l]) => l);
     const noRow = [...tips].filter(([k]) => !bl.rows.has(k)).map(([, l]) => l);
     if (noTip.length || noRow.length) {
       note(
@@ -855,5 +933,5 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
     }
   }
   notes.sort((x, y) => x.position - y.position);
-  return { tree, treeName: found.name, treesSeen: found.seen, treeCount: total, translateEntries: translate.size, ignored: notes };
+  return { tree, treeName: found.name, treesSeen: found.seen, treeCount: total, translateEntries: found.entries, ignored: notes };
 }

@@ -301,3 +301,93 @@ test('a tree with no ";" before END, or at the end of the file, is read with a w
   assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (A,B,C); end;').tree.warnings, []);
   assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (A,B)end; end;').tree.labels[0], 'end'); // a root called "end"
 });
+
+// found by the review of this change
+test('a TRANSLATE table without commas is read as token and value pairs', () => {
+  const nex = `#NEXUS
+begin taxa; dimensions ntax=4; taxlabels Delta Gamma Beta Alpha; end;
+begin trees;
+ translate
+  1 Alpha
+  2 Beta
+  3 Gamma
+  4 Delta;
+ tree t = ((1,2),(3,4));
+end;`;
+  const r = parseNexus(nex);
+  assert.equal(toNewick(r.tree), '((Alpha,Beta),(Gamma,Delta));');
+  assert.equal(r.translateEntries, 4);
+  assert.deepEqual(r.ignored, []); // nothing was renamed by position
+});
+
+test('translateEntries is the table of the returned tree, whichever blocks follow it', () => {
+  const nex = 'begin trees; translate 1 A, 2 B; tree t0=(1,2); end; begin trees; tree t1=(1,2); end;';
+  assert.equal(parseNexus(nex, 0).translateEntries, 2);
+  assert.equal(parseNexus(nex, 1).translateEntries, 0);
+  assert.equal(parseNexus('begin trees; tree t=(A,B); end; begin trees; translate 1 A; tree u=(1,2); end;').translateEntries, 0);
+});
+
+test('an END that follows a tree with no ";" is taken for the end of the block, comments after it included', () => {
+  for (const nex of ['#NEXUS\nbegin trees; tree t = (a,b)\nEND [trees done];', '#NEXUS\nbegin trees; tree t = (a,b) [x] endblock [y];']) {
+    const r = parseNexus(nex);
+    assert.equal(r.tree.labels[0], '');
+    assert.deepEqual(
+      r.tree.warnings.map((w) => w.code),
+      ['missing-trailing-semicolon'],
+    );
+  }
+  // END inside the tree is a tip, and a label glued to the parenthesis is a label
+  assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (a,\nend); end;').tree.tipLabels, ['a', 'end']);
+  assert.equal(parseNexus('#NEXUS\nbegin trees; tree t = (a,b)end; end;').tree.labels[0], 'end');
+});
+
+test('names are compared without regard to case, and shown as written', () => {
+  const nex = `#NEXUS
+begin taxa; dimensions ntax=3; taxlabels Homo Pan Gorilla; end;
+begin data; dimensions ntax=3 nchar=2; format datatype=dna; matrix
+HOMO AC
+PAN AC
+GORILLA AC
+; end;
+begin trees; tree t = (homo,pan,gorilla); end;`;
+  const r = parseNexus(nex);
+  assert.deepEqual(r.tree.tipLabels, ['homo', 'pan', 'gorilla']);
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['nexus-sequences-ignored'],
+  );
+});
+
+test('sequence rows: a CHARACTERS block without NTAX is checked against the taxa; its own LINK is honoured', () => {
+  const taxa = (t, l) => `begin taxa; title ${t}; dimensions ntax=2; taxlabels ${l}; end;\n`;
+  const wrapped = `begin characters; link taxa = one; dimensions nchar=8; format datatype=dna; matrix
+a ACGT
+ ACGT
+b ACGT
+ ACGT
+; end;\n`;
+  const trees = 'begin trees; link taxa = one; tree t = (a,b); end;';
+  // wrapped lines look like extra rows: with two taxa and three first words the block is not compared row by row
+  const r = parseNexus('#NEXUS\n' + taxa('one', 'a b') + wrapped + trees);
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['nexus-sequences-unlinked'],
+  );
+  assert.match(r.ignored[0].message, /could not be told apart/);
+  const plain = wrapped.replace('a ACGT\n ACGT\nb ACGT\n ACGT', 'a ACGTACGT\nb ACGTACGT');
+  assert.deepEqual(
+    parseNexus('#NEXUS\n' + taxa('one', 'a b') + plain + trees).ignored.map((n) => n.code),
+    ['nexus-sequences-ignored'],
+  );
+  const other = parseNexus('#NEXUS\n' + taxa('one', 'a b') + taxa('two', 'x y') + plain.replace('= one', '= two') + trees);
+  assert.deepEqual(
+    other.ignored.map((n) => n.code),
+    ['nexus-taxa-unused', 'nexus-sequences-unlinked'],
+  );
+  assert.match(other.ignored[1].message, /links to the TAXA block "two", not the one the tree uses/);
+});
+
+test('the first block is reported at its BEGIN, not at #NEXUS', () => {
+  const nex = '#NEXUS\n\nbegin sets;\n charset x = 1-2;\nend;\nbegin trees; tree t = (a,b); end;';
+  assert.equal(parseNexus(nex).ignored[0].position, nex.indexOf('begin sets'));
+});

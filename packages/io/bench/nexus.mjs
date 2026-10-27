@@ -38,16 +38,7 @@ for (const f of files) {
   const buf = fs.readFileSync(f);
   const text = (f.endsWith('.gz') ? zlib.gunzipSync(buf) : buf).toString('utf8');
   const first = parseNexus(text);
-  let trees = 1;
-  while (trees < 100000) {
-    try {
-      parseNexus(text, trees);
-      trees++;
-    } catch {
-      break;
-    }
-    if (trees > 1000) break; // enough to say "many"
-  }
+  const trees = first.treeCount;
   const plain = median(() => parseNexus(text));
   const annotated = median(() => parseNexus(text, { annotations: true }));
   const last = trees > 1 ? median(() => parseNexus(text, trees - 1)) : null;
@@ -56,7 +47,7 @@ for (const f of files) {
     file: path.basename(f),
     MB: mb.toFixed(2),
     tips: first.tree.tipCount,
-    trees: trees > 1000 ? '>1000' : trees,
+    trees,
     ms: plain.toFixed(1),
     'ms +annotations': annotated.toFixed(1),
     'ms last tree': last === null ? '' : last.toFixed(1),

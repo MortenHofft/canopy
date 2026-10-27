@@ -13,9 +13,8 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
-import { crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { signature } from './nexus-shape.mjs';
 import { parseNexus } from '../../../../packages/io/src/index.ts';
 
 const argv = process.argv.slice(2);
@@ -59,25 +58,6 @@ const dp = new Map(
 );
 
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
-/** The same hash as signature() in dendropy-nexus-summary.py: shape plus lengths, label by label. */
-function signature(t) {
-  const sum = new Float64Array(t.nodeCount);
-  const size = new Int32Array(t.nodeCount);
-  const items = [];
-  for (let n = t.nodeCount - 1; n >= 0; n--) {
-    if (t.isTip(n)) {
-      sum[n] = crc32(Buffer.from(t.labels[n], 'utf8'));
-      size[n] = 1;
-    }
-    if (n === 0) break;
-    const p = t.parent[n];
-    sum[p] = (sum[p] + sum[n]) % 2 ** 32;
-    size[p] += size[n];
-    items.push(`${sum[n]}:${size[n]}:${Number.isNaN(t.length[n]) ? '-' : Math.round(t.length[n] * 1e9)}`);
-  }
-  return createHash('sha1').update(items.sort().join('\n')).digest('hex').slice(0, 16);
-}
-
 function ours(text, i) {
   const { tree: t } = parseNexus(text, i);
   let nlen = 0;

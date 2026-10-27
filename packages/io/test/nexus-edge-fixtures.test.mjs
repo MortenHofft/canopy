@@ -34,8 +34,11 @@ for (const fx of fixtures) {
       return;
     }
     const { tree } = parseNexus(fx.input);
+    // what we return for the tips: the fixture's own list, or ours where we differ on purpose (then it must be written down)
+    const labels = fx.oursTipLabels ?? fx.tipLabels;
+    if (fx.ours === 'parses') assert.ok(labels, `${fx.id}: a deliberate difference needs oursTipLabels`);
+    if (labels) assert.deepEqual([...tree.tipLabels].sort(), [...labels].sort());
     if (!fx.ours && fx.tipCount != null) assert.equal(tree.tipCount, fx.tipCount);
-    if (!fx.ours && fx.tipLabels != null) assert.deepEqual([...tree.tipLabels].sort(), [...fx.tipLabels].sort());
     for (const code of fx.oursWarns ?? []) {
       assert.ok(
         tree.warnings.some((w) => w.code === code),

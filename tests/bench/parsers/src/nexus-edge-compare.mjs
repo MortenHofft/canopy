@@ -15,6 +15,7 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'n
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { signature } from './nexus-shape.mjs';
 import { parseNexus } from '../../../../packages/io/src/index.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -61,7 +62,7 @@ const rows = fixtures.map((fx, i) => {
   let o;
   try {
     const t = parseNexus(fx.input).tree;
-    o = { tips: t.tipCount, labels: [...t.tipLabels] };
+    o = { tips: t.tipCount, labels: [...t.tipLabels], sig: signature(t) };
   } catch (e) {
     o = { error: e.message.slice(0, 100) };
   }
@@ -69,11 +70,11 @@ const rows = fixtures.map((fx, i) => {
   let d;
   if (d0.error) d = { error: d0.error.slice(0, 100) };
   else if (!d0.trees || !d0.trees['0']) d = { error: 'no trees' };
-  else d = { tips: d0.trees['0'].tips, labels: d0.trees['0'].labels };
+  else d = { tips: d0.trees['0'].tips, labels: d0.trees['0'].labels, sig: d0.trees['0'].sig };
   // `ours` on a fixture says what we do on purpose where that is not what the fixture's source expects (see oursWhy)
   const ours = judge(fx, o, fx.ours ? fx.ours === 'parses' : fx.wellFormed);
   const dendropy = judge(fx, d);
-  const agree = o.error || d.error ? !!o.error === !!d.error : o.tips === d.tips && sameLabels(o.labels, d.labels);
+  const agree = o.error || d.error ? !!o.error === !!d.error : o.tips === d.tips && sameLabels(o.labels, d.labels) && o.sig === d.sig;
   return { id: fx.id, wellFormed: fx.wellFormed, ours, dendropy, agree, o, d, fx };
 });
 

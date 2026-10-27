@@ -154,35 +154,6 @@
   "note": "Biopython's tests EXPECT an error for a continuous characters block; a tree viewer should instead skip any block it does not understand and still return the tree. DendroPy agrees."
  },
  {
-  "id": "dendropy-truncated-tree-statement-2",
-  "kind": "nexus",
-  "input": "#NEXUS\nBEGIN TREES;\n    TREE t1 =\n",
-  "wellFormed": false,
-  "tipCount": null,
-  "tipLabels": null,
-  "source": "DendroPy (GitHub master, tests/unittests), test_dataio_nexus_reader_tree_list.py NexusReaderTruncatedTreeStatementTestCase",
-  "licence": "BSD-3-Clause",
-  "copied": "verbatim",
-  "note": "Stream ends after 'TREE t1 ='; DendroPy's test requires a proper NexusReaderError (it used to leak an AttributeError), i.e. a clean error, no crash. DendroPy agrees it is an error (NexusReaderError)."
- },
- {
-  "id": "dendropy-two-trees-blocks-link-taxa-no-translate-in-second",
-  "kind": "nexus",
-  "input": "#NEXUS\n\nBEGIN TAXA;\n\tTITLE X2; DIMENSIONS NTAX=4; TAXLABELS x2.1 x2.2 x2.3 x2.4;\nEND;\n\nBEGIN TREES;\n\tTITLE x2.trees1;\n\tLINK Taxa = X2;\n\tTRANSLATE\n\t    1 x2.1,\n\t    2 x2.2,\n\t    3 x2.3,\n\t    4 x2.4\n\t    ;\n    TREE 1 = (1,(2,(3,4)));\n    TREE 2 = (1,(2,(3,4)));\nEND;\n\nBEGIN TREES;\n\tTITLE x2.trees2;\n\tLINK Taxa = X2;\n    TREE 1 = (1,(2,(3,4)));\n    TREE 2 = (1,(2,(3,4)));\nEND;\n",
-  "wellFormed": true,
-  "tipCount": 4,
-  "tipLabels": [
-   "x2.1",
-   "x2.2",
-   "x2.3",
-   "x2.4"
-  ],
-  "source": "DendroPy (GitHub master, tests/unittests), data/trees/multitreeblocks2.nex (test_multiple_trees2: 4 trees, taxa x2.1..x2.4)",
-  "licence": "BSD-3-Clause",
-  "copied": "verbatim",
-  "note": "Two TREES blocks, only the first has TRANSLATE; the second uses bare numbers that must resolve through TAXA position. DendroPy's test expects 4 trees in total and the namespace labels x2.1..x2.4. Also tree names that are numbers (TREE 1). DendroPy agrees."
- },
- {
   "id": "dendropy-multiple-taxa-blocks-link-selects-second",
   "kind": "nexus",
   "input": "#NEXUS\nBEGIN TAXA;\n\tTITLE X1; DIMENSIONS NTAX=5; TAXLABELS x1.1 x1.2 x1.3 x1.4 x1.5;\nEND;\nBEGIN TAXA;\n\tTITLE X2; DIMENSIONS NTAX=4; TAXLABELS x2.1 x2.2 x2.3 x2.4;\nEND;\nBEGIN TREES;\n\tTITLE x2.trees;\n\tLINK TAXA = X2;\n\tTREE t = (1,(2,(3,4)));\nEND;\n",
@@ -198,48 +169,6 @@
   "licence": "BSD-3-Clause",
   "copied": "rephrased",
   "note": "Several titled TAXA blocks (Mesquite): bare numbers in a tree must be resolved against the block named by LINK TAXA, not the first TAXA block. A reader that always uses the first block would give x1.1..x1.4. Checked with dendropy.DataSet (TreeList cannot read several TAXA blocks): x2.1..x2.4. DendroPy raised TooManyTaxaError on it: Error parsing data source on line 6 at column 42: Cannot add taxon with label 'x2.1': Decl."
- },
- {
-  "id": "dendropy-translate-no-taxa-block-untranslated-internal-labels",
-  "kind": "nexus",
-  "input": "#NEXUS\n\nBEGIN TREES;\n    TRANSLATE\n         1 a,\n         2 b,\n         3 c,\n         4 e,\n         5 f,\n         6 g,\n         7 h,\n         8 i,\n         9 j,\n        10 k,\n        11 l,\n        12 m,\n        13 n,\n        14 o,\n        15 p\n    ;\n    [        ((i:17,(j:3, k:3)e:14)b:33,(( l:6, m:6)g:30,(n:23, ( o:11, p:11)h:12)f:13)c:14)a:15;]\n    TREE 1 = ((8:17,(9:3,10:3)e:14)b:33,((11:6,12:6)g:30,(13:23,(14:11,15:11)h:12)f:13)c:14)a:15;\n    TREE 2 = ((8:17,(9:3,10:3)e:14)b:33,((11:6,12:6)g:30,(13:23,(14:11,15:11)h:12)f:13)c:14)a:15;\nEND;\n",
-  "wellFormed": true,
-  "tipCount": 8,
-  "tipLabels": [
-   "i",
-   "j",
-   "k",
-   "l",
-   "m",
-   "n",
-   "o",
-   "p"
-  ],
-  "source": "DendroPy (GitHub master, tests/unittests), data/trees/curated-with-translate-block-and-no-taxa-block-and-untranslated-internal-taxa.nex (test_with_translate_but_no_taxa_block)",
-  "licence": "BSD-3-Clause",
-  "copied": "verbatim",
-  "note": "TRANSLATE without any TAXA block, two-digit tokens, and internal node labels written as names (e, b, a ...) that are NOT in the translate table; a comment holding a complete Newick tree (with ';') sits between TRANSLATE and TREE. DendroPy agrees."
- },
- {
-  "id": "dendropy-translate-tokens-reused-as-internal-labels",
-  "kind": "nexus",
-  "input": "#NEXUS\n\nbegin taxa;\n\tdimensions ntax=15;\n\ttaxlabels\n        a b c e f g h i j k l m n o p\n\t;\nend;\n\nBEGIN TREES;\n    TRANSLATE\n         1 a,\n         2 b,\n         3 c,\n         4 e,\n         5 f,\n         6 g,\n         7 h,\n         8 i,\n         9 j,\n        10 k,\n        11 l,\n        12 m,\n        13 n,\n        14 o,\n        15 p\n    ;\n    TREE 1 = ((8:17, (9:3, 10:3)4:14)2:33, ((11:6, 12:6)6:30, (13:23, (14:11, 15:11)7:12)5:13)3:14)1:15;\nEND;\n",
-  "wellFormed": true,
-  "tipCount": 8,
-  "tipLabels": [
-   "i",
-   "j",
-   "k",
-   "l",
-   "m",
-   "n",
-   "o",
-   "p"
-  ],
-  "source": "DendroPy (GitHub master, tests/unittests), data/trees/curated-with-translate-block-and-internal-taxa.nex",
-  "licence": "BSD-3-Clause",
-  "copied": "verbatim",
-  "note": "Internal nodes carry numbers that are TRANSLATE tokens (4 = e, 2 = b ...); DendroPy treats them as taxa of internal nodes, while a viewer will usually want to show them as internal labels or support values: ambiguity to decide explicitly. Tip labels are unaffected. DendroPy agrees."
  },
  {
   "id": "dendropy-beast-mcct-translate-underscores-annotations",
@@ -546,6 +475,11 @@
   "oursWhy": "read, with the warning missing-trailing-semicolon (strict throws); END is not taken for a label",
   "oursWarns": [
    "missing-trailing-semicolon"
+  ],
+  "oursTipLabels": [
+   "A",
+   "B",
+   "C"
   ]
  },
  {
@@ -587,6 +521,11 @@
   "oursWhy": "read, with the warning missing-nexus-header (strict throws)",
   "oursWarns": [
    "missing-nexus-header"
+  ],
+  "oursTipLabels": [
+   "A",
+   "B",
+   "C"
   ]
  },
  {
