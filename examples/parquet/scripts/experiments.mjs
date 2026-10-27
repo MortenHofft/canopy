@@ -9,6 +9,7 @@
 //   E5 node groups    row group size of nodes.parquet: what opening a clade costs (1M tips)
 //   E7 shards         the sequence file cut into files of N tips, so that small row groups do not make a big footer (1M tips, 500 bases)
 //   E8 wide sidecar   many columns: one file against one file per column, for colouring and for reading one tip's row (1M tips, 16 columns)
+//   E9 recommended    the layout the results suggest (one file per sidecar column, sharded sequences) from 100,000 to 5,000,000 tips
 //   E6 overview       rows of the first overview level: what the first view costs and how big a stub is (1M tips)
 
 import fs from 'node:fs';
@@ -86,6 +87,13 @@ const EXPERIMENTS = {
       { name: 'wide columns rg16k', gen: { tips: M, categories: 8, numeric: 8, sidecarFiles: 'columns' } },
       { name: 'wide columns rg64k', gen: { tips: M, categories: 8, numeric: 8, sidecarFiles: 'columns', tipRg: 65536 } },
     ],
+  },
+  E9: {
+    title: 'The recommended layout at scale: one file per sidecar column, 16k-row groups, sequences in shards of 65536 tips with 256-row groups',
+    cases: [100_000, M, 5 * M].map((tips) => ({
+      name: `${tips / 1000}k columns+shards seq500`,
+      gen: { tips, seqLength: 500, seqRate: 0.5, sidecarFiles: 'columns', seqRg: 256, seqShard: 65536 },
+    })),
   },
   E6: {
     title: 'Rows of the first overview level (1M tips, no sequences)',
