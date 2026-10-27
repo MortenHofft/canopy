@@ -9,7 +9,7 @@
 
 import '@gbif-phylo/viewer/viewer.css';
 import './style.css';
-import { parseNewick } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@gbif-phylo/io';
 import {
   BaseControl,
   Fit,
@@ -22,9 +22,11 @@ import {
   Tooltip,
   TreeViewer,
   Zoom,
+  colourBy,
   type Column,
   type ColumnRenderer,
   type Control,
+  type LegendItem,
   type TreeEvent,
 } from '@gbif-phylo/viewer';
 
@@ -45,6 +47,9 @@ interface TipMeta {
 
 const [newick, tsv] = await Promise.all([fetchText('synthetic/newick/yule_1000.nwk'), fetchText('synthetic/meta/yule_1000.meta.tsv')]);
 const tree = parseNewick(newick);
+// the same table is a sidecar, kept apart from the tree: its first column must be named ID (this file calls it tip_label). Only the
+// row positions are indexed; a cell is read when it is asked for (the popup below) or when a column colours the tree
+const sidecar = parseSidecar(tsv.replace(/^tip_label/, 'ID')).bind(tree);
 const meta = new Map<string, TipMeta>();
 for (const line of tsv.split('\n').slice(1)) {
   const [tip, occ, country, trait] = line.split('\t');
@@ -117,7 +122,8 @@ class TipsInView extends BaseControl {
 // ---------------------------------------------------------------- the viewer
 
 const target = document.getElementById('tree')!;
-const cornerControls: Control[] = [new Zoom(), new Fit(), new Search({ highlight: true }), new Legend(), new OverviewControl(), new TipsInView()];
+const cladeLegend = new Legend();
+const cornerControls: Control[] = [new Zoom(), new Fit(), new Search({ highlight: true }), cladeLegend, new OverviewControl(), new TipsInView()];
 const viewer = new TreeViewer({
   target,
   tree,
@@ -138,7 +144,7 @@ function showCard(e: TreeEvent): void {
   const dl = document.createElement('dl');
   for (const [k, v] of [
     ['Occurrences', m ? m.occurrences.toLocaleString('en') : 'no data'],
-    ['Country', m?.country ?? 'no data'],
+    ['Country', String(sidecar.get(e.node, 'country_code') ?? 'no data')],
     ['Trait', m ? m.trait.toFixed(2) : 'no data'],
   ]) {
     const dt = document.createElement('dt');
@@ -163,6 +169,7 @@ viewer.on('click', (e) => {
 
 // the built-in node menu for clades, with actions of ours
 const palette = viewer.getTheme().categorical;
+const COUNTRY_PALETTE = ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8', '#3e9b6f', '#c9a227', '#8c6d5a']; // eight values, then 'Other'
 viewer.addControl(
   new NodeMenu({
     items: (e) =>
@@ -184,13 +191,49 @@ viewer.addControl(
   }),
 );
 
+// colour by a sidecar column: tip colours (setClades), a swatch column and a legend of the values; 'none' puts everything back.
+// The legend is not the viewer's control: `by.items` is plain data, drawn here as a list in the page's side panel and styled by the page
+const legendSlot = document.getElementById('legend-slot')!;
+let colouredByColumn = false; // the viewer's clade legend would list one entry per tip
+function showLegend(title: string, items: LegendItem[]): void {
+  legendSlot.hidden = items.length === 0;
+  legendSlot.querySelector('h2')!.textContent = title;
+  legendSlot.querySelector('ul')!.replaceChildren(
+    ...items.map((it) => {
+      const li = document.createElement('li');
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = it.colour;
+      li.append(sw, `${it.label} (${it.detail})`);
+      return li;
+    }),
+  );
+}
+document.getElementById('colour-by')!.addEventListener('change', (ev) => {
+  const key = (ev.target as HTMLSelectElement).value;
+  colouredByColumn = key !== '';
+  if (!key) {
+    showLegend('', []);
+    viewer.setClades([]);
+    viewer.setColumns(columns);
+    if (cornerControls.includes(cladeLegend) && document.querySelector<HTMLInputElement>('#show-controls')!.checked) viewer.addControl(cladeLegend);
+    return;
+  }
+  const by = colourBy(tree, sidecar.categories(key), viewer.getTheme(), { palette: COUNTRY_PALETTE, header: 'Country' });
+  viewer.removeControl(cladeLegend); // one entry per tip would be a legend of a thousand lines
+  showLegend('Country', by.items);
+  viewer.setClades(by.clades);
+  viewer.setColumns([...columns, by.column]);
+});
+
 // ---------------------------------------------------------------- page controls and the event log
 
 document.getElementById('show-controls')!.addEventListener('change', (ev) => {
   const on = (ev.target as HTMLInputElement).checked;
   for (const c of cornerControls) {
-    if (on) viewer.addControl(c);
-    else viewer.removeControl(c);
+    if (on) {
+      if (!(colouredByColumn && c === cladeLegend)) viewer.addControl(c);
+    } else viewer.removeControl(c);
   }
 });
 document.getElementById('dark')!.addEventListener('change', (ev) => {

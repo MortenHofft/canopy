@@ -4,6 +4,7 @@ Parsers for phylogenetic tree files and the tree model they produce.
 
 - `parseNewick(text, options?)`: an iterative, quote-aware Newick parser. There is no recursion, so a 1,000,000-deep caterpillar tree parses. It handles comments (BEAST `[&...]`, NHX), internal labels (names, support values, `support:name`), and missing, zero and negative lengths.
 - `parseNexus(text, treeIndex?, options?)` (or `parseNexus(text, options)`): reads a NEXUS `TREES` block, including a `TRANSLATE` table and files with several trees.
+- `nexusIndex(text, options?)` and `nexusTrees(text, options?)`: for NEXUS files with many trees (posterior samples, bootstrap sets). `nexusIndex` makes one fast pass that parses no tree and returns `index.trees` (for each tree: `index`, `name`, the offsets `start`/`end` of its TREE command in the text (JavaScript string indices, UTF-16 code units, not bytes), `isDefault` for `TREE *`, `rooted` from `[&R]`/`[&U]`, `weight` from `[&W n]` (null unless a finite number), and `state`, the MCMC state in the names `STATE_n` (BEAST) and `gen.n` (MrBayes)), the notes about the file (`index.ignored`) and `index.parse(i)`, which reads tree `i` alone with the TRANSLATE table and TAXA block that apply to it, in time that does not depend on `i`. `nexusTrees` is a generator over the same: `for (const { tree, info } of nexusTrees(text)) ...`. Each result also has `translateEntries` and the notes that depend on that tree's tips (`ignored`: taxa mismatch, taxon numbers, the sequence blocks against the tips). An error in one tree is thrown when that tree is asked for; the trees before it stay readable. The index and its `trees` are frozen. Made-up posterior of 10,000 trees of 200 tips (`npm run bench:posterior`, one random tree repeated; Node 22, this sandbox, one run each): 43 MB, index 65 ms, one tree 1.5 to 10 ms, all trees 2.4 s, heap 63 MB; with a comment on every node (`-- --annotated`): 163 MB, index 376 ms, all trees 4.0 s, heap 184 MB. Real files: `npm run bench`.
 - `toNewick(tree, options?)`: writes a tree back to Newick. `{ annotations: true }` writes `tree.annotations` back in BEAST syntax.
 - `toNexus(tree, options?)`: writes a NEXUS file (a TAXA block and the tree, through a TRANSLATE table unless `translate: false`; `treeName`; `annotations: true` as for `toNewick`).
 - `TreeModel`: a rooted tree on typed arrays in preorder. The descendant tips of every node are a contiguous rank range, and every query is iterative. It satisfies the `TreeData` interface of `@gbif-phylo/viewer`, so it can be passed to the viewer as it is.
@@ -41,6 +42,30 @@ Each `ParserWarning` has `{ code, message, position }`. Codes are stable identif
 | `unknown-translate-id` | NEXUS TREE references a numeric id not in the TRANSLATE table |
 | `invalid-nhx-syntax` | `[&&NHX:name]` entry has no `=` |
 
+### What a NEXUS file holds besides the tree
+
+A tip is named, in this order, by its TRANSLATE token, by a taxon label, or by a taxon number (its 1-based position in the TAXA block the TREES block refers to), the order of the NEXUS standard and of DendroPy. Taxon numbers count only when every tip the table does not name is such a number (as in forester; DendroPy decides per tip): a tree that mixes names and numbers keeps its numbers as names.
+
+`parseNexus` (built on `nexusIndex`) looks through the whole file, not only up to the tree it returns, and lists what it did not read or could not connect in `result.ignored` (`{ code, message, block, position }`; empty when the file holds just the trees and the taxa they use). These are not problems with the tree, so they are not in `tree.warnings` and `strict` does not throw for them. `result.treeCount` is the number of trees in the file.
+
+| Code | Meaning |
+|---|---|
+| `nexus-ignored-block` | a block that is not TAXA, TREES, CHARACTERS or DATA (FigTree, MrBayes, SETS, NOTES, ...) is not read |
+| `nexus-block-unreadable` | part of a block could not be read (an unterminated quote) |
+| `nexus-scan-stopped` | the scan after the returned tree hit a quote or comment it could not close; the tree is fine |
+| `nexus-other-trees` | the file holds more trees than the one returned |
+| `nexus-taxa-unused` | a TAXA block that the returned tree does not use (several TAXA blocks). On `index.ignored`: a TAXA block that no TREES block uses |
+| `nexus-translate-malformed` | TRANSLATE entries that are not a token and a name (an unquoted name with spaces, an odd number of words): skipped, not guessed |
+| `nexus-taxa-ambiguous` | several TAXA blocks and the TREES block has no `LINK TAXA=`; the last one before it was assumed |
+| `nexus-taxa-link-unresolved` | `LINK TAXA=` names a title no TAXA block has |
+| `nexus-taxa-mismatch` | tips that are not in the TAXA block, and taxa with no tip (by label) |
+| `nexus-ntax-mismatch` | the TAXA block says `NTAX=n` but lists another number of taxa (DendroPy refuses such a file; we read it) |
+| `nexus-taxon-numbers` | some tips were taxon numbers (not a TRANSLATE token, not a taxon label) and were replaced by the label at that position in the TAXA block |
+| `nexus-sequences-ignored` | a CHARACTERS or DATA block is not read; every row matches a tip by label |
+| `nexus-sequences-unlinked` | the same, but some rows match no tip or some tips have no row (the message gives the counts), or the rows could not be told apart from wrapped lines |
+
+Names are compared the way NEXUS reads them: an unquoted `_` is a space, so `t2_the_name` and `'t2 the name'` are one taxon.
+
 Structurally broken input (unmatched parens, unterminated quote or comment), double-quoted labels
 (`("A","B");`), and a quote mid-token (`(A'q',B);`) always throw `NewickError` regardless of
 `strict`. `{ strict: true }` promotes every warning in the table above to a `NewickError` of
@@ -62,6 +87,43 @@ const dup = tree.duplicateTipLabels();
 if (dup.size) console.warn(`${dup.size} tip labels are on more than one tip, e.g. ${[...dup.keys()][0]}`);
 tree.tipIndices('Homo_sapiens'); // [3, 4, 7]
 ```
+
+## Sidecar table (TSV or CSV)
+
+A table next to the tree adds columns to its nodes: country, host, date, even a sequence. The first column is named `ID` (any case) and holds
+a tip label, or the name of an internal node. The delimiter is a tab if the header line has one, else a comma; fields may be "quoted"
+(commas, newlines and `""` inside).
+
+The table is kept apart from the tree and is read lazily, so a large table, or a long sequence in every row, does not grow the tree or
+cost anything until it is used:
+
+```ts
+import { parseNewick, parseSidecar } from '@gbif-phylo/io';
+
+const tree = parseNewick(newickText); // or parseNexus(text).tree
+const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID or a quoted field is not closed; only row positions are indexed
+const b = sidecar.bind(tree); // match rows to nodes: an Int32Array by node (b.rowOf) and a report
+
+b.report.unmatchedIds; // rows that named no tip and no internal node
+b.report.tipsWithoutRow; // tip labels no row named
+b.report.duplicateIds; // IDs of rows that matched a node an earlier row had matched (the later row wins)
+
+b.get(node, 'country'); // one cell of one node: 'US', or a number if it reads as one ('007' stays a string); undefined if none
+b.record(node); // all its non-empty cells by column, for a popup
+const cat = b.categories('country'); // one column as integer codes by node, most frequent value first: for colouring
+```
+
+- **Memory.** The sidecar keeps the text it was given (a cell is a slice of it) and 8 bytes per row (where each row starts and ends; a temporary list of twice that many numbers is built while reading); a binding is 4 bytes per node, a
+  `categories` result 4 bytes per node. Nothing is stored per cell, and nothing is written into `tree.annotations`.
+- **Time.** On a laptop-class machine, 100,000 rows with a 1 kB sequence each (103 MB of text) parse in about 30 ms (about 0.4 s when the text holds a `"` anywhere, as the scan then follows quotes character by character), bind in 90 ms and give
+  a column of categories in 35 ms; a cell or a row is read in microseconds. 1,000,000 rows bind in about 1.3 s, most of it the tree's own
+  label index. A text is one JavaScript string, so about 500 MB at most.
+- **Edits of the tree.** Node numbers change when tree-ops edits a tree. Call `bind` again on the result (matching is by label, so nothing is
+  lost); a binding is for the tree it was made from.
+
+A label several tips carry gives the row to every one of them. When an ID names both a tip and an internal node, the tip gets the row; of several internal nodes with one name, the first does. A row with an empty ID matches nothing and is listed in `unmatchedIds`. A quote opens a quoted field only at its start (`12" screen` is text). `categories` leaves out values that no tip has (a sidecar for a larger tree). Nothing is dropped silently: show the report, so a mismatch between the
+two files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
+colours, a legend and a swatch column.
 
 ## Annotations
 
@@ -90,3 +152,7 @@ tree.annotations.column('posterior'); // Float64Array by node index, NaN where a
   (`TreeModel` throws if the table is for a tree of another size.) Node annotations follow their node. Edge annotations follow the undirected edge: after `reroot` the edges between the new and the old root move to the node that is now below them, and the edge that the new root splits is copied to both halves. Dropped: the edge of a removed node, and the edge that `reroot` merges when the old root is suppressed (the surviving child's own annotation wins). The records are copied. tree-ops does not do this itself, so it stays free of the annotation types.
 
 - **Size.** The reader is part of the parser (a plain option, no second import), so `parseNewick` alone is about 2.7 kB minified larger than before (6.3 to 9.0 kB). `scripts/check-packages.mjs` records both sizes.
+
+## Tests and benchmark
+
+`npm test` runs the unit tests. For NEXUS, `test/nexus-tools.test.mjs` covers the shapes BEAST 1, BEAST 2 and MrBayes write (the MrBayes and BEAST 2 files are written by hand in their format, not real output), LF, CRLF and CR line endings, and every NEXUS tree in `data/rich` against the numbers in its `manifest.json` (made by an independent Python parser). `test/nexus-edge-fixtures.test.mjs` runs 161 small NEXUS cases taken from or inspired by the tests of DendroPy, Biopython, forester, `ape`, `treeio` and phylotree.js (sources and licences in `tests/bench/parsers/fixtures/edge`). `tests/bench/parsers` compares the reader with DendroPy on every NEXUS file in its test data, and on those cases ([parser comparison](../../docs/design/parser-comparison.md)). `npm run bench -- [--reps 7] [file.nex[.gz] ...]` prints parse time per NEXUS file (default: `data/synthetic/nexus` and the NEXUS trees in `data/rich`).

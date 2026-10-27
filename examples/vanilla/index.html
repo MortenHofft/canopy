@@ -12,11 +12,16 @@
       <span class="spacer"></span>
       <label><input type="checkbox" id="show-controls" checked /> Controls</label>
       <label><input type="checkbox" id="dark" /> Dark</label>
+      <label>Colour by <select id="colour-by"><option value="">none</option><option value="country_code">country</option></select></label>
       <span id="layout-slot"></span>
     </header>
     <main>
       <div id="tree" class="tree"></div>
       <aside>
+        <section id="legend-slot" hidden>
+          <h2></h2>
+          <ul></ul>
+        </section>
         <h2>Events</h2>
         <ol id="log" aria-live="polite"></ol>
       </aside>

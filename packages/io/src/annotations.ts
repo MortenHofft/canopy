@@ -107,6 +107,11 @@ function scalar(tok: string): AnnotationScalar {
   return NUMBER.test(tok) ? Number(tok) : tok;
 }
 
+/** A bare cell or value as a number if it reads as one, else the string itself. */
+export function numberOrString(s: string): AnnotationScalar {
+  return NUMBER.test(s) ? Number(s) : s;
+}
+
 /** Split `s` at `sep` outside "quotes", 'quotes' and {braces}. A quote opens only at the start of a value (after '=', ',', '{' or the
  *  start), so an apostrophe inside a bare value (`O'Brien`) is just text. */
 function splitTop(s: string, sep: number): string[] {
