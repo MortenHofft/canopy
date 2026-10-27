@@ -1,6 +1,6 @@
 # NEXUS reader: ideas from other implementations
 
-Written 2026-10-27 for issue #136. Three read-only passes (delegated to agents) went through the **implementation** (not the tests) of other NEXUS readers, looking for design ideas for `parseNexus` in `packages/io/src/newick.ts`. This note keeps what is worth deciding on. Where I ran something on our parser myself it says **verified**; everything else is the agents' reading of the code and is **unverified** until someone checks it against the source.
+Written 2026-10-27 for issue #136. Three read-only passes went through the **implementation** (not the tests) of other NEXUS readers, looking for design ideas for `parseNexus` in `packages/io/src/newick.ts`. This note keeps what is worth deciding on. Where I ran something on our parser myself it says **verified**; everything else is what those passes report from reading the code and is **unverified** until someone checks it against the source.
 
 **Licences.** Most of what was read is copyleft. Ideas only: nothing was copied, and nothing from these projects may be pasted into our code.
 
@@ -19,7 +19,7 @@ Written 2026-10-27 for issue #136. Three read-only passes (delegated to agents) 
 
 Not read: MrBayes and Mesquite sources, phytools, treebender, ete4, scikit-bio, BEAST 2 TreeAnnotator, forester's character-matrix parsers. Nothing was run from these projects.
 
-## Where we are already ahead (agents' reading)
+## Where we are already ahead (from the passes' reading, unverified)
 
 - Every reader found splits the text with a line grep, a regex, or a character-by-character tokenizer, including inside blocks they skip. Our `nexusStatements` jumps between `;`, `[` and `'` with `indexOf` and respects quotes and comments. Several of them break on a `;` inside a quote or comment, strip all whitespace from the tree (which breaks quoted names with spaces), do not nest comments, or recurse (Biopython's tree parse, IcyTree and nexwick overflow on deep trees).
 - JEBL, BEAST 1 and BEAST 2 do not honour `LINK` (TITLE is used only to spot duplicates). None of them has a list of what was ignored; they throw, swallow errors or log.

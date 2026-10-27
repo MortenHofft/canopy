@@ -454,7 +454,7 @@ every edge length, plus the number of trees. **81 of 82 agree.** The one file De
 the helper falls back to it.
 
 **Small cases, `nexus-edge-compare.mjs`.** 161 fixtures in `fixtures/edge/nexus-*.json`, taken from or inspired by other test suites by four research
-passes (delegated to agents, each fixture then run through DendroPy; the agents' reading of the upstream tests is not independently checked):
+passes (each fixture then run through DendroPy; the reading of the upstream tests in these passes is not independently checked):
 
 | Source | Fixtures | Licence | Copied |
 |---|---|---|---|
@@ -481,7 +481,7 @@ deliberate or are DendroPy limits, and each fixture that departs from its source
 | DendroPy-style fixture | A tree with no `;` before `END` got the label `end` on its root, silently: now the warning `missing-trailing-semicolon` (strict throws) |
 | Own probe | Sequence rows were mis-split in files with CR-only line endings; `t2_the_name` and `'t2 the name'` were two taxa |
 | DendroPy | `NTAX` that disagrees with the labels was not reported: now `nexus-ntax-mismatch` |
-| Adversarial review (Opus) | A TRANSLATE table without commas was read three tokens at a time, and the taxon-number rule then renamed the leftover numbers by position: wrong topology, no error (the real `data/rich/beast-fluA-h3-swine` file has this layout and was right only because its TAXA order equals its TRANSLATE order). Now read as pairs, comma optional |
+| Adversarial review | A TRANSLATE table without commas was read three tokens at a time, and the taxon-number rule then renamed the leftover numbers by position: wrong topology, no error (the real `data/rich/beast-fluA-h3-swine` file has this layout and was right only because its TAXA order equals its TRANSLATE order). Now read as pairs, comma optional |
 | Adversarial review | `translateEntries` counted the last TREES block's table; `END [comment]` after a tree with no `;` still became a root label; names were compared case-sensitively (false `nexus-taxa-mismatch`); a CHARACTERS block's own `LINK` was ignored, and without `NTAX` wrapped lines were taken for rows; the first block was reported at `#NEXUS` |
 
 ### Where we differ on purpose
