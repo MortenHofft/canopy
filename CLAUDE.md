@@ -42,6 +42,7 @@ npm workspaces (Node >= 22.7):
 - `examples/unrooted`: the page of the unrooted layout spike (#42): `unrootedLayout` of one tree drawn on a plain canvas, every branch, no zoom.
   It imports the layout from `packages/viewer/src` by relative path (not exported; a spike exception to the public API). Checked by
   `tests/browser/scripts/check-unrooted.mjs`.
+- `examples/parquet`: the Parquet experiment (#139, #12): a synthetic tree and sidecar written as Parquet (`scripts/generate.mjs`), served with range requests (`scripts/serve.mjs`), read by a `TreeSource` and a sidecar reader and shown by a page, with benchmarks (`scripts/bench.mjs`, `scripts/experiments.mjs`). Its README says how to run it; the results are in `docs/design/parquet-sidecar-benchmark.md`. Its dependencies (`hyparquet` and friends) stay in this workspace. Checked by `tests/browser/scripts/check-parquet.mjs`.
 - `examples/shared`: the tree catalogue (`catalogue.json`), the loading helpers (fetch, gzip, `remote`, FASTA, a file of your own) and the tree picker with its file input (`picker.ts`) of the playground, the explorer, the table view and the unrooted page. A folder, not a package.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.
@@ -74,7 +75,7 @@ npm workspaces (Node >= 22.7):
   `node --experimental-transform-types scripts/capture-cut-golden.mjs` rewrites `test/cut-golden.json` after a deliberate change of the
   cut. Otherwise a diff of that file is a regression.
 - **Browser tests.**
-  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,explorer,playground,table,unrooted,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
+  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,react,explorer,playground,table,unrooted,parquet,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
     - the test page runs `check-radial-ui.mjs`;
     - the vanilla example runs `check-vanilla-example.mjs`;
     - the React example runs `check-node-menu.mjs`;
@@ -82,6 +83,7 @@ npm workspaces (Node >= 22.7):
     - the playground runs `check-playground.mjs`;
     - the table view runs `check-table.mjs`;
     - the unrooted spike runs `check-unrooted.mjs`;
+    - the Parquet page runs `check-parquet.mjs`. It makes a small dataset and serves it from another origin itself;
     - the no-build example runs `check-no-build.mjs`. It builds the packages and serves static files itself, without Vite.
     - the site runs `check-site.mjs`. It runs `scripts/build-site.mjs` and serves `site-dist/` with vercel.json's URL rules.
   - Each check also runs against a dev server with `--url`.

@@ -156,4 +156,4 @@ viewer.on('click', (e: TreeEvent) => {
 });
 
 // for the browser check and the benchmark (tests/browser/scripts/check-parquet.mjs, scripts/bench.mjs)
-Object.assign(window, { __parquet: { source, viewer, ds, colourBy, inspect, measure } });
+Object.assign(window, { __parquet: { source, viewer, ds, colourBy, inspect, measure, colouring: () => colouring } });

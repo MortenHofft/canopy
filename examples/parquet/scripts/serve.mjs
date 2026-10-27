@@ -29,7 +29,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** @param {{ roots: string[], port?: number, latency?: number, mbps?: number, connectRtts?: number }} o */
 export function startServer(o) {
   const roots = o.roots.map((r) => path.resolve(r));
-  const cfg = { latency: o.latency ?? 0, mbps: o.mbps ?? 0, connect: o.connectRtts ?? 2 };
+  const cfg = { latency: o.latency ?? 0, mbps: o.mbps ?? 0, connect: o.connectRtts ?? 2, only: o.only ?? null }; // only: URL path prefixes the model applies to (null: all)
   let log = [];
   let linkFree = 0;
   const resolveFile = (urlPath) => {
@@ -40,12 +40,12 @@ export function startServer(o) {
     }
     return null;
   };
-  async function send(res, fd, start, end, rec) {
+  async function send(res, fd, start, end, rec, modelled) {
     const CH = 16384;
     const buf = Buffer.allocUnsafe(CH);
     for (let pos = start; pos < end;) {
       const n = Math.min(CH, end - pos);
-      if (cfg.mbps > 0) {
+      if (cfg.mbps > 0 && modelled) {
         const now = performance.now();
         const t = Math.max(now, linkFree);
         linkFree = t + (n * 8) / (cfg.mbps * 1000);
@@ -99,7 +99,8 @@ export function startServer(o) {
     const size = fs.statSync(f).size;
     const fresh = !req.socket._seen;
     req.socket._seen = true;
-    const wait = cfg.latency + (fresh ? cfg.connect * cfg.latency : 0);
+    const modelled = !cfg.only || cfg.only.some((x) => u.pathname.startsWith(x));
+    const wait = modelled ? cfg.latency + (fresh ? cfg.connect * cfg.latency : 0) : 0;
     if (wait > 0) await sleep(wait);
     let start = 0;
     let end = size;
@@ -127,7 +128,7 @@ export function startServer(o) {
     res.writeHead(status, headers);
     const rec = { url: u.pathname, range: rg ?? null, status, bytes: end - start, fresh, done: 0 };
     log.push(rec);
-    if (cfg.mbps > 0) {
+    if (cfg.mbps > 0 && modelled) {
       const now = performance.now();
       const t = Math.max(now, linkFree);
       linkFree = t + (HDR * 8) / (cfg.mbps * 1000);
@@ -135,7 +136,7 @@ export function startServer(o) {
     }
     const fd = await fs.promises.open(f, 'r');
     try {
-      await send(res, fd, start, end, rec);
+      await send(res, fd, start, end, rec, modelled);
     } finally {
       await fd.close();
     }
