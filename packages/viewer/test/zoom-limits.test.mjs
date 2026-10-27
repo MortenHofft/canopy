@@ -156,3 +156,24 @@ test('radial, the zoom limit follows the window (#120): deep near the centre, at
   m.env.flush();
   assert.ok(Math.abs(k() / centreMax - 0.5) < 1e-9, 'zooming out does');
 });
+
+test('rectangular, minCladePx above maxTipSpacing: the zoom limit gives tips at least minCladePx so a polytomy can be resolved (#95)', async () => {
+  const m = await makeViewer(ladder(100), { options: { minCladePx: 30, maxTipSpacing: 24 }, size: [500, 400] });
+  m.env.flush();
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 12 });
+  assert.ok(Math.abs(rowPx(m) - 30) < 1e-9, `limit is minCladePx (${rowPx(m)})`);
+  m.viewer.setOptions({ minCladePx: 10 });
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 10, y1: 12 });
+  assert.ok(Math.abs(rowPx(m) - 24) < 1e-9, `limit is maxTipSpacing again (${rowPx(m)})`);
+});
+
+test('radial, minCladePx above maxTipSpacing: the zoom limit leaves tips at least minCladePx apart (#95)', async () => {
+  const star = `(${Array.from({ length: 20000 }, (_, i) => `t${i}:1`).join(',')});`;
+  const m = await makeViewer(star, { options: { layout: 'radial', minCladePx: 30, maxTipSpacing: 24 }, size: [400, 400] });
+  m.env.flush();
+  const v = m.viewer;
+  for (let i = 0; i < 12; i++) v.zoomBy(8, 8, 200, 200);
+  m.env.flush();
+  const pitch = v.T.k * v.T.da;
+  assert.ok(pitch >= 29.9, `tips ${pitch.toFixed(2)} px apart at the deepest zoom`);
+});
