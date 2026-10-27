@@ -46,7 +46,8 @@ export interface ColourBy {
   coloured: number;
 }
 
-const tips = (n: number) => `${n.toLocaleString('en')} ${n === 1 ? 'tip' : 'tips'}`;
+const count = (n: number, noun: string) => `${n.toLocaleString('en')} ${noun}${n === 1 ? '' : 's'}`;
+const tips = (n: number) => count(n, 'tip');
 
 export function colourBy(
   tree: ColourByTree,
@@ -64,7 +65,11 @@ export function colourBy(
     else otherTips += by.counts[i];
   });
   if (otherTips)
-    items.push({ colour: colours[palette.length], label: 'Other', detail: `${tips(otherTips)}, ${by.values.length - palette.length} values` });
+    items.push({
+      colour: colours[palette.length],
+      label: 'Other',
+      detail: `${tips(otherTips)}, ${count(by.values.length - palette.length, 'value')}`,
+    });
 
   const clades: CladeColour[] = [];
   for (let r = 0; r < tree.tipCount; r++) {

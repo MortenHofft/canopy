@@ -13,10 +13,14 @@ import { numberOrString } from './annotations.ts';
 import type { AnnotationScalar } from './annotations.ts';
 import type { TreeModel } from './tree.ts';
 
-/** A cell as a number if it reads as one and the number says the same thing (an accession of 17 digits stays text), else the text. */
+/** A cell as a number if it reads as one and the number keeps what the cell says, else the text: not NaN or Infinity, not more than 15
+ *  digits (an accession number, a coordinate with too many decimals: a double would round it), not `-0`. */
 function cellValue(v: string): AnnotationScalar {
   const n = numberOrString(v);
-  return typeof n === 'number' && (!Number.isFinite(n) || (/^[+-]?\d+$/.test(v) && !Number.isSafeInteger(n))) ? v : n;
+  if (typeof n !== 'number') return n;
+  const mantissa = v.split(/[eE]/)[0];
+  const digits = mantissa.replace(/\D/g, '').replace(/^0+/, '').length;
+  return !Number.isFinite(n) || digits > 15 || Object.is(n, -0) ? v : n;
 }
 
 export class SidecarError extends Error {
@@ -41,23 +45,37 @@ export interface SidecarReport {
  *  and `counts` the tips that have each (internal nodes that matched a row get a code but are not counted). */
 export interface Categories {
   key: string;
-  /** By node: index into `values`, -1 for a node with no row or an empty cell. */
+  /** By node: index into `values`, -1 for a node with no row, an empty cell, or a value no tip has (internal nodes included). */
   codes: Int32Array;
   values: string[];
   counts: number[];
 }
 
-/** The text between `[s, e)` split at `sep` into fields (slices of the text; no copy unless a field is quoted and holds `""`). RFC 4180 quoting. */
-/** Index of `sep` in `t` from `from`, or `end` if there is none before it. Bounded (`indexOf` would run on to the next delimiter anywhere
- *  in the file: quadratic when many rows have none). */
-function sepIn(t: string, sep: string, from: number, end: number): number {
-  const code = sep.charCodeAt(0);
-  let i = from;
-  while (i < end && t.charCodeAt(i) !== code) i++;
-  return i;
+/** Finds the next delimiter at or after a position, never past a row end. `indexOf` is fast (SIMD) but, when the rest of the file has no
+ *  delimiter, it runs to the end of the file for every row (quadratic); a character loop is safe but several times slower across wide cells.
+ *  So it calls `indexOf` and remembers the hit: no delimiter lies between a search's start and its hit, so a later search that starts
+ *  inside that stretch (the next row, the next column) is answered without searching again. */
+class SepFinder {
+  private from = 0;
+  private hit = -1; // -1: nothing remembered
+  constructor(
+    private readonly t: string,
+    private readonly sep: string,
+  ) {}
+  /** The index of the delimiter at or after `from`, or `end` when there is none before it. */
+  find(from: number, end: number): number {
+    if (this.hit < from || from < this.from) {
+      const h = this.t.indexOf(this.sep, from);
+      this.from = from;
+      this.hit = h < 0 ? this.t.length : h;
+    }
+    return this.hit < end ? this.hit : end;
+  }
 }
 
-function splitRow(t: string, s: number, e: number, sep: string): string[] {
+/** The text between `[s, e)` split at the delimiter into fields (slices of the text; no copy unless a field is quoted and holds `""`),
+ *  the first `limit` of them. RFC 4180 quoting. */
+function splitRow(t: string, s: number, e: number, f: SepFinder, limit = Infinity): string[] {
   const out: string[] = [];
   let i = s;
   for (;;) {
@@ -77,13 +95,13 @@ function splitRow(t: string, s: number, e: number, sep: string): string[] {
           break;
         }
       }
-      d = sepIn(t, sep, i, e);
+      d = f.find(i, e);
       out.push(v + t.slice(i, d));
     } else {
-      d = sepIn(t, sep, i, e);
+      d = f.find(i, e);
       out.push(t.slice(i, d));
     }
-    if (d >= e) return out;
+    if (d >= e || out.length >= limit) return out;
     i = d + 1;
   }
 }
@@ -96,7 +114,7 @@ export class Sidecar {
   /** 'tab' or 'comma', as detected from the header line. */
   readonly delimiter: 'tab' | 'comma';
   private readonly text: string;
-  private readonly sep: string;
+  private readonly find: SepFinder;
   private readonly bounds: Int32Array; // start, end of each line (header first), the line break excluded
   private readonly quoted: boolean; // the text has a '"' somewhere: cells are parsed with quotes in mind
 
@@ -116,8 +134,10 @@ export class Sidecar {
         p = e + 1;
       }
     } else {
-      const nl = text.indexOf('\n');
-      const sepCode = (nl < 0 ? text : text.slice(0, nl)).includes('\t') ? 9 : 44;
+      let h = 0; // the delimiter is read from the first line with content, as `delimiter` is below
+      while (text.charCodeAt(h) === 10 || text.charCodeAt(h) === 13) h++;
+      const nl = text.indexOf('\n', h);
+      const sepCode = (nl < 0 ? text.slice(h) : text.slice(h, nl)).includes('\t') ? 9 : 44;
       let s = 0;
       let inQuote = false;
       let fieldStart = true; // a quote opens a quoted field only here (as in splitRow); a quote inside a bare field is text
@@ -144,8 +164,8 @@ export class Sidecar {
     if (b.length === 0) throw new SidecarError('the sidecar table is empty');
     this.bounds = Int32Array.from(b);
     this.delimiter = text.slice(b[0], b[1]).includes('\t') ? 'tab' : 'comma';
-    this.sep = this.delimiter === 'tab' ? '\t' : ',';
-    const head = splitRow(text, b[0], b[1], this.sep).map((h) => h.trim());
+    this.find = new SepFinder(text, this.delimiter === 'tab' ? '\t' : ',');
+    const head = splitRow(text, b[0], b[1], this.find).map((h) => h.trim());
     if (head[0].toLowerCase() !== 'id')
       throw new SidecarError(`the first column of the sidecar table must be named ID, not ${JSON.stringify(head[0])}`);
     this.columns = head.slice(1);
@@ -157,19 +177,19 @@ export class Sidecar {
     const t = this.text;
     const s = this.bounds[2 * row + 2];
     const e = this.bounds[2 * row + 3];
-    if (this.quoted) return (splitRow(t, s, e, this.sep)[col] ?? '').trim();
+    if (this.quoted) return (splitRow(t, s, e, this.find, col + 1)[col] ?? '').trim();
     let a = s;
     for (let c = 0; c < col; c++) {
-      a = sepIn(t, this.sep, a, e);
+      a = this.find.find(a, e);
       if (a >= e) return '';
       a++;
     }
-    return t.slice(a, sepIn(t, this.sep, a, e)).trim();
+    return t.slice(a, this.find.find(a, e)).trim();
   }
 
   /** All the cells of data row `row`, ID first. */
   row(row: number): string[] {
-    return splitRow(this.text, this.bounds[2 * row + 2], this.bounds[2 * row + 3], this.sep).map((c) => c.trim());
+    return splitRow(this.text, this.bounds[2 * row + 2], this.bounds[2 * row + 3], this.find).map((c) => c.trim());
   }
 
   /** Match the rows to the nodes of `tree`: a row goes to every tip that carries its ID (`tipIndices`), else to the internal node with that

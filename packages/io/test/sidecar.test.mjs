@@ -142,3 +142,63 @@ test('cells: a long accession stays text, NaN and Infinity are text, duplicate c
   assert.equal(b.get(tree.tipIndex('B'), 'x'), 'NaN');
   assert.equal(b.record(tree.tipIndex('A')).x, '12345678901234567890'); // the first column of that name, as get
 });
+
+test('a blank first line does not change how quotes are read (the delimiter comes from the first line with content)', () => {
+  for (const lead of ['\n', '\r\n', '﻿\r\n', '\n\n']) {
+    const sc = parseSidecar(`${lead}ID\tnote\na\t"line1\nline2"\nb\tx\n`);
+    assert.deepEqual([sc.rowCount, sc.cell(0, 1), sc.cell(1, 1)], [2, 'line1\nline2', 'x']);
+  }
+  const sc = parseSidecar('\nID\tnote\na\tx,"y\nb\tz\n');
+  assert.deepEqual([sc.rowCount, sc.cell(0, 1), sc.cell(1, 1)], [2, 'x,"y', 'z']);
+});
+
+test('numbers: kept when the double says what the cell says, else text', () => {
+  const tree = parseNewick('(A,B,C,D,E,F);');
+  const cells = ['9007199254740993.0', '12345678901234567890.5', '-0', '1e3', '+5', '3.14159'];
+  const b = parseSidecar(
+    'ID,x\n' +
+      'ABCDEF'
+        .split('')
+        .map((l, i) => `${l},${cells[i]}`)
+        .join('\n'),
+  ).bind(tree);
+  assert.deepEqual(
+    'ABCDEF'.split('').map((l) => b.get(tree.tipIndex(l), 'x')),
+    ['9007199254740993.0', '12345678901234567890.5', '-0', 1000, 5, 3.14159],
+  );
+});
+
+// A seeded generator of tricky tables, written the way RFC 4180 says (quoted when a cell needs it, sometimes when it does not): the
+// line scanner and the field splitter must agree on every row and field, whatever the delimiter, line ends and leading blank lines.
+test('round trip: random tables with quotes, delimiters, newlines and CRs read back exactly', () => {
+  let seed = 12345;
+  const rnd = (n) => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff), seed % n);
+  const pieces = ['', 'a', 'x y', ' x ', '"', '""', ',', '\t', '\n', '\r\n', '\r', 'x"y', '12"', '"q', 'é'];
+  for (let n = 0; n < 400; n++) {
+    const sep = rnd(2) ? '\t' : ',';
+    const cols = 1 + rnd(3);
+    const eol = rnd(2) ? '\n' : '\r\n';
+    const write = (c) => (/[",\t\n\r]/.test(c) || rnd(4) === 0 || /^\s|\s$/.test(c) ? `"${c.replaceAll('"', '""')}"` : c);
+    const rows = Array.from({ length: 1 + rnd(5) }, (_, r) => [
+      `r${r}`,
+      ...Array.from({ length: cols }, () => Array.from({ length: rnd(4) }, () => pieces[rnd(pieces.length)]).join('')),
+    ]);
+    const head = ['ID', ...Array.from({ length: cols }, (_, c) => `c${c}`)];
+    const text = (rnd(3) === 0 ? eol : '') + [head, ...rows].map((r) => r.map(write).join(sep)).join(eol) + (rnd(2) ? eol : '');
+    let sc;
+    try {
+      sc = parseSidecar(text);
+    } catch (e) {
+      assert.fail(`${JSON.stringify(text)}: ${e.message}`);
+    }
+    assert.equal(sc.rowCount, rows.length, JSON.stringify(text));
+    rows.forEach((r, i) => {
+      assert.deepEqual(
+        sc.row(i),
+        r.map((c) => c.trim()),
+        JSON.stringify(text),
+      );
+      r.forEach((c, k) => assert.equal(sc.cell(i, k), c.trim(), JSON.stringify(text)));
+    });
+  }
+});
