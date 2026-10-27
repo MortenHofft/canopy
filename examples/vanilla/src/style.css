@@ -1,4 +1,4 @@
-/* Page styles. The viewer's look comes from @gbif-phylo/viewer/viewer.css and the --phylo-* properties set here. */
+/* Page styles. The viewer's look comes from @canopy/viewer/viewer.css and the --phylo-* properties set here. */
 :root {
   --phylo-font-family: system-ui, sans-serif;
   --phylo-highlight: #2f7d32;

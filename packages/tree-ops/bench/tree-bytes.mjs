@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { ladderise, treeBytes } from '../src/index.ts';
-import { parseNewick, TreeModel } from '@gbif-phylo/io'; // fixture: text -> TreeModel
+import { parseNewick, TreeModel } from '@canopy/io'; // fixture: text -> TreeModel
 
 const gc = globalThis.gc;
 if (typeof gc !== 'function') throw new Error('run with --expose-gc (npm run bench:bytes)');

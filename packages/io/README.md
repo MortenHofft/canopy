@@ -1,4 +1,4 @@
-# @gbif-phylo/io
+# @canopy/io
 
 Parsers for phylogenetic tree files and the tree model they produce.
 
@@ -8,7 +8,7 @@ Parsers for phylogenetic tree files and the tree model they produce.
 - `parsePhyloXml(text, treeIndex?, options?)` (or `parsePhyloXml(text, options)`): reads one `<phylogeny>` of a phyloXML file (see below).
 - `toNewick(tree, options?)`: writes a tree back to Newick. `{ annotations: true }` writes `tree.annotations` back in BEAST syntax.
 - `toNexus(tree, options?)`: writes a NEXUS file (a TAXA block and the tree, through a TRANSLATE table unless `translate: false`; `treeName`; `annotations: true` as for `toNewick`).
-- `TreeModel`: a rooted tree on typed arrays in preorder. The descendant tips of every node are a contiguous rank range, and every query is iterative. It satisfies the `TreeData` interface of `@gbif-phylo/viewer`, so it can be passed to the viewer as it is.
+- `TreeModel`: a rooted tree on typed arrays in preorder. The descendant tips of every node are a contiguous rank range, and every query is iterative. It satisfies the `TreeData` interface of `@canopy/viewer`, so it can be passed to the viewer as it is.
 
 Only single-quoted labels are handled, not double-quoted ones. Underscores in labels are kept, so tip ids equal the text in the file.
 
@@ -99,7 +99,7 @@ The table is kept apart from the tree and is read lazily, so a large table, or a
 cost anything until it is used:
 
 ```ts
-import { parseNewick, parseSidecar } from '@gbif-phylo/io';
+import { parseNewick, parseSidecar } from '@canopy/io';
 
 const tree = parseNewick(newickText); // or parseNexus(text).tree
 const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID or a quoted field is not closed; only row positions are indexed
@@ -123,7 +123,7 @@ const cat = b.categories('country'); // one column as integer codes by node, mos
   lost); a binding is for the tree it was made from.
 
 A label several tips carry gives the row to every one of them. When an ID names both a tip and an internal node, the tip gets the row; of several internal nodes with one name, the first does. A row with an empty ID matches nothing and is listed in `unmatchedIds`. A quote opens a quoted field only at its start (`12" screen` is text). `categories` leaves out values that no tip has (a sidecar for a larger tree). Nothing is dropped silently: show the report, so a mismatch between the
-two files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
+two files (a renamed tip, a different spelling) is seen. `@canopy/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
 colours, a legend and a swatch column.
 
 ## Annotations

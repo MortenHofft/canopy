@@ -1,14 +1,14 @@
 {
-  "name": "@gbif-phylo/react",
+  "name": "@canopy/react",
   "version": "0.1.0",
   "private": true,
-  "description": "React component for @gbif-phylo/viewer: <TreeView> with props for state, callbacks for interaction and a ref for the imperative API.",
+  "description": "React component for @canopy/viewer: <TreeView> with props for state, callbacks for interaction and a ref for the imperative API.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
   "exports": {
     ".": {
-      "@gbif-phylo/source": "./src/index.ts",
+      "@canopy/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -20,10 +20,10 @@
   "scripts": {
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
+    "test": "node --conditions=@canopy/source --experimental-transform-types --no-warnings --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
-    "@gbif-phylo/viewer": "0.1.0"
+    "@canopy/viewer": "0.1.0"
   },
   "peerDependencies": {
     "react": ">=18",

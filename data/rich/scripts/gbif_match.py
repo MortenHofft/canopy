@@ -32,7 +32,7 @@ def get(url):
         try:
             if _CONN[0] is None:
                 _CONN[0] = http.client.HTTPSConnection('api.gbif.org', timeout=20)
-            _CONN[0].request('GET', path, headers={'User-Agent': 'gbif-phylo-test-data/0.1', 'Accept': 'application/json'})
+            _CONN[0].request('GET', path, headers={'User-Agent': 'canopy-test-data/0.1', 'Accept': 'application/json'})
             r = _CONN[0].getresponse()
             body = r.read()
             if r.status == 200:

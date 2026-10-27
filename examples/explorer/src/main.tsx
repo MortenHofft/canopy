@@ -5,9 +5,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import './explorer.css';
-import type { TreeModel } from '@gbif-phylo/io';
+import type { TreeModel } from '@canopy/io';
 import { Explorer } from './Explorer.tsx';
 import { GROUPS, TREES, loadTree } from './trees.ts';
 import { TreePicker } from './TreePicker.tsx';
@@ -70,7 +70,7 @@ function App() {
           ← All demos
         </a>
         <h1>
-          Tree explorer <small>on @gbif-phylo</small>
+          Tree explorer <small>on @canopy</small>
         </h1>
         <TreePicker
           groups={GROUPS}
@@ -92,7 +92,7 @@ function App() {
       )}
       <p className="page-foot">
         Most toolbar icons are from <a href="https://github.com/vaaloo/reactreejs">reactreejs</a> (MIT), the look started there too. Everything else
-        is @gbif-phylo: the README lists which control uses which API.
+        is @canopy: the README lists which control uses which API.
       </p>
     </div>
   );

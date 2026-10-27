@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@gbif-phylo/viewer without a build step</title>
+    <title>@canopy/viewer without a build step</title>
     <!--
       No bundler, no npm install on the page's side: the viewer's CSS as a stylesheet and its single-file ES module through an import
       map. Here the paths point into this repository (serve the repository root and open /examples/no-build/); from a CDN they would be,
-      for example, https://cdn.jsdelivr.net/npm/@gbif-phylo/viewer@<version>/dist/browser/viewer.js once the packages are published.
+      for example, https://cdn.jsdelivr.net/npm/@canopy/viewer@<version>/dist/browser/viewer.js once the packages are published.
     -->
     <link rel="stylesheet" href="../../packages/viewer/css/viewer.css" />
     <script type="importmap">
       {
         "imports": {
-          "@gbif-phylo/viewer": "../../packages/viewer/dist/browser/viewer.js",
-          "@gbif-phylo/io": "../../packages/io/dist/browser/io.js"
+          "@canopy/viewer": "../../packages/viewer/dist/browser/viewer.js",
+          "@canopy/io": "../../packages/io/dist/browser/io.js"
         }
       }
     </script>
@@ -30,8 +30,8 @@
     </header>
     <div id="tree"></div>
     <script type="module">
-      import { TreeViewer, defaultControls, Tooltip } from '@gbif-phylo/viewer';
-      import { parseNewick } from '@gbif-phylo/io';
+      import { TreeViewer, defaultControls, Tooltip } from '@canopy/viewer';
+      import { parseNewick } from '@canopy/io';
 
       const text = await (await fetch('../../data/synthetic/newick/yule_200.nwk')).text();
       const softwareCanvas = new URLSearchParams(location.search).get('cpu') === '1';

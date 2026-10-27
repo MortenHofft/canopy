@@ -1,7 +1,7 @@
 // Loading for the playground: the catalogue of trees and a tree file of the user's own (both read by examples/shared/data.ts), and the
 // per-tip extras some trees have (a TSV keyed by tip label, a FASTA alignment).
 
-import type { TreeModel } from '@gbif-phylo/io';
+import type { TreeModel } from '@canopy/io';
 import { ENTRIES, GROUPS, type Entry, fetchText, loadTreeFile, parseFasta, parseTree } from '../../shared/data.ts';
 
 export { ENTRIES, GROUPS, type Entry };

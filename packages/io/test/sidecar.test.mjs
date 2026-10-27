@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNewick, parseNexus, parseSidecar, SidecarError } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, parseSidecar, SidecarError } from '@canopy/io';
 
 const NEWICK = '((A:1,B:1)Clade1:1,(C:1,D:1):1);';
 

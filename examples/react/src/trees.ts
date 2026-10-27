@@ -1,7 +1,7 @@
 // The trees this example can show (?tree=<id>), all from the repository's data/ folder, served at /data/ by the dev server.
 // .gz files arrive as raw bytes and are inflated here with DecompressionStream.
 
-import { parseNewick, parseNexus, type TreeModel } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, type TreeModel } from '@canopy/io';
 
 const TREES: Record<string, { path: string; format: 'newick' | 'nexus' }> = {
   'rich-corvoid-680': { path: 'rich/corvoid-mcc-680/CC_MCC.tre.gz', format: 'nexus' },

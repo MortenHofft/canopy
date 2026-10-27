@@ -1,4 +1,4 @@
-// <TreeView>: the React layer over @gbif-phylo/viewer. Props are the whole state (clades, highlighted tips,
+// <TreeView>: the React layer over @canopy/viewer. Props are the whole state (clades, highlighted tips,
 // columns, layout, lengths, theme, optional controlled viewport); callbacks report interaction. No globals:
 // every instance owns its viewer, which is created in a layout effect and destroyed on unmount (rAF
 // cancelled, observers and listeners removed, canvases released).
@@ -30,9 +30,9 @@ import {
   type TreeData,
   type TreeTheme,
   type Viewport,
-} from '@gbif-phylo/viewer';
+} from '@canopy/viewer';
 
-/** The viewer's event (`TreeEvent` of @gbif-phylo/viewer): the node (its preorder id, a number), tip or not, what was hit, the
+/** The viewer's event (`TreeEvent` of @canopy/viewer): the node (its preorder id, a number), tip or not, what was hit, the
  *  descendant tips as the rank range [tipStart, tipEnd) with `tipIds()` / `tipLabels()`, pointer position, and `preventDefault()`. */
 export type TreeNodeEvent = TreeEvent;
 
@@ -123,7 +123,7 @@ export interface TreeViewProps {
   marked?: number[];
   /** Every field passes through to the viewer; a field that is absent or undefined is the default (removing a key reverts it). */
   options?: Partial<Omit<ViewerOptions, 'layout' | 'branchLengths' | 'tipHref'>>;
-  /** Controls on the viewer (`@gbif-phylo/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
+  /** Controls on the viewer (`@canopy/viewer` controls or your own); default zoom and fit (as `defaultControls()`), [] for none. */
   controls?: Control[];
   /** The hover tooltip: true (default content), false, or your content for the event (rendered into the viewer's tooltip box). */
   tooltip?: boolean | ((e: TreeNodeEvent) => React.ReactNode);

@@ -60,7 +60,7 @@ export function dataMiddleware(dataDir = DATA_DIR) {
 export function dataPlugin(dataDir = DATA_DIR) {
   const mw = dataMiddleware(dataDir);
   return {
-    name: 'gbif-phylo-data',
+    name: 'canopy-data',
     configureServer(server) {
       server.middlewares.use('/data', mw);
     },

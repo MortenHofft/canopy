@@ -1,5 +1,5 @@
 {
-  "name": "@gbif-phylo/example-explorer",
+  "name": "@canopy/example-explorer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,10 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@gbif-phylo/io": "0.1.0",
-    "@gbif-phylo/react": "0.1.0",
-    "@gbif-phylo/tree-ops": "0.1.0",
-    "@gbif-phylo/viewer": "0.1.0",
+    "@canopy/io": "0.1.0",
+    "@canopy/react": "0.1.0",
+    "@canopy/tree-ops": "0.1.0",
+    "@canopy/viewer": "0.1.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

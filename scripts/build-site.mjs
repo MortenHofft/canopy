@@ -11,7 +11,7 @@
 //                   --no-remote skips those, and the page falls back to the remote URL at run time.
 //   /thumbs/...     from site/public (made by site/scripts/capture-thumbs.mjs)
 //
-// The examples resolve the packages to their TypeScript source (Vite's '@gbif-phylo/source' condition), so the packages need no build
+// The examples resolve the packages to their TypeScript source (Vite's '@canopy/source' condition), so the packages need no build
 // first. Any failure fails the whole build: a deploy never silently lacks a page or a tree.
 
 import { spawnSync } from 'node:child_process';

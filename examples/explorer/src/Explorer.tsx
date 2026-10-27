@@ -1,12 +1,12 @@
 // The explorer: the styled showcase of the library. Its look started from Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree
-// pane, an inspector, a floating search, a colour palette, an export menu); it is built only from the public API of @gbif-phylo:
+// pane, an inspector, a floating search, a colour palette, an export menu); it is built only from the public API of @canopy:
 // <TreeView> and its handle for the drawing, its props for clades / highlights / collapsed clades / columns / theme / the node menu,
 // its callbacks for clicks and hovers, tree-ops for every edit and view (focus, collapse by support) and the viewer's options and controls.
 // Which control uses which API is the table in ../README.md.
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@gbif-phylo/io';
-import * as ops from '@gbif-phylo/tree-ops';
+import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@canopy/io';
+import * as ops from '@canopy/tree-ops';
 import {
   TreeView,
   useTreeEvent,
@@ -17,7 +17,7 @@ import {
   type NodeMenuItem,
   type TreeNodeEvent,
   type TreeViewHandle,
-} from '@gbif-phylo/react';
+} from '@canopy/react';
 import {
   cladeName,
   defaultControls,
@@ -34,7 +34,7 @@ import {
   type NamedDescendant,
   type TreeViewer,
   type Viewport,
-} from '@gbif-phylo/viewer';
+} from '@canopy/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
 import { Scroller } from './Scroller.tsx';
@@ -1005,7 +1005,7 @@ export function Explorer({
     setMatchIdx(0);
   };
 
-  // ---- export: PNG is the viewer's toBlob; Newick and NEXUS through @gbif-phylo/io
+  // ---- export: PNG is the viewer's toBlob; Newick and NEXUS through @canopy/io
   const download = (blob: Blob, name: string) => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

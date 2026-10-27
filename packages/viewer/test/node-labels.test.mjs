@@ -250,7 +250,7 @@ test('a change of the option redraws', async () => {
 
 // ---------------------------------------------------------------------------------------------------------------- more
 
-const { parseNewick } = await import('@gbif-phylo/io');
+const { parseNewick } = await import('@canopy/io');
 const path = await import('node:path');
 const { fileURLToPath } = await import('node:url');
 const { partialSnapshot } = await import(path.join(path.dirname(fileURLToPath(import.meta.url)), 'partial-snapshot.mjs'));

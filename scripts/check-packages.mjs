@@ -75,31 +75,31 @@ for (const name of PACKAGES) {
 const SCENARIOS = [
   {
     name: 'io: parseNewick only',
-    code: `import { parseNewick } from '@gbif-phylo/io'; console.log(parseNewick('(a,b);'));`,
+    code: `import { parseNewick } from '@canopy/io'; console.log(parseNewick('(a,b);'));`,
     forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js'],
   },
   {
     // The XML reader is a module of its own: an app that reads Newick does not carry it, and one that reads phyloXML does not carry
     // the sidecar. It does import NewickError from the Newick module, which is the only part of that module that is bundled.
     name: 'io: parsePhyloXml only',
-    code: `import { parsePhyloXml } from '@gbif-phylo/io'; console.log(parsePhyloXml('<phyloxml><phylogeny><clade/></phylogeny></phyloxml>'));`,
+    code: `import { parsePhyloXml } from '@canopy/io'; console.log(parsePhyloXml('<phyloxml><phylogeny><clade/></phylogeny></phyloxml>'));`,
     forbid: ['packages/io/dist/sidecar.js'],
   },
   {
     name: 'io: parseNewick + sidecar',
-    code: `import { parseNewick, parseSidecar } from '@gbif-phylo/io'; const t = parseNewick('(a,b);'); console.log(parseSidecar('ID,x\\na,1').bind(t).categories('x'));`,
+    code: `import { parseNewick, parseSidecar } from '@canopy/io'; const t = parseNewick('(a,b);'); console.log(parseSidecar('ID,x\\na,1').bind(t).categories('x'));`,
     forbid: [],
   },
   {
     // The annotation reader is part of the parser (`{ annotations: true }` is a plain option), so it is bundled with it: about 2.7 kB
     // minified more than parseNewick without it. Making it separable would need the caller to import and pass it in; not worth the API.
     name: 'io: parseNewick + annotations + supportFrom',
-    code: `import { parseNewick, supportFrom } from '@gbif-phylo/io'; const t = parseNewick('(a,b);', { annotations: true }); console.log(supportFrom(t, 'p'));`,
+    code: `import { parseNewick, supportFrom } from '@canopy/io'; const t = parseNewick('(a,b);', { annotations: true }); console.log(supportFrom(t, 'p'));`,
     forbid: [],
   },
   {
     name: 'tree-ops: ladderise only',
-    code: `import { ladderise } from '@gbif-phylo/tree-ops'; console.log(ladderise);`,
+    code: `import { ladderise } from '@canopy/tree-ops'; console.log(ladderise);`,
     forbid: [
       'packages/tree-ops/dist/rooting.js',
       'packages/tree-ops/dist/collapse.js',
@@ -110,7 +110,7 @@ const SCENARIOS = [
   },
   {
     name: 'tree-ops: treeBytes only',
-    code: `import { treeBytes } from '@gbif-phylo/tree-ops'; console.log(treeBytes);`,
+    code: `import { treeBytes } from '@canopy/tree-ops'; console.log(treeBytes);`,
     forbid: [
       'packages/tree-ops/dist/rooting.js',
       'packages/tree-ops/dist/order.js',
@@ -123,7 +123,7 @@ const SCENARIOS = [
   },
   {
     name: 'tree-ops: followClade, composeMaps only',
-    code: `import { followClade, composeMaps } from '@gbif-phylo/tree-ops'; console.log(followClade, composeMaps);`,
+    code: `import { followClade, composeMaps } from '@canopy/tree-ops'; console.log(followClade, composeMaps);`,
     forbid: [
       'packages/tree-ops/dist/rooting.js',
       'packages/tree-ops/dist/order.js',
@@ -134,7 +134,7 @@ const SCENARIOS = [
   },
   {
     name: 'tree-ops: autoCollapse only',
-    code: `import { autoCollapse } from '@gbif-phylo/tree-ops'; console.log(autoCollapse);`,
+    code: `import { autoCollapse } from '@canopy/tree-ops'; console.log(autoCollapse);`,
     forbid: [
       'packages/tree-ops/dist/rooting.js',
       'packages/tree-ops/dist/order.js',
@@ -147,7 +147,7 @@ const SCENARIOS = [
   },
   {
     name: 'viewer: TreeViewer',
-    code: `import { TreeViewer } from '@gbif-phylo/viewer'; console.log(TreeViewer);`,
+    code: `import { TreeViewer } from '@canopy/viewer'; console.log(TreeViewer);`,
     forbid: [
       'node_modules/react',
       'packages/io/',
@@ -159,30 +159,30 @@ const SCENARIOS = [
   },
   {
     name: 'viewer: TreeViewer + legendItems (no control classes)',
-    code: `import { TreeViewer, legendItems } from '@gbif-phylo/viewer'; console.log(TreeViewer, legendItems);`,
+    code: `import { TreeViewer, legendItems } from '@canopy/viewer'; console.log(TreeViewer, legendItems);`,
     forbid: ['packages/viewer/dist/controls/', 'packages/viewer/dist/control.js'],
   },
   {
     name: 'viewer: TreeViewer + Zoom',
-    code: `import { TreeViewer, Zoom } from '@gbif-phylo/viewer'; console.log(TreeViewer, Zoom);`,
+    code: `import { TreeViewer, Zoom } from '@canopy/viewer'; console.log(TreeViewer, Zoom);`,
     forbid: ['packages/viewer/dist/overview.js', 'controls/search.js', 'controls/legend.js', 'controls/defaults.js'],
   },
   {
     name: 'viewer: TreeViewer + defaultControls',
-    code: `import { TreeViewer, defaultControls } from '@gbif-phylo/viewer'; console.log(TreeViewer, defaultControls);`,
+    code: `import { TreeViewer, defaultControls } from '@canopy/viewer'; console.log(TreeViewer, defaultControls);`,
     forbid: [],
   },
   {
     // React is external here (a peer dependency); what matters is that the default controls (zoom, fit) do not pull in the others
     name: 'react: TreeView',
-    code: `import { TreeView } from '@gbif-phylo/react'; console.log(TreeView);`,
+    code: `import { TreeView } from '@canopy/react'; console.log(TreeView);`,
     forbid: ['controls/search.js', 'controls/legend.js', 'controls/defaults.js', 'controls/layout-toggle.js', 'packages/viewer/dist/overview.js'],
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   {
     // the hooks build on the viewer's events only: no <TreeView>, no controls
     name: 'react: hooks only',
-    code: `import { useTreeViewer, useViewport, useTreeEvent, useTreeTheme } from '@gbif-phylo/react'; console.log(useTreeViewer, useViewport, useTreeEvent, useTreeTheme);`,
+    code: `import { useTreeViewer, useViewport, useTreeEvent, useTreeTheme } from '@canopy/react'; console.log(useTreeViewer, useViewport, useTreeEvent, useTreeTheme);`,
     forbid: [
       'packages/react/dist/TreeView.js',
       'packages/viewer/dist/viewer.js',

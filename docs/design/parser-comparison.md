@@ -1,4 +1,4 @@
-# Parser comparison: `@gbif-phylo/io` vs the JS alternatives
+# Parser comparison: `@canopy/io` vs the JS alternatives
 
 **Status:** results from `tests/bench/parsers/` — correctness is settled; timing numbers below are
 from the first run on 2026-10-26 in the cloud-sandbox Node 22 container, no GPU, no browser. Hard
@@ -13,7 +13,7 @@ Three candidates on npm were worth measuring:
 
 | Library | Version | Formats | Shape of output | License |
 |---|---|---|---|---|
-| `@gbif-phylo/io` (ours) | 0.1.0 | Newick, NEXUS | typed-array preorder `TreeModel` | Apache-2.0 |
+| `@canopy/io` (ours) | 0.1.0 | Newick, NEXUS | typed-array preorder `TreeModel` | Apache-2.0 |
 | `@vibbioinfocore/phylio` | 1.1.2 | Newick + NHX + Extended, NEXUS, PhyloXML | nodes[] + edges[] + metadata[] | MIT |
 | `newick-js` | 1.2.4 | Newick | `{ graph: [Set<Vertex>, Set<Edge>], root }` | MIT |
 | `patristic` | 0.7.1 | Newick | recursive `Branch` tree with parent refs | MIT |
@@ -55,7 +55,7 @@ corpus pays off even without a bug in the parser itself.
 
 | Lib | Well-formed (64) | Malformed rejected (default) (25) | Overall (default) | Overall (ours strict) |
 |---|---:|---:|---:|---:|
-| **gbif-phylo/io** | **63/64 (98%)** | **19/25 (76%)** | **82/89 (92%)** | **88/89 (99%)** |
+| **canopy/io** | **63/64 (98%)** | **19/25 (76%)** | **82/89 (92%)** | **88/89 (99%)** |
 | patristic | 58/64 (91%) | 10/25 (40%) | 68/89 (76%) | — |
 | newick-js | 49/64 (77%) | 13/25 (52%) | 62/89 (70%) | — |
 | phylio | 40/64 (63%) | 22/25 (88%) | 62/89 (70%) | — |
@@ -124,7 +124,7 @@ fixtures through its `NHXParser` + `NexusPhylogeniesParser` via a thin Java driv
 
 | | correct per fixture expectation | agreement with us (same verdict family) |
 |---|---:|---:|
-| **gbif-phylo/io** | **82/89 (91%)** | — |
+| **canopy/io** | **82/89 (91%)** | — |
 | Forester | 70/89 (79%) | 84/89 (94%) |
 
 Forester handles the 10 000-tip caterpillar cleanly — the JVM's bigger default stack puts it in a
@@ -228,7 +228,7 @@ browser, no GPU — the absolute numbers will shift elsewhere; relative ordering
 
 ### Median parse time
 
-| Fixture | Size | Tips | **gbif-phylo/io** | phylio | newick-js | patristic |
+| Fixture | Size | Tips | **canopy/io** | phylio | newick-js | patristic |
 |---|---:|---:|---:|---:|---:|---:|
 | synth-balanced-200          | 13 KB  |    200 |  **1.0 ms** |   313 ms       |   1.3 ms | 1.3 ms |
 | synth-caterpillar-200       | 13 KB  |    200 |  **1.2 ms** |   166 ms       | 944 µs   | 1.3 ms |
@@ -368,7 +368,7 @@ need feedback or the files stay broken. The parser now attaches a `warnings: Par
 every `TreeModel` (empty on clean parses) and accepts `{ strict: true }` to throw instead:
 
 ```ts
-import { parseNewick, type ParserWarning } from '@gbif-phylo/io';
+import { parseNewick, type ParserWarning } from '@canopy/io';
 
 const tree = parseNewick(text);
 // tree.warnings is readonly ParserWarning[], always present (empty for clean parses)
@@ -549,9 +549,9 @@ node --experimental-transform-types --no-warnings src/phyloxml-biopython-corpus.
 ```bash
 cd tests/bench/parsers
 npm install --ignore-scripts
-node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/correctness.mjs
+node --conditions=@canopy/source --experimental-transform-types --no-warnings src/correctness.mjs
 TIMEOUT_MS=15000 ITER=5 OUT=results/latest.json \
-  node --conditions=@gbif-phylo/source --experimental-transform-types --no-warnings src/bench.mjs
+  node --conditions=@canopy/source --experimental-transform-types --no-warnings src/bench.mjs
 ```
 
 See `tests/bench/parsers/README.md` for the layout and env vars.

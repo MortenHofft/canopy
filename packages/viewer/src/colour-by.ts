@@ -1,5 +1,5 @@
 // colourBy: colour a tree by one categorical attribute of its tips, for example a column of a sidecar table (`SidecarBinding.categories`
-// in @gbif-phylo/io). Pure data in, data out: it returns the `setClades` list that colours the tip branches, dots and labels, the legend
+// in @canopy/io). Pure data in, data out: it returns the `setClades` list that colours the tip branches, dots and labels, the legend
 // items, and a swatch column, so an app wires the three it wants. The viewer is not touched.
 //
 // The input is integer codes by node, so nothing per tip is kept besides the entries `setClades` takes (about 55 ms per 100,000 tips, measured). The
@@ -10,7 +10,7 @@
 import type { CladeColour, CustomColumn, ColumnRenderer, TreeTheme } from './types.ts';
 import type { LegendItem } from './controls/legend.ts';
 
-/** The tips of a tree: a `TreeModel` of @gbif-phylo/io fits as it is. */
+/** The tips of a tree: a `TreeModel` of @canopy/io fits as it is. */
 export interface ColourByTree {
   tipCount: number;
   tipNode: ArrayLike<number>;

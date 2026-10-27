@@ -1,5 +1,5 @@
 /*
- * @gbif-phylo/viewer: GBIF look. Load after viewer.css. Maps the GBIF design tokens to the viewer's --phylo-* properties; where a page
+ * @canopy/viewer: GBIF look. Load after viewer.css. Maps the GBIF design tokens to the viewer's --phylo-* properties; where a page
  * has the GBIF token stylesheet, its values are used (var(--color-primary) and so on), otherwise the GBIF values below.
  */
 

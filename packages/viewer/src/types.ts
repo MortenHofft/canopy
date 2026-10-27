@@ -1,4 +1,4 @@
-// Public types of the viewer core. No React: `TreeData` is the structural subset of @gbif-phylo/io's `TreeModel` that the core
+// Public types of the viewer core. No React: `TreeData` is the structural subset of @canopy/io's `TreeModel` that the core
 // reads, so any tree model with preorder ids and leaf-contiguous subtree ranges can be shown.
 //
 // Option or theme? `ViewerOptions` is what is shown and how the viewer behaves: layout, which elements appear, density and

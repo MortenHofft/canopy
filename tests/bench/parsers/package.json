@@ -1,5 +1,5 @@
 {
-  "name": "@gbif-phylo-bench/parsers",
+  "name": "@canopy-bench/parsers",
   "version": "0.0.0",
   "private": true,
   "description": "Bench and correctness comparison of our Newick/NEXUS parsers against the main JS libraries.",
@@ -10,7 +10,7 @@
     "all": "node --experimental-transform-types --no-warnings src/all.mjs"
   },
   "dependencies": {
-    "@gbif-phylo/io": "file:../../../packages/io",
+    "@canopy/io": "file:../../../packages/io",
     "newick-js": "1.2.4",
     "patristic": "0.7.1",
     "@vibbioinfocore/phylio": "1.1.2"

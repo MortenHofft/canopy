@@ -6,7 +6,7 @@ Usage: dendropy-nexus-summary.py file.nex ...   (one JSON object per file on std
 
 For each file: the number of trees and, for the first, second and last tree, the tip labels (sorted), tip and node
 counts, the number of branch lengths and their sum, and the root's number of children. Underscores are kept
-(preserve_underscores) because gbif-phylo keeps them too. Files are read as UTF-8, or as latin-1 if they are not UTF-8,
+(preserve_underscores) because Canopy keeps them too. Files are read as UTF-8, or as latin-1 if they are not UTF-8,
 so that a stray byte does not decide the outcome; the JS side reads them the same way.
 """
 import hashlib

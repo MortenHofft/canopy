@@ -2,7 +2,7 @@
 // order, removal (also during an emit), once, default actions and preventDefault, error isolation.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNewick } from '@gbif-phylo/io';
+import { parseNewick } from '@canopy/io';
 
 const { Emitter } = await import('../src/events.ts');
 const { makeNodeEvent, toTreeEvent } = await import('../src/node-event.ts');

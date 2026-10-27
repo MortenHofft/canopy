@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { autoCollapse, collapseBySupport, ladderise, midpointRoot, prune, reroot } from '../src/index.ts';
-import { parseNewick } from '@gbif-phylo/io'; // fixture: text -> TreeInput
+import { parseNewick } from '@canopy/io'; // fixture: text -> TreeInput
 
 const argv = process.argv.slice(2);
 const reps = argv[0] === '--reps' ? Number(argv[1]) : 5;

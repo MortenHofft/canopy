@@ -1,6 +1,6 @@
 # Example: the playground
 
-`@gbif-phylo/viewer` without a framework, with every option, theme token and built-in control in a side panel. Use it to see what a
+`@canopy/viewer` without a framework, with every option, theme token and built-in control in a side panel. Use it to see what a
 setting does, to compare trees from 6 tips to 2.39 million, or to try a tree file of your own (Newick or NEXUS, gzipped or not).
 
 ```
@@ -19,7 +19,7 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from .
   [`../shared/picker.ts`](../shared/picker.ts) fills the grouped list with a last "your own" option that opens the file input, and
   `loadTreeFile` in [`../shared/data.ts`](../shared/data.ts) reads the file (gzip by content, NEXUS when it starts with `#NEXUS`, else
   Newick).
-- **Tree operations** from `@gbif-phylo/tree-ops`, as views of the loaded tree (as in `examples/react`), not edits:
+- **Tree operations** from `@canopy/tree-ops`, as views of the loaded tree (as in `examples/react`), not edits:
   - **Show only this clade** (node menu, or the click action) with **← Back** and **↑ Up one level** above the tree, and in the
     shown root's menu (tree-ops' focus functions).
   - **Collapse** a clade into a triangle and **Expand** it again (the viewer's `setCollapsed` on the shown tree), and **Expand all**.
@@ -33,7 +33,7 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from .
 
   Colours, collapsed clades and the focus are kept in node ids of the loaded tree and mapped to the shown one, so they survive going
   in and out. The focus and the collapsed clades are in the URL (`?focus=…&collapsed=…`). A change of focus or of the low-support
-  threshold re-creates the viewer, so the zoom resets ([#27](https://github.com/MortenHofft/gbif-phylo/issues/27)); collapsing and expanding
+  threshold re-creates the viewer, so the zoom resets ([#27](https://github.com/MortenHofft/canopy/issues/27)); collapsing and expanding
   does not (the clades are collapsed in the viewer, on the tree it shows).
 - Per-tip data become columns: numbers as bars, short text as text. The panel says how many tips have data. Tips without data get an
   empty cell rather than being dropped.

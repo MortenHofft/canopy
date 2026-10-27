@@ -1,4 +1,4 @@
-// A table view of a tree, TBrowse-like, built on the public API of @gbif-phylo/viewer only: one row per tip at a fixed height, the wheel
+// A table view of a tree, TBrowse-like, built on the public API of @canopy/viewer only: one row per tip at a fixed height, the wheel
 // scrolls rows instead of zooming, and the tree is one column among data columns, each with a header and a resize handle. The overview
 // strip on the right is the scrollbar.
 //
@@ -9,11 +9,11 @@
 // What the viewer cannot do yet and how this page works around it is listed in the README, "Gaps": the scroll-only navigation is
 // scroll.ts, the header row header.ts.
 
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import '../../react/src/gbif-tokens.css';
-import '@gbif-phylo/viewer/gbif.css';
+import '@canopy/viewer/gbif.css';
 import './style.css';
-import { OverviewControl, Search, TreeViewer, type Column, type TreeEvent } from '@gbif-phylo/viewer';
+import { OverviewControl, Search, TreeViewer, type Column, type TreeEvent } from '@canopy/viewer';
 import { COL_GAP, HeaderRow, type HeaderCell } from './header.ts';
 import { readHeatColours, TISSUES } from './renderers.ts';
 import { RowScroller } from './scroll.ts';

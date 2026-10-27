@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNewick, parseNexus, NewickError } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, NewickError } from '@canopy/io';
 
 // Each case: input, expected warning codes (in order), tip count, and the expected position of
 // each warning in the input. Positions are the character offset of the problematic token.

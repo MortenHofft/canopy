@@ -1,14 +1,14 @@
-// The playground: @gbif-phylo/viewer with every option, theme token and built-in control in a side panel, on any tree of the catalogue
+// The playground: @canopy/viewer with every option, theme token and built-in control in a side panel, on any tree of the catalogue
 // or a file of your own. No framework: TreeViewer, its controls and its events directly. The settings live in src/settings.ts (one
 // list drives the panel, the URL and how each value is applied); the URL holds the tree and every setting that differs from the
 // library default, so a view can be shared. `npm run dev` in this folder.
 //
-// Tree operations (@gbif-phylo/tree-ops) are views of the loaded tree, as in examples/react: show only a clade (with Back and Up one
+// Tree operations (@canopy/tree-ops) are views of the loaded tree, as in examples/react: show only a clade (with Back and Up one
 // level), collapse clades into triangles, collapse branches with low support. Collapsing clades is the viewer's (`setCollapsed`, ids of the
 // tree it shows). Focus and low support make a new tree from the loaded one; colours, collapsed clades and the focus are kept in node
 // ids of the loaded tree and mapped to the shown tree (toShown / toFull) while such a view is on.
 
-import '@gbif-phylo/viewer/viewer.css';
+import '@canopy/viewer/viewer.css';
 import '../../react/src/gbif-tokens.css';
 import './style.css';
 import {
@@ -32,9 +32,9 @@ import {
   type TreeEvent,
   type TreeTheme,
   type ViewerOptions,
-} from '@gbif-phylo/viewer';
-import { TreeModel } from '@gbif-phylo/io';
-import * as ops from '@gbif-phylo/tree-ops';
+} from '@canopy/viewer';
+import { TreeModel } from '@canopy/io';
+import * as ops from '@canopy/tree-ops';
 import { ENTRIES, GROUPS as TREE_GROUPS, loadEntry, loadFile, type Loaded } from './data.ts';
 import { treePicker } from '../../shared/picker.ts';
 import { BY_ID, GROUPS, PRESETS, SETTINGS, defaults, fromUrl, toUrl, toViewer, type Setting, type State, type Value } from './settings.ts';

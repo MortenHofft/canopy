@@ -6,7 +6,7 @@
 //  - the end of the tree area from the first column's left edge less the viewer's gap between columns.
 // See the README, "Gaps".
 
-import type { TreeViewer } from '@gbif-phylo/viewer';
+import type { TreeViewer } from '@canopy/viewer';
 
 /** The viewer's gap between the tree area and a column, and between columns (`COL_GAP` in the viewer's columns.ts, not exported). */
 export const COL_GAP = 6;

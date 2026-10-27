@@ -2,7 +2,7 @@
 // default (?s.<id>=<value>), and main.ts applies each by its `to`. Adding a viewer option or theme token here is all it takes to
 // expose it. Defaults are the library's (DEFAULT_OPTIONS, FALLBACK_THEME), so "default" in the panel means "what an app gets".
 
-import { DEFAULT_OPTIONS, FALLBACK_THEME } from '@gbif-phylo/viewer';
+import { DEFAULT_OPTIONS, FALLBACK_THEME } from '@canopy/viewer';
 
 export type Value = string | number | boolean;
 
@@ -620,7 +620,7 @@ export const SETTINGS: Setting[] = [
       ['nothing', 'Nothing (events only)'],
     ],
   },
-  // ---- tree operations (@gbif-phylo/tree-ops), as views of the loaded tree: the focus and the collapsed clades are page state, below
+  // ---- tree operations (@canopy/tree-ops), as views of the loaded tree: the focus and the collapsed clades are page state, below
   {
     id: 'supportCollapse',
     label: 'Collapse branches with low support',

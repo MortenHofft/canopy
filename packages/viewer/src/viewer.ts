@@ -112,7 +112,7 @@ function warnUnknownNodes(where: string, bad: unknown[], limit: number): void {
   const shown = bad.slice(0, 5).map((b) => (typeof b === 'string' ? JSON.stringify(b) : String(b)));
   const more = bad.length > 5 ? ` and ${bad.length - 5} more` : '';
   console.warn(
-    `gbif-phylo: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
+    `canopy: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
       `(nodes are numbers, the preorder ids 0 to ${limit - 1}); ignored`,
   );
 }
@@ -476,7 +476,7 @@ export class TreeViewer {
           if (m > 0) return m;
           if (!this.warnedSpacing) {
             this.warnedSpacing = true;
-            console.warn(`gbif-phylo: maxTipSpacing ${String(this.opts.maxTipSpacing)} is not a size (px, 'auto' or '<n>em'); no cap is applied`);
+            console.warn(`canopy: maxTipSpacing ${String(this.opts.maxTipSpacing)} is not a size (px, 'auto' or '<n>em'); no cap is applied`);
           }
           return Infinity;
         },
@@ -1398,7 +1398,7 @@ export class TreeViewer {
     if (inner) {
       const more = inner.length > 5 ? ` and ${inner.length - 5} more` : '';
       console.warn(
-        `gbif-phylo: ${where}: ${inner.slice(0, 5).join(', ')}${more} ${inner.length === 1 ? 'is an internal node' : 'are internal nodes'}, ` +
+        `canopy: ${where}: ${inner.slice(0, 5).join(', ')}${more} ${inner.length === 1 ? 'is an internal node' : 'are internal nodes'}, ` +
           'not tips (a number highlights the tip with that node id, a string every tip with that label); ignored',
       );
     }

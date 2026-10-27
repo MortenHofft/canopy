@@ -2,7 +2,7 @@
 // either one and the other follows), and the callbacks write into plain React state. `npm run dev` in this folder, then open the
 // printed URL (?tree=<id> picks a tree from src/trees.ts).
 //
-// Tree operations come from @gbif-phylo/tree-ops (no rendering in there) and this page is the only place the two meet:
+// Tree operations come from @canopy/tree-ops (no rendering in there) and this page is the only place the two meet:
 // clicking a tip or clade opens <TreeView>'s node menu with per-node actions (rotate, reroot here, ...), the toolbar holds
 // whole-tree actions (midpoint root, ladderise, collapse by support). Each action returns a new tree that replaces the one
 // shown; the tree as published is kept for reset and never changed, and the trees between it and the current one for undo, within a
@@ -10,15 +10,15 @@
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@gbif-phylo/viewer/viewer.css';
-import '@gbif-phylo/viewer/gbif.css';
+import '@canopy/viewer/viewer.css';
+import '@canopy/viewer/gbif.css';
 import './gbif-tokens.css';
 import { gbifTheme } from './gbif-theme.ts';
 import { loadTree } from './trees.ts';
-import { TreeModel } from '@gbif-phylo/io';
-import * as ops from '@gbif-phylo/tree-ops';
-import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@gbif-phylo/react';
-import { defaultControls, type Viewport } from '@gbif-phylo/viewer';
+import { TreeModel } from '@canopy/io';
+import * as ops from '@canopy/tree-ops';
+import { TreeView, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
+import { defaultControls, type Viewport } from '@canopy/viewer';
 
 /** What happens to a clade colour whose tips an operation splits (rerooting inside the clade puts its tips on both sides of the new
  *  root, so they are no longer one clade): 'remove' it, or keep it on the 'node' that was coloured, which now holds other tips
@@ -104,7 +104,7 @@ function App() {
     void loadTree(params.get('tree') ?? 'rich-corvoid-680').then((t) => setHistory([{ tree: t, clades: [], collapsed: [], focus: ops.NO_FOCUS }]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // the viewers take their look from @gbif-phylo/viewer/gbif.css (CSS custom properties); the palette for clade colours comes from the
+  // the viewers take their look from @canopy/viewer/gbif.css (CSS custom properties); the palette for clade colours comes from the
   // same GBIF tokens
   const g = useMemo(() => gbifTheme(), []);
   // support range, shown next to the threshold because files use different scales (0.95 versus 95)

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseNexus } from '@gbif-phylo/io';
+import { parseNexus } from '@canopy/io';
 
 const TAXA = (title = '', labels = 'A B C') =>
   `BEGIN TAXA;${title ? ` TITLE ${title};` : ''} DIMENSIONS NTAX=${(labels.match(/'[^']*'|\S+/g) ?? []).length}; TAXLABELS ${labels}; END;\n`;

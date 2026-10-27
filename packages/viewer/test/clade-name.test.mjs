@@ -1,11 +1,11 @@
-// internalName (the viewer's copy of the support-stripping rule) must agree with @gbif-phylo/io's splitInternalLabel on a fixed corpus.
+// internalName (the viewer's copy of the support-stripping rule) must agree with @canopy/io's splitInternalLabel on a fixed corpus.
 // io is a devDependency of the viewer, used here only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const { internalName } = await import('../src/clade-name.ts');
 const { internalSupport } = await import('../src/node-label.ts');
-const { splitInternalLabel } = await import('@gbif-phylo/io');
+const { splitInternalLabel } = await import('@canopy/io');
 
 const CORPUS = [
   '',
@@ -64,7 +64,7 @@ test('internalName: support values are no name, "support:name" is the name, and 
 // ---------------------------------------------------------------- summaries of collapsed clades (#57)
 const { namedDescendants, defaultFormatCollapsedLabel } = await import('../src/clade-name.ts');
 const { InMemorySource } = await import('../src/source.ts');
-const { parseNewick } = await import('@gbif-phylo/io');
+const { parseNewick } = await import('@canopy/io');
 const { partialSnapshot } = await import('./partial-snapshot.mjs');
 
 const snap = (nwk) => new InMemorySource(parseNewick(nwk)).snapshot();

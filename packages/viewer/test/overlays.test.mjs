@@ -3,7 +3,7 @@
 // action of click, items, keyboard, closes on a choice, Escape, a view change or a press outside).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNewick } from '@gbif-phylo/io';
+import { parseNewick } from '@canopy/io';
 import { installFakeDom, FakeElement } from './fake-dom.mjs';
 
 installFakeDom();

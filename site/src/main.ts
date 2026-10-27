@@ -15,7 +15,7 @@ interface Example {
   tags: string[];
 }
 
-const REPO = 'https://github.com/MortenHofft/gbif-phylo';
+const REPO = 'https://github.com/MortenHofft/canopy';
 const ref = __BUILD__.branch && __BUILD__.branch !== 'HEAD' ? __BUILD__.branch : 'main';
 
 function card(e: Example): HTMLElement {
