@@ -359,7 +359,7 @@ export const TreeView = forwardRef<TreeViewHandle, TreeViewProps>(function TreeV
       setViewport: (v) => rendRef.current?.setViewport(v),
       locateTip: (id) => {
         const snap = source.snapshot();
-        const n = tipRow(snap, id);
+        const n = tipRow(snap, id, undefined, source.nodeCount);
         return n < 0 ? null : (rendRef.current?.locateNode(snap.globalId === null ? n : snap.globalId[n]) ?? null);
       },
       locateNode: (node) => rendRef.current?.locateNode(node) ?? null,

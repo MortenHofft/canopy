@@ -42,8 +42,19 @@ test('tipRow: a label is its first tip (warning when several carry it), a number
     globalId: Int32Array.from({ length: snap.nodeCount }, (_, i) => i + 100),
     toLocal: (g) => (g >= 100 && g < 106 ? g - 100 : -1),
   };
-  assert.equal(tipRow(partial, 105, 'focusTip'), 5);
-  assert.equal(tipRow(partial, 7, 'focusTip'), -1);
+  // ids are bounded by the full tree's node count (the source's), not by the snapshot's row count (#91)
+  assert.equal(tipRow(partial, 105, 'focusTip', 200), 5);
+  assert.equal(tipRow(partial, 7, 'focusTip', 200), -1, 'a number inside the tree but not loaded: no warning');
+  const seen2 = [];
+  console.warn = (...a) => seen2.push(a.join(' '));
+  try {
+    assert.equal(tipRow(partial, 205, 'focusTip', 200), -1);
+    assert.match(seen2.pop(), /focusTip: 205 is not a node/);
+    assert.equal(tipRow(partial, 150, 'focusTip', 200), -1);
+    assert.deepEqual(seen2, [], 'an id below the limit that is not loaded does not warn');
+  } finally {
+    console.warn = had;
+  }
 });
 
 test('focusTip and columnCell take a label or a node id, not a leaf rank (#82)', async () => {

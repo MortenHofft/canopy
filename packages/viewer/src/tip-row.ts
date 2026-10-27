@@ -14,9 +14,11 @@ export interface TipLookup {
 
 /** Row of the snapshot for a tip named by label (a string: the first tip that carries it) or by node id (a number); -1 when there is no
  *  such tip or its row is not loaded. With `where`, a label that several tips carry, a number that is not a node and an internal node are
- *  each reported with a `console.warn` naming `where`. */
-export function tipRow(snap: TipLookup, tip: TipRef, where?: string): number {
-  return typeof tip === 'string' ? labelRow(snap, tip, where) : nodeRow(snap, tip, where);
+ *  each reported with a `console.warn` naming `where`.
+ *  `nodeLimit` is one past the largest node id of the full tree (`TreeSource.nodeCount`); a snapshot's own `nodeCount` is its row count,
+ *  which is smaller for a partial source, so pass the source's. */
+export function tipRow(snap: TipLookup, tip: TipRef, where?: string, nodeLimit: number = snap.nodeCount): number {
+  return typeof tip === 'string' ? labelRow(snap, tip, where) : nodeRow(snap, tip, where, nodeLimit);
 }
 
 /** `tipRow` of a label: its first tip, with a warning (given `where`) when several tips carry it. */
@@ -28,9 +30,9 @@ function labelRow(snap: TipLookup, label: string, where?: string): number {
 }
 
 /** `tipRow` of a node id: -1 (with a warning, given `where`) for a number that is not a node or is an internal node. */
-function nodeRow(snap: TipLookup, node: number, where?: string): number {
+function nodeRow(snap: TipLookup, node: number, where: string | undefined, nodeLimit: number): number {
   const inMemory = snap.globalId === null;
-  const isNode = Number.isInteger(node) && node >= 0 && (!inMemory || node < snap.nodeCount);
+  const isNode = Number.isInteger(node) && node >= 0 && node < nodeLimit;
   if (!isNode) {
     if (where) console.warn(`canopy: ${where}: ${String(node)} is not a node of this tree (nodes are numbers, preorder ids); ignored`);
     return -1;
