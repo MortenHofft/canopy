@@ -1,13 +1,13 @@
 // Parse time of parseNexus on NEXUS files, in Node (same V8 as Chromium). Median of --reps runs after a warm-up.
 //   npm run bench -- [--reps 7] [file.nex[.gz] ...]   (from packages/io)
 // With no files: the NEXUS files of data/synthetic/nexus and the NEXUS trees of data/rich (see its manifest.json).
-// Per file: the tree 0 parse without and with { annotations: true }, and for a file of several trees the last tree
-// (what a posterior browser pays for the tree it opens last).
+// Per file: the tree 0 parse without and with { annotations: true }, the index pass alone, and for a file of several trees the
+// last tree (what a posterior browser pays for the tree it opens last) and all trees through nexusTrees.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parseNexus } from '../src/newick.ts';
+import { nexusIndex, nexusTrees, parseNexus } from '../src/newick.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const argv = process.argv.slice(2);
@@ -41,6 +41,13 @@ for (const f of files) {
   const trees = first.treeCount;
   const plain = median(() => parseNexus(text));
   const annotated = median(() => parseNexus(text, { annotations: true }));
+  const indexed = median(() => nexusIndex(text));
+  const every =
+    trees > 1
+      ? median(() => {
+          for (const r of nexusTrees(text)) if (!r.tree) throw new Error('no tree');
+        })
+      : null;
   const last = trees > 1 ? median(() => parseNexus(text, trees - 1)) : null;
   const mb = text.length / 1e6;
   rows.push({
@@ -50,6 +57,8 @@ for (const f of files) {
     trees,
     ms: plain.toFixed(1),
     'ms +annotations': annotated.toFixed(1),
+    'ms index': indexed.toFixed(1),
+    'ms every tree': every === null ? '' : every.toFixed(1),
     'ms last tree': last === null ? '' : last.toFixed(1),
   });
 }

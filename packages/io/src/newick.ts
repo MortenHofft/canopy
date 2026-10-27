@@ -470,8 +470,8 @@ function nexusStatements(text: string, quoted: boolean): (p: number) => { stmt: 
         }
       } else if (ns >= 0) return { stmt: text.slice(s, ns), end: ns + 1, terminated: true };
       else {
-        const rest = text.slice(s).trim();
-        return rest ? { stmt: rest, end: n, terminated: false } : null;
+        const rest = text.slice(s).trimEnd(); // the offsets of the statement stay those of the text
+        return rest.trim() ? { stmt: rest, end: n, terminated: false } : null;
       }
     }
   };
@@ -589,6 +589,107 @@ function nexusTokens(s: string): string[] {
   return out;
 }
 
+/** What a NEXUS file says about one of its trees, found without parsing the tree. */
+export interface NexusTreeInfo {
+  /** Position of the tree in the file, over all its TREES blocks (0-based). */
+  index: number;
+  /** The name as written, unquoted. */
+  name: string;
+  /** Offsets in the text of the TREE command, without its ';'. */
+  start: number;
+  end: number;
+  /** `TREE * name`: the tree the file marks as its default. */
+  isDefault: boolean;
+  /** `[&R]` true, `[&U]` false, null when the tree has neither. */
+  rooted: boolean | null;
+  /** `[&W n]` or `[&W n/m]`, null when the tree has none. */
+  weight: number | null;
+  /** The MCMC state when the name says it (BEAST `STATE_n`, MrBayes `gen.n`), else null. */
+  state: number | null;
+}
+
+/** One tree read through a NexusIndex. `ignored` holds the notes that depend on this tree's tips (nexus-taxa-mismatch,
+ *  nexus-taxon-numbers); the notes about the file are on the index. */
+export interface NexusTreeResult {
+  tree: TreeModel;
+  info: NexusTreeInfo;
+  /** Entries in the TRANSLATE table of the tree's TREES block (0 if none). */
+  translateEntries: number;
+  ignored: NexusNote[];
+}
+
+/** The trees of a NEXUS file, found in one fast pass that parses none of them. */
+export interface NexusIndex {
+  trees: readonly NexusTreeInfo[];
+  /** What the file holds besides the trees, and what is not connected: the codes of NexusResult.ignored that do not depend on
+   *  one tree (nexus-ignored-block, nexus-block-unreadable, nexus-scan-stopped, nexus-taxa-unused, nexus-taxa-ambiguous,
+   *  nexus-taxa-link-unresolved, nexus-ntax-mismatch). */
+  ignored: NexusNote[];
+  /** Parse tree `i` alone, with the TRANSLATE table and TAXA block that apply to it: the time does not depend on i. */
+  parse(i: number): NexusTreeResult;
+}
+
+interface TreeEntry {
+  info: NexusTreeInfo;
+  block: NexusBlock;
+  /** Start of the statement in the text (its leading whitespace included), and the offset of its '=' in it (-1: none). */
+  from: number;
+  eq: number;
+  /** Where in the tree text a swallowed END starts (a missing ';'), or -1. */
+  endAt: number;
+  terminated: boolean;
+  error: string | null;
+}
+
+interface IndexImpl extends NexusIndex {
+  blocks: NexusBlock[];
+  taxaOf(tb: NexusBlock | null): NexusBlock | null;
+  blockOf(i: number): NexusBlock;
+}
+
+/** The offset of the first '=' outside [comments] and 'quoted names', or -1. */
+function treeEq(stmt: string): number {
+  let b = 0;
+  for (let i = 0; i < stmt.length; i++) {
+    const c = stmt.charCodeAt(i);
+    if (c === 39 && b === 0) {
+      i++;
+      for (;;) {
+        const e = stmt.indexOf("'", i);
+        if (e < 0) {
+          i = stmt.length;
+          break;
+        }
+        i = e + 1;
+        if (stmt.charCodeAt(i) !== 39) break;
+        i++;
+      }
+      i--;
+    } else if (c === 91) b++;
+    else if (c === 93) b--;
+    else if (c === 61 && b === 0) return i;
+  }
+  return -1;
+}
+
+/** The rooted flag and the weight in the comments that stand between the '=' and the tree. */
+function treeFlags(stmt: string, p: number): { rooted: boolean | null; weight: number | null } {
+  let rooted: boolean | null = null;
+  let weight: number | null = null;
+  for (;;) {
+    while (p < stmt.length && isWs(stmt.charCodeAt(p))) p++;
+    if (stmt.charCodeAt(p) !== 91) break;
+    const e = skipComment(stmt, p);
+    const c = stmt.slice(p + 1, e - 1).trim();
+    const r = /^&\s*([RrUu])$/.exec(c);
+    if (r) rooted = r[1] === 'R' || r[1] === 'r';
+    const w = /^&\s*[Ww]\s*([0-9.eE+-]+)(?:\s*\/\s*([0-9.eE+-]+))?$/.exec(c);
+    if (w) weight = Number(w[1]) / (w[2] ? Number(w[2]) : 1);
+    p = e;
+  }
+  return { rooted, weight };
+}
+
 interface NexusBlock {
   name: string;
   at: number;
@@ -604,6 +705,8 @@ interface NexusBlock {
   /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block: name key (see nameKey) to the name as written. */
   rows: Map<string, string>;
   unreadable: boolean;
+  /** TRANSLATE table of a TREES block: a table belongs to its own block. */
+  translate: Map<string, string>;
 }
 
 /** The first word of a line, 'quoted' words unquoted. */
@@ -637,14 +740,8 @@ const nameKey = (l: string): string => l.replace(/_/g, ' ').toLowerCase();
 
 const sample = (xs: string[]): string => xs.slice(0, 3).join(', ') + (xs.length > 3 ? `, … (${xs.length} in all)` : '');
 
-/** Read tree number `treeIndex` (0-based) from a NEXUS document, applying its TRANSLATE table. The rest of the file is
- *  scanned too, and what is not read or not connected to the tree is listed in `ignored`. */
-export function parseNexus(text: string, treeIndex?: number, o?: ParseOptions): NexusResult;
-export function parseNexus(text: string, o: ParseOptions & { treeIndex?: number }): NexusResult;
-export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex?: number }) = 0, b: ParseOptions = {}): NexusResult {
-  const obj = typeof a === 'object' && a !== null ? a : null; // null and undefined read as the defaults
-  const opts: ParseOptions = obj ?? b ?? {};
-  const treeIndex = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
+/** Scan a NEXUS text: its blocks, its TRANSLATE tables and the place of every tree, without parsing a tree. */
+function buildIndex(text: string, opts: ParseOptions): IndexImpl {
   const strict = opts.strict === true;
   // Standard NEXUS files start with '#NEXUS'. Many real files lack the header; we accept them
   // but surface the issue so publishers can fix. In strict mode the parse throws.
@@ -659,9 +756,8 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   const note = (code: string, block: string, message: string, position: number): void => {
     notes.push({ code, block, message, position });
   };
-  const translate = new Map<string, string>();
-  let total = 0;
-  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null; byNumber: number; entries: number } | null = null;
+  const entries: TreeEntry[] = [];
+  let scanError: NewickError | null = null;
   /** The TAXA block a TREES block refers to: the one named by its LINK, else the last one before it. */
   const taxaOf = (tb: NexusBlock | null): NexusBlock | null => {
     if (!tb) return null;
@@ -679,15 +775,47 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       return [];
     }
   };
+  /** Record a TREE command. True when its ';' is missing and the END of the block was read into it. */
+  const addTree = (st: { stmt: string; terminated: boolean }, from: number, block: NexusBlock): boolean => {
+    const stmt = st.stmt;
+    const eq = treeEq(stmt);
+    const info: NexusTreeInfo = {
+      index: entries.length,
+      name: '',
+      start: from + (/^\s*/.exec(stmt)?.[0].length ?? 0),
+      end: from + stmt.length,
+      isDefault: false,
+      rooted: null,
+      weight: null,
+      state: null,
+    };
+    const e: TreeEntry = { info, block, from, eq, endAt: -1, terminated: st.terminated, error: eq < 0 ? 'TREE statement without "="' : null };
+    entries.push(e);
+    if (eq < 0) return false;
+    const before = stripComments(stmt.slice(0, eq));
+    const star = /^\s*(\*?)\s*u?tree\s+(\*?)/i.exec(before);
+    info.isDefault = !!(star && (star[1] || star[2]));
+    info.name = before
+      .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
+      .trim()
+      .replace(/^'(.*)'$/s, (_, q: string) => q.replace(/''/g, "'"));
+    const flags = treeFlags(stmt, eq + 1);
+    info.rooted = flags.rooted;
+    info.weight = flags.weight;
+    const state = /^(?:STATE|gen)[_.](\d+)$/i.exec(info.name);
+    if (state) info.state = Number(state[1]);
+    // No ';' after the tree: the END of the block was read into the statement (only a tail that looks like it is looked at)
+    if (/\s(?:end|endblock)\s*(?:\[[^\]]*\]\s*)*$/i.test(stmt.slice(-200))) e.endAt = swallowedEnd(stmt.slice(eq + 1));
+    return e.endAt >= 0;
+  };
   try {
     for (;;) {
       const from = p;
       const st = nextStatement(p);
       if (!st) break;
       p = st.end;
-      // past the tree that is returned, the other trees are only counted
-      if (found && cur?.name === 'trees' && /^\s*u?tree\b/i.test(st.stmt)) {
-        total++;
+      if (cur?.name === 'trees' && /^\s*u?tree\b/i.test(st.stmt)) {
+        if (addTree(st, from, cur)) cur = null; // the END was part of this statement
         continue;
       }
       const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');
@@ -707,9 +835,9 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
           nchar: -1,
           rows: new Map(),
           unreadable: false,
+          translate: new Map(),
         };
         blocks.push(cur);
-        if (cur.name === 'trees') translate.clear(); // a TRANSLATE table belongs to its own TREES block
         continue;
       }
       if (kw === 'end' || kw === 'endblock') {
@@ -738,94 +866,17 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
         const toks = tokens(head.replace(/^\s*translate\b/i, ''));
         // token value pairs, the comma between them is optional
         const pairs = toks.filter((t) => t !== ',');
-        for (let i = 0; i + 1 < pairs.length; i += 2) translate.set(pairs[i], pairs[i + 1]);
+        for (let i = 0; i + 1 < pairs.length; i += 2) cur.translate.set(pairs[i], pairs[i + 1]);
       } else if (block === 'trees' && (kw === 'tree' || kw === 'utree')) {
-        if (total++ !== treeIndex) continue;
-        // body: name = [comment] newick, with comments still in place (parseNewick skips them)
-        // the first '=' outside [comments] and 'quoted names' is the separator
-        let b = 0;
-        let eq = -1;
-        for (let i = 0; i < st.stmt.length; i++) {
-          const c = st.stmt.charCodeAt(i);
-          if (c === 39 && b === 0) {
-            i++;
-            for (;;) {
-              const e = st.stmt.indexOf("'", i);
-              if (e < 0) {
-                i = st.stmt.length;
-                break;
-              }
-              i = e + 1;
-              if (st.stmt.charCodeAt(i) !== 39) break;
-              i++;
-            }
-            i--;
-          } else if (c === 91) b++;
-          else if (c === 93) b--;
-          else if (c === 61 && b === 0) {
-            eq = i;
-            break;
-          }
-        }
-        if (eq < 0) throw new NewickError('TREE statement without "="', p);
-        const name = stripComments(st.stmt.slice(0, eq))
-          .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
-          .trim()
-          .replace(/^'(.*)'$/s, (_, q: string) => q.replace(/''/g, "'"));
-        // No ';' after the tree: the END of the block was read into the statement, or the file stopped
-        let body = st.stmt.slice(eq + 1);
-        const endAt = swallowedEnd(body);
-        if (endAt >= 0) body = body.slice(0, endAt);
-        const noSemicolon = endAt >= 0 || !st.terminated;
-        if (noSemicolon && strict) {
-          throw new NewickError('[missing-trailing-semicolon] the TREE command has no ";" after the tree', from + st.stmt.length);
-        }
-        const tree = parseNewick(body + ';', opts);
-        // A tip is named by its TRANSLATE token, else by a taxon label, else by a taxon number (its 1-based position in the
-        // TAXA block): the order of the NEXUS standard, and DendroPy's. Numbers count only when every tip the table does not
-        // name is an in-range number that is no taxon label (as in forester): a tree that mixes names and numbers has numbers
-        // that are names (an accession such as 92829), and renaming one of them would be wrong without a word.
-        const labels = taxaOf(cur)?.labels ?? [];
-        const known = new Set(labels.map(nameKey));
-        const rest = tree.tipLabels.filter((l) => !translate.has(l));
-        const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(nameKey(l)));
-        let byNumber = 0;
-        if (translate.size || labels.length) {
-          tree.relabelTips((l) => {
-            const t = translate.get(l);
-            if (t !== undefined) return t;
-            if (numbered) {
-              byNumber++;
-              return labels[Number(l) - 1];
-            }
-            return undefined;
-          });
-        }
-        if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
-        if (noSemicolon) {
-          (tree.warnings as ParserWarning[]).push({
-            code: 'missing-trailing-semicolon',
-            message: `The TREE command has no ";" after the tree (${endAt >= 0 ? 'END follows it' : 'the file ends'})`,
-            position: from + st.stmt.length,
-          });
-        }
-        found = { tree, name, seen: total, block: cur, byNumber, entries: translate.size };
-        if (endAt >= 0) cur = null; // the END was part of this statement
+        if (addTree(st, from, cur)) cur = null;
       }
     }
   } catch (e) {
-    // Past the requested tree the file is only being looked through: a stray quote in a block we do not read
-    // must not fail a parse that used to succeed.
-    if (!found || !(e instanceof NewickError)) throw e;
+    // The scan stops at what it cannot read; the trees found before that stay readable
+    if (!(e instanceof NewickError)) throw e;
+    scanError = e;
     note('nexus-scan-stopped', '', `The rest of the file was not looked through: ${e.message}`, p);
   }
-  if (!found) {
-    throw new NewickError(
-      `no tree number ${treeIndex} in NEXUS (saw ${total}; blocks: ${blocks.length ? blocks.map((b) => b.name).join(', ') : 'none'})`,
-      text.length,
-    );
-  }
-  const { tree } = found;
 
   for (const bl of blocks) {
     if (bl.unreadable)
@@ -834,69 +885,128 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       note('nexus-ignored-block', bl.name, `The ${bl.name.toUpperCase()} block (${bl.statements} statements) is not read`, bl.at);
     }
   }
-  if (total > 1)
-    note(
-      'nexus-other-trees',
-      'trees',
-      `The file holds ${total} trees; only tree ${treeIndex + 1} (${found.name || 'unnamed'}) was read`,
-      found.block?.at ?? 0,
-    );
-
-  const tips = new Map<string, string>(); // name key -> tip label
-  for (let r = 0; r < tree.tipCount; r++) tips.set(nameKey(tree.labels[tree.tipNode[r]]), tree.labels[tree.tipNode[r]]);
-
-  // Which TAXA block the tree's block refers to: the one named by LINK, else the last one before it.
+  // The links: which TAXA block each TREES block uses, and which TAXA blocks nothing uses
   const taxaBlocks = blocks.filter((bl) => bl.name === 'taxa');
-  const tb = found.block;
-  const used = taxaOf(tb);
-  if (tb && taxaBlocks.length) {
+  const usedTaxa = new Set<NexusBlock>();
+  for (const tb of blocks.filter((bl) => bl.name === 'trees')) {
+    const used = taxaOf(tb);
+    if (used) usedTaxa.add(used);
+    if (!taxaBlocks.length) continue;
     if (tb.link) {
       if (!used) note('nexus-taxa-link-unresolved', 'trees', `The TREES block links to TAXA "${tb.link}", but no TAXA block has that TITLE`, tb.at);
-    } else {
-      if (taxaBlocks.length > 1) {
-        note(
-          'nexus-taxa-ambiguous',
-          'trees',
-          `The file has ${taxaBlocks.length} TAXA blocks and the TREES block has no LINK; ${used ? 'the last one before it was assumed' : 'none comes before it, so none was used'}`,
-          tb.at,
-        );
-      }
+    } else if (taxaBlocks.length > 1) {
+      note(
+        'nexus-taxa-ambiguous',
+        'trees',
+        `The file has ${taxaBlocks.length} TAXA blocks and the TREES block has no LINK; ${used ? 'the last one before it was assumed' : 'none comes before it, so none was used'}`,
+        tb.at,
+      );
     }
   }
   for (const x of taxaBlocks) {
-    if (x !== used)
+    if (!usedTaxa.has(x)) {
       note(
         'nexus-taxa-unused',
         'taxa',
-        `The TAXA block${x.title ? ` "${x.title}"` : ''} (${x.labels.length} taxa) is not connected to the tree that was read`,
+        `The TAXA block${x.title ? ` "${x.title}"` : ''} (${x.labels.length} taxa) is not used by any TREES block`,
         x.at,
       );
-  }
-  if (used && used.ntax >= 0 && used.ntax !== used.labels.length) {
-    note('nexus-ntax-mismatch', 'taxa', `The TAXA block says NTAX=${used.ntax} but lists ${used.labels.length} taxa`, used.at);
-  }
-  if (used) {
-    const names = new Set(used.labels.map(nameKey));
-    const noTaxon = [...tips].filter(([k]) => !names.has(k)).map(([, l]) => l);
-    const noTip = used.labels.filter((l) => !tips.has(nameKey(l)));
-    if (found.byNumber) {
-      note(
-        'nexus-taxon-numbers',
-        'trees',
-        `${found.byNumber} tips were taxon numbers and were replaced by the label at that position in the TAXA block`,
-        tb?.at ?? 0,
-      );
-    }
-    if (noTaxon.length || noTip.length) {
-      note(
-        'nexus-taxa-mismatch',
-        'taxa',
-        `The tree has ${noTaxon.length} tips that are not in the TAXA block (${sample(noTaxon)}), and the TAXA block has ${noTip.length} taxa with no tip (${sample(noTip)})`,
-        used.at,
-      );
+    } else if (x.ntax >= 0 && x.ntax !== x.labels.length) {
+      note('nexus-ntax-mismatch', 'taxa', `The TAXA block says NTAX=${x.ntax} but lists ${x.labels.length} taxa`, x.at);
     }
   }
+  notes.sort((x, y) => x.position - y.position);
 
+  const parse = (i: number): NexusTreeResult => {
+    const e = entries[i];
+    if (!e) {
+      if (scanError) throw scanError;
+      throw new NewickError(
+        `no tree number ${i} in NEXUS (saw ${entries.length}; blocks: ${blocks.length ? blocks.map((b) => b.name).join(', ') : 'none'})`,
+        text.length,
+      );
+    }
+    if (e.error) throw new NewickError(e.error, e.info.end);
+    // body: [comment] newick, with comments still in place (parseNewick skips them)
+    let body = text.slice(e.from, e.info.end).slice(e.eq + 1);
+    if (e.endAt >= 0) body = body.slice(0, e.endAt);
+    const noSemicolon = e.endAt >= 0 || !e.terminated;
+    if (noSemicolon && strict) {
+      throw new NewickError('[missing-trailing-semicolon] the TREE command has no ";" after the tree', e.info.end);
+    }
+    const tree = parseNewick(body + ';', opts);
+    // A tip is named by its TRANSLATE token, else by a taxon label, else by a taxon number (its 1-based position in the
+    // TAXA block): the order of the NEXUS standard, and DendroPy's. Numbers count only when every tip the table does not
+    // name is an in-range number that is no taxon label (as in forester): a tree that mixes names and numbers has numbers
+    // that are names (an accession such as 92829), and renaming one of them would be wrong without a word.
+    const translate = e.block.translate;
+    const used = taxaOf(e.block);
+    const labels = used?.labels ?? [];
+    const known = new Set(labels.map(nameKey));
+    const rest = tree.tipLabels.filter((l) => !translate.has(l));
+    const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(nameKey(l)));
+    let byNumber = 0;
+    if (translate.size || labels.length) {
+      tree.relabelTips((l) => {
+        const t = translate.get(l);
+        if (t !== undefined) return t;
+        if (numbered) {
+          byNumber++;
+          return labels[Number(l) - 1];
+        }
+        return undefined;
+      });
+    }
+    if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
+    if (noSemicolon) {
+      (tree.warnings as ParserWarning[]).push({
+        code: 'missing-trailing-semicolon',
+        message: `The TREE command has no ";" after the tree (${e.endAt >= 0 ? 'END follows it' : 'the file ends'})`,
+        position: e.info.end,
+      });
+    }
+    // what depends on this tree's tips
+    const own: NexusNote[] = [];
+    if (used) {
+      const tips = tipKeys(tree);
+      if (byNumber) {
+        own.push({
+          code: 'nexus-taxon-numbers',
+          block: 'trees',
+          message: `${byNumber} tips were taxon numbers and were replaced by the label at that position in the TAXA block`,
+          position: e.block.at,
+        });
+      }
+      const names = new Set(used.labels.map(nameKey));
+      const noTaxon = [...tips].filter(([k]) => !names.has(k)).map(([, l]) => l);
+      const noTip = used.labels.filter((l) => !tips.has(nameKey(l)));
+      if (noTaxon.length || noTip.length) {
+        own.push({
+          code: 'nexus-taxa-mismatch',
+          block: 'taxa',
+          message: `The tree has ${noTaxon.length} tips that are not in the TAXA block (${sample(noTaxon)}), and the TAXA block has ${noTip.length} taxa with no tip (${sample(noTip)})`,
+          position: used.at,
+        });
+      }
+    }
+    return { tree, info: e.info, translateEntries: translate.size, ignored: own };
+  };
+  return { trees: entries.map((e) => e.info), ignored: notes, parse, blocks, taxaOf, blockOf: (i) => entries[i].block };
+}
+
+/** Name key to tip label of a tree. */
+function tipKeys(tree: TreeModel): Map<string, string> {
+  const tips = new Map<string, string>();
+  for (let r = 0; r < tree.tipCount; r++) tips.set(nameKey(tree.labels[tree.tipNode[r]]), tree.labels[tree.tipNode[r]]);
+  return tips;
+}
+
+/** Notes on the CHARACTERS and DATA blocks: the sequences are not read; do their rows line up with the tips of the tree? */
+function sequenceNotes(blocks: NexusBlock[], used: NexusBlock | null, tips: Map<string, string>): NexusNote[] {
+  const out: NexusNote[] = [];
+  const note = (code: string, block: string, message: string, position: number): void => {
+    out.push({ code, block, message, position });
+  };
   for (const bl of blocks) {
     if (bl.name !== 'characters' && bl.name !== 'data') continue;
     const what = `The ${bl.name.toUpperCase()} block (${bl.rows.size} sequences${bl.nchar >= 0 ? `, ${bl.nchar} characters` : ''}) is not read`;
@@ -932,6 +1042,50 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       note('nexus-sequences-ignored', bl.name, `${what}; every row matches a tip by label`, bl.at);
     }
   }
+  return out;
+}
+
+/** The trees of a NEXUS file, found in one pass that parses none of them. `index.parse(i)` reads tree i alone, so the
+ *  trees of a file of thousands can be read one by one (or all in turn with nexusTrees) without a rescan. */
+export function nexusIndex(text: string, o: ParseOptions = {}): NexusIndex {
+  const { trees, ignored, parse } = buildIndex(text, o);
+  return { trees, ignored, parse };
+}
+
+/** Every tree of a NEXUS file in turn, each parsed when it is asked for. */
+export function* nexusTrees(text: string, o: ParseOptions = {}): Generator<NexusTreeResult> {
+  const index = nexusIndex(text, o);
+  for (let i = 0; i < index.trees.length; i++) yield index.parse(i);
+}
+
+/** Read tree number `treeIndex` (0-based) from a NEXUS document, applying its TRANSLATE table. The rest of the file is
+ *  scanned too, and what is not read or not connected to the tree is listed in `ignored`. */
+export function parseNexus(text: string, treeIndex?: number, o?: ParseOptions): NexusResult;
+export function parseNexus(text: string, o: ParseOptions & { treeIndex?: number }): NexusResult;
+export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex?: number }) = 0, b: ParseOptions = {}): NexusResult {
+  const obj = typeof a === 'object' && a !== null ? a : null; // null and undefined read as the defaults
+  const opts: ParseOptions = obj ?? b ?? {};
+  const treeIndex = typeof a === 'number' ? a : (obj?.treeIndex ?? 0);
+  const idx = buildIndex(text, opts);
+  const r = idx.parse(treeIndex);
+  const notes = [...idx.ignored, ...r.ignored];
+  const block = idx.blockOf(treeIndex);
+  if (idx.trees.length > 1) {
+    notes.push({
+      code: 'nexus-other-trees',
+      block: 'trees',
+      message: `The file holds ${idx.trees.length} trees; only tree ${treeIndex + 1} (${r.info.name || 'unnamed'}) was read`,
+      position: block.at,
+    });
+  }
+  notes.push(...sequenceNotes(idx.blocks, idx.taxaOf(block), tipKeys(r.tree)));
   notes.sort((x, y) => x.position - y.position);
-  return { tree, treeName: found.name, treesSeen: found.seen, treeCount: total, translateEntries: found.entries, ignored: notes };
+  return {
+    tree: r.tree,
+    treeName: r.info.name,
+    treesSeen: treeIndex + 1,
+    treeCount: idx.trees.length,
+    translateEntries: r.translateEntries,
+    ignored: notes,
+  };
 }

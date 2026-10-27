@@ -496,7 +496,7 @@ deliberate or are DendroPy limits, and each fixture that departs from its source
 
 ### Cost of reading the whole file
 
-`parseNexus` now scans to the end of the file (to report what it did not read), where it used to stop at the tree it returned. Measured in this sandbox (Node 22, two runs each, `main` against this branch): a 43 MB file with 10,000 trees of 200 tips, tree 0: 1 to 7 ms against 14 to 21 ms; last tree: 124 to 183 ms against 33 to 37 ms (the statement splitter now jumps between `;`, `[` and quotes with `indexOf`). A 100 MB matrix after the tree: 2 to 7 ms against 128 to 169 ms. Memory stayed flat in both.
+`parseNexus` now scans to the end of the file (to report what it did not read), where it used to stop at the tree it returned. Measured in this sandbox (Node 22, two runs each, `main` against this branch): a 43 MB file with 10,000 trees of 200 tips, tree 0: 1 to 7 ms against 14 to 21 ms; last tree: 124 to 183 ms against 33 to 37 ms (the statement splitter now jumps between `;`, `[` and quotes with `indexOf`). A 100 MB matrix after the tree: 2 to 7 ms against 128 to 169 ms. Memory stayed flat in both. For files with many trees `nexusIndex` and `index.parse(i)` avoid the repeated scan (`packages/io/README.md`).
 
 Reproduce (needs `pip install dendropy` and a checkout of DendroPy for the first):
 
