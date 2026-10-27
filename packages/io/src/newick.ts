@@ -77,6 +77,23 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     if (strict) throw new NewickError(`[${code}] ${message}`, position);
     warnings.push({ code, message, position });
   };
+  // Validate NHX syntax even when annotations are off: '[&&NHX:name=value:...]'. Each ':'-
+  // separated entry (after the leading 'NHX') must contain '='. A missing '=' is a well-known
+  // ete-side mistake and worth telling the publisher.
+  const checkNhxAt = (from: number, to: number): void => {
+    if (text.charCodeAt(from + 1) !== 38 || text.charCodeAt(from + 2) !== 38) return;
+    const inner = text.slice(from + 3, to - 1);
+    if (!inner.startsWith('NHX')) return;
+    const parts = inner.slice(3).split(':');
+    for (const part of parts) {
+      const t = part.trim();
+      if (t === '') continue;
+      if (!t.includes('=')) {
+        warn('invalid-nhx-syntax', `NHX entry ${JSON.stringify(t)} is missing '='`, from);
+        return;
+      }
+    }
+  };
   const nodeAnn = new Map<number, AnnotationRecord>();
   const edgeAnn = new Map<number, AnnotationRecord>();
   let afterColon = false; // the comment is after the ':' of the node, so BEAST means the edge (NHX comments are always the node's)
@@ -173,6 +190,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
     } else if (c === 91) {
       const e = skipComment(text, p, annot);
       if (annot && !expect) note(p, e, afterColon);
+      checkNhxAt(p, e);
       p = e;
     } else if (c === 40) {
       if (!expect) throw new NewickError("unexpected '('", p);
@@ -238,6 +256,7 @@ export function parseNewick(text: string, o: ParseOptions = {}): TreeModel {
         if (text.charCodeAt(p) === 91) {
           const e = skipComment(text, p, annot);
           if (annot) note(p, e, true);
+          checkNhxAt(p, e);
           p = e;
         } else p++;
       }
@@ -1003,6 +1022,10 @@ function buildIndex(text: string, opts: ParseOptions): IndexImpl {
     const rest = tree.tipLabels.filter((l) => !translate.has(l));
     const numbered = rest.length > 0 && rest.every((l) => /^[1-9]\d*$/.test(l) && Number(l) <= labels.length && !known.has(nameKey(l)));
     let byNumber = 0;
+    // Tip labels that look like TRANSLATE ids (bare integers) but have no entry in the table and
+    // no TAXA fallback are references to a missing translation. We keep the label (the viewer
+    // still shows something) and surface a tree-level warning; strict mode throws.
+    const missingTranslate: string[] = [];
     if (translate.size || labels.length) {
       tree.relabelTips((l) => {
         const t = translate.get(l);
@@ -1011,8 +1034,18 @@ function buildIndex(text: string, opts: ParseOptions): IndexImpl {
           byNumber++;
           return labels[Number(l) - 1];
         }
+        if (translate.size && /^[1-9]\d*$/.test(l)) missingTranslate.push(l);
         return undefined;
       });
+    }
+    if (missingTranslate.length) {
+      const w: ParserWarning = {
+        code: 'unknown-translate-id',
+        message: `tree references ${missingTranslate.length} TRANSLATE id${missingTranslate.length === 1 ? '' : 's'} not in the table: ${missingTranslate.slice(0, 5).join(', ')}${missingTranslate.length > 5 ? ', ...' : ''}`,
+        position: e.block.at,
+      };
+      if (strict) throw new NewickError(`[${w.code}] ${w.message}`, w.position);
+      (tree.warnings as ParserWarning[]).push(w);
     }
     if (headerWarn) (tree.warnings as ParserWarning[]).unshift({ ...headerWarn });
     if (noSemicolon) {
