@@ -88,3 +88,7 @@ tree.annotations.column('posterior'); // Float64Array by node index, NaN where a
   (`TreeModel` throws if the table is for a tree of another size.) Node annotations follow their node. Edge annotations follow the undirected edge: after `reroot` the edges between the new and the old root move to the node that is now below them, and the edge that the new root splits is copied to both halves. Dropped: the edge of a removed node, and the edge that `reroot` merges when the old root is suppressed (the surviving child's own annotation wins). The records are copied. tree-ops does not do this itself, so it stays free of the annotation types.
 
 - **Size.** The reader is part of the parser (a plain option, no second import), so `parseNewick` alone is about 2.7 kB minified larger than before (6.3 to 9.0 kB). `scripts/check-packages.mjs` records both sizes.
+
+## Tests and benchmark
+
+`npm test` runs the unit tests. For NEXUS, `test/nexus-tools.test.mjs` covers the shapes BEAST 1, BEAST 2 and MrBayes write (the MrBayes and BEAST 2 files are written by hand in their format, not real output), LF, CRLF and CR line endings, and every NEXUS tree in `data/rich` against the numbers in its `manifest.json` (made by an independent Python parser). `npm run bench -- [--reps 7] [file.nex[.gz] ...]` prints parse time per NEXUS file (default: `data/synthetic/nexus` and the NEXUS trees in `data/rich`).

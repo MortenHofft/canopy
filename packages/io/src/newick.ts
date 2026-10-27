@@ -518,6 +518,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   let block = '';
   const translate = new Map<string, string>();
   let seen = 0;
+  const blocksSeen: string[] = [];
   for (;;) {
     const st = nexusStatement(text, p, opts.annotations === true);
     if (!st) break;
@@ -528,6 +529,8 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
     const kw = m[1].replace(/[\s*]/g, '').toLowerCase();
     if (kw === 'begin') {
       block = (/^\s*begin\s+(\w+)/i.exec(head)?.[1] ?? '').toLowerCase();
+      blocksSeen.push(block);
+      if (block === 'trees') translate.clear(); // a TRANSLATE table belongs to its own TREES block
     } else if (kw === 'end' || kw === 'endblock') {
       block = '';
     } else if (block === 'trees' && kw === 'translate') {
@@ -559,5 +562,8 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       return { tree, treeName: name, treesSeen: seen, translateEntries: translate.size };
     }
   }
-  throw new NewickError(`no tree number ${treeIndex} in NEXUS (saw ${seen})`, text.length);
+  throw new NewickError(
+    `no tree number ${treeIndex} in NEXUS (saw ${seen}; blocks: ${blocksSeen.length ? blocksSeen.join(', ') : 'none'})`,
+    text.length,
+  );
 }
