@@ -5,7 +5,7 @@
 //
 // Per file the verdict is one of
 //   same        both read it and agree on the tree(s) compared (first, second, last): tip labels, tip and node counts,
-//               branch-length count and sum, root degree, and the number of trees (or both find no tree in it)
+//               branch-length count and sum, root degree, a hash of the shape with every edge length, and the number of trees (or both find no tree in it)
 //   differs     both read it, they disagree (what is listed)
 //   we-throw    DendroPy reads it, we throw
 //   dp-throws   we read it, DendroPy throws
@@ -13,6 +13,8 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { crc32 } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { parseNexus } from '../../../../packages/io/src/index.ts';
 
@@ -47,6 +49,25 @@ const dp = new Map(
 );
 
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+/** The same hash as signature() in dendropy-nexus-summary.py: shape plus lengths, label by label. */
+function signature(t) {
+  const sum = new Float64Array(t.nodeCount);
+  const size = new Int32Array(t.nodeCount);
+  const items = [];
+  for (let n = t.nodeCount - 1; n >= 0; n--) {
+    if (t.isTip(n)) {
+      sum[n] = crc32(Buffer.from(t.labels[n], 'utf8'));
+      size[n] = 1;
+    }
+    if (n === 0) break;
+    const p = t.parent[n];
+    sum[p] = (sum[p] + sum[n]) % 2 ** 32;
+    size[p] += size[n];
+    items.push(`${sum[n]}:${size[n]}:${Number.isNaN(t.length[n]) ? '-' : Math.round(t.length[n] * 1e9)}`);
+  }
+  return createHash('sha1').update(items.sort().join('\n')).digest('hex').slice(0, 16);
+}
+
 function ours(text, i) {
   const { tree: t } = parseNexus(text, i);
   let nlen = 0;
@@ -57,7 +78,15 @@ function ours(text, i) {
       lensum += t.length[n];
     }
   }
-  return { tips: t.tipCount, nodes: t.nodeCount, labels: [...t.tipLabels].sort(), nlen, lensum, rootChildren: t.children(0).length };
+  return {
+    tips: t.tipCount,
+    nodes: t.nodeCount,
+    labels: [...t.tipLabels].sort(),
+    nlen,
+    lensum,
+    rootChildren: t.children(0).length,
+    sig: signature(t),
+  };
 }
 
 const rows = [];
@@ -100,6 +129,7 @@ for (const f of files) {
       }
       if (o.nlen !== s.nlen) diffs.push(`tree ${i} lengths ${o.nlen} vs ${s.nlen}`);
       else if (Math.abs(o.lensum - s.lensum) > 1e-9 * Math.max(1, Math.abs(s.lensum))) diffs.push(`tree ${i} length sum ${o.lensum} vs ${s.lensum}`);
+      if (o.sig !== s.sig) diffs.push(`tree ${i} shape or branch lengths differ (hash ${o.sig} vs ${s.sig})`);
       if (o.rootChildren !== s.rootChildren) diffs.push(`tree ${i} root degree ${o.rootChildren} vs ${s.rootChildren}`);
     }
     rows.push({ name, verdict: diffs.length ? 'differs' : 'same', note: diffs.join('; ') });

@@ -9,11 +9,35 @@ counts, the number of branch lengths and their sum, and the root's number of chi
 (preserve_underscores) because gbif-phylo keeps them too. Files are read as latin-1 so that a stray non-UTF-8 byte
 does not decide the outcome; the JS side reads them the same way.
 """
+import hashlib
 import json
+import math
 import signal
 import sys
+import zlib
 
 import dendropy
+
+
+def signature(tree):
+    """A hash of the tree's shape and lengths: for every node but the root, the sum of the CRC32 of the labels of its tips
+    (mod 2^32), its tip count and its edge length times 1e9, rounded half up (like Math.round). nexus-dendropy-corpus.mjs computes the same."""
+    acc = {}
+    items = []
+    for node in tree.postorder_node_iter():
+        kids = node.child_nodes()
+        if kids:
+            total = sum(acc[id(k)][0] for k in kids) % 2**32
+            size = sum(acc[id(k)][1] for k in kids)
+        else:
+            total = zlib.crc32((node.taxon.label if node.taxon is not None else "").encode("utf-8"))
+            size = 1
+        acc[id(node)] = (total, size)
+        if node is not tree.seed_node:
+            ln = "-" if node.edge_length is None else str(math.floor(node.edge_length * 1e9 + 0.5))
+            items.append(f"{total}:{size}:{ln}")
+    items.sort()
+    return hashlib.sha1("\n".join(items).encode()).hexdigest()[:16]
 
 
 def summary(tree):
@@ -27,6 +51,7 @@ def summary(tree):
         "nlen": len(lens),
         "lensum": sum(lens),
         "rootChildren": len(tree.seed_node.child_nodes()),
+        "sig": signature(tree),
     }
 
 
@@ -46,7 +71,14 @@ for path in sys.argv[1:]:
     try:
         with open(path, encoding="latin-1") as fh:
             text = fh.read()
-        trees = dendropy.TreeList.get(data=text, schema="nexus", preserve_underscores=True)
+        try:
+            trees = dendropy.TreeList.get(data=text, schema="nexus", preserve_underscores=True)
+        except dendropy.dataio.nexusreader.NexusReader.TooManyTaxaError:
+            # several TAXA blocks: TreeList reads one taxon namespace only, DataSet reads them all. The trees of its tree
+            # lists, block after block, are numbered as parseNexus numbers them.
+            data = dendropy.DataSet.get(data=text, schema="nexus", preserve_underscores=True)
+            trees = [t for tl in data.tree_lists for t in tl]
+            out["via"] = "DataSet"
         out["treeCount"] = len(trees)
         picks = sorted({0, 1, len(trees) - 1} & set(range(len(trees))))
         out["trees"] = {str(i): summary(trees[i]) for i in picks}
