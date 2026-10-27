@@ -111,14 +111,9 @@ Geometric mean over fixtures where both finished:
 - **newick-js**: 4.6× slower (n = 11; up to 149× on real OpenTree data)
 - **patristic**: 1.23× slower (n = 12; crashes on the deep caterpillar)
 
-## The argument, in two sentences
+## Please report error
 
-The alternatives either stack-overflow on real taxonomy trees (`caterpillar-10000`), reject real
-production files from BEAST / FigTree / OpenTree (phylio refuses `[&...]` annotations, newick-js
-corrupts them, patristic silently parses empty input), or run 100× slower on files we need to
-show in the browser. Our parser is the only one in this comparison that handles the full matrix
-of real inputs, at browser speed, from a dependency-free package that also runs cleanly in
-Node for server-side validation.
+If you find a mistake in how we ran or read any of this, please open an issue.
 
 ## Reproducing the numbers
 
