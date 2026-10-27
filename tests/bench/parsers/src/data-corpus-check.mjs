@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, parseNexus, NewickError } from '@gbif-phylo/io';
+import { parseNewick, parseNexus, parsePhyloXml, NewickError } from '@gbif-phylo/io';
 
 const here = resolve(fileURLToPath(import.meta.url), '..');
 const DATA = resolve(here, '..', '..', '..', '..', 'data');
@@ -24,9 +24,12 @@ function listTreeFiles(dir, out = []) {
       listTreeFiles(p, out);
       continue;
     }
-    // Ignore phyloXML — we don't parse that format yet.
-    if (entry.endsWith('.phyloxml') || entry.endsWith('.phyloxml.xml') || entry.endsWith('.xml') || entry.endsWith('.phyloxml.xml.gz')) continue;
     const stripGz = entry.replace(/\.gz$/, '');
+    if (stripGz.endsWith('.xml') || stripGz.endsWith('.phyloxml')) {
+      // XML: phyloXML when it says so (other XML in data/, such as NeXML, is not read)
+      if (/<(\w+:)?phyloxml[\s>]/.test(loadText({ path: p }).slice(0, 2000))) out.push({ path: p, kind: 'phyloxml' });
+      continue;
+    }
     if (stripGz.endsWith('.nwk') || stripGz.endsWith('.nwk.txt')) {
       out.push({ path: p, kind: 'newick' });
     } else if (stripGz.endsWith('.nex') || stripGz.endsWith('.nexus') || stripGz.endsWith('.tree')) {
@@ -63,7 +66,7 @@ function parseOne(f, text) {
   let lastErr = null;
   for (const kind of kinds) {
     try {
-      const tree = kind === 'nexus' ? parseNexus(text).tree : parseNewick(text);
+      const tree = kind === 'nexus' ? parseNexus(text).tree : kind === 'phyloxml' ? parsePhyloXml(text).tree : parseNewick(text);
       return { tree, kind };
     } catch (e) {
       lastErr = e;
@@ -77,7 +80,12 @@ function parseStrict(f, text) {
   let lastErr = null;
   for (const kind of kinds) {
     try {
-      const tree = kind === 'nexus' ? parseNexus(text, { strict: true }).tree : parseNewick(text, { strict: true });
+      const tree =
+        kind === 'nexus'
+          ? parseNexus(text, { strict: true }).tree
+          : kind === 'phyloxml'
+            ? parsePhyloXml(text, { strict: true }).tree
+            : parseNewick(text, { strict: true });
       return { tree, kind };
     } catch (e) {
       lastErr = e;

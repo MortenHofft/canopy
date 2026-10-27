@@ -506,6 +506,39 @@ node --experimental-transform-types --no-warnings src/nexus-dendropy-corpus.mjs 
 node --experimental-transform-types --no-warnings src/nexus-edge-compare.mjs [--all]
 ```
 
+## phyloXML against Biopython and the other readers' test files
+
+Measured 2026-10-27 with Biopython 1.88 (issue #137). `tests/bench/parsers/src/phyloxml-biopython-corpus.mjs` runs our `parsePhyloXml` and Biopython's phyloXML reader over every `*.xml` and `*.xml.gz` in the folders given and compares each phylogeny (every one with `--all`): tip labels, tip and node counts, number and sum of branch lengths, number and sum of supports, root degree, a hash of the shape with every edge length (the same one as for NEXUS), and the number of phylogenies.
+
+| Files | Result |
+|---|---|
+| Biopython's own `Tests/PhyloXML` (7 files, 25 phylogenies), the 3 Ensembl Compara trees and the 3 PANTHER trees of `data/rich`, forester's `test_data` (52 files, read in place, not copied: GPL) | 65 files: **61 agree on every phylogeny**, 0 disagree, Biopython fails on 4 |
+| The 4 Biopython fails | an empty `<property/>` (Biopython calls `.strip()` on `None`), and unknown attributes or elements of other namespaces in forester's `phyloxml_test_1`, `_t3` and `_t4` (`Clade.__init__() got an unexpected keyword argument`, an `IndexError`). We read all four: the foreign elements are counted as not read |
+| Independent numbers | the 4 phyloXML datasets of `data/rich` also agree with `treecheck.py` (tips, internal nodes, root degree, number, zeros, min and max of branch lengths) |
+
+The PANTHER files declare no XML namespace; Biopython finds no phylogeny in them, so the helper adds the namespace in memory and reads them again. We read them as they are.
+
+### What the comparison found (all fixed)
+
+| Found by | What was wrong |
+|---|---|
+| forester `phyloxml_test_t4.xml` | Namespace prefixes were dropped, so `<o:phylogeny>`, `<o:clade>` and `<o:name>` of another namespace were read as phyloXML. Now only the phyloXML namespace (or none) is read, and the rest is counted under `{namespace}name` |
+| forester `phyloxml_test_atv.xml` | The confidence inside `<events>` (the confidence of a duplication or speciation) is not the support of the branch. Biopython lists it among the clade's confidences; we keep it as the annotation `events.confidence.<type>`, and the helper leaves it out on Biopython's side |
+| A profile | Resolving the namespace of every tag took 11% of the time; a small cache cut the parse of a 25 MB made-up file from 1.05 s to 0.71 s (one run each; runs in this sandbox differ by about a third, a later run took 1.1 s) |
+
+### Where we differ on purpose
+
+- A node's name is the `<name>`, else the taxonomy's scientific name, else its code or common name, else the sequence's name or accession (Biopython has no such chain; the comparison computes the same one). Ensembl names clades by gene id, so `labelBy: 'scientific_name'` exists for the GBIF join.
+- Elements that are not read are counted, not dropped silently. A branch length that is not a number is a warning, not an error.
+- Custom entities in a DOCTYPE are not expanded.
+
+Reproduce (needs `pip install biopython`; a clone of Biopython for its test files):
+
+```bash
+cd tests/bench/parsers
+node --experimental-transform-types --no-warnings src/phyloxml-biopython-corpus.mjs --all ../../../data/rich/ens-phyloxml <biopython>/Tests/PhyloXML
+```
+
 ## How to reproduce
 
 ```bash

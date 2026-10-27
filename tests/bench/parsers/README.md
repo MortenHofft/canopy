@@ -77,6 +77,10 @@ Two scripts compare our `parseNexus` with DendroPy (they import the parser from 
 
 The results and the bugs they found are in `docs/design/parser-comparison.md`.
 
+## phyloXML
+
+`src/phyloxml-biopython-corpus.mjs <file-or-folder> ... [--all]` compares our `parsePhyloXml` with Biopython's phyloXML reader, phylogeny by phylogeny (labels, counts, branch lengths, supports, a hash of the shape with every edge length); `src/biopython-phyloxml-summary.py` is its Biopython side (needs `pip install biopython`). The imports come from the sources, so no `npm install` is needed. Results: `docs/design/parser-comparison.md`.
+
 ## What correctness means here
 
 - A **well-formed** fixture passes if the parser returns the expected `tipCount` and `tipLabels`
