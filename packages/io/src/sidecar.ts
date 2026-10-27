@@ -13,6 +13,12 @@ import { numberOrString } from './annotations.ts';
 import type { AnnotationScalar } from './annotations.ts';
 import type { TreeModel } from './tree.ts';
 
+/** A cell as a number if it reads as one and the number says the same thing (an accession of 17 digits stays text), else the text. */
+function cellValue(v: string): AnnotationScalar {
+  const n = numberOrString(v);
+  return typeof n === 'number' && (!Number.isFinite(n) || (/^[+-]?\d+$/.test(v) && !Number.isSafeInteger(n))) ? v : n;
+}
+
 export class SidecarError extends Error {
   constructor(message: string) {
     super(message);
@@ -31,8 +37,8 @@ export interface SidecarReport {
   duplicateIds: string[];
 }
 
-/** One column as integer codes by node, for colouring. `values` are the distinct values, the most frequent first, and `counts` the tips
- *  that have each (internal nodes that matched a row get a code but are not counted). */
+/** One column as integer codes by node, for colouring. `values` are the distinct values that at least one tip has, the most frequent first,
+ *  and `counts` the tips that have each (internal nodes that matched a row get a code but are not counted). */
 export interface Categories {
   key: string;
   /** By node: index into `values`, -1 for a node with no row or an empty cell. */
@@ -42,6 +48,15 @@ export interface Categories {
 }
 
 /** The text between `[s, e)` split at `sep` into fields (slices of the text; no copy unless a field is quoted and holds `""`). RFC 4180 quoting. */
+/** Index of `sep` in `t` from `from`, or `end` if there is none before it. Bounded (`indexOf` would run on to the next delimiter anywhere
+ *  in the file: quadratic when many rows have none). */
+function sepIn(t: string, sep: string, from: number, end: number): number {
+  const code = sep.charCodeAt(0);
+  let i = from;
+  while (i < end && t.charCodeAt(i) !== code) i++;
+  return i;
+}
+
 function splitRow(t: string, s: number, e: number, sep: string): string[] {
   const out: string[] = [];
   let i = s;
@@ -62,12 +77,10 @@ function splitRow(t: string, s: number, e: number, sep: string): string[] {
           break;
         }
       }
-      d = t.indexOf(sep, i);
-      if (d < 0 || d > e) d = e;
+      d = sepIn(t, sep, i, e);
       out.push(v + t.slice(i, d));
     } else {
-      d = t.indexOf(sep, i);
-      if (d < 0 || d > e) d = e;
+      d = sepIn(t, sep, i, e);
       out.push(t.slice(i, d));
     }
     if (d >= e) return out;
@@ -103,18 +116,30 @@ export class Sidecar {
         p = e + 1;
       }
     } else {
+      const nl = text.indexOf('\n');
+      const sepCode = (nl < 0 ? text : text.slice(0, nl)).includes('\t') ? 9 : 44;
       let s = 0;
       let inQuote = false;
+      let fieldStart = true; // a quote opens a quoted field only here (as in splitRow); a quote inside a bare field is text
       for (let i = 0; i <= len; i++) {
         const c = i < len ? text.charCodeAt(i) : 10;
-        if (c === 34)
-          inQuote = !inQuote; // "" toggles twice
-        else if (c === 10 && (!inQuote || i === len)) {
+        if (inQuote) {
+          if (c === 34) {
+            if (text.charCodeAt(i + 1) === 34)
+              i++; // "" is a quote
+            else inQuote = false;
+          }
+          continue;
+        }
+        if (c === 34 && fieldStart) inQuote = true;
+        else if (c === 10) {
           const q = i > s && text.charCodeAt(i - 1) === 13 ? i - 1 : i;
           if (q > s) b.push(s, q);
           s = i + 1;
         }
+        fieldStart = c === 10 || c === sepCode;
       }
+      if (inQuote) throw new SidecarError('unterminated quote in the sidecar table');
     }
     if (b.length === 0) throw new SidecarError('the sidecar table is empty');
     this.bounds = Int32Array.from(b);
@@ -135,13 +160,11 @@ export class Sidecar {
     if (this.quoted) return (splitRow(t, s, e, this.sep)[col] ?? '').trim();
     let a = s;
     for (let c = 0; c < col; c++) {
-      a = t.indexOf(this.sep, a);
-      if (a < 0 || a >= e) return '';
+      a = sepIn(t, this.sep, a, e);
+      if (a >= e) return '';
       a++;
     }
-    let b = t.indexOf(this.sep, a);
-    if (b < 0 || b > e) b = e;
-    return t.slice(a, b).trim();
+    return t.slice(a, sepIn(t, this.sep, a, e)).trim();
   }
 
   /** All the cells of data row `row`, ID first. */
@@ -173,8 +196,8 @@ export class SidecarBinding {
     let matchedRows = 0;
     for (let r = 0; r < sidecar.rowCount; r++) {
       const id = sidecar.cell(r, 0);
-      let nodes = tree.tipIndices(id);
-      if (nodes.length === 0) {
+      let nodes = id === '' ? [] : tree.tipIndices(id); // an empty ID would bind to every unlabelled tip
+      if (nodes.length === 0 && id !== '') {
         if (!internal) {
           internal = new Map();
           for (let i = 0; i < tree.nodeCount; i++) {
@@ -207,7 +230,7 @@ export class SidecarBinding {
     const c = this.sidecar.columns.indexOf(key);
     if (r < 0 || c < 0) return undefined;
     const v = this.sidecar.cell(r, c + 1);
-    return v === '' ? undefined : numberOrString(v);
+    return v === '' ? undefined : cellValue(v);
   }
 
   /** All the non-empty values of a node by column name, for a popup; undefined when the node has no row. Reads only that row. */
@@ -218,7 +241,7 @@ export class SidecarBinding {
     const out: Record<string, AnnotationScalar> = Object.create(null);
     this.sidecar.columns.forEach((k, c) => {
       const v = cells[c + 1] ?? '';
-      if (v !== '' && k !== '') out[k] = numberOrString(v);
+      if (v !== '' && k !== '' && !(k in out)) out[k] = cellValue(v); // the first of two columns of one name, as `get` reads
     });
     return out;
   }
@@ -252,7 +275,11 @@ export class SidecarBinding {
     const renumber = new Int32Array(order.length);
     order.forEach((k, rank) => (renumber[k] = rank));
     for (let i = 0; i < codes.length; i++) if (codes[i] >= 0) codes[i] = renumber[codes[i]];
-    return { key, codes, values: order.map((k) => names[k]), counts: order.map((k) => counts[k]) };
+    // values no tip has (rows of a larger tree, or of internal nodes only) sort last: leave them out, their nodes uncoloured
+    let used = order.length;
+    while (used > 0 && counts[order[used - 1]] === 0) used--;
+    if (used < order.length) for (let i = 0; i < codes.length; i++) if (codes[i] >= used) codes[i] = -1;
+    return { key, codes, values: order.slice(0, used).map((k) => names[k]), counts: order.slice(0, used).map((k) => counts[k]) };
   }
 }
 

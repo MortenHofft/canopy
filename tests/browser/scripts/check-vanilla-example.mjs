@@ -230,6 +230,13 @@ ok(
 );
 ok(by.inViewer === 0, 'and the viewer has no legend control of its own then');
 ok(by.swatch, 'and a swatch column is added');
+await page.locator('#show-controls').uncheck();
+await page.locator('#show-controls').check();
+await sleep(200);
+ok(
+  (await ev(() => document.querySelectorAll('.phylo-legend').length)) === 0,
+  'toggling Controls while coloured by a column does not bring back the per-tip clade legend',
+);
 await page.locator('#colour-by').selectOption('');
 await sleep(200);
 const none = await ev(() => ({

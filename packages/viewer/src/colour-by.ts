@@ -2,9 +2,10 @@
 // in @gbif-phylo/io). Pure data in, data out: it returns the `setClades` list that colours the tip branches, dots and labels, the legend
 // items, and a swatch column, so an app wires the three it wants. The viewer is not touched.
 //
-// The input is integer codes by node, so nothing per tip is kept besides the entries `setClades` takes (about 0.1 s per 100,000 tips). The
+// The input is integer codes by node, so nothing per tip is kept besides the entries `setClades` takes (about 55 ms per 100,000 tips, measured). The
 // most frequent values get the palette's colours in turn; the rest share one 'Other' colour (the theme's `muted`), so a column with hundreds
 // of values stays readable and never needs more than `palette.length + 1` colour classes. Tips without a value are not coloured.
+// The codes are by node id: after a tree edit (`setTree`), make the codes again from the new tree and call colourBy again.
 
 import type { CladeColour, CustomColumn, ColumnRenderer, TreeTheme } from './types.ts';
 import type { LegendItem } from './controls/legend.ts';
@@ -45,6 +46,8 @@ export interface ColourBy {
   coloured: number;
 }
 
+const tips = (n: number) => `${n.toLocaleString('en')} ${n === 1 ? 'tip' : 'tips'}`;
+
 export function colourBy(
   tree: ColourByTree,
   by: ColourByCategories,
@@ -57,11 +60,11 @@ export function colourBy(
   const items: LegendItem[] = [];
   let otherTips = 0;
   by.values.forEach((value, i) => {
-    if (i < palette.length) items.push({ colour: colours[i], label: value, detail: `${by.counts[i]} tips` });
+    if (i < palette.length) items.push({ colour: colours[i], label: value, detail: tips(by.counts[i]) });
     else otherTips += by.counts[i];
   });
   if (otherTips)
-    items.push({ colour: colours[palette.length], label: 'Other', detail: `${otherTips} tips, ${by.values.length - palette.length} values` });
+    items.push({ colour: colours[palette.length], label: 'Other', detail: `${tips(otherTips)}, ${by.values.length - palette.length} values` });
 
   const clades: CladeColour[] = [];
   for (let r = 0; r < tree.tipCount; r++) {

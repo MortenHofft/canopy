@@ -74,7 +74,7 @@ cost anything until it is used:
 import { parseNewick, parseSidecar } from '@gbif-phylo/io';
 
 const tree = parseNewick(newickText); // or parseNexus(text).tree
-const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID; only row positions are indexed
+const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID or a quoted field is not closed; only row positions are indexed
 const b = sidecar.bind(tree); // match rows to nodes: an Int32Array by node (b.rowOf) and a report
 
 b.report.unmatchedIds; // rows that named no tip and no internal node
@@ -86,15 +86,15 @@ b.record(node); // all its non-empty cells by column, for a popup
 const cat = b.categories('country'); // one column as integer codes by node, most frequent value first: for colouring
 ```
 
-- **Memory.** The sidecar keeps the text it was given (a cell is a slice of it) and 4 bytes per row; a binding is 4 bytes per node, a
+- **Memory.** The sidecar keeps the text it was given (a cell is a slice of it) and 8 bytes per row (where each row starts and ends; a temporary list of twice that many numbers is built while reading); a binding is 4 bytes per node, a
   `categories` result 4 bytes per node. Nothing is stored per cell, and nothing is written into `tree.annotations`.
-- **Time.** On a laptop-class machine, 100,000 rows with a 1 kB sequence each (103 MB of text) parse in about 30 ms, bind in 90 ms and give
+- **Time.** On a laptop-class machine, 100,000 rows with a 1 kB sequence each (103 MB of text) parse in about 30 ms (about 0.4 s when the text holds a `"` anywhere, as the scan then follows quotes character by character), bind in 90 ms and give
   a column of categories in 35 ms; a cell or a row is read in microseconds. 1,000,000 rows bind in about 1.3 s, most of it the tree's own
   label index. A text is one JavaScript string, so about 500 MB at most.
 - **Edits of the tree.** Node numbers change when tree-ops edits a tree. Call `bind` again on the result (matching is by label, so nothing is
   lost); a binding is for the tree it was made from.
 
-A label several tips carry gives the row to every one of them. Nothing is dropped silently: show the report, so a mismatch between the
+A label several tips carry gives the row to every one of them. When an ID names both a tip and an internal node, the tip gets the row; of several internal nodes with one name, the first does. A row with an empty ID matches nothing and is listed in `unmatchedIds`. A quote opens a quoted field only at its start (`12" screen` is text). `categories` leaves out values that no tip has (a sidecar for a larger tree). Nothing is dropped silently: show the report, so a mismatch between the
 two files (a renamed tip, a different spelling) is seen. `@gbif-phylo/viewer`'s `colourBy(tree, cat, theme)` turns `categories` into tip
 colours, a legend and a swatch column.
 

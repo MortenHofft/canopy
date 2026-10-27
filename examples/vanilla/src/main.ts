@@ -194,6 +194,7 @@ viewer.addControl(
 // colour by a sidecar column: tip colours (setClades), a swatch column and a legend of the values; 'none' puts everything back.
 // The legend is not the viewer's control: `by.items` is plain data, drawn here as a list in the page's side panel and styled by the page
 const legendSlot = document.getElementById('legend-slot')!;
+let colouredByColumn = false; // the viewer's clade legend would list one entry per tip
 function showLegend(title: string, items: LegendItem[]): void {
   legendSlot.hidden = items.length === 0;
   legendSlot.querySelector('h2')!.textContent = title;
@@ -210,6 +211,7 @@ function showLegend(title: string, items: LegendItem[]): void {
 }
 document.getElementById('colour-by')!.addEventListener('change', (ev) => {
   const key = (ev.target as HTMLSelectElement).value;
+  colouredByColumn = key !== '';
   if (!key) {
     showLegend('', []);
     viewer.setClades([]);
@@ -229,8 +231,9 @@ document.getElementById('colour-by')!.addEventListener('change', (ev) => {
 document.getElementById('show-controls')!.addEventListener('change', (ev) => {
   const on = (ev.target as HTMLInputElement).checked;
   for (const c of cornerControls) {
-    if (on) viewer.addControl(c);
-    else viewer.removeControl(c);
+    if (on) {
+      if (!(colouredByColumn && c === cladeLegend)) viewer.addControl(c);
+    } else viewer.removeControl(c);
   }
 });
 document.getElementById('dark')!.addEventListener('change', (ev) => {

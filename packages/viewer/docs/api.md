@@ -250,7 +250,7 @@ its own module: importing it does not bring the control classes.
 ```ts
 import { legendItems } from '@gbif-phylo/viewer';
 const draw = () => myLegend.render(legendItems(viewer)); // any renderer: DOM, React state, a canvas
-for (const type of ['cladeschange', 'treechange', 'sourcechange'] as const) viewer.on(type, draw);
+for (const type of ['cladeschange', 'treechange', 'sourcechange', 'optionschange'] as const) viewer.on(type, draw); // optionschange: formatLabel, cladeLabel
 draw();
 // in the click handler of an entry: viewer.zoomToNode(item.node, true)
 ```
@@ -330,7 +330,7 @@ The most frequent values take the palette's colours in turn (default the theme's
 more); the rest share `other` (default the theme's `muted`) and the legend ends with an "Other" entry that counts them. Tips without a value
 are not coloured and have no swatch. The cost is `setClades`' own: about 55 ms for 100,000 tips and 0.4 s for 500,000 (measured with one
 entry per tip), once per change of the column; drawing is unchanged, a colour class per row. A clade collapsed or summarised by the level
-of detail shows its summary colour, not its tips'. To show a tip's other values, read them on demand from the binding (`binding.get`,
+of detail shows its summary colour, not its tips'. The result belongs to the tree its codes were made for (node ids): after `setTree` or a tree-ops edit, bind the sidecar to the new tree and call `colourBy` again, on `treechange`; the swatch column reads the codes by the node ids of the tree it is drawn for and would show the old colours on the wrong rows. To show a tip's other values, read them on demand from the binding (`binding.get`,
 `binding.record`) in a popup. See [`examples/vanilla`](../../../examples/vanilla/src/main.ts).
 
 ## Theme or option

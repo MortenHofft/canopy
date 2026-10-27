@@ -100,3 +100,45 @@ test('long cells stay cheap: 20,000 rows of 2 kB parse and bind well under a sec
   assert.deepEqual(cat.values, ['DK', 'SE']);
   assert.equal(b.get(tree.tipIndex('t7'), 'seq').length, 2048);
 });
+
+test('a quote inside a bare field is text and does not join rows (inches, a stray quote)', () => {
+  const sc = parseSidecar('ID,size\nA,12" screen\nB,5\nC,7\nD,9\n');
+  assert.equal(sc.rowCount, 4);
+  assert.equal(sc.cell(0, 1), '12" screen');
+  assert.equal(sc.cell(3, 1), '9');
+});
+
+test('an unterminated quote at the start of a field throws when the table is read', () => {
+  assert.throws(() => parseSidecar('ID,x\nA,"oops\nB,1\n'), /unterminated quote/);
+});
+
+test('rows without the delimiter are not quadratic', () => {
+  const N = 100000;
+  const sc = parseSidecar('ID\tcountry\n' + Array.from({ length: N }, (_, i) => `s${i}`).join('\n'));
+  const tree = parseNewick('(' + Array.from({ length: N }, (_, i) => `s${i}`).join(',') + ');');
+  const start = performance.now();
+  const b = sc.bind(tree);
+  b.categories('country');
+  assert.ok(performance.now() - start < 1500, `took ${performance.now() - start} ms`);
+  assert.equal(b.report.matchedRows, N);
+});
+
+test('categories leaves out values no tip has; an empty ID matches nothing', () => {
+  const tree = parseNewick('(A,B,C,D);');
+  const cat = parseSidecar('ID,c\nA,KE\nZ,US\nY,FR\n').bind(tree).categories('c');
+  assert.deepEqual(cat.values, ['KE']);
+  assert.deepEqual(cat.counts, [1]);
+  assert.deepEqual([...cat.codes], [-1, 0, -1, -1, -1]);
+  const un = parseNewick('((A,),(,D));');
+  const b = parseSidecar('ID,x\n,zz\n').bind(un);
+  assert.equal(b.report.matchedRows, 0);
+  assert.deepEqual(b.report.unmatchedIds, ['']);
+});
+
+test('cells: a long accession stays text, NaN and Infinity are text, duplicate column names read the first', () => {
+  const tree = parseNewick('(A,B);');
+  const b = parseSidecar('ID,x,x\nA,12345678901234567890,2\nB,NaN,Infinity\n').bind(tree);
+  assert.equal(b.get(tree.tipIndex('A'), 'x'), '12345678901234567890');
+  assert.equal(b.get(tree.tipIndex('B'), 'x'), 'NaN');
+  assert.equal(b.record(tree.tipIndex('A')).x, '12345678901234567890'); // the first column of that name, as get
+});

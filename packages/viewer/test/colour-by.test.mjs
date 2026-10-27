@@ -26,7 +26,7 @@ test('most frequent values take the palette in order, the rest share Other', () 
     ['DK', 'KE', 'Other'],
   );
   assert.equal(r.items[0].detail, '2 tips');
-  assert.equal(r.items[2].detail, '1 tips, 1 values');
+  assert.equal(r.items[2].detail, '1 tip, 1 values');
 });
 
 test('swatch column: prepare gives a class per rank, -1 where there is no value', () => {
