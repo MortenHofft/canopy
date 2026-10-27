@@ -1,0 +1,774 @@
+{
+ "id": "E4",
+ "title": "Sequences: row group size of the sequence file, and how well they compress (1M tips, 500 bases)",
+ "rows": [
+  {
+   "name": "seq-rg 64",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "seqRg": 64
+    }
+   },
+   "result": {
+    "dataset": "seq-rg_64",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 64,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 86205809,
+      "footer": 1640290,
+      "row_groups": 15625
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 254.30000000004657,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 267.39999999990687,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 127.60000000009313,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 193.60000000009313,
+       "requests": 6,
+       "bytes": 1901687
+      },
+      "inspect2": {
+       "ms": 42.700000000186265,
+       "requests": 4,
+       "bytes": 180819
+      },
+      "end": {
+       "heapMB": 41.865079,
+       "frameMs": 12.599999999860302,
+       "requests": 77,
+       "bytes": 3026811
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 607.2000000001863,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 9775.699999999953,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 683.3000000000466,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 2120.5,
+       "requests": 6,
+       "bytes": 1901687
+      },
+      "inspect2": {
+       "ms": 470.89999999990687,
+       "requests": 4,
+       "bytes": 180819
+      },
+      "end": {
+       "heapMB": 40.989291,
+       "frameMs": 13.100000000093132,
+       "requests": 77,
+       "bytes": 3026811
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "seq-rg 256",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "seqRg": 256
+    }
+   },
+   "result": {
+    "dataset": "seq-rg_256",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 256,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 84800784,
+      "footer": 418008,
+      "row_groups": 3907
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 282.30000000004657,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 250.10000000009313,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 116.30000000004657,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 84.89999999990687,
+       "requests": 6,
+       "bytes": 694971
+      },
+      "inspect2": {
+       "ms": 28.5999999998603,
+       "requests": 4,
+       "bytes": 196961
+      },
+      "end": {
+       "heapMB": 40.040423,
+       "frameMs": 12.599999999860302,
+       "requests": 77,
+       "bytes": 1836237
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 614.5999999998603,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 9767.899999999907,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 704.6999999999534,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 884.8000000000466,
+       "requests": 6,
+       "bytes": 694971
+      },
+      "inspect2": {
+       "ms": 481.60000000009313,
+       "requests": 4,
+       "bytes": 196961
+      },
+      "end": {
+       "heapMB": 41.941515,
+       "frameMs": 9.5,
+       "requests": 77,
+       "bytes": 1836237
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "seq-rg 1024",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "seqRg": 1024
+    }
+   },
+   "result": {
+    "dataset": "seq-rg_1024",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 1024,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 86073965,
+      "footer": 104572,
+      "row_groups": 977
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 306,
+       "requests": 2,
+       "bytes": 66781
+      },
+      "colour": {
+       "ms": 274.30000000004657,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 145.80000000004657,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 56.60000000009313,
+       "requests": 6,
+       "bytes": 446758
+      },
+      "inspect2": {
+       "ms": 35.300000000046566,
+       "requests": 4,
+       "bytes": 264623
+      },
+      "end": {
+       "heapMB": 40.963608,
+       "frameMs": 10.800000000046566,
+       "requests": 77,
+       "bytes": 1655687
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 571.5,
+       "requests": 2,
+       "bytes": 66781
+      },
+      "colour": {
+       "ms": 9757.40000000014,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 697.3000000000466,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 765.6999999999534,
+       "requests": 6,
+       "bytes": 446758
+      },
+      "inspect2": {
+       "ms": 535,
+       "requests": 4,
+       "bytes": 264623
+      },
+      "end": {
+       "heapMB": 40.841058,
+       "frameMs": 12.5,
+       "requests": 77,
+       "bytes": 1655687
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "seq-rg 4096",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.5,
+     "seqRg": 4096
+    }
+   },
+   "result": {
+    "dataset": "seq-rg_4096",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.5,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 4096,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 87273599,
+      "footer": 28464,
+      "row_groups": 245
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 276.4000000001397,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 193.39999999990687,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 101.4000000001397,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 74,
+       "requests": 6,
+       "bytes": 642425
+      },
+      "inspect2": {
+       "ms": 49.5999999998603,
+       "requests": 4,
+       "bytes": 538475
+      },
+      "end": {
+       "heapMB": 44.904939,
+       "frameMs": 11,
+       "requests": 77,
+       "bytes": 2125205
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 559.1000000000931,
+       "requests": 2,
+       "bytes": 66780
+      },
+      "colour": {
+       "ms": 9767.399999999907,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 669,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 848,
+       "requests": 6,
+       "bytes": 642425
+      },
+      "inspect2": {
+       "ms": 662.1999999997206,
+       "requests": 4,
+       "bytes": 538475
+      },
+      "end": {
+       "heapMB": 45.453506,
+       "frameMs": 11.299999999813735,
+       "requests": 77,
+       "bytes": 2125205
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "rate 0.05 seq-rg 512",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 0.05,
+     "seqRg": 512
+    }
+   },
+   "result": {
+    "dataset": "rate_0_05_seq-rg_512",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 0.05,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 14246900,
+      "footer": 204935,
+      "row_groups": 1954
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 335.39999999990687,
+       "requests": 2,
+       "bytes": 66781
+      },
+      "colour": {
+       "ms": 262.29999999981374,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 120.5,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 61.799999999813735,
+       "requests": 6,
+       "bytes": 467786
+      },
+      "inspect2": {
+       "ms": 25.899999999906868,
+       "requests": 4,
+       "bytes": 182435
+      },
+      "end": {
+       "heapMB": 38.610247,
+       "frameMs": 13.800000000279397,
+       "requests": 77,
+       "bytes": 1594527
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 555.5,
+       "requests": 2,
+       "bytes": 66781
+      },
+      "colour": {
+       "ms": 9759.600000000093,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 725.3000000002794,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 764.7999999998137,
+       "requests": 6,
+       "bytes": 467786
+      },
+      "inspect2": {
+       "ms": 474.09999999962747,
+       "requests": 4,
+       "bytes": 182435
+      },
+      "end": {
+       "heapMB": 40.646936,
+       "frameMs": 12.399999999906868,
+       "requests": 77,
+       "bytes": 1594527
+      },
+      "errors": []
+     }
+    }
+   }
+  },
+  {
+   "name": "rate 2 seq-rg 512",
+   "params": {
+    "gen": {
+     "tips": 1000000,
+     "seqLength": 500,
+     "seqRate": 2,
+     "seqRg": 512
+    }
+   },
+   "result": {
+    "dataset": "rate_2_seq-rg_512",
+    "tips": 1000000,
+    "nodes": 1999999,
+    "generator": {
+     "seed": 1,
+     "categories": 2,
+     "cardinality": 40,
+     "keep": 0.9,
+     "numeric": 2,
+     "seq_length": 500,
+     "seq_rate": 2,
+     "rg": 16384,
+     "tip_rg": 16384,
+     "seq_rg": 512,
+     "cat_encoding": "code",
+     "sidecar_files": "single",
+     "first_budget": 2048
+    },
+    "files": {
+     "nodes.parquet": {
+      "bytes": 26971561,
+      "footer": 76716,
+      "row_groups": 123
+     },
+     "tips.parquet": {
+      "bytes": 9697114,
+      "footer": 82495,
+      "row_groups": 489
+     },
+     "overview.parquet": {
+      "bytes": 3129808,
+      "footer": 3517,
+      "row_groups": 4
+     },
+     "sidecar.parquet": {
+      "bytes": 5060944,
+      "footer": 16966,
+      "row_groups": 62
+     },
+     "sequence.parquet": {
+      "bytes": 149890790,
+      "footer": 209513,
+      "row_groups": 1954
+     }
+    },
+    "profiles": {
+     "none": {
+      "first": {
+       "ms": 271,
+       "requests": 2,
+       "bytes": 66779
+      },
+      "colour": {
+       "ms": 255.60000000009313,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 119.8000000002794,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 61.39999999990687,
+       "requests": 6,
+       "bytes": 542170
+      },
+      "inspect2": {
+       "ms": 23.699999999720603,
+       "requests": 4,
+       "bytes": 251685
+      },
+      "end": {
+       "heapMB": 40.865275,
+       "frameMs": 12.300000000279397,
+       "requests": 77,
+       "bytes": 1738159
+      },
+      "errors": []
+     },
+     "4g": {
+      "first": {
+       "ms": 584.8000000002794,
+       "requests": 2,
+       "bytes": 66779
+      },
+      "colour": {
+       "ms": 9760.80000000028,
+       "requests": 63,
+       "bytes": 578702
+      },
+      "zoom": {
+       "ms": 664.5,
+       "requests": 2,
+       "bytes": 298823
+      },
+      "inspect": {
+       "ms": 750.8000000002794,
+       "requests": 6,
+       "bytes": 542170
+      },
+      "inspect2": {
+       "ms": 521.7000000001863,
+       "requests": 4,
+       "bytes": 251685
+      },
+      "end": {
+       "heapMB": 45.344372,
+       "frameMs": 13.399999999906868,
+       "requests": 77,
+       "bytes": 1738159
+      },
+      "errors": []
+     }
+    }
+   }
+  }
+ ]
+}
