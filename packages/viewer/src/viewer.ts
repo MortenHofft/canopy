@@ -1560,7 +1560,7 @@ export class TreeViewer {
    *  tip). Ignored when there is no such tip or its row is not loaded. A tip inside a collapsed clade is not drawn: the clade is brought
    *  into view instead (nothing is expanded). */
   focusTip(tip: TipRef, animate = false): void {
-    const row = tipRow(this.tree, tip, 'focusTip');
+    const row = tipRow(this.tree, tip, 'focusTip', this.nodeLimit());
     const rank = row < 0 ? -1 : this.tree.tipRank[row];
     if (rank < 0) return; // no such tip, or the tip's row is not loaded
     let node = this.tree.tipNode[rank];
@@ -1661,7 +1661,7 @@ export class TreeViewer {
 
   /** Client-px box of a column cell for a tip (a label: the first tip with it; a node id), or null. */
   columnCell(colId: string, tip: TipRef): { x: number; y: number; width: number; height: number } | null {
-    const row = tipRow(this.tree, tip);
+    const row = tipRow(this.tree, tip, undefined, this.nodeLimit());
     const rank = row < 0 ? -1 : this.tree.tipRank[row];
     if (rank < 0) return null;
     this.renderNow();
