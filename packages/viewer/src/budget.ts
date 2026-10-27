@@ -53,6 +53,8 @@ export const MIN_THRESHOLD_PX = 1;
 export const AUTO_MIN_CLADE_PX = 3;
 /** Radial, `'auto'`: no summary wedge wider than this many degrees (arc at the outermost ring), unless frames are over the target. */
 export const MAX_WEDGE_DEG = 4;
+/** Rectangular with `drawBudget: 'auto'`: no folded block taller than this many CSS px, unless frames are over the target. */
+export const MAX_BLOCK_PX = 20;
 /** After a step that changed the budget, this many frames may be drawn to settle on a value, without any input. */
 export const CHAIN_FRAMES = 16;
 /** Pause (ms) before each of those frames, so the browser is idle between them and a hover or gesture is not made to wait. */

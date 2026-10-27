@@ -543,7 +543,7 @@ export interface FrameStats {
   truncated: boolean; // even the highest threshold overflowed (list was cut)
   frames: number; // total frames rendered so far
   budget: number; // primitive budget in force for this frame (radial: the cut-off; reduced while interacting). With 'auto' the adaptive value; a radial list may exceed it (`drawn` > `budget`) where the 4 degree wedge limit holds
-  minPxLimit: number; // radial with radialMaxNodes 'auto': the threshold (px) the budget may not raise `minPxUsed` above, the arc of 4 degrees at the outermost ring; Infinity when no limit is in force (a number budget, rectangular, a reduced frame, or frames over the target)
+  minPxLimit: number; // with an adaptive budget: the threshold (px) the budget may not raise `minPxUsed` above; radial (radialMaxNodes 'auto'), the arc of 4 degrees at the outermost ring; rectangular (drawBudget 'auto'), 20 px; Infinity when no limit is in force (a number budget, a reduced frame, or frames over the target)
   forced: number; // summary fans that the normal threshold would have expanded (clades summarised because of the budget)
   summaryTips: number; // tips inside the drawn summaries
   mergedTips: number; // tips of primitives not emitted because they land on the same pixel cells as an earlier one

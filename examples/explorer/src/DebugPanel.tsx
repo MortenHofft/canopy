@@ -151,7 +151,7 @@ function rowsOf(p: Sample, tree: TreeName, collapsed: number): [string, React.Re
     ],
     [
       'minPx',
-      `${n(s.minPxUsed)} used / minCladePx ${o.minCladePx === 'auto' ? `auto (${n(s.minPxBase)})` : n(o.minCladePx)}${Number.isFinite(s.minPxLimit) ? ` · limit ${n(s.minPxLimit)} (4° wedge)${s.minPxUsed > s.minPxLimit ? ', passed: the budget wins' : ''}` : ''}`,
+      `${n(s.minPxUsed)} used / minCladePx ${o.minCladePx === 'auto' ? `auto (${n(s.minPxBase)})` : n(o.minCladePx)}${Number.isFinite(s.minPxLimit) ? ` · limit ${n(s.minPxLimit)} (${o.layout === 'radial' ? '4° wedge' : '20 px block'})${s.minPxUsed > s.minPxLimit ? ', passed: the budget wins' : ''}` : ''}`,
     ],
     ['budget', `${int(s.budget)} / ${budgetOpt} · ${s.budgetHit ? 'hit' : 'not hit'} · retries ${s.budgetRetries} · forced ${int(s.forced)}`],
     ['lod', `lod ${o.lod} · interactionLOD ${String(o.interactionLOD)} · showSummaries ${o.showSummaries}`],
