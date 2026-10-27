@@ -418,13 +418,27 @@ export function toNexus(t: TreeModel, o: NexusWriteOptions = {}): string {
   return out.join('\n');
 }
 
+/** Something in a NEXUS file that was not read, or is not connected to the tree that was returned. Not a problem with the
+ *  tree, so it is not in `tree.warnings` and strict mode does not throw for it. */
+export interface NexusNote extends ParserWarning {
+  /** Lower-case name of the block it concerns ('' for the file as a whole). */
+  block: string;
+}
+
 export interface NexusResult {
   tree: TreeModel;
   treeName: string;
   /** Number of trees seen up to and including the requested one (the file may hold more). */
   treesSeen: number;
+  /** Trees in the whole file. */
+  treeCount: number;
   /** Entries in the TRANSLATE table (0 if none). */
   translateEntries: number;
+  /** What the parser skipped or could not connect to the tree (empty for a file that holds nothing but the trees and
+   *  the taxa they use). Codes: nexus-ignored-block, nexus-block-unreadable, nexus-scan-stopped, nexus-other-trees,
+   *  nexus-taxa-unused, nexus-taxa-ambiguous, nexus-taxa-link-unresolved, nexus-taxa-mismatch, nexus-numeric-tips,
+   *  nexus-sequences-ignored, nexus-sequences-unlinked. */
+  ignored: NexusNote[];
 }
 
 /** Next ';'-terminated statement starting at p, respecting 'quotes' and [comments]; end = position after ';'. */
@@ -500,7 +514,53 @@ function nexusTokens(s: string): string[] {
   return out;
 }
 
-/** Read tree number `treeIndex` (0-based) from a NEXUS document, applying its TRANSLATE table. */
+interface NexusBlock {
+  name: string;
+  at: number;
+  /** Statements in it other than BEGIN and END. */
+  statements: number;
+  title: string;
+  /** The title of the TAXA block named by `LINK TAXA=`, '' if none. */
+  link: string;
+  /** TAXLABELS of a TAXA block. */
+  labels: string[];
+  ntax: number;
+  nchar: number;
+  /** Distinct first words of the MATRIX lines of a CHARACTERS or DATA block. */
+  rows: Set<string>;
+  unreadable: boolean;
+}
+
+/** The first word of a line, 'quoted' words unquoted. */
+function firstWord(line: string): string {
+  if (line.charCodeAt(0) !== 39) {
+    let e = 0;
+    while (e < line.length && !isWs(line.charCodeAt(e))) e++;
+    return line.slice(0, e);
+  }
+  let t = '';
+  let p = 1;
+  for (;;) {
+    const e = line.indexOf("'", p);
+    if (e < 0) return t + line.slice(p);
+    t += line.slice(p, e);
+    if (line.charCodeAt(e + 1) === 39) {
+      t += "'";
+      p = e + 2;
+    } else return t;
+  }
+}
+
+/** `TITLE x` / `LINK TAXA = x` values: one word, or a 'quoted' one. */
+const linkValue = (head: string, key: RegExp): string => {
+  const m = key.exec(head);
+  return m ? firstWord(m[1].trim()).toLowerCase() : '';
+};
+
+const sample = (xs: string[]): string => xs.slice(0, 3).join(', ') + (xs.length > 3 ? `, … (${xs.length} in all)` : '');
+
+/** Read tree number `treeIndex` (0-based) from a NEXUS document, applying its TRANSLATE table. The rest of the file is
+ *  scanned too, and what is not read or not connected to the tree is listed in `ignored`. */
 export function parseNexus(text: string, treeIndex?: number, o?: ParseOptions): NexusResult;
 export function parseNexus(text: string, o: ParseOptions & { treeIndex?: number }): NexusResult;
 export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex?: number }) = 0, b: ParseOptions = {}): NexusResult {
@@ -515,49 +575,201 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
     : { code: 'missing-nexus-header', message: 'NEXUS file does not start with #NEXUS', position: 0 };
   if (headerWarn && strict) throw new NewickError(`[${headerWarn.code}] ${headerWarn.message}`, headerWarn.position);
   let p = 0;
-  let block = '';
+  let cur: NexusBlock | null = null;
+  const blocks: NexusBlock[] = [];
+  const notes: NexusNote[] = [];
+  const note = (code: string, block: string, message: string, position: number): void => {
+    notes.push({ code, block, message, position });
+  };
   const translate = new Map<string, string>();
-  let seen = 0;
-  for (;;) {
-    const st = nexusStatement(text, p, opts.annotations === true);
-    if (!st) break;
-    p = st.end;
-    const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');
-    const m = /^\s*(\*?\s*\w+)/.exec(head);
-    if (!m) continue;
-    const kw = m[1].replace(/[\s*]/g, '').toLowerCase();
-    if (kw === 'begin') {
-      block = (/^\s*begin\s+(\w+)/i.exec(head)?.[1] ?? '').toLowerCase();
-    } else if (kw === 'end' || kw === 'endblock') {
-      block = '';
-    } else if (block === 'trees' && kw === 'translate') {
-      const toks = nexusTokens(head.replace(/^\s*translate\b/i, ''));
-      for (let i = 0; i + 1 < toks.length; i += 3) translate.set(toks[i], toks[i + 1]);
-    } else if (block === 'trees' && (kw === 'tree' || kw === 'utree')) {
-      if (seen++ < treeIndex) continue;
-      // body: name = [comment] newick, with comments still in place (parseNewick skips them)
-      // '=' inside a quoted tree name is not expected; first '=' outside [] is the separator
-      let b = 0;
-      let eq = -1;
-      for (let i = 0; i < st.stmt.length; i++) {
-        const c = st.stmt.charCodeAt(i);
-        if (c === 91) b++;
-        else if (c === 93) b--;
-        else if (c === 61 && b === 0) {
-          eq = i;
-          break;
-        }
+  let total = 0;
+  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null } | null = null;
+  const tokens = (s: string): string[] => {
+    try {
+      return nexusTokens(s);
+    } catch {
+      if (cur) cur.unreadable = true;
+      return [];
+    }
+  };
+  try {
+    for (;;) {
+      const from = p;
+      const st = nexusStatement(text, p, opts.annotations === true);
+      if (!st) break;
+      p = st.end;
+      const head = stripComments(st.stmt).replace(/^\s*#nexus\b/i, '');
+      const m = /^\s*(\*?\s*\w+)/.exec(head);
+      if (!m) continue;
+      const at = from + (st.stmt.length - st.stmt.trimStart().length);
+      const kw = m[1].replace(/[\s*]/g, '').toLowerCase();
+      if (kw === 'begin') {
+        cur = {
+          name: (/^\s*begin\s+(\w+)/i.exec(head)?.[1] ?? '').toLowerCase(),
+          at,
+          statements: 0,
+          title: '',
+          link: '',
+          labels: [],
+          ntax: -1,
+          nchar: -1,
+          rows: new Set(),
+          unreadable: false,
+        };
+        blocks.push(cur);
+        continue;
       }
-      if (eq < 0) throw new NewickError('TREE statement without "="', p);
-      const name = stripComments(st.stmt.slice(0, eq))
-        .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
-        .trim()
-        .replace(/^'(.*)'$/s, '$1');
-      const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
-      if (translate.size) tree.relabelTips((l) => translate.get(l));
-      if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
-      return { tree, treeName: name, treesSeen: seen, translateEntries: translate.size };
+      if (kw === 'end' || kw === 'endblock') {
+        cur = null;
+        continue;
+      }
+      if (!cur) continue;
+      cur.statements++;
+      const block = cur.name;
+      if (kw === 'title') cur.title = linkValue(head, /^\s*title\s+(.*)$/is);
+      else if (kw === 'link') cur.link = linkValue(head, /\btaxa\s*=\s*(.*)$/is);
+      else if (kw === 'dimensions') {
+        cur.ntax = Number(/\bntax\s*=\s*(\d+)/i.exec(head)?.[1] ?? -1);
+        cur.nchar = Number(/\bnchar\s*=\s*(\d+)/i.exec(head)?.[1] ?? -1);
+      } else if (block === 'taxa' && kw === 'taxlabels') {
+        cur.labels = tokens(head.replace(/^\s*taxlabels\b/i, '')).filter((t) => t !== ',');
+      } else if ((block === 'characters' || block === 'data') && kw === 'matrix') {
+        for (const line of head.replace(/^\s*matrix\b/i, '').split('\n')) {
+          const l = line.trim();
+          if (l) cur.rows.add(firstWord(l));
+        }
+      } else if (block === 'trees' && kw === 'translate') {
+        const toks = tokens(head.replace(/^\s*translate\b/i, ''));
+        for (let i = 0; i + 1 < toks.length; i += 3) translate.set(toks[i], toks[i + 1]);
+      } else if (block === 'trees' && (kw === 'tree' || kw === 'utree')) {
+        if (total++ !== treeIndex) continue;
+        // body: name = [comment] newick, with comments still in place (parseNewick skips them)
+        // '=' inside a quoted tree name is not expected; first '=' outside [] is the separator
+        let b = 0;
+        let eq = -1;
+        for (let i = 0; i < st.stmt.length; i++) {
+          const c = st.stmt.charCodeAt(i);
+          if (c === 91) b++;
+          else if (c === 93) b--;
+          else if (c === 61 && b === 0) {
+            eq = i;
+            break;
+          }
+        }
+        if (eq < 0) throw new NewickError('TREE statement without "="', p);
+        const name = stripComments(st.stmt.slice(0, eq))
+          .replace(/^\s*\*?\s*u?tree\s+\*?\s*/i, '')
+          .trim()
+          .replace(/^'(.*)'$/s, '$1');
+        const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
+        if (translate.size) tree.relabelTips((l) => translate.get(l));
+        if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
+        found = { tree, name, seen: total, block: cur };
+      }
+    }
+  } catch (e) {
+    // Past the requested tree the file is only being looked through: a stray quote in a block we do not read
+    // must not fail a parse that used to succeed.
+    if (!found || !(e instanceof NewickError)) throw e;
+    note('nexus-scan-stopped', '', `The rest of the file was not looked through: ${e.message}`, p);
+  }
+  if (!found) throw new NewickError(`no tree number ${treeIndex} in NEXUS (saw ${total})`, text.length);
+  const { tree } = found;
+
+  for (const bl of blocks) {
+    if (bl.unreadable)
+      note('nexus-block-unreadable', bl.name, `Part of the ${bl.name.toUpperCase()} block could not be read (unterminated quote)`, bl.at);
+    if (!['taxa', 'trees', 'characters', 'data'].includes(bl.name)) {
+      note('nexus-ignored-block', bl.name, `The ${bl.name.toUpperCase()} block (${bl.statements} statements) is not read`, bl.at);
     }
   }
-  throw new NewickError(`no tree number ${treeIndex} in NEXUS (saw ${seen})`, text.length);
+  if (total > 1)
+    note(
+      'nexus-other-trees',
+      'trees',
+      `The file holds ${total} trees; only tree ${treeIndex + 1} (${found.name || 'unnamed'}) was read`,
+      found.block?.at ?? 0,
+    );
+
+  const tips = new Set<string>();
+  for (let r = 0; r < tree.tipCount; r++) tips.add(tree.labels[tree.tipNode[r]]);
+
+  // Which TAXA block the tree's block refers to: the one named by LINK, else the last one before it.
+  const taxaBlocks = blocks.filter((bl) => bl.name === 'taxa');
+  const tb = found.block;
+  let used: NexusBlock | null = null;
+  if (tb && taxaBlocks.length) {
+    if (tb.link) {
+      used = taxaBlocks.find((x) => x.title === tb.link) ?? null;
+      if (!used) note('nexus-taxa-link-unresolved', 'trees', `The TREES block links to TAXA "${tb.link}", but no TAXA block has that TITLE`, tb.at);
+    } else {
+      const before = taxaBlocks.filter((x) => x.at < tb.at);
+      used = before.length ? before[before.length - 1] : null;
+      if (taxaBlocks.length > 1) {
+        note(
+          'nexus-taxa-ambiguous',
+          'trees',
+          `The file has ${taxaBlocks.length} TAXA blocks and the TREES block has no LINK; ${used ? 'the last one before it was assumed' : 'none comes before it, so none was used'}`,
+          tb.at,
+        );
+      }
+    }
+  }
+  for (const x of taxaBlocks) {
+    if (x !== used)
+      note(
+        'nexus-taxa-unused',
+        'taxa',
+        `The TAXA block${x.title ? ` "${x.title}"` : ''} (${x.labels.length} taxa) is not connected to the tree that was read`,
+        x.at,
+      );
+  }
+  if (used) {
+    const names = new Set(used.labels);
+    const noTaxon = [...tips].filter((l) => !names.has(l));
+    const noTip = used.labels.filter((l) => !tips.has(l));
+    if (!translate.size && tips.size && [...tips].every((l) => /^[1-9]\d*$/.test(l)) && noTaxon.length === tips.size) {
+      note(
+        'nexus-numeric-tips',
+        'trees',
+        'The tips are numbers and there is no TRANSLATE table; they may be positions in the TAXA block, but are kept as numbers',
+        tb?.at ?? 0,
+      );
+    } else if (noTaxon.length || noTip.length) {
+      note(
+        'nexus-taxa-mismatch',
+        'taxa',
+        `The tree has ${noTaxon.length} tips that are not in the TAXA block (${sample(noTaxon)}), and the TAXA block has ${noTip.length} taxa with no tip (${sample(noTip)})`,
+        used.at,
+      );
+    }
+  }
+
+  for (const bl of blocks) {
+    if (bl.name !== 'characters' && bl.name !== 'data') continue;
+    const what = `The ${bl.name.toUpperCase()} block (${bl.rows.size} sequences${bl.nchar >= 0 ? `, ${bl.nchar} characters` : ''}) is not read`;
+    if (bl.ntax >= 0 && bl.rows.size > bl.ntax) {
+      note(
+        'nexus-sequences-unlinked',
+        bl.name,
+        `${what}; its rows could not be told apart from wrapped lines, so they were not compared with the tips`,
+        bl.at,
+      );
+      continue;
+    }
+    const noTip = [...bl.rows].filter((l) => !tips.has(l));
+    const noRow = [...tips].filter((l) => !bl.rows.has(l));
+    if (noTip.length || noRow.length) {
+      note(
+        'nexus-sequences-unlinked',
+        bl.name,
+        `${what}; ${bl.rows.size - noTip.length} rows match a tip by exact label, ${noTip.length} rows match none (${sample(noTip)}), ${noRow.length} tips have no row (${sample(noRow)})`,
+        bl.at,
+      );
+    } else {
+      note('nexus-sequences-ignored', bl.name, `${what}; every row matches a tip by exact label`, bl.at);
+    }
+  }
+  notes.sort((x, y) => x.position - y.position);
+  return { tree, treeName: found.name, treesSeen: found.seen, treeCount: total, translateEntries: translate.size, ignored: notes };
 }
