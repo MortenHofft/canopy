@@ -120,3 +120,13 @@ test('a stray quote in a block after the tree stops the scan but keeps the tree'
 test('strict mode does not throw for ignored parts', () => {
   assert.doesNotThrow(() => parseNexus('#NEXUS\n' + TAXA() + TREES() + 'BEGIN SETS; END;', { strict: true }));
 });
+
+test('line endings: CRLF and old Mac CR-only files read their sequence rows the same way', () => {
+  const nex = '#NEXUS\n' + TAXA() + DATA('A ACGT\n B ACGT\n C ACGT') + TREES();
+  for (const eol of ['\r\n', '\r']) {
+    assert.deepEqual(
+      parseNexus(nex.replace(/\n/g, eol)).ignored.map((n) => n.code),
+      ['nexus-sequences-ignored'],
+    );
+  }
+});

@@ -634,7 +634,7 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
       } else if (block === 'taxa' && kw === 'taxlabels') {
         cur.labels = tokens(head.replace(/^\s*taxlabels\b/i, '')).filter((t) => t !== ',');
       } else if ((block === 'characters' || block === 'data') && kw === 'matrix') {
-        for (const line of head.replace(/^\s*matrix\b/i, '').split('\n')) {
+        for (const line of head.replace(/^\s*matrix\b/i, '').split(/\r\n|\r|\n/)) {
           const l = line.trim();
           if (l) cur.rows.add(firstWord(l));
         }
