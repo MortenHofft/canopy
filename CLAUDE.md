@@ -31,7 +31,7 @@ npm workspaces (Node >= 22.7):
   - [docs/internals.md](packages/viewer/docs/internals.md) covers the frame pipeline, invariants, module map, how to extend it, and the cut goldens.
 - `packages/react`: `@canopy/react`, `<TreeView>`.
 - `packages/tree-ops`: tree operations. No DOM, no rendering.
-- `packages/io`: Newick/NEXUS parsers and `TreeModel`.
+- `packages/io`: Newick, NEXUS and phyloXML parsers and `TreeModel`.
 - `examples/vanilla`: the framework-free example (controls, events, a custom popup and column, a dark theme), checked by
   `tests/browser/scripts/check-vanilla-example.mjs`.
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
