@@ -39,6 +39,26 @@ Each `ParserWarning` has `{ code, message, position }`. Codes are stable identif
 | `extra-paren-root` | `((A:1,B:1):10);` — root wraps a single unlabeled internal child |
 | `missing-nexus-header` | NEXUS file didn't start with `#NEXUS` |
 
+### What a NEXUS file holds besides the tree
+
+`parseNexus` looks through the whole file, not only up to the tree it returns, and lists what it did not read or could not connect to that tree in `result.ignored` (`{ code, message, block, position }`; empty when the file holds just the trees and the taxa they use). These are not problems with the tree, so they are not in `tree.warnings` and `strict` does not throw for them. `result.treeCount` is the number of trees in the file.
+
+| Code | Meaning |
+|---|---|
+| `nexus-ignored-block` | a block that is not TAXA, TREES, CHARACTERS or DATA (FigTree, MrBayes, SETS, NOTES, ...) is not read |
+| `nexus-block-unreadable` | part of a block could not be read (an unterminated quote) |
+| `nexus-scan-stopped` | the scan after the returned tree hit a quote or comment it could not close; the tree is fine |
+| `nexus-other-trees` | the file holds more trees than the one returned |
+| `nexus-taxa-unused` | a TAXA block that the returned tree does not use (several TAXA blocks) |
+| `nexus-taxa-ambiguous` | several TAXA blocks and the TREES block has no `LINK TAXA=`; the last one before it was assumed |
+| `nexus-taxa-link-unresolved` | `LINK TAXA=` names a title no TAXA block has |
+| `nexus-taxa-mismatch` | tips that are not in the TAXA block, and taxa with no tip (by label) |
+| `nexus-numeric-tips` | the tips are numbers, there is no TRANSLATE table, and the numbers are not taxon names; they may be positions in the TAXA block but are kept as numbers |
+| `nexus-sequences-ignored` | a CHARACTERS or DATA block is not read; every row matches a tip by label |
+| `nexus-sequences-unlinked` | the same, but some rows match no tip or some tips have no row (the message gives the counts), or the rows could not be told apart from wrapped lines |
+
+Names are compared the way NEXUS reads them: an unquoted `_` is a space, so `t2_the_name` and `'t2 the name'` are one taxon.
+
 Structurally broken input (unmatched parens, unterminated quote or comment), double-quoted labels
 (`("A","B");`), and a quote mid-token (`(A'q',B);`) always throw `NewickError` regardless of
 `strict`. `{ strict: true }` promotes every warning in the table above to a `NewickError` of

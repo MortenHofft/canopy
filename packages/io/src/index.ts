@@ -6,6 +6,7 @@ export {
   toNexus,
   quoteLabel,
   NewickError,
+  type NexusNote,
   type NexusResult,
   type NexusWriteOptions,
   type ParseOptions,
