@@ -199,20 +199,24 @@ export class TreeModel {
   // ---- tips below a node
   /** Number of descendant tips (1 for a tip). */
   tipCountOf(i: number): number {
+    this.checkNode(i);
     return this.leafEnd[i] - this.leafStart[i];
   }
   /** Contiguous tip-rank range [start, end) of the descendant tips. */
   tipRange(i: number): [number, number] {
+    this.checkNode(i);
     return [this.leafStart[i], this.leafEnd[i]];
   }
   /** Labels of the descendant tips in leaf order (a tip returns its own label). */
   descendantTips(i: number): string[] {
+    this.checkNode(i);
     return this.tipLabels.slice(this.leafStart[i], this.leafEnd[i]);
   }
   /** De-duplicated union of the descendant tips of several nodes, in leaf order. */
   tipsOf(nodes: number[]): string[] {
     const mark = new Uint8Array(this.tipCount);
     for (const i of nodes) {
+      this.checkNode(i);
       for (let r = this.leafStart[i]; r < this.leafEnd[i]; r++) mark[r] = 1;
     }
     const out: string[] = [];
@@ -221,9 +225,12 @@ export class TreeModel {
   }
   /** True if node b lies in the subtree of node a (a counts as its own subtree). */
   contains(a: number, b: number): boolean {
+    this.checkNode(a);
+    this.checkNode(b);
     return a <= b && b < this.subtreeEnd[a];
   }
   children(i: number): number[] {
+    this.checkNode(i);
     const out: number[] = [];
     for (let c = this.firstChild[i]; c >= 0; c = this.nextSibling[c]) out.push(c);
     return out;
