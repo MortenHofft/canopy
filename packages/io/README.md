@@ -41,6 +41,8 @@ Each `ParserWarning` has `{ code, message, position }`. Codes are stable identif
 
 ### What a NEXUS file holds besides the tree
 
+A tip is named, in this order, by its TRANSLATE token, by a taxon label, or by a taxon number (its 1-based position in the TAXA block the TREES block refers to), the order of the NEXUS standard and of DendroPy.
+
 `parseNexus` looks through the whole file, not only up to the tree it returns, and lists what it did not read or could not connect to that tree in `result.ignored` (`{ code, message, block, position }`; empty when the file holds just the trees and the taxa they use). These are not problems with the tree, so they are not in `tree.warnings` and `strict` does not throw for them. `result.treeCount` is the number of trees in the file.
 
 | Code | Meaning |
@@ -53,7 +55,7 @@ Each `ParserWarning` has `{ code, message, position }`. Codes are stable identif
 | `nexus-taxa-ambiguous` | several TAXA blocks and the TREES block has no `LINK TAXA=`; the last one before it was assumed |
 | `nexus-taxa-link-unresolved` | `LINK TAXA=` names a title no TAXA block has |
 | `nexus-taxa-mismatch` | tips that are not in the TAXA block, and taxa with no tip (by label) |
-| `nexus-numeric-tips` | the tips are numbers, there is no TRANSLATE table, and the numbers are not taxon names; they may be positions in the TAXA block but are kept as numbers |
+| `nexus-taxon-numbers` | some tips were taxon numbers (not a TRANSLATE token, not a taxon label) and were replaced by the label at that position in the TAXA block |
 | `nexus-sequences-ignored` | a CHARACTERS or DATA block is not read; every row matches a tip by label |
 | `nexus-sequences-unlinked` | the same, but some rows match no tip or some tips have no row (the message gives the counts), or the rows could not be told apart from wrapped lines |
 

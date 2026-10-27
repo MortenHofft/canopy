@@ -436,7 +436,7 @@ export interface NexusResult {
   translateEntries: number;
   /** What the parser skipped or could not connect to the tree (empty for a file that holds nothing but the trees and
    *  the taxa they use). Codes: nexus-ignored-block, nexus-block-unreadable, nexus-scan-stopped, nexus-other-trees,
-   *  nexus-taxa-unused, nexus-taxa-ambiguous, nexus-taxa-link-unresolved, nexus-taxa-mismatch, nexus-numeric-tips,
+   *  nexus-taxa-unused, nexus-taxa-ambiguous, nexus-taxa-link-unresolved, nexus-taxa-mismatch, nexus-taxon-numbers,
    *  nexus-sequences-ignored, nexus-sequences-unlinked. */
   ignored: NexusNote[];
 }
@@ -586,7 +586,15 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   };
   const translate = new Map<string, string>();
   let total = 0;
-  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null } | null = null;
+  let found: { tree: TreeModel; name: string; seen: number; block: NexusBlock | null; byNumber: number } | null = null;
+  /** The TAXA block a TREES block refers to: the one named by its LINK, else the last one before it. */
+  const taxaOf = (tb: NexusBlock | null): NexusBlock | null => {
+    if (!tb) return null;
+    const taxa = blocks.filter((x) => x.name === 'taxa');
+    if (tb.link) return taxa.find((x) => x.title === tb.link) ?? null;
+    const before = taxa.filter((x) => x.at < tb.at);
+    return before.length ? before[before.length - 1] : null;
+  };
   const tokens = (s: string): string[] => {
     try {
       return nexusTokens(s);
@@ -666,9 +674,24 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
           .trim()
           .replace(/^'(.*)'$/s, '$1');
         const tree = parseNewick(st.stmt.slice(eq + 1) + ';', opts);
-        if (translate.size) tree.relabelTips((l) => translate.get(l));
+        // A tip is named by its TRANSLATE token, else by a taxon label, else by a taxon number (its 1-based position in the
+        // TAXA block): the order of the NEXUS standard, and DendroPy's.
+        const labels = taxaOf(cur)?.labels ?? [];
+        const known = new Set(labels);
+        let byNumber = 0;
+        if (translate.size || labels.length) {
+          tree.relabelTips((l) => {
+            const t = translate.get(l);
+            if (t !== undefined) return t;
+            if (labels.length && !known.has(l) && /^[1-9]\d*$/.test(l) && Number(l) <= labels.length) {
+              byNumber++;
+              return labels[Number(l) - 1];
+            }
+            return undefined;
+          });
+        }
         if (headerWarn) (tree.warnings as ParserWarning[]).unshift(headerWarn);
-        found = { tree, name, seen: total, block: cur };
+        found = { tree, name, seen: total, block: cur, byNumber };
       }
     }
   } catch (e) {
@@ -706,14 +729,11 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
   // Which TAXA block the tree's block refers to: the one named by LINK, else the last one before it.
   const taxaBlocks = blocks.filter((bl) => bl.name === 'taxa');
   const tb = found.block;
-  let used: NexusBlock | null = null;
+  const used = taxaOf(tb);
   if (tb && taxaBlocks.length) {
     if (tb.link) {
-      used = taxaBlocks.find((x) => x.title === tb.link) ?? null;
       if (!used) note('nexus-taxa-link-unresolved', 'trees', `The TREES block links to TAXA "${tb.link}", but no TAXA block has that TITLE`, tb.at);
     } else {
-      const before = taxaBlocks.filter((x) => x.at < tb.at);
-      used = before.length ? before[before.length - 1] : null;
       if (taxaBlocks.length > 1) {
         note(
           'nexus-taxa-ambiguous',
@@ -737,14 +757,15 @@ export function parseNexus(text: string, a: number | (ParseOptions & { treeIndex
     const names = new Set(used.labels.map(nameKey));
     const noTaxon = [...tips].filter(([k]) => !names.has(k)).map(([, l]) => l);
     const noTip = used.labels.filter((l) => !tips.has(nameKey(l)));
-    if (!translate.size && tips.size && noTaxon.length === tips.size && noTaxon.every((l) => /^[1-9]\d*$/.test(l))) {
+    if (found.byNumber) {
       note(
-        'nexus-numeric-tips',
+        'nexus-taxon-numbers',
         'trees',
-        'The tips are numbers and there is no TRANSLATE table; they may be positions in the TAXA block, but are kept as numbers',
+        `${found.byNumber} tips were taxon numbers and were replaced by the label at that position in the TAXA block`,
         tb?.at ?? 0,
       );
-    } else if (noTaxon.length || noTip.length) {
+    }
+    if (noTaxon.length || noTip.length) {
       note(
         'nexus-taxa-mismatch',
         'taxa',

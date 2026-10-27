@@ -73,10 +73,30 @@ test('tips that are not in the TAXA block, and taxa that have no tip', () => {
   assert.match(r.ignored[0].message, /1 tips that are not in the TAXA block \(Q\).*2 taxa with no tip \(C, D\)/);
 });
 
-test('numeric tips with no TRANSLATE are reported, with TRANSLATE they are not', () => {
-  assert.deepEqual(codes('#NEXUS\n' + TAXA() + TREES('', '(1,2,3)')), ['nexus-numeric-tips']);
-  const withTable = '#NEXUS\n' + TAXA() + 'BEGIN TREES; TRANSLATE 1 A, 2 B, 3 C; TREE t = (1,2,3); END;';
+test('taxon numbers: TRANSLATE token first, then taxon label, then position in the linked TAXA block', () => {
+  // numbers with no TRANSLATE are positions in the TAXA block, and the note says so
+  const r = parseNexus('#NEXUS\n' + TAXA() + TREES('', '(1,2,3)'));
+  assert.deepEqual(r.tree.tipLabels, ['A', 'B', 'C']);
+  assert.deepEqual(
+    r.ignored.map((n) => n.code),
+    ['nexus-taxon-numbers'],
+  );
+  assert.match(r.ignored[0].message, /3 tips were taxon numbers/);
+  // a TRANSLATE token wins over the position
+  const withTable = '#NEXUS\n' + TAXA() + 'BEGIN TREES; TRANSLATE 1 C, 2 B, 3 A; TREE t = (1,2,3); END;';
+  assert.deepEqual(parseNexus(withTable).tree.tipLabels, ['C', 'B', 'A']);
   assert.deepEqual(codes(withTable), []);
+  // a taxon label wins over the position: the taxon called "2" stays "2", the number 3 is the third taxon
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA('', '2 A B') + TREES('', '(2,3,A)')).tree.tipLabels, ['2', 'B', 'A']);
+  // out of range, or no TAXA block: left alone
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA() + TREES('', '(1,2,7)')).tree.tipLabels, ['A', 'B', '7']);
+  assert.deepEqual(parseNexus('#NEXUS\nbegin trees; tree t = (1,2); end;').tree.tipLabels, ['1', '2']);
+});
+
+test('taxon numbers use the TAXA block the TREES block links to', () => {
+  const two = '#NEXUS\n' + TAXA('one', 'A B C') + TAXA('two', 'X Y Z') + TREES('two', '(1,2,3)');
+  assert.deepEqual(parseNexus(two).tree.tipLabels, ['X', 'Y', 'Z']);
+  assert.deepEqual(parseNexus('#NEXUS\n' + TAXA('one', 'A B C') + TAXA('two', 'X Y Z') + TREES('', '(1,2,3)')).tree.tipLabels, ['X', 'Y', 'Z']);
 });
 
 const DATA = (rows, ntax = 3) => `BEGIN DATA;\n DIMENSIONS NTAX=${ntax} NCHAR=4;\n FORMAT DATATYPE=DNA;\n MATRIX\n${rows}\n ;\nEND;\n`;
