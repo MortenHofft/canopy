@@ -16,6 +16,7 @@
 //     --rg N              rows per row group of nodes.parquet (default 16384)
 //     --tip-rg N          rows per row group of tips and of the small sidecar columns (default 16384)
 //     --label-rg N        rows per row group of tips.parquet (labels; default 2048)
+//     --seq-shard N       rows per sequence file: sequence_0000.parquet, sequence_0001.parquet... (a multiple of --seq-rg; 0: one file) (default 0)
 //     --seq-rg N          rows per row group of the sequences (default 512)
 //     --cat-encoding E    'code' (INT32 codes, the dictionary in the manifest) or 'string' (STRING, Parquet's own dictionary) (default code)
 //     --sidecar-files F   'single' (all small columns in sidecar.parquet) or 'columns' (one file per column) (default single)
@@ -49,6 +50,7 @@ const DEFAULTS = {
   tipRg: 16384,
   labelRg: 2048,
   seqRg: 512,
+  seqShard: 0,
   catEncoding: 'code',
   sidecarFiles: 'single',
   codec: 'zstd',
@@ -151,7 +153,16 @@ export async function generate(o) {
       tipsOut.writeGroup([int32('node', Int32Array.from(labelNodes.splice(0, m)), true), string('tip_label', labels.splice(0, m))]);
     }
   };
-  const seqOut = p.seqLength > 0 ? new ParquetOut(path.join(out, 'sequence.parquet'), codec) : null;
+  if (p.seqShard && p.seqShard % p.seqRg) throw new Error('--seq-shard must be a multiple of --seq-rg');
+  const seqOuts = []; // the sequence file, or its shards
+  let seqRows = 0;
+  const writeSeq = (g) => {
+    const shard = p.seqShard ? Math.floor(seqRows / p.seqShard) : 0;
+    if (!seqOuts[shard])
+      seqOuts[shard] = new ParquetOut(path.join(out, p.seqShard ? `sequence_${String(shard).padStart(4, '0')}.parquet` : 'sequence.parquet'), codec);
+    seqOuts[shard].writeGroup([string('sequence', g)]);
+    seqRows += g.length;
+  };
   const stats = streamSidecar(tree, p, (rank) => tipLabel(rank, p.seed), p.tipRg, p.seqRg, {
     small(g) {
       for (let k = 0; k < g.node.length; k++) {
@@ -180,20 +191,21 @@ export async function generate(o) {
       for (const [file, cols] of byFile) outFor(file).writeGroup(cols);
     },
     seq(g) {
-      seqOut.writeGroup([string('sequence', g)]);
+      writeSeq(g);
     },
   });
   flushLabels(true);
   const tipsInfo = await tipsOut.close();
   const sideInfos = [];
   for (const o2 of sideOuts.values()) sideInfos.push(await o2.close());
-  const seqInfo = seqOut ? await seqOut.close() : null;
+  const seqInfos = [];
+  for (const o3 of seqOuts) seqInfos.push(await o3.close());
   T.sidecar_ms = performance.now() - t1;
 
   const fileInfo = (i) => ({ bytes: i.bytes, footer: i.footer, row_groups: i.row_groups });
   const files = { 'nodes.parquet': fileInfo(nodesInfo), 'tips.parquet': fileInfo(tipsInfo), 'overview.parquet': fileInfo(ovInfo) };
   for (const i of sideInfos) files[i.file] = fileInfo(i);
-  if (seqInfo) files['sequence.parquet'] = fileInfo(seqInfo);
+  for (const i of seqInfos) files[i.file] = fileInfo(i);
   const columns = [
     ...catNames.map((name, c) => ({
       name,
@@ -234,7 +246,16 @@ export async function generate(o) {
       rows: p.tips,
       layout: p.sidecarFiles,
       columns,
-      sequence: seqInfo ? { file: 'sequence.parquet', column: 'sequence', length: p.seqLength, alphabet: 'ACGT', rg_rows: p.seqRg } : null,
+      sequence: seqInfos.length
+        ? {
+            column: 'sequence',
+            length: p.seqLength,
+            alphabet: 'ACGT',
+            rg_rows: p.seqRg,
+            shard_rows: p.seqShard || p.tips, // rows of each file but the last
+            files: seqInfos.map((i) => ({ file: i.file, rows: i.rows })),
+          }
+        : null,
     },
     generator: {
       seed: p.seed,
@@ -273,6 +294,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       'tip-rg': { type: 'string' },
       'label-rg': { type: 'string' },
       'seq-rg': { type: 'string' },
+      'seq-shard': { type: 'string' },
       'cat-encoding': { type: 'string' },
       'sidecar-files': { type: 'string' },
       codec: { type: 'string' },
@@ -295,6 +317,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     tipRg: num(v['tip-rg']),
     labelRg: num(v['label-rg']),
     seqRg: num(v['seq-rg']),
+    seqShard: num(v['seq-shard']),
     catEncoding: v['cat-encoding'],
     sidecarFiles: v['sidecar-files'],
     codec: v.codec,

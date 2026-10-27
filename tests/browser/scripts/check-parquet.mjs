@@ -106,13 +106,11 @@ try {
         const b = s.leafEnd[row];
         const k = c.colours.indexOf(e.colour);
         if (s.stub[row]) {
-          // a stub takes the class most of its tips have
+          // a stub takes a class that most of its tips have (any of them on a tie)
           const h = new Map();
-          for (let r = a; r < b; r++) h.set(c.cls[r], (h.get(c.cls[r]) ?? 0) + 1);
-          let best = -1;
-          let n = 0;
-          for (const [cl, m] of h) if (cl >= 0 && m > n) [best, n] = [cl, m];
-          if (best === k) stubsOk++;
+          for (let r = a; r < b; r++) if (c.cls[r] >= 0) h.set(c.cls[r], (h.get(c.cls[r]) ?? 0) + 1);
+          const most = Math.max(0, ...h.values());
+          if (most > 0 && h.get(k) === most) stubsOk++;
           else bad++;
         } else {
           // a tip, or a clade of loaded rows: every tip below has this class

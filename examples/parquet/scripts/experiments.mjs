@@ -7,6 +7,8 @@
 //   E3 merging        the gap below which range requests are merged, and the planning of ranges, on the two layouts (1M tips)
 //   E4 sequences      row group size of the sequence file, and how well sequences compress at three mutation rates (1M tips, 500 bases)
 //   E5 node groups    row group size of nodes.parquet: what opening a clade costs (1M tips)
+//   E7 shards         the sequence file cut into files of N tips, so that small row groups do not make a big footer (1M tips, 500 bases)
+//   E8 wide sidecar   many columns: one file against one file per column, for colouring and for reading one tip's row (1M tips, 16 columns)
 //   E6 overview       rows of the first overview level: what the first view costs and how big a stub is (1M tips)
 
 import fs from 'node:fs';
@@ -66,6 +68,24 @@ const EXPERIMENTS = {
   E5: {
     title: 'Row groups of nodes.parquet: what opening a clade costs (1M tips, no sequences)',
     cases: [4096, 16384, 65536].map((rg) => ({ name: `node rg ${rg}`, gen: { tips: M, rg } })),
+  },
+  E7: {
+    title: 'Sequences in shards: files of N tips, so that small row groups do not make a big footer (1M tips, 500 bases)',
+    cases: [
+      { name: 'seq-rg 256, one file', gen: { tips: M, seqLength: 500, seqRate: 0.5, seqRg: 256 } },
+      { name: 'seq-rg 1024, one file', gen: { tips: M, seqLength: 500, seqRate: 0.5, seqRg: 1024 } },
+      { name: 'seq-rg 256, shards of 65536', gen: { tips: M, seqLength: 500, seqRate: 0.5, seqRg: 256, seqShard: 65536 } },
+      { name: 'seq-rg 64, shards of 65536', gen: { tips: M, seqLength: 500, seqRate: 0.5, seqRg: 64, seqShard: 65536 } },
+      { name: 'seq-rg 256, shards of 16384', gen: { tips: M, seqLength: 500, seqRate: 0.5, seqRg: 256, seqShard: 16384 } },
+    ],
+  },
+  E8: {
+    title: 'A wide sidecar: 8 category and 8 numeric columns, one file or one file per column (1M tips, no sequences)',
+    cases: [
+      { name: 'wide single rg16k', gen: { tips: M, categories: 8, numeric: 8 } },
+      { name: 'wide columns rg16k', gen: { tips: M, categories: 8, numeric: 8, sidecarFiles: 'columns' } },
+      { name: 'wide columns rg64k', gen: { tips: M, categories: 8, numeric: 8, sidecarFiles: 'columns', tipRg: 65536 } },
+    ],
   },
   E6: {
     title: 'Rows of the first overview level (1M tips, no sequences)',

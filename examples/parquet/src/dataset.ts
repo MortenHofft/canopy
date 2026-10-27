@@ -42,7 +42,15 @@ export interface Manifest {
     rows: number;
     layout: 'single' | 'columns';
     columns: SidecarColumn[];
-    sequence: { file: string; column: string; length: number; alphabet: string; rg_rows: number } | null;
+    /** The sequences by tip rank, in one file or in shards of `shard_rows` tips each (the last may hold fewer). */
+    sequence: {
+      column: string;
+      length: number;
+      alphabet: string;
+      rg_rows: number;
+      shard_rows: number;
+      files: Array<{ file: string; rows: number }>;
+    } | null;
   } | null;
 }
 
@@ -267,12 +275,15 @@ export class Dataset {
     return out;
   }
 
-  /** The sequence of one tip, or null when the dataset has none. Reads the row group of the sequence file that holds it. */
+  /** The sequence of one tip, or null when the dataset has none. Reads the row group of the sequence file (shard) that holds it. */
   async sequence(rank: number): Promise<string | null> {
     const s = this.man.sidecar?.sequence;
     if (!s) return null;
-    const r0 = Math.floor(rank / s.rg_rows) * s.rg_rows;
-    const r1 = Math.min(this.man.tips, r0 + s.rg_rows);
-    return (await this.read(s.file, [s.column], r0, r1))[s.column][rank - r0] as string;
+    const shard = Math.floor(rank / s.shard_rows);
+    const f = s.files[shard];
+    const local = rank - shard * s.shard_rows;
+    const r0 = Math.floor(local / s.rg_rows) * s.rg_rows;
+    const r1 = Math.min(f.rows, r0 + s.rg_rows);
+    return (await this.read(f.file, [s.column], r0, r1))[s.column][local - r0] as string;
   }
 }

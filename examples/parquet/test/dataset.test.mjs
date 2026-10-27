@@ -144,6 +144,20 @@ test('the layouts hold the same data: codes or strings, one sidecar file or one 
   assert.ok(fs.existsSync(path.join(tmp, 'c', 'sidecar_country.parquet')));
 });
 
+test('a sharded sequence file reads the same sequences, and each shard has a small footer', async () => {
+  await generate({ ...base, seqShard: 1000, out: path.join(tmp, 'sh') });
+  const whole = await open('a');
+  const d = await open('sh');
+  assert.deepEqual(
+    d.man.sidecar.sequence.files.map((f) => f.rows),
+    [1000, 1000, 1000],
+  );
+  for (const r of [0, 99, 100, 999, 1000, 1234, 2999]) assert.equal(await d.sequence(r), await whole.sequence(r), `rank ${r}`);
+  assert.ok(fs.existsSync(path.join(tmp, 'sh', 'sequence_0002.parquet')));
+  assert.equal(d.man.files['sequence.parquet'], undefined);
+  await assert.rejects(generate({ ...base, seqShard: 150, out: path.join(tmp, 'bad') }), /multiple/);
+});
+
 test('no sequences, no extra categories: the sidecar is just what was asked for', async () => {
   await generate({ tips: 500, seed: 2, categories: 1, numeric: 0, out: path.join(tmp, 'n') });
   const d = await open('n');
