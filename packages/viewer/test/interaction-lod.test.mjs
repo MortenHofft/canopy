@@ -173,3 +173,29 @@ test('the first reduced frame of a gesture carries the last reduced threshold to
   assert.ok(same.passes <= 5, `the next gesture at the same zoom: ${same.passes} passes`);
   assert.ok(far.passes <= 8 && far.drawn <= 500, `the next gesture after zooming out x64: ${far.passes} passes`);
 });
+
+test('the first reduced frame after a full frame that drew at the base starts from the reduced base, not a carried hint above it (#154)', async () => {
+  // the comb above: zoomed in x64 while moving and settled (the full frame draws at the base), then x8 more between gestures. The first
+  // moving frame stepped down from the carried hint in 9 passes; from the base it takes 1
+  let nwk = 't0:1';
+  for (let i = 1; i < 20000; i++) nwk = `(${nwk},t${i}:1):1`;
+  const options = { layout: 'radial', minCladePx: 14, drawBudget: 2000, radialMaxNodes: 2000, interactionLOD: true, refineMs: 1e5 };
+  const { viewer, env } = await makeViewer(nwk + ';', { options, size: [800, 600] });
+  env.flush();
+  for (let k = 0; k < 6; k++) {
+    viewer.noteInput();
+    viewer.zoomBy(2, 2, 400, 300);
+    env.flush();
+  }
+  viewer.renderNow();
+  viewer.zoomBy(8, 8, 400, 300);
+  viewer.renderNow();
+  const frames = [];
+  viewer.on('frame', (s) => frames.push({ reduced: s.reduced, passes: s.budgetRetries + 1, minPx: s.minPxUsed, base: s.minPxBase }));
+  viewer.noteInput();
+  viewer.zoomBy(1.02, 1.02, 400, 300);
+  env.flush();
+  const [first] = frames;
+  assert.ok(first.reduced && first.minPx === first.base, JSON.stringify(first));
+  assert.ok(first.passes <= 2, `the first moving frame: ${first.passes} passes`);
+});

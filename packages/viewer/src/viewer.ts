@@ -2085,6 +2085,9 @@ export class TreeViewer {
     let hint = reduced ? this.reducedMinPxHint : this.minPxHint;
     // the reduced hint can be a whole gesture old, from another zoom: carry it to this one, as the same clade size in tree units (#150)
     if (reduced && this.reducedHintPitch > 0) hint *= this.proj.tipPitch / this.reducedHintPitch;
+    // the last full frame drew at its base and within the reduced budget: nothing is crowded here, so the gesture starts from the reduced
+    // base, not from a carried hint that may be above it (#154)
+    if (reduced && this.minPxHint > 0 && !this.hintRaised && this.lastFullDrawn <= budget) hint = Math.min(hint, base);
     const raised = reduced ? this.reducedHintRaised : this.hintRaised;
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
