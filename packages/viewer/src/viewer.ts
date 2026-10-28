@@ -68,7 +68,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
-import { collapseCap, resolveSize } from './sizes.ts';
+import { collapseCap, labelMinPx, resolveSize } from './sizes.ts';
 import {
   CEILING,
   BUDGET_FRAME_MS,
@@ -91,7 +91,7 @@ import {
   type BudgetState,
 } from './budget.ts';
 import { tipRow } from './tip-row.ts';
-import { keptViewport, type TipTarget } from './view-keep.ts';
+import { keptViewport, placeContent, viewContent, type TipTarget, type ViewContent } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_FROM = 500; // radial: from this many primitives on, branches thin towards one device pixel,
@@ -156,6 +156,15 @@ export interface ViewerInternals {
   sceneVersion(): number;
   /** Reserve (or free) the overview strip right of the rectangular plot; refits while the view is still fitted. */
   reserveOverview(on: boolean): void;
+}
+
+/** A zoomed view before a switch of layout or branch lengths: the options it was in, its layout and window, and the tips it shows. */
+interface SwitchOrigin {
+  layout: ViewerOptions['layout'];
+  lengths: boolean;
+  L: Layout;
+  view: Viewport;
+  content: ViewContent | null;
 }
 
 const NO_RANKS = new Int32Array(0);
@@ -269,6 +278,8 @@ export class TreeViewer {
   /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
    *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
   private selected = -1;
+  /** The last switch of layout or branch lengths that kept the view: where it came from and the window it went to (`refitAfterOptions`). */
+  private lastSwitch: (Omit<SwitchOrigin, 'content'> & { after: Viewport }) | null = null;
   /** The marked nodes (`setMarked`, node ids as given), and their rows of the snapshot, filled by `drawTop` (-1: not loaded). */
   private marked: number[] = [];
   private markRows = new Int32Array(0);
@@ -994,6 +1005,7 @@ export class TreeViewer {
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit = lengthsChanged || layoutChanged || refitsView(p, o);
+    const from = (layoutChanged || lengthsChanged) && (p.switchView ?? o.switchView) === 'keep' ? this.switchOrigin() : null;
     // the pooled label elements take their text (formatLabel, and for collapsed clades cladeLabel and formatCollapsedLabel) and link
     // (tipHref) when they are created, so a change of any rebuilds them
     const labelsChanged = (['tipHref', 'formatLabel', 'cladeLabel', 'formatCollapsedLabel'] as const).some(
@@ -1019,7 +1031,7 @@ export class TreeViewer {
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged, from);
     else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
@@ -1040,12 +1052,46 @@ export class TreeViewer {
     return this.opts.layout === 'radial';
   }
 
+  /** Where a switch of layout or branch lengths starts from (option `switchView: 'keep'`): the layout, the window and what it shows; null
+   *  when the view is fitted, or for a partial source. */
+  private switchOrigin(): SwitchOrigin | null {
+    if (this.vs.fitted || this.W <= 0 || this.tree.globalId !== null) return null;
+    this.vs.computeArea();
+    const view = { ...this.vs.view };
+    const content = viewContent(this.opts.layout, view, this.vs.area, this.L, this.tree);
+    return { layout: this.opts.layout, lengths: this.opts.branchLengths, L: this.L, view, content };
+  }
+
   /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
-   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before (a zoomed view is
-   *  only clamped to the new limits), and the cursor is announced again. */
-  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
-    if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
-      this.fit(false);
+   *  the layout). After a `switched` layout or branch lengths, a zoomed view (`from`) shows what it showed (see `placeContent`), or goes
+   *  back to the window it came from when it is switched back untouched (so switching to and fro does not move it a little each time);
+   *  without anything to keep it is fitted. Otherwise the view is fitted as before (a zoomed view is only clamped to the new limits). The
+   *  cursor is announced again. */
+  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean, from: SwitchOrigin | null): void {
+    const vs = this.vs;
+    let kept: Viewport | null = null;
+    if (from) {
+      vs.computeArea();
+      const last = this.lastSwitch;
+      if (
+        last &&
+        last.layout === this.opts.layout &&
+        last.lengths === this.opts.branchLengths &&
+        last.L === this.L &&
+        viewportEquals(last.after, from.view)
+      )
+        kept = last.view;
+      else if (from.content) {
+        const readable = labelMinPx(this.opts.labelDensity, this.theme.labelSize);
+        kept = placeContent(from.content, { kind: this.opts.layout, L: this.L, tree: this.tree, area: vs.area, fit: vs.fitViewport(), readable });
+      }
+    }
+    this.lastSwitch = null;
+    if (kept) {
+      vs.cancelAnim();
+      vs.setViewport(vs.clampView(kept));
+      if (from) this.lastSwitch = { layout: from.layout, lengths: from.lengths, L: from.L, view: from.view, after: { ...vs.view } };
+    } else if (vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
     else this.reclampView(); // a zoomed view keeps its window within the limits, which are relative to the fit (radial: alignLabels moves it)
     if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
@@ -1471,22 +1517,6 @@ export class TreeViewer {
   private storeMarked(nodes: number[]): void {
     this.marked = nodes;
     if (this.markRows.length !== nodes.length) this.markRows = new Int32Array(nodes.length);
-  }
-
-  /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
-   *  selected clade (as `zoomToNode`), worked out from the new layout's fit view. False when nothing is selected, or its row is not loaded. */
-  private frameSelection(): boolean {
-    const row = this.selected >= 0 ? this.rowOf(this.selected) : -1;
-    if (row < 0) return false;
-    const vs = this.vs;
-    vs.cancelAnim();
-    vs.computeArea();
-    vs.view = vs.fitViewport(); // the targets keep the current scale where they can: the new layout's fit, not the old layout's window
-    vs.fitted = true;
-    const target = this.tree.childCount[row] === 0 ? vs.focusViewport(row) : vs.cladeViewport(row);
-    if (viewportEquals(target, vs.view)) this.fit(false);
-    else vs.setViewport(target);
-    return true;
   }
 
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
