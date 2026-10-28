@@ -1,6 +1,6 @@
 # Browser checks and benchmarks
 
-Headless Chromium through `playwright-core`. Chromium comes from `$CHROMIUM_PATH`, or `/opt/pw-browsers/chromium-1194` if present, or the one
+Headless Chromium through `playwright-core`. Chromium comes from `$CHROMIUM_PATH`, or the newest `/opt/pw-browsers/chromium-*` if present, or the one
 `npx playwright-core install chromium` fetches.
 
 - `npm run test:browser` builds and serves each page in turn, runs its check, and stops the server. `-- --only test,vanilla,react,explorer,playground,table,unrooted,no-build,site` picks pages.

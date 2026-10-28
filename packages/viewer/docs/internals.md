@@ -26,7 +26,7 @@ Browser checks and benchmarks live in [`tests/browser`](../../../tests/browser):
 exposes `window.__spike` / `__spike2` (mount, colour, highlight, focus, locate, events, stats) and `window.__customTree` (the first
 instance's handle). `npm run test:browser` there builds the page, serves it with `vite preview` on a free port, runs
 `scripts/check-radial-ui.mjs` and stops the server by PID. It needs `playwright-core` (a dev dependency of that workspace) and a
-Chromium: `$CHROMIUM_PATH`, else `/opt/pw-browsers/chromium-1194` if present, else the one `npx playwright-core install chromium` fetched.
+Chromium: `$CHROMIUM_PATH`, else the newest `/opt/pw-browsers/chromium-*` if present, else the one `npx playwright-core install chromium` fetched.
 `scripts/check-node-menu.mjs` there checks the node menu and tree operations on the React example (`examples/react`, `npm run dev`, port
 5307). The benchmarks in `tests/browser/bench/` need the test page built and served (`npm run build && npx vite preview --port 5306`);
 their numbers and what they showed are in `docs/design/custom.md`.
