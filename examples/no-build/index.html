@@ -31,13 +31,15 @@
     <div id="tree"></div>
     <script type="module">
       import { TreeViewer, defaultControls, Tooltip } from '@canopy/viewer';
-      import { parseNewick } from '@canopy/io';
+      import { parseInWorker } from '@canopy/io';
 
-      const text = await (await fetch('../../data/synthetic/newick/yule_200.nwk')).text();
+      // Fetch the file and parse it in a worker (dist/browser/io-parse-worker.js, next to io.js), so a large tree does not block the page.
+      const bytes = await (await fetch('../../data/synthetic/newick/yule_200.nwk')).arrayBuffer();
+      const { tree } = await parseInWorker(bytes);
       const softwareCanvas = new URLSearchParams(location.search).get('cpu') === '1';
       const viewer = new TreeViewer({
         target: document.getElementById('tree'),
-        tree: parseNewick(text),
+        tree,
         controls: [...defaultControls({ search: true }), new Tooltip()],
         options: { softwareCanvas },
       });

@@ -22,10 +22,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- a plain static file server over the repository (GET only, no directory listings, nothing outside the repository)
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.map': 'application/json', '.nwk': 'text/plain' };
-let server = null;
-let base = args.url;
-if (!base) {
-  server = http.createServer((req, res) => {
+const serve = (cors) =>
+  http.createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     let file = path.resolve(repo, '.' + path.posix.normalize(rel));
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
@@ -33,9 +31,19 @@ if (!base) {
       res.writeHead(404).end('not found');
       return;
     }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream' });
+    res.writeHead(200, {
+      'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream',
+      ...(cors && { 'Access-Control-Allow-Origin': '*' }),
+    });
     fs.createReadStream(file).pipe(res);
   });
+let server = null;
+let cdn = null; // a second origin that sends CORS headers, standing in for a CDN
+let base = args.url;
+if (!base) {
+  server = serve(false);
+  cdn = serve(true);
+  await new Promise((r) => cdn.listen(0, '127.0.0.1', r));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}/examples/no-build/`;
 }
@@ -64,8 +72,11 @@ try {
   ok(info.zoom, 'the default controls are there');
   const scripts = requests.filter((u) => /\.js(\?|$)/.test(u)).map((u) => new URL(u).pathname);
   ok(
-    scripts.length === 2 && scripts.every((p) => p.endsWith('/dist/browser/viewer.js') || p.endsWith('/dist/browser/io.js')),
-    `two module requests, the single-file builds (${scripts.join(', ')})`,
+    scripts.length === 3 &&
+      scripts.every(
+        (p) => p.endsWith('/dist/browser/viewer.js') || p.endsWith('/dist/browser/io.js') || p.endsWith('/dist/browser/io-parse-worker.js'),
+      ),
+    `three module requests, the single-file builds and the parse worker (${scripts.join(', ')})`,
   );
   const elsewhere = requests.filter((u) => !u.startsWith(origin) && !u.startsWith('data:'));
   ok(elsewhere.length === 0, `nothing fetched from outside the static server${elsewhere.length ? ': ' + elsewhere.join(', ') : ''}`);
@@ -93,9 +104,21 @@ try {
   await page.mouse.click(tip.x, tip.y);
   await sleep(200);
   ok((await page.locator('#last').textContent()) === tip.id, `a tip click reaches the page's listener (${tip.id})`);
+
+  if (cdn) {
+    // the build loaded from another origin: a worker cannot start from there, so the build starts it through a small module of its own
+    const cdnBase = `http://127.0.0.1:${cdn.address().port}`;
+    const tips = await page.evaluate(async (u) => {
+      const { parseInWorker } = await import(`${u}/packages/io/dist/browser/io.js`);
+      const { tree } = await parseInWorker('((a:1,b:1):1,(c:1,d:1):1);');
+      return tree.tipCount;
+    }, cdnBase);
+    ok(tips === 4, `the parse worker starts from a build on another origin (${tips} tips)`);
+  }
 } finally {
   await browser.close();
   server?.close();
+  cdn?.close();
 }
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

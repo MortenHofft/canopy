@@ -87,6 +87,14 @@ acceptance, no task above about 50 ms during the load, is therefore **not met**.
 - `labelReserve` (the widest label for the label column) from a value the worker measures, or sampled;
 - the explorer's setup after the first frame (an idle callback), or the identity map built lazily.
 
+## Scope after the first round
+
+Decided on the issue (2026-10-28): a precomputed layout (an API decision), progress inside the parse and the label column width from
+the worker are **left out**; none of them is a requirement. Wanted instead: the worker parse in the single-file no-build build, so a
+drop-in page points at a file and parses it without blocking. Built: `@canopy/io/browser` exports `parseInWorker`, with its worker in
+`dist/browser/io-parse-worker.js` (bundled by `scripts/bundle-browser.mjs`), and a build loaded from another origin starts the worker
+through a small module that imports it. The playground and the other examples keep parsing on the main thread.
+
 ## Memory while switching trees
 
 The explorer keeps the tree shown (and its viewer) while the next one loads, so Cancel can go back to it. While switching between the

@@ -42,9 +42,18 @@ export interface WorkerParseResult {
   nexus: NexusInfo | null;
 }
 
-/** A new parse worker, from this package's own file. */
+/** A new parse worker, from this package's own file. A page cannot start a worker from another origin (a CDN, for the no-build
+ *  build): then the worker is a small module of its own that imports the file, which only needs the CDN to send CORS headers. */
 export function createParseWorker(): Worker {
-  return new Worker(new URL('./parse-worker.ts', import.meta.url), { type: 'module' });
+  try {
+    return new Worker(new URL('./parse-worker.ts', import.meta.url), { type: 'module' });
+  } catch (e) {
+    if (!(e instanceof DOMException) || e.name !== 'SecurityError') throw e;
+    const loader = new Blob([['import', JSON.stringify(new URL('./parse-worker.ts', import.meta.url).href) + ';'].join(' ')], {
+      type: 'text/javascript',
+    });
+    return new Worker(URL.createObjectURL(loader), { type: 'module' });
+  }
 }
 
 /** Parse `input` in a worker. An ArrayBuffer or Uint8Array is transferred to it: its buffer is detached afterwards. The result is the
