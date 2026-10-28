@@ -10,35 +10,24 @@
 //   overview.ts       the strip / disc with the window box
 //   detail-loader.ts  opening the stubs of a partial TreeSource
 //   node-event.ts     the NodeEvent handed to the host app
+//   control-layer.ts  the control layer (element, corner boxes, the controls added): addControl / removeControl / getControls
+//   node-ids.ts       node ids as the setters take them: what is a node, the warnings, a node's row, the tips a highlight list names
+//   tip-target.ts     where the tips of the old tree are in the new one, for setTree with view 'keep'
+//   top-canvas.ts     what drawTop draws on the top canvas: selection, mark, hover and cursor rings, the path to the root
+//   draw.ts, labels.ts, axis.ts   what paint() draws on the main canvas: the tree, then the labels, then the columns and the axis
 // What stays here on purpose: the interaction-LOD state (noteInput / settle / reduced frames), because it is tied to the frame loop.
 // (The focus rings of the tree and of the label anchors are CSS, viewer.css.)
 
 import { cladeName } from './clade-name.ts';
-import type { Control, ControlPosition } from './control.ts';
+import type { Control } from './control.ts';
+import { ControlLayer } from './control-layer.ts';
 import { cellRect, columnsFixed, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
 import { DetailLoader } from './detail-loader.ts';
 import { mk } from './dom.ts';
 import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from './events.ts';
-import {
-  drawAxis,
-  drawBody,
-  drawCladeBoxes,
-  drawHighlights,
-  drawLabels,
-  drawNodeLabels,
-  drawLeaders,
-  drawMarkers,
-  drawRing,
-  drawRootPath,
-  drawRings,
-  drawScaleBar,
-  drawSelectionRing,
-  drawMarkRings,
-  LabelList,
-  TextMeasurer,
-  type CladeBoxes,
-  type Scene,
-} from './draw.ts';
+import { drawAxis, drawRings, drawScaleBar } from './axis.ts';
+import { drawBody, drawCladeBoxes, drawHighlights, drawMarkers, LabelList, TextMeasurer, type CladeBoxes, type Scene } from './draw.ts';
+import { drawLabels, drawLeaders, drawNodeLabels } from './labels.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
 import { HitIndex } from './hit.ts';
 import { InputController, type InputHost } from './input.ts';
@@ -46,10 +35,11 @@ import { computeLayout, ensureTrig, fanAngle, fanRow, radialFan, remapRow, setLa
 import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
+import { checkHighlighted, eachTipRow, isNodeOf, knownNode, knownNodes, resolveHighlights, rowOfNode } from './node-ids.ts';
 import { LabelOverlay } from './label-overlay.ts';
 import type { OverviewHost } from './overview.ts';
 import { projectionFor, tipDotRadius, type LayoutProjection } from './projection.ts';
-import { easeOut, RingAnim } from './ring-anim.ts';
+import { RingAnim } from './ring-anim.ts';
 import { InMemorySource, isTreeSource, type TreeSource } from './source.ts';
 import {
   DEFAULT_OPTIONS,
@@ -70,6 +60,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
+import { drawCursorBox, drawMarkRings, drawRootPath, drawSelectionRing, fadeRing, growRing } from './top-canvas.ts';
 import { collapseCap, labelMinPx, resolveSize } from './sizes.ts';
 import {
   CEILING,
@@ -93,7 +84,8 @@ import {
   type BudgetState,
 } from './budget.ts';
 import { tipRow } from './tip-row.ts';
-import { keptViewport, placeContent, viewContent, type TipTarget, type ViewContent } from './view-carry.ts';
+import { tipTarget } from './tip-target.ts';
+import { keptViewport, placeContent, viewContent, type ViewContent } from './view-carry.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_FROM = 500; // radial: from this many primitives on, branches thin towards one device pixel,
@@ -105,21 +97,6 @@ const MAX_EXPORT_PX = 16384; // longest side of a toBlob image (browser canvas l
 const MAX_EXPORT_AREA = 2 ** 26; // pixels in all (256 MB of RGBA)
 const CURSOR_RING_RADIUS = 10; // the keyboard cursor's ring, CSS px (in highlight; not a theme token yet, see api.md "Known gaps")
 const CURSOR_RING_WIDTH = 2.5;
-
-/** A node handle is a preorder id of the tree the viewer holds: an integer in [0, limit) (see `nodeLimit`). */
-function isNodeOf(limit: number, id: unknown): id is number {
-  return typeof id === 'number' && Number.isInteger(id) && id >= 0 && id < limit;
-}
-
-/** Ids that are not nodes of the tree are ignored, with this warning, so a typo or a stale id does not fail quietly. */
-function warnUnknownNodes(where: string, bad: unknown[], limit: number): void {
-  const shown = bad.slice(0, 5).map((b) => (typeof b === 'string' ? JSON.stringify(b) : String(b)));
-  const more = bad.length > 5 ? ` and ${bad.length - 5} more` : '';
-  console.warn(
-    `canopy: ${where}: ${shown.join(', ')}${more} ${bad.length === 1 ? 'is not a node' : 'are not nodes'} of this tree ` +
-      `(nodes are numbers, the preorder ids 0 to ${limit - 1}); ignored`,
-  );
-}
 
 function checkThemeObserver(m: unknown): void {
   if (m !== undefined && m !== 'media' && m !== 'document' && m !== 'none')
@@ -171,8 +148,6 @@ interface SwitchOrigin {
 
 const NO_RANKS = new Int32Array(0);
 const INTERNALS = new WeakMap<TreeViewer, ViewerInternals>();
-/** The viewer a control is on (a control has one at a time). */
-const OWNER = new WeakMap<Control, TreeViewer>();
 
 /** @internal See `ViewerInternals`. */
 export function viewerInternals(v: TreeViewer): ViewerInternals {
@@ -204,8 +179,6 @@ export interface SetTreeOptions {
   collapsed?: number[];
 }
 
-const CORNERS: Exclude<ControlPosition, 'custom'>[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
 /** Whether a change of these options starts the threshold search and the budget afresh. */
 function resetsHint(p: Partial<ViewerOptions>): boolean {
   return p.radialMaxNodes !== undefined || p.drawBudget !== undefined || p.summaryNotice !== undefined || p.interactionLOD !== undefined;
@@ -228,10 +201,8 @@ export class TreeViewer {
   private ro: ResizeObserver | null = null;
   private overlay: LabelOverlay;
   private input: InputController;
-  /** The control layer over the canvas (data-phylo-ui: the input controller ignores events from inside it) and its corner boxes. */
-  private uiLayer: HTMLDivElement;
-  private corners = new Map<ControlPosition, HTMLDivElement>();
-  private controls: Control[] = [];
+  /** The control layer over the canvas (data-phylo-ui: the input controller ignores events from inside it), its corner boxes and the controls. */
+  private controlLayer = new ControlLayer();
   private sceneVersion = 0;
   private overviewReserved = false;
 
@@ -417,13 +388,10 @@ export class TreeViewer {
     );
     this.notice.className = 'phylo-notice';
     this.notice.setAttribute('role', 'status');
-    this.uiLayer = mk('div', 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none');
-    this.uiLayer.className = 'phylo-ui';
-    this.uiLayer.dataset.phyloUi = '';
     this.root.append(this.canvas, this.top, this.overlay.layer);
     // the notice, the screen-reader list, the live region and the control layer are the tree element's siblings: a tree may only own
     // tree items and groups, so lists, status regions, menus, buttons and the search field stay out
-    this.container.append(this.root, this.notice, this.overlay.srList, this.overlay.live, this.uiLayer);
+    this.container.append(this.root, this.notice, this.overlay.srList, this.overlay.live, this.controlLayer.el);
     // the theme from CSS custom properties of the target (and its ancestors); re-read when the colour scheme preference changes
     this.cssTheme = themeFromCss(this.host, false);
     this.theme = this.composeTheme();
@@ -436,7 +404,7 @@ export class TreeViewer {
 
     this.input = new InputController(this.root, this.inputHost());
     // the wheel over controls and the overview zooms the tree as it does over the tree, except inside parts that scroll themselves
-    this.uiLayer.addEventListener('wheel', this.onUiWheel, { passive: false });
+    this.controlLayer.el.addEventListener('wheel', this.onUiWheel, { passive: false });
     this.ro = new ResizeObserver(() => {
       if (this.destroyed) return;
       this.measure();
@@ -657,27 +625,17 @@ export class TreeViewer {
 
   /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes`). */
   private knownNodes<T>(where: string, items: readonly T[], node: (x: T) => unknown): T[] {
-    const n = this.nodeLimit();
-    if (items.every((x) => isNodeOf(n, node(x)))) return items as T[];
-    warnUnknownNodes(
-      where,
-      items.map(node).filter((k) => !isNodeOf(n, k)),
-      n,
-    );
-    return items.filter((x) => isNodeOf(n, node(x)));
+    return knownNodes(where, items, node, this.nodeLimit());
   }
 
   /** False, with a warning, when `id` is not a node of this tree. */
   private knownNode(where: string, id: number): boolean {
-    const n = this.nodeLimit();
-    if (isNodeOf(n, id)) return true;
-    warnUnknownNodes(where, [id], n);
-    return false;
+    return knownNode(where, id, this.nodeLimit());
   }
 
   /** Row of the snapshot for a node id of the public API (preorder id of the full tree), -1 when that node is not loaded. */
   private rowOf(node: number): number {
-    return this.tree.globalId === null ? (node >= 0 && node < this.tree.nodeCount ? node : -1) : this.tree.toLocal(node);
+    return rowOfNode(this.tree, node);
   }
 
   /** Node id of the public API for a row of the snapshot. */
@@ -717,53 +675,17 @@ export class TreeViewer {
   /** Add a control: its element goes to its corner of the control layer (or to its `target`), then `setViewer(this)` is called.
    *  Adding a control twice does nothing; a control that another viewer holds is first removed from it (a control has one viewer). */
   addControl(control: Control): void {
-    if (this.destroyed || this.controls.includes(control)) return;
-    const owner = OWNER.get(control);
-    if (owner && owner !== this) owner.removeControl(control);
-    OWNER.set(control, this);
-    const box = control.target ?? this.cornerBox(control.position ?? 'top-left');
-    if (control.target) control.element.dataset.phyloUi = '';
-    // the layer itself lets events through to the tree, so a control catches its own unless it set pointer-events itself (a layer
-    // over the whole tree sets 'none' to let clicks through)
-    else if (!control.element.style.pointerEvents) control.element.style.pointerEvents = 'auto';
-    box.appendChild(control.element);
-    this.controls.push(control);
-    control.setViewer(this);
+    if (this.destroyed) return;
+    this.controlLayer.add(this, control);
   }
 
   /** Remove a control: `setViewer(null)`, then its element is taken out of the page. */
   removeControl(control: Control): void {
-    const k = this.controls.indexOf(control);
-    if (k < 0) return;
-    this.controls.splice(k, 1);
-    if (OWNER.get(control) !== this) return; // moved to another viewer meanwhile: leave it there
-    OWNER.delete(control);
-    control.setViewer(null);
-    control.element.remove();
+    this.controlLayer.remove(control);
   }
 
   getControls(): readonly Control[] {
-    return this.controls.slice();
-  }
-
-  private cornerBox(pos: ControlPosition): HTMLElement {
-    if (pos === 'custom') return this.uiLayer;
-    let box = this.corners.get(pos);
-    if (!box) {
-      const [v, h] = pos.split('-');
-      // flex column, pointer events only on the controls themselves; the stylesheet adds the gaps
-      // the right corners keep clear of a strip along the right edge (the overview sets --phylo-inset-right while it shows one)
-      const side = h === 'right' ? 'right:var(--phylo-inset-right,0px)' : 'left:0';
-      box = mk('div', `position:absolute;${v}:0;${side};display:flex;flex-direction:column;align-items:${h === 'left' ? 'flex-start' : 'flex-end'}`);
-      box.className = `phylo-controls phylo-controls--${pos}`;
-      // keep the boxes in a fixed DOM order (reading order: top left, top right, bottom left, bottom right)
-      const after = CORNERS.slice(CORNERS.indexOf(pos as (typeof CORNERS)[number]) + 1)
-        .map((c) => this.corners.get(c))
-        .find((b) => b);
-      this.uiLayer.insertBefore(box, after ?? null);
-      this.corners.set(pos, box);
-    }
-    return box;
+    return this.controlLayer.list();
   }
 
   // ---- replacing the tree
@@ -855,56 +777,7 @@ export class TreeViewer {
     const want = o.view ?? (map ? 'keep' : 'fit');
     if (want === 'keep' && !wasFitted && before.globalId === null && this.tree.globalId === null) {
       const after = this.tree;
-      const m = map;
-      // up[i]: the nearest node at or above i that the map keeps (built once, in one preorder pass, only if the deep pass runs)
-      let up: Int32Array | null = null;
-      // tipIndices of a label in the old and the new tree, kept so a repeated label is looked up once
-      const dupLists = new Map<string, [ArrayLike<number>, ArrayLike<number>]>();
-      const target = (r: number, deep: boolean, out: TipTarget): boolean => {
-        let node = before.tipNode[r];
-        if (node < 0) return false;
-        if (m) {
-          // the tip, or what it became (a collapsed clade is one tip, an expanded tip is a clade); with `deep`, what it is part of
-          if (deep) {
-            if (!up) {
-              up = new Int32Array(before.nodeCount);
-              for (let i = 0; i < up.length; i++) {
-                const q = i < m.length ? m[i] : -1;
-                up[i] = q >= 0 && q < after.nodeCount ? i : before.parent[i] >= 0 ? up[before.parent[i]] : -1;
-              }
-            }
-            node = up[node];
-            if (node < 0) return false;
-          }
-          const q = node < m.length ? m[node] : -1;
-          if (q < 0 || q >= after.nodeCount) return false;
-          out.lo = after.leafStart[q];
-          out.hi = after.leafEnd[q];
-          out.node = q;
-          return true;
-        }
-        // a label several tips carry: the k-th tip with it before is the k-th after
-        const label = before.tipLabels[r];
-        let q: number;
-        if (before.tipIndices && after.tipIndices) {
-          let lists = dupLists.get(label);
-          if (!lists) {
-            lists = [before.tipIndices(label), after.tipIndices(label)];
-            dupLists.set(label, lists);
-          }
-          let k = 0;
-          while (k < lists[0].length && lists[0][k] !== node) k++;
-          if (k >= lists[1].length) return false;
-          q = lists[1][k];
-        } else {
-          q = after.tipIndex(label);
-          if (q < 0) return false;
-        }
-        out.lo = after.tipRank[q];
-        out.hi = out.lo + 1;
-        out.node = q;
-        return true;
-      };
+      const target = tipTarget(before, after, map);
       kept = keptViewport({
         layout: this.opts.layout,
         view: oldView,
@@ -964,17 +837,8 @@ export class TreeViewer {
   tipNodes(tipId: string): number[] {
     const t = this.tree;
     const out: number[] = [];
-    this.eachTipRow(tipId, (row) => out.push(t.globalId === null ? row : t.globalId[row]));
+    eachTipRow(t, tipId, (row) => out.push(t.globalId === null ? row : t.globalId[row]));
     return out;
-  }
-  /** The rows of the loaded tips with this label: all of them when the tree has `tipIndices`, else the one `tipIndex` finds. */
-  private eachTipRow(label: string, fn: (row: number) => void): void {
-    const t = this.tree;
-    const first = t.tipIndex(label);
-    if (first < 0) return;
-    const all = t.tipIndices?.(label);
-    if (!all) return fn(first);
-    for (let k = 0; k < all.length; k++) fn(all[k]);
   }
   /** The theme in force: `FALLBACK_THEME`, then the CSS custom properties (see theme.ts), then the overrides of `setTheme`. */
   getTheme(): Readonly<TreeTheme> {
@@ -1393,7 +1257,7 @@ export class TreeViewer {
     const last = this.hlIds;
     if (tips.length === last.length && tips.every((id, i) => id === last[i])) return;
     this.hlIds = tips.slice();
-    this.checkHighlighted('setHighlighted', this.hlIds);
+    checkHighlighted('setHighlighted', this.hlIds, this.tree, this.nodeLimit());
     this.resolveHighlights();
     this.sceneVersion++;
     this.invalidate();
@@ -1403,27 +1267,9 @@ export class TreeViewer {
   /** The ranks of the loaded tips among `hlIds`: `hlRanks`, `hl`, and the dim prefix (dropped, built again by the next dimming frame). With
    *  a partial source a match whose rows are not loaded has no rank yet, so its clade counts as holding no match (and dims) until it loads. */
   private resolveHighlights(): void {
-    const N = this.tree.tipCount;
-    const t = this.tree;
-    const ranks: number[] = [];
-    const add = (row: number) => {
-      if (t.childCount[row] === 0 && t.tipRank[row] >= 0) ranks.push(t.tipRank[row]);
-    };
-    for (const id of this.hlIds) {
-      if (typeof id === 'string') this.eachTipRow(id, add);
-      else if (Number.isInteger(id)) {
-        const row = this.rowOf(id);
-        if (row >= 0) add(row);
-      }
-    }
-    const sorted = Int32Array.from(ranks).sort(); // a typed array sorts numerically, and much faster than an array with a comparator
-    let n = 0;
-    for (let k = 0; k < sorted.length; k++) if (k === 0 || sorted[k] !== sorted[k - 1]) sorted[n++] = sorted[k];
-    this.hlRanks = sorted.slice(0, n);
-    if (n) {
-      this.hl = new Uint8Array(N);
-      for (let k = 0; k < n; k++) this.hl[this.hlRanks[k]] = 1;
-    } else this.hl = null;
+    const r = resolveHighlights(this.tree, this.hlIds);
+    this.hlRanks = r.ranks;
+    this.hl = r.hl;
     this.hlPrefix = null;
   }
 
@@ -1444,7 +1290,7 @@ export class TreeViewer {
   private highlightsAfterSetTree(passed: TipRef[] | undefined, old: TipRef[], rm: ((n: number) => number) | null): TipRef[] {
     if (passed) {
       const ids = passed.slice();
-      this.checkHighlighted('setTree highlighted', ids);
+      checkHighlighted('setTree highlighted', ids, this.tree, this.nodeLimit());
       return ids;
     }
     if (!rm || !old.some((x) => typeof x === 'number')) return old;
@@ -1468,30 +1314,6 @@ export class TreeViewer {
     if (!map) return [];
     const limit = this.nodeLimit();
     return this.marked.map(rm).filter((n) => n >= 0 && isNodeOf(limit, n));
-  }
-
-  /** Warn about the entries of a highlight list that are neither a label nor a tip: numbers that are not nodes, and internal nodes that are
-   *  loaded. They stay in the list (`getHighlighted` gives back what was set) and highlight nothing. */
-  private checkHighlighted(where: string, ids: readonly TipRef[]): void {
-    const limit = this.nodeLimit();
-    let bad: unknown[] | null = null;
-    let inner: number[] | null = null;
-    for (const id of ids) {
-      if (typeof id === 'string') continue;
-      if (!isNodeOf(limit, id)) (bad ??= []).push(id);
-      else {
-        const row = this.rowOf(id);
-        if (row >= 0 && this.tree.childCount[row] > 0) (inner ??= []).push(id);
-      }
-    }
-    if (bad) warnUnknownNodes(where, bad, limit);
-    if (inner) {
-      const more = inner.length > 5 ? ` and ${inner.length - 5} more` : '';
-      console.warn(
-        `canopy: ${where}: ${inner.slice(0, 5).join(', ')}${more} ${inner.length === 1 ? 'is an internal node' : 'are internal nodes'}, ` +
-          'not tips (a number highlights the tip with that node id, a string every tip with that label); ignored',
-      );
-    }
   }
 
   /** What was last passed to `setHighlighted` (labels and node ids, unknown ones included). */
@@ -1873,7 +1695,7 @@ export class TreeViewer {
     if (this.destroyed) return;
     this.events.emit('destroy', undefined);
     this.destroyed = true; // from here on isDestroyed() is true, so controls do not act on the viewer while they are removed
-    for (const c of this.controls.slice().reverse()) this.removeControl(c);
+    for (const c of this.getControls().slice().reverse()) this.removeControl(c);
     this.events.clear();
     INTERNALS.delete(this);
     if (this.raf) cancelAnimationFrame(this.raf);
@@ -1890,7 +1712,7 @@ export class TreeViewer {
     if (this.docRaf) cancelAnimationFrame(this.docRaf);
     this.docRaf = 0;
     this.input.destroy();
-    this.uiLayer.removeEventListener('wheel', this.onUiWheel);
+    this.controlLayer.el.removeEventListener('wheel', this.onUiWheel);
     this.container.remove();
     // release the backing stores
     for (const c of [this.canvas, this.top]) {
@@ -2316,7 +2138,7 @@ export class TreeViewer {
       this.topDirty = true; // a ring is still changing: draw the next step
       this.schedule();
     }
-    if (this.activeNode >= 0) this.drawCursorBox(c);
+    if (this.activeNode >= 0) drawCursorBox(c, proj, this.activeNode, this.theme);
   }
 
   /** How long a ring takes to grow in: the theme's `hoverRingDuration` with `hoverAnimation`, 0 (at once) without it or when the user
@@ -2342,62 +2164,9 @@ export class TreeViewer {
     if (prev >= 0 && prev !== this.hoverNode && ms > 0) out.fadeFrom(hin);
     hin.to(shown ? this.hoverNode : -1, this.hoverKind === 'summary' ? 1.5 : 1);
     this.cursorIn.to(this.activeNode, 1);
-    const fading = this.fadeRing(c, proj, ms, now);
-    const growing = this.growRing(c, proj, hin, th.hoverRingRadius * hin.scale, th.hoverRingWidth, ms, now);
-    return this.growRing(c, proj, this.cursorIn, CURSOR_RING_RADIUS, CURSOR_RING_WIDTH, ms, now) || growing || fading;
-  }
-
-  /** A ring growing in: radius and opacity eased from 0. Returns whether it is still growing. */
-  private growRing(
-    c: CanvasRenderingContext2D,
-    proj: LayoutProjection,
-    ring: RingAnim,
-    radius: number,
-    width: number,
-    ms: number,
-    now: number,
-  ): boolean {
-    if (ring.node < 0) return false;
-    const e = easeOut(ring.progress(now, ms));
-    this.strokeRing(c, proj, ring.node, radius * e, width, e);
-    return e < 1;
-  }
-
-  /** The hover ring left behind, fading out at the size it had reached. Returns whether it is still fading. */
-  private fadeRing(c: CanvasRenderingContext2D, proj: LayoutProjection, ms: number, now: number): boolean {
-    const out = this.hoverOut;
-    if (out.node < 0) return false;
-    const t = out.progress(now, ms);
-    const th = this.theme;
-    this.strokeRing(c, proj, out.node, th.hoverRingRadius * out.scale * out.peak, th.hoverRingWidth, out.peak * (1 - easeOut(t)));
-    if (t < 1) return true;
-    out.clear();
-    return false;
-  }
-
-  private strokeRing(c: CanvasRenderingContext2D, proj: LayoutProjection, node: number, radius: number, width: number, alpha: number): void {
-    if (!(radius > 0) || !(alpha > 0)) return;
-    if (alpha < 1) c.globalAlpha = alpha;
-    drawRing(c, proj, node, radius, this.theme.highlight, width);
-    if (alpha < 1) c.globalAlpha = 1;
-  }
-
-  /** Rectangular: the box of the keyboard cursor's clade, from its node to the right edge. */
-  private drawCursorBox(c: CanvasRenderingContext2D): void {
-    const T = this.T;
-    if (T.kind !== 'rectangular') return;
-    const node = this.activeNode;
-    const p = { x: 0, y: 0 };
-    this.proj.nodeXY(node, p);
-    c.strokeStyle = this.theme.highlight;
-    c.globalAlpha = 0.5;
-    c.lineWidth = 1;
-    const ky = T.ky;
-    const y0 = T.oy + this.L.rowStart[node] * ky,
-      y1 = T.oy + this.L.rowEnd[node] * ky;
-    if (y1 - y0 > 3 && this.tree.childCount[node] > 0)
-      c.strokeRect(p.x, Math.max(T.clipT, y0), Math.max(4, T.clipR - p.x - 4), Math.min(T.clipB, y1) - Math.max(T.clipT, y0));
-    c.globalAlpha = 1;
+    const fading = fadeRing(c, proj, th, out, ms, now);
+    const growing = growRing(c, proj, th, hin, th.hoverRingRadius * hin.scale, th.hoverRingWidth, ms, now);
+    return growRing(c, proj, th, this.cursorIn, CURSOR_RING_RADIUS, CURSOR_RING_WIDTH, ms, now) || growing || fading;
   }
 
   // ================================================================= hit-testing, hover

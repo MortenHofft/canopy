@@ -8,7 +8,7 @@ export type FontRelative = number | 'auto' | `${number}em`;
 export const AUTO_EM = 1.85;
 /** The label size the px constants below were measured at (the default theme's `labelSize`). */
 export const REF_LABEL_SIZE = FALLBACK_THEME.labelSize;
-/** Labels are never drawn in a smaller font than this (draw.ts), so no density threshold goes below it: a smaller `labelSize` would otherwise
+/** Labels are never drawn in a smaller font than this (labels.ts), so no density threshold goes below it: a smaller `labelSize` would otherwise
  *  show labels in rows too narrow for them. */
 export const LABEL_FONT_FLOOR_PX = 8;
 /** Rows (rectangular) or arcs (radial) must be at least this many px at `REF_LABEL_SIZE` before tips get labels; scaled with `labelSize`. */

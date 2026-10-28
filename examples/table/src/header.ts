@@ -10,7 +10,7 @@ import type { TreeViewer } from '@canopy/viewer';
 
 /** The viewer's gap between the tree area and a column, and between columns (`COL_GAP` in the viewer's columns.ts, not exported). */
 export const COL_GAP = 6;
-/** The viewer's gap from the farthest tip to the aligned label text (`LABEL_GAP_PX` in draw.ts, not exported). */
+/** The viewer's gap from the farthest tip to the aligned label text (`LABEL_GAP_PX` in labels.ts, not exported). */
 const LABEL_GAP_PX = 8;
 
 export interface HeaderCell {

@@ -1,5 +1,5 @@
 // Labels on internal nodes and their branches (the `nodeLabels` option): the types, the number formatting and the reading of a support
-// value out of an internal node label. The drawing is `drawNodeLabels` in draw.ts.
+// value out of an internal node label. The drawing is `drawNodeLabels` in labels.ts.
 
 import type { TreeSnapshot } from './types.ts';
 

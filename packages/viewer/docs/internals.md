@@ -32,7 +32,7 @@ Chromium: `$CHROMIUM_PATH`, else the newest `/opt/pw-browsers/chromium-*` if pre
 their numbers and what they showed are in `docs/design/custom.md`.
 
 What the tests do not cover: real raster output (pixels), a real GPU, other browsers and touch devices; line coverage was not measured. Most
-of `draw.ts` has no unit test: `cut-golden.test.mjs` calls `drawBody` with a recording context for the summary sliver and minimum-size rules,
+of `draw.ts` (and of `labels.ts`, `axis.ts` and `top-canvas.ts`, which were cut out of it) has no unit test: `cut-golden.test.mjs` calls `drawBody` with a recording context for the summary sliver and minimum-size rules,
 and `label-overlay.test.mjs` and `projection.test.mjs` import helpers from it; labels, markers, highlights, axis and the radial arcs are exercised
 only by the browser check. `columns.ts` is tested against a fake context.
 
@@ -53,7 +53,8 @@ projectionFor(snapshot, L, T)    projection.ts  RectProjection | RadialProjectio
    |                                         extents, summary/run geometry, and the per-frame values the cut precomputes
 searchCut(proj, ...) -> cut      lod.ts      DrawList (node, kind, cls, last, xmax): which nodes are drawn and how (expanded node,
    |                                         tip, summary triangle/fan/slice, stub)
-   +-- drawBody, drawLeaders, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, columns.ts  (Canvas2D)
+   +-- drawBody, drawLeaders, drawMarkers, drawHighlights, drawLabels, columns, axis / scale bar        draw.ts, labels.ts, axis.ts, columns.ts  (Canvas2D)
+   +-- drawTop: selection, mark, hover and cursor rings, the path to the root, on the top canvas            top-canvas.ts
    +-- HitIndex: uniform grid over the draw list, built on the first pointer query         hit.ts
    +-- LabelOverlay: DOM anchors over the canvas text, hidden tip list, live region        label-overlay.ts  (full-quality frames only)
    +-- DOM in the control layer: controls and popups, driven by events after the frame     control.ts, controls/, overlays/
@@ -172,7 +173,7 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | File                              | Lines     | Job                                                                                                                                                  |
 | --------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/types.ts`                    | 298       | public types: `TreeData`, `TreeSnapshot`, `ViewerOptions` and defaults, `TreeTheme` and `FALLBACK_THEME`, `NodeEvent`, columns, `FrameStats`         |
-| `src/viewer.ts`                   | 1,323     | `TreeViewer` facade: DOM, control layer, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
+| `src/viewer.ts`                   | 1,323     | `TreeViewer` facade: DOM, frame loop, `render()`, source sync, hover, notice, interaction-LOD state, theme layers, events, public API |
 | `src/clade-name.ts`               | 42        | `cladeName`, `internalName`: the one rule that names a clade (legend, node menu title, tooltip, announcement)                                        |
 | `src/events.ts`                   | 124       | `Emitter`, the event map and `TreeEvent` (default actions, `preventDefault`)                                                                         |
 | `src/node-event.ts`               | 69        | `makeNodeEvent`: `Hit` to public `NodeEvent`; `toTreeEvent` adds ids, tip helpers and `preventDefault`                                               |
@@ -186,7 +187,13 @@ As of the library restructure (`wc -l`, 2026-10-21; a folder counts all its file
 | `src/projection.ts`               | 316       | `LayoutProjection` (`RectProjection`, `RadialProjection`): positions, clade extents, summary/run geometry, per-frame cut values                      |
 | `src/lod.ts`                      | 655       | the cut (`cutRect`, `cutRadial`, `searchCut`), `DrawList`, `Seen` (pixel-cell dedupe), rules A to D and R                                            |
 | `src/budget.ts`                   | 150       | the adaptive draw budget (`'auto'`): the controller as pure functions over a state object, its constants, `wedgeLimitPx` |
-| `src/draw.ts`                     | 643       | Canvas2D drawing of a draw list: branches, summaries, markers, highlights, labels, axis, scale bar; `TextMeasurer`                                   |
+| `src/draw.ts`                     | 1,052     | Canvas2D drawing of a draw list: branches, summaries, markers, highlight bands, clade boxes; the `Scene` and the helpers the drawing modules share; `LabelList`, `TextMeasurer` |
+| `src/labels.ts`                   | 407       | tip and collapsed-clade labels (into the `LabelList`), leaders of aligned labels, node labels: cut out of `draw.ts`                                  |
+| `src/axis.ts`                     | 190       | the distance axis, the radial scale rings and the scale bar (`radialStep`): cut out of `draw.ts`                                                     |
+| `src/top-canvas.ts`               | 247       | what `drawTop` draws: selection, mark, hover and cursor rings, the box of the cursor's clade, the path to the root (explicit arguments, no viewer state) |
+| `src/control-layer.ts`            | 78        | `ControlLayer`: the control layer element, its corner boxes and the controls (`addControl` / `removeControl` / `getControls`)                        |
+| `src/node-ids.ts`                 | 103       | node ids as the setters take them: `isNodeOf`, the warnings, `knownNodes`, `rowOfNode`, `checkHighlighted`, `resolveHighlights` (pure, over a snapshot)  |
+| `src/tip-target.ts`               | 62        | `tipTarget`: where a tip of the old tree is in the new one (through the map, or by label), for `keptViewport` (no DOM)                               |
 | `src/hit.ts`                      | 314       | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                       |
 | `src/columns.ts`                  | 379       | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                      |
 | `src/tip-row.ts`                  | 42        | `tipRow`: a tip named by label or node id (`TipRef`) to its snapshot row, with the warnings; behind `focusTip`, `columnCell` and `<TreeView>`'s handle (no DOM) |
@@ -274,13 +281,13 @@ so a third layout extends that union and `projectionFor`. Draw and hit are writt
    (`projection.ts`) picks the projection class from `T.kind`.
 2. Implement the `ProjectionCore` members (`projection.ts`): `kind`, `tree`, `L`, `T`; `dedupeRun` (the dedupe key of a run of small siblings; used
    by the cut once per run); `tipPitch`; `minTipDepth(need)` (the depth from which a tip has the room, per tip in radial, #110); `nodeXY`, `parentXY`, `depth`, `tip`, `cladeSize`, `summaryExtent` (+ the fields `d0 d1 t0 t1`). The consumers:
-   `draw.ts` (positions, `summaryExtent`, `cladeSize` for the marker threshold, `tipPitch`, `minTipDepth`), `hit.ts` (positions and extents of candidates,
+   `draw.ts` and `labels.ts` (positions, `summaryExtent`, `cladeSize` for the marker threshold, `tipPitch`, `minTipDepth`), `hit.ts` (positions and extents of candidates,
    `cladeSize`, `minTipDepth` for the dot targets), `viewer.ts` (`nodeXY` for `locateNode`). `tipSpan` is not part of `ProjectionCore`: it exists only on
    `RadialProjection`, where `drawBodyRadial` uses it for arc lengths.
 3. Write the cut loop. `lod.ts` has `cutRect` and `cutRadial` as two inline loops with the cull, the collapse rule (A), the dedupe key (rule C)
    and the run accumulator (rule R) written as locals; `cut()` dispatches on `proj.kind`. A third layout means a third copy of that loop, and the
    golden tests (`test/cut-golden*.mjs`) are the model for guarding it. Why not one loop through the projection: see the next section.
-4. Layout-specific drawing (strokes, arcs, axis) stays in `draw.ts` per layout; `view-state.ts` has the fit, limits and target windows per kind;
+4. Layout-specific drawing (strokes, arcs, labels, axis) stays in `draw.ts`, `labels.ts` and `axis.ts` per layout; `view-state.ts` has the fit, limits and target windows per kind;
    `overview.ts` has the geometry of the corner view; `keyboard.ts` has the navigation per layout. Grep for `'radial'` to find them all.
 
 ### Add a column kind
