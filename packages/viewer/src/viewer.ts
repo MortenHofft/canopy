@@ -315,9 +315,11 @@ export class TreeViewer {
   private budgetTimer = 0; // the frame that measures a changed budget (adaptBudget)
   private minPxHint = 0;
   private hintRaised = false; // the hint is a threshold the budget raised past the cap, not a base (or the cap itself)
-  // the same for reduced frames, which search with their own budget and base: they start from the last reduced frame's threshold (#93)
+  // the same for reduced frames, which search with their own budget and base: they start from the last reduced frame's threshold (#93),
+  // scaled by the zoom since then (the tip pitch it was found at), as a gesture can start far from where the last one ended (#150)
   private reducedMinPxHint = 0;
   private reducedHintRaised = false;
+  private reducedHintPitch = 0;
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
@@ -2015,7 +2017,9 @@ export class TreeViewer {
     reduced: boolean,
     limit: number,
   ): { res: CutResult; minPx: number; retries: number } {
-    const hint = reduced ? this.reducedMinPxHint : this.minPxHint;
+    let hint = reduced ? this.reducedMinPxHint : this.minPxHint;
+    // the reduced hint can be a whole gesture old, from another zoom: carry it to this one, as the same clade size in tree units (#150)
+    if (reduced && this.reducedHintPitch > 0) hint *= this.proj.tipPitch / this.reducedHintPitch;
     const raised = reduced ? this.reducedHintRaised : this.hintRaised;
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
@@ -2034,6 +2038,7 @@ export class TreeViewer {
     if (reduced) {
       this.reducedMinPxHint = r.minPx;
       this.reducedHintRaised = r.minPx > cap * (1 + 1e-9);
+      this.reducedHintPitch = this.proj.tipPitch;
     } else {
       this.minPxHint = r.minPx;
       this.hintRaised = r.minPx > cap * (1 + 1e-9);
