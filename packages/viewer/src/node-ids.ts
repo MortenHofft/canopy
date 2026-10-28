@@ -1,6 +1,6 @@
 // Node ids and tips as the setters take them (`setClades`, `setCollapsed`, `setMarked`, `setSelected`, `setHighlighted`, `zoomToNode`, ...):
 // what counts as a node of the tree, the warning for what is not (so a typo or a stale id does not fail quietly), the row of the snapshot a
-// node id stands for, and the tips a highlight list names. Pure functions over a snapshot, so TreeViewer keeps only the state: test/node-ids.test.mjs
+// node id stands for, and the tips a highlight list names. No DOM, no state: functions over a snapshot, so TreeViewer keeps only the state: test/node-ids.test.mjs
 // runs them through the viewer's setters.
 
 import type { TipRef, TreeSnapshot } from './types.ts';

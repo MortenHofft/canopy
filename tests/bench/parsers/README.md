@@ -63,9 +63,8 @@ Env vars:
 - `src/forester-oracle.mjs` + `src/ForesterOracle.java` - Forester (Java) cross-check. Each
   edge-case fixture is fed to a Java subprocess running Forester's `NHXParser` /
   `NexusPhylogeniesParser`; the matrix shows where we and Forester disagree. Prereq:
-  `javac -cp /path/to/forester.jar -d build src/ForesterOracle.java`. The oracle looks for the
-  jar at the path in the `FORESTER_JAR` environment variable (default
-  `/home/user/cmzmasek/forester/forester/java/forester.jar`); get `forester.jar` by building
+  `javac -cp /path/to/forester.jar -d build src/ForesterOracle.java`. The oracle needs the
+  path to the jar in the `FORESTER_JAR` environment variable (required, no default); get `forester.jar` by building
   [Forester](https://github.com/cmzmasek/forester) (`forester/java/`). Forester is GPL-3; it runs
   as an external process and no Forester code is linked into Canopy.
 

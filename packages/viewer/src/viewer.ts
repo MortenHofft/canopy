@@ -202,7 +202,7 @@ export class TreeViewer {
   private overlay: LabelOverlay;
   private input: InputController;
   /** The control layer over the canvas (data-phylo-ui: the input controller ignores events from inside it), its corner boxes and the controls. */
-  private controlLayer = new ControlLayer();
+  private controlLayer: ControlLayer;
   private sceneVersion = 0;
   private overviewReserved = false;
 
@@ -388,6 +388,7 @@ export class TreeViewer {
     );
     this.notice.className = 'phylo-notice';
     this.notice.setAttribute('role', 'status');
+    this.controlLayer = new ControlLayer();
     this.root.append(this.canvas, this.top, this.overlay.layer);
     // the notice, the screen-reader list, the live region and the control layer are the tree element's siblings: a tree may only own
     // tree items and groups, so lists, status regions, menus, buttons and the search field stay out
@@ -623,7 +624,7 @@ export class TreeViewer {
     return this.source.nodeCount;
   }
 
-  /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes`). */
+  /** The entries whose node is a node of this tree; the others are dropped with a warning (see `warnUnknownNodes` in `node-ids.ts`). */
   private knownNodes<T>(where: string, items: readonly T[], node: (x: T) => unknown): T[] {
     return knownNodes(where, items, node, this.nodeLimit());
   }

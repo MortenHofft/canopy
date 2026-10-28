@@ -57,7 +57,7 @@ searchCut(proj, ...) -> cut      lod.ts      DrawList (node, kind, cls, last, xm
    +-- drawTop: selection, mark, hover and cursor rings, the path to the root, on the top canvas            top-canvas.ts
    +-- HitIndex: uniform grid over the draw list, built on the first pointer query         hit.ts
    +-- LabelOverlay: DOM anchors over the canvas text, hidden tip list, live region        label-overlay.ts  (full-quality frames only)
-   +-- DOM in the control layer: controls and popups, driven by events after the frame     control.ts, controls/, overlays/
+   +-- DOM in the control layer: controls and popups, driven by events after the frame     control.ts, control-layer.ts, controls/, overlays/
        (the overview control draws the whole tree with its own cut; OverviewControl -> overview.ts, through viewerInternals)
    +-- DetailLoader: stubs in the draw list that are big on screen -> source.ensureClade   detail-loader.ts (partial sources only)
 ```
@@ -192,7 +192,7 @@ Every file of `src/` has a row; `controls/` and `overlays/` have one row each fo
 | `src/axis.ts`               | the distance axis, the radial scale rings and the scale bar (`radialStep`): cut out of `draw.ts`                                                                                                                                                              |
 | `src/top-canvas.ts`         | what `drawTop` draws: selection, mark, hover and cursor rings, the box of the cursor's clade, the path to the root (explicit arguments, no viewer state)                                                                                                      |
 | `src/control-layer.ts`      | `ControlLayer`: the control layer element, its corner boxes and the controls (`addControl` / `removeControl` / `getControls`)                                                                                                                                 |
-| `src/node-ids.ts`           | node ids as the setters take them: `isNodeOf`, the warnings, `knownNodes`, `rowOfNode`, `checkHighlighted`, `resolveHighlights` (pure, over a snapshot)                                                                                                       |
+| `src/node-ids.ts`           | node ids as the setters take them: `isNodeOf`, the warnings, `knownNodes`, `rowOfNode`, `checkHighlighted`, `resolveHighlights` (no DOM, no state, over a snapshot)                                                                                                       |
 | `src/tip-target.ts`         | `tipTarget`: where a tip of the old tree is in the new one (through the map, or by label), for `keptViewport` (no DOM)                                                                                                                                        |
 | `src/hit.ts`                | `HitIndex`: uniform grid over the draw list, candidate scoring                                                                                                                                                                                                |
 | `src/columns.ts`            | bar / text / alignment / custom columns: compile by tip rank, draw, `cellRect`, `updateColumns`                                                                                                                                                               |
