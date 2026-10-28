@@ -5,7 +5,7 @@ golden tests. For using the viewer, see the [README](../README.md) and the [API 
 
 The core started as the custom candidate of the tree-viewer spike (the comparison lives on the `research` branch). It has a tree on typed arrays,
 viewport level of detail with a draw budget, Canvas2D, a grid hit index and a DOM overlay for labels and links. What was measured, and the
-decisions behind the current design, are in [docs/design/custom.md](../../../docs/design/custom.md). Everything was measured headless, without a
+decisions behind the current design, are in [docs/design/research/custom.md](../../../docs/design/research/custom.md). Everything was measured headless, without a
 GPU.
 
 ## How to run
@@ -29,7 +29,7 @@ instance's handle). `npm run test:browser` there builds the page, serves it with
 Chromium: `$CHROMIUM_PATH`, else the newest `/opt/pw-browsers/chromium-*` if present, else the one `npx playwright-core install chromium` fetched.
 `scripts/check-node-menu.mjs` there checks the node menu and tree operations on the React example (`examples/react`, `npm run dev`, port
 5307). The benchmarks in `tests/browser/bench/` need the test page built and served (`npm run build && npx vite preview --port 5306`);
-their numbers and what they showed are in `docs/design/custom.md`.
+their numbers and what they showed are in `docs/design/research/custom.md`.
 
 What the tests do not cover: real raster output (pixels), a real GPU, other browsers and touch devices; line coverage was not measured. Most
 of `draw.ts` (and of `labels.ts`, `axis.ts` and `top-canvas.ts`, which were cut out of it) has no unit test: `cut-golden.test.mjs` calls `drawBody` with a recording context for the summary sliver and minimum-size rules,
@@ -388,7 +388,7 @@ Introduced in `e122a53`, corrected in `3317ca7`.
 
 ## Known limits and open work
 
-The list of what is missing for production is in [docs/design/custom.md](../../../docs/design/custom.md), section "Cost" ("What is missing for
+The list of what is missing for production is in [docs/design/research/custom.md](../../../docs/design/research/custom.md), section "Cost" ("What is missing for
 production"), with the unmeasured items restated at the end of that file under "Hardening (2026-10-21)". Not repeated here. In short, nothing
 here was measured on a real GPU, on a low-end device, in a browser other than headless Chromium, or with a screen reader; the Parquet source is a
 proof of concept (no tip labels in snapshots, no search, no eviction); columns are drawn in the rectangular layout only.

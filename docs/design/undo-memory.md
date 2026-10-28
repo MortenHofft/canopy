@@ -23,7 +23,7 @@ element there; Chrome compresses pointers to 4 bytes (from V8's documentation, f
 | `otl-2m-full`, the 2.39M OTL tree | 2,725,682 | 2,385,875 | not measured | about 67 (**unverified**) | about 76 (**unverified**) | about 207 MB (**unverified**) |
 
 The 2.39M tree could not be fetched here: `files.opentreeoflife.org` is refused by this environment's network policy (2026-10-22). Its row
-is the per-node figures above applied to its node count (from [treesource-slice.md](treesource-slice.md)); measure it with
+is the per-node figures above applied to its node count (from [treesource-slice.md](research/treesource-slice.md)); measure it with
 `./fetch.sh otl` in `data/real-ladder` and `npm run bench:bytes -- ../../data/real-ladder/fetched/otl-2m-full.nwk.gz`.
 
 **Reading it.**

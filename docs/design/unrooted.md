@@ -97,7 +97,7 @@ The largest tree is the full OTL synthesis tree, opentree16.1, at the path the e
 because `files.opentreeoflife.org` answered 403 through the sandbox's proxy. The file was taken instead from this repository's
 `data/otl-large` branch (`git show origin/data/otl-large:trees/otl-2m-full.nwk.gz`, the file the catalogue names as `remote`). Its
 uncompressed sha256 is `86bcd162bf307763225f0ba8e473c89b541231994269746e080a23fae66a9305` (M). The manifest has no entry for that rung
-to check it against, so the 2,385,875 tips are the only cross-check, and they match custom.md.
+to check it against, so the 2,385,875 tips are the only cross-check, and they match research/custom.md.
 
 The table is the first run. A repeat on the same day gave medians of 37.6 ms (190k) and 211.3 ms (2.4M) for `unrootedLayout`, and
 26.0 and 91.4 ms for `computeLayout`, with the minimums within 10% of the table. Medians move by up to 30% between runs on this shared

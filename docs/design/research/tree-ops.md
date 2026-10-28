@@ -1,6 +1,6 @@
 # Tree operations in the browser (reroot, midpoint, ladderise, collapse, prune)
 
-Date: 2026-10-20, revised 2026-10-21 after a review (fixes listed at the end). Code: the separate package [packages/tree-ops](../../packages/tree-ops/README.md) (operations, tests, benchmark). The UI integration is a node menu slot on `<TreeView>` (`spikes/custom/src/react/TreeView.tsx`, prop `nodeMenu`), filled with actions on the custom candidate's dev page `spikes/custom/demo.html`. Library survey: [tree-ops-libraries.md](tree-ops-libraries.md).
+Date: 2026-10-20, revised 2026-10-21 after a review (fixes listed at the end). Code: the separate package [packages/tree-ops](../../../packages/tree-ops/README.md) (operations, tests, benchmark). The UI integration is a node menu slot on `<TreeView>` (`spikes/custom/src/react/TreeView.tsx`, prop `nodeMenu`), filled with actions on the custom candidate's dev page `spikes/custom/demo.html`. Library survey: [tree-ops-libraries.md](tree-ops-libraries.md).
 
 ## Question
 

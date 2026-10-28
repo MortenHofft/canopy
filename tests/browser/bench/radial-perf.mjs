@@ -1,5 +1,5 @@
 // Before/after benchmark for the radial performance work (2026-10). Headless Chromium, no GPU (SwiftShader).
-// Usage (one build served on a port, see docs/design/custom.md):
+// Usage (one build served on a port, see docs/design/research/custom.md):
 //   node bench/radial-perf.mjs --port 5306 --tag after --dsf 1 --cpu 1 --trees /path/to/newick-dir --sizes 1000,2000 --shapes yule --out out.json
 //     --cpu 1: willReadFrequently forced on every 2D context (CPU-backed canvas); --cpu 0: forced off (accelerated canvas,
 //     which here is GPU raster through SwiftShader, so absolute numbers are NOT representative of a real GPU)

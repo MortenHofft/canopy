@@ -1,5 +1,5 @@
 // Tuning knobs and numeric limits used in more than one place (or worth finding in one place). Values are the ones the code always had;
-// the radial drawing ones are explained in docs/design/custom.md, section "Radial performance work".
+// the radial drawing ones are explained in docs/design/research/custom.md, section "Radial performance work".
 
 // ---- cut and drawing windows (projection.ts)
 
@@ -9,7 +9,7 @@ export const CULL_PAD_PX = 8;
 // ---- radial drawing (draw.ts)
 
 /** Radius (px) from which a radial arc is no longer drawn with ctx.arc(): a far-off clade is clipped to the visible angles (or drawn as a
- *  chord). docs/design/custom.md, "Radial performance work" change 5: before it, arcs at radius over 30,000 px were drawn as chords; why
+ *  chord). docs/design/research/custom.md, "Radial performance work" change 5: before it, arcs at radius over 30,000 px were drawn as chords; why
  *  2e4 was picked is not recorded there. */
 export const RADIAL_FAR_ARC_R = 2e4;
 

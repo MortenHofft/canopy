@@ -71,7 +71,7 @@ changed here, so they would measure the same code twice.
 The issue's second option, the cut in the worker, was not built (the owner chose the first). Its cost was not measured: every frame would
 post the viewport and wait for the draw list, at least one message round trip (**unverified**, of the order of a millisecond or less in an
 idle browser) on top of the cut itself, and the worker would need its own copy of the arrays or a `SharedArrayBuffer` (cross-origin
-isolation headers on the page). The fit view of the whole 2.39M tree in radial costs 7 ms of JS here, in the explorer's pane; the issue's 37 ms (custom.md, the test
+isolation headers on the page). The fit view of the whole 2.39M tree in radial costs 7 ms of JS here, in the explorer's pane; the issue's 37 ms (research/custom.md, the test
 page's viewer, an earlier cut) was not remeasured.
 
 ## What is left on the main thread

@@ -1,6 +1,6 @@
 # Custom React renderer: feasibility, architecture and effort
 
-> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../packages/viewer/docs/api.md)).
+> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../../packages/viewer/docs/api.md)).
 
 Part A of the "build it ourselves" assessment. Judged against `goal.md` on the `research` branch criteria 1 to 16. Companion document: [data-layer.md](data-layer.md).
 
