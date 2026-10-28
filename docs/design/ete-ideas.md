@@ -31,7 +31,7 @@ Sources: ETE 4 [SmartView tutorial](https://etetoolkit.github.io/ete/tutorial/tu
 
 ## Suggested approach
 
-1. Pick the base library via the spike in [comparison.md](comparison.md).
+1. Pick the base library via the spike in `comparison.md` on the `research` branch.
 2. Build the GBIF layer first (parsing, tip matching, highlight/focus API).
 3. Add ideas 1, 2, 9 first: they decide whether a large tree and an occurrence-page view work at all. The rest are enhancements.
 4. If the base library draws SVG, plan for a thin canvas or virtualised renderer rather than patching per-node DOM.

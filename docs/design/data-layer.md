@@ -1,6 +1,6 @@
 # Data layer: parsing tree files and matching tips to GBIF
 
-Part B of the "build it ourselves" assessment; every viewer option (library or custom) needs this layer. Companion: [custom-renderer.md](custom-renderer.md). Criteria refer to [goal.md](../goal.md) (4 formats, 5 programmatic API, 7 licence, 15 scale).
+Part B of the "build it ourselves" assessment; every viewer option (library or custom) needs this layer. Companion: [custom-renderer.md](custom-renderer.md). Criteria refer to `goal.md` on the `research` branch (4 formats, 5 programmatic API, 7 licence, 15 scale).
 
 Evidence conventions: **verified** = read in source or fetched/called during this research (path or URL given); **measured** = run by us; **UNVERIFIED** = general knowledge or not confirmed. Third-party repos were cloned read-only into the scratchpad; **no third-party code was executed**, so no third-party speed numbers exist here, only our own prototype's.
 

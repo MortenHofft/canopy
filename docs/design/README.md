@@ -26,3 +26,6 @@ the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results
 | [worker-parse.md](worker-parse.md) | Parsing in a Web Worker in the explorer: long tasks during the load of the 1.5M and 2.4M-tip OTL trees before and after, moving the labels, what is left on the main thread (#4) |
 | [view-switch.md](view-switch.md) | Keeping the place when switching layout or branch lengths: the approaches compared on three trees, with pictures (#56) |
 | [ete-ideas.md](ete-ideas.md) | Ideas from the ETE toolkit worth reimplementing |
+| [nexus-reader-ideas.md](nexus-reader-ideas.md) | Ideas for `parseNexus` from three read-only passes through other NEXUS readers (DendroPy, Biopython, BEAST, FigTree and others), with their licences (#136) |
+| [parser-comparison.md](parser-comparison.md) | `@canopy/io` against the JS parsers on npm (phylio, newick-js, patristic): correctness on the edge-case suite and timings, i.e. why not use an existing parser |
+| [../comparisons.md](../comparisons.md) | The short summary of the parser comparison, one level up in `docs/` |

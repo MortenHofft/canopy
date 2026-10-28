@@ -1,6 +1,6 @@
 # Tree operations in the browser (reroot, midpoint, ladderise, collapse, prune)
 
-Date: 2026-10-20, revised 2026-10-21 after a review (fixes listed at the end). Code: the separate package [packages/tree-ops](../../packages/tree-ops/README.md) (operations, tests, benchmark). The UI integration is a node menu slot on `<TreeView>` (`spikes/custom/src/react/TreeView.tsx`, prop `nodeMenu`), filled with actions on the custom candidate's dev page `spikes/custom/demo.html`. Library survey: [../research/tree-ops-libraries.md](../research/tree-ops-libraries.md).
+Date: 2026-10-20, revised 2026-10-21 after a review (fixes listed at the end). Code: the separate package [packages/tree-ops](../../packages/tree-ops/README.md) (operations, tests, benchmark). The UI integration is a node menu slot on `<TreeView>` (`spikes/custom/src/react/TreeView.tsx`, prop `nodeMenu`), filled with actions on the custom candidate's dev page `spikes/custom/demo.html`. Library survey: [tree-ops-libraries.md](tree-ops-libraries.md).
 
 ## Question
 
@@ -60,7 +60,7 @@ Reading:
 
 ## Existing implementations
 
-Surveyed from primary sources on 2026-10-20 ([../research/tree-ops-libraries.md](../research/tree-ops-libraries.md)): 11 JS packages, 6 Rust crates, gotree (Go) and TreeSwift (Python). Verdict: keep our own.
+Surveyed from primary sources on 2026-10-20 ([tree-ops-libraries.md](tree-ops-libraries.md)): 11 JS packages, 6 Rust crates, gotree (Go) and TreeSwift (Python). Verdict: keep our own.
 
 - **JS:** no permissively licensed library covers edge reroot with support moved, threshold collapse and prune-to-set. phylotree.js (MIT) has reroot and midpoint, but on d3 objects with heavy dependencies, and supports stay on the nodes. PhyloJS's licence conflicts (MIT in package.json, GPL-3.0 in the LICENSE file). phylocanvas.gl's reroot recurses and its midpoint compares all pairs of leaves. patristic (CDC, Apache-2.0, 0.7.1) is the closest: a typed-array store, deep-tree tests, rotate and simplify. But it reroots on nodes only, has no midpoint, threshold collapse or prune-to-set, and leaves supports on nodes.
 - **Rust:** the crates that have the operations are copyleft (`phylotree` GPL-3.0, `newick`/`sorbus` LGPL-3.0, `light_phylogeny` CeCILL). The permissive ones lack them: `phylo` (MIT) declares a `Reroot` trait with no implementation found, and `bio` (MIT) only parses. A port would cost more than the module it replaces.
