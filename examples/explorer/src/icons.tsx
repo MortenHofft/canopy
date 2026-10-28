@@ -44,7 +44,7 @@ export const IconBranchWidth = () => (
 );
 export const IconRect = () => (
   <svg width="15" height="13" viewBox="0 0 15 13" fill="none">
-    <path d="M1 2h1M2 2v9M2 4h4M2 7h8M2 11h5" {...s} strokeWidth="1.4" />
+    <path d="M1,2h1M2,2v6.4M2,4h4.3M2,8.4h6.4M4.8,8.8v1.4M4.8,10.2h3.6" {...s} strokeWidth="1.4" />
   </svg>
 );
 export const IconCirc = () => (
