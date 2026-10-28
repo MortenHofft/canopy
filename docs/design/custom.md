@@ -386,3 +386,24 @@ A pass over the code of this candidate, no new features, on branch `claude/custo
 * **Docs** (`de10bc0`, refreshed in the commit after `3317ca7`): `spikes/custom/README.md` (how to run, pipeline, invariants, module map, extension points) and `spikes/custom/docs/api.md`.
 
 **Still unmeasured, as before** (this pass changed no rendering and re-measured nothing on a GPU): frame rates on a real GPU, on low-end or high-DPR devices and in Safari or Firefox (everything above is headless Chromium without a GPU), touch and pinch on real devices, and use with a screen reader. The hardening work was verified by `npm run check`, `npm run build`, `scripts/check-radial-cut.mjs` (output compared before and after each phase that touched the cut or draw code) and `scripts/check-radial-ui.mjs` (now `npm run test:browser`); none of that is a performance or accessibility measurement on real hardware.
+
+## Caterpillar cut (#5, 2026-10-28)
+
+Source: measured on branch `workshift/viewer-followups--5-spine-skip` in the cloud sandbox (shared machine, no GPU). Trees from `data/synthetic/generate.py --sizes 100000,1000000 --shapes caterpillar,yule` (tip listed first on every spine node) and the committed OTL 91k tree.
+
+**Why a skip pointer does not fit.** On a caterpillar at the fit view nearly every spine node is a clade taller than `minPx`, so rule A opens it and nothing is folded: there is no subtree to jump over, and `subtreeEnd` (which the cut already uses for culled and folded clades) is the skip pointer in that sense already. What keeps the list at about 5k entries is rule C, the pixel-cell dedupe, which decides per node: thousands of spine nodes in a row have the same five cells and are merged one by one. To jump along the spine the cut would have to know, without looking at them, that the next nodes all fall in cells it has seen. In the rectangular layout the cells are monotone along the spine, so a binary search over a spine array could find where they change, but that needs the spine as an array, a separate path for the tips hanging off it and for runs, budget and counters, in both loops. In the radial layout a node's cells are the x and y of a point turning around the root, which are not monotone along the spine, so there is no such search. The rough estimate was a few hundred lines and a second structure per node. That is over what #5 allows (about 50 lines, one typed array), so it was not built.
+
+**What was built instead.** Profiling (Node `--cpu-prof`, 1M caterpillar, rectangular fit) put 76% of the run in `cutRect`, about 50 ns per visited node, and most of it was the probe of `Seen.add` into its 8 MB table, a cache miss per node. `Seen` now keeps the last two keys it added or found and answers them without the table (12 lines in `lod.ts`, nothing per node, the loops untouched). Two keys, because along the spine a node and its tip alternate. Every key in the memo is in the table, a reset clears the memo, and the full-table rule (`n > 380000`) is tested first, as before, so the answers are exactly those of the table. `test/seen-memo.test.mjs` checks this against a plain `Set` of the keys on seeded random trees (caterpillars in both child orders, binary trees, polytomies with classes), both layouts, every golden view and three budgets. The cut goldens are unchanged.
+
+Cut time per frame, headless Chromium (`tests/browser/bench/bench.mjs --frames 15`, `cutMs`, two runs each, before / after):
+
+| tree | layout | fit | 3% window | 0.03% window |
+| --- | --- | --- | --- | --- |
+| caterpillar 100k | rect | 9.6, 10.3 / 7.3, 7.4 | 4.8, 3.6 / 3.0, 2.7 | 3.8, 2.8 / 1.3, 1.3 |
+| caterpillar 100k | radial | 7.5, 8.0 / 8.1, 10.5 | 1.1, 1.3 / 1.1, 1.2 | 2.9, 3.3 / 1.7, 1.7 |
+| caterpillar 1M | rect | 96.0, 102.3 / 65.7, 62.1 | 26.8, 28.1 / 24.6, 20.1 | 35.1, 37.1 / 17.9, 20.1 |
+| caterpillar 1M | radial | 63.7, 62.8 / 52.2, 54.0 | 8.7, 8.7 / 7.3, 7.8 | 36.9, 35.1 / 17.0, 17.8 |
+
+Visited nodes and draw lists are identical before and after (1,989,935 visited at the 1M rectangular fit). In Node (`searchCut` at the fit views of the golden cases, 5 fresh processes, median): 1M rectangular 105 to 61 ms, radial 31 to 25 ms; 100k rectangular 11.1 to 7.9 ms, radial 6.3 to 4.9 ms. Bushy trees, radial fit, 12 interleaved fresh processes of 300 frames each, median: OTL 91k 2.15 / 2.13 ms, Yule 1M 1.48 / 1.42 ms (no regression). Rectangular fits of these trees are under 0.4 ms either way.
+
+Against the targets of #5 (100k under 10 ms, 1M under 50 ms): 100k is met in both layouts, and 1M is not (rectangular about 64 ms, radial about 53 ms). What is left is the walk itself, about 30 ns a node over 2M nodes. Going further needs a worker (#4) or the skip structure above. The issue notes that no real tree in the ladder has been a caterpillar.
