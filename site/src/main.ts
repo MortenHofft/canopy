@@ -1,6 +1,6 @@
 // The hub: one card per page in examples.json (the same list scripts/build-site.mjs builds), and the build facts in the footer.
 
-import '../../examples/react/src/gbif-tokens.css';
+import '../../examples/shared/gbif-tokens.css';
 import './style.css';
 import examples from './examples.json';
 

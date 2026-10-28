@@ -9,7 +9,7 @@
 // ids of the loaded tree and mapped to the shown tree (toShown / toFull) while such a view is on.
 
 import '@canopy/viewer/viewer.css';
-import '../../react/src/gbif-tokens.css';
+import '../../shared/gbif-tokens.css';
 import './style.css';
 import {
   Fit,

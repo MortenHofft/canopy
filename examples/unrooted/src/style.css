@@ -1,4 +1,4 @@
-/* Unrooted layout spike page. Only GBIF design tokens (../../react/src/gbif-tokens.css); the drawing reads the viewer's --phylo-*
+/* Unrooted layout spike page. Only GBIF design tokens (examples/shared/gbif-tokens.css); the drawing reads the viewer's --phylo-*
    properties from @canopy/viewer/gbif.css. */
 
 body {

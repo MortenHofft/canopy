@@ -8,7 +8,7 @@
 // window.__unrooted has the counts and timings of the tree shown and redraw(runs) for the draw timing of
 // tests/browser/bench/unrooted-shots.mjs.
 
-import '../../react/src/gbif-tokens.css';
+import '../../shared/gbif-tokens.css';
 import '@canopy/viewer/gbif.css';
 import './style.css';
 import type { TreeModel } from '@canopy/io';

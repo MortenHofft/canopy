@@ -42,7 +42,7 @@ npm workspaces (Node >= 22.7):
 - `examples/unrooted`: the page of the unrooted layout spike (#42): `unrootedLayout` of one tree drawn on a plain canvas, every branch, no zoom.
   It imports the layout from `packages/viewer/src` by relative path (not exported; a spike exception to the public API). Checked by
   `tests/browser/scripts/check-unrooted.mjs`.
-- `examples/shared`: the tree catalogue (`catalogue.json`), the loading helpers (fetch, gzip, `remote`, FASTA, a file of your own, `withCatalogue` for a page's own trees plus the catalogue) and the tree picker with its file input (`picker.ts`) of the playground, the explorer, the table view and the unrooted page. A folder, not a package.
+- `examples/shared`: the tree catalogue (`catalogue.json`), the loading helpers (fetch, gzip, `remote`, FASTA, a file of your own, `withCatalogue` for a page's own trees plus the catalogue) and the tree picker with its file input (`picker.ts`) of the playground, the explorer, the table view and the unrooted page, and the GBIF design tokens as CSS custom properties (`gbif-tokens.css`) that the playground, the table view, the unrooted page, the React example and the site hub import. A folder, not a package.
 - `examples/playground`: the plain viewer with every option, theme token and control in a panel (settings in `src/settings.ts`, kept in the
   URL), checked by `tests/browser/scripts/check-playground.mjs`.
 - `site`: the demo site's hub. `npm run build:site` (`scripts/build-site.mjs`) builds it with the pages in `site/src/examples.json` and

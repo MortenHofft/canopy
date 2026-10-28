@@ -12,7 +12,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createRoot } from 'react-dom/client';
 import '@canopy/viewer/viewer.css';
 import '@canopy/viewer/gbif.css';
-import './gbif-tokens.css';
+import '../../shared/gbif-tokens.css';
 import { gbifTheme } from './gbif-theme.ts';
 import { loadTree } from './trees.ts';
 import { TreeModel } from '@canopy/io';

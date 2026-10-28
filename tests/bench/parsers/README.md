@@ -39,7 +39,8 @@ Env vars:
 
 - `ITER` (default 5) - timed iterations per pair, after 1 untimed warmup.
 - `TIMEOUT_MS` (default 15000) - subprocess is killed and the pair marked `SLOW` if it exceeds this.
-- `OUT` - optional path for raw JSON results.
+- `OUT` - optional path for raw JSON results. `bench.mjs` does not create the folder, so run
+  `mkdir -p results` first; `results/` and `build/` are git-ignored (`.gitignore`).
 
 ## Layout
 
@@ -49,10 +50,11 @@ Env vars:
 - `src/correctness.mjs` - edge-case runner. Verdicts: `ok`, `wrong`, `error`, `crash`.
 - `src/bench.mjs` + `src/bench-worker.mjs` - timing runner. Child-process isolation per pair so a
   slow or stuck parser can't hang the suite.
-- `src/edge-fixtures.mjs` + `fixtures/edge/*.json` - edge cases. Three files:
+- `src/edge-fixtures.mjs` + `fixtures/edge/*.json` - edge cases. The `nexus-*.json` fixtures belong to the NEXUS scripts below; the rest:
   - `well-formed.json` and `malformed.json` are our own hand-crafted set.
-  - `borrowed.json` is lifted from phylio's, patristic's, and newick-js's own test suites, each
-    entry carrying a `source` string naming the upstream test file.
+  - `borrowed.json` and `borrowed-wider.json` are lifted from phylio's, patristic's, newick-js's
+    and phylotree.js's own test suites, each entry carrying a `source` string naming the upstream
+    test file.
 - `src/fixtures.mjs` - timing-bench fixture list, resolving to `data/` in the repo root. Gzipped
   files are inflated in memory.
 - `src/oracle.mjs` + `src/dendropy-oracle.py` - DendroPy cross-check. Each edge-case fixture is
@@ -61,9 +63,11 @@ Env vars:
 - `src/forester-oracle.mjs` + `src/ForesterOracle.java` - Forester (Java) cross-check. Each
   edge-case fixture is fed to a Java subprocess running Forester's `NHXParser` /
   `NexusPhylogeniesParser`; the matrix shows where we and Forester disagree. Prereq:
-  `javac -cp /home/user/cmzmasek/forester/forester/java/forester.jar -d build
-   src/ForesterOracle.java`. Forester is GPL-3; it runs as an external process and no Forester
-  code is linked into Canopy.
+  `javac -cp /path/to/forester.jar -d build src/ForesterOracle.java`. The oracle looks for the
+  jar at the path in the `FORESTER_JAR` environment variable (default
+  `/home/user/cmzmasek/forester/forester/java/forester.jar`); get `forester.jar` by building
+  [Forester](https://github.com/cmzmasek/forester) (`forester/java/`). Forester is GPL-3; it runs
+  as an external process and no Forester code is linked into Canopy.
 
 ## NEXUS
 
@@ -83,6 +87,8 @@ The results and the bugs they found are in `docs/design/parser-comparison.md`.
 
 ## What correctness means here
 
+- Each fixture carries its own expectation (`wellFormed`, `tipCount`, `tipLabels`, `hasLengths`)
+  in the JSON file it lives in.
 - A **well-formed** fixture passes if the parser returns the expected `tipCount` and `tipLabels`
   (as an unordered multiset). `hasLengths` is advisory.
 - A **malformed** fixture passes if the parser throws an `Error`. A parser that silently returns a
@@ -92,4 +98,4 @@ The results and the bugs they found are in `docs/design/parser-comparison.md`.
 A parser that throws a non-Error (bare string, `undefined`, infinite recursion, etc.) counts as
 `crash` on either kind and raises the suite's exit code.
 
-See `docs/design/parser-comparison.md` in the repo root for the writeup.
+The writeup is `docs/design/parser-comparison.md` at the repository root.

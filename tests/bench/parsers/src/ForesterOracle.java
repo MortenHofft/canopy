@@ -2,7 +2,7 @@
 // per fixture to stdout, matching the shape dendropy-oracle.py uses so src/oracle.mjs can consume
 // either.
 //
-// Classpath: /home/user/cmzmasek/forester/forester/java/forester.jar
+// Classpath: forester.jar (src/forester-oracle.mjs takes its path from FORESTER_JAR)
 //
 // Not run as part of the normal test suite; invoked from src/forester-oracle.mjs.
 //
