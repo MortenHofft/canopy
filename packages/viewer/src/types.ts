@@ -366,6 +366,10 @@ export type RadialRings = 'none' | 'lines' | 'stripes';
 export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
+  /** What a zoomed view does when `layout` or `branchLengths` changes. `'keep'` (the default): the tips in view stay in view at about the
+   *  same tip pitch (the same readability), as far as the new layout allows. `'fit'`: the whole tree is shown. A fitted view is fitted
+   *  again either way. */
+  switchView: 'keep' | 'fit';
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
   /** Most primitives drawn per frame; the collapse threshold is raised until the cut fits. A number is fixed. `'auto'` (the default) follows
    *  the machine: it starts at 20,000 and is kept where a frame takes about 25 ms (see the budget section of the internals doc), between 500
@@ -481,6 +485,7 @@ export interface ViewerOptions {
 export const DEFAULT_OPTIONS: ViewerOptions = {
   layout: 'rectangular',
   branchLengths: true,
+  switchView: 'keep',
   lod: true,
   drawBudget: 'auto',
   showSummaries: true,

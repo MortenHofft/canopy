@@ -65,6 +65,19 @@ export const SETTINGS: Setting[] = [
     default: O.branchLengths,
   },
   {
+    id: 'switchView',
+    label: 'On a layout or branch-length switch',
+    hint: 'a zoomed view: keep the tips in view at the same pitch, or show the whole tree',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'select',
+    default: O.switchView,
+    options: [
+      ['keep', 'Keep the tips in view'],
+      ['fit', 'Fit the tree'],
+    ],
+  },
+  {
     id: 'radialOpening',
     label: 'Radial opening',
     hint: 'radial: the share of the circle left empty between the last and the first tip; 0.5 is a half circle',

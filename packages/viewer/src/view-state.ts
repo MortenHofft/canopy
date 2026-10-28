@@ -337,13 +337,15 @@ export class ViewState {
 
   // ------------------------------------------------------------- changing the view
 
-  setViewport(v: Viewport, animate = false): void {
+  /** `keepK`: a radial scale the window may keep however the tip cap stands where it is (clampView); by default the current one, so a
+   *  move of the view never zooms out by itself. */
+  setViewport(v: Viewport, animate = false, keepK = this.keptScale()): void {
     if (!(v.x1 > v.x0 && v.y1 > v.y0)) return;
     if (animate) return this.animateTo(v);
     // the same window as now changes nothing, and must not stop an animation either: a controlled viewport echoes the window it was given
     if (viewportEquals(v, this.view)) return;
     this.cancelAnim();
-    this.view = this.clampView({ ...v }, this.keptScale());
+    this.view = this.clampView({ ...v }, keepK);
     this.fitted = false;
     this.ev.changed(false);
   }

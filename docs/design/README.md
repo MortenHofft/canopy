@@ -24,4 +24,5 @@ the time. Paths in them (`spikes/custom/...`, `spikes/shared/...`, `docs/results
 | [unrooted.md](unrooted.md) | The equal-angle unrooted layout spike: pictures of real trees, layout and draw timings up to 2.39M tips, and the go/no-go (#42) |
 | [auto-collapse-named.md](auto-collapse-named.md) | Collapse to 50 clades by size or preferring named clades, on GTDB 190k and OTL 100k: how many rows are named, with pictures (#57) |
 | [worker-parse.md](worker-parse.md) | Parsing in a Web Worker in the explorer: long tasks during the load of the 1.5M and 2.4M-tip OTL trees before and after, moving the labels, what is left on the main thread (#4) |
+| [view-switch.md](view-switch.md) | Keeping the place when switching layout or branch lengths: the approaches compared on three trees, with pictures (#56) |
 | [ete-ideas.md](ete-ideas.md) | Ideas from the ETE toolkit worth reimplementing |
