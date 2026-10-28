@@ -59,13 +59,20 @@ test('packTree / unpackTree: the same model, buffers moved once each, labels in 
   const tree = parseNewick(YULE);
   const { packed, transfer, labels } = packTree(tree, 5000);
   assert.equal(new Set(transfer).size, transfer.length, 'no buffer listed twice');
+  const arrays = [...Object.values(packed.int32), ...Object.values(packed.float64)];
+  assert.equal(arrays.length, 14, 'every typed array of the model is packed');
+  const copied = arrays.filter((x) => !transfer.includes(x.buffer));
+  assert.equal(copied.length, 0, 'every packed array is moved, none copied');
   assert.ok(transfer.includes(tree.parent.buffer) && transfer.includes(tree.cumLength.buffer) && transfer.includes(tree.heights().buffer));
   assert.deepEqual(
     labels.map((c) => c.length),
     [5000, 5000, 5000, 4999],
   );
   const back = unpackTree(post(packed, transfer), labels.flat());
-  assert.equal(tree.parent.length, 0, 'the packed arrays are detached after the transfer');
+  assert.ok(
+    arrays.every((x) => x.length === 0),
+    'every packed array is detached after the transfer',
+  );
   assertSame(parseNewick(YULE), back);
   assert.equal(back.tipIndex(back.tipLabels[17]), back.tipNode[17]);
   assert.throws(() => unpackTree(packed, []), /0 labels for a tree of 19999 nodes/);
@@ -181,6 +188,20 @@ test('parseInWorker: options reach the parser, a parse error is a NewickError', 
   assert.equal(e.message, expected.message);
   assert.equal(e.position, expected.position);
   await assert.rejects(parseInWorker('((a,b),c)', { worker: () => fakeWorker([]), strict: true }), NewickError, 'strict reaches the parser');
+});
+
+test('parseInWorker: a postMessage that throws and a message that cannot be read reject, the worker terminated', async () => {
+  const throwing = fakeWorker([]);
+  throwing.postMessage = () => {
+    throw new DOMException('cannot clone', 'DataCloneError');
+  };
+  let w = null;
+  await assert.rejects(parseInWorker(YULE, { worker: () => (w = throwing) }), (e) => e.name === 'DataCloneError');
+  assert.ok(w.terminated);
+  const bad = fakeWorker([]);
+  bad.postMessage = () => setTimeout(() => bad.onmessageerror({ data: null }));
+  await assert.rejects(parseInWorker(YULE, { worker: () => bad }), /a message could not be read/);
+  assert.ok(bad.terminated);
 });
 
 test('parseInWorker: abort terminates the worker and rejects with the reason', async () => {

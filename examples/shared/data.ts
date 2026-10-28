@@ -22,8 +22,8 @@ export interface Entry {
 export const GROUPS = catalogue as Record<string, Record<string, Entry>>;
 export const ENTRIES: Record<string, Entry> = Object.assign({}, ...Object.values(GROUPS));
 
-export async function fetchText(path: string, remote?: string): Promise<{ text: string; bytes: number }> {
-  return decode(await fetchBytes(path, remote));
+export async function fetchText(path: string, remote?: string, signal?: AbortSignal): Promise<{ text: string; bytes: number }> {
+  return decode(await fetchBytes(path, remote, signal));
 }
 
 /** The file's bytes as served (gzipped or not), for a parse in a worker, which inflates them there. */

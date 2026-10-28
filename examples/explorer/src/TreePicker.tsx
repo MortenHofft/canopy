@@ -14,7 +14,7 @@ export function TreePicker({
   onFile,
 }: {
   groups: Record<string, Record<string, Entry>>;
-  /** The id shown; null: a file of one's own. */
+  /** The id shown; null: a file of one's own; '': none (the list shows nothing, so any entry can be chosen). */
   value: string | null;
   /** The name of the file shown, when `value` is null. */
   fileName?: string;
@@ -27,8 +27,11 @@ export function TreePicker({
       Tree {/* a controlled select: choosing the file option opens the file input and the list stays on what is shown, so it works every time */}
       <select
         value={value ?? FILE_SHOWN}
-        onChange={(e) => (e.target.value === FILE_OPTION ? input.current?.click() : e.target.value !== FILE_SHOWN && onTree(e.target.value))}
+        onChange={(e) =>
+          e.target.value === FILE_OPTION ? input.current?.click() : e.target.value !== FILE_SHOWN && e.target.value !== '' && onTree(e.target.value)
+        }
       >
+        {value === '' && <option value="" hidden />}
         {Object.entries(groups).map(([group, entries]) => (
           <optgroup key={group} label={group}>
             {Object.entries(entries).map(([k, t]) => (

@@ -2705,6 +2705,26 @@ console.log('\nloading in the parse worker (#4): the page keeps drawing frames, 
   ok(parsers.length > 0 && parsers.every((w) => w.closed), 'Cancel terminates the worker');
   page.off('worker', onWorker);
 }
+{
+  // a load that fails with a tree shown: its error, the tree and the list stay on it; the next pick clears the error
+  const before = await page.evaluate(() => {
+    window.__before = window.__explorer();
+    return document.querySelector('.page-head select').value;
+  });
+  await page.locator('.page-head input[type=file]').setInputFiles({ name: 'broken.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a,b);') });
+  await page.waitForFunction(() => document.querySelector('.page-error') && !document.querySelector('.page-loading'), null, { timeout: 30000 });
+  const failed = await page.evaluate(() => ({
+    id: document.querySelector('.page-head select').value,
+    same: window.__explorer() === window.__before,
+    error: document.querySelector('.page-error').textContent,
+  }));
+  ok(
+    failed.same && failed.id === before && /character/.test(failed.error),
+    `a load that fails: its error ("${failed.error}"), the tree shown stays and the list is back on it (${failed.id})`,
+  );
+  await loadVia('syn-yule-1000');
+  ok((await page.locator('.page-error').count()) === 0 && (await tipCount()) === 1000, 'the next pick clears the error and loads');
+}
 
 {
   // #109: once rows are tall enough for tip dots, the level of detail folds nothing, whatever minCladePx says. The explorer's 14 turned the
@@ -2736,6 +2756,45 @@ console.log('\nloading in the parse worker (#4): the page keeps drawing frames, 
     view !== null && view.every((c) => c.minCladePx === 14 && c.summaries === 0 && c.tips > 20 && c.minPxUsed <= c.rowPx),
     `rows of 13, 8 and 6.5 px, minCladePx 14: no summaries, one-tip genera drawn as tips, minPxUsed at most the row height (${JSON.stringify(view)})`,
   );
+}
+
+console.log('\na first load that is cancelled or fails: nothing shown, the list on nothing, so any entry (the same too) can be chosen again');
+{
+  const p2 = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+  const parsing = () =>
+    p2.waitForFunction(() => /parsing/.test(document.querySelector('.page-loading')?.textContent ?? ''), null, { timeout: 90000 });
+  const state = () =>
+    p2.evaluate(() => ({
+      id: document.querySelector('.page-head select').value,
+      canvas: document.querySelector('.ex-outer canvas') !== null,
+      loading: document.querySelector('.page-loading') !== null,
+      error: document.querySelector('.page-error')?.textContent ?? null,
+    }));
+  const u = new URL(url);
+  u.searchParams.set('tree', 'otl-2m-full');
+  await p2.goto(u.href);
+  await parsing();
+  await p2.click('.page-loading button');
+  await p2.waitForFunction(() => !document.querySelector('.page-loading'));
+  const s1 = await state();
+  ok(s1.id === '' && !s1.canvas && /cancelled/.test(s1.error ?? ''), `Cancel of a first load: no tree, the list on nothing, "${s1.error}"`);
+  await p2.selectOption('.page-head select', 'otl-2m-full');
+  await parsing();
+  const s2 = await state();
+  ok(s2.loading && s2.id === 'otl-2m-full' && s2.error === null, 'the same entry can be chosen again: it loads, the error is gone');
+  await p2.click('.page-loading button');
+  await p2.selectOption('.page-head select', 'syn-yule-1000');
+  await p2.waitForFunction(() => window.__explorer?.()?.getTree().tipCount === 1000, null, { timeout: 30000 });
+  ok((await state()).error === null, 'then another tree loads');
+  u.searchParams.set('tree', 'no-such-tree');
+  await p2.goto(u.href);
+  await p2.waitForFunction(() => document.querySelector('.page-error'));
+  const s3 = await state();
+  ok(
+    s3.id === '' && !s3.canvas && /unknown tree/.test(s3.error ?? ''),
+    `a first load that fails: no tree, the list on nothing ("${(s3.error ?? '').slice(0, 40)}…")`,
+  );
+  await p2.close();
 }
 
 await browser.close();

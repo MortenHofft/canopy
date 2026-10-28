@@ -46,21 +46,23 @@ function App() {
   const [dark, setDark] = useState(params.get('theme') === 'dark');
   const budgetParam = Number(params.get('undo-budget') ?? NaN); // a missing or bad value: the default
   const undoBudget = Number.isFinite(budgetParam) ? budgetParam : undefined;
-  // the tree shown stays while the next one loads (in a worker, so the page responds), and Cancel goes back to it
+  // The tree shown stays while the next one loads (in a worker, so the page responds). The list names the tree loading, else the tree
+  // shown, else nothing (a first load that failed or was cancelled), so Cancel or a failed load goes back to the tree shown and any
+  // entry, the same one too, can be chosen again. A pick always clears the last error.
   const [data, setData] = useState<(Loaded & { id: string; pick: Pick }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<{ step: string; cancel: () => void } | null>(null);
+  const listed = loading ? pick : (data?.pick ?? null);
 
   useEffect(() => {
-    if (data?.id === keyOf(pick)) return setLoading(null); // back to the tree shown (Cancel, or picked again while another loaded)
+    setError(null);
+    if (data?.id === keyOf(pick)) return setLoading(null); // the tree shown, picked again while another loaded
     const ac = new AbortController();
     const cancel = () => {
       ac.abort();
       setLoading(null);
-      if (data) setPick(data.pick);
-      else setError(`loading ${nameOf(pick)} was cancelled`);
+      if (!data) setError(`loading ${nameOf(pick)} was cancelled`);
     };
-    setError(null);
     setLoading({ step: 'starting', cancel });
     load(pick, { signal: ac.signal, onProgress: (p) => !ac.signal.aborted && setLoading({ step: stepOf(p), cancel }) }).then(
       (d) => {
@@ -92,8 +94,8 @@ function App() {
         </h1>
         <TreePicker
           groups={GROUPS}
-          value={'id' in pick ? pick.id : null}
-          fileName={'file' in pick ? pick.file.name : undefined}
+          value={listed === null ? '' : 'id' in listed ? listed.id : null}
+          fileName={listed && 'file' in listed ? listed.file.name : undefined}
           onTree={(id) => setPick({ id })}
           onFile={(file) => setPick({ file, key: `file:${++files}` })}
         />

@@ -69,6 +69,7 @@ export function parseInWorker(input: ParseInput, o: WorkerParseOptions = {}): Pr
       e.preventDefault();
       fail(new Error(`parse worker failed: ${e.message || 'it could not be started'}`));
     };
+    worker.onmessageerror = () => fail(new Error('parse worker: a message could not be read'));
     let labels: string[] = [];
     worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const m = e.data;
@@ -89,7 +90,11 @@ export function parseInWorker(input: ParseInput, o: WorkerParseOptions = {}): Pr
     };
     const req: ParseRequest = { input, format, options: { ...options, treeIndex } };
     const buffer = input instanceof ArrayBuffer ? input : input instanceof Uint8Array ? input.buffer : null;
-    worker.postMessage(req, buffer ? [buffer as ArrayBuffer] : []);
+    try {
+      worker.postMessage(req, buffer ? [buffer as ArrayBuffer] : []);
+    } catch (e) {
+      fail(e); // an input that cannot be cloned or transferred (a detached buffer)
+    }
   });
 }
 

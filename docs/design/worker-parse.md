@@ -1,8 +1,10 @@
 # Parsing in a Web Worker (#4)
 
 Measured 2026-10-28, after moving the explorer's parse into a worker (`@canopy/io/worker`, see [packages/io/README.md](../../packages/io/README.md)).
-The scope is the first of the two options in the issue's comments, chosen by the owner: parse in a worker, the cut, drawing and hit-testing
-stay on the main thread. What is left on the main thread during a load, and what would remove it, is at the end.
+The scope is the first of the two options in the issue's comments, chosen by the owner: parse (and layout) in a worker, the cut, drawing
+and hit-testing stay on the main thread. Of that, the parse is done; **the layout is not done yet**: it still runs on the main thread in
+the explorer's first render of the tree, which is why the acceptance (no main-thread task above about 50 ms during the load) is not met
+(about 190 ms on the 2.39M-tip tree). What is left on the main thread, and what would remove it, is at the end.
 
 **Environment.** Headless Chromium 1243 (`/opt/pw-browsers/chromium-1243`) in a cloud sandbox with no GPU, 1280 × 860 px. The explorer
 built with `vite build` and served with `vite preview`. "Before" is the explorer of `main` (91621df: fetch, inflate and parse on the main
@@ -84,6 +86,13 @@ acceptance, no task above about 50 ms during the load, is therefore **not met**.
   `setTree` argument; it is cached per `branchLengths` flag, so a change of that flag would compute again on the main thread);
 - `labelReserve` (the widest label for the label column) from a value the worker measures, or sampled;
 - the explorer's setup after the first frame (an idle callback), or the identity map built lazily.
+
+## Memory while switching trees
+
+The explorer keeps the tree shown (and its viewer) while the next one loads, so Cancel can go back to it. While switching between the
+largest trees the page therefore holds about two trees at once, and the worker holds the parse of the second until it posts it: from the
+heaps above (about 450 to 515 MB with the 2.39M-tip tree, 300 to 330 MB with the 1.49M one), a peak of the order of 0.8 to 1 GB going from
+one to the other (**estimated** from those numbers, not measured). Before, the old tree was dropped when the next load started.
 
 ## Parquet and other sources
 

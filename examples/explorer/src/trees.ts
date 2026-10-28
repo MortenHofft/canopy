@@ -39,7 +39,10 @@ export async function loadTree(id: string, o: LoadOptions = {}): Promise<Loaded>
   const t = TREES[id];
   if (!t) throw new Error(`unknown tree ${JSON.stringify(id)}; known: ${Object.keys(TREES).join(', ')}`);
   o.onProgress?.({ phase: 'fetch' });
-  const [src, fa] = await Promise.all([fetchBytes(t.path, t.remote, o.signal), t.fasta ? fetchText(t.fasta) : Promise.resolve(null)]);
+  const [src, fa] = await Promise.all([
+    fetchBytes(t.path, t.remote, o.signal),
+    t.fasta ? fetchText(t.fasta, undefined, o.signal) : Promise.resolve(null),
+  ]);
   const bytes = src.length; // before the bytes are transferred to the worker
   const { tree } = await parseInWorker(src, { format: t.format, annotations: t.supportKey !== undefined, ...o });
   // a BEAST MCC tree keeps its support as [&posterior=0.98], not as an internal label: copy it to where tree.support is read (the
