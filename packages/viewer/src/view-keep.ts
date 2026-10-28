@@ -208,7 +208,7 @@ export interface ViewContent {
   /** The layout it was in (its X and rows are read again by `placeContent`; the fan may have changed since, the angles are taken here). */
   L: Layout;
   /** Rows whose tip was in view, in the order along the window (radial: by angle, clockwise), `count` of them; evenly sampled when many.
-   *  Radial: the tips in the circle inscribed in the window (all in the window when that holds none). */
+   *  Radial: the tips in the ellipse inscribed in the window (all in the window when that holds none). */
   rows: Int32Array;
   count: number;
   /** Radial: rows[0, seam) are before the end of the rows and rows[seam, count) after it (the window holds both ends of the fan, where
@@ -293,12 +293,13 @@ export function viewContent(kind: LayoutKind, view: Viewport, area: Area, L: Lay
   const stride = Math.max(1, Math.ceil(total / SAMPLE_ROWS));
   const rows = new Int32Array(Math.ceil(total / stride) + 2);
   const radii = new Float64Array(rows.length);
-  // the tips in the circle inscribed in the window: the ones in its corners are only neighbours of what is looked at, and taking them
-  // would zoom out a little at every switch to the band of the rectangular layout and back (a box over an arc holds more of it than a
-  // band of its height); the whole window when that circle holds none
+  // the tips in the ellipse inscribed in the window: the ones in its corners are only neighbours of what is looked at, and taking them
+  // would zoom out a little more at every switch to the band of the rectangular layout and back (a box across an arc holds more of it
+  // than a band of its height); the whole window when the ellipse holds none
   const ccx = (view.x0 + view.x1) / 2,
     ccy = (view.y0 + view.y1) / 2;
-  const disc = Math.min(view.x1 - view.x0, view.y1 - view.y0) / 2;
+  const ex = 2 / (view.x1 - view.x0),
+    ey = 2 / (view.y1 - view.y0);
   const seg = [lo0, hi0, lo1, hi1];
   let n = 0,
     seam = -1;
@@ -312,7 +313,7 @@ export function viewContent(kind: LayoutKind, view: Viewport, area: Area, L: Lay
           a = L.fan.start + (r + 0.5) * da;
         const x = rad * Math.cos(a),
           y = rad * Math.sin(a);
-        if (pass === 0 ? Math.hypot(x - ccx, y - ccy) > disc : x < view.x0 || x > view.x1 || y < view.y0 || y > view.y1) continue;
+        if (pass === 0 ? Math.hypot((x - ccx) * ex, (y - ccy) * ey) > 1 : x < view.x0 || x > view.x1 || y < view.y0 || y > view.y1) continue;
         radii[n] = rad;
         rows[n++] = r;
       }
@@ -365,18 +366,18 @@ function centreOn(e0: number, e1: number, b0: number, b1: number, w: number, m: 
 
 /**
  * The window of the new layout that shows `c` (what `viewContent` found before the switch), or null to fit (nothing to follow, or the fit
- * view already shows it at least as large). The tip pitch stays (the same readability) where the tips fit; where they do not, it may drop
- * to RELAX (3/4) of what it was, never below the pitch labels need (`readable`), and the window is centred on their middle tip when even
- * that does not hold them. It is never zoomed out past the fit.
+ * view already shows it at least as large). The tip pitch stays (the same readability); it is never zoomed out past the fit.
  *  - Rectangular to rectangular (a branch-length switch): the rows are the same, so the y window is kept exactly; its x edges are carried
  *    through the node depths along the path to the deepest tip in view (`mapDepth`), the right edge keeping its share of the window
  *    beyond the deepest tip.
  *  - To radial: the tips at their new place on the circle; the scale puts them `pitch` px apart at their median radius. Centred on the
- *    sector of their angles between the depths the old window covered, moved to keep the tips in view. Radial to radial keeps the
- *    window's direction and its offset in px from the tips' median radius.
- *  - Radial to rectangular: the rows are a band at that pitch, x at the same px per unit of depth (wider if the tips' depths need it),
- *    the deepest tip in view near the right edge. A radial window over the place where the two ends of the fan meet holds tips of both
- *    ends of the rectangular layout, far apart: the end with more of them is kept (the other end is only its neighbour on the circle).
+ *    sector of the old window's rows between the depths it covered, moved to keep the tips in view. Where their depths need more room than
+ *    that (a phylogram), the pitch may drop to RELAX (3/4) of what it was, never below the pitch labels need (`readable`); past that the
+ *    window is centred on their middle tip. Radial to radial keeps the window's direction and its offset in px from the tips' median radius.
+ *  - Radial to rectangular: the rows are a band at that pitch, as near the row the window was centred on as holds them, x at the same px
+ *    per unit of depth (wider if the tips' depths need it), the deepest tip in view near the right edge. A radial window over the place
+ *    where the two ends of the fan meet holds tips of both ends of the rectangular layout, far apart: the end with more of them is kept
+ *    (the other end is only its neighbour on the circle).
  */
 export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
   const { L, tree, area: a } = t;
@@ -420,10 +421,18 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
       }
       return { x0, x1, y0: v.y0, y1: v.y1 };
     }
-    const h = a.ah / relaxed(c.pitch, a.ah / (hi + 1 - lo), t.readable);
+    // at the pitch they had: a band as high as the window holds fewer of them than an arc across it, and zooming out to hold them all
+    // would zoom out a little more at every switch to and fro
+    const h = a.ah / c.pitch;
     if (h >= Math.max(t.fit.y1 - t.fit.y0, L.rows)) return null; // the fit shows them at least as large
-    const mid = rows[(from + to) >> 1] + 0.5;
-    const yc = centreOn(lo, hi + 1, lo, hi + 1, h, mid);
+    // the band as near the row the window was centred on as it can be while it holds them (while full of them, where they do not fit)
+    const v = c.view;
+    const da0 = B.fan.span / Math.max(1, B.rows),
+      C = TAU / da0;
+    let pc = (Math.atan2((v.y0 + v.y1) / 2, (v.x0 + v.x1) / 2) - B.fan.start) / da0;
+    pc -= C * Math.floor(pc / C);
+    if (pc > (B.rows + C) / 2) pc -= C; // in the opening, nearer the first row
+    const yc = hi + 1 - lo <= h ? Math.min(lo + h / 2, Math.max(hi + 1 - h / 2, pc)) : Math.min(hi + 1 - h / 2, Math.max(lo + h / 2, pc));
     let w = a.aw / c.kx;
     w = Math.max(w, (t1 - t0) * 1.05);
     const pad = 0.02 * w;
@@ -469,7 +478,7 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
   const hw = a.aw / 2 / k,
     hh = a.ah / 2 / k;
   // where the centre would be: from radial, the same direction, as far from the tips (in px) as it was; from rectangular, the middle of the
-  // sector of the rows between the depths the window covered
+  // sector of the window's rows between the depths it covered
   let ex0: number, ex1: number, ey0: number, ey1: number;
   if (c.kind === 'radial') {
     const v = c.view;
@@ -485,7 +494,7 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
     const bb = new Float64Array(4);
     const dLo = Math.max(0, Math.min(c.near, rmax)),
       dHi = Math.max(dLo, Math.min(c.far, rmax));
-    sectorBBox(0, 0, dLo, dHi, L.fan.start + rows[0] * da, L.fan.start + (rows[c.count - 1] + 1) * da, bb);
+    sectorBBox(0, 0, dLo, dHi, L.fan.start + c.view.y0 * da, L.fan.start + c.view.y1 * da, bb);
     [ex0, ey0, ex1, ey1] = bb;
   }
   // moved as little as needed to hold the tips; on the middle tip where they do not fit

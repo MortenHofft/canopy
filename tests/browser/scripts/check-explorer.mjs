@@ -425,8 +425,7 @@ ok(
   await keeps('selected');
   await page.locator('button[title=Circular]').click();
   await keeps('Circular');
-  const c = await ring();
-  ok(Math.abs(c.dx - 0.5) < 0.05 && Math.abs(c.dy - 0.5) < 0.05, 'Circular: the view is centred on the selected tip');
+  ok(await ev(() => __v().vs.fitted), 'Circular: the view is fitted, as it was: a switch does not go to the selection (#56)');
   await page.locator('button[title=Rectangular]').click();
   await keeps('back to Rectangular');
   await page.locator('button[title^=Cladogram]').click();
@@ -2584,6 +2583,40 @@ for (const [id, tipsWanted] of [
     all > 5000 && count === `1 / ${all.toLocaleString('en')}`,
     `search highlights and counts every match, past the old 5,000 cap (${count}, ${all} highlighted)`,
   );
+}
+
+// ---------------------------------------------------------------- a layout switch keeps the place (#56)
+{
+  await open('rich-fish-carangaria-135');
+  const inView = () =>
+    ev(() => {
+      const v = __v();
+      const t = v.getTree();
+      const ranks = [];
+      for (let r = 0; r < t.tipCount; r++) if (v.nodePosition(t.tipNode[r])) ranks.push(r);
+      return { ranks, view: v.getViewport(), fitted: v.vs.fitted };
+    });
+  await ev(() => {
+    const v = __v();
+    const t = v.getTree();
+    v.zoomToNode(t.parent[t.parent[t.parent[t.tipNode[70]]]]); // a clade of about 8 tips in the middle of the tree
+  });
+  await page.waitForTimeout(300);
+  const a = await inView();
+  for (const [button, layout] of [
+    ['Circular', 'radial'],
+    ['Rectangular', 'rectangular'],
+  ]) {
+    await page.locator(`button[title=${button}]`).click();
+    await page.waitForTimeout(300);
+    const b = await inView();
+    const kept = a.ranks.filter((r) => b.ranks.includes(r)).length / a.ranks.length;
+    ok(
+      (await ev(() => __v().options.layout)) === layout && !b.fitted && kept >= 0.8,
+      `${button}: ${Math.round(kept * 100)}% of the ${a.ranks.length} tips in view kept (${b.ranks.length} in view)`,
+    );
+    if (layout === 'rectangular') ok(JSON.stringify(b.view) === JSON.stringify(a.view), 'and back to the same window, untouched in between');
+  }
 }
 
 // ---------------------------------------------------------------- the debug panel (?debug=1) and a view copied and restored (?view=)

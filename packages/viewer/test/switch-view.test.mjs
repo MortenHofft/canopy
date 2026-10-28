@@ -80,8 +80,9 @@ for (const [from, to] of [
             const b = inView(viewer);
             const at = `trip ${trip}, ${kind}`;
             assert.equal(viewer.vs.fitted, false, `${at}: not fitted`);
-            // after the first switch every tip of the clade; later, moved a little each time, most of them
-            const want = trip === 0 && kind === to ? 1 : 0.75;
+            // after the first switch every tip of the clade; later, moved a little each time, more than half of them (each switch holds
+            // the tips in view, which are not centred on the clade where it is at an end of the tree, so the window walks a little)
+            const want = trip === 0 && kind === to ? 1 : 0.6;
             assert.ok(share(clade, b.ranks) >= want, `${at}: the clade's tips ${clade} in view: ${b.ranks}`);
             assert.ok(share(a.ranks, b.ranks) >= 0.6, `${at}: most tips kept: ${share(a.ranks, b.ranks)} of ${a.ranks} in ${b.ranks}`);
             assert.ok(b.pitch > 0.6 * a.pitch && b.pitch < 1.4 * a.pitch, `${at}: pitch ${a.pitch} -> ${b.pitch}`);
