@@ -315,6 +315,9 @@ export class TreeViewer {
   private budgetTimer = 0; // the frame that measures a changed budget (adaptBudget)
   private minPxHint = 0;
   private hintRaised = false; // the hint is a threshold the budget raised past the cap, not a base (or the cap itself)
+  // the same for reduced frames, which search with their own budget and base: they start from the last reduced frame's threshold (#93)
+  private reducedMinPxHint = 0;
+  private reducedHintRaised = false;
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
@@ -623,7 +626,7 @@ export class TreeViewer {
     this.clearHover();
     this.vs.resetLabelReserve();
     this.sceneVersion++;
-    this.minPxHint = 0;
+    this.minPxHint = this.reducedMinPxHint = 0;
     this.events.emit('sourcechange', { version: v });
   }
 
@@ -824,7 +827,7 @@ export class TreeViewer {
     this.root.style.cursor = 'grab';
     this.overlay.clear(true);
     this.overlay.scheduleList();
-    this.minPxHint = 0;
+    this.minPxHint = this.reducedMinPxHint = 0;
     this.sceneVersion++;
 
     // ---- the view
@@ -995,14 +998,14 @@ export class TreeViewer {
       (k) => p[k] !== undefined && p[k] !== o[k],
     );
     this.opts = { ...o, ...p };
-    if (layoutChanged || lengthsChanged) this.minPxHint = 0;
+    if (layoutChanged || lengthsChanged) this.minPxHint = this.reducedMinPxHint = 0;
     if (p.dprCap !== undefined && p.dprCap !== o.dprCap) this.setSize(this.W, this.H);
     if (p.themeObserver !== undefined) {
       this.watchTheme();
       if (o.themeObserver === 'none') this.refreshTheme(); // nothing watched the page meanwhile
     }
     if (resetsHint(p)) {
-      this.minPxHint = 0;
+      this.minPxHint = this.reducedMinPxHint = 0;
       this.restartBudget();
     }
     if (p.ariaLabel) this.root.setAttribute('aria-label', p.ariaLabel);
@@ -1031,7 +1034,7 @@ export class TreeViewer {
     if (this.T) this.T = makeTransform(this.opts.layout, this.W, this.H, this.vs.view, this.vs.area, this.L.rows, this.L.fan);
     this.rebuildProj();
     this.hit.invalidate();
-    this.minPxHint = 0;
+    this.minPxHint = this.reducedMinPxHint = 0;
     return this.opts.layout === 'radial';
   }
 
@@ -1271,7 +1274,7 @@ export class TreeViewer {
     this.pendingHover = null;
     this.clearHover();
     this.hit.invalidate();
-    this.minPxHint = 0;
+    this.minPxHint = this.reducedMinPxHint = 0;
     this.sceneVersion++;
     if (vs.fitted) this.fit(false);
     else if (rect) {
@@ -1560,7 +1563,7 @@ export class TreeViewer {
    *  tip). Ignored when there is no such tip or its row is not loaded. A tip inside a collapsed clade is not drawn: the clade is brought
    *  into view instead (nothing is expanded). */
   focusTip(tip: TipRef, animate = false): void {
-    const row = tipRow(this.tree, tip, 'focusTip');
+    const row = tipRow(this.tree, tip, this.nodeLimit(), 'focusTip');
     const rank = row < 0 ? -1 : this.tree.tipRank[row];
     if (rank < 0) return; // no such tip, or the tip's row is not loaded
     let node = this.tree.tipNode[rank];
@@ -1661,7 +1664,7 @@ export class TreeViewer {
 
   /** Client-px box of a column cell for a tip (a label: the first tip with it; a node id), or null. */
   columnCell(colId: string, tip: TipRef): { x: number; y: number; width: number; height: number } | null {
-    const row = tipRow(this.tree, tip);
+    const row = tipRow(this.tree, tip, this.nodeLimit());
     const rank = row < 0 ? -1 : this.tree.tipRank[row];
     if (rank < 0) return null;
     this.renderNow();
@@ -2009,9 +2012,11 @@ export class TreeViewer {
     cap: number,
     budget: number,
     summaries: boolean,
-    useHint: boolean,
+    reduced: boolean,
     limit: number,
   ): { res: CutResult; minPx: number; retries: number } {
+    const hint = reduced ? this.reducedMinPxHint : this.minPxHint;
+    const raised = reduced ? this.reducedHintRaised : this.hintRaised;
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
       base,
@@ -2024,9 +2029,12 @@ export class TreeViewer {
       hardBudget: Math.max(budget, this.ctlCeiling),
       summaries,
       // a hint that is only a base (the cap was not in force or not reached) starts a search at the cap, not 19 rungs above it (#113)
-      hint: useHint ? (this.hintRaised ? this.minPxHint : Math.min(this.minPxHint, cap)) : 0,
+      hint: raised ? hint : Math.min(hint, cap),
     });
-    if (useHint) {
+    if (reduced) {
+      this.reducedMinPxHint = r.minPx;
+      this.reducedHintRaised = r.minPx > cap * (1 + 1e-9);
+    } else {
       this.minPxHint = r.minPx;
       this.hintRaised = r.minPx > cap * (1 + 1e-9);
     }
@@ -2064,7 +2072,7 @@ export class TreeViewer {
     // the wedge limit (radial 'auto'): the budget does not raise the threshold above the arc of MAX_WEDGE_DEG at the outermost ring while
     // frames are on target; it gives way (limit Infinity) once a step has lowered the budget (budget.ts, `pressed`)
     const limit = this.wedgeLimitFor(reduced);
-    const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, !reduced, limit);
+    const cutRes = this.fitCut(base, cap, budget, opts.showSummaries, reduced, limit);
     const { minPx, retries } = cutRes;
     const res = cutRes.res;
     this.summaryLines = minPx <= MIN_THRESHOLD_PX * (1 + 1e-9);

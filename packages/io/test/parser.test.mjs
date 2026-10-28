@@ -40,6 +40,15 @@ test('basic topology, lengths, labels', () => {
   assert.throws(() => t.mrca(0, -1), RangeError);
   assert.throws(() => t.mrca(0, 99), RangeError);
   assert.throws(() => t.ancestors(1.5), RangeError);
+  for (const bad of [-1, 99, 1.5, NaN, t.tipIndex('nope')]) {
+    assert.throws(() => t.tipCountOf(bad), RangeError);
+    assert.throws(() => t.tipRange(bad), RangeError);
+    assert.throws(() => t.descendantTips(bad), RangeError);
+    assert.throws(() => t.tipsOf([0, bad]), RangeError);
+    assert.throws(() => t.contains(bad, 0), RangeError);
+    assert.throws(() => t.contains(0, bad), RangeError);
+    assert.throws(() => t.children(bad), RangeError);
+  }
   assert.equal('nodeId' in t || 'nodeIndex' in t || 'isNodeId' in t || 'tipNodeId' in t, false, 'no string form of a node id (#78)');
 });
 

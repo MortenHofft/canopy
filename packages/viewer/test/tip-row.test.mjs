@@ -19,19 +19,19 @@ test('tipRow: a label is its first tip (warning when several carry it), a number
   const had = console.warn;
   console.warn = (...a) => seen.push(a.join(' '));
   try {
-    assert.equal(tipRow(snap, 'Homo_sapiens'), 2);
-    assert.equal(tipRow(snap, 5), 5);
-    assert.equal(tipRow(snap, 'nope'), -1);
+    assert.equal(tipRow(snap, 'Homo_sapiens', snap.nodeCount), 2);
+    assert.equal(tipRow(snap, 5, snap.nodeCount), 5);
+    assert.equal(tipRow(snap, 'nope', snap.nodeCount), -1);
     assert.deepEqual(seen, [], 'no warning without a `where`');
-    assert.equal(tipRow(snap, 'Pan_troglodytes', 'focusTip'), 4);
+    assert.equal(tipRow(snap, 'Pan_troglodytes', snap.nodeCount, 'focusTip'), 4);
     assert.deepEqual(seen, [], 'a unique label does not warn');
-    assert.equal(tipRow(snap, 'Homo_sapiens', 'focusTip'), 2);
+    assert.equal(tipRow(snap, 'Homo_sapiens', snap.nodeCount, 'focusTip'), 2);
     assert.match(seen.pop(), /focusTip: 3 tips have the label "Homo_sapiens"; the first is used/);
-    assert.equal(tipRow(snap, 1, 'focusTip'), -1);
+    assert.equal(tipRow(snap, 1, snap.nodeCount, 'focusTip'), -1);
     assert.match(seen.pop(), /focusTip: 1 is an internal node/);
-    assert.equal(tipRow(snap, 6, 'focusTip'), -1);
+    assert.equal(tipRow(snap, 6, snap.nodeCount, 'focusTip'), -1);
     assert.match(seen.pop(), /focusTip: 6 is not a node/);
-    assert.equal(tipRow(snap, 2.5, 'focusTip'), -1);
+    assert.equal(tipRow(snap, 2.5, snap.nodeCount, 'focusTip'), -1);
     assert.match(seen.pop(), /2\.5 is not a node/);
   } finally {
     console.warn = had;
@@ -42,8 +42,19 @@ test('tipRow: a label is its first tip (warning when several carry it), a number
     globalId: Int32Array.from({ length: snap.nodeCount }, (_, i) => i + 100),
     toLocal: (g) => (g >= 100 && g < 106 ? g - 100 : -1),
   };
-  assert.equal(tipRow(partial, 105, 'focusTip'), 5);
-  assert.equal(tipRow(partial, 7, 'focusTip'), -1);
+  // ids are bounded by the full tree's node count (the source's), not by the snapshot's row count (#91)
+  assert.equal(tipRow(partial, 105, 200, 'focusTip'), 5);
+  assert.equal(tipRow(partial, 7, 200, 'focusTip'), -1);
+  const seen2 = [];
+  console.warn = (...a) => seen2.push(a.join(' '));
+  try {
+    assert.equal(tipRow(partial, 205, 200, 'focusTip'), -1);
+    assert.match(seen2.pop(), /focusTip: 205 is not a node/);
+    assert.equal(tipRow(partial, 150, 200, 'focusTip'), -1);
+    assert.deepEqual(seen2, [], 'an id below the limit that is not loaded does not warn');
+  } finally {
+    console.warn = had;
+  }
 });
 
 test('focusTip and columnCell take a label or a node id, not a leaf rank (#82)', async () => {

@@ -62,3 +62,48 @@ test('a far band in a window across the angle seam is two pieces, one at each en
   assert.ok(outer.some((a) => a[4] >= proj.lo - 1e-12) && outer.some((a) => a[5] <= proj.hi + 1e-12));
   assert.ok(near(log), 'every corner is near the window: no chord across the band');
 });
+
+// The same far off for a fan (a collapsed clade drawn from its node, #94): its outer edge was a chord between its two corners, sagging
+// inside the tips in view, so the fill stopped short of them. Now it is an arc over the visible angles, with the edges towards the apex kept.
+/** The fan's path calls of the polytomy, as `bandAt`. */
+function fanAt(ang, k) {
+  const c = { x: Math.cos(ang), y: Math.sin(ang) };
+  const view = { x0: c.x - W / 2 / k, x1: c.x + W / 2 / k, y0: c.y - H / 2 / k, y1: c.y + H / 2 / k };
+  const proj = projectionFor(tree, L, makeTransform('radial', W, H, view, area, L.rows, L.fan));
+  const ctx = recordingContext({});
+  proj.summaryExtent(P, -1, 0);
+  const a0 = proj.t0,
+    a1 = proj.t1;
+  fanSummaryShape(ctx, proj, P, false);
+  return { proj, log: ctx.log, a0, a1 };
+}
+
+test('a far fan has an arc over the visible angles as its outer edge, and keeps its edges towards the apex', () => {
+  const k = 2.5e4;
+  const { proj, log, a0, a1 } = fanAt(1, k);
+  assert.equal(proj.wrap, false);
+  const arcs = log.filter((e) => e[0] === 'arc');
+  assert.equal(arcs.length, 1, 'the outer edge is one arc');
+  const [, , , r, s, e] = arcs[0];
+  assert.equal(r, Math.max(proj.d0 + 2, proj.d1), 'the arc is at the tips');
+  assert.ok(Math.abs(s - proj.lo) < 1e-12 && Math.abs(e - proj.hi) < 1e-12, `arc ${s}..${e} is the window's angles ${proj.lo}..${proj.hi}`);
+  // apex, the corner at a0, the arc, the corner at a1, closed back to the apex
+  const { cx, cy } = proj.T;
+  const ang = (p) => Math.atan2(p[2] - cy, p[1] - cx);
+  assert.equal(log[0][0], 'moveTo');
+  assert.equal(log[1][0], 'lineTo');
+  assert.ok(Math.abs(ang(log[1]) - (a0 > Math.PI ? a0 - 2 * Math.PI : a0)) < 1e-9, 'the first edge goes to the corner at a0');
+  const last = log[log.length - 2];
+  assert.equal(last[0], 'lineTo');
+  assert.ok(Math.abs(ang(last) - (a1 > Math.PI ? a1 - 2 * Math.PI : a1)) < 1e-9, 'the last edge comes from the corner at a1');
+  assert.equal(log[log.length - 1][0], 'closePath');
+});
+
+test('a far fan in a window across the angle seam has one outer arc per end, in increasing angle', () => {
+  const { proj, log } = fanAt(0, 2.5e4);
+  assert.equal(proj.wrap, true);
+  const arcs = log.filter((e) => e[0] === 'arc');
+  assert.equal(arcs.length, 2, 'one arc per end');
+  assert.ok(arcs[0][5] <= proj.hi + 1e-12, 'first the piece 0..hi');
+  assert.ok(arcs[1][4] >= proj.lo - 1e-12, 'then the piece lo..2pi');
+});
