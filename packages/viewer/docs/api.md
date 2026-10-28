@@ -594,8 +594,13 @@ The pure functions behind it are `viewContent` and `placeContent` in `src/view-k
 - **Where the ends meet.** A radial window over the opening of the fan (or, with `radialOpening: 0`, over the place where the first and
   the last tip are neighbours) holds tips from both ends of the rectangular layout, which are far apart there. The end with more of them
   is kept.
-- **Switched back untouched,** the view goes back to the window it came from, so switching to and fro does not move it. Moved in between,
-  each switch starts afresh from what is in view, so a view at an end of the tree may walk a little over several switches.
+- **Switched back untouched,** the view goes back to the window it came from, exactly (a radial window keeps its scale even where the
+  tip cap would not let a new window be that deep), so switching to and fro does not move it. Anything else in between (moving the
+  view, an option such as `radialRotation`, the theme, the size, the tree, collapsed clades, colours or highlights) makes the next
+  switch start afresh from what is in view, so a view at an end of the tree may walk a little over several switches (in the unit tests
+  at most 1 of the 8 tips of a zoomed clade was lost after three such round trips).
+- **The selection** plays no part: a selected tip out of view stays out of view, and one in view near the edge of a wide radial window
+  can fall out going to rectangular. Whether a selected tip in view should be held is open (see `docs/design/view-switch.md`).
 - A view that is still fitted is fitted again, as with `switchView: 'fit'`. A partial source (stubs) is fitted.
 
 ### Tree and columns

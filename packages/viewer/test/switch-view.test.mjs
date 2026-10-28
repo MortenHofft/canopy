@@ -41,7 +41,7 @@ function inView(viewer) {
 const share = (a, b) => a.filter((r) => b.includes(r)).length / a.length;
 
 async function zoomed(nwk, layout, clade = 'mid', options = {}) {
-  const { viewer, env } = await make(nwk, { layout, ...options });
+  const { viewer, env, target } = await make(nwk, { layout, ...options });
   env.flush();
   const t = viewer.getTree();
   // a clade of 8 tips in the middle of the tree (or at its start), framed as zoomToNode does, then zoomed in about its centre
@@ -49,7 +49,7 @@ async function zoomed(nwk, layout, clade = 'mid', options = {}) {
   const node = t.parent[t.parent[t.parent[tip]]];
   viewer.zoomToNode(node);
   env.flush();
-  return { viewer, env, node };
+  return { viewer, env, node, target };
 }
 
 const cladeTips = (viewer, node) => {
@@ -80,12 +80,14 @@ for (const [from, to] of [
             const b = inView(viewer);
             const at = `trip ${trip}, ${kind}`;
             assert.equal(viewer.vs.fitted, false, `${at}: not fitted`);
-            // after the first switch every tip of the clade; later, moved a little each time, more than half of them (each switch holds
-            // the tips in view, which are not centred on the clade where it is at an end of the tree, so the window walks a little)
-            const want = trip === 0 && kind === to ? 1 : 0.6;
+            // after the first switch every tip of the clade; later, moved a little each time, 3/4 of them (each switch holds the tips in
+            // view, which are not centred on the clade where it is at an end of the tree, so the window walks a little; measured: at
+            // most 1 of 8 lost). Radial to rectangular keeps the middle 2/3 of the radial window's tips (measured 0.67), the pitch
+            // drops to 3/4 at most (measured 0.79, a phylogram's tips at different depths going to radial) and never rises.
+            const want = trip === 0 && kind === to ? 1 : 0.75;
             assert.ok(share(clade, b.ranks) >= want, `${at}: the clade's tips ${clade} in view: ${b.ranks}`);
-            assert.ok(share(a.ranks, b.ranks) >= 0.6, `${at}: most tips kept: ${share(a.ranks, b.ranks)} of ${a.ranks} in ${b.ranks}`);
-            assert.ok(b.pitch > 0.6 * a.pitch && b.pitch < 1.4 * a.pitch, `${at}: pitch ${a.pitch} -> ${b.pitch}`);
+            assert.ok(share(a.ranks, b.ranks) >= 0.65, `${at}: most tips kept: ${share(a.ranks, b.ranks)} of ${a.ranks} in ${b.ranks}`);
+            assert.ok(b.pitch >= 0.75 * a.pitch && b.pitch < 1.001 * a.pitch, `${at}: pitch ${a.pitch} -> ${b.pitch}`);
           }
         }
       });
@@ -132,7 +134,7 @@ test('radial, branch lengths: the tips in view stay in view at about the same pi
     env.flush();
     const b = inView(viewer);
     assert.ok(share(a.ranks, b.ranks) >= 0.8, `${lengths}: ${a.ranks} in ${b.ranks}`);
-    assert.ok(b.pitch > 0.7 * a.pitch && b.pitch < 1.4 * a.pitch, `${lengths}: pitch ${a.pitch} -> ${b.pitch}`);
+    assert.ok(b.pitch > 0.9 * a.pitch && b.pitch < 1.001 * a.pitch, `${lengths}: pitch ${a.pitch} -> ${b.pitch}`);
     destroyAll();
   }
 });
@@ -241,4 +243,110 @@ test('viewContent: the rows in view, sampled on a big window; null for a radial 
   assert.ok(Math.abs(c.pitch - area.ah / 10.4) < 1e-9);
   // radial: a small window around the root holds no tip
   assert.equal(viewContent('radial', { x0: -0.01, x1: 0.01, y0: -0.01, y1: 0.01 }, area, L, tree), null);
+});
+
+// what happens in the other layout between two switches can change what the first window means: switched back, the tips that were in
+// view are in view again (the window is placed afresh, not restored), whatever changed
+for (const [what, change] of [
+  ['radialRotation', (v) => v.setOptions({ radialRotation: 200 })],
+  ['radialOpening', (v) => v.setOptions({ radialOpening: 0.6 })],
+  ['alignLabels', (v) => v.setOptions({ alignLabels: true })],
+  ['the label size', (v) => v.setTheme({ labelSize: 20 })],
+  ['the size', (_v, env, target) => env.resize(target, 700, 500)],
+  ['collapsed clades', (v) => v.setCollapsed([v.getTree().parent[v.getTree().tipNode[3]]])],
+]) {
+  test(`radial -> rectangular, ${what} changed, -> radial: the tips that were in view are in view again`, async () => {
+    // a clade near the start of the fan, which a new opening moves
+    const { viewer, env, target } = await zoomed(balanced(8), 'radial', 'start');
+    const a = inView(viewer);
+    viewer.setOptions({ layout: 'rectangular' });
+    env.flush();
+    change(viewer, env, target);
+    env.flush();
+    viewer.setOptions({ layout: 'radial' });
+    env.flush();
+    const b = inView(viewer);
+    assert.ok(share(a.ranks, b.ranks) >= 0.8, `${what}: ${a.ranks} in ${b.ranks}`);
+  });
+}
+
+for (const patch of [{ radialRotation: 200 }, { radialOpening: 0.3 }]) {
+  for (const [from, to] of [
+    ['radial', { layout: 'rectangular' }],
+    ['radial', { branchLengths: false }],
+    ['rectangular', { layout: 'radial' }],
+  ]) {
+    test(`${from}, ${JSON.stringify({ ...to, ...patch })} in one call: the tips in view stay in view`, async () => {
+      const { viewer, env } = await zoomed(balanced(8), from);
+      const a = inView(viewer);
+      viewer.setOptions({ ...to, ...patch });
+      env.flush();
+      const b = inView(viewer);
+      assert.ok(share(a.ranks, b.ranks) >= 0.65, `${a.ranks} in ${b.ranks}`);
+      if (to.layout === 'rectangular') {
+        // the rectangular window does not depend on the fan: the same as without the new fan
+        const ref = await zoomed(balanced(8), from);
+        ref.viewer.setOptions(to);
+        ref.env.flush();
+        const w = ref.viewer.getViewport(),
+          v = viewer.getViewport();
+        for (const k of ['x0', 'x1', 'y0', 'y1']) assert.ok(Math.abs(w[k] - v[k]) < 1e-9, `${k}: ${v[k]} vs ${w[k]}`);
+      }
+    });
+  }
+}
+
+test('switched back untouched, a radial window panned out past the tip cap comes back at its scale', async () => {
+  // a tip on a short branch lets the window zoom deeper near the root than at the rim (the tip cap is per position, #120)
+  const nwk = '(s:0.02,' + balanced(8).slice(0, -1) + ':1);';
+  const { viewer, env } = await makeViewer(nwk, { size: SIZE, options: { layout: 'radial', maxTipSpacing: 12 } });
+  env.flush();
+  const a = viewer.vs.area;
+  const k = 20000;
+  const at = (x, y) => ({ x0: x - a.aw / 2 / k, x1: x + a.aw / 2 / k, y0: y - a.ah / 2 / k, y1: y + a.ah / 2 / k });
+  viewer.setViewport(at(0.01, 0));
+  const deep = viewer.getViewport();
+  assert.ok(Math.abs(a.aw / (deep.x1 - deep.x0) - k) < 1e-6, 'that deep near the root');
+  const L = viewer.layout,
+    t = viewer.getTree();
+  const tip = t.tipNode[100],
+    ang = L.fan.start + (t.tipRank[tip] + 0.5) * (L.fan.span / L.rows);
+  const rim = at(L.X[tip] * Math.cos(ang), L.X[tip] * Math.sin(ang)); // on a tip at the rim
+  viewer.setViewport(rim); // a pan keeps the scale
+  const v = viewer.getViewport();
+  assert.ok(Math.abs(a.aw / (v.x1 - v.x0) - k) < 1e-6, 'the pan kept the scale');
+  assert.ok(a.aw / (viewer.vs.clampView(rim).x1 - viewer.vs.clampView(rim).x0) < k * 0.99, 'a new window there could not be that deep');
+  viewer.setOptions({ layout: 'rectangular' });
+  env.flush();
+  viewer.setOptions({ layout: 'radial' });
+  env.flush();
+  assert.deepEqual(viewer.getViewport(), v);
+});
+
+test('rectangular, branch lengths: the deepest tip in view keeps its place on the screen', async () => {
+  for (const lengths of [true, false]) {
+    const { viewer, env } = await zoomed(balanced(9), 'rectangular', 'mid', { branchLengths: lengths });
+    const t = viewer.getTree();
+    const before = viewer.layout;
+    const a = inView(viewer).ranks;
+    viewer.setOptions({ branchLengths: !lengths });
+    env.flush();
+    const after = viewer.layout;
+    // the deepest before; of equals (a cladogram's tips), the deepest after
+    let deep = -1;
+    for (const r of a) {
+      const n = t.tipNode[r];
+      if (deep < 0 || before.X[n] > before.X[deep] || (before.X[n] === before.X[deep] && after.X[n] > after.X[deep])) deep = n;
+    }
+    viewer.setOptions({ branchLengths: lengths });
+    env.flush();
+    viewer.zoomToNode(t.parent[t.parent[t.parent[t.tipNode[(t.tipCount >> 1) + 3]]]]);
+    env.flush();
+    const p = viewer.nodePosition(deep);
+    viewer.setOptions({ branchLengths: !lengths });
+    env.flush();
+    const q = viewer.nodePosition(deep);
+    assert.ok(p && q && Math.abs(p.x - q.x) < 1, `${lengths}: x ${p?.x} -> ${q?.x}`);
+    destroyAll();
+  }
 });

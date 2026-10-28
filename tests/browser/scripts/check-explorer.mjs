@@ -389,7 +389,7 @@ ok(
   ),
   'nothing in the inspector or toolbar is bolder than 600',
 );
-// the selection (#61): the tip Info was opened on is selected, and it stays across Layout and Phylo/Clado switches, centred in view with its ring
+// the selection (#61): the tip Info was opened on is selected, and it stays across Layout and Phylo/Clado switches, in view with its ring (the fitted view stays fitted, #56)
 {
   const id = await ev((l) => __v().tipNode(l), tip0);
   ok((await ev(() => __v().getSelected())) === id, "the clicked tip is the viewer's selection");

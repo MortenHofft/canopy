@@ -5,7 +5,7 @@
 // old layout and its new place to a row in the new one, so a clade collapsed on either side is followed as the one row it is.
 
 import { sectorBBox, type Area } from './geom.ts';
-import { fanAngle, type Layout } from './layout.ts';
+import { fanAngle, type Layout, type RadialFan } from './layout.ts';
 import type { LayoutKind, TreeSnapshot, Viewport } from './types.ts';
 
 /** Where an old tip is now. */
@@ -205,8 +205,10 @@ const TAU = 2 * Math.PI;
 export interface ViewContent {
   kind: LayoutKind;
   view: Viewport;
-  /** The layout it was in (its X and rows are read again by `placeContent`; the fan may have changed since, the angles are taken here). */
+  /** The layout it was in (its X and rows are read again by `placeContent`). */
   L: Layout;
+  /** Its radial fan then: the viewer sets a new fan on the layouts in place, possibly in the same `setOptions` call as the switch. */
+  fan: RadialFan;
   /** Rows whose tip was in view, in the order along the window (radial: by angle, clockwise), `count` of them; evenly sampled when many.
    *  Radial: the tips in the ellipse inscribed in the window (all in the window when that holds none). */
   rows: Int32Array;
@@ -252,7 +254,19 @@ export function viewContent(kind: LayoutKind, view: Viewport, area: Area, L: Lay
     let n = 0;
     for (let r = lo; r <= hi; r += stride) if (rowNodeOf(L, tree, r) >= 0) rows[n++] = r;
     if (!n) return null;
-    return { kind, view: { ...view }, L, rows, count: n, seam: n, pitch: area.ah / (view.y1 - view.y0), kx, near: view.x0, far: view.x1 };
+    return {
+      kind,
+      view: { ...view },
+      L,
+      fan: { ...L.fan },
+      rows,
+      count: n,
+      seam: n,
+      pitch: area.ah / (view.y1 - view.y0),
+      kx,
+      near: view.x0,
+      far: view.x1,
+    };
   }
   // radial: the angles the window covers, as row positions p (a row's tip is at p = row + 0.5); the circle is C row positions round
   const da = L.fan.span / Math.max(1, R);
@@ -321,7 +335,7 @@ export function viewContent(kind: LayoutKind, view: Viewport, area: Area, L: Lay
   }
   if (!n) return null;
   if (seam <= 0 || seam >= n) seam = n;
-  return { kind, view: { ...view }, L, rows, count: n, seam, pitch: kx * da * median(radii, n), kx, near, far };
+  return { kind, view: { ...view }, L, fan: { ...L.fan }, rows, count: n, seam, pitch: kx * da * median(radii, n), kx, near, far };
 }
 
 /** Where the content goes: the new layout kind and arrays, its plotting area and its fit window. */
@@ -382,65 +396,82 @@ function centreOn(e0: number, e1: number, b0: number, b1: number, w: number, m: 
  *    (the other end is only its neighbour on the circle).
  */
 export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
+  if (c.count === 0 || t.L.rows !== c.L.rows) return null;
+  return t.kind === 'rectangular' ? toRectangular(c, t) : toRadial(c, t);
+}
+
+/** Row position (a tip is at row + 0.5) of the direction of the window's centre seen from the root, in the fan `fan` of `rows` rows: in
+ *  [-(opening) / 2, rows + (opening) / 2) about the fan, a direction in the opening going to the nearer end. */
+function centreRow(v: Viewport, fan: RadialFan, rows: number): number {
+  const da = fan.span / Math.max(1, rows),
+    C = TAU / da;
+  let p = (Math.atan2((v.y0 + v.y1) / 2, (v.x0 + v.x1) / 2) - fan.start) / da;
+  p -= C * Math.floor(p / C);
+  if (p > (rows + C) / 2) p -= C; // in the opening, nearer the first row
+  return p;
+}
+
+/** `placeContent` to the rectangular layout. */
+function toRectangular(c: ViewContent, t: PlaceTarget): Viewport | null {
   const { L, tree, area: a } = t;
   const B = c.L;
-  if (c.count === 0 || L.rows !== B.rows) return null;
   const rows = c.rows;
-  if (t.kind === 'rectangular') {
-    // the end of the fan with more of the tips, where the window held both
-    const from = c.seam < c.count && c.count - c.seam > c.seam ? c.seam : 0,
-      to = from === 0 ? c.seam : c.count;
-    let lo = Infinity,
-      hi = -Infinity,
-      t0 = Infinity,
-      t1 = -Infinity,
-      deep = -1, // the deepest tip in view before (of equals, the deepest after): the path the x window is carried along
-      db = -Infinity;
-    for (let i = from; i < to; i++) {
-      const r = rows[i];
-      if (r < lo) lo = r;
-      if (r > hi) hi = r;
-      const node = rowNodeOf(L, tree, r);
-      const x = rowDepth(L, node),
-        xb = rowDepth(B, node);
-      if (L.X[node] < t0) t0 = L.X[node];
-      if (x > t1) t1 = x;
-      if (xb > db || (xb === db && x > rowDepth(L, deep))) {
-        db = xb;
-        deep = node;
-      }
+  // the end of the fan with more of the tips, where the window held both
+  const from = c.seam < c.count && c.count - c.seam > c.seam ? c.seam : 0,
+    to = from === 0 ? c.seam : c.count;
+  let lo = Infinity,
+    hi = -Infinity,
+    t0 = Infinity,
+    t1 = -Infinity,
+    deep = -1, // the deepest tip in view before (of equals, the deepest after): the path the x window is carried along
+    db = -Infinity;
+  for (let i = from; i < to; i++) {
+    const r = rows[i];
+    if (r < lo) lo = r;
+    if (r > hi) hi = r;
+    const node = rowNodeOf(L, tree, r);
+    const x = rowDepth(L, node),
+      xb = rowDepth(B, node);
+    if (L.X[node] < t0) t0 = L.X[node];
+    if (x > t1) t1 = x;
+    if (xb > db || (xb === db && x > rowDepth(L, deep))) {
+      db = xb;
+      deep = node;
     }
-    if (deep < 0) return null;
-    if (c.kind === 'rectangular') {
-      // the same rows: y as it was, x through the depths; the deepest tip in view keeps its place across the window
-      const v = c.view;
-      const g = (v.x1 - db) / (v.x1 - v.x0); // the share of the window right of the deepest tip
-      let x0 = mapDepth(v.x0, deep, B, L, tree);
-      let x1 = g < 1 ? (t1 - g * x0) / (1 - g) : NaN;
-      if (!(x1 > x0)) {
-        x0 = t1 + (v.x0 - db);
-        x1 = x0 + (v.x1 - v.x0);
-      }
-      return { x0, x1, y0: v.y0, y1: v.y1 };
-    }
-    // at the pitch they had: a band as high as the window holds fewer of them than an arc across it, and zooming out to hold them all
-    // would zoom out a little more at every switch to and fro
-    const h = a.ah / c.pitch;
-    if (h >= Math.max(t.fit.y1 - t.fit.y0, L.rows)) return null; // the fit shows them at least as large
-    // the band as near the row the window was centred on as it can be while it holds them (while full of them, where they do not fit)
-    const v = c.view;
-    const da0 = B.fan.span / Math.max(1, B.rows),
-      C = TAU / da0;
-    let pc = (Math.atan2((v.y0 + v.y1) / 2, (v.x0 + v.x1) / 2) - B.fan.start) / da0;
-    pc -= C * Math.floor(pc / C);
-    if (pc > (B.rows + C) / 2) pc -= C; // in the opening, nearer the first row
-    const yc = hi + 1 - lo <= h ? Math.min(lo + h / 2, Math.max(hi + 1 - h / 2, pc)) : Math.min(hi + 1 - h / 2, Math.max(lo + h / 2, pc));
-    let w = a.aw / c.kx;
-    w = Math.max(w, (t1 - t0) * 1.05);
-    const pad = 0.02 * w;
-    const xc = centreOn(Math.max(0, c.near), Math.min(c.far, t1) + pad, t0, t1 + pad, w, (t0 + t1) / 2);
-    return { x0: xc - w / 2, x1: xc + w / 2, y0: yc - h / 2, y1: yc + h / 2 };
   }
+  if (deep < 0) return null;
+  if (c.kind === 'rectangular') {
+    // the same rows: y as it was, x through the depths; the deepest tip in view before keeps its place across the window
+    const v = c.view;
+    const dd = rowDepth(L, deep); // its depth now
+    const g = (v.x1 - db) / (v.x1 - v.x0); // the share of the window right of that tip
+    let x0 = mapDepth(v.x0, deep, B, L, tree);
+    let x1 = g < 1 ? (dd - g * x0) / (1 - g) : NaN;
+    if (!(x1 > x0)) {
+      x0 = dd + (v.x0 - db);
+      x1 = x0 + (v.x1 - v.x0);
+    }
+    return { x0, x1, y0: v.y0, y1: v.y1 };
+  }
+  // at the pitch they had: a band as high as the window holds fewer of them than an arc across it, and zooming out to hold them all
+  // would zoom out a little more at every switch to and fro
+  const h = a.ah / c.pitch;
+  if (h >= Math.max(t.fit.y1 - t.fit.y0, L.rows)) return null; // the fit shows them at least as large
+  // the band as near the row the window was centred on as it can be while it holds them (while full of them, where they do not fit)
+  const pc = centreRow(c.view, c.fan, B.rows);
+  const yc = hi + 1 - lo <= h ? Math.min(lo + h / 2, Math.max(hi + 1 - h / 2, pc)) : Math.min(hi + 1 - h / 2, Math.max(lo + h / 2, pc));
+  let w = a.aw / c.kx;
+  w = Math.max(w, (t1 - t0) * 1.05);
+  const pad = 0.02 * w;
+  const xc = centreOn(Math.max(0, c.near), Math.min(c.far, t1) + pad, t0, t1 + pad, w, (t0 + t1) / 2);
+  return { x0: xc - w / 2, x1: xc + w / 2, y0: yc - h / 2, y1: yc + h / 2 };
+}
+
+/** `placeContent` to the radial layout. */
+function toRadial(c: ViewContent, t: PlaceTarget): Viewport | null {
+  const { L, tree, area: a } = t;
+  const B = c.L;
+  const rows = c.rows;
   // to radial: the tips on the circle
   const da = L.fan.span / Math.max(1, L.rows);
   const radii = new Float64Array(c.count);
@@ -500,12 +531,11 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
   // sector of the window's rows between the depths it covered
   let ex0: number, ex1: number, ey0: number, ey1: number;
   if (c.kind === 'radial') {
+    // the direction as a place across the rows, which is where it is in the new fan too (the fan may have changed with the switch)
     const v = c.view;
-    const cx = (v.x0 + v.x1) / 2,
-      cy = (v.y0 + v.y1) / 2;
-    const rho = Math.hypot(cx, cy),
-      th = Math.atan2(cy, cx);
-    const rb = c.pitch / (c.kx * (B.fan.span / Math.max(1, B.rows))); // the median radius before
+    const rho = Math.hypot((v.x0 + v.x1) / 2, (v.y0 + v.y1) / 2),
+      th = L.fan.start + centreRow(v, c.fan, B.rows) * da;
+    const rb = c.pitch / (c.kx * (c.fan.span / Math.max(1, B.rows))); // the median radius before
     const r2 = Math.max(0, rRef + ((rho - rb) * c.kx) / k);
     ex0 = ex1 = r2 * Math.cos(th);
     ey0 = ey1 = r2 * Math.sin(th);

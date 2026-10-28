@@ -117,7 +117,7 @@ export interface TreeViewProps {
   tipHref?: ((tipId: string) => string) | null; // compared by identity
   focus?: { tipId: TipRef; seq: number } | null; // declarative "centre this tip" request (a label or a node id); acts when seq changes
   /** The selected node (a node id, tip or clade; null for none): drawn with a ring, kept across layout and branch-length switches (the
-   *  view centres on it) and collapsing (a hidden node selects its clade). See `TreeViewer.setSelected`. */
+   *  view keeps what it showed, not the selection: option `switchView`) and collapsing (a hidden node selects its clade). See `TreeViewer.setSelected`. */
   selected?: number | null;
   /** Nodes marked with a ring of their own (node ids), e.g. the first pick of a two-step action; [] or left out for none. See
    *  `TreeViewer.setMarked`. */

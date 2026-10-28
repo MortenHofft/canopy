@@ -105,10 +105,20 @@ the full-size ones are not committed. **(M)**
   and zooming out to hold them all made each switch to the rectangular layout and back zoom out further. In the unit test this ran from
   55.8 to 32.7 px between tips in a round and a half. **(M)** The other way, rectangular to radial, it may zoom out for tips at different depths
   (the 3/4 limit), but radial to rectangular never lowers the pitch.
-- **Switched back untouched, the view goes back to the window it came from.** The viewer remembers the last switch. If the window is the
-  one the switch made, and the layout and branch lengths are those it came from, the old window is restored exactly. Moved in between,
-  each switch starts from what is in view. A view at an end of the tree may then walk a little over several switches: the unit test
-  allows the clade to lose up to 40% of its tips after three moved round trips. **(M)**
+- **Switched back untouched, the view goes back to the window it came from.** The viewer remembers the last switch. The old window is
+  restored exactly when the window is the one the switch made, the layout and branch lengths are those it came from, and nothing else
+  changed the scene in between (`sceneVersion`: any option, the theme, the size, the tree, the collapsed clades, colours or
+  highlights). That last condition was added after review: a new `radialRotation` or `radialOpening` set while the rectangular layout
+  showed is applied to the cached layouts in place, so the remembered radial window then showed another part of the tree (tips 13-22
+  instead of 95-105 on a balanced 256-tip tree). The unit tests that switch, change the fan, the label size, `alignLabels`, the size or
+  the collapsed clades in the other layout and switch back fail without it (rotation and opening) and pass with it. **(M)** A restored
+  radial window keeps its scale even where the position-dependent tip cap (#120) would not let a new window be that deep (a pan may
+  keep a scale a new window may not). Moved in between, each switch starts from what is in view. A view at an end of the tree may then
+  walk a little over several switches: after three moved round trips the unit test still wants 3/4 of the clade in view, and at most
+  1 of its 8 tips was lost. **(M)**
+- **A fan changed in the same call.** One `setOptions` with a new layout and a new `radialRotation` or `radialOpening` sets the new fan
+  on the layouts before the window is placed, so the old window's angles are read from the fan `viewContent` recorded, not from the
+  layout. **(M)**: the unit tests of such calls fail when the fan is read from the layout.
 - **Where the ends meet.** Rectangular to radial cannot meet the seam: a band of rows is one arc. Radial to rectangular takes the end
   with more of the tips (ties: the end before the seam). The other end is only a neighbour on the circle. **(R)**
 - **A window with no tip in view** (only branches, near the root) is fitted, as before. A view near the root of a big tree would need
@@ -117,5 +127,10 @@ the full-size ones are not committed. **(M)**
   covers (radial), tested one by one, at most 65,536 of them (a stride beyond). It does not walk the tree, except up one path from a tip
   to the root for the rectangular branch-length switch. On OTL 100k (90,938 tips): 0.01 ms zoomed in, 3.5-3.8 ms for half the tree or with the root in the window, median of 7 runs, Node 22 in the cloud sandbox (the last part of the same script). **(M)** The 2.39M-tip tree is bounded by the same
   65,536 rows, so it should cost about the same. **unverified**: it was not run.
+- **Open question for the owner: the selection when it is in view.** The answer on the issue said to drop focusing on the selection
+  "unless it is in view already". What is done ignores the selection entirely. Going radial to rectangular keeps the pitch and only
+  80-91% of the tips in view (median, the table above), so a selected tip that was in view near the edge of a wide radial window can
+  fall out of view. Keeping a selected tip that was in view would be a small addition (hold its row in the band). The "unless it is in
+  view" part is **not done**: should it be?
 - **Not in scope:** the unrooted layout and the table (no such layouts yet), animation of the switch, a partial source (fitted), and
   `setCollapsed` (which keeps its own window, `remapRow`).

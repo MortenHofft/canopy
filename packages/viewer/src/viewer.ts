@@ -278,8 +278,9 @@ export class TreeViewer {
   /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
    *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
   private selected = -1;
-  /** The last switch of layout or branch lengths that kept the view: where it came from and the window it went to (`refitAfterOptions`). */
-  private lastSwitch: (Omit<SwitchOrigin, 'content'> & { after: Viewport }) | null = null;
+  /** The last switch of layout or branch lengths that kept the view: where it came from, the window it went to and `sceneVersion` then
+   *  (`refitAfterOptions`). Dropped with the layouts (it holds one). */
+  private lastSwitch: (Omit<SwitchOrigin, 'content'> & { after: Viewport; stamp: number }) | null = null;
   /** The marked nodes (`setMarked`, node ids as given), and their rows of the snapshot, filled by `drawTop` (-1: not loaded). */
   private marked: number[] = [];
   private markRows = new Int32Array(0);
@@ -630,6 +631,7 @@ export class TreeViewer {
     this.tree = this.source.snapshot();
     this.applyCollapsed(); // the mask first: the layout reads it
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     this.rebuildProj();
     this.hit = new HitIndex();
@@ -812,6 +814,7 @@ export class TreeViewer {
     else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
     this.applyCollapsed();
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     this.rebuildProj();
     this.hit = new HitIndex();
@@ -1069,7 +1072,8 @@ export class TreeViewer {
    *  cursor is announced again. */
   private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean, from: SwitchOrigin | null): void {
     const vs = this.vs;
-    let kept: Viewport | null = null;
+    let kept: Viewport | null = null,
+      keepK = 0;
     if (from) {
       vs.computeArea();
       const last = this.lastSwitch;
@@ -1078,10 +1082,13 @@ export class TreeViewer {
         last.layout === this.opts.layout &&
         last.lengths === this.opts.branchLengths &&
         last.L === this.L &&
+        last.stamp + 1 === this.sceneVersion && // nothing but that switch changed the scene since (an option, the theme, the size, the tree)
         viewportEquals(last.after, from.view)
-      )
+      ) {
         kept = last.view;
-      else if (from.content) {
+        // exactly that window: it may keep its scale wherever the radial tip cap stands
+        keepK = this.opts.layout === 'radial' ? vs.area.aw / (kept.x1 - kept.x0) : 0;
+      } else if (from.content) {
         const readable = labelMinPx(this.opts.labelDensity, this.theme.labelSize);
         kept = placeContent(from.content, {
           kind: this.opts.layout,
@@ -1097,8 +1104,9 @@ export class TreeViewer {
     this.lastSwitch = null;
     if (kept) {
       vs.cancelAnim();
-      vs.setViewport(vs.clampView(kept));
-      if (from) this.lastSwitch = { layout: from.layout, lengths: from.lengths, L: from.L, view: from.view, after: { ...vs.view } };
+      vs.setViewport(vs.clampView(kept, keepK), false, keepK);
+      if (from)
+        this.lastSwitch = { layout: from.layout, lengths: from.lengths, L: from.L, view: from.view, after: { ...vs.view }, stamp: this.sceneVersion };
     } else if (vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
     else this.reclampView(); // a zoomed view keeps its window within the limits, which are relative to the fit (radial: alignLabels moves it)
     if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
@@ -1315,6 +1323,7 @@ export class TreeViewer {
     const before = this.L;
     this.applyCollapsed();
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     if (before.collapsed === null && this.L.collapsed === null) {
       this.rebuildProj();
@@ -1475,8 +1484,8 @@ export class TreeViewer {
   /** Select a node (a node id, any tip or internal node), or nothing with null. The selected node gets a ring (theme `selectionColour`,
    *  `selectionWidth`, `selectionRadius`); a click selects its node by default (`preventDefault()` in a `click` listener stops it). The
    *  selection is kept across layout, branch-length and theme changes, across `setTree` through its `map` (dropped without one) and across
-   *  collapsing: a node inside a collapsed clade selects the clade. A switch of layout or branch lengths centres the new view on the
-   *  selected tip, or frames the selected clade, instead of fitting. A number that is not a node is ignored with a warning. Emits
+   *  collapsing: a node inside a collapsed clade selects the clade. A switch of layout or branch lengths does not move the view to it:
+   *  the view keeps what it showed (option `switchView`). A number that is not a node is ignored with a warning. Emits
    *  `selectionchange` when the selection changed. */
   setSelected(node: number | null): void {
     if (node === null || node === undefined) return this.select(-1);
@@ -1872,6 +1881,7 @@ export class TreeViewer {
     }
     this.columns = [];
     this.layouts.clear();
+    this.lastSwitch = null;
     this.unsubscribe();
     this.detail.destroy();
   }
