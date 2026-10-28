@@ -1,4 +1,4 @@
-// Unit tests of the label overlay (src/core/overlay.ts) with a minimal fake document: elements record their attributes, style, children and
+// Unit tests of the label overlay (src/label-overlay.ts) with a minimal fake document: elements record their attributes, style, children and
 // focus. It checks the element pool (reuse by tip rank, removal, focus kept alive), the transforms of both layouts, link mode, the screen
 // reader list with its cap, and the delayed list refresh. No DOM package.
 import { test, mock } from 'node:test';
@@ -14,7 +14,7 @@ const { FALLBACK_THEME } = await import(path.join(core, 'types.ts'));
 const { LabelList } = await import(path.join(core, 'draw.ts'));
 const { DrawList, K_TIP, K_NODE } = await import(path.join(core, 'lod.ts'));
 const { SR_LIST_CAP } = await import(path.join(core, 'constants.ts'));
-const { LabelOverlay } = await import(path.join(core, 'overlay.ts'));
+const { LabelOverlay } = await import(path.join(core, 'label-overlay.ts'));
 
 class FakeElement {
   constructor(tag) {

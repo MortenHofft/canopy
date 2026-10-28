@@ -6,7 +6,7 @@
 // Everything else lives in a module with one job, wired together here:
 //   view-state.ts     the viewport: area, fit, limits, zoom, target windows, animation (pure arithmetic, no DOM)
 //   input.ts          wheel / pointer / pinch / click / key events -> calls on this class (keyboard.ts: where the cursor moves)
-//   overlay.ts        label anchors over the canvas, the hidden list of tips in view, the live region
+//   label-overlay.ts  label anchors over the canvas, the hidden list of tips in view, the live region
 //   overview.ts       the strip / disc with the window box
 //   detail-loader.ts  opening the stubs of a partial TreeSource
 //   node-event.ts     the NodeEvent handed to the host app
@@ -46,7 +46,7 @@ import { computeLayout, ensureTrig, fanAngle, fanRow, radialFan, remapRow, setLa
 import { live } from './live.ts';
 import { DrawList, Seen, searchCut, type CutResult } from './lod.ts';
 import { makeNodeEvent, toTreeEvent } from './node-event.ts';
-import { LabelOverlay } from './overlay.ts';
+import { LabelOverlay } from './label-overlay.ts';
 import type { OverviewHost } from './overview.ts';
 import { projectionFor, tipDotRadius, type LayoutProjection } from './projection.ts';
 import { easeOut, RingAnim } from './ring-anim.ts';
@@ -93,7 +93,7 @@ import {
   type BudgetState,
 } from './budget.ts';
 import { tipRow } from './tip-row.ts';
-import { keptViewport, placeContent, viewContent, type TipTarget, type ViewContent } from './view-keep.ts';
+import { keptViewport, placeContent, viewContent, type TipTarget, type ViewContent } from './view-carry.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_FROM = 500; // radial: from this many primitives on, branches thin towards one device pixel,

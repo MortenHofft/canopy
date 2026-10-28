@@ -5,7 +5,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeViewer, destroyAll } from './viewer-harness.mjs';
-import { viewContent } from '../src/view-keep.ts';
+import { viewContent } from '../src/view-carry.ts';
 
 afterEach(destroyAll);
 

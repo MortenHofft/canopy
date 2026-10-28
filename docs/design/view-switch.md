@@ -2,7 +2,7 @@
 
 Written 2026-10-28. A zoomed view used to be refitted (or, from #61, moved to the selected node) whenever `layout` or `branchLengths`
 changed. Now `switchView: 'keep'` (the default) keeps what was in view. The code is `viewContent` and `placeContent` in
-[`packages/viewer/src/view-keep.ts`](../../packages/viewer/src/view-keep.ts), called from `setOptions` in `viewer.ts`. The rules are in the
+[`packages/viewer/src/view-carry.ts`](../../packages/viewer/src/view-carry.ts), called from `setOptions` in `viewer.ts`. The rules are in the
 API reference, "Switching layouts". This note compares the approaches the issue listed and says why the default is what it is.
 
 Marks: **(M)** measured, with the command given. **(R)** from reading or reasoning about the code. **unverified**: not measured.

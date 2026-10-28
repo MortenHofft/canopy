@@ -577,7 +577,7 @@ zooms along x.
 With `switchView: 'keep'` (the default) a zoomed view keeps its place when `layout` (rectangular <-> radial) or `branchLengths`
 (phylogram <-> cladogram) changes (#56). What is kept is the set of tips in view (a collapsed clade counts as one) and their tip pitch,
 the px between neighbouring tips that decides whether labels are drawn; the selection plays no part (a selected node out of view stays out of view).
-The pure functions behind it are `viewContent` and `placeContent` in `src/view-keep.ts` (not exported).
+The pure functions behind it are `viewContent` and `placeContent` in `src/view-carry.ts` (not exported).
 
 - **The tips in view.** Rectangular: the rows of the y window. Radial: the tips in the ellipse inscribed in the window (the ones in its
   corners are left out: a box across an arc holds more of it than a band of the same height, so taking them would zoom out a little more
