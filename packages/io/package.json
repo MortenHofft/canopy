@@ -16,7 +16,7 @@
       "default": "./dist/index.js"
     },
     "./browser": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/browser-entry.d.ts",
       "default": "./dist/browser/io.js"
     },
     "./worker": {
@@ -35,7 +35,7 @@
     "src"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node ../../scripts/worker-urls.mjs && node ../../scripts/bundle-browser.mjs io",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node ../../scripts/worker-urls.mjs && node ../../scripts/bundle-browser.mjs io src/browser-entry.ts && node ../../scripts/bundle-browser.mjs io-parse-worker src/parse-worker.ts",
     "bench": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/nexus.mjs",
     "bench:posterior": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/posterior.mjs",
     "bench:phyloxml": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/phyloxml.mjs",

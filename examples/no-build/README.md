@@ -9,6 +9,9 @@ npm run build
 npx serve .            # or python3 -m http.server; then open /examples/no-build/?cpu=1
 ```
 
+The page fetches its tree and parses it in a worker (`parseInWorker` from `@canopy/io`), so a large file does not block the page. The
+worker is `dist/browser/io-parse-worker.js`, which has to be hosted next to `io.js`.
+
 On a website, point the import map and the stylesheet at wherever the files are hosted, such as your own server or a CDN once the packages
 are published. The per-file `dist/` works the same way without an import map, by importing `.../dist/index.js` directly. It costs about
 40 module requests instead of one.

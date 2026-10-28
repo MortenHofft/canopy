@@ -184,7 +184,11 @@ const { tree, nexus } = await parseInWorker(bytes, {
   webpack 5 and Parcel bundle as a worker of its own (with Vite, a copy of the package that is pre-bundled by `optimizeDeps` loses the
   worker file: exclude `@canopy/io` there, **unverified** beyond the Vite build of the examples). A bundler that does not handle it, or an
   app that hosts the file itself, passes `worker: () => new Worker(myUrl, { type: 'module' })`, with `myUrl` serving
-  `@canopy/io/parse-worker` bundled (it imports the parser). The single-file browser build (`@canopy/io/browser`) has no worker.
+  `@canopy/io/parse-worker` bundled (it imports the parser). - **No build step**: the single-file browser build (`@canopy/io/browser`) exports `parseInWorker` too. Its worker is the file
+  `dist/browser/io-parse-worker.js`, which must be served next to `io.js` (same folder, no import-map entry needed). If the build is loaded from
+  another origin, such as a CDN, a worker cannot start from there directly: `createParseWorker` then starts a small module of its own
+  that imports the file, so the CDN must send CORS headers (checked against a second local origin in `check-no-build.mjs`; **unverified**
+  against a real CDN). See [examples/no-build](../../examples/no-build/index.html).
 - **Not here**: progress inside the parse (it is one synchronous call), phyloXML, a `TreeSource` other than the whole tree (a Parquet
   source would decode its row groups in a worker with the same packing; not built).
 

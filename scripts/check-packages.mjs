@@ -62,7 +62,8 @@ for (const name of PACKAGES) {
     if (fs.existsSync(file)) {
       const code = fs.readFileSync(file, 'utf8');
       // any import or export-from left in the bundle would need a resolver (an import map or a bundler); there must be none
-      const left = code.match(/(?:\bimport\s*\(|\bfrom\s*["'`]|\bimport\s*["'`])/g) ?? [];
+      // (not an `import` that opens a string: io's worker.ts builds the source of a one-line worker module that way)
+      const left = code.match(/(?:\bimport\s*\(|\bfrom\s*["'`]|(?<!["'`])\bimport\s*["'`])/g) ?? [];
       ok(left.length === 0, `browser build has no imports left (${left.length})`);
       const gz = zlib.gzipSync(code, { level: 9 }).length;
       console.log(`  browser build: ${(code.length / 1024).toFixed(1)} kB min, ${(gz / 1024).toFixed(1)} kB gzip`);
