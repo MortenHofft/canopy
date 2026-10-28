@@ -22,6 +22,7 @@ import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from
 import {
   drawAxis,
   drawBody,
+  drawCladeBoxes,
   drawHighlights,
   drawLabels,
   drawNodeLabels,
@@ -35,6 +36,7 @@ import {
   drawMarkRings,
   LabelList,
   TextMeasurer,
+  type CladeBoxes,
   type Scene,
 } from './draw.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
@@ -68,7 +70,7 @@ import {
 } from './types.ts';
 import { isOpaque } from './colour.ts';
 import { THEME_CSS_VARS, deriveDark, themeFromCss } from './theme.ts';
-import { collapseCap, resolveSize } from './sizes.ts';
+import { collapseCap, labelMinPx, resolveSize } from './sizes.ts';
 import {
   CEILING,
   BUDGET_FRAME_MS,
@@ -91,7 +93,7 @@ import {
   type BudgetState,
 } from './budget.ts';
 import { tipRow } from './tip-row.ts';
-import { keptViewport, type TipTarget } from './view-keep.ts';
+import { keptViewport, placeContent, viewContent, type TipTarget, type ViewContent } from './view-keep.ts';
 import { ViewState, type ViewEnv, type ViewEvents } from './view-state.ts';
 
 const THIN_FROM = 500; // radial: from this many primitives on, branches thin towards one device pixel,
@@ -156,6 +158,15 @@ export interface ViewerInternals {
   sceneVersion(): number;
   /** Reserve (or free) the overview strip right of the rectangular plot; refits while the view is still fitted. */
   reserveOverview(on: boolean): void;
+}
+
+/** A zoomed view before a switch of layout or branch lengths: the options it was in, its layout and window, and the tips it shows. */
+interface SwitchOrigin {
+  layout: ViewerOptions['layout'];
+  lengths: boolean;
+  L: Layout;
+  view: Viewport;
+  content: ViewContent | null;
 }
 
 const NO_RANKS = new Int32Array(0);
@@ -242,7 +253,8 @@ export class TreeViewer {
   private T!: Transform;
   private proj!: LayoutProjection; // the layout projection of T and L (node positions, clade extents), rebuilt with T
   private columns: CompiledColumn[] = [];
-  private classOf: Uint8Array | null = null;
+  private classOf: Uint8Array | null = null; // colour class of the branches by row (null: none coloured, see applyClades)
+  private cladeBoxes: CladeBoxes | null = null; // the boxes behind the coloured clades (cladeStyle 'background' or 'both')
   private colours: string[] = [''];
   private cladeKey = '';
   private clades: CladeColour[] = [];
@@ -269,6 +281,9 @@ export class TreeViewer {
   /** The selected node (`setSelected`, a click): a node id of the public API (preorder id of the full tree), -1 for none. Kept by id, so
    *  it survives a new snapshot of a partial source; a node inside a collapsed clade selects the clade. */
   private selected = -1;
+  /** The last switch of layout or branch lengths that kept the view: where it came from, the window it went to and `sceneVersion` then
+   *  (`refitAfterOptions`). Dropped with the layouts (it holds one). */
+  private lastSwitch: (Omit<SwitchOrigin, 'content'> & { after: Viewport; stamp: number }) | null = null;
   /** The marked nodes (`setMarked`, node ids as given), and their rows of the snapshot, filled by `drawTop` (-1: not loaded). */
   private marked: number[] = [];
   private markRows = new Int32Array(0);
@@ -315,9 +330,11 @@ export class TreeViewer {
   private budgetTimer = 0; // the frame that measures a changed budget (adaptBudget)
   private minPxHint = 0;
   private hintRaised = false; // the hint is a threshold the budget raised past the cap, not a base (or the cap itself)
-  // the same for reduced frames, which search with their own budget and base: they start from the last reduced frame's threshold (#93)
+  // the same for reduced frames, which search with their own budget and base: they start from the last reduced frame's threshold (#93),
+  // scaled by the zoom since then (the tip pitch it was found at), as a gesture can start far from where the last one ended (#150)
   private reducedMinPxHint = 0;
   private reducedHintRaised = false;
+  private reducedHintPitch = 0;
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
@@ -617,6 +634,7 @@ export class TreeViewer {
     this.tree = this.source.snapshot();
     this.applyCollapsed(); // the mask first: the layout reads it
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     this.rebuildProj();
     this.hit = new HitIndex();
@@ -799,6 +817,7 @@ export class TreeViewer {
     else if (map) this.storeCollapsed(oldCollapsed.map(rm).filter((n) => n >= 0));
     this.applyCollapsed();
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     this.rebuildProj();
     this.hit = new HitIndex();
@@ -992,6 +1011,7 @@ export class TreeViewer {
     const lengthsChanged = p.branchLengths !== undefined && p.branchLengths !== o.branchLengths;
     const layoutChanged = p.layout !== undefined && p.layout !== o.layout;
     const refit = lengthsChanged || layoutChanged || refitsView(p, o);
+    const from = (layoutChanged || lengthsChanged) && (p.switchView ?? o.switchView) === 'keep' ? this.switchOrigin() : null;
     // the pooled label elements take their text (formatLabel, and for collapsed clades cladeLabel and formatCollapsedLabel) and link
     // (tipHref) when they are created, so a change of any rebuilds them
     const labelsChanged = (['tipHref', 'formatLabel', 'cladeLabel', 'formatCollapsedLabel'] as const).some(
@@ -1017,7 +1037,8 @@ export class TreeViewer {
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
-    if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
+    if (p.cladeStyle !== undefined) this.applyClades();
+    if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged, from);
     else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
     this.invalidate();
@@ -1038,12 +1059,59 @@ export class TreeViewer {
     return this.opts.layout === 'radial';
   }
 
+  /** Where a switch of layout or branch lengths starts from (option `switchView: 'keep'`): the layout, the window and what it shows; null
+   *  when the view is fitted, or for a partial source. */
+  private switchOrigin(): SwitchOrigin | null {
+    if (this.vs.fitted || this.W <= 0 || this.tree.globalId !== null) return null;
+    this.vs.computeArea();
+    const view = { ...this.vs.view };
+    const content = viewContent(this.opts.layout, view, this.vs.area, this.L, this.tree);
+    return { layout: this.opts.layout, lengths: this.opts.branchLengths, L: this.L, view, content };
+  }
+
   /** The view after `setOptions` changed something that refits. The keyboard cursor and the selection stay (node ids do not change with
-   *  the layout): after a `switched` layout or branch lengths the view goes to the selection, else it is fitted as before (a zoomed view is
-   *  only clamped to the new limits), and the cursor is announced again. */
-  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean): void {
-    if (!(switched && this.frameSelection()) && (this.vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined))
-      this.fit(false);
+   *  the layout). After a `switched` layout or branch lengths, a zoomed view (`from`) shows what it showed (see `placeContent`), or goes
+   *  back to the window it came from when it is switched back untouched (so switching to and fro does not move it a little each time);
+   *  without anything to keep it is fitted. Otherwise the view is fitted as before (a zoomed view is only clamped to the new limits). The
+   *  cursor is announced again. */
+  private refitAfterOptions(p: Partial<ViewerOptions>, switched: boolean, from: SwitchOrigin | null): void {
+    const vs = this.vs;
+    let kept: Viewport | null = null,
+      keepK = 0;
+    if (from) {
+      vs.computeArea();
+      const last = this.lastSwitch;
+      if (
+        last &&
+        last.layout === this.opts.layout &&
+        last.lengths === this.opts.branchLengths &&
+        last.L === this.L &&
+        last.stamp + 1 === this.sceneVersion && // nothing but that switch changed the scene since (an option, the theme, the size, the tree)
+        viewportEquals(last.after, from.view)
+      ) {
+        kept = last.view;
+        // exactly that window: it may keep its scale wherever the radial tip cap stands
+        keepK = this.opts.layout === 'radial' ? vs.area.aw / (kept.x1 - kept.x0) : 0;
+      } else if (from.content) {
+        const readable = labelMinPx(this.opts.labelDensity, this.theme.labelSize);
+        kept = placeContent(from.content, {
+          kind: this.opts.layout,
+          L: this.L,
+          tree: this.tree,
+          area: vs.area,
+          fit: vs.fitViewport(),
+          readable,
+          labelPx: vs.labelReserve(),
+        });
+      }
+    }
+    this.lastSwitch = null;
+    if (kept) {
+      vs.cancelAnim();
+      vs.setViewport(vs.clampView(kept, keepK), false, keepK);
+      if (from)
+        this.lastSwitch = { layout: from.layout, lengths: from.lengths, L: from.L, view: from.view, after: { ...vs.view }, stamp: this.sceneVersion };
+    } else if (vs.fitted || switched || p.rowHeight !== undefined || p.treeWidth !== undefined) this.fit(false);
     else this.reclampView(); // a zoomed view keeps its window within the limits, which are relative to the fit (radial: alignLabels moves it)
     if (switched && this.activeNode >= 0) this.overlay.announce(this.describe(this.activeNode));
   }
@@ -1169,8 +1237,9 @@ export class TreeViewer {
     if (!viewportEquals(c, this.vs.view, 1e-12)) this.vs.view = c;
   }
 
-  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`. Where clades nest
-   *  the innermost wins, whatever the order; for the same node the later entry wins. No-op for the same entries in the same order. */
+  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`, or puts a box in its
+   *  colour behind the clade, or both (option `cladeStyle`). Where clades nest the innermost colours the branches, whatever the order, and
+   *  its box is drawn over the outer one; for the same node the later entry wins. No-op for the same entries in the same order. */
   setClades(clades: CladeColour[]): void {
     if (!this.storeClades(this.knownNodes('setClades', clades, (c) => c.node))) return;
     this.applyClades();
@@ -1192,11 +1261,14 @@ export class TreeViewer {
     return this.clades.map((c) => ({ ...c }));
   }
 
-  /** Colour classes per row from the clade list (node ids of the full tree). Clades that are not part of the snapshot are skipped. */
+  /** Colour classes per row from the clade list (node ids of the full tree), for the branches (`classOf`, null with `cladeStyle:
+   *  'background'`) and the boxes behind the clades (`cladeBoxes`, null with 'branches'). Clades that are not part of the snapshot are
+   *  skipped. */
   private applyClades(): void {
     const clades = this.clades;
+    this.classOf = null;
+    this.cladeBoxes = null;
     if (!clades.length) {
-      this.classOf = null;
       this.colours = [''];
       return;
     }
@@ -1208,14 +1280,23 @@ export class TreeViewer {
       .map((c) => ({ c, r: this.rowOf(c.node) }))
       .filter((x) => x.r >= 0)
       .sort((a, b) => a.r - b.r);
+    // one box per node, the later entry's colour, in preorder: a clade's box comes before the boxes inside it
+    const rows = new Int32Array(placed.length);
+    const boxCls = new Uint8Array(placed.length);
+    let n = 0;
     for (const { c, r } of placed) {
       let k = colours.indexOf(c.colour);
       if (k < 0) {
         k = Math.min(255, colours.push(c.colour) - 1);
       }
       cls.fill(k, r, this.tree.subtreeEnd[r]);
+      if (n > 0 && rows[n - 1] === r) n--;
+      rows[n] = r;
+      boxCls[n++] = k;
     }
-    this.classOf = cls;
+    const style = this.opts.cladeStyle;
+    if (style !== 'background') this.classOf = cls;
+    if (style !== 'branches') this.cladeBoxes = { rows: rows.slice(0, n), cls: boxCls.slice(0, n), up: new Int32Array(n), upFor: null };
     this.colours = colours;
   }
 
@@ -1259,6 +1340,7 @@ export class TreeViewer {
     const before = this.L;
     this.applyCollapsed();
     this.layouts.clear();
+    this.lastSwitch = null;
     this.L = this.layoutFor(this.opts.branchLengths);
     if (before.collapsed === null && this.L.collapsed === null) {
       this.rebuildProj();
@@ -1419,8 +1501,8 @@ export class TreeViewer {
   /** Select a node (a node id, any tip or internal node), or nothing with null. The selected node gets a ring (theme `selectionColour`,
    *  `selectionWidth`, `selectionRadius`); a click selects its node by default (`preventDefault()` in a `click` listener stops it). The
    *  selection is kept across layout, branch-length and theme changes, across `setTree` through its `map` (dropped without one) and across
-   *  collapsing: a node inside a collapsed clade selects the clade. A switch of layout or branch lengths centres the new view on the
-   *  selected tip, or frames the selected clade, instead of fitting. A number that is not a node is ignored with a warning. Emits
+   *  collapsing: a node inside a collapsed clade selects the clade. A switch of layout or branch lengths does not move the view to it:
+   *  the view keeps what it showed (option `switchView`). A number that is not a node is ignored with a warning. Emits
    *  `selectionchange` when the selection changed. */
   setSelected(node: number | null): void {
     if (node === null || node === undefined) return this.select(-1);
@@ -1469,22 +1551,6 @@ export class TreeViewer {
   private storeMarked(nodes: number[]): void {
     this.marked = nodes;
     if (this.markRows.length !== nodes.length) this.markRows = new Int32Array(nodes.length);
-  }
-
-  /** After a switch of layout or branch lengths: the view centred on the selected tip at a readable size (as `focusTip`), or framing the
-   *  selected clade (as `zoomToNode`), worked out from the new layout's fit view. False when nothing is selected, or its row is not loaded. */
-  private frameSelection(): boolean {
-    const row = this.selected >= 0 ? this.rowOf(this.selected) : -1;
-    if (row < 0) return false;
-    const vs = this.vs;
-    vs.cancelAnim();
-    vs.computeArea();
-    vs.view = vs.fitViewport(); // the targets keep the current scale where they can: the new layout's fit, not the old layout's window
-    vs.fitted = true;
-    const target = this.tree.childCount[row] === 0 ? vs.focusViewport(row) : vs.cladeViewport(row);
-    if (viewportEquals(target, vs.view)) this.fit(false);
-    else vs.setViewport(target);
-    return true;
   }
 
   /** Only the columns whose spec changed are compiled again (see `updateColumns`); `values` is compared by reference. No-op when nothing changed. */
@@ -1832,6 +1898,7 @@ export class TreeViewer {
     }
     this.columns = [];
     this.layouts.clear();
+    this.lastSwitch = null;
     this.unsubscribe();
     this.detail.destroy();
   }
@@ -2015,7 +2082,9 @@ export class TreeViewer {
     reduced: boolean,
     limit: number,
   ): { res: CutResult; minPx: number; retries: number } {
-    const hint = reduced ? this.reducedMinPxHint : this.minPxHint;
+    let hint = reduced ? this.reducedMinPxHint : this.minPxHint;
+    // the reduced hint can be a whole gesture old, from another zoom: carry it to this one, as the same clade size in tree units (#150)
+    if (reduced && this.reducedHintPitch > 0) hint *= this.proj.tipPitch / this.reducedHintPitch;
     const raised = reduced ? this.reducedHintRaised : this.hintRaised;
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
@@ -2034,6 +2103,7 @@ export class TreeViewer {
     if (reduced) {
       this.reducedMinPxHint = r.minPx;
       this.reducedHintRaised = r.minPx > cap * (1 + 1e-9);
+      this.reducedHintPitch = this.proj.tipPitch;
     } else {
       this.minPxHint = r.minPx;
       this.hintRaised = r.minPx > cap * (1 + 1e-9);
@@ -2148,6 +2218,8 @@ export class TreeViewer {
       theme: this.theme,
       colours: this.colours,
       classOf: this.classOf,
+      cladeBoxes: this.cladeBoxes,
+      labelReach: vs.labelReach(),
       highlight: bands ? this.hl : null,
       hlRanks: bands ? this.hlRanks : NO_RANKS,
       hlPrefix: dimming ? this.dimPrefix() : null,
@@ -2167,6 +2239,7 @@ export class TreeViewer {
     ctx.beginPath();
     ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
     ctx.clip();
+    drawCladeBoxes(ctx, S);
     if (opts.axis) drawRings(ctx, S, opts.radialRings); // radial only; with the scale bar, their one label without an opening
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, this.theme.branchWidth);

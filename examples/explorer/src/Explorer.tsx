@@ -444,7 +444,7 @@ export function Explorer({
   const searchInput = useRef<HTMLInputElement>(null);
 
   // the selected node (of `tree`): the viewer's selection (a click selects, Info opens the inspector on it). It stays across layout and
-  // tree type switches, which centre the view on it; an edit, Undo or a navigation clears it
+  // tree type switches, which keep the view where it was rather than going to it; an edit, Undo or a navigation clears it
   const [selected, setSelected] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false); // the inspector shows `selected`
   const deselect = () => {

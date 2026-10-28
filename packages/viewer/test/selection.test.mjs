@@ -1,6 +1,6 @@
 // Unit tests of the selection (#61): `setSelected` / `getSelected` / `selectionchange`, the ring on the top canvas (theme tokens), a click
-// selecting by default, and what keeps it: switches of layout and branch lengths (which also keep the keyboard cursor, and centre the
-// new view on the selection instead of fitting), `setTree` through its map, and collapsing (a hidden node selects its clade).
+// selecting by default, and what keeps it: switches of layout and branch lengths (which also keep the keyboard cursor; the view does not
+// go to the selection, #56), `setTree` through its map, and collapsing (a hidden node selects its clade).
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -149,7 +149,7 @@ for (const [what, patch, back] of [
   });
 }
 
-test('a switch with a tip selected centres the new view on it (rectangular and radial); with nothing selected it is fitted', async () => {
+test('a switch with a node selected does not frame it (#56): a fitted view is fitted again', async () => {
   const { viewer, env } = await make();
   env.flush();
   const sel = tipId(viewer, 't13');
@@ -157,41 +157,10 @@ test('a switch with a tip selected centres the new view on it (rectangular and r
   for (const o of [{ layout: 'radial' }, { branchLengths: false }, { layout: 'rectangular' }, { branchLengths: true }]) {
     viewer.setOptions(o);
     env.flush();
-    const p = viewer.nodePosition(sel);
-    assert.ok(p, `${JSON.stringify(o)}: in view`);
-    const a = viewer.vs.area;
-    if (viewer.options.layout === 'radial') {
-      assert.ok(near(p.x, 300, 0.5) && near(p.y, 200, 0.5), `${JSON.stringify(o)}: centred (${p.x}, ${p.y})`);
-    } else {
-      assert.ok(near(p.y, a.ay + a.ah / 2, 0.5), `${JSON.stringify(o)}: centred vertically (${p.y} in ${a.ay}..${a.ay + a.ah})`);
-      assert.ok(p.x >= a.ax && p.x <= a.ax + a.aw + 0.5, 'and inside the plot horizontally');
-    }
-    assert.equal(viewer.vs.fitted, false, 'not the fit view');
+    assert.equal(viewer.vs.fitted, true, `${JSON.stringify(o)}: fitted`);
+    assert.deepEqual(viewer.getViewport(), viewer.fitViewport());
   }
-  viewer.setSelected(null);
-  viewer.setOptions({ layout: 'radial' });
-  env.flush();
-  assert.equal(viewer.vs.fitted, true, 'nothing selected: fitted');
-  assert.deepEqual(viewer.getViewport(), viewer.fitViewport());
-});
-
-test('a switch with a clade selected frames the clade', async () => {
-  const { viewer, env } = await make();
-  env.flush();
-  const t = viewer.getTree();
-  const clade = t.parent[t.parent[tipId(viewer, 't9')]]; // 4 tips
-  viewer.setSelected(clade);
-  for (const o of [{ layout: 'radial' }, { layout: 'rectangular' }, { branchLengths: false }]) {
-    viewer.setOptions(o);
-    env.flush();
-    const T = viewer.T;
-    for (let r = t.leafStart[clade]; r < t.leafEnd[clade]; r++) {
-      const p = viewer.nodePosition(t.tipNode[r]);
-      assert.ok(p && p.x >= T.clipL && p.x <= T.clipR && p.y >= T.clipT && p.y <= T.clipB, `${JSON.stringify(o)}: tip rank ${r} in view`);
-    }
-    const out = viewer.nodePosition(tipId(viewer, 't0'));
-    assert.equal(out, null, `${JSON.stringify(o)}: zoomed in on it (a tip far from it is out of view)`);
-  }
+  // a zoomed view keeps what it shows, not the selection: test/switch-view.test.mjs
 });
 
 test('collapsing a clade around the selection selects the clade (and moves the cursor there); expanding keeps it on the clade', async () => {

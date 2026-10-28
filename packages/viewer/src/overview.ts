@@ -211,6 +211,8 @@ export class Overview {
       theme: h.theme,
       colours: h.colours,
       classOf: h.classOf,
+      cladeBoxes: null,
+      labelReach: 0,
       highlight: null,
       hlPrefix: null,
       hlRanks: new Int32Array(0),

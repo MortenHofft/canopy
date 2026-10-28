@@ -85,7 +85,7 @@ npm workspaces (Node >= 22.7):
     - the no-build example runs `check-no-build.mjs`. It builds the packages and serves static files itself, without Vite.
     - the site runs `check-site.mjs`. It runs `scripts/build-site.mjs` and serves `site-dist/` with vercel.json's URL rules.
   - Each check also runs against a dev server with `--url`.
-  - Cloud sandbox: headless Chromium at /opt/pw-browsers/chromium-1194 (Playwright `executablePath`). There is no GPU, so use it for functional and relative tests; final frame rates need a real browser.
+  - Cloud sandbox: the preinstalled headless Chromium under /opt/pw-browsers, found by `tests/browser/scripts/chromium.mjs` (or set `CHROMIUM_PATH`). There is no GPU, so use it for functional and relative tests; final frame rates need a real browser.
   - Do not use `pkill -f`.
 - **API conventions.**
   - Controls and popups are controls (`BaseControl`: listeners through `listen` / `domListen`) and use only the public API. The overview is the exception: it uses `viewerInternals`.

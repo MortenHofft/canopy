@@ -182,7 +182,7 @@ console.log('radial opening and rotation (#41)');
   await setInput('radialRotation', '90');
   await setInput('radialOpening', '0.05');
   await page.mouse.move(2, 2);
-  await ev(() => window.viewer.setSelected(null)); // the clicks selected a tip: a layout switch would centre the view on it
+  await ev(() => window.viewer.setSelected(null)); // the clicks selected a tip
   await select('click', 'menu');
   await select('layout', 'rectangular');
 }
@@ -285,6 +285,63 @@ console.log('radial scale rings (#45)');
   await toggle('branchLengths', false);
   await select('layout', 'rectangular');
   ok(!query().has('s.radialRings') && !query().has('s.ringWidth'), 'back to the defaults: out of the URL');
+}
+
+console.log('a layout switch keeps the place (#56)');
+{
+  // the tips in view and their pitch (rectangular the row height, radial the arc between tips at their median radius)
+  const inView = () =>
+    ev(() => {
+      const v = window.viewer;
+      const t = v.getTree();
+      const ranks = [],
+        radii = [];
+      for (let r = 0; r < t.tipCount; r++)
+        if (v.nodePosition(t.tipNode[r])) {
+          ranks.push(r);
+          radii.push(v.layout.X[t.tipNode[r]]);
+        }
+      radii.sort((a, b) => a - b);
+      const T = v.T;
+      return { ranks, pitch: T.kind === 'rectangular' ? T.ky : T.k * T.da * radii[radii.length >> 1], view: v.getViewport(), fitted: v.vs.fitted };
+    });
+  await select('maxTipSpacing', 'Infinity'); // the radial zoom of a clade is deeper than the rectangular cap
+  ok(
+    (await opt('switchView')) === 'keep' && (await page.locator('select[data-setting=switchView]').count()) === 1,
+    "switchView in the panel, 'keep' by default",
+  );
+  for (const from of ['rectangular', 'radial']) {
+    const to = from === 'radial' ? 'rectangular' : 'radial';
+    await select('layout', from);
+    // a clade of 8 tips in the middle of the tree, framed
+    await ev(() => {
+      const v = window.viewer;
+      const t = v.getTree();
+      v.zoomToNode(t.parent[t.parent[t.parent[t.tipNode[70]]]]);
+    });
+    await settled();
+    const a = await inView();
+    await select('layout', to);
+    const b = await inView();
+    const kept = a.ranks.filter((r) => b.ranks.includes(r)).length / a.ranks.length;
+    const fromA = b.ranks.filter((r) => a.ranks.includes(r)).length / b.ranks.length;
+    // radial to rectangular keeps the pitch, and a band as high as the pane holds fewer tips than an arc across the wide radial window:
+    // the middle ones (#56)
+    ok(
+      !b.fitted && (from === 'rectangular' ? kept >= 0.8 : kept >= 0.6 && fromA >= 0.8) && b.pitch > 0.7 * a.pitch && b.pitch < 1.4 * a.pitch,
+      `${from} -> ${to}: ${Math.round(kept * 100)}% of the ${a.ranks.length} tips in view kept (${b.ranks.length} in view), pitch ${a.pitch.toFixed(1)} -> ${b.pitch.toFixed(1)} px`,
+    );
+    await select('layout', from);
+    const c = await inView();
+    ok(JSON.stringify(c.view) === JSON.stringify(a.view), `${from} -> ${to} -> ${from} untouched: back to the same window`);
+  }
+  await select('switchView', 'fit');
+  ok(query().get('s.switchView') === 'fit', "'fit' into the URL");
+  await select('layout', 'rectangular');
+  ok((await inView()).fitted, "switchView 'fit': a zoomed view is fitted on a switch");
+  await select('switchView', 'keep');
+  ok(!query().has('s.switchView'), "'keep' is the default: out of the URL");
+  await select('maxTipSpacing', 'auto');
 }
 
 console.log('summaries');
@@ -619,6 +676,46 @@ ok(
   'click with "Colour the clade" colours it',
 );
 ok(await page.locator('.phylo-legend').isVisible(), 'and the legend shows it');
+// Clade style (#43): with a box behind the clade, a pixel inside the box (left of the clade's node, off its branches) takes the tint
+// of the clade's colour at cladeBackgroundOpacity over the background
+const pixelAt = (p) =>
+  ev((p) => {
+    const c = document.querySelector('#tree canvas');
+    const r = c.getBoundingClientRect();
+    const d = c
+      .getContext('2d')
+      .getImageData(Math.round(((p.x - r.left) * c.width) / r.width), Math.round(((p.y - r.top) * c.height) / r.height), 1, 1).data;
+    return [d[0], d[1], d[2]];
+  }, p);
+const tintOf = () =>
+  ev(() => {
+    const v = window.viewer;
+    const c = document.createElement('canvas');
+    c.width = c.height = 1;
+    const g = c.getContext('2d');
+    g.fillStyle = v.getTheme().background;
+    g.fillRect(0, 0, 1, 1);
+    g.globalAlpha = v.getTheme().cladeBackgroundOpacity;
+    g.fillStyle = v.getClades()[0].colour;
+    g.fillRect(0, 0, 1, 1);
+    return [...g.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+  });
+const near = (a, b) => a.every((x, i) => Math.abs(x - b[i]) <= 3);
+const inBox = { x: clade.x - 3, y: clade.y - 4 };
+ok((await opt('cladeStyle')) === 'branches', 'Clade style defaults to coloured branches');
+const plain = await pixelAt(inBox);
+await select('cladeStyle', 'background');
+const tinted = await pixelAt(inBox);
+ok((await opt('cladeStyle')) === 'background' && query().get('s.cladeStyle') === 'background', 'Clade style: box behind the clade, kept in the URL');
+ok(!near(plain, tinted) && near(tinted, await tintOf()), `a pixel inside the clade's box takes its tint (${plain} -> ${tinted})`);
+await setInput('cladeBackgroundOpacity', '0.5');
+ok(
+  (await theme('cladeBackgroundOpacity')) === 0.5 && query().get('s.cladeBackgroundOpacity') === '0.5' && near(await pixelAt(inBox), await tintOf()),
+  'the Clade box opacity slider sets the theme token, the URL and the tint',
+);
+await setInput('cladeBackgroundOpacity', '0.25');
+await select('cladeStyle', 'branches');
+ok(near(await pixelAt(inBox), plain), 'back to coloured branches: no box');
 await select('click', 'menu');
 await page.mouse.click(clade.x, clade.y);
 ok((await page.locator('[role=menu]').count()) === 1, '"Node menu" opens the menu');

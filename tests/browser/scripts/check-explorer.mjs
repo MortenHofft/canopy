@@ -13,7 +13,8 @@
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
-// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
+// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
+// (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
 // (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
 // shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
@@ -389,7 +390,7 @@ ok(
   ),
   'nothing in the inspector or toolbar is bolder than 600',
 );
-// the selection (#61): the tip Info was opened on is selected, and it stays across Layout and Phylo/Clado switches, centred in view with its ring
+// the selection (#61): the tip Info was opened on is selected, and it stays across Layout and Phylo/Clado switches, in view with its ring (the fitted view stays fitted, #56)
 {
   const id = await ev((l) => __v().tipNode(l), tip0);
   ok((await ev(() => __v().getSelected())) === id, "the clicked tip is the viewer's selection");
@@ -425,8 +426,7 @@ ok(
   await keeps('selected');
   await page.locator('button[title=Circular]').click();
   await keeps('Circular');
-  const c = await ring();
-  ok(Math.abs(c.dx - 0.5) < 0.05 && Math.abs(c.dy - 0.5) < 0.05, 'Circular: the view is centred on the selected tip');
+  ok(await ev(() => __v().vs.fitted), 'Circular: the view is fitted, as it was: a switch does not go to the selection (#56)');
   await page.locator('button[title=Rectangular]').click();
   await keeps('back to Rectangular');
   await page.locator('button[title^=Cladogram]').click();
@@ -2428,10 +2428,17 @@ const drillDown = async (tips) => {
 };
 const loadVia = async (id) => {
   const t0 = Date.now();
+  await page.evaluate(() => (window.__before = window.__explorer?.()));
   await page.selectOption('.page-head select', id);
-  await page.waitForFunction((i) => document.querySelector('.page-head select').value === i && document.querySelector('.ex-outer canvas'), id, {
-    timeout: 90000,
-  });
+  // the tree shown stays while the next one loads (in the parse worker): wait for the new viewer
+  await page.waitForFunction(
+    (i) =>
+      document.querySelector('.page-head select').value === i &&
+      !document.querySelector('.page-loading') &&
+      window.__explorer?.() !== window.__before,
+    id,
+    { timeout: 90000 },
+  );
   await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
   await page.evaluate(HELPERS);
   await page.waitForTimeout(400);
@@ -2586,6 +2593,40 @@ for (const [id, tipsWanted] of [
   );
 }
 
+// ---------------------------------------------------------------- a layout switch keeps the place (#56)
+{
+  await open('rich-fish-carangaria-135');
+  const inView = () =>
+    ev(() => {
+      const v = __v();
+      const t = v.getTree();
+      const ranks = [];
+      for (let r = 0; r < t.tipCount; r++) if (v.nodePosition(t.tipNode[r])) ranks.push(r);
+      return { ranks, view: v.getViewport(), fitted: v.vs.fitted };
+    });
+  await ev(() => {
+    const v = __v();
+    const t = v.getTree();
+    v.zoomToNode(t.parent[t.parent[t.parent[t.tipNode[70]]]]); // a clade of about 8 tips in the middle of the tree
+  });
+  await page.waitForTimeout(300);
+  const a = await inView();
+  for (const [button, layout] of [
+    ['Circular', 'radial'],
+    ['Rectangular', 'rectangular'],
+  ]) {
+    await page.locator(`button[title=${button}]`).click();
+    await page.waitForTimeout(300);
+    const b = await inView();
+    const kept = a.ranks.filter((r) => b.ranks.includes(r)).length / a.ranks.length;
+    ok(
+      (await ev(() => __v().options.layout)) === layout && !b.fitted && kept >= 0.8,
+      `${button}: ${Math.round(kept * 100)}% of the ${a.ranks.length} tips in view kept (${b.ranks.length} in view)`,
+    );
+    if (layout === 'rectangular') ok(JSON.stringify(b.view) === JSON.stringify(a.view), 'and back to the same window, untouched in between');
+  }
+}
+
 // ---------------------------------------------------------------- the debug panel (?debug=1) and a view copied and restored (?view=)
 {
   const debugRoundTrip = async (layout) => {
@@ -2636,6 +2677,88 @@ for (const [id, tipsWanted] of [
   await debugRoundTrip('radial');
 }
 
+console.log('\nloading in the parse worker (#4): the page keeps drawing frames, Cancel goes back to the tree shown');
+{
+  // the full Open Tree (2.39M tips) parses for a second or more in the worker; meanwhile the page keeps its frames and the tree shown
+  const before = await page.evaluate(() => {
+    window.__before = window.__explorer();
+    return { id: document.querySelector('.page-head select').value, tips: window.__before.getTree().tipCount };
+  });
+  const workers = [];
+  const onWorker = (w) => {
+    const e = { url: w.url(), closed: false };
+    w.once('close', () => (e.closed = true));
+    workers.push(e);
+  };
+  page.on('worker', onWorker);
+  await page.selectOption('.page-head select', 'otl-2m-full');
+  await page.waitForFunction(() => /parsing/.test(document.querySelector('.page-loading')?.textContent ?? ''), null, { timeout: 90000 });
+  // frames and the longest gap between them over 400 ms of the parse (the parse alone took about 1.1 s on the main thread before)
+  const frames = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const t0 = performance.now();
+        let n = 0;
+        let last = t0;
+        let gap = 0;
+        const tick = (t) => {
+          n++;
+          gap = Math.max(gap, t - last);
+          last = t;
+          if (t - t0 < 400) requestAnimationFrame(tick);
+          else resolve({ n, gap: Math.round(gap), parsing: /parsing/.test(document.querySelector('.page-loading')?.textContent ?? '') });
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  ok(
+    workers.some((w) => /parse-worker/.test(w.url)),
+    `the tree is parsed in a worker (${workers.map((w) => w.url.split('/').pop()).join(', ')})`,
+  );
+  ok(
+    frames.parsing && frames.n >= 10 && frames.gap < 200,
+    `while it parses the page draws frames: ${frames.n} in 400 ms, longest gap ${frames.gap} ms (still parsing: ${frames.parsing})`,
+  );
+  ok((await ev(() => window.__explorer() === window.__before)) === true, 'the tree shown stays while the next one loads');
+  await page.click('.page-loading button');
+  await page.waitForFunction(() => !document.querySelector('.page-loading'));
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => ({
+    id: document.querySelector('.page-head select').value,
+    same: window.__explorer() === window.__before,
+    tips: window.__explorer().getTree().tipCount,
+    error: document.querySelector('.page-error')?.textContent ?? null,
+  }));
+  ok(
+    after.same && after.id === before.id && after.tips === before.tips && after.error === null,
+    `Cancel: the tree shown stays (${after.tips} tips, the list on ${after.id}), no error`,
+  );
+  const parsers = workers.filter((w) => /parse-worker/.test(w.url));
+  for (let i = 0; i < 50 && !parsers.every((w) => w.closed); i++) await page.waitForTimeout(100);
+  ok(parsers.length > 0 && parsers.every((w) => w.closed), 'Cancel terminates the worker');
+  page.off('worker', onWorker);
+}
+{
+  // a load that fails with a tree shown: its error, the tree and the list stay on it; the next pick clears the error
+  const before = await page.evaluate(() => {
+    window.__before = window.__explorer();
+    return document.querySelector('.page-head select').value;
+  });
+  await page.locator('.page-head input[type=file]').setInputFiles({ name: 'broken.nwk', mimeType: 'text/plain', buffer: Buffer.from('((a,b);') });
+  await page.waitForFunction(() => document.querySelector('.page-error') && !document.querySelector('.page-loading'), null, { timeout: 30000 });
+  const failed = await page.evaluate(() => ({
+    id: document.querySelector('.page-head select').value,
+    same: window.__explorer() === window.__before,
+    error: document.querySelector('.page-error').textContent,
+  }));
+  ok(
+    failed.same && failed.id === before && /character/.test(failed.error),
+    `a load that fails: its error ("${failed.error}"), the tree shown stays and the list is back on it (${failed.id})`,
+  );
+  await loadVia('syn-yule-1000');
+  ok((await page.locator('.page-error').count()) === 0 && (await tipCount()) === 1000, 'the next pick clears the error and loads');
+}
+
 {
   // #109: once rows are tall enough for tip dots, the level of detail folds nothing, whatever minCladePx says. The explorer's 14 turned the
   // one-tip genera around Pleganophorus bispinosus on the full Open Tree (2.39M tips) into unlabelled triangles at rows of 13 px
@@ -2666,6 +2789,45 @@ for (const [id, tipsWanted] of [
     view !== null && view.every((c) => c.minCladePx === 14 && c.summaries === 0 && c.tips > 20 && c.minPxUsed <= c.rowPx),
     `rows of 13, 8 and 6.5 px, minCladePx 14: no summaries, one-tip genera drawn as tips, minPxUsed at most the row height (${JSON.stringify(view)})`,
   );
+}
+
+console.log('\na first load that is cancelled or fails: nothing shown, the list on nothing, so any entry (the same too) can be chosen again');
+{
+  const p2 = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+  const parsing = () =>
+    p2.waitForFunction(() => /parsing/.test(document.querySelector('.page-loading')?.textContent ?? ''), null, { timeout: 90000 });
+  const state = () =>
+    p2.evaluate(() => ({
+      id: document.querySelector('.page-head select').value,
+      canvas: document.querySelector('.ex-outer canvas') !== null,
+      loading: document.querySelector('.page-loading') !== null,
+      error: document.querySelector('.page-error')?.textContent ?? null,
+    }));
+  const u = new URL(url);
+  u.searchParams.set('tree', 'otl-2m-full');
+  await p2.goto(u.href);
+  await parsing();
+  await p2.click('.page-loading button');
+  await p2.waitForFunction(() => !document.querySelector('.page-loading'));
+  const s1 = await state();
+  ok(s1.id === '' && !s1.canvas && /cancelled/.test(s1.error ?? ''), `Cancel of a first load: no tree, the list on nothing, "${s1.error}"`);
+  await p2.selectOption('.page-head select', 'otl-2m-full');
+  await parsing();
+  const s2 = await state();
+  ok(s2.loading && s2.id === 'otl-2m-full' && s2.error === null, 'the same entry can be chosen again: it loads, the error is gone');
+  await p2.click('.page-loading button');
+  await p2.selectOption('.page-head select', 'syn-yule-1000');
+  await p2.waitForFunction(() => window.__explorer?.()?.getTree().tipCount === 1000, null, { timeout: 30000 });
+  ok((await state()).error === null, 'then another tree loads');
+  u.searchParams.set('tree', 'no-such-tree');
+  await p2.goto(u.href);
+  await p2.waitForFunction(() => document.querySelector('.page-error'));
+  const s3 = await state();
+  ok(
+    s3.id === '' && !s3.canvas && /unknown tree/.test(s3.error ?? ''),
+    `a first load that fails: no tree, the list on nothing ("${(s3.error ?? '').slice(0, 40)}…")`,
+  );
+  await p2.close();
 }
 
 await browser.close();

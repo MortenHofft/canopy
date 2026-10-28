@@ -163,7 +163,15 @@ export class ViewState {
    *  side. 0 otherwise. */
   radialLabelRoom(): number {
     if (this.env.layout !== 'radial' || !this.alignsLabels()) return 0;
-    return Math.min(this.labelReserve(), RADIAL_LABEL_ROOM_FRAC * Math.min(this.env.W, this.env.H));
+    return this.labelReach();
+  }
+
+  /** The room (px) tip labels take past their tip or aligned column: rectangular, the label room of the area (computeArea first); radial,
+   *  the label reserve, at most RADIAL_LABEL_ROOM_FRAC of the smaller container side. */
+  labelReach(): number {
+    if (this.env.layout === 'radial') return Math.min(this.labelReserve(), RADIAL_LABEL_ROOM_FRAC * Math.min(this.env.W, this.env.H));
+    const a = this.area;
+    return Math.max(0, a.clipR - a.ax - a.aw);
   }
 
   /** Room right of the tips for labels: from the longest label, capped (rectangular layout). */
@@ -329,13 +337,15 @@ export class ViewState {
 
   // ------------------------------------------------------------- changing the view
 
-  setViewport(v: Viewport, animate = false): void {
+  /** `keepK`: a radial scale the window may keep however the tip cap stands where it is (clampView); by default the current one, so a
+   *  move of the view never zooms out by itself. */
+  setViewport(v: Viewport, animate = false, keepK = this.keptScale()): void {
     if (!(v.x1 > v.x0 && v.y1 > v.y0)) return;
     if (animate) return this.animateTo(v);
     // the same window as now changes nothing, and must not stop an animation either: a controlled viewport echoes the window it was given
     if (viewportEquals(v, this.view)) return;
     this.cancelAnim();
-    this.view = this.clampView({ ...v }, this.keptScale());
+    this.view = this.clampView({ ...v }, keepK);
     this.fitted = false;
     this.ev.changed(false);
   }

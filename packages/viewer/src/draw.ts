@@ -7,6 +7,7 @@ import { MARKER_PX } from './hit.ts';
 import { labelMinPx, TIP_DOT_PX } from './sizes.ts';
 import type { LayoutProjection, Pt, RadialProjection, RectProjection } from './projection.ts';
 import { internalSupport, type NodeLabelKind, type NodeLabelsOption } from './node-label.ts';
+import type { Layout } from './layout.ts';
 import type { LabelDensity, RadialRings, TreeTheme } from './types.ts';
 
 export interface Scene {
@@ -14,7 +15,10 @@ export interface Scene {
   list: DrawList;
   theme: TreeTheme;
   colours: string[]; // colour by class; class 0 = default branch colour
-  classOf: Uint8Array | null;
+  classOf: Uint8Array | null; // colour class of the branches by row; null = none coloured (no clades, or `cladeStyle: 'background'`)
+  /** The boxes behind coloured clades (`cladeStyle` 'background' or 'both'), outer clades first; null = none. */
+  cladeBoxes: CladeBoxes | null;
+  labelReach: number; // the room (px) tip labels take past their tip or aligned column (ViewState.labelReach): where a clade's box ends
   highlight: Uint8Array | null; // by tip rank
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
@@ -32,6 +36,16 @@ export interface Scene {
   /** The threshold is at the floor (MIN_THRESHOLD_PX): every clade folded by size is under a pixel wide and is drawn as a branch from its
    *  node to its deepest tip (lineTip), not as a fan or triangle (#126). */
   summaryLines: boolean;
+}
+
+/** One box per coloured clade, in preorder of its node, so a clade comes before the clades inside it and the boxes are in order of their
+ *  first row: `rows[k]` is the node (row of the snapshot), `cls[k]` its colour class in `Scene.colours`. `up[k]` is the nearest box
+ *  before k whose rows hold k's first row (-1: none), for the layout `upFor`; drawCladeBoxes fills it in when the layout is another. */
+export interface CladeBoxes {
+  rows: Int32Array;
+  cls: Uint8Array;
+  up: Int32Array;
+  upFor: Layout | null;
 }
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
@@ -366,15 +380,8 @@ export function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProje
     a1 = m + h;
   } // keep slivers visible
   if (band) {
-    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles. Far off, only its
-    // visible angles (padded), with its edges as arcs, as the connectors do: a run reaches as far out of the window as its members (#77),
-    // and a chord over all of them would cut inside the tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends.
-    if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
-    else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
-    else {
-      bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), a1, true);
-      bandPiece(ctx, proj, r0, r1, a0, Math.min(a1, proj.hi), true);
-    }
+    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
+    ringSector(ctx, proj, r0, r1, a0, a1);
     return;
   }
   ctx.moveTo(cx + r0 * proj.L.COS![i], cy + r0 * proj.L.SIN![i]);
@@ -409,7 +416,19 @@ function fanArcPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r1: 
   }
 }
 
-/** One ring segment of a band (see fanSummaryShape): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
+/** Add the ring sector r0..r1 (px) over the angles a0..a1 to the path. Far off, only its visible angles (padded), with its edges as arcs,
+ *  as the connectors do: a run reaches as far out of the window as its members (#77), and a chord over all of them would cut inside the
+ *  tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends. */
+export function ringSector(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number): void {
+  if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
+  else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
+  else {
+    bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), a1, true);
+    bandPiece(ctx, proj, r0, r1, a0, Math.min(a1, proj.hi), true);
+  }
+}
+
+/** One ring segment of a band (see ringSector): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
  *  it is visibly curved, if it is near (under RADIAL_FAR_ARC_R) or `far` (the angles are already cut to the window), else a straight line. */
 function bandPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number, far: boolean): void {
   if (!(a1 > a0)) return;
@@ -704,6 +723,162 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       if (any) ctx.fill();
     }
   ctx.globalAlpha = 1;
+}
+
+/** The boxes behind the coloured clades (`S.cladeBoxes`), behind everything else of the tree: a fill of the clade's colour at
+ *  `cladeBackgroundOpacity` (times `dimOpacity` for a clade holding no highlighted tip while dimming), outer clades first so an inner box
+ *  is drawn over the box around it. Rectangular: a rectangle over the clade's rows, from `cladeBackgroundPadding` left of its node to
+ *  `labelReach` past its deepest tip (or past the aligned label column), at most to the right edge of the tree. Radial: the ring sector over
+ *  the clade's angles, from the padding inward of the node's radius to `labelReach` past its outermost tip (or the aligned label circle).
+ *  The rows are the layout's, not the cut's, so a clade inside a summary keeps its box.
+ *
+ *  The work is bounded by the view, not by the number of clades (colourBy gives one per tip): only the boxes whose rows meet the rows in
+ *  view are visited (a binary search for the first, the boxes around it through `up`, a stop after the last), and boxes under a pixel
+ *  across the tips are merged: a run of them in one colour that continue each other's rows is one fill, and a box of another colour (or
+ *  one inside it) that falls within the pixel a pending merged box starts makes that box grow over it in the pending box's colour. Every
+ *  row stays covered, but where colours interleave below a pixel the colour of a pixel is approximate (the first box's of that pixel). So
+ *  a frame fills at most about one box per pixel across the tips per nesting level, besides the boxes of a pixel or more. Nothing is allocated per box; the chain of boxes around the view is module scratch. */
+export function drawCladeBoxes(ctx: CanvasRenderingContext2D, S: Scene): void {
+  const B = S.cladeBoxes;
+  if (B === null || B.rows.length === 0) return;
+  const { proj } = S;
+  if (B.upFor !== proj.L) boxParents(B, proj.L);
+  BX.fill = '';
+  BX.alpha = -1;
+  BX.pending = false;
+  BX.ax = alignedX(S);
+  BX.ar = alignedR(S);
+  if (proj.kind === 'rectangular') {
+    const { T } = proj;
+    boxRange(ctx, S, B, (T.clipT - T.oy) / T.ky, (T.clipB - T.oy) / T.ky, -Infinity);
+  } else if (proj.all) boxRange(ctx, S, B, -Infinity, Infinity, -Infinity);
+  else {
+    const { da } = proj.T;
+    const lo = (proj.lo - proj.a0) / da,
+      hi = (proj.hi - proj.a0) / da;
+    if (!proj.wrap) boxRange(ctx, S, B, lo, hi, -Infinity);
+    else {
+      // the window holds the rows up to hi and from lo on: the low rows first, then the high ones without the boxes already visited
+      boxRange(ctx, S, B, -Infinity, hi, -Infinity);
+      // a box pending from the low rows never merges with one of the high rows: their rows do not continue, and their angles are far apart
+      boxRange(ctx, S, B, lo, Infinity, hi);
+    }
+  }
+  flushBox(ctx, S);
+  ctx.globalAlpha = 1;
+}
+
+/** State of one drawCladeBoxes call (module scratch, like the stripe buffers): the fill in force, the aligned label column or circle, and
+ *  the pending merged box (`pending`: one exists; its colour class and alpha, its extent x0..x1 (radial: radii) over t0..t1 (radial:
+ *  angles), and the row its last member ends at). */
+const BX = { fill: '', alpha: -1, ax: NaN, ar: NaN, pending: false, cls: 0, a: 0, x0: 0, x1: 0, t0: 0, t1: 0, end: 0 };
+let chain = new Int32Array(64); // the boxes around the top of the view, innermost first (boxRange)
+
+/** `B.up` for layout `L`: one pass with a stack of the boxes whose rows hold the current one's first row. Clades' rows nest (a clade
+ *  inside a collapsed clade has that clade's one row, as its siblings there do), so the stack is a chain. */
+function boxParents(B: CladeBoxes, L: Layout): void {
+  const { rows, up } = B;
+  let top = -1; // the innermost box on the stack; the stack is the chain through `up`
+  for (let k = 0; k < rows.length; k++) {
+    const r = L.rowStart[rows[k]];
+    while (top >= 0 && L.rowEnd[rows[top]] <= r) top = up[top];
+    up[k] = top;
+    top = k;
+  }
+  B.upFor = L;
+}
+
+/** The boxes whose rows meet the rows ya..yb (fractional rows of the layout), in drawing order: the boxes that start before ya and reach
+ *  into it (outermost first), then those that start in it. Boxes starting before row `skip` are left out (drawn by an earlier range). */
+function boxRange(ctx: CanvasRenderingContext2D, S: Scene, B: CladeBoxes, ya: number, yb: number, skip: number): void {
+  const { rowStart, rowEnd } = S.proj.L;
+  const rows = B.rows;
+  let lo = 0,
+    hi = rows.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (rowStart[rows[m]] < ya) lo = m + 1;
+    else hi = m;
+  }
+  // a box that starts before ya and reaches into the range holds the first row of the last box that starts before it: it is on that
+  // box's chain
+  let n = 0;
+  for (let j = lo - 1; j >= 0; j = B.up[j]) {
+    if (rowEnd[rows[j]] <= ya || rowStart[rows[j]] < skip) continue;
+    if (n === chain.length) {
+      const c = new Int32Array(n * 2);
+      c.set(chain);
+      chain = c;
+    }
+    chain[n++] = j;
+  }
+  while (n > 0) boxAt(ctx, S, B, chain[--n]);
+  for (let k = lo; k < rows.length && rowStart[rows[k]] < yb; k++) if (rowStart[rows[k]] >= skip) boxAt(ctx, S, B, k);
+}
+
+/** Box k: culled across the depth axis, then drawn, or merged into the pending box when it is under a pixel across the tips. */
+function boxAt(ctx: CanvasRenderingContext2D, S: Scene, B: CladeBoxes, k: number): void {
+  const { proj, theme } = S;
+  const i = B.rows[k];
+  proj.summaryExtent(i, -1, 0);
+  const pad = theme.cladeBackgroundPadding;
+  let x0: number, x1: number, px: number; // the depth extent (rectangular: x in px; radial: radii) and the size across the tips (px)
+  if (proj.kind === 'rectangular') {
+    const { T } = proj;
+    x0 = Math.max(proj.d0 - pad, -CLAMP_Y_PAD_PX); // the pad clampY uses across the tips, here across the depth axis
+    x1 = Math.min(T.clipR, (Number.isNaN(BX.ax) ? proj.d1 : BX.ax) + S.labelReach);
+    if (!(x1 > x0) || x1 <= T.clipL || x0 >= T.clipR) return;
+    px = proj.t1 - proj.t0;
+  } else {
+    x0 = Math.max(0, proj.d0 - pad);
+    x1 = (Number.isNaN(BX.ar) ? proj.d1 : BX.ar) + S.labelReach;
+    if (x1 <= proj.rMin || x0 >= proj.rMax) return;
+    px = (proj.t1 - proj.t0) * x1;
+  }
+  const cls = B.cls[k];
+  const a = S.hlPrefix !== null && !holdsHighlight(S, i) ? theme.cladeBackgroundOpacity * theme.dimOpacity : theme.cladeBackgroundOpacity;
+  if (BX.pending && px < 1) {
+    const t1 = Math.max(BX.t1, proj.t1);
+    const span = proj.kind === 'rectangular' ? t1 - BX.t0 : (t1 - BX.t0) * Math.max(BX.x1, x1);
+    // it continues the pending box in its colour, or it falls within the pixel the pending box starts (in another colour, or inside it):
+    // the pending box grows over it, in its own colour, and is filled once it is a pixel across
+    if (span < 1 || (cls === BX.cls && a === BX.a && proj.L.rowStart[i] === BX.end)) {
+      if (x0 < BX.x0) BX.x0 = x0;
+      if (x1 > BX.x1) BX.x1 = x1;
+      BX.t1 = t1;
+      if (proj.L.rowEnd[i] > BX.end) BX.end = proj.L.rowEnd[i];
+      if (span >= 1) flushBox(ctx, S);
+      return;
+    }
+  }
+  flushBox(ctx, S);
+  BX.pending = true;
+  BX.cls = cls;
+  BX.a = a;
+  BX.x0 = x0;
+  BX.x1 = x1;
+  BX.t0 = proj.t0;
+  BX.t1 = proj.t1;
+  BX.end = proj.L.rowEnd[i];
+  if (px >= 1) flushBox(ctx, S);
+}
+
+/** Fill the pending box, if any. */
+function flushBox(ctx: CanvasRenderingContext2D, S: Scene): void {
+  if (!BX.pending) return;
+  BX.pending = false;
+  const colour = S.colours[BX.cls];
+  if (colour !== BX.fill) ctx.fillStyle = BX.fill = colour;
+  if (BX.a !== BX.alpha) ctx.globalAlpha = BX.alpha = BX.a;
+  const { proj } = S;
+  if (proj.kind === 'rectangular') {
+    const y0 = clampY(BX.t0, proj.T.H);
+    ctx.fillRect(BX.x0, y0, BX.x1 - BX.x0, clampY(BX.t1, proj.T.H) - y0);
+  } else {
+    ctx.beginPath();
+    ringSector(ctx, proj, BX.x0, BX.x1, BX.t0, BX.t1);
+    ctx.fill();
+  }
 }
 
 export function drawHighlights(ctx: CanvasRenderingContext2D, S: Scene, rightEdge: number): void {

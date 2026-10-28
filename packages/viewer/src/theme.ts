@@ -23,6 +23,8 @@ const COLOURS = ['background', 'foreground', 'muted', 'branch', 'highlight', 'su
 const NUMBERS = [
   'branchWidth',
   'cladeBranchWidth',
+  'cladeBackgroundOpacity',
+  'cladeBackgroundPadding',
   'tipRadius',
   'nodeMarkerSize',
   'summaryOpacity',

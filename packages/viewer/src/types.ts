@@ -123,6 +123,10 @@ export interface TreeTheme extends ResidueTheme {
   branchWidth: number;
   /** Line width of branches in a coloured clade (at least branchWidth). */
   cladeBranchWidth: number;
+  /** The box behind a coloured clade (option `cladeStyle` 'background' or 'both'): the opacity of its fill in the clade's colour, and how
+   *  far it reaches left of the clade's node (radial: inward of its radius), CSS px. */
+  cladeBackgroundOpacity: number;
+  cladeBackgroundPadding: number;
   /** Largest radius of a tip dot (it shrinks with the row height), CSS px. */
   tipRadius: number;
   /** Side of the square marker on internal nodes big enough to click, CSS px. */
@@ -198,6 +202,8 @@ export const FALLBACK_THEME: TreeTheme = {
   categorical: ['#684393', '#5b7ac8', '#c0399c', '#e8845b', '#4aa8d8'],
   branchWidth: 1.3,
   cladeBranchWidth: 2,
+  cladeBackgroundOpacity: 0.25,
+  cladeBackgroundPadding: 4,
   tipRadius: 3.2,
   nodeMarkerSize: 4,
   summaryOpacity: 0.25,
@@ -348,6 +354,11 @@ export type LabelDensity = 'sparse' | 'normal' | 'dense';
  *  at the theme's `dimOpacity`; 'both' = both. */
 export type HighlightStyle = 'band' | 'dim' | 'both';
 
+/** How the clade colours (`setClades`) show: 'branches' = the clade's branches, summaries, markers and tip labels in its colour;
+ *  'background' = a translucent box in its colour behind the clade (theme `cladeBackgroundOpacity`, `cladeBackgroundPadding`), the tree
+ *  drawn over it in the plain colours; 'both' = both. */
+export type CladeStyle = 'branches' | 'background' | 'both';
+
 /** Scale rings of the radial layout (option `radialRings`): none, circles, or every other band between them shaded. */
 export type RadialRings = 'none' | 'lines' | 'stripes';
 
@@ -355,6 +366,10 @@ export type RadialRings = 'none' | 'lines' | 'stripes';
 export interface ViewerOptions {
   layout: LayoutKind;
   branchLengths: boolean;
+  /** What a zoomed view does when `layout` or `branchLengths` changes. `'keep'` (the default): the tips in view stay in view at about the
+   *  same tip pitch (the same readability), as far as the new layout allows. `'fit'`: the whole tree is shown. A fitted view is fitted
+   *  again either way. */
+  switchView: 'keep' | 'fit';
   lod: boolean; // viewport level of detail: collapse small clades into summaries, dedupe sub-pixel primitives
   /** Most primitives drawn per frame; the collapse threshold is raised until the cut fits. A number is fixed. `'auto'` (the default) follows
    *  the machine: it starts at 20,000 and is kept where a frame takes about 25 ms (see the budget section of the internals doc), between 500
@@ -386,6 +401,8 @@ export interface ViewerOptions {
   formatNodeLabel: (value: number, kind: NodeLabelKind) => string;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
   highlightStyle: HighlightStyle;
+  /** How the clade colours (`setClades`) show: coloured branches, a box behind each clade, or both (see `CladeStyle`). */
+  cladeStyle: CladeStyle;
   /** Fixed height per tip row at the fit view (rectangular): px, `'<n>em'` (n times the theme's `labelSize`), or `'auto'` (1.85 em). em values are rounded to whole px.
    *  null = fit all tips into the height. */
   rowHeight: FontRelative | null;
@@ -468,6 +485,7 @@ export interface ViewerOptions {
 export const DEFAULT_OPTIONS: ViewerOptions = {
   layout: 'rectangular',
   branchLengths: true,
+  switchView: 'keep',
   lod: true,
   drawBudget: 'auto',
   showSummaries: true,
@@ -478,6 +496,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   nodeLabels: 'none',
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
+  cladeStyle: 'branches',
   rowHeight: null,
   maxTipSpacing: 'auto',
   maxViewWidth: RECT_MAX_VIEW_W,
