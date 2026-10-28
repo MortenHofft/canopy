@@ -76,7 +76,14 @@ const SCENARIOS = [
   {
     name: 'io: parseNewick only',
     code: `import { parseNewick } from '@canopy/io'; console.log(parseNewick('(a,b);'));`,
-    forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js'],
+    forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js', 'packages/io/dist/worker.js', 'packages/io/dist/transfer.js'],
+  },
+  {
+    // the parse worker is an entry point of its own (`@canopy/io/worker`); the page's side carries the parser only for NewickError and
+    // the worker file is started by URL, not bundled into the page
+    name: 'io/worker: parseInWorker',
+    code: `import { parseInWorker } from '@canopy/io/worker'; console.log(parseInWorker);`,
+    forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js', 'packages/io/dist/parse-worker.js'],
   },
   {
     // The XML reader is a module of its own: an app that reads Newick does not carry it, and one that reads phyloXML does not carry

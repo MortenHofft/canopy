@@ -2,7 +2,9 @@
 // between animation frames, from navigation until the explorer shows the tree and has settled.
 //   node bench/load.mjs --url 'http://127.0.0.1:5309/?tree=otl-2m-full' [--tips 2390000] [--runs 3] [--settle 3000]
 // Start the explorer first (`npm run dev` in examples/explorer, or a build served with `vite preview`). `--tips` is the tip count to wait
-// for (default: any tree). Prints one line per run and the median of the longest task.
+// for (default: any tree). Prints one line per run and the median of the longest task. Then, on the tree loaded, the JS time of a full
+// frame (`TreeViewer.benchmark`, mean of 15) at the fit view and zoomed 100x on the centre, rectangular and radial: what the cut, draw and hit
+// code on the main thread cost with a tree that came from the parse worker (compare with a build that parses on the main thread).
 import { createRequire } from 'node:module';
 import { chromiumPath } from '../scripts/chromium.mjs';
 const require = createRequire(import.meta.url);
@@ -29,6 +31,25 @@ const PROBE = () => {
   requestAnimationFrame(tick);
 };
 
+// mean JS ms of a full frame (TreeViewer.benchmark, 15 frames) at the fit view and zoomed 100x, per layout
+const FRAMES = () => {
+  const v = window.__explorer();
+  const c = document.querySelector('.ex-outer canvas');
+  const ms = () => Math.round(v.benchmark(15).meanMs * 10) / 10;
+  const out = {};
+  for (const layout of ['rectangular', 'radial']) {
+    v.setOptions({ layout });
+    v.fit(false);
+    v.renderNow();
+    const fit = ms();
+    v.zoomBy(100, 100, c.clientWidth / 2, c.clientHeight / 2);
+    v.renderNow();
+    out[layout] = { fit, zoomed: ms() };
+  }
+  return out;
+};
+let frames = null;
+
 const browser = await chromium.launch({ executablePath: chromiumPath(), headless: true, args: ['--no-sandbox'] });
 const longest = [];
 try {
@@ -53,6 +74,7 @@ try {
       `run ${run + 1}: ${r.tips} tips, shown at ${shown} ms; long tasks ${r.long.length}, longest ${max} ms, total ${r.long.reduce((s, x) => s + x[1], 0)} ms; ` +
         `longest rAF gap ${r.gap.max} ms (from ${r.gap.at} ms); heap ${r.heap} MB; top [start, ms]: ${JSON.stringify(top)}`,
     );
+    if (run === runs - 1) frames = await page.evaluate(FRAMES);
     await ctx.close();
   }
 } finally {
@@ -60,3 +82,4 @@ try {
 }
 longest.sort((a, b) => a - b);
 console.log(`median longest task: ${longest[Math.floor(longest.length / 2)]} ms over ${runs} runs`);
+console.log(`frame JS ms (mean of 15 full frames), last run: ${JSON.stringify(frames)}`);

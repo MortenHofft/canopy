@@ -1,5 +1,5 @@
 // The page's tree picker: the trees of src/trees.ts in their groups, and a last group "your own" whose option opens a file input, as the
-// playground's (examples/shared/picker.ts, which this renders in React; the file is read by loadTreeFile of examples/shared/data.ts).
+// playground's (examples/shared/picker.ts, which this renders in React; the file is parsed in a worker by loadFile of src/trees.ts).
 
 import React, { useRef } from 'react';
 import { FILE_OPTION, FILE_OPTION_LABEL, FILE_SHOWN } from '../../shared/picker.ts';

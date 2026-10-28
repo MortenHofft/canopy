@@ -154,6 +154,40 @@ tree.annotations.column('posterior'); // Float64Array by node index, NaN where a
 
 - **Size.** The reader is part of the parser (a plain option, no second import), so `parseNewick` alone is about 2.7 kB minified larger than before (6.3 to 9.0 kB). `scripts/check-packages.mjs` records both sizes.
 
+## Parsing in a Web Worker
+
+`@canopy/io/worker` parses in a worker, so the page stays responsive while a large tree loads (the 2.39M-tip Open Tree takes about
+1.1 s to parse, which on the main thread is one task the page cannot respond during; numbers in
+[docs/design/worker-parse.md](../../docs/design/worker-parse.md)):
+
+```ts
+import { parseInWorker } from '@canopy/io/worker';
+
+const ac = new AbortController();
+const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer()); // gzipped or not: inflated in the worker
+const { tree, nexus } = await parseInWorker(bytes, {
+  signal: ac.signal, // ac.abort() terminates the worker and rejects with the signal's reason
+  onProgress: (p) => console.log(p.phase, p.done, p.total), // read, inflate or decode, parse, pack, then labels with done / total
+  annotations: true, // any ParseOptions; format: 'newick' | 'nexus' (default: by content), treeIndex for NEXUS
+});
+```
+
+- **Input**: the text, the bytes (an `ArrayBuffer` or `Uint8Array`, transferred: its buffer is detached afterwards) or a `Blob` / `File`
+  (read in the worker). The result is the `TreeModel` `parseNewick` or `parseNexus` gives, with its warnings and annotations, and for
+  NEXUS what the file says besides the tree (`nexus`, the `NexusResult` without `tree`; null for Newick). A parse error rejects with the
+  same `NewickError`, position included.
+- **What crosses**: the worker builds the whole `TreeModel` (`heights()` included), and its typed arrays come back as transferred buffers,
+  without a copy. The labels come in messages of 32,768: a message is read on the page in one task, and 4.7M labels in one message took
+  0.4 to 0.9 s there. `TreeModel`'s constructor takes the derived arrays (`DerivedArrays`) so nothing is computed again. One worker per
+  call, terminated when the parse ends.
+- **Bundling**: the worker is started with `new Worker(new URL('./parse-worker.js', import.meta.url), { type: 'module' })`, which Vite,
+  webpack 5 and Parcel bundle as a worker of its own (with Vite, a copy of the package that is pre-bundled by `optimizeDeps` loses the
+  worker file: exclude `@canopy/io` there, **unverified** beyond the Vite build of the examples). A bundler that does not handle it, or an
+  app that hosts the file itself, passes `worker: () => new Worker(myUrl, { type: 'module' })`, with `myUrl` serving
+  `@canopy/io/parse-worker` bundled (it imports the parser). The single-file browser build (`@canopy/io/browser`) has no worker.
+- **Not here**: progress inside the parse (it is one synchronous call), phyloXML, a `TreeSource` other than the whole tree (a Parquet
+  source would decode its row groups in a worker with the same packing; not built).
+
 ## Tests and benchmark
 
 `npm test` runs the unit tests. For NEXUS, `test/nexus-tools.test.mjs` covers the shapes BEAST 1, BEAST 2 and MrBayes write (the MrBayes and BEAST 2 files are written by hand in their format, not real output), LF, CRLF and CR line endings, and every NEXUS tree in `data/rich` against the numbers in its `manifest.json` (made by an independent Python parser). `test/nexus-edge-fixtures.test.mjs` runs 161 small NEXUS cases taken from or inspired by the tests of DendroPy, Biopython, forester, `ape`, `treeio` and phylotree.js (sources and licences in `tests/bench/parsers/fixtures/edge`). `tests/bench/parsers` compares the reader with DendroPy on every NEXUS file in its test data, and on those cases ([parser comparison](../../docs/design/parser-comparison.md)). `npm run bench -- [--reps 7] [file.nex[.gz] ...]` prints parse time per NEXUS file (default: `data/synthetic/nexus` and the NEXUS trees in `data/rich`).
