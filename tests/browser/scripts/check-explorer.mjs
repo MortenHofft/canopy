@@ -13,7 +13,8 @@
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
-// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
+// the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
+// (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
 // (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
 // shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
@@ -2428,10 +2429,17 @@ const drillDown = async (tips) => {
 };
 const loadVia = async (id) => {
   const t0 = Date.now();
+  await page.evaluate(() => (window.__before = window.__explorer?.()));
   await page.selectOption('.page-head select', id);
-  await page.waitForFunction((i) => document.querySelector('.page-head select').value === i && document.querySelector('.ex-outer canvas'), id, {
-    timeout: 90000,
-  });
+  // the tree shown stays while the next one loads (in the parse worker): wait for the new viewer
+  await page.waitForFunction(
+    (i) =>
+      document.querySelector('.page-head select').value === i &&
+      !document.querySelector('.page-loading') &&
+      window.__explorer?.() !== window.__before,
+    id,
+    { timeout: 90000 },
+  );
   await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
   await page.evaluate(HELPERS);
   await page.waitForTimeout(400);
@@ -2634,6 +2642,68 @@ for (const [id, tipsWanted] of [
   };
   await debugRoundTrip('rectangular');
   await debugRoundTrip('radial');
+}
+
+console.log('\nloading in the parse worker (#4): the page keeps drawing frames, Cancel goes back to the tree shown');
+{
+  // the full Open Tree (2.39M tips) parses for a second or more in the worker; meanwhile the page keeps its frames and the tree shown
+  const before = await page.evaluate(() => {
+    window.__before = window.__explorer();
+    return { id: document.querySelector('.page-head select').value, tips: window.__before.getTree().tipCount };
+  });
+  const workers = [];
+  const onWorker = (w) => {
+    const e = { url: w.url(), closed: false };
+    w.once('close', () => (e.closed = true));
+    workers.push(e);
+  };
+  page.on('worker', onWorker);
+  await page.selectOption('.page-head select', 'otl-2m-full');
+  await page.waitForFunction(() => /parsing/.test(document.querySelector('.page-loading')?.textContent ?? ''), null, { timeout: 90000 });
+  // frames and the longest gap between them over 400 ms of the parse (the parse alone took about 1.1 s on the main thread before)
+  const frames = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const t0 = performance.now();
+        let n = 0;
+        let last = t0;
+        let gap = 0;
+        const tick = (t) => {
+          n++;
+          gap = Math.max(gap, t - last);
+          last = t;
+          if (t - t0 < 400) requestAnimationFrame(tick);
+          else resolve({ n, gap: Math.round(gap), parsing: /parsing/.test(document.querySelector('.page-loading')?.textContent ?? '') });
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  ok(
+    workers.some((w) => /parse-worker/.test(w.url)),
+    `the tree is parsed in a worker (${workers.map((w) => w.url.split('/').pop()).join(', ')})`,
+  );
+  ok(
+    frames.parsing && frames.n >= 10 && frames.gap < 200,
+    `while it parses the page draws frames: ${frames.n} in 400 ms, longest gap ${frames.gap} ms (still parsing: ${frames.parsing})`,
+  );
+  ok((await ev(() => window.__explorer() === window.__before)) === true, 'the tree shown stays while the next one loads');
+  await page.click('.page-loading button');
+  await page.waitForFunction(() => !document.querySelector('.page-loading'));
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => ({
+    id: document.querySelector('.page-head select').value,
+    same: window.__explorer() === window.__before,
+    tips: window.__explorer().getTree().tipCount,
+    error: document.querySelector('.page-error')?.textContent ?? null,
+  }));
+  ok(
+    after.same && after.id === before.id && after.tips === before.tips && after.error === null,
+    `Cancel: the tree shown stays (${after.tips} tips, the list on ${after.id}), no error`,
+  );
+  const parsers = workers.filter((w) => /parse-worker/.test(w.url));
+  for (let i = 0; i < 50 && !parsers.every((w) => w.closed); i++) await page.waitForTimeout(100);
+  ok(parsers.length > 0 && parsers.every((w) => w.closed), 'Cancel terminates the worker');
+  page.off('worker', onWorker);
 }
 
 {

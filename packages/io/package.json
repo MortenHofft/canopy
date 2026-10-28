@@ -5,7 +5,10 @@
   "description": "Iterative, quote-aware Newick and NEXUS parsers and a Newick writer, producing a preorder TreeModel on typed arrays.",
   "type": "module",
   "license": "Apache-2.0",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/parse-worker.ts",
+    "./dist/parse-worker.js"
+  ],
   "exports": {
     ".": {
       "@canopy/source": "./src/index.ts",
@@ -15,6 +18,16 @@
     "./browser": {
       "types": "./dist/index.d.ts",
       "default": "./dist/browser/io.js"
+    },
+    "./worker": {
+      "@canopy/source": "./src/worker.ts",
+      "types": "./dist/worker.d.ts",
+      "default": "./dist/worker.js"
+    },
+    "./parse-worker": {
+      "@canopy/source": "./src/parse-worker.ts",
+      "types": "./dist/parse-worker.d.ts",
+      "default": "./dist/parse-worker.js"
     }
   },
   "files": [
@@ -22,7 +35,7 @@
     "src"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node ../../scripts/bundle-browser.mjs io",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node ../../scripts/worker-urls.mjs && node ../../scripts/bundle-browser.mjs io",
     "bench": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/nexus.mjs",
     "bench:posterior": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/posterior.mjs",
     "bench:phyloxml": "node --conditions=@canopy/source --experimental-transform-types --no-warnings bench/phyloxml.mjs",

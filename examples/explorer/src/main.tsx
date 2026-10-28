@@ -7,20 +7,22 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@canopy/viewer/viewer.css';
 import './explorer.css';
-import type { TreeModel } from '@canopy/io';
 import { Explorer } from './Explorer.tsx';
-import { GROUPS, TREES, loadTree } from './trees.ts';
+import { GROUPS, TREES, loadFile, loadTree, type Loaded, type LoadOptions, type LoadProgress } from './trees.ts';
 import { TreePicker } from './TreePicker.tsx';
-import { loadTreeFile } from '../../shared/data.ts';
 import { readDebug, sameTree, type DebugInfo, type TreeName } from './debug.ts';
 
 /** What is shown: a tree of the list, or a file of one's own (`key` tells two picks of a file apart). */
 type Pick = { id: string } | { file: File; key: string };
-type Loaded = { tree: TreeModel; fasta: Record<string, string> | null; bytes: number };
 
 const nameOf = (p: Pick) => ('id' in p ? p.id : p.file.name);
 const keyOf = (p: Pick) => ('id' in p ? p.id : p.key);
-const load = (p: Pick): Promise<Loaded> => ('id' in p ? loadTree(p.id) : loadTreeFile(p.file).then((d) => ({ ...d, fasta: null })));
+const load = (p: Pick, o: LoadOptions): Promise<Loaded> => ('id' in p ? loadTree(p.id, o) : loadFile(p.file, o));
+/** What the loading line says of a step. */
+const stepOf = (p: LoadProgress) =>
+  p.phase === 'labels'
+    ? `labels ${Math.round((100 * (p.done ?? 0)) / (p.total || 1))}%`
+    : { fetch: 'fetching', read: 'reading', inflate: 'inflating', decode: 'decoding', parse: 'parsing', pack: 'packing' }[p.phase];
 let files = 0;
 
 const treeName = (p: Pick): TreeName => ('id' in p ? { id: p.id, label: TREES[p.id]?.label ?? p.id } : { file: p.file.name });
@@ -44,20 +46,36 @@ function App() {
   const [dark, setDark] = useState(params.get('theme') === 'dark');
   const budgetParam = Number(params.get('undo-budget') ?? NaN); // a missing or bad value: the default
   const undoBudget = Number.isFinite(budgetParam) ? budgetParam : undefined;
-  const [data, setData] = useState<(Loaded & { id: string }) | null>(null);
+  // the tree shown stays while the next one loads (in a worker, so the page responds), and Cancel goes back to it
+  const [data, setData] = useState<(Loaded & { id: string; pick: Pick }) | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<{ step: string; cancel: () => void } | null>(null);
 
   useEffect(() => {
-    let live = true;
-    setError(null);
-    setData(null);
-    load(pick).then(
-      (d) => live && setData({ id: keyOf(pick), ...d }),
-      (e: Error) => live && setError(e.message),
-    );
-    return () => {
-      live = false;
+    if (data?.id === keyOf(pick)) return setLoading(null); // back to the tree shown (Cancel, or picked again while another loaded)
+    const ac = new AbortController();
+    const cancel = () => {
+      ac.abort();
+      setLoading(null);
+      if (data) setPick(data.pick);
+      else setError(`loading ${nameOf(pick)} was cancelled`);
     };
+    setError(null);
+    setLoading({ step: 'starting', cancel });
+    load(pick, { signal: ac.signal, onProgress: (p) => !ac.signal.aborted && setLoading({ step: stepOf(p), cancel }) }).then(
+      (d) => {
+        if (ac.signal.aborted) return;
+        setLoading(null);
+        setData({ id: keyOf(pick), pick, ...d });
+      },
+      (e: Error) => {
+        if (ac.signal.aborted) return;
+        setLoading(null);
+        setError(e.message);
+      },
+    );
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new pick starts a load; the data shown changes with it
   }, [pick]);
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -84,12 +102,16 @@ function App() {
         </button>
       </header>
       {error && <p className="page-error">{error}</p>}
-      {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
-      {data ? (
-        <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} debug={debugInfo(debug, pick)} />
-      ) : (
-        !error && <p className="page-loading">loading {nameOf(pick)}…</p>
+      {loading && (
+        <p className="page-loading" role="status">
+          loading {nameOf(pick)}: {loading.step}…{' '}
+          <button type="button" onClick={loading.cancel}>
+            Cancel
+          </button>
+        </p>
       )}
+      {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
+      {data && <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} debug={debugInfo(debug, data.pick)} />}
       <p className="page-foot">
         Most toolbar icons are from <a href="https://github.com/vaaloo/reactreejs">reactreejs</a> (MIT), the look started there too. Everything else
         is @canopy: the README lists which control uses which API.

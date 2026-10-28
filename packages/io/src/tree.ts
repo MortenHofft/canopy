@@ -49,6 +49,74 @@ export function splitInternalLabel(label: string): { support: number; name: stri
   return { support: Number(m[1]), name: m[2] ?? '' };
 }
 
+/** The arrays and values a TreeModel derives from its RawTree. `heights` is computed on first use when absent. */
+export interface DerivedArrays {
+  firstChild: Int32Array;
+  nextSibling: Int32Array;
+  childCount: Int32Array;
+  cumLength: Float64Array;
+  hasLengths: boolean;
+  maxCumLength: number;
+  maxDepth: number;
+  tipNode: Int32Array;
+  tipRank: Int32Array;
+  tipLabels: string[];
+  heights?: Int32Array;
+}
+
+function derive(raw: RawTree): DerivedArrays {
+  const n = raw.nodeCount;
+  const firstChild = new Int32Array(n).fill(-1);
+  const nextSibling = new Int32Array(n).fill(-1);
+  const childCount = new Int32Array(n);
+  const lastChild = new Int32Array(n).fill(-1);
+  for (let i = 1; i < n; i++) {
+    const p = raw.parent[i];
+    childCount[p]++;
+    if (lastChild[p] < 0) firstChild[p] = i;
+    else nextSibling[lastChild[p]] = i;
+    lastChild[p] = i;
+  }
+
+  const cum = new Float64Array(n);
+  let anyLen = false;
+  let maxCum = 0;
+  let maxDepth = 0;
+  for (let i = 1; i < n; i++) {
+    const l = raw.length[i];
+    if (!Number.isNaN(l)) anyLen = true;
+    cum[i] = cum[raw.parent[i]] + (!Number.isNaN(l) ? l : 0);
+    if (cum[i] > maxCum) maxCum = cum[i];
+    if (raw.depth[i] > maxDepth) maxDepth = raw.depth[i];
+  }
+
+  const tipNode = new Int32Array(raw.tipCount);
+  const tipRank = new Int32Array(n).fill(-1);
+  const tipLabels: string[] = new Array(raw.tipCount);
+  let r = 0;
+  for (let i = 0; i < n; i++) {
+    if (childCount[i] === 0) {
+      tipNode[r] = i;
+      tipRank[i] = r;
+      tipLabels[r] = raw.labels[i];
+      r++;
+    }
+  }
+  if (r !== raw.tipCount) throw new Error(`tip count mismatch: counted ${r}, parser said ${raw.tipCount}`);
+  return {
+    firstChild,
+    nextSibling,
+    childCount,
+    cumLength: cum,
+    hasLengths: anyLen,
+    maxCumLength: maxCum,
+    maxDepth,
+    tipNode,
+    tipRank,
+    tipLabels,
+  };
+}
+
 export class TreeModel {
   readonly nodeCount: number;
   readonly tipCount: number;
@@ -81,7 +149,9 @@ export class TreeModel {
   private _dupTips: Map<string, number[]> | null = null;
   private _heights: Int32Array | null = null;
 
-  constructor(raw: RawTree) {
+  /** `derived` is for a model whose derived arrays were made elsewhere (a parse in a worker, `@canopy/io/worker`): they are taken as
+   *  they are, not checked. Without it they are computed from `raw`. */
+  constructor(raw: RawTree, derived: DerivedArrays = derive(raw)) {
     const n = raw.nodeCount;
     this.nodeCount = n;
     this.tipCount = raw.tipCount;
@@ -98,53 +168,17 @@ export class TreeModel {
     if (this.annotations && this.annotations.nodeCount !== n)
       throw new Error(`annotations are for a tree of ${this.annotations.nodeCount} nodes, this one has ${n}`);
 
-    const firstChild = new Int32Array(n).fill(-1);
-    const nextSibling = new Int32Array(n).fill(-1);
-    const childCount = new Int32Array(n);
-    const lastChild = new Int32Array(n).fill(-1);
-    for (let i = 1; i < n; i++) {
-      const p = raw.parent[i];
-      childCount[p]++;
-      if (lastChild[p] < 0) firstChild[p] = i;
-      else nextSibling[lastChild[p]] = i;
-      lastChild[p] = i;
-    }
-    this.firstChild = firstChild;
-    this.nextSibling = nextSibling;
-    this.childCount = childCount;
-
-    const cum = new Float64Array(n);
-    let anyLen = false;
-    let maxCum = 0;
-    let maxDepth = 0;
-    for (let i = 1; i < n; i++) {
-      const l = raw.length[i];
-      if (!Number.isNaN(l)) anyLen = true;
-      cum[i] = cum[raw.parent[i]] + (!Number.isNaN(l) ? l : 0);
-      if (cum[i] > maxCum) maxCum = cum[i];
-      if (raw.depth[i] > maxDepth) maxDepth = raw.depth[i];
-    }
-    this.cumLength = cum;
-    this.hasLengths = anyLen;
-    this.maxCumLength = maxCum;
-    this.maxDepth = maxDepth;
-
-    const tipNode = new Int32Array(raw.tipCount);
-    const tipRank = new Int32Array(n).fill(-1);
-    const tipLabels: string[] = new Array(raw.tipCount);
-    let r = 0;
-    for (let i = 0; i < n; i++) {
-      if (childCount[i] === 0) {
-        tipNode[r] = i;
-        tipRank[i] = r;
-        tipLabels[r] = raw.labels[i];
-        r++;
-      }
-    }
-    if (r !== raw.tipCount) throw new Error(`tip count mismatch: counted ${r}, parser said ${raw.tipCount}`);
-    this.tipNode = tipNode;
-    this.tipRank = tipRank;
-    this.tipLabels = tipLabels;
+    this.firstChild = derived.firstChild;
+    this.nextSibling = derived.nextSibling;
+    this.childCount = derived.childCount;
+    this.cumLength = derived.cumLength;
+    this.hasLengths = derived.hasLengths;
+    this.maxCumLength = derived.maxCumLength;
+    this.maxDepth = derived.maxDepth;
+    this.tipNode = derived.tipNode;
+    this.tipRank = derived.tipRank;
+    this.tipLabels = derived.tipLabels;
+    this._heights = derived.heights ?? null;
   }
 
   /** Name of an internal node without a leading support value ('' if none); tips return their label. */
