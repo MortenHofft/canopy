@@ -200,3 +200,37 @@ test('dimming: the box of a clade with no highlighted tip is drawn at dimOpacity
     [BLUE],
   );
 });
+
+test('alignLabels: a box reaches past the aligned label column, not only past its own tips', async () => {
+  const tree = '((a:1,b:1)x:1,(c:3,d:3)y:1)r;'; // x's tips end well left of y's
+  const right = async (alignLabels) => {
+    const { ctx } = await viewerWith('background', [{ node: 1, colour: RED }], { tree, options: { alignLabels } });
+    const [x, , w] = boxes(ctx())[0].args;
+    return x + w;
+  };
+  const own = await right(false),
+    aligned = await right(true);
+  assert.ok(aligned > own + 50, `with aligned labels the box ends at ${aligned}, past ${own}`);
+});
+
+test("a coloured clade inside a collapsed clade keeps a box, over the collapsed clade's row", async () => {
+  const { viewer, env, ctx } = await viewerWith('background', [{ node: 2, colour: RED }]);
+  viewer.setCollapsed([1]);
+  ctx().reset();
+  env.flush();
+  const b = boxes(ctx());
+  assert.equal(b.length, 1);
+  const [, y, , h] = b[0].args;
+  const row = viewer.nodePosition(1).y;
+  assert.ok(y < row && y + h > row, 'the box covers the row of the collapsed clade');
+});
+
+test('with columns shown, boxes stop at the right edge of the tree, before the columns', async () => {
+  const { viewer, env, ctx } = await viewerWith('background', [{ node: 1, colour: RED }]);
+  viewer.setColumns([{ id: 't', kind: 'text', header: 'T', width: 80, values: { a: '1', b: '2' } }]);
+  ctx().reset();
+  env.flush();
+  const [x, , w] = boxes(ctx())[0].args;
+  const cell = viewer.columnCell('t', 'a');
+  assert.ok(cell && x + w <= cell.x, `the box ends at ${x + w}, the column starts at ${cell?.x}`);
+});

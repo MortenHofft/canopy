@@ -1232,7 +1232,7 @@ export class TreeViewer {
     }
     const style = this.opts.cladeStyle;
     if (style !== 'background') this.classOf = cls;
-    if (style !== 'branches') this.cladeBoxes = { rows: rows.slice(0, n), cls: boxCls.slice(0, n) };
+    if (style !== 'branches') this.cladeBoxes = { rows: rows.slice(0, n), cls: boxCls.slice(0, n), up: new Int32Array(n), upFor: null };
     this.colours = colours;
   }
 
