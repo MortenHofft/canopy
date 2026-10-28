@@ -1,6 +1,6 @@
 # NEXUS reader: ideas from other implementations
 
-Written 2026-10-27 for issue #136. Three read-only passes went through the **implementation** (not the tests) of other NEXUS readers, looking for design ideas for `parseNexus` in `packages/io/src/newick.ts`. This note keeps what is worth deciding on. Where I ran something on our parser myself it says **verified**; everything else is what those passes report from reading the code and is **unverified** until someone checks it against the source.
+Written 2026-10-27 for issue #136. Three read-only passes went through the **implementation** (not the tests) of other NEXUS readers, looking for design ideas for `parseNexus` in `packages/io/src/nexus.ts`. This note keeps what is worth deciding on. Where I ran something on our parser myself it says **verified**; everything else is what those passes report from reading the code and is **unverified** until someone checks it against the source.
 
 **Licences.** Most of what was read is copyleft. Ideas only: nothing was copied, and nothing from these projects may be pasted into our code.
 

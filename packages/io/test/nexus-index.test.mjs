@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { nexusIndex, nexusTrees, parseNexus, toNewick } from '../src/newick.ts';
+import { toNewick } from '../src/newick.ts';
+import { nexusIndex, nexusTrees, parseNexus } from '../src/nexus.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const read = (p) => {

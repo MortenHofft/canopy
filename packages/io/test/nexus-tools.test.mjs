@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parseNexus, toNewick } from '../src/newick.ts';
+import { toNewick } from '../src/newick.ts';
+import { parseNexus } from '../src/nexus.ts';
 import { supportFrom } from '../src/annotations.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

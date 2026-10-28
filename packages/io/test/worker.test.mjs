@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, parseNexus, NewickError } from '../src/newick.ts';
+import { parseNewick, NewickError } from '../src/newick.ts';
+import { parseNexus } from '../src/nexus.ts';
 import { packTree, unpackTree, runParse } from '../src/transfer.ts';
 import { parseInWorker } from '../src/worker.ts';
 
