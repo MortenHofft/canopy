@@ -22,6 +22,7 @@ import { Emitter, type Listener, type ListenOptions, type ViewerEventType } from
 import {
   drawAxis,
   drawBody,
+  drawCladeBoxes,
   drawHighlights,
   drawLabels,
   drawNodeLabels,
@@ -35,6 +36,7 @@ import {
   drawMarkRings,
   LabelList,
   TextMeasurer,
+  type CladeBoxes,
   type Scene,
 } from './draw.ts';
 import { makeTransform, sectorBBox, viewportEquals, type Transform } from './geom.ts';
@@ -242,7 +244,8 @@ export class TreeViewer {
   private T!: Transform;
   private proj!: LayoutProjection; // the layout projection of T and L (node positions, clade extents), rebuilt with T
   private columns: CompiledColumn[] = [];
-  private classOf: Uint8Array | null = null;
+  private classOf: Uint8Array | null = null; // colour class of the branches by row (null: none coloured, see applyClades)
+  private cladeBoxes: CladeBoxes | null = null; // the boxes behind the coloured clades (cladeStyle 'background' or 'both')
   private colours: string[] = [''];
   private cladeKey = '';
   private clades: CladeColour[] = [];
@@ -1017,6 +1020,7 @@ export class TreeViewer {
       this.hit.invalidate();
     }
     if (labelsChanged) this.overlay.clear(true);
+    if (p.cladeStyle !== undefined) this.applyClades();
     if (fanRefit || refit) this.refitAfterOptions(p, layoutChanged || lengthsChanged);
     else if (p.maxTipSpacing !== undefined || p.maxViewWidth !== undefined) this.reclampView();
     this.sceneVersion++;
@@ -1169,8 +1173,9 @@ export class TreeViewer {
     if (!viewportEquals(c, this.vs.view, 1e-12)) this.vs.view = c;
   }
 
-  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`. Where clades nest
-   *  the innermost wins, whatever the order; for the same node the later entry wins. No-op for the same entries in the same order. */
+  /** Colour clades: each entry colours the branches, summaries, markers and tip labels of the clade below `node`, or puts a box in its
+   *  colour behind the clade, or both (option `cladeStyle`). Where clades nest the innermost colours the branches, whatever the order, and
+   *  its box is drawn over the outer one; for the same node the later entry wins. No-op for the same entries in the same order. */
   setClades(clades: CladeColour[]): void {
     if (!this.storeClades(this.knownNodes('setClades', clades, (c) => c.node))) return;
     this.applyClades();
@@ -1192,11 +1197,14 @@ export class TreeViewer {
     return this.clades.map((c) => ({ ...c }));
   }
 
-  /** Colour classes per row from the clade list (node ids of the full tree). Clades that are not part of the snapshot are skipped. */
+  /** Colour classes per row from the clade list (node ids of the full tree), for the branches (`classOf`, null with `cladeStyle:
+   *  'background'`) and the boxes behind the clades (`cladeBoxes`, null with 'branches'). Clades that are not part of the snapshot are
+   *  skipped. */
   private applyClades(): void {
     const clades = this.clades;
+    this.classOf = null;
+    this.cladeBoxes = null;
     if (!clades.length) {
-      this.classOf = null;
       this.colours = [''];
       return;
     }
@@ -1208,14 +1216,23 @@ export class TreeViewer {
       .map((c) => ({ c, r: this.rowOf(c.node) }))
       .filter((x) => x.r >= 0)
       .sort((a, b) => a.r - b.r);
+    // one box per node, the later entry's colour, in preorder: a clade's box comes before the boxes inside it
+    const rows = new Int32Array(placed.length);
+    const boxCls = new Uint8Array(placed.length);
+    let n = 0;
     for (const { c, r } of placed) {
       let k = colours.indexOf(c.colour);
       if (k < 0) {
         k = Math.min(255, colours.push(c.colour) - 1);
       }
       cls.fill(k, r, this.tree.subtreeEnd[r]);
+      if (n > 0 && rows[n - 1] === r) n--;
+      rows[n] = r;
+      boxCls[n++] = k;
     }
-    this.classOf = cls;
+    const style = this.opts.cladeStyle;
+    if (style !== 'background') this.classOf = cls;
+    if (style !== 'branches') this.cladeBoxes = { rows: rows.slice(0, n), cls: boxCls.slice(0, n) };
     this.colours = colours;
   }
 
@@ -2148,6 +2165,8 @@ export class TreeViewer {
       theme: this.theme,
       colours: this.colours,
       classOf: this.classOf,
+      cladeBoxes: this.cladeBoxes,
+      labelReach: vs.labelReach(),
       highlight: bands ? this.hl : null,
       hlRanks: bands ? this.hlRanks : NO_RANKS,
       hlPrefix: dimming ? this.dimPrefix() : null,
@@ -2167,6 +2186,7 @@ export class TreeViewer {
     ctx.beginPath();
     ctx.rect(0, rect ? T.clipT - 6 : 0, rect ? T.clipR : W, rect ? T.clipB - T.clipT + 12 : H);
     ctx.clip();
+    drawCladeBoxes(ctx, S);
     if (opts.axis) drawRings(ctx, S, opts.radialRings); // radial only; with the scale bar, their one label without an opening
     drawHighlights(ctx, S, rect ? T.clipR + (columnsWidth(this.columns) || 0) : W);
     drawBody(ctx, S, this.theme.branchWidth);

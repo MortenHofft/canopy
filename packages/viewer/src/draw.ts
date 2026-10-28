@@ -14,7 +14,10 @@ export interface Scene {
   list: DrawList;
   theme: TreeTheme;
   colours: string[]; // colour by class; class 0 = default branch colour
-  classOf: Uint8Array | null;
+  classOf: Uint8Array | null; // colour class of the branches by row; null = none coloured (no clades, or `cladeStyle: 'background'`)
+  /** The boxes behind coloured clades (`cladeStyle` 'background' or 'both'), outer clades first; null = none. */
+  cladeBoxes: CladeBoxes | null;
+  labelReach: number; // the room (px) tip labels take past their tip or aligned column (ViewState.labelReach): where a clade's box ends
   highlight: Uint8Array | null; // by tip rank
   hlRanks: Int32Array; // sorted highlighted ranks
   hlPrefix: Int32Array | null; // highlighted tips before each rank (length tipCount + 1); non-null = dimming: what holds none is drawn at theme.dimOpacity
@@ -32,6 +35,13 @@ export interface Scene {
   /** The threshold is at the floor (MIN_THRESHOLD_PX): every clade folded by size is under a pixel wide and is drawn as a branch from its
    *  node to its deepest tip (lineTip), not as a fan or triangle (#126). */
   summaryLines: boolean;
+}
+
+/** One box per coloured clade, in preorder of its node, so a clade comes before the clades inside it: `rows[k]` is the node (row of the
+ *  snapshot), `cls[k]` its colour class in `Scene.colours`. */
+export interface CladeBoxes {
+  rows: Int32Array;
+  cls: Uint8Array;
 }
 
 /** Labels laid out this frame, for hit-testing and for the DOM overlay (one entry per drawn label). */
@@ -366,15 +376,8 @@ export function fanSummaryShape(ctx: CanvasRenderingContext2D, proj: RadialProje
     a1 = m + h;
   } // keep slivers visible
   if (band) {
-    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles. Far off, only its
-    // visible angles (padded), with its edges as arcs, as the connectors do: a run reaches as far out of the window as its members (#77),
-    // and a chord over all of them would cut inside the tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends.
-    if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
-    else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
-    else {
-      bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), a1, true);
-      bandPiece(ctx, proj, r0, r1, a0, Math.min(a1, proj.hi), true);
-    }
+    // polytomy of tips: the ring segment between the node's depth and the longest tip, over the clade's angles
+    ringSector(ctx, proj, r0, r1, a0, a1);
     return;
   }
   ctx.moveTo(cx + r0 * proj.L.COS![i], cy + r0 * proj.L.SIN![i]);
@@ -409,7 +412,19 @@ function fanArcPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r1: 
   }
 }
 
-/** One ring segment of a band (see fanSummaryShape): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
+/** Add the ring sector r0..r1 (px) over the angles a0..a1 to the path. Far off, only its visible angles (padded), with its edges as arcs,
+ *  as the connectors do: a run reaches as far out of the window as its members (#77), and a chord over all of them would cut inside the
+ *  tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends. */
+function ringSector(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number): void {
+  if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
+  else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
+  else {
+    bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), a1, true);
+    bandPiece(ctx, proj, r0, r1, a0, Math.min(a1, proj.hi), true);
+  }
+}
+
+/** One ring segment of a band (see ringSector): radius r0..r1 over the angles a0..a1, nothing when a1 <= a0. An edge is an arc where
  *  it is visibly curved, if it is near (under RADIAL_FAR_ARC_R) or `far` (the angles are already cut to the window), else a straight line. */
 function bandPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number, far: boolean): void {
   if (!(a1 > a0)) return;
@@ -703,6 +718,56 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       }
       if (any) ctx.fill();
     }
+  ctx.globalAlpha = 1;
+}
+
+/** The boxes behind the coloured clades (`S.cladeBoxes`), behind everything else of the tree: a fill of the clade's colour at
+ *  `cladeBackgroundOpacity` (times `dimOpacity` for a clade holding no highlighted tip while dimming), outer clades first so an inner box
+ *  is drawn over the box around it. Rectangular: a rectangle over the clade's rows, from `cladeBackgroundPadding` left of its node to
+ *  `labelReach` past its deepest tip (or past the aligned label column). Radial: the ring sector over the clade's angles, from the
+ *  padding inward of the node's radius to `labelReach` past its outermost tip (or the aligned label circle). The rows are the layout's, not
+ *  the cut's, so a clade inside a summary keeps its box. One shape per clade in view, nothing per node. */
+export function drawCladeBoxes(ctx: CanvasRenderingContext2D, S: Scene): void {
+  const B = S.cladeBoxes;
+  if (B === null) return;
+  const { proj, theme, colours } = S;
+  const pad = theme.cladeBackgroundPadding;
+  const opacity = theme.cladeBackgroundOpacity;
+  const ax = alignedX(S),
+    ar = alignedR(S);
+  let fill = '',
+    alpha = -1;
+  for (let k = 0; k < B.rows.length; k++) {
+    const i = B.rows[k];
+    proj.summaryExtent(i, -1, 0);
+    // the shape's extent: rectangular x0..x1 (px) over the rows t0..t1, radial r0..r1 over the angles t0..t1; culled against the view
+    let x0: number, x1: number;
+    if (proj.kind === 'rectangular') {
+      const { T } = proj;
+      x0 = Math.max(proj.d0 - pad, -CLAMP_Y_PAD_PX);
+      x1 = Math.min(T.clipR, (Number.isNaN(ax) ? proj.d1 : ax) + S.labelReach);
+      if (!(x1 > x0) || x1 <= T.clipL || x0 >= T.clipR || proj.t1 <= T.clipT || proj.t0 >= T.clipB) continue;
+    } else {
+      x0 = Math.max(0, proj.d0 - pad);
+      x1 = (Number.isNaN(ar) ? proj.d1 : ar) + S.labelReach;
+      const a0 = proj.t0,
+        a1 = proj.t1;
+      if (x1 <= proj.rMin || x0 >= proj.rMax) continue;
+      if (!proj.all && (proj.wrap ? a1 <= proj.lo && a0 >= proj.hi : a1 <= proj.lo || a0 >= proj.hi)) continue;
+    }
+    const colour = colours[B.cls[k]];
+    const a = S.hlPrefix !== null && !holdsHighlight(S, i) ? opacity * theme.dimOpacity : opacity;
+    if (colour !== fill) ctx.fillStyle = fill = colour;
+    if (a !== alpha) ctx.globalAlpha = alpha = a;
+    if (proj.kind === 'rectangular') {
+      const y0 = clampY(proj.t0, proj.T.H);
+      ctx.fillRect(x0, y0, x1 - x0, clampY(proj.t1, proj.T.H) - y0);
+    } else {
+      ctx.beginPath();
+      ringSector(ctx, proj, x0, x1, proj.t0, proj.t1);
+      ctx.fill();
+    }
+  }
   ctx.globalAlpha = 1;
 }
 

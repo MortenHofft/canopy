@@ -163,7 +163,15 @@ export class ViewState {
    *  side. 0 otherwise. */
   radialLabelRoom(): number {
     if (this.env.layout !== 'radial' || !this.alignsLabels()) return 0;
-    return Math.min(this.labelReserve(), RADIAL_LABEL_ROOM_FRAC * Math.min(this.env.W, this.env.H));
+    return this.labelReach();
+  }
+
+  /** The room (px) tip labels take past their tip or aligned column: rectangular, the label room of the area (computeArea first); radial,
+   *  the label reserve, at most RADIAL_LABEL_ROOM_FRAC of the smaller container side. */
+  labelReach(): number {
+    if (this.env.layout === 'radial') return Math.min(this.labelReserve(), RADIAL_LABEL_ROOM_FRAC * Math.min(this.env.W, this.env.H));
+    const a = this.area;
+    return Math.max(0, a.clipR - a.ax - a.aw);
   }
 
   /** Room right of the tips for labels: from the longest label, capped (rectangular layout). */
