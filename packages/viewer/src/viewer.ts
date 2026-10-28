@@ -1083,7 +1083,15 @@ export class TreeViewer {
         kept = last.view;
       else if (from.content) {
         const readable = labelMinPx(this.opts.labelDensity, this.theme.labelSize);
-        kept = placeContent(from.content, { kind: this.opts.layout, L: this.L, tree: this.tree, area: vs.area, fit: vs.fitViewport(), readable });
+        kept = placeContent(from.content, {
+          kind: this.opts.layout,
+          L: this.L,
+          tree: this.tree,
+          area: vs.area,
+          fit: vs.fitViewport(),
+          readable,
+          labelPx: vs.labelReserve(),
+        });
       }
     }
     this.lastSwitch = null;

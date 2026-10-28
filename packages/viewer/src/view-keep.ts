@@ -334,6 +334,8 @@ export interface PlaceTarget {
   /** The least tip pitch (px) at which tips get labels (`labelMinPx`): to hold the tips that were in view, the view may zoom out down to it,
    *  never below it (nor below the pitch it had). */
   readable: number;
+  /** Px a tip label takes beyond its tip, kept in view with the tips where there is room (radial: the labels run outward). */
+  labelPx?: number;
 }
 
 const ROOM = 1.06; // radial: the tips that must be in view take at most 1 / ROOM of the window
@@ -477,6 +479,23 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
   if (!(k > kfit)) return null;
   const hw = a.aw / 2 / k,
     hh = a.ah / 2 / k;
+  // the tips with their labels (to their outer end, `labelPx` at this scale)
+  const lr = (t.labelPx ?? 0) / k;
+  let lx0 = bx0,
+    ly0 = by0,
+    lx1 = bx1,
+    ly1 = by1;
+  for (let i = 0; i < c.count && lr > 0; i++) {
+    const r = rows[i];
+    if (c.kind === 'rectangular' && radii[i] > c.far) continue;
+    const ang = L.fan.start + (r + 0.5) * da,
+      x = (radii[i] + lr) * Math.cos(ang),
+      y = (radii[i] + lr) * Math.sin(ang);
+    if (x < lx0) lx0 = x;
+    if (x > lx1) lx1 = x;
+    if (y < ly0) ly0 = y;
+    if (y > ly1) ly1 = y;
+  }
   // where the centre would be: from radial, the same direction, as far from the tips (in px) as it was; from rectangular, the middle of the
   // sector of the window's rows between the depths it covered
   let ex0: number, ex1: number, ey0: number, ey1: number;
@@ -491,16 +510,25 @@ export function placeContent(c: ViewContent, t: PlaceTarget): Viewport | null {
     ex0 = ex1 = r2 * Math.cos(th);
     ey0 = ey1 = r2 * Math.sin(th);
   } else {
+    // the rectangular layout shows the labels beside the window: here they run outward, so their room is part of the sector
     const bb = new Float64Array(4);
     const dLo = Math.max(0, Math.min(c.near, rmax)),
-      dHi = Math.max(dLo, Math.min(c.far, rmax));
+      dHi = Math.max(dLo, Math.min(c.far, rmax)) + lr;
     sectorBBox(0, 0, dLo, dHi, L.fan.start + c.view.y0 * da, L.fan.start + c.view.y1 * da, bb);
     [ex0, ey0, ex1, ey1] = bb;
   }
-  // moved as little as needed to hold the tips; on the middle tip where they do not fit
+  // moved as little as needed to hold the tips with their labels, or the tips alone; on the middle tip where they do not fit
+  const w = (2 * hw) / ROOM,
+    h = (2 * hh) / ROOM;
+  if (lx1 - lx0 <= w && ly1 - ly0 <= h) {
+    bx0 = lx0;
+    bx1 = lx1;
+    by0 = ly0;
+    by1 = ly1;
+  }
   const mi = c.count >> 1,
     ma = L.fan.start + (rows[mi] + 0.5) * da;
-  const cx = centreOn(ex0, ex1, bx0, bx1, (2 * hw) / ROOM, radii[mi] * Math.cos(ma)),
-    cy = centreOn(ey0, ey1, by0, by1, (2 * hh) / ROOM, radii[mi] * Math.sin(ma));
+  const cx = centreOn(ex0, ex1, bx0, bx1, w, radii[mi] * Math.cos(ma)),
+    cy = centreOn(ey0, ey1, by0, by1, h, radii[mi] * Math.sin(ma));
   return { x0: cx - hw, x1: cx + hw, y0: cy - hh, y1: cy + hh };
 }
