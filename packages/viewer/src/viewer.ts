@@ -335,6 +335,7 @@ export class TreeViewer {
   private reducedMinPxHint = 0;
   private reducedHintRaised = false;
   private reducedHintPitch = 0;
+  private startAtBase = false; // a full frame has drawn since the last reduced one: the next reduced frame may start from its base (#154)
   private lastFullDrawn = 0;
   private fullMs = 0; // smoothed JS time of the full-quality frames, for interactionLOD 'auto' (0 = not measured yet)
   private fullFrames = 0; // full-quality frames drawn; the first is not measured (one-off costs)
@@ -2085,9 +2086,11 @@ export class TreeViewer {
     let hint = reduced ? this.reducedMinPxHint : this.minPxHint;
     // the reduced hint can be a whole gesture old, from another zoom: carry it to this one, as the same clade size in tree units (#150)
     if (reduced && this.reducedHintPitch > 0) hint *= this.proj.tipPitch / this.reducedHintPitch;
-    // the last full frame drew at its base and within the reduced budget: nothing is crowded here, so the gesture starts from the reduced
-    // base, not from a carried hint that may be above it (#154)
-    if (reduced && this.minPxHint > 0 && !this.hintRaised && this.lastFullDrawn <= budget) hint = Math.min(hint, base);
+    // the first reduced frame after a full frame that drew at its base and within the reduced budget: nothing is crowded here, so it starts
+    // from the reduced base, not from a carried hint that may be above it (#154). Later frames of the gesture keep the carried hint (#93).
+    // minPxHint > 0 keeps this off after a reset, when lastFullDrawn can be from another tree or view.
+    if (reduced && this.startAtBase && this.minPxHint > 0 && !this.hintRaised && this.lastFullDrawn <= budget) hint = Math.min(hint, base);
+    if (reduced) this.startAtBase = false;
     const raised = reduced ? this.reducedHintRaised : this.hintRaised;
     const r = searchCut(this.proj, this.classOf, this.list, this.seen, {
       lod: this.opts.lod,
@@ -2108,6 +2111,7 @@ export class TreeViewer {
       this.reducedHintRaised = r.minPx > cap * (1 + 1e-9);
       this.reducedHintPitch = this.proj.tipPitch;
     } else {
+      this.startAtBase = true;
       this.minPxHint = r.minPx;
       this.hintRaised = r.minPx > cap * (1 + 1e-9);
     }
