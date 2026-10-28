@@ -17,7 +17,7 @@ const { FALLBACK_THEME } = await import(path.join(core, 'types.ts'));
 const { RADIAL_FAR_ARC_R } = await import(path.join(core, 'constants.ts'));
 const { recordingContext } = await import('./viewer-harness.mjs');
 
-const COLOURS = ['', '#ff0000', '#00ff00', '#0000ff'];
+const COLOURS = ['', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff'];
 const W = 400,
   H = 400;
 const AREA = { ax: 10, ay: 0, aw: 300, ah: 400, clipL: 0, clipT: 0, clipR: 390, clipB: 400 };
@@ -77,18 +77,47 @@ test('4096 sub-pixel tip boxes of one colour: about one fill per pixel across th
   assert.ok(Math.abs(top) < 1e-6 && Math.abs(bottom - H) < 1e-6, `the merged boxes cover every row (${top}..${bottom})`);
 });
 
-test('4096 sub-pixel tip boxes in alternating colours: still at most about one fill per pixel', () => {
+/** A seeded random number generator (mulberry32), so the random cases are the same on every run. */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+test('4096 sub-pixel tip boxes in mixed colours: about one fill per pixel, and every row still covered', () => {
   const tree = balanced(12);
   const tips = tipsOf(tree);
-  const { ctx } = draw(
-    tree,
-    boxesOf(
-      tips,
-      tips.map((_, k) => 1 + (k % 3)),
-    ),
-    { x0: 0, x1: 1, y0: 0, y1: 4096 },
-  );
-  assert.ok(fills(ctx).length <= 1.25 * H, `${fills(ctx).length} fills`);
+  const random = rng(43);
+  const patterns = {
+    'one colour': () => 1,
+    '3 alternating': (k) => 1 + (k % 3),
+    'runs of 4 in 5 colours': (k) => 1 + (Math.floor(k / 4) % 5),
+    'random, 5 colours': () => 1 + Math.floor(random() * 5),
+  };
+  for (const [name, colourOf] of Object.entries(patterns)) {
+    const { ctx } = draw(
+      tree,
+      boxesOf(
+        tips,
+        tips.map((_, k) => colourOf(k)),
+      ),
+      { x0: 0, x1: 1, y0: 0, y1: 4096 },
+    );
+    const f = fills(ctx);
+    assert.ok(f.length <= 1.25 * H, `${name}: ${f.length} fills`);
+    // the fills follow each other down the rows without gaps or overlaps
+    let y = 0;
+    for (const { args } of f) {
+      assert.ok(Math.abs(args[1] - y) < 1e-6, `${name}: a fill starts at ${args[1]}, where the one before ended (${y})`);
+      y = args[1] + args[3];
+    }
+    assert.ok(Math.abs(y - H) < 1e-6, `${name}: the fills cover the ${H} px (${y})`);
+  }
 });
 
 test('zoomed in: the boxes off screen are not visited', () => {

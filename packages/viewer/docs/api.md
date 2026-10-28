@@ -713,11 +713,13 @@ keep their plain colours; with `'both'` they are coloured too.
 - **Dimming:** with `highlightStyle` `'dim'` or `'both'`, the box of a clade holding no highlighted tip is drawn at `cladeBackgroundOpacity`
   times `dimOpacity`.
 - **Cost:** bounded by the view, not by the number of clades (`colourBy` gives one per tip). Only the boxes whose rows meet the rows
-  (radial: angles) in view are visited, found by a binary search, and boxes under a pixel across the tips are merged: a run of them in one
-  colour that continue each other's rows is one fill, and one inside the pixel a merged box already colours is not drawn. So a frame
-  fills one shape per visible box of a pixel or more and at most about one per pixel across the tips for the smaller ones; nothing is
-  allocated per box. Measured with 131,072 one-tip clades in five colours (fake canvas, Node): 763 fills instead of 131,072 at the fit
-  (760 px tall), and 100 boxes visited instead of 131,072 zoomed into 100 rows.
+  (radial: angles) in view are visited, found by a binary search (at the fit that is still every box, as arithmetic only), and boxes
+  under a pixel across the tips are merged: a run of them in one colour that continue each other's rows is one fill, and a box of
+  another colour (or one inside it) within the pixel a merged box starts is covered by that box, in its colour. Every row stays covered,
+  but where colours interleave below a pixel the colour of that pixel is approximate (the first box's). So a frame fills one shape per
+  visible box of a pixel or more and about one per pixel across the tips for the smaller ones; nothing is allocated per box. Measured with
+  131,072 one-tip clades in five alternating colours (fake canvas, Node): at the fit (760 px tall) 763 fills instead of 131,072, covering
+  all 760 px; zoomed into 100 rows, 100 boxes visited instead of 131,072.
 - The legend is unchanged. The overview control does not draw boxes, and with `'background'` it shows the tree uncoloured, like the main
   view's branches.
 

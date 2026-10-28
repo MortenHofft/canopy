@@ -419,7 +419,7 @@ function fanArcPiece(ctx: CanvasRenderingContext2D, proj: RadialProjection, r1: 
 /** Add the ring sector r0..r1 (px) over the angles a0..a1 to the path. Far off, only its visible angles (padded), with its edges as arcs,
  *  as the connectors do: a run reaches as far out of the window as its members (#77), and a chord over all of them would cut inside the
  *  tips in view. A wrapped window (lo..2pi and 0..hi) can show both ends. */
-function ringSector(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number): void {
+export function ringSector(ctx: CanvasRenderingContext2D, proj: RadialProjection, r0: number, r1: number, a0: number, a1: number): void {
   if (r1 < RADIAL_FAR_ARC_R || proj.all) bandPiece(ctx, proj, r0, r1, a0, a1, false);
   else if (!proj.wrap) bandPiece(ctx, proj, r0, r1, Math.max(a0, proj.lo), Math.min(a1, proj.hi), true);
   else {
@@ -734,9 +734,10 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
  *
  *  The work is bounded by the view, not by the number of clades (colourBy gives one per tip): only the boxes whose rows meet the rows in
  *  view are visited (a binary search for the first, the boxes around it through `up`, a stop after the last), and boxes under a pixel
- *  across the tips are merged: a run of them in one colour that continue each other's rows is one fill, and one that falls within the
- *  pixel a pending merged box already colours is not drawn. So a frame fills at most about one box per pixel across the tips per nesting
- *  level, besides the boxes of a pixel or more. Nothing is allocated per box; the chain of boxes around the view is module scratch. */
+ *  across the tips are merged: a run of them in one colour that continue each other's rows is one fill, and a box of another colour (or
+ *  one inside it) that falls within the pixel a pending merged box starts makes that box grow over it in the pending box's colour. Every
+ *  row stays covered, but where colours interleave below a pixel the colour of a pixel is approximate (the first box's of that pixel). So
+ *  a frame fills at most about one box per pixel across the tips per nesting level, besides the boxes of a pixel or more. Nothing is allocated per box; the chain of boxes around the view is module scratch. */
 export function drawCladeBoxes(ctx: CanvasRenderingContext2D, S: Scene): void {
   const B = S.cladeBoxes;
   if (B === null || B.rows.length === 0) return;
@@ -759,6 +760,7 @@ export function drawCladeBoxes(ctx: CanvasRenderingContext2D, S: Scene): void {
     else {
       // the window holds the rows up to hi and from lo on: the low rows first, then the high ones without the boxes already visited
       boxRange(ctx, S, B, -Infinity, hi, -Infinity);
+      // a box pending from the low rows never merges with one of the high rows: their rows do not continue, and their angles are far apart
       boxRange(ctx, S, B, lo, Infinity, hi);
     }
   }
@@ -836,17 +838,18 @@ function boxAt(ctx: CanvasRenderingContext2D, S: Scene, B: CladeBoxes, k: number
   const cls = B.cls[k];
   const a = S.hlPrefix !== null && !holdsHighlight(S, i) ? theme.cladeBackgroundOpacity * theme.dimOpacity : theme.cladeBackgroundOpacity;
   if (BX.pending && px < 1) {
-    if (cls === BX.cls && a === BX.a && proj.L.rowStart[i] === BX.end) {
-      // continues the pending box in its colour: one fill for both, until it is a pixel across
+    const t1 = Math.max(BX.t1, proj.t1);
+    const span = proj.kind === 'rectangular' ? t1 - BX.t0 : (t1 - BX.t0) * Math.max(BX.x1, x1);
+    // it continues the pending box in its colour, or it falls within the pixel the pending box starts (in another colour, or inside it):
+    // the pending box grows over it, in its own colour, and is filled once it is a pixel across
+    if (span < 1 || (cls === BX.cls && a === BX.a && proj.L.rowStart[i] === BX.end)) {
       if (x0 < BX.x0) BX.x0 = x0;
       if (x1 > BX.x1) BX.x1 = x1;
-      BX.t1 = proj.t1;
-      BX.end = proj.L.rowEnd[i];
-      if ((proj.kind === 'rectangular' ? BX.t1 - BX.t0 : (BX.t1 - BX.t0) * BX.x1) >= 1) flushBox(ctx, S);
+      BX.t1 = t1;
+      if (proj.L.rowEnd[i] > BX.end) BX.end = proj.L.rowEnd[i];
+      if (span >= 1) flushBox(ctx, S);
       return;
     }
-    // within the pixel the pending box colours: not drawn
-    if ((proj.kind === 'rectangular' ? proj.t1 - BX.t0 : (proj.t1 - BX.t0) * BX.x1) < 1) return;
   }
   flushBox(ctx, S);
   BX.pending = true;

@@ -234,3 +234,28 @@ test('with columns shown, boxes stop at the right edge of the tree, before the c
   const cell = viewer.columnCell('t', 'a');
   assert.ok(cell && x + w <= cell.x, `the box ends at ${x + w}, the column starts at ${cell?.x}`);
 });
+
+test('setCollapsed after the first frame: nested boxes that now share the collapsed row are all drawn, outer first', async () => {
+  // 64 tips; node 1 holds the first 32 tips, its children node 2 (tips 0..16) and node 33 (tips 16..32). Collapsed, all three have row 0,
+  // so the boxes of 2 and 33, siblings before, now nest; a view starting inside that row finds them through the chain of 33
+  const m = await viewerWith(
+    'background',
+    [
+      { node: 1, colour: RED },
+      { node: 2, colour: BLUE },
+      { node: 33, colour: '#00ff00' },
+    ],
+    { tree: balanced(6), size: [400, 600] },
+  );
+  assert.equal(boxes(m.ctx()).length, 3);
+  m.viewer.setCollapsed([1]);
+  m.env.flush();
+  m.viewer.setViewport({ x0: 0, x1: 1, y0: 0.5, y1: 20 });
+  m.ctx().reset();
+  m.env.flush();
+  assert.ok(m.viewer.getViewport().y0 > 0 && m.viewer.getViewport().y0 < 1, 'the view starts inside the collapsed row');
+  assert.deepEqual(
+    boxes(m.ctx()).map((c) => c.fill),
+    [RED, BLUE, '#00ff00'],
+  );
+});
