@@ -116,9 +116,16 @@ export class Seen {
   private st = new Uint32Array(1 << 19);
   private cur = 1;
   private n = 0;
+  // the last two keys added or found (both are in the table), answered without the table: along a caterpillar's spine the nodes and
+  // their tips alternate and each repeats its key for thousands of nodes, and the probe into the 8 MB table was most of their cost (#5)
+  private a1 = NaN;
+  private a2 = 0;
+  private b1 = NaN;
+  private b2 = 0;
   reset(): void {
     this.cur++;
     this.n = 0;
+    this.a1 = this.b1 = NaN;
     if (this.cur >= 0xfffffff0) {
       this.st.fill(0);
       this.cur = 1;
@@ -129,6 +136,11 @@ export class Seen {
     if (this.n > 380000) return true; // table nearly full: stop deduplicating rather than loop
     const key1 = (a * 8192 + b) * 8192 + c;
     const key2 = d * 8192 + e;
+    if ((key1 === this.a1 && key2 === this.a2) || (key1 === this.b1 && key2 === this.b2)) return false;
+    this.b1 = this.a1;
+    this.b2 = this.a2;
+    this.a1 = key1;
+    this.a2 = key2;
     const lo = key1 % 4294967296;
     const hi = (key1 - lo) / 4294967296;
     let h = (Math.imul(lo | 0, 0x9e3779b1) ^ Math.imul(hi | 0, 0x85ebca6b) ^ Math.imul(key2, 0xc2b2ae35)) >>> 13;
