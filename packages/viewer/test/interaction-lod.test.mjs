@@ -145,3 +145,31 @@ test('reduced frames start their threshold search from the last reduced frame, n
   assert.ok(frames[0].passes > 20, `the first reduced frame has no hint: ${frames[0].passes} passes`);
   for (const f of frames.slice(1)) assert.ok(f.passes <= 15, `a later reduced frame: ${f.passes} passes`);
 });
+
+test('the first reduced frame of a gesture carries the last reduced threshold to its zoom, far from where the last gesture ended (#150)', async () => {
+  // the comb above: zoomed in x64 while moving, settled, zoomed out by as much at full quality, then moved again. The hint as left by the
+  // gesture before took 35 passes (a cold search 29); carried to the new zoom it lands within a few rungs
+  let nwk = 't0:1';
+  for (let i = 1; i < 20000; i++) nwk = `(${nwk},t${i}:1):1`;
+  const options = { layout: 'radial', minCladePx: 14, drawBudget: 2000, radialMaxNodes: 2000, interactionLOD: true, refineMs: 1e5 };
+  const { viewer, env } = await makeViewer(nwk + ';', { options, size: [800, 600] });
+  env.flush();
+  const move = (f) => {
+    viewer.noteInput();
+    viewer.zoomBy(f, f, 400, 300);
+    env.flush();
+  };
+  for (let k = 0; k < 6; k++) move(2);
+  viewer.renderNow(); // the gesture settles
+  const frames = [];
+  viewer.on('frame', (s) => frames.push({ reduced: s.reduced, passes: s.budgetRetries + 1, drawn: s.drawn }));
+  move(1.02); // the same view: the hint is still the right one
+  viewer.renderNow();
+  viewer.zoomBy(1 / 64, 1 / 64, 400, 300);
+  env.flush();
+  move(1.02);
+  const [same, , , far] = frames;
+  assert.ok(frames.length === 4 && same.reduced && far.reduced && !frames[2].reduced, JSON.stringify(frames));
+  assert.ok(same.passes <= 5, `the next gesture at the same zoom: ${same.passes} passes`);
+  assert.ok(far.passes <= 8 && far.drawn <= 500, `the next gesture after zooming out x64: ${far.passes} passes`);
+});
