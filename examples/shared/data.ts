@@ -22,11 +22,16 @@ export interface Entry {
 export const GROUPS = catalogue as Record<string, Record<string, Entry>>;
 export const ENTRIES: Record<string, Entry> = Object.assign({}, ...Object.values(GROUPS));
 
-export async function fetchText(path: string, remote?: string): Promise<{ text: string; bytes: number }> {
-  let r = await fetch(`/data/${path}`);
-  if (r.status === 404 && remote) r = await fetch(remote);
+export async function fetchText(path: string, remote?: string, signal?: AbortSignal): Promise<{ text: string; bytes: number }> {
+  return decode(await fetchBytes(path, remote, signal));
+}
+
+/** The file's bytes as served (gzipped or not), for a parse in a worker, which inflates them there. */
+export async function fetchBytes(path: string, remote?: string, signal?: AbortSignal): Promise<Uint8Array<ArrayBuffer>> {
+  let r = await fetch(`/data/${path}`, { signal });
+  if (r.status === 404 && remote) r = await fetch(remote, { signal });
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
-  return decode(new Uint8Array(await r.arrayBuffer()));
+  return new Uint8Array(await r.arrayBuffer());
 }
 
 /** Text from bytes, inflating gzip by its magic number (a host may already have inflated a .gz sent with Content-Encoding). */
