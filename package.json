@@ -13,8 +13,6 @@
     "examples/vanilla",
     "examples/explorer",
     "examples/playground",
-    "examples/table",
-    "examples/unrooted",
     "site",
     "tests/browser"
   ],
