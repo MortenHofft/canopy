@@ -271,17 +271,6 @@ body {
 .ex-fade {
   animation: ex-fade 0.2s ease;
 }
-.ex-color.active {
-  border-color: var(--ex-active);
-  color: var(--ex-active);
-  background: color-mix(in srgb, var(--ex-active) 8%, var(--ex-surface-0));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ex-active) 15%, transparent);
-}
-.ex-color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
 .ex-undo-note {
   font-size: 11px;
   color: var(--ex-muted);
@@ -402,6 +391,10 @@ body {
   border: 1px solid var(--ex-surface-30);
   border-radius: 7px;
   background: var(--ex-surface-10);
+}
+.ex-select > span {
+  font-size: 11.5px;
+  font-weight: 500;
 }
 .ex-select select,
 .ex-group-select select {
@@ -553,7 +546,9 @@ body {
   background-color: var(--ex-surface-10);
   flex-shrink: 0;
 }
-.ex-mode-color .ex-pane {
+.ex-click-collapse .ex-pane,
+.ex-click-subtree .ex-pane,
+.ex-click-colour .ex-pane {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-primary) 35%, transparent);
 }
 .ex-pane .phylo-tree {
@@ -562,7 +557,9 @@ body {
 .ex-pane .phylo-tree:active {
   cursor: grabbing;
 }
-.ex-mode-color .phylo-tree {
+.ex-click-collapse .phylo-tree,
+.ex-click-subtree .phylo-tree,
+.ex-click-colour .phylo-tree {
   cursor: crosshair;
 }
 
@@ -638,20 +635,10 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--ex-surface-30);
 }
-.ex-tip--color {
-  color: var(--ex-text);
-}
 .ex-tip-name {
   font-weight: 400;
   opacity: 0.75;
   font-style: italic;
-}
-.ex-tip-dot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 /* floating search */
@@ -940,8 +927,7 @@ body {
   gap: 8px;
   font-size: 11px;
 }
-.ex-erase,
-.ex-clear {
+.ex-erase {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -958,18 +944,6 @@ body {
   border-color: var(--ex-muted);
   background: var(--ex-surface-20);
   color: var(--ex-text);
-}
-.ex-clear:hover {
-  color: var(--ex-danger);
-  border-color: color-mix(in srgb, var(--ex-danger) 40%, transparent);
-}
-.ex-palette-feedback {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  color: var(--ex-text-2);
 }
 
 @keyframes ex-pulse {

@@ -580,12 +580,21 @@ await page.waitForTimeout(200);
 }
 
 console.log('colour');
-await btn('Color').click();
-ok((await page.locator('.ex-palette .ex-swatch').count()) === 12, 'palette with 12 swatches');
-await page.locator('button[aria-label=Pink]').click();
+// a colour for one clade from the node menu's Colour… palette
+const colourVia = async (pos, name) => {
+  await openMenu(pos);
+  await act('colour');
+  await page.locator(`.ex-palette button[aria-label=${name}]`).click();
+  await page.waitForTimeout(100);
+};
+const eraseVia = async (pos) => {
+  await openMenu(pos);
+  await act('colour');
+  await page.locator('.ex-palette .ex-erase').click();
+  await page.waitForTimeout(100);
+};
 const big = await ev(() => __clade(20, 40));
-await click(big);
-await page.locator('button[aria-label=Teal]').click();
+await colourVia(big, 'Pink');
 const small = await ev(
   ({ lo, hi }) => {
     const t = __v().getTree();
@@ -600,7 +609,7 @@ const small = await ev(
   },
   { lo: big.node, hi: await ev((n) => __v().getTree().subtreeEnd[n], big.node) },
 );
-await click(small);
+await colourVia(small, 'Teal');
 let cl = await ev(() => __v().getClades());
 ok(cl.length === 2 && cl[0].node === big.node && cl[1].node === small.node, 'two nested clades coloured');
 // which colour the canvas shows just right of the inner clade's node (its branches): pixels near teal versus near pink
@@ -623,25 +632,74 @@ const inner = () =>
   }, small);
 let px = await inner();
 ok(px.teal > 0 && px.teal > px.pink, `the inner colour shows (teal ${px.teal}, pink ${px.pink})`);
-await page.locator('.ex-erase').click();
-await click(small);
+await eraseVia(small);
 cl = await ev(() => __v().getClades());
 ok(cl.length === 1 && cl[0].node === big.node, 'Erase removes a clade colour');
 // the other order: outer clade painted after the inner one, and still the innermost wins (the viewer, not the order)
-await click(big);
-await page.locator('button[aria-label=Teal]').click();
-await click(small);
-await page.locator('button[aria-label=Pink]').click();
-await click(big);
+await eraseVia(big);
+await colourVia(small, 'Teal');
+await colourVia(big, 'Pink');
 cl = await ev(() => __v().getClades());
 ok(cl.length === 2 && cl[0].node === small.node && cl[1].node === big.node, 'inner clade first, outer last');
 px = await inner();
 ok(px.teal > 0 && px.teal > px.pink, `the innermost colour still wins (teal ${px.teal}, pink ${px.pink})`);
-await page.locator('.ex-erase').click();
-await click(small);
-await page.locator('.ex-outer').press('Escape');
-ok((await page.locator('.ex-palette').count()) === 0, 'Escape leaves colour mode');
-ok((await page.locator('.ex-color .ex-count').innerText()) === '1', 'Color shows the count');
+await eraseVia(small);
+ok((await page.locator('.ex-palette').count()) === 0, 'the palette closes after a choice');
+ok((await btn('Clear colours').locator('.ex-count').innerText()) === '1', 'Clear colours shows the count');
+await btn('Clear colours').click();
+ok((await ev(() => __v().getClades().length)) === 0 && (await btn('Clear colours').count()) === 0, 'Clear colours removes them all');
+
+console.log('click actions');
+{
+  const sel = page.locator('select[aria-label="Click action"]');
+  ok((await sel.inputValue()) === 'inspect', 'the click action starts as Inspect');
+  ok(
+    (await sel.locator('option').allInnerTexts()).join() === 'Inspect,Collapse,Subtree,Colour',
+    'the click actions: Inspect, Collapse, Subtree, Colour',
+  );
+  const rows0 = await rows();
+  await sel.selectOption('collapse');
+  await click(await ev(() => __clade(4, 10)));
+  ok((await rows()) < rows0 && (await menu.count()) === 0, 'Collapse: a click on a clade collapses it, and no menu opens');
+  const rowsCollapsed = await rows();
+  const stem = await ev(() => {
+    const t = __v().getTree();
+    for (let i = 1; i < t.nodeCount; i++) {
+      if (!__v().layout.collapsed?.[i]) continue;
+      const b = __v().nodeBounds(i);
+      return { x: b.x + b.width * 0.8, y: b.y + b.height / 2 };
+    }
+    return null;
+  });
+  await click(stem);
+  ok((await rows()) > rowsCollapsed, 'Collapse: a click on a collapsed clade opens it again');
+  await sel.selectOption('subtree');
+  await click(await ev(() => __clade(20, 40)));
+  await page.waitForTimeout(300);
+  ok(
+    (await btn('Back').count()) === 1 && (await menu.count()) === 0,
+    'Subtree: a click on a clade shows only that clade (Back is offered), and no menu opens',
+  );
+  await btn('Back').click();
+  await page.waitForTimeout(300);
+  await sel.selectOption('colour');
+  const palette = await ev(() =>
+    ['red', 'orange', 'amber', 'lime', 'emerald', 'teal'].map((n) =>
+      getComputedStyle(document.documentElement).getPropertyValue(`--ex-palette-${n}`).trim(),
+    ),
+  );
+  await click(await ev(() => __clade(20, 40)));
+  await click(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3])));
+  const cc = await ev(() => __v().getClades());
+  ok(
+    cc.length === 2 && cc[0].colour === palette[0] && cc[1].colour === palette[5],
+    `Colour: each click takes the colour 5 swatches on (${cc.map((c) => c.colour).join(' ')})`,
+  );
+  await page.locator('.ex-outer').press('Escape');
+  ok((await sel.inputValue()) === 'inspect', 'Escape goes back to Inspect');
+  await btn('Clear colours').click();
+  await colourVia(big, 'Pink'); // one colour stays for the Undo check below
+}
 
 console.log('tree operations');
 // the earlier steps moved the view and an edit keeps it now: start from the whole tree
@@ -1174,10 +1232,7 @@ console.log('Show only, Up, Back with hover, colours, collapse and support: no p
 {
   const errorsBefore = failures;
   await open('rich-fish-carangaria-135');
-  await btn('Color').click();
-  await page.locator('button[aria-label=Teal]').click();
-  await click(await ev(() => __clade(20, 40)));
-  await page.locator('.ex-outer').press('Escape');
+  await colourVia(await ev(() => __clade(20, 40)), 'Teal');
   await collapseAt(await ev(() => __clade(4, 10)));
   await page.locator('button[aria-label="Collapse by support"]').click();
   await page.waitForTimeout(300);
@@ -1500,11 +1555,8 @@ ok(
   'Collapse by support is available on a tree with posterior support',
 );
 // a coloured clade below the threshold must stay a node too
-await btn('Color').click();
-await page.locator('button[aria-label=Teal]').click();
 const colMe = await weak(2, 12, 1);
-await click(colMe);
-await page.locator('.ex-outer').press('Escape');
+await colourVia(colMe, 'Teal');
 ok((await ev(() => __v().getClades().length)) === 1, `a clade of ${colMe.tips} tips coloured (support ${colMe.support})`);
 // a selected clade that collapse by support contracts: the selection moves to the clade that holds it, and the inspector stays open (#61)
 const selMe = await weak(2, 12, 2);
@@ -1660,11 +1712,19 @@ await page.route('**/data/rich/edge-cases/duplicate-tip-labels.nwk', (r) => r.fu
 await open('edge-duplicate-labels');
 ok(!(await ev(() => window.__explorerTree().hasLengths)), 'the stand-in tree has no branch lengths');
 ok((await page.locator('button[aria-label="Collapse by support"]').count()) === 0, 'a tree without lengths nor support: no Collapse by support');
+await moreButton().click();
+ok(
+  (await moreItem('Show branch length').count()) === 0 &&
+    (await moreItem('Show support').count()) === 0 &&
+    (await moreItem('Midpoint root').count()) === 0,
+  'without branch lengths and support the menu does not offer Show branch length, Show support or Midpoint root',
+);
+await moreClose();
 await page.unroute('**/data/rich/edge-cases/duplicate-tip-labels.nwk');
 
 // ---------------------------------------------------------------- the ⋮ menu
 console.log('the ⋮ menu');
-await open('rich-hcv-19');
+await open('rich-fish-carangaria-135');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
@@ -1783,11 +1843,7 @@ await moreToggle('Minimap');
 await page.waitForTimeout(200);
 ok((await page.locator('.phylo-overview').count()) === 0, 'and hides it');
 ok((await page.locator('.phylo-legend:visible').count()) === 0, 'the legend is hidden while no clade is coloured');
-await btn('Color').click();
-await page.locator('button[aria-label=Teal]').click();
-await click(await ev(() => __clade(20, 40)));
-await page.keyboard.press('Escape');
-await page.locator('.ex-outer').press('Escape');
+await colourVia(await ev(() => __clade(20, 40)), 'Teal');
 await page.waitForTimeout(300);
 ok((await page.locator('.phylo-legend:visible').count()) === 1, 'the legend shows the coloured clade');
 ok(
@@ -2270,7 +2326,7 @@ for (const [id, tipsWanted] of [
     (await page.locator('.ex-note').count()) === 0 && (await moreEnabled('Midpoint root')) && (await moreButton().isEnabled()),
     'nothing is disabled on a large tree',
   );
-  ok(await btn('Color').isEnabled(), 'and the Color tool is on');
+  ok(await page.locator('select[aria-label="Click action"]').isEnabled(), 'and the click action is on');
   // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
   // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
   // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates

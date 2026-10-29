@@ -26,7 +26,8 @@ import { Scroller } from './Scroller.tsx';
 import { DebugPanel } from './DebugPanel.tsx';
 import { restoredSettings, type DebugInfo } from './debug.ts';
 
-type Mode = 'none' | 'color';
+/** What a click on a node or tip does: the node menu (inspect), or one action at once. */
+type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'colour';
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
@@ -46,6 +47,8 @@ const INFO_NAMES = 12;
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
 const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'Indigo', 'Violet', 'Pink', 'Slate', 'Brown'];
 const ERASE = 'reset';
+/** The colour action steps through the palette by 5 of its 12 swatches, so two clades painted one after the other are far apart. */
+const COLOUR_STRIDE = 5;
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
 const LABEL_SIZE = 11.5; // the tip labels' size at a font scale of 1
 
@@ -302,10 +305,9 @@ export function Explorer({
   const [showAlignment, setShowAlignment] = useState(false);
   const [alignLabels, setAlignLabels] = useState(init.alignLabels);
 
-  const [mode, setMode] = useState<Mode>('none');
+  const [clickAction, setClickAction] = useState<ClickAction>('inspect');
+  const colourStep = useRef(0); // the colour action's place in the palette
   const [showTooltips, setShowTooltips] = useState(true); // the hover box on the tree
-  const [activeColor, setActiveColor] = useState('Red');
-  const [hoveredSwatch, setHoveredSwatch] = useState<string | null>(null);
   const [pickAt, setPick] = useState<{ node: number; x: number; y: number } | null>(null); // the node (of `tree`) the menu's Colour… is for, and where the palette opens (px in the component)
   const pick = pickAt?.node ?? null;
 
@@ -582,14 +584,6 @@ export function Explorer({
     setPick(null);
     ref.current?.renderer()?.focus(); // back to the tree
   };
-  const exitModes = () => {
-    setMode('none');
-  };
-  const toggleMode = (m: Mode) => {
-    setPick(null);
-    setMode((cur) => (cur === m ? 'none' : m));
-  };
-
   // ---- show only a clade: a navigation, not an edit, so it is not in the undo history. Back and Up one level come from tree-ops' focus.
   const navigate = (f: ops.Focus) => {
     setFocus(f);
@@ -622,6 +616,7 @@ export function Explorer({
   };
   const colourOf = (name: string) => cssVar(`--ex-palette-${name.toLowerCase()}`);
   /** Paint (or with ERASE, unpaint) the clade `v` of `tree`. The label is left out: the legend then names the clade by its node. */
+  const nextColour = () => PALETTE[(colourStep.current++ * COLOUR_STRIDE) % PALETTE.length];
   const paint = (v: number, name: string) => {
     const rest = clades.filter((c) => c.node !== v);
     setClades(name === ERASE ? rest : [...rest, { node: v, colour: colourOf(name) }]);
@@ -660,32 +655,41 @@ export function Explorer({
     });
   };
 
-  // ---- clicks: with a tool active a click acts at once, as in Reactree. With none, the viewer's node menu opens (nodeMenu below).
+  // ---- clicks: with the click action Inspect, the viewer's node menu opens (nodeMenu below) and a click on the triangle of a collapsed
+  // clade expands it; any other action acts on the click at once, with no selection and no menu.
   const onToolClick = (e: TreeNodeEvent) => {
-    // a click on a collapsed clade expands it: no menu (its branch or Enter opens the menu), no selection
-    if (mode === 'none' && expandsOnClick(e)) {
-      e.preventDefault();
-      const v = toTree(e.node);
-      if (v >= 0) expandInPlace(v);
+    if (clickAction === 'inspect') {
+      if (expandsOnClick(e)) {
+        e.preventDefault();
+        const v = toTree(e.node);
+        if (v >= 0) expandInPlace(v);
+      }
       return;
     }
-    if (mode !== 'none') e.preventDefault(); // a tool acts on the click: it neither selects nor opens the menu
-    onClick(e);
-  };
-  const onClick = (e: TreeNodeEvent) => {
+    e.preventDefault();
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
     if (v < 0) return;
-    switch (mode) {
-      case 'color':
-        return paint(v, activeColor);
+    switch (clickAction) {
+      case 'collapse':
+        if (e.collapsed) return expandInPlace(v);
+        if (e.isTip) return flash('Collapse needs a clade');
+        if (e.node === 0) return flash('The root of what is shown cannot be collapsed');
+        return setCollapsed((cs) => [...cs, v]);
+      case 'subtree':
+        if (e.collapsed) return jumpInto(v);
+        if (e.isTip) return flash('Show only needs a clade');
+        if (e.node === 0) return flash('This is the clade shown already');
+        return navigate(ops.focusOn(tree, focus, v));
+      case 'colour':
+        return paint(v, nextColour());
     }
   };
 
-  // the node menu: what a click on this tip or clade offers. Not while a tool is active, which acts on the click itself.
+  // the node menu: what a click on this tip or clade offers. Not while another click action is chosen, which acts on the click itself.
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] | null => {
     const v = toTree(e.node);
-    if (mode !== 'none' || e.run || v < 0) return null;
+    if (clickAction !== 'inspect' || e.run || v < 0) return null;
     const isTip = e.isTip;
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
@@ -750,47 +754,26 @@ export function Explorer({
     return items;
   };
 
-  // the hover box says what a click would do
+  // the hover box: what the tree knows about the node
   const tooltip = (e: TreeNodeEvent) => {
     const v = toTree(e.node);
     if (e.run || v < 0) return null;
-    const name = e.isTip ? formatLabel(tree.labels[v]) : `${tree.tipCountOf(v)} tips`;
-    const tag = (cls: string, icon: React.ReactNode, text: React.ReactNode) => (
-      <span className={`ex-tip ex-tip--${cls}`}>
-        {icon}
-        {text}
-        <span className="ex-tip-name">{name}</span>
-      </span>
-    );
-    switch (mode) {
-      case 'color':
-        return tag(
-          'color',
-          <span
-            className="ex-tip-dot"
-            style={{ background: activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})` }}
-          />,
-          activeColor === ERASE ? 'Erase color' : `Paint ${activeColor}`,
-        );
-      default: {
-        const clean = (l: string) => l.replace(/_/g, ' ');
-        const sup = e.isTip ? (v > 0 ? tree.support[tree.parent[v]] : NaN) : tree.support[v];
-        const len = tree.length[v];
-        const [r0, r1] = tree.tipRange(v);
-        const facts: HoverFacts = {
-          title: e.isTip ? clean(tree.labels[v]) : clean(splitInternalLabel(tree.labels[v]).name),
-          support: Number.isNaN(sup) ? null : sup,
-          length: Number.isNaN(len) ? null : len,
-          tips: e.isTip ? null : r1 - r0,
-          first: clean(tree.tipLabels[r0]),
-          last: clean(tree.tipLabels[r1 - 1]),
-        };
-        return <NodeHoverBox facts={facts} />;
-      }
-    }
+    const clean = (l: string) => l.replace(/_/g, ' ');
+    const sup = e.isTip ? (v > 0 ? tree.support[tree.parent[v]] : NaN) : tree.support[v];
+    const len = tree.length[v];
+    const [r0, r1] = tree.tipRange(v);
+    const facts: HoverFacts = {
+      title: e.isTip ? clean(tree.labels[v]) : clean(splitInternalLabel(tree.labels[v]).name),
+      support: Number.isNaN(sup) ? null : sup,
+      length: Number.isNaN(len) ? null : len,
+      tips: e.isTip ? null : r1 - r0,
+      first: clean(tree.tipLabels[r0]),
+      last: clean(tree.tipLabels[r1 - 1]),
+    };
+    return <NodeHoverBox facts={facts} />;
   };
 
-  // ---- keyboard, as Reactree: Ctrl/Cmd+F search, Ctrl/Cmd+Z undo, Escape leaves a mode or closes a panel (only while focus is in here)
+  // ---- keyboard, as Reactree: Ctrl/Cmd+F search, Ctrl/Cmd+Z undo, Escape returns to the Inspect click action or closes a panel (only while focus is in here)
   const onKeyDown = (e: React.KeyboardEvent) => {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'f') {
@@ -802,7 +785,7 @@ export function Explorer({
       undo();
     } else if (e.key === 'Escape') {
       if (pick !== null) closePick();
-      else if (mode !== 'none') exitModes();
+      else if (clickAction !== 'inspect') setClickAction('inspect');
       else if (searchOpen) closeSearch();
       else setInfoOpen(false);
     }
@@ -882,11 +865,9 @@ export function Explorer({
   }, [infoOpen, selected, tree, treeSnap, collapsed, formatLabel]);
 
   const theme = useMemo(() => ({ labelSize: LABEL_SIZE * init.fontScale, branchWidth: 1.5, cladeBranchWidth: 2.2 }), [init.fontScale]);
-  const activeHex = activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})`;
-  const feedback = hoveredSwatch ?? (activeColor === ERASE ? 'Erase' : activeColor);
 
   return (
-    <div className={`ex-outer ex-mode-${mode}`} ref={outer} onKeyDown={onKeyDown}>
+    <div className={`ex-outer ex-click-${clickAction}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="View">
         <div className="ex-group">
@@ -984,19 +965,28 @@ export function Explorer({
           </>
         )}
         <div className="ex-divider" />
-        <button
-          type="button"
-          className={`ex-btn ex-color${mode === 'color' ? ' active' : ''}`}
-          aria-pressed={mode === 'color'}
-          title={mode === 'color' ? 'Exit color mode (Esc)' : 'Color clades, branches & leaves'}
-          style={mode === 'color' ? ({ '--ex-active': activeHex } as React.CSSProperties) : undefined}
-          onClick={() => toggleMode('color')}
-        >
-          <I.IconPalette />
-          Color
-          {mode === 'color' && <span className="ex-color-dot" style={{ background: activeHex }} />}
-          {mode !== 'color' && clades.length > 0 && <span className="ex-count">{clades.length}</span>}
-        </button>
+        <label className="ex-select" title="What a click on a node or tip does">
+          <span>Click</span>
+          <select
+            aria-label="Click action"
+            value={clickAction}
+            onChange={(e) => {
+              setClickAction(e.target.value as ClickAction);
+              setPick(null);
+            }}
+          >
+            <option value="inspect">Inspect</option>
+            <option value="collapse">Collapse</option>
+            <option value="subtree">Subtree</option>
+            <option value="colour">Colour</option>
+          </select>
+        </label>
+        {clades.length > 0 && (
+          <button type="button" className="ex-btn" title="Remove every colour" onClick={() => setClades([])}>
+            Clear colours
+            <span className="ex-count">{clades.length}</span>
+          </button>
+        )}
         <SupportGroup
           range={supportRange}
           step={supportStep}
@@ -1297,20 +1287,28 @@ export function Explorer({
               <div className="ex-menu-divider" />
               {(
                 [
-                  ['Legend', showLegend, () => setShowLegend((x) => !x), true],
-                  ['Minimap', showOverview, () => setShowOverview((x) => !x), true],
-                  ['Tooltips', showTooltips, () => setShowTooltips((x) => !x), true],
-                  ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths],
-                  ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable],
-                  ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), hasSupport],
-                  ['Show branch length', labelMode === 'length', () => setLabelMode((m) => (m === 'length' ? 'none' : 'length')), tree.hasLengths],
+                  ['Legend', showLegend, () => setShowLegend((x) => !x), true, true],
+                  ['Minimap', showOverview, () => setShowOverview((x) => !x), true, true],
+                  ['Tooltips', showTooltips, () => setShowTooltips((x) => !x), true, true],
+                  ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths, true],
+                  ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable, true],
+                  ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), true, hasSupport],
+                  [
+                    'Show branch length',
+                    labelMode === 'length',
+                    () => setLabelMode((m) => (m === 'length' ? 'none' : 'length')),
+                    true,
+                    tree.hasLengths,
+                  ],
                 ] as const
-              ).map(([label, on, toggle, enabled]) => (
-                <button key={label} type="button" role="menuitemcheckbox" aria-checked={on} disabled={!enabled} onClick={toggle}>
-                  <span className="ex-menu-check">{on && '✓'}</span>
-                  <span className="ex-menu-label">{label}</span>
-                </button>
-              ))}
+              )
+                .filter((item) => item[4])
+                .map(([label, on, toggle, enabled]) => (
+                  <button key={label} type="button" role="menuitemcheckbox" aria-checked={on} disabled={!enabled} onClick={toggle}>
+                    <span className="ex-menu-check">{on && '✓'}</span>
+                    <span className="ex-menu-label">{label}</span>
+                  </button>
+                ))}
               <div className="ex-menu-divider" />
               {(
                 [
@@ -1328,24 +1326,26 @@ export function Explorer({
                     () => apply((t) => ops.ladderise(t, { by: 'tips', order: 'decreasing' }), 'Ladderize'),
                     true,
                   ],
-                  ['Midpoint root', 'Needs branch lengths', null, () => apply(ops.midpointRoot, 'Midpoint'), tree.hasLengths],
+                  ['Midpoint root', 'Middle of the longest path', null, () => apply(ops.midpointRoot, 'Midpoint'), tree.hasLengths],
                 ] as const
-              ).map(([label, desc, icon, run, enabled]) => (
-                <button
-                  key={label}
-                  type="button"
-                  role="menuitem"
-                  disabled={!enabled}
-                  onClick={() => {
-                    run();
-                    setMenu('closed');
-                  }}
-                >
-                  <span className="ex-menu-icon">{icon}</span>
-                  <span className="ex-menu-label">{label}</span>
-                  <span className="ex-menu-desc">{desc}</span>
-                </button>
-              ))}
+              )
+                .filter((item) => item[4]) // the midpoint needs branch lengths: without them it is not offered
+                .map(([label, desc, icon, run, enabled]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="menuitem"
+                    disabled={!enabled}
+                    onClick={() => {
+                      run();
+                      setMenu('closed');
+                    }}
+                  >
+                    <span className="ex-menu-icon">{icon}</span>
+                    <span className="ex-menu-label">{label}</span>
+                    <span className="ex-menu-desc">{desc}</span>
+                  </button>
+                ))}
               <div className="ex-menu-divider" />
               <button type="button" role="menuitem" onClick={() => setMenu('export')}>
                 <span className="ex-menu-icon">
@@ -1405,57 +1405,6 @@ export function Explorer({
             >
               <I.IconEraser /> Erase
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Colour palette (floating, as Reactree's) ── */}
-      {mode === 'color' && (
-        <div className="ex-palette" role="dialog" aria-label="Paint clades">
-          <div className="ex-palette-head">
-            <I.IconPalette />
-            <span>Paint clades, branches &amp; leaves</span>
-            <span className="ex-palette-tip">Esc to exit</span>
-          </div>
-          <div className="ex-palette-grid">
-            {PALETTE.map((name) => (
-              <button
-                key={name}
-                type="button"
-                title={name}
-                aria-label={name}
-                aria-pressed={activeColor === name}
-                className={`ex-swatch${activeColor === name ? ' active' : ''}`}
-                style={{ ['--sw' as string]: `var(--ex-palette-${name.toLowerCase()})` }}
-                onClick={() => setActiveColor(name)}
-                onMouseEnter={() => setHoveredSwatch(name)}
-                onMouseLeave={() => setHoveredSwatch(null)}
-              />
-            ))}
-          </div>
-          <div className="ex-palette-divider" />
-          <div className="ex-palette-foot">
-            <button
-              type="button"
-              className={`ex-erase${activeColor === ERASE ? ' active' : ''}`}
-              onClick={() => setActiveColor(ERASE)}
-              onMouseEnter={() => setHoveredSwatch('Erase')}
-              onMouseLeave={() => setHoveredSwatch(null)}
-            >
-              <I.IconEraser /> Erase
-            </button>
-            {clades.length > 0 && (
-              <button type="button" className="ex-clear" onClick={() => setClades([])}>
-                Clear all ({clades.length})
-              </button>
-            )}
-            <span className="ex-palette-feedback">
-              <span
-                className="ex-tip-dot"
-                style={{ background: feedback === 'Erase' ? 'var(--ex-muted)' : `var(--ex-palette-${feedback.toLowerCase()})` }}
-              />
-              {feedback}
-            </span>
           </div>
         </div>
       )}
