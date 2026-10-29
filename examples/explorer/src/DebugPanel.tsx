@@ -42,7 +42,7 @@ const int = (x: number | string) => (typeof x === 'string' ? x : Number.isFinite
 const treeText = (t: TreeName) => ('file' in t ? `file "${t.file}"` : `${t.label} (${t.id})`);
 
 /** The view in force, written down to be restored (debug.ts SavedView). */
-function saveView(p: Sample, tree: TreeName, collapsed: number[], asLoaded: boolean): SavedView {
+function saveView(p: Sample, tree: TreeName, collapsed: number[], columns: number, asLoaded: boolean): SavedView {
   const options: ViewOptions = {};
   for (const k of VIEW_OPTIONS) (options as Record<string, unknown>)[k] = p.options[k];
   return {
@@ -53,7 +53,10 @@ function saveView(p: Sample, tree: TreeName, collapsed: number[], asLoaded: bool
     canvas: { width: p.size.width, height: p.size.height, dpr: p.dpr },
     viewport: p.viewport,
     labelSize: p.labelSize,
+    alignLabels: p.options.alignLabels,
     options,
+    treeWidth: p.options.treeWidth,
+    columns,
     collapsed,
     asLoaded,
   };
@@ -160,11 +163,13 @@ export function DebugPanel({
   viewer,
   debug,
   collapsed,
+  columns,
   asLoaded,
 }: {
   viewer: TreeViewer | null;
   debug: DebugInfo | undefined;
   collapsed: number[];
+  columns: number;
   asLoaded: boolean;
 }) {
   const [open, setOpen] = useState(true);
@@ -191,7 +196,7 @@ export function DebugPanel({
 
   const copyView = (what: 'json' | 'url') => {
     if (!viewer) return;
-    const v = saveView(sample(viewer), debug.tree, collapsed, asLoaded);
+    const v = saveView(sample(viewer), debug.tree, collapsed, columns, asLoaded);
     const json = viewJson(v);
     const url = viewUrl(v);
     void copy(what === 'json' ? json : url).then((ok) =>

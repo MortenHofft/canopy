@@ -1,16 +1,18 @@
 // Browser check of the explorer (examples/explorer; start it with `npm run dev` there, which serves on port 5309).
 //   node tests/browser/scripts/check-explorer.mjs [--port 5309] [--url <page URL, default http://127.0.0.1:<port>/>]
 // Every toolbar control is driven as a user would (clicks, the keyboard, the sliders) and its effect read back from the viewer
-// (window.__explorer() returns the TreeViewer): font and branch width reach the theme, layout and
+// (window.__explorer() returns the TreeViewer): Width / Height zoom the window and follow a wheel zoom, font and branch width reach the theme, layout and
 // tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade from its branch, root; Escape closes it; a plain click collapses nothing; a
 // click on a collapsed clade's triangle expands it)
-// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu (#65); colour, erase and the innermost-colour-wins order; ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
+// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, and Swap marks its first pick until the second click or Escape (#65); colour, erase and the innermost-colour-wins order; reroot, flip, swap
+// (siblings and not), midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
 // (?undo-budget: the oldest step dropped first, Reset only for a tree larger than the budget, #44); show only a clade, Up one level
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
-// inspector's numbers are monospace; Export stays in view at 800 px; the innermost clade colour wins whatever the order;
-// node labels (support, length, support as percent); the overview and legend controls; one action colour (--ex-primary) for active toggles and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
+// inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
+// node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
+// radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
 // (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
 // (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
@@ -153,6 +155,25 @@ await page.addInitScript(() => {
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
 ok((await page.locator('.ex-row').count()) === 2, 'two toolbar rows');
+const span = () =>
+  ev(() => {
+    const p = __v().getViewport();
+    return { w: p.x1 - p.x0, h: p.y1 - p.y0 };
+  });
+const fit = await span();
+await page.locator('input[aria-label=Width]').fill('2');
+await page.locator('input[aria-label=Height]').fill('2');
+await page.waitForTimeout(150);
+const z = await span();
+ok(
+  Math.abs(z.w / fit.w - 0.5) < 0.02 && Math.abs(z.h / fit.h - 0.5) < 0.02,
+  `Width / Height 2× halve the window (${(z.w / fit.w).toFixed(3)}, ${(z.h / fit.h).toFixed(3)})`,
+);
+await page.locator('.ex-slider-val').nth(0).click();
+await page.locator('.ex-slider-val').nth(1).click();
+await page.waitForTimeout(150);
+const back = await span();
+ok(Math.abs(back.w - fit.w) < 1e-6 && Math.abs(back.h - fit.h) < 1e-6, 'clicking the values resets to the fitted window');
 await page.locator('input[aria-label="Font size"]').fill('2');
 await page.locator('input[aria-label="Branch width"]').fill('3');
 await page.waitForTimeout(150);
@@ -180,6 +201,10 @@ ok(th.supportColour !== '' && th.supportColour === th.lengthColour, `light: supp
 await page.locator('button[title=Circular]').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'radial', 'Circular: radial layout');
+ok(
+  (await page.locator('input[aria-label=Height]').count()) === 0 && (await page.locator('.ex-slider-label', { hasText: 'Size' }).count()) === 1,
+  'radial: Size slider, no Height',
+);
 await page.locator('button[title=Rectangular]').click();
 await page.locator('button[title^=Cladogram]').click();
 await page.waitForTimeout(150);
@@ -248,6 +273,20 @@ const box = await page.locator('.phylo-tree').boundingBox();
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -300);
 await page.waitForTimeout(300);
+{
+  // the Width / Height sliders follow a zoom made on the tree itself (#31): they show the window against the fitted one
+  const want = await ev(() => {
+    const f = __v().fitViewport();
+    const p = __v().getViewport();
+    return { h: (f.x1 - f.x0) / (p.x1 - p.x0), v: (f.y1 - f.y0) / (p.y1 - p.y0) };
+  });
+  const shown = async (i) => parseFloat(await page.locator('.ex-slider-val').nth(i).innerText());
+  const [sh, sv] = [await shown(0), await shown(1)];
+  ok(
+    Math.max(want.h, want.v) > 1.2 && Math.abs(sh - want.h) < 0.051 && Math.abs(sv - want.v) < 0.051,
+    `Width / Height follow a wheel zoom (${sh}×, ${sv}× for a window ${want.h.toFixed(2)}× and ${want.v.toFixed(2)}× the fitted one)`,
+  );
+}
 await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2 - 100, { steps: 6 });
 await page.mouse.up();
@@ -319,13 +358,18 @@ ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back
 
 console.log('node menu, inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);
+await page.locator('input[aria-label=Height]').fill('4');
+await page.waitForTimeout(200);
+await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-slider-val').nth(1).click();
+await page.waitForTimeout(200);
 // the hover box says what a click does
 await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), tip0)));
 await page.waitForTimeout(250);
 ok((await page.locator('.phylo-tooltip').innerText()).includes('Click for actions'), 'the hover box says "Click for actions"');
-// a tip: Info, Colour…
+// a tip: Info, Reroot here, Swap with…, Colour…
 await openMenu(await ev((l) => __tipAt(l), tip0));
-ok((await menuItems()).join('|') === 'Info|Colour…', `a tip's menu: ${(await menuItems()).join(' | ')}`);
+ok((await menuItems()).join('|') === 'Info|Reroot here|Swap with…|Colour…', `a tip's menu: ${(await menuItems()).join(' | ')}`);
 await act('info');
 ok(
   (await page.locator('.ex-info-name').count()) === 1 && (await page.locator('.ex-info-name').innerText()) === tip0.replace(/_/g, ' '),
@@ -395,13 +439,16 @@ ok(
 await page.locator('.ex-info-head button').click();
 await ev(() => __v().setSelected(null));
 ok((await page.locator('.ex-info').count()) === 0, 'closing the inspector');
-// a clade: Info, Collapse, Show only, Colour…, Copy Newick
+// a clade: Info, Collapse, Show only, Reroot here, Flip, Swap with…, Colour…, Copy Newick
 const rows = () => ev(() => __v().layout.rows);
 const before = await rows();
 const tips = await ev(() => __v().getTree().tipCount);
 const c1 = await ev(() => __clade(4, 10));
 await openMenu(c1);
-ok((await menuItems()).join('|') === 'Info|Collapse|Show only|Colour…|Copy Newick', `a clade's menu: ${(await menuItems()).join(' | ')}`);
+ok(
+  (await menuItems()).join('|') === 'Info|Collapse|Show only|Reroot here|Flip|Swap with…|Colour…|Copy Newick',
+  `a clade's menu: ${(await menuItems()).join(' | ')}`,
+);
 ok((await rows()) === before, 'a plain click on a clade collapses nothing (it opens the menu)');
 // one line per item, no descriptions; a header with the name, a close button and a line under it (#68)
 ok(
@@ -487,16 +534,60 @@ ok((await rows()) < before - 4, `four collapsed clades are four rows (${await ro
 await btn('Expand all').click();
 await page.waitForTimeout(150);
 ok((await rows()) === before, 'Expand all');
-// the root: Info, Colour…
+// the root: Info, Flip, Colour… (no Reroot, no Swap)
 await openMenu(
   await ev(() => {
     const q = __v().locateNode(0);
     return { x: q.x, y: q.y };
   }),
 );
-ok((await menuItems()).join('|') === 'Info|Colour…', `the root's menu: ${(await menuItems()).join(' | ')}`);
+ok((await menuItems()).join('|') === 'Info|Flip|Colour…', `the root's menu: ${(await menuItems()).join(' | ')}`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
+// Swap with… starts Swap mode with this node picked: the next click is the second branch
+{
+  const pr = await ev(() => {
+    const t = __v().getTree();
+    for (let i = 1; i < t.nodeCount; i++)
+      if (t.childCount[i] === 2) {
+        const a = t.firstChild[i];
+        const b = t.nextSibling[a];
+        const qa = __v().locateNode(a);
+        const qb = __v().locateNode(b);
+        if (qa && qb)
+          return [
+            { x: qa.x, y: qa.y, node: a },
+            { x: qb.x, y: qb.y, node: b },
+          ];
+      }
+    return null;
+  });
+  const o = await ev(() => __order());
+  await openMenu(pr[0]);
+  await act('swap');
+  ok(
+    (await page.locator('.ex-tool.active', { hasText: 'Swap' }).count()) === 1 && (await page.locator('.ex-steps .done').count()) === 1,
+    'Swap with… starts Swap mode with step 1 done',
+  );
+  ok((await toast()).includes('click a sibling'), `and says what to do next, which the item no longer does (${await toast()})`);
+  // the first pick keeps its mark (#65) while the pointer goes to the second, whose hover ring shows too
+  await page.mouse.move(pr[1].x, pr[1].y, { steps: 6 });
+  await page.waitForTimeout(250);
+  const marked = await ringHits(pr[0].node, 'markRadius');
+  ok(
+    JSON.stringify(await ev(() => __v().getMarked())) === JSON.stringify([pr[0].node]) && marked >= 12,
+    `Swap: the first pick is marked while the pointer is on the second (${marked} of 16 points)`,
+  );
+  await click(pr[1]);
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) !== o && (await menu.count()) === 0, 'the next click swaps the two siblings, and no menu opens in a mode');
+  const left = await ringHits({ x: pr[0].x, y: pr[0].y }, 'markRadius');
+  ok((await ev(() => __v().getMarked().length)) === 0 && left < 4, `and the mark is cleared (${left} of 16 points inked)`);
+  await page.keyboard.press('Escape');
+  await btn('Undo').click();
+  await page.waitForTimeout(200);
+  ok((await ev(() => __order())) === o, 'Undo');
+}
 // Colour… offers the palette for this clade
 await openMenu(await ev(() => __clade(4, 10)));
 await act('colour');
@@ -529,13 +620,8 @@ await page.waitForTimeout(200);
   ok(/^time before tips/.test(await axis()), `dated tree: axis "${await axis()}"`);
   await ev(() => (window.__axis = null)); // a stale title must not pass
   // zoomed in on y: collapsing keeps the window's scale (it used to re-create the viewer and fit again)
-  await ev(() => __v().zoomToNode(__clade(30, 60).node, false));
-  await page.waitForTimeout(300);
-  const span = () =>
-    ev(() => {
-      const p = __v().getViewport();
-      return { w: p.x1 - p.x0, h: p.y1 - p.y0 };
-    });
+  await page.locator('input[aria-label=Height]').fill('3');
+  await page.waitForTimeout(150);
   const z0 = await span();
   await collapseAt(await ev(() => __clade(4, 10)));
   await page.waitForTimeout(200);
@@ -547,7 +633,7 @@ await page.waitForTimeout(200);
   );
   ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
   await btn('Expand all').click();
-  await page.locator('.ex-btn[title="Fit tree"]').click();
+  await page.locator('.ex-slider-val').nth(1).click();
   await page.waitForTimeout(150);
 }
 
@@ -620,21 +706,28 @@ console.log('tree operations');
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
-await page.locator('button[title^="Ladderize descending"]').click();
+await btn('Reroot').click();
+const rt = await ev(() => __v().getTree().tipLabels[5]);
+await click(await ev((l) => __tipAt(l), rt));
 await page.waitForTimeout(200);
-ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'Ladderize changes the tree, Undo appears');
+ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'reroot on a tip changes the tree, Undo appears');
+await page.locator('.ex-outer').press('Escape');
 await btn('Undo').click();
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0 && (await btn('Undo').count()) === 0, 'Undo restores the tree');
 ok((await ev(() => __v().getClades().length)) === 1, 'and the colour');
-await page.locator('button[title^="Ladderize descending"]').click();
+await btn('Flip').click();
+const f = await ev(() => __clade(2, 6));
+await click(f);
 await page.waitForTimeout(200);
-ok((await ev(() => __order())) !== o0, 'Ladderize again');
+const o1 = await ev(() => __order());
+ok(o1 !== o0, 'Flip reverses a clade');
+await page.keyboard.press('Escape');
 await page.locator('.phylo-tree').focus();
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0, 'Ctrl+Z undoes');
-// a new tree keeps the renderer and the view: zoom into a clade, Ladderize, and the same tips stay in view; Undo returns the tree with them in view
+// a new tree keeps the renderer and the view: zoom into a clade, Flip a clade inside it, and the same tips are in view; Undo returns to the same view
 console.log('a new tree keeps the view');
 const zoomed = await ev(() => {
   const t = __v().getTree();
@@ -667,30 +760,55 @@ ok(
   `the view is a part of the tree (${vw0.y0.toFixed(1)} to ${vw0.y1.toFixed(1)}, ${seen0.split(',').length} tips)`,
 );
 const orderZ = await ev(() => __order());
-await page.locator('button[title^="Ladderize descending"]').click();
+await btn('Flip').click();
+await click(await ev(() => __clade(4, 12)));
 await page.waitForTimeout(300);
-ok((await ev(() => __order())) !== orderZ, 'Ladderize changed the tree');
+ok((await ev(() => __order())) !== orderZ, 'Flip reversed a clade inside the view');
 ok(await ev(() => __v() === window.__viewer && !__v().isDestroyed()), 'the edit went to the same renderer (no new one)');
-ok(
-  await ev((seen) => {
-    const now = new Set(__inView().split(','));
-    return seen.split(',').every((l) => now.has(l));
-  }, seen0),
-  'the tips that were in view are still in view after the Ladderize (the view follows them)',
-);
+ok((await ev(() => __inView())) === seen0, 'the same tips are still in view after the Flip');
+const vw1 = await ev(() => __v().getViewport());
+ok(Math.abs(vw1.y1 - vw1.y0 - (vw0.y1 - vw0.y0)) < 1e-6, 'at the same scale');
+await page.keyboard.press('Escape');
 await btn('Undo').click();
 await page.waitForTimeout(300);
+const vw2 = await ev(() => __v().getViewport());
 ok(
-  (await ev(() => __order())) === orderZ &&
-    (await ev((seen) => {
-      const now = new Set(__inView().split(','));
-      return seen.split(',').every((l) => now.has(l));
-    }, seen0)),
-  'Undo returns the tree, with the same tips in view',
+  (await ev(() => __order())) === orderZ && ['x0', 'x1', 'y0', 'y1'].every((k) => Math.abs(vw2[k] - vw0[k]) < 1e-6),
+  'Undo returns the tree and the same view',
 );
 ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
+// swap: the two children of a binary node, then two tips that are not siblings
+const pair = await ev(() => {
+  const t = __v().getTree();
+  for (let i = 1; i < t.nodeCount; i++)
+    if (t.childCount[i] === 2) {
+      const a = t.firstChild[i];
+      const b = t.nextSibling[a];
+      const qa = __v().locateNode(a);
+      const qb = __v().locateNode(b);
+      if (qa && qb) return [qa, qb];
+    }
+  return null;
+});
+await btn('Swap').click();
+await click(pair[0]);
+ok((await page.locator('.ex-steps .done').count()) === 1, 'Swap: step 1 done');
+await click(pair[1]);
+await page.waitForTimeout(200);
+ok((await ev(() => __order())) !== o0, 'Swap of two siblings');
+const tl = await ev(() => __v().getTree().tipLabels);
+await click(await ev((l) => __tipAt(l), tl[0]));
+await click(await ev((l) => __tipAt(l), tl[tl.length - 1]));
+ok((await toast()).includes('sibling'), 'Swap of non-siblings is refused with a message');
+await click(await ev((l) => __tipAt(l), tl[0]));
+ok((await ev(() => __v().getMarked().length)) === 1, 'Swap tool: the first pick is marked');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(100);
+ok((await ev(() => __v().getMarked().length)) === 0, 'Escape leaves Swap and clears the mark');
+await btn('Midpoint').click();
+ok((await toast()).includes('nothing to change'), 'Midpoint on a dated tree: nothing to change');
 const o2 = await ev(() => __order());
 await page.locator('button[title^="Ladderize descending"]').click();
 await page.waitForTimeout(150);
@@ -782,7 +900,6 @@ ok(
   }),
   'the tooltip box is bare (tooltipBare): no padding, border or shadow, and no CSS override in the example',
 );
-const tl = await ev(() => __v().getTree().tipLabels);
 const nwk = (await download('Newick')).data.toString();
 ok(nwk.startsWith('(') && nwk.trim().endsWith(';') && nwk.includes(tl[0]), 'Newick download of the current tree');
 const nexDl = await download('NEXUS');
@@ -970,6 +1087,66 @@ for (const [name, vp] of [
   );
 }
 
+// ---------------------------------------------------------------- swap inside a polytomy
+console.log('swap in a polytomy');
+await open('edge-polytomy');
+const tipOrder = () => ev(() => __order().split(','));
+ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'the 5-way polytomy starts as A B C D E');
+await btn('Swap').click();
+await click(await ev(() => __tipAt('A')));
+await click(await ev(() => __tipAt('D')));
+await page.waitForTimeout(200);
+const swapped = await tipOrder();
+ok(swapped.slice(0, 5).join('') === 'DBCAE', 'Swap of A and D in the polytomy moves only those two');
+ok(swapped.slice(5).join() === 'F,G,H,I,J', 'the rest of the tree is unchanged');
+await page.keyboard.press('Escape');
+await page.locator('.phylo-tree').focus();
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(200);
+ok((await tipOrder()).slice(0, 5).join('') === 'ABCDE', 'Ctrl+Z undoes the swap');
+
+// ---------------------------------------------------------------- aligned labels
+console.log('aligned labels');
+await open('rich-hcv-19');
+const alignBtn = page.locator('.ex-outer button', { hasText: /^\s*Align\s*$/ }); // not 'Alignment'
+const anchorXs = () =>
+  ev(() => [...document.querySelectorAll('.phylo-tree [data-tip-id]')].map((a) => Math.round(a.getBoundingClientRect().left * 10) / 10));
+await page.waitForTimeout(300);
+const ragged = await anchorXs();
+ok(
+  ragged.length > 5 && new Set(ragged).size > 3,
+  `labels follow their tips by default (${ragged.length} anchors, ${new Set(ragged).size} different x)`,
+);
+ok((await alignBtn.isEnabled()) && (await ev(() => __v().options.alignLabels)) === false, 'the Align button is enabled, off by default');
+await alignBtn.click();
+await page.waitForTimeout(400);
+const aligned = await anchorXs();
+ok(aligned.length > 5 && new Set(aligned).size === 1, `Align: the label anchors share one x (${aligned.length} anchors at ${aligned[0]})`);
+ok(
+  (await ev(() => __v().options.alignLabels)) === true && (await alignBtn.getAttribute('aria-pressed')) === 'true',
+  'Align sets the option and shows as pressed',
+);
+const sameAligned = await screenVsBlob();
+ok(
+  sameAligned.w && sameAligned.painted > 500 && sameAligned.diff === 0,
+  `Align on: toBlob equals the screen, leaders included (${sameAligned.painted} painted pixels, ${sameAligned.diff} differ)`,
+);
+const lab = await page.evaluate(() => {
+  const a = document.querySelector('.phylo-tree [data-tip-id]');
+  const r = a.getBoundingClientRect();
+  return { id: a.dataset.tipId, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+});
+await openMenu({ x: lab.x, y: lab.y });
+await act('info');
+ok(
+  (await page.locator('.ex-info-name').count()) === 1 && (await page.locator('.ex-info-name').innerText()) === lab.id.replace(/_/g, ' '),
+  'clicking an aligned label opens the node menu of its tip (Info shows the inspector)',
+);
+await page.locator('.ex-info-head button').click();
+await alignBtn.click();
+await page.waitForTimeout(300);
+ok(new Set(await anchorXs()).size > 3, 'Align off: the labels follow their tips again');
+
 // ---------------------------------------------------------------- summaries
 console.log('summaries');
 await open('syn-yule-10000');
@@ -1002,6 +1179,59 @@ const stripeCount = (colour) =>
 const withStripes = await stripeCount('#ff0000');
 ok(withStripes > 20, `the frame draws stripe segments in the summary colour (${withStripes})`);
 await ev(() => __v().setTheme({}));
+
+// ---------------------------------------------------------------- alignment
+console.log('alignment');
+await open('rich-hcv-19');
+await btn('Alignment').click();
+await page.waitForTimeout(300);
+const cell = await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]));
+ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
+ok((await page.locator('.ex-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
+ok(
+  await ev(() => {
+    const h = document.querySelector('.ex-hint').getBoundingClientRect();
+    const r = document.querySelector('.ex-legend').getBoundingClientRect();
+    return h.bottom <= r.top || h.top >= r.bottom || h.right <= r.left || h.left >= r.right;
+  }),
+  'the hint does not overlap the alignment legend (#69)',
+);
+// the legend is the canvas's own table: in dark mode, every swatch is a colour the cells are drawn in (and the cells use no other)
+if ((await ev(() => document.documentElement.dataset.theme)) !== 'dark') {
+  await page.locator('.theme-toggle').click();
+  await page.waitForTimeout(300);
+}
+const swatches = await ev(() => [...document.querySelectorAll('.ex-legend-dot')].map((d) => getComputedStyle(d).backgroundColor));
+ok(swatches.length === 4 && new Set(swatches).size === 4, `the nucleotide legend has four distinct swatches (${swatches.join(' ')})`);
+ok(swatches[0] === 'rgb(74, 222, 128)', 'in dark mode they are the dark defaults (A is #4ade80)');
+const cellColours = await ev(() => {
+  const v = __v();
+  const c = v.treeElement.querySelector('canvas');
+  const b = c.getBoundingClientRect();
+  const k = c.width / b.width;
+  const seen = new Set();
+  for (let r = 0; r < 6; r++) {
+    const cell = v.columnCell('alignment', v.getTree().tipNode[r]);
+    if (!cell) continue;
+    for (let i = 0; i < 80; i++) {
+      const x = Math.round((cell.x + ((i + 0.5) / 80) * cell.width - b.left) * k);
+      const y = Math.round((cell.y + cell.height / 2 - b.top) * k);
+      const d = c.getContext('2d').getImageData(x, y, 1, 1).data;
+      if (d[3] === 255) seen.add(`rgb(${d[0]}, ${d[1]}, ${d[2]})`);
+    }
+  }
+  return [...seen];
+});
+ok(
+  swatches.every((s) => cellColours.includes(s)),
+  `each legend swatch is the pixel colour of a residue cell (cells: ${cellColours.join(' ')})`,
+);
+await btn('Alignment').click();
+await page.waitForTimeout(200);
+ok(
+  (await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]))) === null && (await page.locator('.ex-legend').count()) === 0,
+  'Alignment off',
+);
 
 // ---------------------------------------------------------------- show only a clade, Up one level, Back
 console.log('show only this clade, Up one level, Back');
@@ -1037,13 +1267,15 @@ ok((await tipCount()) === c60.tips, 'Back returns to the clade');
 await btn('Back').click();
 await page.waitForTimeout(300);
 ok((await tipCount()) === whole && (await btn('Up one level').count()) === 0, 'Back again returns to the whole tree');
-// an edit keeps the clade shown: Ladderize inside it
+// an edit keeps the clade shown: Flip a clade inside it
 await openMenu(await ev(() => __clade(20, 60)));
 await act('subtree');
 await page.waitForTimeout(300);
-await page.locator('button[title^="Ladderize descending"]').click();
+const nested = await ev(() => __clade(3, 8));
+await openMenu(nested);
+await act('flip');
 await page.waitForTimeout(300);
-ok((await tipCount()) === c60.tips && (await btn('Undo').count()) === 1, 'Ladderize inside the clade shown keeps it shown');
+ok((await tipCount()) === c60.tips && (await btn('Undo').count()) === 1, 'Flip inside the clade shown keeps it shown');
 await btn('Undo').click();
 await page.waitForTimeout(300);
 ok((await tipCount()) === c60.tips, 'and so does Undo');
@@ -1133,16 +1365,39 @@ console.log('a visible tooltip while the tree changes: no page errors');
   ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during collapse by support, Up and Back');
 }
 
-// Undo does not undo navigation
-console.log('Undo with a clade shown alone');
+// Reroot inside a clade shown alone would split it: the menu leaves it out, the tool says why, and the view is kept
+console.log('reroot inside a clade shown alone');
 {
   await open('rich-fish-carangaria-135');
   const c = await ev(() => __clade(20, 60));
   await openMenu(c);
   await act('subtree');
   await page.waitForTimeout(400);
-  // Ladderize inside the clade, Back to the whole tree, Undo: still the whole tree
-  await page.locator('button[title^="Ladderize descending"]').click();
+  const inner = await ev(() => __clade(3, 8));
+  await openMenu(inner);
+  ok(!(await menuItems()).includes('Reroot here'), `no Reroot here for a node strictly inside the clade shown (${(await menuItems()).join(' | ')})`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  await btn('Reroot').click();
+  await click(inner);
+  ok(
+    (await toast()).includes('would split it') && (await tipCount()) === c.tips,
+    'the Reroot tool says why it does nothing, and the clade stays shown',
+  );
+  await page.keyboard.press('Escape');
+  // the root of the clade shown may be rooted on
+  await openMenu(
+    await ev(() => {
+      const q = __v().locateNode(0);
+      return { x: q.x, y: q.y };
+    }),
+  );
+  ok((await menuItems()).includes('Reroot here'), 'the root of the clade shown still offers Reroot here');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  // Undo does not undo navigation: Flip inside the clade, Back to the whole tree, Undo: still the whole tree
+  await openMenu(await ev(() => __clade(3, 8)));
+  await act('flip');
   await page.waitForTimeout(300);
   await btn('Back').click();
   await page.waitForTimeout(300);
@@ -1299,7 +1554,7 @@ for (const w of [1280, 1024, 600]) {
   );
   await btn('Export').click();
 }
-await page.setViewportSize({ width: 800, height: 860 });
+await page.setViewportSize({ width: 1024, height: 860 });
 await open('rich-fish-carangaria-135');
 await page
   .locator('.ex-row')
@@ -1316,7 +1571,7 @@ ok(
   (await ev(() => document.querySelector('.ex-row').hasAttribute('data-start'))) &&
     !(await ev(() => document.querySelector('.ex-row').hasAttribute('data-end'))) &&
     Math.abs((await ev(() => document.querySelector('.ex-export button').getBoundingClientRect().left)) - exportX) < 1,
-  '800 px: scrolled to its end the row fades at the start and Export has not moved',
+  '1024 px: scrolled to its end the row fades at the start and Export has not moved',
 );
 await page.mouse.click(
   ...Object.values(
@@ -1326,7 +1581,7 @@ await page.mouse.click(
     }),
   ),
 );
-ok((await page.locator('.ex-menu').count()) === 1, '800 px: a real click on Export (after scrolling) opens the menu');
+ok((await page.locator('.ex-menu').count()) === 1, '1024 px: a real click on Export (after scrolling) opens the menu');
 await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1280, height: 860 });
 
@@ -1639,6 +1894,46 @@ await page.waitForTimeout(200);
   ok(t.includes('95') && t.includes('100') && !t.includes('0.95'), `as percent: ${t.join(' ')}`);
 }
 
+// ---------------------------------------------------------------- Align in radial
+console.log('Align in radial');
+await open('rich-hcv-19');
+await page.locator('button[title=Circular]').click();
+await page.waitForTimeout(200);
+{
+  const al = page.locator('.ex-outer button', { hasText: /^\s*Align\s*$/ });
+  // the distances from the root of the label anchors (their translate is the label's place, the vertical centre at half their height)
+  const anchorRadii = () =>
+    ev(() => {
+      const T = __v().T;
+      return [...document.querySelectorAll('.phylo-tree [data-tip-id]')]
+        .filter((a) => a.style.display !== 'none' && !a.style.transform.includes('-9999px'))
+        .map((a) => {
+          const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(a.style.transform);
+          return Math.round(Math.hypot(Number(m[1]) - T.cx, Number(m[2]) + parseFloat(a.style.height) / 2 - T.cy));
+        });
+    });
+  ok(await al.isEnabled(), 'Align is enabled in the circular layout (#52)');
+  const ragged = await anchorRadii();
+  ok(ragged.length > 5 && new Set(ragged).size > 3, `circular: the label anchors follow their tips (${new Set(ragged).size} distances)`);
+  await al.click();
+  await page.waitForTimeout(400);
+  const radii = await anchorRadii();
+  ok(
+    radii.length > 5 && new Set(radii).size === 1 && (await al.getAttribute('aria-pressed')) === 'true',
+    `Align in circular: the label anchors are at one distance from the root (${radii.length} anchors at ${radii[0]} px)`,
+  );
+  const sameRadial = await screenVsBlob();
+  ok(
+    sameRadial.w && sameRadial.painted > 500 && sameRadial.diff === 0,
+    `Align in circular: toBlob equals the screen, leaders included (${sameRadial.painted} painted pixels, ${sameRadial.diff} differ)`,
+  );
+  await al.click();
+  await page.waitForTimeout(300);
+  ok(new Set(await anchorRadii()).size > 3, 'Align off: the circular labels follow their tips again');
+  await page.locator('button[title=Rectangular]').click();
+  await page.waitForTimeout(200);
+}
+
 // ---------------------------------------------------------------- overview and legend
 console.log('overview and legend');
 await open('rich-fish-carangaria-135');
@@ -1662,15 +1957,17 @@ ok(
   /\(\d+ tips\)|Clade of/.test(await page.locator('.phylo-legend').innerText()),
   `named by its clade: ${(await page.locator('.phylo-legend').innerText()).replace(/\n/g, ' / ')}`,
 );
-// the "Scroll to zoom" hint never overlaps a legend (#69): the viewer's clade legend, in either layout
+// the "Scroll to zoom" hint never overlaps a legend (#69): the viewer's clade legend, in either layout, and the alignment strip
 const hintClear = () =>
   ev(() => {
     const h = document.querySelector('.ex-hint')?.getBoundingClientRect();
     if (!h) return true; // not drawn: nothing overlaps
-    const e = document.querySelector('.phylo-legend');
-    if (!e || e.hidden || getComputedStyle(e).display === 'none') return true;
-    const r = e.getBoundingClientRect();
-    return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
+    return ['.phylo-legend', '.ex-legend'].every((sel) => {
+      const e = document.querySelector(sel);
+      if (!e || e.hidden || getComputedStyle(e).display === 'none') return true;
+      const r = e.getBoundingClientRect();
+      return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
+    });
   });
 ok(await hintClear(), 'the hint does not overlap the clade legend (rectangular)');
 await page.locator('button[title=Circular]').click();
@@ -1730,6 +2027,24 @@ await open('rich-hcv-19');
   await page.keyboard.press('+');
   await page.waitForTimeout(150);
   ok((await page.locator('.ex-hint').count()) === 0, 'the zoom key removes it');
+}
+
+// ---------------------------------------------------------------- the alignment fills the width
+console.log('alignment column fills the width');
+await open('rich-hcv-19');
+await btn('Alignment').click();
+await page.waitForTimeout(400);
+{
+  // columnCell is in page coordinates: compare with the viewer's box
+  const o = await ev(() => {
+    const r = __v().treeElement.getBoundingClientRect();
+    return { left: r.left, right: r.right, w: r.width, tw: __v().options.treeWidth, cell: __v().columnCell('alignment', __v().getTree().tipNode[0]) };
+  });
+  ok(o.tw === '40%', `the tree is given 40% of the width (treeWidth ${o.tw})`);
+  ok(
+    o.cell.x - o.left > o.w * 0.35 && o.cell.x - o.left < o.w * 0.6 && Math.abs(o.cell.x + o.cell.width - o.right) < 20,
+    `the 'fill' column takes the rest (${Math.round(o.cell.x - o.left)} to ${Math.round(o.cell.x + o.cell.width - o.left)} of ${Math.round(o.w)})`,
+  );
 }
 
 // ---------------------------------------------------------------- the playground's catalogue
@@ -1793,23 +2108,36 @@ console.log('one action colour (#74)');
       await page.mouse.move(5, 5);
       await page.waitForTimeout(250);
     }
+    const background = {};
+    for (const t of ['Reroot', 'Flip', 'Swap']) {
+      await page.locator('.ex-tool', { hasText: t }).click();
+      await page.mouse.move(5, 5);
+      await page.waitForTimeout(200);
+      background[t] = await colourOf(page.locator('.ex-tool.active'), 'backgroundColor');
+      await page.locator('.ex-outer').press('Escape');
+      await page.waitForTimeout(100);
+    }
     await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3]))));
     await page.locator('.ex-tip--menu').waitFor({ timeout: 3000 });
     await page.waitForTimeout(250);
     text['hover box'] = await colourOf(page.locator('.ex-tip--menu'));
     await page.mouse.move(5, 5);
-    return { text };
+    return { text, background };
   };
   for (let pass = 0; pass < 2; pass++) {
     const theme = (await ev(() => document.documentElement.dataset.theme)) || 'light';
     const primary = await computed('var(--ex-primary)');
-    const { text } = await states();
+    const { text, background } = await states();
     ok(text['labels No labels'] === 'inactive', `${theme}: "No labels" looks inactive`);
     delete text['labels No labels'];
     const off = Object.entries(text).filter(([, c]) => c !== primary);
     ok(
       Object.keys(text).length >= 6 && off.length === 0,
       `${theme}: active toggles, the label button and the hover box have the text colour --ex-primary (${primary})${off.length ? `, not ${JSON.stringify(off)}` : ''}`,
+    );
+    ok(
+      Object.values(background).every((c) => c === primary),
+      `${theme}: Reroot, Flip and Swap, active, have the background --ex-primary (${JSON.stringify(background)})`,
     );
     // a theme sets the hover box's own variable: only the box changes
     await ev(() => document.documentElement.style.setProperty('--ex-hover-tip', 'rgb(200, 30, 30)'));
@@ -1819,7 +2147,7 @@ console.log('one action colour (#74)');
     delete themed.text['hover box'];
     delete themed.text['labels No labels'];
     ok(
-      Object.values(themed.text).every((c) => c === primary),
+      Object.values(themed.text).every((c) => c === primary) && Object.values(themed.background).every((c) => c === primary),
       `${theme}: and nothing else`,
     );
     await page.locator('.theme-toggle').click();
@@ -2180,11 +2508,12 @@ for (const [id, tipsWanted] of [
   ok(n2 > 150000, `gtdb-190k-bacteria: ${n2} tips (${ms2} ms)`);
   ok(
     (await page.locator('.ex-note').count()) === 0 &&
+      (await btn('Midpoint').isEnabled()) &&
       (await page.locator('select[aria-label="Ladderize by"]').isEnabled()) &&
       (await page.locator('button[title^="Ladderize ascending"]').isEnabled()),
     'nothing is disabled on a large tree',
   );
-  ok(await btn('Color').isEnabled(), 'and the tools are on');
+  ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
   // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
   // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
   // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates
