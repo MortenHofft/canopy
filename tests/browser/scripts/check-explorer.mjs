@@ -425,13 +425,13 @@ ok(
 await page.locator('.ex-info-head button').click();
 await ev(() => __v().setSelected(null));
 ok((await page.locator('.ex-info').count()) === 0, 'closing the inspector');
-// a clade: Info, Collapse, Show only, Reroot here, Colour…, Copy Newick
+// a clade: Info, Collapse, Show only, Reroot here, Colour…
 const rows = () => ev(() => __v().layout.rows);
 const before = await rows();
 const tips = await ev(() => __v().getTree().tipCount);
 const c1 = await ev(() => __clade(4, 10));
 await openMenu(c1);
-ok((await menuItems()).join('|') === 'Info|Collapse|Show only|Reroot here|Colour…|Copy Newick', `a clade's menu: ${(await menuItems()).join(' | ')}`);
+ok((await menuItems()).join('|') === 'Info|Collapse|Show only|Reroot here|Colour…', `a clade's menu: ${(await menuItems()).join(' | ')}`);
 ok((await rows()) === before, 'a plain click on a clade collapses nothing (it opens the menu)');
 // one line per item, no descriptions; a header with the name, a close button and a line under it (#68)
 ok(
@@ -540,15 +540,6 @@ await openMenu(await ev(() => __clade(4, 10)));
 await act('colour');
 await page.locator('.ex-palette .ex-erase').click();
 ok((await ev(() => __v().getClades().length)) === 0, 'Erase in it removes the colour');
-// Copy Newick
-await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-await openMenu(await ev(() => __clade(4, 10)));
-await act('copy');
-{
-  const copied = await ev(() => navigator.clipboard.readText());
-  ok(copied.startsWith('(') && copied.trim().endsWith(';'), `Copy Newick puts the clade's Newick on the clipboard (${copied.length} characters)`);
-  ok((await toast()).startsWith('Copied'), 'and says so');
-}
 await ev(() => __v().fit(false));
 await page.waitForTimeout(200);
 
@@ -870,6 +861,9 @@ ok(
   }),
   'the tooltip box is bare (tooltipBare): no padding, border or shadow, and no CSS override in the example',
 );
+await moreButton().click();
+await moreItem('Export…').click();
+ok((await moreItem('Newick').locator('.ex-menu-desc').innerText()) === 'Tree', 'on the whole tree the export list says Tree');
 const nwk = (await download('Newick')).data.toString();
 const tl = await ev(() => __v().getTree().tipLabels);
 ok(nwk.startsWith('(') && nwk.trim().endsWith(';') && nwk.includes(tl[0]), 'Newick download of the current tree');
@@ -879,6 +873,26 @@ ok(
   nexDl.name === 'phylotree.nex' && nex.startsWith('#NEXUS') && nex.includes('TRANSLATE') && nex.includes(`NTAX=${tl.length};`),
   'NEXUS download: taxa block, translate table and tree',
 );
+
+// shown alone, a clade is what Newick and NEXUS give
+{
+  await openMenu(await ev(() => __clade(20, 40)));
+  await act('subtree');
+  await page.waitForTimeout(300);
+  await moreButton().click();
+  await moreItem('Export…').click();
+  ok((await moreItem('Newick').locator('.ex-menu-desc').innerText()) === 'Subtree', 'on a subtree the export list says Subtree');
+  const sub = await download('Newick');
+  const subTips = await ev(() => __v().getTree().tipCount);
+  ok(
+    sub.name === 'subtree.nwk' && sub.data.length < nwk.length && sub.data.toString().split(',').length === subTips,
+    `Newick of the subtree shown: subtree.nwk with its ${subTips} tips, not the whole tree`,
+  );
+  const subNex = await download('NEXUS');
+  ok(subNex.name === 'subtree.nex' && subNex.data.toString().includes(`NTAX=${subTips};`), 'and NEXUS of it: subtree.nex');
+  await btn('Back').click();
+  await page.waitForTimeout(300);
+}
 
 console.log('dark mode, resize');
 const fg = await ev(() => __v().getTheme().branch);
@@ -1359,35 +1373,6 @@ console.log('Colour… palette');
   ok((await page.locator('.ex-palette').count()) === 0, 'Escape closes it');
 }
 
-// Copy Newick without the clipboard API: the fallback copies, or the Newick is offered as a file; never an unhandled error
-console.log('Copy Newick without navigator.clipboard');
-{
-  await open('rich-fish-carangaria-135');
-  await ev(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }));
-  await openMenu(await ev(() => __clade(4, 10)));
-  const dl = page.waitForEvent('download', { timeout: 2500 }).catch(() => null);
-  // what has the focus when the fallback runs (execCommand('copy') is called with it): the element that must get it back
-  await ev(() => {
-    const exec = document.execCommand.bind(document);
-    document.execCommand = (...a) => {
-      const el = document.activeElement;
-      window.__focusBefore = el && el.tagName === 'TEXTAREA' ? window.__lastNonTextarea : el;
-      return exec(...a);
-    };
-    document.addEventListener('focusin', (e) => e.target.tagName !== 'TEXTAREA' && (window.__lastNonTextarea = e.target), true);
-  });
-  await act('copy');
-  await page.waitForTimeout(500);
-  const t = await toast();
-  ok(t.startsWith('Copied') || (t.includes('downloaded') && (await dl) !== null), `without the clipboard API: "${t}"`);
-  const back = await ev(() => ({
-    same: window.__focusBefore === document.activeElement,
-    tag: document.activeElement?.tagName,
-    had: window.__focusBefore?.tagName,
-  }));
-  ok(back.same && back.tag !== 'BODY', `the keyboard focus returns to the element that had it (${back.had})`);
-}
-
 // every popover has the one corner rounding of --ex-popover-radius, and what is inside one a smaller one from it (#68); the node menu
 // is styled as the inspector: the same panel and header
 console.log('one popover radius, the node menu styled as the inspector');
@@ -1437,7 +1422,7 @@ console.log('one popover radius, the node menu styled as the inspector');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
   await openMenu(c);
-  await act('copy');
+  await act('subtree'); // a toast says what is shown
   await page.locator('.ex-toast').waitFor({ timeout: 3000 });
   r.toast = await radius('.ex-toast');
   await page.locator('.ex-export button').first().click();

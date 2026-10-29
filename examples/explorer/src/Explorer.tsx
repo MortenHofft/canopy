@@ -621,39 +621,6 @@ export function Explorer({
     const rest = clades.filter((c) => c.node !== v);
     setClades(name === ERASE ? rest : [...rest, { node: v, colour: colourOf(name) }]);
   };
-  /** Put text on the clipboard: the async API where there is one, else a hidden textarea and execCommand('copy'). */
-  const copyText = async (text: string): Promise<boolean> => {
-    const was = document.activeElement as HTMLElement | null; // the fallback selects a textarea: give the focus back after it
-    try {
-      await navigator.clipboard.writeText(text); // throws when there is no clipboard API (insecure page) or it is refused
-      return true;
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-      document.body.append(ta);
-      ta.select();
-      let ok = false;
-      try {
-        ok = document.execCommand('copy');
-      } catch {
-        ok = false;
-      }
-      ta.remove();
-      was?.focus?.({ preventScroll: true });
-      return ok;
-    }
-  };
-  const copyNewick = (v: number) => {
-    const text = toNewick(new TreeModel(ops.subtree(tree, v).tree));
-    const n = tree.tipCountOf(v).toLocaleString('en');
-    void copyText(text).then((ok) => {
-      if (ok) return flash(`Copied the Newick of a clade of ${n} tips`);
-      download(new Blob([text], { type: 'text/plain' }), 'clade.nwk'); // the clipboard is not available: offer the text as a file
-      flash('The clipboard is not available here: downloaded the Newick of the clade as clade.nwk instead');
-    });
-  };
 
   // ---- clicks: with the click action Inspect, the viewer's node menu opens (nodeMenu below) and a click on the triangle of a collapsed
   // clade expands it; any other action acts on the click at once, with no selection and no menu.
@@ -730,7 +697,6 @@ export function Explorer({
         setPick({ node: v, x: r ? ev.clientX - r.left : 16, y: r ? ev.clientY - r.top : 92 });
       },
     };
-    const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick', onSelect: () => copyNewick(v) };
     if (isCollapsed) return [expand, info, { ...only, onSelect: () => jumpInto(v) }, colour];
     // inside a clade shown alone a reroot would split it: the menu leaves it out there
     const canReroot = !ops.canGoUp(focus) || shownRoot;
@@ -750,7 +716,7 @@ export function Explorer({
     // the root of what is shown is not collapsed or shown alone again
     if (!shownRoot) items.push(collapse, only);
     if (canReroot) items.push(reroot);
-    items.push(colour, copy);
+    items.push(colour);
     return items;
   };
 
@@ -812,6 +778,9 @@ export function Explorer({
       .then((b) => download(b, scale === 1 ? 'phylotree.png' : `phylotree@${scale}x.png`))
       .catch((err) => flash(`PNG export at ${scale}×: ${(err as Error).message}`));
   };
+  // Newick and NEXUS give the clade shown alone when there is one, the whole tree otherwise
+  const exportRoot = ops.focusedNode(focus);
+  const exported = () => (exportRoot < 0 ? tree : new TreeModel(ops.subtree(tree, exportRoot).tree));
   const exportText = (text: string, name: string) => download(new Blob([text], { type: 'text/plain' }), name);
 
   // close the ⋮ menu on a press outside it
@@ -870,6 +839,10 @@ export function Explorer({
     <div className={`ex-outer ex-click-${clickAction}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="View">
+        <button type="button" className="ex-btn" aria-label="Fit tree" title="Fit tree" onClick={() => viewer?.fit(false)}>
+          <J.IconFit />
+        </button>
+        <div className="ex-divider" />
         <div className="ex-group">
           <button
             type="button"
@@ -890,11 +863,6 @@ export function Explorer({
             <I.IconCirc />
           </button>
         </div>
-        <div className="ex-divider" />
-        <button type="button" className="ex-btn" title="Fit tree" onClick={() => viewer?.fit(false)}>
-          <J.IconFit />
-          Fit
-        </button>
         <div className="ex-spacer" />
         <div className="ex-pinned">
           <button
@@ -1239,8 +1207,18 @@ export function Explorer({
                   ['PNG 2×', 'Twice', <I.IconFilePng key="i" />, () => exportPng(2)],
                   ['PNG 4×', 'Print', <I.IconFilePng key="i" />, () => exportPng(4)],
                   null,
-                  ['Newick', 'Tree', <I.IconFileNewick key="i" />, () => exportText(toNewick(tree), 'phylotree.nwk')],
-                  ['NEXUS', 'Tree', <I.IconFileNexus key="i" />, () => exportText(toNexus(tree), 'phylotree.nex')],
+                  [
+                    'Newick',
+                    exportRoot < 0 ? 'Tree' : 'Subtree',
+                    <I.IconFileNewick key="i" />,
+                    () => exportText(toNewick(exported()), exportRoot < 0 ? 'phylotree.nwk' : 'subtree.nwk'),
+                  ],
+                  [
+                    'NEXUS',
+                    exportRoot < 0 ? 'Tree' : 'Subtree',
+                    <I.IconFileNexus key="i" />,
+                    () => exportText(toNexus(exported()), exportRoot < 0 ? 'phylotree.nex' : 'subtree.nex'),
+                  ],
                 ] as const
               ).map((item, k) =>
                 item === null ? (
