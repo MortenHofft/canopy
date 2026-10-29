@@ -378,10 +378,6 @@ body {
   border-radius: 7px;
   background: var(--ex-surface-10);
 }
-.ex-select > span {
-  font-size: 11.5px;
-  font-weight: 500;
-}
 .ex-select select,
 .ex-group-select select {
   font: inherit;
@@ -397,6 +393,15 @@ body {
 .ex-select select:disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+.ex-select--active {
+  color: white;
+  background: var(--ex-primary);
+  border-color: var(--ex-primary);
+}
+.ex-select option {
+  color: var(--ex-text);
+  background: var(--ex-surface-0);
 }
 .ex-select:focus-within {
   outline: 2px solid var(--ex-primary);
@@ -1057,4 +1062,11 @@ body {
   border-radius: calc(var(--ex-popover-radius) * 0.6);
   padding: 3px 6px;
   resize: vertical;
+}
+
+/* a phone: the buttons that show a clade alone keep their icon and lose their words */
+@media (max-width: 640px) {
+  .ex-group .ex-btn-text {
+    display: none;
+  }
 }

@@ -646,12 +646,26 @@ console.log('click actions');
 {
   const sel = page.locator('select[aria-label="Click action"]');
   ok((await sel.inputValue()) === 'inspect', 'the click action starts as Inspect');
+  const lit = () =>
+    page
+      .locator('.ex-select', { has: sel })
+      .evaluate((e) => ({ active: e.classList.contains('ex-select--active'), bg: getComputedStyle(e).backgroundColor }));
+  const primary = await ev(() => {
+    const s = document.createElement('span');
+    s.style.color = getComputedStyle(document.documentElement).getPropertyValue('--ex-primary');
+    document.body.append(s);
+    const c = getComputedStyle(s).color;
+    s.remove();
+    return c;
+  });
+  ok((await lit()).active === false && (await lit()).bg !== primary, 'Inspect: the select is not highlighted');
   ok(
     (await sel.locator('option').allInnerTexts()).join() === 'Inspect,Collapse,Subtree,Colour',
     'the click actions: Inspect, Collapse, Subtree, Colour',
   );
   const rows0 = await rows();
   await sel.selectOption('collapse');
+  ok((await lit()).active && (await lit()).bg === primary, 'another click action: the select is blue');
   await click(await ev(() => __clade(4, 10)));
   ok((await rows()) < rows0 && (await menu.count()) === 0, 'Collapse: a click on a clade collapses it, and no menu opens');
   const rowsCollapsed = await rows();
@@ -1210,6 +1224,20 @@ ok(
   (await page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: 'Reset' }).isEnabled()) && (await btn('Up one level').isEnabled()),
   'Reset and Up one level are enabled',
 );
+// on a phone the two buttons keep their icons and lose their words
+await page.setViewportSize({ width: 400, height: 860 });
+{
+  const words = await page
+    .locator('.ex-group[aria-label="Clade shown"] .ex-btn-text')
+    .evaluateAll((es) => es.map((e) => getComputedStyle(e).display));
+  const labels = await page.locator('.ex-group[aria-label="Clade shown"] button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label')));
+  ok(
+    words.length === 2 && words.every((d) => d === 'none') && labels.join() === 'Reset,Up one level',
+    `at 400 px: icons only, still named (${labels.join(', ')})`,
+  );
+}
+await page.setViewportSize({ width: 1280, height: 860 });
+ok(await page.locator('.ex-group[aria-label="Clade shown"] .ex-btn-text').first().isVisible(), 'at 1280 px: with their words');
 await page.waitForTimeout(300);
 const rootPos = await ev(() => {
   const q = __v().locateNode(0);
@@ -1476,7 +1504,7 @@ for (const w of [1280, 1024, 600]) {
   );
   await moreButton().click();
 }
-await page.setViewportSize({ width: 340, height: 860 });
+await page.setViewportSize({ width: 260, height: 860 });
 await open('rich-fish-carangaria-135');
 // the Edit row scrolls sideways at this width (the View row, with Search and ⋮, no longer overflows): scrolled to its end, the start fades
 await page
@@ -1487,7 +1515,7 @@ await page.waitForTimeout(150);
 ok(
   (await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-start'))) &&
     !(await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-end'))),
-  '340 px: the Edit row scrolled to its end fades at the start',
+  '260 px: the Edit row scrolled to its end fades at the start',
 );
 await page.mouse.click(
   ...Object.values(
@@ -1497,7 +1525,7 @@ await page.mouse.click(
     }),
   ),
 );
-ok((await page.locator('.ex-menu').count()) === 1, '340 px: a real click on ⋮ (after scrolling) opens the menu');
+ok((await page.locator('.ex-menu').count()) === 1, '260 px: a real click on ⋮ (after scrolling) opens the menu');
 await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1280, height: 860 });
 

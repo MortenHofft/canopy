@@ -823,24 +823,27 @@ export function Explorer({
         {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onReset={() => back(0)} />}
         {ops.focusedNode(focus) >= 0 && (
           <div className="ex-group" role="group" aria-label="Clade shown">
-            <button type="button" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
+            <button type="button" aria-label="Reset" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
               <J.IconReset />
-              Reset
+              <span className="ex-btn-text">Reset</span>
             </button>
             <button
               type="button"
+              aria-label="Up one level"
               disabled={!ops.canGoUp(focus)}
               title="Up one level: show the clade that contains the one shown"
               onClick={() => navigate(ops.focusUp(tree, focus))}
             >
               <J.IconUpLevel />
-              Up one level
+              <span className="ex-btn-text">Up one level</span>
             </button>
           </div>
         )}
-        <div className="ex-divider" />
-        <label className="ex-select" title="What a click on a node or tip does">
-          <span>Click</span>
+        {ops.focusedNode(focus) >= 0 && <div className="ex-divider" />}
+        <label
+          className={`ex-select${clickAction !== 'inspect' ? ' ex-select--active' : ''}`}
+          title="What a click on a node or tip does (blue while it is not Inspect)"
+        >
           <select
             aria-label="Click action"
             value={clickAction}
