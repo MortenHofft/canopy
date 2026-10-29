@@ -57,7 +57,7 @@ for (const p of [
   'rich/fish-carangaria-mcc/Carangaria-MCC.tre',
   'synthetic/meta/yule_1000.meta.tsv',
   'real-ladder/trees/gtdb-190k-bacteria.nwk.gz',
-  'real-ladder/trees/gtdb-1k-nitrososphaeria.nwk.gz',
+  'real-ladder/trees/gtdb-10k-archaea.nwk.gz',
 ]) {
   const r = await fetch(`${url}/data/${p}`);
   ok(r.ok, `/data/${p}`);
