@@ -98,3 +98,11 @@ export const IconClades = () => (
     <path d="M6.5 3l6-1.5v3zM6.5 7l5-1.2v2.4zM6.5 11l6-1.5v3z" {...s} strokeWidth="1.1" />
   </svg>
 );
+/** More: three vertical dots, the menu button. */
+export const IconMore = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+    <circle cx="7" cy="2.5" r="1.3" />
+    <circle cx="7" cy="7" r="1.3" />
+    <circle cx="7" cy="11.5" r="1.3" />
+  </svg>
+);
