@@ -9,7 +9,8 @@
   --ex-primary: #0071f2;
   --ex-primary-hover: #3472e5;
   --ex-primary-soft: #5775cc;
-  --ex-hover-tip: var(--ex-primary); /* the "Click for actions" hover box */
+  --ex-tooltip-bg: #333; /* the hover box of a node: background and text */
+  --ex-tooltip-text: #fff;
   --ex-danger: #ef4444;
   --ex-node-label: #0891b2; /* support and length labels on the tree */
   --ex-surface-0: #ffffff;
@@ -751,11 +752,6 @@ body {
   border-color: var(--ex-primary);
   color: white;
 }
-/* the box with no tool on: the tone of the active toggles, from its own variable so a theme can change it alone */
-.ex-tip--menu {
-  border-color: color-mix(in srgb, var(--ex-hover-tip) 55%, transparent);
-  color: var(--ex-hover-tip);
-}
 .ex-tip--color {
   color: var(--ex-text);
 }
@@ -763,9 +759,6 @@ body {
   font-weight: 400;
   opacity: 0.75;
   font-style: italic;
-}
-.ex-tip--menu .ex-tip-name {
-  display: none;
 }
 .ex-tip-step {
   font-family: var(--ex-mono);
@@ -1122,26 +1115,30 @@ body {
   }
 }
 
-/* the hover box of a collapsed clade (#57): what a click does, its label, and the highest named clades inside it */
-.ex-tip--clade {
+/* the hover box of a node: a title, then rows of what the tree knows about it */
+.ex-tip--node {
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  white-space: normal;
-  max-width: 320px;
-}
-.ex-tip-clade {
-  color: var(--ex-text);
-  font-weight: 600;
-}
-.ex-tip-inside {
-  display: flex;
-  flex-direction: column;
-  color: var(--ex-text);
+  gap: 3px;
+  background: var(--ex-tooltip-bg);
+  border-color: var(--ex-tooltip-bg);
+  color: var(--ex-tooltip-text);
   font-weight: 400;
 }
-.ex-tip-inside-head {
-  color: var(--ex-muted);
+.ex-tip-title {
+  font-weight: 600;
+}
+.ex-tip-rows {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 1px 12px;
+  margin: 0;
+}
+.ex-tip-rows dt {
+  opacity: 0.65;
+}
+.ex-tip-rows dd {
+  margin: 0;
 }
 
 /* the Info panel of a collapsed clade: its highest named clades, with their tips */
