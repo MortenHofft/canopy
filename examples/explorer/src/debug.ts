@@ -13,7 +13,7 @@ export const BUILD = typeof __BUILD__ === 'undefined' ? { commit: 'dev', branch:
 export type TreeName = { id: string; label: string } | { file: string };
 
 /** The options a view sets again: the cut's (minCladePx, drawBudget, lod, showSummaries, radialMaxNodes, interactionLOD), the labels'
- *  (labelDensity) and the area's (radialOpening, dprCap). `alignLabels` is restored through the explorer's own toggle. */
+ *  (labelDensity) and the area's (radialOpening, dprCap). */
 export const VIEW_OPTIONS = [
   'minCladePx',
   'drawBudget',
@@ -37,11 +37,7 @@ export interface SavedView {
   canvas: { width: number; height: number; dpr: number };
   viewport: Viewport;
   labelSize: number;
-  alignLabels: boolean;
   options: ViewOptions;
-  /** For the record only, not restored: the tree area's width ('auto' or the explorer's '40%' with the alignment), the columns shown. */
-  treeWidth: ViewerOptions['treeWidth'];
-  columns: number;
   /** The collapsed clades, ids of the tree shown. */
   collapsed: number[];
   /** False when the tree shown was not the tree as loaded (an edit, Show only, collapse by support): the restore loads it as loaded. */
@@ -106,14 +102,13 @@ export const sameTree = (a: TreeName, b: TreeName) => ('id' in a && 'id' in b ? 
  *  another tree is picked, the explorer's defaults apply again (a restored minCladePx must not follow the user to another tree). */
 export function restoredSettings(debug: DebugInfo | undefined, baseLabelSize: number) {
   const v = debug?.matches ? debug.restore : undefined;
-  if (!v) return { layout: 'rectangular' as const, phylogram: true, fontScale: 1, alignLabels: false, collapsed: [] as number[], options: {} };
+  if (!v) return { layout: 'rectangular' as const, phylogram: true, fontScale: 1, collapsed: [] as number[], options: {} };
   const options: Record<string, unknown> = {};
   for (const k of VIEW_OPTIONS) if (v.options[k] !== undefined && v.options[k] !== null) options[k] = v.options[k];
   return {
     layout: v.layout,
     phylogram: v.branchLengths !== false,
     fontScale: isNum(v.labelSize) ? v.labelSize / baseLabelSize : 1,
-    alignLabels: v.alignLabels === true,
     collapsed: v.asLoaded !== false ? v.collapsed : [], // ids of the tree shown then: only the tree as loaded has them
     options: options as ViewOptions,
   };

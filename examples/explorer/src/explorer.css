@@ -337,49 +337,6 @@ body {
 .ex-fade {
   animation: ex-fade 0.2s ease;
 }
-.ex-tool.active {
-  background: var(--ex-primary);
-  border-color: var(--ex-primary);
-  color: white;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--ex-primary) 35%, transparent);
-}
-.ex-tool.active:hover:not(:disabled) {
-  background: var(--ex-primary-hover);
-  border-color: var(--ex-primary-hover);
-  color: white;
-}
-.ex-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  margin-left: 2px;
-  animation: ex-pulse 1.4s ease-in-out infinite;
-}
-.ex-steps {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-  font-size: 10px;
-  margin-left: 2px;
-}
-.ex-steps span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.25);
-}
-.ex-steps span.on {
-  background: white;
-  color: var(--ex-primary);
-  font-weight: 600;
-}
-.ex-steps span.done {
-  background: rgba(255, 255, 255, 0.6);
-}
 .ex-color.active {
   border-color: var(--ex-active);
   color: var(--ex-active);
@@ -653,9 +610,6 @@ body {
   background-color: var(--ex-surface-10);
   flex-shrink: 0;
 }
-.ex-mode-reroot .ex-pane,
-.ex-mode-flip .ex-pane,
-.ex-mode-swap .ex-pane,
 .ex-mode-color .ex-pane {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-primary) 35%, transparent);
 }
@@ -665,9 +619,6 @@ body {
 .ex-pane .phylo-tree:active {
   cursor: grabbing;
 }
-.ex-mode-reroot .phylo-tree,
-.ex-mode-flip .phylo-tree,
-.ex-mode-swap .phylo-tree,
 .ex-mode-color .phylo-tree {
   cursor: crosshair;
 }
@@ -744,13 +695,6 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--ex-surface-30);
 }
-.ex-tip--reroot,
-.ex-tip--flip,
-.ex-tip--swap {
-  background: var(--ex-primary);
-  border-color: var(--ex-primary);
-  color: white;
-}
 /* the box with no tool on: the tone of the active toggles, from its own variable so a theme can change it alone */
 .ex-tip--menu {
   border-color: color-mix(in srgb, var(--ex-hover-tip) 55%, transparent);
@@ -766,14 +710,6 @@ body {
 }
 .ex-tip--menu .ex-tip-name {
   display: none;
-}
-.ex-tip-step {
-  font-family: var(--ex-mono);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.25);
 }
 .ex-tip-dot {
   display: inline-block;
@@ -953,53 +889,6 @@ body {
 .ex-info-copy:hover {
   background: var(--ex-tonal);
   color: var(--ex-primary);
-}
-
-/* alignment legend */
-.ex-legend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 6px 12px;
-  font-size: 10.5px;
-  border-top: 1px solid var(--ex-surface-30);
-  background: var(--ex-surface-0);
-}
-.ex-legend-type {
-  font-weight: 600;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: #059669;
-  background: rgba(5, 150, 105, 0.1);
-}
-.ex-legend-type.aa {
-  color: #4f46e5;
-  background: rgba(79, 70, 229, 0.1);
-}
-.ex-legend-meta {
-  color: var(--ex-muted);
-}
-.ex-legend-divider {
-  width: 1px;
-  height: 14px;
-  background: var(--ex-surface-30);
-}
-.ex-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.ex-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.ex-legend-dash {
-  width: 10px;
-  height: 2px;
-  background: var(--ex-surface-40);
 }
 
 /* colour palette */
