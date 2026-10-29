@@ -7,7 +7,7 @@
 // click on a collapsed clade's triangle expands it)
 // and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, colour, erase and the innermost-colour-wins order; reroot, midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
 // (?undo-budget: the oldest step dropped first, Reset only for a tree larger than the budget, #44); show only a clade, Up one level
-// and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
+// and Back; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support and length from the ⋮ menu); aligned labels (one x for the label anchors, a click on one opens the menu; in
@@ -1240,15 +1240,14 @@ await page.waitForTimeout(300);
 ok((await tipCount()) === c60.tips, 'and so does Undo');
 
 // the crash path: the hover box is rendered with the last hover event, which held a node id of the tree shown before the change.
-// Hover, then Show only / Up / Back with colours, a collapsed clade, collapse by support and the pointer moving over the new tree
+// Hover, then Show only / Up / Back with colours, a collapsed clade and the pointer moving over the new tree
 // (any page error or console.error fails the run, see the handlers at the top)
-console.log('Show only, Up, Back with hover, colours, collapse and support: no page errors');
+console.log('Show only, Up, Back with hover, colours and collapse: no page errors');
 {
   const errorsBefore = failures;
   await open('rich-fish-carangaria-135');
   await colourVia(await ev(() => __clade(20, 40)), 'Teal');
   await collapseAt(await ev(() => __clade(4, 10)));
-  await page.locator('button[aria-label="Collapse by support"]').click();
   await page.waitForTimeout(300);
   for (const co of [false, true]) {
     const c = await ev((co) => {
@@ -1300,9 +1299,6 @@ console.log('a visible tooltip while the tree changes: no page errors');
   };
   await hoverUntilTooltip(await lastTip());
   ok((await page.locator('.phylo-tooltip .ex-tip--node').count()) === 1, 'the tooltip of the last tip is showing');
-  await pressOnButton('button[aria-label="Collapse by support"]'); // it crashed with 'replace' of undefined
-  ok((await ev(() => __v().getTree().nodeCount)) > 0, 'collapse by support with the tooltip showing');
-  await pressOnButton('button[aria-label="Collapse by support"]');
   const c = await ev(() => __clade(20, 60));
   await page.mouse.move(c.x, c.y);
   await openMenu(c);
@@ -1318,7 +1314,7 @@ console.log('a visible tooltip while the tree changes: no page errors');
   await pressOnButton('.ex-group[aria-label="Clade shown"] button:last-child'); // Up one level, with the tooltip showing
   await hoverUntilTooltip(await lastTip().catch(() => inClade)).catch(() => {});
   await pressOnButton('.ex-group[aria-label="Clade shown"] button:first-child'); // Back
-  ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during collapse by support, Up and Back');
+  ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during Show only, Up and Back');
 }
 
 // Reroot inside a clade shown alone would split it: the menu leaves it out
@@ -1498,135 +1494,7 @@ ok((await page.locator('.ex-menu').count()) === 1, '340 px: a real click on ⋮ 
 await page.keyboard.press('Escape');
 await page.setViewportSize({ width: 1280, height: 860 });
 
-// ---------------------------------------------------------------- collapse by support
-console.log('collapse by support');
-await open('rich-fish-carangaria-135');
-const nodeCount = () => ev(() => __v().getTree().nodeCount);
-const collapsedTips = () =>
-  ev(() => {
-    const t = __v().getTree();
-    const out = [];
-    for (let i = 1; i < t.nodeCount; i++) if (__v().layout.collapsed?.[i]) out.push(t.leafEnd[i] - t.leafStart[i]);
-    return out;
-  });
-const n0 = await nodeCount();
-// a clade whose own support is BELOW the threshold used below, so it is contracted unless it is kept (a clade with high support
-// would survive with or without `keep`)
-const weak = (lo, hi, skip = 0) =>
-  ev(
-    ([lo, hi, skip]) => {
-      const v = __v();
-      const t = v.getTree();
-      const sup = window.__explorerTree().support; // the page's tree: the viewer's snapshot has no support
-      for (let i = 1; i < t.nodeCount; i++) {
-        const c = t.leafEnd[i] - t.leafStart[i];
-        if (!v.layout.collapsed?.[i] && t.firstChild[i] >= 0 && c >= lo && c <= hi && sup[i] < 0.9 && skip-- <= 0) {
-          const q = v.locateNode(i);
-          if (q) return { node: i, tips: c, support: sup[i], x: q.x, y: q.y };
-        }
-      }
-      return null;
-    },
-    [lo, hi, skip],
-  );
-const keepMe = await weak(2, 12);
-ok(keepMe !== null && keepMe.support < 0.9, `the clade collapsed by hand has support ${keepMe?.support} (below the threshold)`);
-await collapseAt(keepMe);
-const rowsKept = await ev(() => __v().layout.rows);
-ok((await collapsedTips()).join() === String(keepMe.tips), 'a clade collapsed by hand');
-ok(
-  (await page.locator('button[aria-label="Collapse by support"]').isEnabled()) &&
-    (await page.locator('input[aria-label="Minimum support"]').count()) === 0,
-  'Collapse by support is available on a tree with posterior support',
-);
-// a coloured clade below the threshold must stay a node too
-const colMe = await weak(2, 12, 1);
-await colourVia(colMe, 'Teal');
-ok((await ev(() => __v().getClades().length)) === 1, `a clade of ${colMe.tips} tips coloured (support ${colMe.support})`);
-// a selected clade that collapse by support contracts: the selection moves to the clade that holds it, and the inspector stays open (#61)
-const selMe = await weak(2, 12, 2);
-await openMenu(selMe);
-await act('info');
-ok((await page.locator('.ex-info').count()) === 1 && (await ev(() => __v().getSelected())) === selMe.node, 'a weak clade selected, Info open');
-// the bootstrap value is styled like the other values of the inspector (#70)
-{
-  const ddStyles = await ev(() =>
-    [...document.querySelectorAll('.ex-info-rows dd')].map((d) => {
-      const c = getComputedStyle(d);
-      return { dt: d.previousElementSibling.textContent, colour: c.color, font: c.fontFamily, weight: c.fontWeight };
-    }),
-  );
-  const boot = ddStyles.find((d) => d.dt === 'Bootstrap');
-  ok(boot !== undefined && ddStyles.length >= 2, `the inspector of a clade shows Bootstrap (${ddStyles.map((d) => d.dt).join(', ')})`);
-  ok(
-    boot !== undefined && ddStyles.every((d) => d.colour === boot.colour && d.font === boot.font && d.weight === boot.weight),
-    `and its value has the colour, font and weight of the others (${boot && boot.colour})`,
-  );
-}
-await page.locator('button[aria-label="Collapse by support"]').click();
-await page.waitForTimeout(300);
-const thr = page.locator('input[aria-label="Minimum support"]');
-ok((await thr.inputValue()) === '0.7', 'the threshold starts at 0.7 on a 0 to 1 support scale');
-await thr.fill('0.99');
-await page.waitForTimeout(400);
-const n1 = await nodeCount();
-ok(n1 < n0, `a threshold of 0.99 contracts branches (${n0} → ${n1} nodes)`);
-ok((await page.locator('.ex-support-n').innerText()).includes('collapsed'), `the count: ${await page.locator('.ex-support-n').innerText()}`);
-ok(
-  (await collapsedTips()).join() === String(keepMe.tips),
-  `the clade collapsed by hand is still collapsed, with its ${keepMe.tips} tips, and a node of its own`,
-);
-ok((await ev(() => __v().getClades().length)) === 1, 'the coloured clade below the threshold is not contracted away');
-{
-  const sel = await ev(() => __v().getSelected());
-  ok(
-    (await page.locator('.ex-info').count()) === 1 && sel !== null && sel < (await nodeCount()),
-    `the selected clade was contracted: the inspector stays open on the clade that holds it (node ${sel})`,
-  );
-  await page.locator('.ex-info-head button').click();
-}
-// a dated tree stays dated: the contracted lengths go to the children, so the axis keeps "time before tips" and every tip stays at 0
-ok(
-  await ev(() => {
-    const t = __v().getTree();
-    const d = new Float64Array(t.nodeCount); // distance from the root, preorder
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (let i = 1; i < t.nodeCount; i++) {
-      d[i] = d[t.parent[i]] + (t.length[i] || 0);
-      if (t.firstChild[i] < 0) {
-        lo = Math.min(lo, d[i]);
-        hi = Math.max(hi, d[i]);
-      }
-    }
-    return hi - lo <= 1e-3 * hi;
-  }),
-  'collapse by support keeps the dated tree ultrametric (every tip at the same distance from the root)',
-);
-await thr.fill('0.5');
-await page.waitForTimeout(400);
-const n2 = await nodeCount();
-ok(n2 > n1 && n2 <= n0, `a lower threshold brings branches back (${n1} → ${n2})`);
-await page.locator('button[aria-label="Collapse by support"]').click();
-await page.waitForTimeout(400);
-ok(
-  (await nodeCount()) === n0 && (await ev(() => __v().layout.rows)) === rowsKept,
-  'switched off: the tree as it was, and the hand-collapsed clade still collapsed',
-);
-ok((await page.locator('input[aria-label="Minimum support"]').count()) === 0, 'the threshold hides with it');
-await open('rich-hcv-19');
-ok(
-  (await page.locator('button[aria-label="Collapse by support"]').count()) === 0 && (await page.locator('.ex-support').count()) === 0,
-  'a tree without support: the Collapse by support control is not in the DOM',
-);
-await open('rich-fish-carangaria-135');
-ok(
-  (await page.locator('.ex-support').count()) === 1 && (await page.locator('button[aria-label="Collapse by support"]').isEnabled()) === true,
-  'a tree with support: the control is back',
-);
-
-// every synthetic tree of the catalogue carries support (#55): Bootstrap draws values, and collapse by support at the default
-// threshold (0.7, or 70 on a 0 to 100 scale) contracts branches
+// every synthetic tree of the catalogue carries support (#55): Show support draws values
 console.log('support on every synthetic tree');
 {
   const catalogue = JSON.parse(
@@ -1661,14 +1529,8 @@ console.log('support on every synthetic tree');
     const hi = id.endsWith('-bootstrap') ? 100 : 1;
     ok(
       texts.length > 0 && texts.every((s) => Number(s) >= 0 && Number(s) <= hi),
-      `${id}: Bootstrap draws support values (${texts.slice(0, 6).join(' ')})`,
+      `${id}: Show support draws support values (${texts.slice(0, 6).join(' ')})`,
     );
-    const n0 = await nodeCount();
-    await page.locator('button[aria-label="Collapse by support"]').click();
-    await page.waitForFunction((n) => __v().getTree().nodeCount < n, n0, { timeout: 30000 }).catch(() => {});
-    const thr = await page.locator('input[aria-label="Minimum support"]').inputValue();
-    const n1 = await nodeCount();
-    ok(thr === (hi === 1 ? '0.7' : '70') && n1 < n0, `${id}: collapse by support below ${thr} changes the tree (${n0} → ${n1} nodes)`);
   }
 }
 
@@ -1696,7 +1558,6 @@ await page.waitForTimeout(250);
 await page.route('**/data/rich/edge-cases/duplicate-tip-labels.nwk', (r) => r.fulfill({ contentType: 'text/plain', body: '((a,b),(c,(d,e)));' }));
 await open('edge-duplicate-labels');
 ok(!(await ev(() => window.__explorerTree().hasLengths)), 'the stand-in tree has no branch lengths');
-ok((await page.locator('button[aria-label="Collapse by support"]').count()) === 0, 'a tree without lengths nor support: no Collapse by support');
 await moreButton().click();
 ok(
   (await moreItem('Show branch length').count()) === 0 &&

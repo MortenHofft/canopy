@@ -421,33 +421,6 @@ body {
   border-color: transparent;
   background: var(--ex-surface-20);
 }
-.ex-support {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.ex-num {
-  width: 58px;
-  font: inherit;
-  font-family: var(--ex-mono);
-  font-size: 11px;
-  padding: 4px 6px;
-  color: var(--ex-text);
-  background: var(--ex-surface-10);
-  border: 1px solid var(--ex-surface-30);
-  border-radius: 7px;
-}
-.ex-num:focus-visible {
-  outline: 2px solid var(--ex-primary);
-  outline-offset: 1px;
-}
-.ex-support-n {
-  font-family: var(--ex-mono);
-  font-size: 10.5px;
-  color: var(--ex-muted);
-  white-space: nowrap;
-}
 .ex-note {
   margin: 0;
   padding: 7px 14px;

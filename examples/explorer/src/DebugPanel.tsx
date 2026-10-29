@@ -67,7 +67,7 @@ function notes(debug: DebugInfo, p: Sample, asLoaded: boolean): string[] {
   const out: string[] = [];
   const r = debug.restore;
   if (debug.error) out.push(debug.error);
-  if (!asLoaded) out.push('The tree shown is edited or a part of it (Show only, collapse by support): a copied view restores on the tree as loaded.');
+  if (!asLoaded) out.push('The tree shown is edited or a part of it (Show only): a copied view restores on the tree as loaded.');
   if (!r) return out;
   if (!debug.matches) out.push(`The view restored is of ${treeText(r.tree)}: load it with the tree picker to get its viewport and collapsed clades.`);
   else {

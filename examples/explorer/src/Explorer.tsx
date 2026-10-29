@@ -1,7 +1,7 @@
 // The explorer: the styled showcase of the library. Its look started from Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree
 // pane, an inspector, a floating search, a colour palette, an export menu); it is built only from the public API of @canopy:
 // <TreeView> and its handle for the drawing, its props for clades / highlights / collapsed clades / columns / theme / the node menu,
-// its callbacks for clicks and hovers, tree-ops for every edit and view (focus, collapse by support) and the viewer's options and controls.
+// its callbacks for clicks and hovers, tree-ops for every edit and view (focus) and the viewer's options and controls.
 // Which control uses which API is the table in ../README.md.
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -31,7 +31,6 @@ type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'colour';
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
-const NO_NODES: number[] = [];
 /** Drill-down (tree-ops autoCollapse): the rows of the overview of the clade shown, and of a collapsed clade expanded in place. */
 const OVERVIEW_ROWS = 50;
 const EXPAND_ROWS = 20;
@@ -104,8 +103,8 @@ const cssVar = (name: string) => getComputedStyle(document.documentElement).getP
 /** A pointer click on the triangle of a collapsed clade expands it (drill-down); a click on its branch, or Enter, opens its menu. */
 const expandsOnClick = (e: TreeNodeEvent) => e.collapsed && e.kind === 'summary' && e.via === 'pointer' && !e.run;
 
-/** The selected node (of the tree) in the ids of what is shown: itself, or the nearest ancestor the view keeps (collapse by support
- *  contracts inner nodes into their parent; the selection then moves to that clade, as the viewer's does to a collapsed clade). Null when
+/** The selected node (of the tree) in the ids of what is shown: itself, or the nearest ancestor the view keeps (Show only leaves
+ *  nodes out; the selection then moves to the clade that holds it, as the viewer's does to a collapsed clade). Null when
  *  nothing is selected or the view shows none of them. */
 function shownSelection(selected: number | null, view: { toView: Int32Array } | null, parent: ArrayLike<number>): number | null {
   if (selected === null || !view) return selected;
@@ -117,54 +116,6 @@ function shownSelection(selected: number | null, view: { toView: Int32Array } | 
 /** Whether the "Scroll to zoom" hint is drawn. The rectangular one shares the bottom-right corner with the viewer's clade legend, so it gives way while that shows. */
 function hintShown(gone: boolean, layout: Layout, legendOn: boolean, shownCladeCount: number): boolean {
   return !gone && (layout === 'radial' || !(legendOn && shownCladeCount > 0));
-}
-
-// The Collapse by support control, with the divider before it. Not rendered at all for a tree without support values.
-function SupportGroup(p: {
-  range: { lo: number; hi: number } | null;
-  step: number;
-  threshold: number;
-  active: boolean;
-  collapsedCount: number;
-  onToggle: () => void;
-  onThreshold: (x: number) => void;
-}) {
-  if (!p.range) return null;
-  return (
-    <>
-      <div className="ex-divider" />
-      <div className="ex-support">
-        <button
-          type="button"
-          className={`ex-btn ex-toggle${p.active ? ' active' : ''}`}
-          aria-label="Collapse by support"
-          aria-pressed={p.active}
-          title="Collapse the branches with support below the threshold into polytomies. A view only: switch it off or lower the threshold to get them back. Clades you collapsed stay collapsed."
-          onClick={p.onToggle}
-        >
-          <J.IconSupport />
-          Support
-        </button>
-        {p.active && (
-          <>
-            <input
-              className="ex-num"
-              type="number"
-              aria-label="Minimum support"
-              title={`Support below this is collapsed (the tree's support runs ${p.range.lo} to ${p.range.hi})`}
-              value={p.threshold}
-              min={0}
-              step={p.step}
-              onChange={(e) => e.target.value !== '' && p.onThreshold(Number(e.target.value))}
-            />
-            <span className="ex-support-n" role="status">
-              {p.collapsedCount ? `${p.collapsedCount.toLocaleString('en')} collapsed` : 'none below'}
-            </span>
-          </>
-        )}
-      </div>
-    </>
-  );
 }
 
 type Inside = { names: NamedDescendant[]; more: boolean };
@@ -287,8 +238,6 @@ export function Explorer({
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>(init.collapsed); // clades the user collapsed (ids of `tree`)
   const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Back and Up one level (tree-ops focus)
-  const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
-  const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [showOverview, setShowOverview] = useState(false);
   // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
@@ -329,29 +278,10 @@ export function Explorer({
   const [toast, setToast] = useState<string | null>(null);
   const [height, setHeight] = useState(defaultHeight);
 
-  // ---- what is shown: a VIEW of the current tree, not a step in its history. First the clade shown alone (focus), then the branches
-  // below the support threshold collapsed (collapseBySupport). Both make a different tree, so node ids shift: `toView` maps a node of
-  // `tree` to the view (-1: hidden), `toTree` the other way. The clades the user collapsed are NOT part of it: the viewer collapses them
-  // on the tree it is given (`collapsed` below, in the view's ids), and collapseBySupport leaves them alone (`keep`).
-  const supportRange = useMemo(() => {
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const v of tree.support) {
-      if (Number.isNaN(v)) continue;
-      if (v < lo) lo = v;
-      if (v > hi) hi = v;
-    }
-    return lo <= hi ? { lo, hi } : null;
-  }, [tree]);
-  const hasSupport = supportRange !== null;
-  const supportStep = supportRange && supportRange.hi <= 1 ? 0.05 : 1; // files differ: 0.95 or 95
-  const threshold = minSupport ?? (supportStep < 1 ? 0.7 : 70);
-  const supportActive = supportOn && hasSupport;
-  // Nodes collapse by support must keep (ids of `tree`): the clades collapsed by hand, which the viewer draws as one triangle, and the
-  // coloured clades, which would vanish into their parent. Empty while it is off, so a collapse or a colour alone does not rebuild the view.
-  const protectedNodes = useMemo(() => (supportActive ? [...collapsed, ...clades.map((c) => c.node)] : NO_NODES), [supportActive, collapsed, clades]);
-  // a dated tree stays dated: the contracted edge's length goes to its children, so the time axis does not change
-  const dated = useMemo(() => supportActive && tree.hasLengths && tree.isUltrametric(1e-3), [supportActive, tree]);
+  // ---- what is shown: a VIEW of the current tree, not a step in its history: the clade shown alone (focus). It makes a different tree, so
+  // node ids shift: `toView` maps a node of `tree` to the view (-1: hidden), `toTree` the other way. The clades the user collapsed are NOT
+  // part of it: the viewer collapses them on the tree it is given (`collapsed` below, in the view's ids).
+  const hasSupport = useMemo(() => tree.support.some((v) => !Number.isNaN(v)), [tree]);
   const view = useMemo(() => {
     const acc: { shown: TreeModel; toView: Int32Array | null } = { shown: tree, toView: null }; // toView: tree -> shown, composed
     const step = (r: ops.OpResult) => {
@@ -361,17 +291,10 @@ export function Explorer({
       return true;
     };
     step(ops.showFocus(tree, focus));
-    let supportCollapsed = 0;
-    if (supportActive) {
-      const before = acc.shown.nodeCount;
-      // a clade the viewer collapses keeps its node (tree-ops' `keep`), in the ids of what is shown
-      const keep = protectedNodes.map((v) => (acc.toView ? acc.toView[v] : v)).filter((k) => k > 0);
-      if (step(ops.collapseBySupport(acc.shown, threshold, { keep, extend: dated }))) supportCollapsed = before - acc.shown.nodeCount;
-    }
     const { shown, toView } = acc;
     if (!toView) return null;
-    return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount), supportCollapsed };
-  }, [tree, focus, supportActive, threshold, protectedNodes, dated]);
+    return { tree: shown, toView, toTree: ops.invertMap(toView, shown.nodeCount) };
+  }, [tree, focus]);
   const shown = view?.tree ?? tree;
   // a node of what is shown -> the node of `tree` an action works on; -1 for an id the shown tree does not have. The hover box is rendered
   // with the last hover event, which can hold an id of the tree shown BEFORE Show only / Up / Back changed it.
@@ -390,7 +313,7 @@ export function Explorer({
         : clades,
     [view, clades],
   );
-  // the collapsed clades in the shown tree's ids (a clade that focus left out, or that collapse by support contracted into its parent, has none)
+  // the collapsed clades in the shown tree's ids (a clade that focus left out has none)
   const collapsedIds = useMemo(
     () => (view ? collapsed.map((v) => view.toView[v]) : collapsed).filter((k) => k > 0 && k < shown.nodeCount),
     [collapsed, view, shown],
@@ -593,7 +516,7 @@ export function Explorer({
   };
   // ---- drill-down (#57): the overview of the clade shown (its largest clades open, the rest collapsed, about OVERVIEW_ROWS rows), and
   // on a collapsed clade expand in place (a click) or jump into it (Show only). tree-ops mergeAutoCollapse replaces the collapsed clades
-  // inside the clade by its own overview and keeps the others. Rows are counted on `tree`, before collapse by support.
+  // inside the clade by its own overview and keeps the others. Rows are counted on `tree`.
   const overviewOfShown = () => {
     const root = Math.max(0, ops.focusedNode(focus));
     const next = ops.mergeAutoCollapse(tree, collapsed, { root, maxRows: OVERVIEW_ROWS });
@@ -955,15 +878,6 @@ export function Explorer({
             <span className="ex-count">{clades.length}</span>
           </button>
         )}
-        <SupportGroup
-          range={supportRange}
-          step={supportStep}
-          threshold={threshold}
-          active={supportActive}
-          collapsedCount={view?.supportCollapsed ?? 0}
-          onToggle={() => setSupportOn((o) => !o)}
-          onThreshold={setMinSupport}
-        />
         {(collapsed.length > 0 || shown.tipCount > OVERVIEW_ROWS) && <div className="ex-divider" />}
         {shown.tipCount > OVERVIEW_ROWS && (
           <>

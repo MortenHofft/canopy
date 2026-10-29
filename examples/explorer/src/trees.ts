@@ -46,7 +46,7 @@ export async function loadTree(id: string, o: LoadOptions = {}): Promise<Loaded>
   const bytes = src.length; // before the bytes are transferred to the worker
   const { tree } = await parseInWorker(src, { format: t.format, annotations: t.supportKey !== undefined, ...o });
   // a BEAST MCC tree keeps its support as [&posterior=0.98], not as an internal label: copy it to where tree.support is read (the
-  // bootstrap labels, the inspector, collapse by support), as supportFrom's documentation says
+  // bootstrap labels, the inspector), as supportFrom's documentation says
   if (t.supportKey && !tree.support.some((v) => !Number.isNaN(v))) tree.support.set(supportFrom(tree, t.supportKey));
   return { tree, fasta: fa === null ? null : parseFasta(fa.text), bytes };
 }

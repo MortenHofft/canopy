@@ -34,13 +34,6 @@ export const IconReset = () => (
     <path d="M5.5 6.5h3a3 3 0 0 1 0 6H7.5" {...s} strokeWidth="1.5" />
   </svg>
 );
-/** Collapse by support: a fork whose weak branches fold into one stem. */
-export const IconSupport = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M1.5 7H5M5 7L8 3.5h4.5M5 7l3 3.5h4.5" {...s} strokeWidth="1.4" />
-    <path d="M9.5 6.5v1M11.5 6.5v1" {...s} strokeWidth="1.2" />
-  </svg>
-);
 /** Node information. */
 export const IconInfo = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
