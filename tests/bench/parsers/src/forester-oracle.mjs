@@ -5,8 +5,8 @@
 // the Python reference). We never link Forester into Canopy; it runs as an external process
 // and we compare verdicts.
 //
-// Prereq: `javac -cp /home/user/cmzmasek/forester/forester/java/forester.jar -d build
-//          src/ForesterOracle.java` has already produced `build/ForesterOracle.class`.
+// Prereq: `javac -cp $FORESTER_JAR -d build src/ForesterOracle.java` (FORESTER_JAR is required: the path to
+//          forester.jar, built from https://github.com/cmzmasek/forester in forester/java/) has already produced `build/ForesterOracle.class`.
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -15,7 +15,11 @@ import { loadEdgeFixtures } from './edge-fixtures.mjs';
 
 const COLORS = { reset: '\x1b[0m', dim: '\x1b[2m', green: '\x1b[32m', yellow: '\x1b[33m', red: '\x1b[31m', cyan: '\x1b[36m' };
 
-const FORESTER_JAR = '/home/user/cmzmasek/forester/forester/java/forester.jar';
+const FORESTER_JAR = process.env.FORESTER_JAR;
+if (!FORESTER_JAR) {
+  console.error('FORESTER_JAR is not set: point it at forester.jar (build https://github.com/cmzmasek/forester, forester/java/forester.jar).');
+  process.exit(1);
+}
 const BUILD_DIR = 'build';
 
 function sameLabels(a, b) {

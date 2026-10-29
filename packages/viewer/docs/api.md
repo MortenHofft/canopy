@@ -355,7 +355,7 @@ Exceptions to the rule:
 
 Hard cases that follow the rule: `alignStyle` is an option (residues or blocks change what is drawn) while its colours and `alignRowGap` (an inset inside a row) are theme; `minCladePx` is an option (a level-of-detail threshold); `ariaLabel` is an option (text for assistive technology); `categorical` is theme (a comma list of colours in CSS).
 
-Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `NODE_LABEL_GAP_PX` (3, support to its node, at least the marker's half size plus 1), `NODE_LABEL_PAD_PX` (3, free space each side of a node label within its branch), `NODE_LABEL_LIFT_PX` (2, branch line to the text's baseline) and `NODE_LABEL_MIN_SEG_PX` (10, a branch shorter than this gets no label) in `draw.ts`, `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `draw.ts`, the column header font (`columns.ts`), the font size of text columns (`columns.ts`) and the keyboard cursor's ring (`CURSOR_RING_RADIUS` 10 and `CURSOR_RING_WIDTH` 2.5, in `highlight`, in `viewer.ts`). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
+Known gaps: some looks are still constants in the drawing code, neither theme nor option. They are `NODE_LABEL_GAP_PX` (3, support to its node, at least the marker's half size plus 1), `NODE_LABEL_PAD_PX` (3, free space each side of a node label within its branch), `NODE_LABEL_LIFT_PX` (2, branch line to the text's baseline) and `NODE_LABEL_MIN_SEG_PX` (10, a branch shorter than this gets no label) in `labels.ts`, `LABEL_GAP_PX` (8, tip or aligned column to the label text) and `LEADER_END_GAP_PX` (3, a leader stops this far before its label) in `labels.ts`, the column header font (`columns.ts`), the font size of text columns (`columns.ts`) and the keyboard cursor's ring (`CURSOR_RING_RADIUS` 10 and `CURSOR_RING_WIDTH` 2.5, in `highlight`, in `viewer.ts`) and its box (`drawCursorBox` in `top-canvas.ts`: alpha 0.5, line width 1). Moving them to theme tokens is open work. The audit above covers the `ViewerOptions` and `TreeTheme` fields, not these constants.
 
 ## Theme ([`src/theme.ts`](../src/theme.ts))
 
@@ -577,7 +577,7 @@ zooms along x.
 With `switchView: 'keep'` (the default) a zoomed view keeps its place when `layout` (rectangular <-> radial) or `branchLengths`
 (phylogram <-> cladogram) changes (#56). What is kept is the set of tips in view (a collapsed clade counts as one) and their tip pitch,
 the px between neighbouring tips that decides whether labels are drawn; the selection plays no part (a selected node out of view stays out of view).
-The pure functions behind it are `viewContent` and `placeContent` in `src/view-keep.ts` (not exported).
+The pure functions behind it are `viewContent` and `placeContent` in `src/view-carry.ts` (not exported).
 
 - **The tips in view.** Rectangular: the rows of the y window. Radial: the tips in the ellipse inscribed in the window (the ones in its
   corners are left out: a box across an arc holds more of it than a band of the same height, so taking them would zoom out a little more

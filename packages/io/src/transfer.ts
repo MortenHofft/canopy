@@ -8,7 +8,8 @@
 // Everything here also runs in Node, so the protocol is tested without a worker.
 
 import { Annotations, type AnnotationRecord } from './annotations.ts';
-import { parseNewick, parseNexus, type NexusResult, type ParseOptions } from './newick.ts';
+import { parseNewick, type ParseOptions } from './newick.ts';
+import { parseNexus, type NexusResult } from './nexus.ts';
 import { TreeModel, type ParserWarning } from './tree.ts';
 
 /** A tree file to parse: its text, its bytes (UTF-8, gzipped or not: told by content) or a Blob / File. */

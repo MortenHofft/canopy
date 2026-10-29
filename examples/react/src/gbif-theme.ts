@@ -2,7 +2,7 @@
 // Single source of truth stays gbif-tokens.css: this reads the computed custom properties at runtime, so
 // a change to a token there reaches both the CSS-styled UI and the canvas-drawn tree. Never hardcode hex here.
 //
-// Usage:  import './gbif-tokens.css'; import { gbifTheme } from '../shared/gbif-theme';
+// Usage:  import '../../shared/gbif-tokens.css'; import { gbifTheme } from './gbif-theme';
 //         const t = gbifTheme();  // t.primary, t.danger, t.fg1, ... resolved colours (#rrggbb or rgb())
 
 export interface GbifTheme {

@@ -199,7 +199,7 @@ for (const [name, load] of TREES.slice(0, 2)) {
 // the cost of the mapping (viewContent + placeContent), once per switch, on OTL 100k when it is there (git-ignored, fetched by script)
 const big = path.join(D, 'real-ladder/trees/otl-100k-vertebrata.nwk.gz');
 if (fs.existsSync(big)) {
-  const { viewContent, placeContent } = await import('../src/view-keep.ts');
+  const { viewContent, placeContent } = await import('../src/view-carry.ts');
   const tree = parseNewick(zlib.gunzipSync(fs.readFileSync(big)).toString('utf8'));
   const { viewer: v, env } = await makeViewer(tree, { size: SIZE });
   env.flush();

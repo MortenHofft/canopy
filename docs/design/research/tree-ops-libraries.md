@@ -2,7 +2,7 @@
 
 # Tree-operation libraries: use, port, or borrow? (checked 2026-10-20)
 
-Method: npm registry JSON, crates.io API, PyPI JSON, shallow git clones of the repos (source read at HEAD), npm tarballs and the phylocanvas.gl source map. Commit dates are HEAD of the shallow clone. GitHub API was not reachable from this session, so release tags/stars are not recorded. Existing repo notes (docs/design/data-layer.md, phylotree-js.md, taxonium.md, phylocanvas-gl.md, react-bio-viz.md) were read first and not redone.
+Method: npm registry JSON, crates.io API, PyPI JSON, shallow git clones of the repos (source read at HEAD), npm tarballs and the phylocanvas.gl source map. Commit dates are HEAD of the shallow clone. GitHub API was not reachable from this session, so release tags/stars are not recorded. Existing repo notes (docs/design/research/data-layer.md, phylotree-js.md, taxonium.md, phylocanvas-gl.md, react-bio-viz.md) were read first and not redone.
 
 Ops key: RR reroot (E = on edge with position, N = on node only), MP midpoint, LD ladderise, RO rotate/swap, CO collapse by support/length, PR prune to tip subset with unary suppression, SU subtree extraction; extras in brackets. "Support moved" = whether internal-node support labels follow their edge when the root path is reversed.
 

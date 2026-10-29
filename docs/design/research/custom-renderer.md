@@ -1,15 +1,15 @@
 # Custom React renderer: feasibility, architecture and effort
 
-> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../packages/viewer/docs/api.md)).
+> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../../packages/viewer/docs/api.md)).
 
-Part A of the "build it ourselves" assessment. Judged against [goal.md](../goal.md) criteria 1 to 16. Companion document: [data-layer.md](data-layer.md).
+Part A of the "build it ourselves" assessment. Judged against `goal.md` on the `research` branch criteria 1 to 16. Companion document: [data-layer.md](data-layer.md).
 
 Evidence conventions: **verified** = read in source or docs fetched during this research (URL or file given); **measured** = run by us (own prototype, Node 22, 4 vCPU sandbox, no browser available, so no frame-rate numbers); **UNVERIFIED** = general knowledge or not confirmed. Repos were cloned read-only into the scratchpad and nothing from them was executed.
 
 ## 1. Summary
 
 - A custom renderer is feasible and is the only route that satisfies criteria 11 to 14 and 16 by construction (React callbacks, aligned React-rendered columns, semantic zoom, theming). Nothing in the existing-library field was found to do all of these.
-- The heavy parts are not the drawing but (a) a typed-array data core with O(n) layout, (b) viewport-driven level of detail (LOD), and (c) the column/summary system. These are the same ideas ETE uses ([ete-ideas.md](../ete-ideas.md)); the open-source implementations that show them (Taxonium, Empress, Phylo.io, OneZoom) are either GPL, source-available, or only partly reusable (section 9).
+- The heavy parts are not the drawing but (a) a typed-array data core with O(n) layout, (b) viewport-driven level of detail (LOD), and (c) the column/summary system. These are the same ideas ETE uses ([ete-ideas.md](ete-ideas.md)); the open-source implementations that show them (Taxonium, Empress, Phylo.io, OneZoom) are either GPL, source-available, or only partly reusable (section 9).
 - Own prototype (measured): a 1M-tip tree parses to struct-of-arrays in about 1.5 s, lays out in 0.3 s, and the per-frame LOD cut costs well under 1 ms of CPU on balanced trees. The data side is not the bottleneck at 1M tips. Drawing and labels are.
 - Caterpillar-like (ladderised, deeply nested) trees defeat a pure "clade pixel height" LOD rule (measured, section 6.3). Real GBIF trees may be ladderised, so the LOD rule needs a second criterion.
 

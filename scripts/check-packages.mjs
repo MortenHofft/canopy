@@ -77,6 +77,18 @@ const SCENARIOS = [
   {
     name: 'io: parseNewick only',
     code: `import { parseNewick } from '@canopy/io'; console.log(parseNewick('(a,b);'));`,
+    forbid: [
+      'packages/io/dist/nexus.js',
+      'packages/io/dist/sidecar.js',
+      'packages/io/dist/phyloxml.js',
+      'packages/io/dist/worker.js',
+      'packages/io/dist/transfer.js',
+    ],
+  },
+  {
+    // the NEXUS reader reads each tree with parseNewick, so that is bundled with it; nothing else of the package is
+    name: 'io: parseNexus only',
+    code: `import { parseNexus } from '@canopy/io'; console.log(parseNexus('#NEXUS\\nBEGIN TREES;\\nTREE t = (a,b);\\nEND;'));`,
     forbid: ['packages/io/dist/sidecar.js', 'packages/io/dist/phyloxml.js', 'packages/io/dist/worker.js', 'packages/io/dist/transfer.js'],
   },
   {

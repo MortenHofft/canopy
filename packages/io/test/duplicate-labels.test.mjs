@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseNewick, parseNexus } from '../src/newick.ts';
+import { parseNewick } from '../src/newick.ts';
+import { parseNexus } from '../src/nexus.ts';
 
 const DATA = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 const text = fs.readFileSync(path.join(DATA, 'rich/edge-cases/duplicate-tip-labels.nwk'), 'utf8');

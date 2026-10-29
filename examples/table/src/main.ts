@@ -10,7 +10,7 @@
 // scroll.ts, the header row header.ts.
 
 import '@canopy/viewer/viewer.css';
-import '../../react/src/gbif-tokens.css';
+import '../../shared/gbif-tokens.css';
 import '@canopy/viewer/gbif.css';
 import './style.css';
 import { OverviewControl, Search, TreeViewer, type Column, type TreeEvent } from '@canopy/viewer';

@@ -4,7 +4,7 @@
 //   npm run bench:posterior -- [--trees 10000] [--tips 200] [--annotated]   (from packages/io)
 // --annotated puts a BEAST-style comment on every node (`[&rate=...,height=...]`), as a summary tree or a posterior with
 // per-node statistics has.
-import { nexusIndex, nexusTrees } from '../src/newick.ts';
+import { nexusIndex, nexusTrees } from '../src/nexus.ts';
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(name);

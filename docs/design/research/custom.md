@@ -1,6 +1,6 @@
 # Custom baseline 0.1.0 (2026-10-14)
 
-> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../packages/viewer/docs/api.md)).
+> Note: this describes the research code and predates #30 and #78. It names nodes with `nodeId` and string ids like `'n123'`; in the library nodes are plain numbers (see [the API reference](../../../packages/viewer/docs/api.md)).
 
 Own renderer in `spikes/custom/` (typed arrays from `shared/tree.ts`, Canvas2D, viewport level of detail, React `<TreeView>`), no tree or rendering library, only `react` and `react-dom` 18.3.1 at runtime. Licence of our code: Apache-2.0. Built to set the performance ceiling and the API shape the libraries are judged against. Chromium 141 headless (`/opt/pw-browsers/chromium-1194`), 4 vCPU, no GPU, runner flags as in CONTRACT.md (`--disable-gpu-rasterization`), **machine shared with five other agents (load average 10 to 17 on 4 cores during most runs)**.
 

@@ -1,6 +1,6 @@
 # TreeSource slice for the custom renderer: in-memory behind an interface, and a Parquet source that loads the overview only
 
-Date 2026-10-20. Code: `spikes/custom/src/core/source.ts` (interface, `InMemorySource`), `spikes/custom/src/parquet/` (`ParquetSource`, dev page), `spikes/custom/scripts/check-parquet-source.mjs` (functional check). Starting point: the proposal in `spikes/parquet-experiment/proposal/tree-source.ts` and section 8 of [parquet-experiment.md](parquet-experiment.md). Evidence levels: **M** measured here (headless Chromium 141, no GPU, 4 cores, shared sandbox), **S** read from source, **E** estimate (unverified).
+Date 2026-10-20. Code: `spikes/custom/src/core/source.ts` (interface, `InMemorySource`), `spikes/custom/src/parquet/` (`ParquetSource`, dev page), `spikes/custom/scripts/check-parquet-source.mjs` (functional check). Starting point: the proposal in `spikes/parquet-experiment/proposal/tree-source.ts` and section 8 of `parquet-experiment.md` on the `research` branch. Evidence levels: **M** measured here (headless Chromium 141, no GPU, 4 cores, shared sandbox), **S** read from source, **E** estimate (unverified).
 
 ## 1. Short answer
 
