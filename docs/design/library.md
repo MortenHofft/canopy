@@ -73,8 +73,15 @@ hit code are unchanged, the 168 cut goldens are unchanged, there is no per-node 
   map, with `viewer.css` as a stylesheet. `examples/no-build` does exactly that, and `tests/browser/scripts/check-no-build.mjs` checks it from a
   plain static server.
 * **Opaque canvas by default.** The main canvas is created with `alpha: false`, which lets a browser skip blending when it composites it; it
-  gets an alpha channel only while `--phylo-background` is not opaque. The opaque default is kept. The cost of alpha against opaque (frame and
-  composite time at 10k and 190k tips) was never measured: **unverified**, pending testing in a real browser with a GPU (#2). The order of
+  gets an alpha channel only while `--phylo-background` is not opaque. The opaque default is kept. Measured in #25 with a benchmark page that
+  redrew one tree every frame, opaque and alpha alternating on a fresh viewer (zoomed view, 1400x800 canvas, device pixel ratio 2, 300 frames x
+  3 rounds; the page is commit c317455 on the unmerged branch `alpha-canvas-bench`). In a real browser both canvases held the display rate:
+  median and mean frame interval 16.7 ms for opaque and alpha at 10k and at 190k tips, p95 17.5 against 17.4 ms (10k) and 17.2 against 17.1 ms
+  (190k). The JS time of the redraw was 2.3 ms for both at 10k and 2.7 ms opaque against 3.3 ms alpha at 190k (it leaves out raster and
+  compositing; a headless run without a GPU had alpha faster, so treat the difference as noise). So alpha costs nothing measurable at 60 Hz,
+  and a transparent `--phylo-background` is fine to recommend; the opaque default stays because it is free. Limits: the interval is capped by
+  the display, so this shows that no frame was missed, not how much headroom there is; the whole-tree view was not run; the browser, GPU and
+  refresh rate were not recorded; other browsers, GPUs and displays are **unverified**. The order of
   the frame (`clearRect` before the background fill only on an alpha canvas) is unit-tested (`packages/viewer/test/viewer.test.mjs`).
 * **Only partly tested.** As in the spike, the browser tests ran in headless Chromium without a GPU. Other browsers, touch devices and screen
   readers were not tested with the new controls and popups (**unverified**).
