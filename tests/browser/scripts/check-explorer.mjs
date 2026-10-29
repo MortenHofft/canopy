@@ -94,6 +94,12 @@ const click = async (p) => {
 };
 const btn = (text) => page.locator('.ex-outer button', { hasText: text }).first();
 // the ⋮ menu (branch style, legend, minimap, align labels, truncate names, support, length, ladderize, export): open it, use an item; a toggle leaves it open, so close it
+// Undo has no button: Ctrl+Z with the focus on the tree
+const undo = async () => {
+  await page.locator('.phylo-tree').focus();
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+};
 const moreButton = () => page.locator('button[aria-label="More options"]');
 const moreMenu = () => page.locator('.ex-menu');
 const moreItem = (name) => moreMenu().locator('[role^=menuitem]', { hasText: name });
@@ -646,11 +652,11 @@ const rt = await ev(() => __v().getTree().tipLabels[5]);
 await openMenu(await ev((l) => __tipAt(l), rt));
 await act('reroot');
 await page.waitForTimeout(200);
-ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'Reroot here on a tip changes the tree, Undo appears');
+ok((await ev(() => __order())) !== o0 && (await btn('Reset').count()) === 1, 'Reroot here on a tip changes the tree, Reset appears');
 await page.locator('.ex-outer').press('Escape');
-await btn('Undo').click();
+await undo();
 await page.waitForTimeout(200);
-ok((await ev(() => __order())) === o0 && (await btn('Undo').count()) === 0, 'Undo restores the tree');
+ok((await ev(() => __order())) === o0 && (await btn('Reset').count()) === 0, 'Undo restores the tree');
 ok((await ev(() => __v().getClades().length)) === 1, 'and the colour');
 await openMenu(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[9])));
 await act('reroot');
@@ -700,7 +706,7 @@ await page.waitForTimeout(300);
 ok((await ev(() => __order())) !== orderZ, 'Ladderize reordered the tree');
 ok(await ev(() => __v() === window.__viewer && !__v().isDestroyed()), 'the edit went to the same renderer (no new one)');
 await page.keyboard.press('Escape');
-await btn('Undo').click();
+await undo();
 await page.waitForTimeout(300);
 ok((await ev(() => __order())) === orderZ, 'Undo returns the tree');
 ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
@@ -1156,8 +1162,8 @@ await act('subtree');
 await page.waitForTimeout(300);
 await ladder('descending');
 await page.waitForTimeout(300);
-ok((await tipCount()) === c60.tips && (await btn('Undo').count()) === 1, 'Ladderize inside the clade shown keeps it shown');
-await btn('Undo').click();
+ok((await tipCount()) === c60.tips && (await btn('Reset').count()) === 1, 'Ladderize inside the clade shown keeps it shown');
+await undo();
 await page.waitForTimeout(300);
 ok((await tipCount()) === c60.tips, 'and so does Undo');
 
@@ -1275,7 +1281,7 @@ console.log('reroot inside a clade shown alone');
   await btn('Back').click();
   await page.waitForTimeout(300);
   const wholeTips = await tipCount();
-  await btn('Undo').click();
+  await undo();
   await page.waitForTimeout(400);
   ok((await tipCount()) === wholeTips && wholeTips > c.tips, `Undo leaves the navigation alone (the whole tree stays shown, ${wholeTips} tips)`);
 }
@@ -1646,8 +1652,8 @@ await ladder('ascending');
 await page.waitForTimeout(250);
 const smallFirst = await firstClade();
 ok(smallFirst < bigFirst, `ascending puts a smaller top-level clade first than descending (${smallFirst} < ${bigFirst})`);
-await btn('Undo').click();
-await btn('Undo').click();
+await undo();
+await undo();
 await page.waitForTimeout(250);
 // a tree without branch lengths (a Newick of our own, served in place of a small catalogue file): no "height" option, no phylogram
 await page.route('**/data/rich/edge-cases/duplicate-tip-labels.nwk', (r) => r.fulfill({ contentType: 'text/plain', body: '((a,b),(c,(d,e)));' }));
@@ -1707,7 +1713,7 @@ await moreToggle('Tooltips');
 await moreButton().click();
 await moreItem('Ladderize ascending').click();
 ok((await moreMenu().count()) === 0, 'a ladderize item closes the menu');
-await btn('Undo').click();
+await undo();
 await moreButton().click();
 await page.mouse.click(5, 5);
 ok((await moreMenu().count()) === 0, 'a press outside closes it');
@@ -1972,15 +1978,13 @@ console.log('undo within a memory budget (#44)');
     o.every((x, i) => i === 0 || x !== o[i - 1]),
     'four edits, each changes the tree',
   );
-  ok((await btn('Undo').count()) === 1 && (await btn('Reset').count()) === 1 && (await note().count()) === 0, 'Undo and Reset are offered');
-  await btn('Undo').click();
-  await page.waitForTimeout(200);
+  ok((await btn('Reset').count()) === 1 && (await note().count()) === 0, 'Reset is offered, and no note: Undo (Ctrl+Z) works');
+  await undo();
   ok((await ev(() => __order())) === o[3], 'Undo goes back one edit');
-  await btn('Undo').click();
-  await page.waitForTimeout(200);
+  await undo();
   ok((await ev(() => __order())) === o[2], 'and another');
   ok(
-    (await btn('Undo').count()) === 0 && (await btn('Reset').count()) === 1 && /dropped/.test(await note().innerText()),
+    (await note().count()) === 1 && (await btn('Reset').count()) === 1 && /dropped/.test(await note().innerText()),
     `the oldest step was dropped: Undo stops there, Reset stays, a note says why ("${(await note().count()) ? await note().innerText() : ''}")`,
   );
   await page.locator('.phylo-tree').focus();
@@ -1995,10 +1999,7 @@ console.log('undo within a memory budget (#44)');
   await lad('descending');
   await lad('ascending');
   ok(
-    (await ev(() => __order())) === o[2] &&
-      (await btn('Undo').count()) === 0 &&
-      (await btn('Reset').count()) === 1 &&
-      /too large/.test(await note().innerText()),
+    (await ev(() => __order())) === o[2] && (await btn('Reset').count()) === 1 && /too large/.test(await note().innerText()),
     `a tree larger than the budget: Reset only ("${(await note().count()) ? await note().innerText() : ''}")`,
   );
   await page.locator('.phylo-tree').focus();

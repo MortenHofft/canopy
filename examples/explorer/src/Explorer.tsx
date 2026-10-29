@@ -76,17 +76,11 @@ function trimHistory(h: Step[], budget: number): Step[] {
   return h;
 }
 
-/** Undo (only while a step is available) and Reset, shown once there is an edit; a note says why when Undo is off for the tree or
- *  stops at a dropped step. */
-function UndoControls(p: { canUndo: boolean; undoOn: boolean; onUndo: () => void; onReset: () => void }) {
+/** Reset, shown once there is an edit (Undo is Ctrl/Cmd+Z, with no button); a note says why when Undo is off for the tree or stops at
+ *  a dropped step. */
+function UndoControls(p: { canUndo: boolean; undoOn: boolean; onReset: () => void }) {
   return (
     <>
-      {p.canUndo && (
-        <button type="button" className="ex-btn ex-fade" title="Undo last action" onClick={p.onUndo}>
-          <I.IconUndo />
-          Undo
-        </button>
-      )}
       <button type="button" className="ex-btn ex-fade" title="Back to the tree as published" onClick={p.onReset}>
         <J.IconReset />
         Reset
@@ -954,7 +948,7 @@ export function Explorer({
 
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
-        {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onUndo={undo} onReset={() => back(0)} />}
+        {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onReset={() => back(0)} />}
         {(ops.canGoBack(focus) || ops.canGoUp(focus)) && (
           <>
             <div className="ex-group" role="group" aria-label="Clade shown">
