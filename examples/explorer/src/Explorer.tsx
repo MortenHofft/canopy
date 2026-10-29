@@ -939,9 +939,9 @@ export function Explorer({
     );
     switch (mode) {
       case 'reroot':
-        return tag('reroot', <I.IconReroot size={11} />, 'Set as root');
+        return tag('reroot', null, 'Set as root');
       case 'flip':
-        return tag('flip', <I.IconFlip />, 'Flip subtree');
+        return tag('flip', null, 'Flip subtree');
       case 'swap':
         return tag(
           'swap',

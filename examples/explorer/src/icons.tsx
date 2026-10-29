@@ -100,20 +100,6 @@ export const IconUndo = () => (
     <path d="M2 3.5V7h3.5" {...s} strokeWidth="1.5" />
   </svg>
 );
-export const IconReroot = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 14 14" fill="none">
-    <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M7 1v2M7 11v2M1 7h2M11 7h2" {...s} strokeWidth="1.5" />
-    <path d="M3.2 3.2l1.4 1.4M9.4 9.4l1.4 1.4M9.4 4.6L8 6M5.4 8l-1.4 1.4" {...s} strokeWidth="1.2" />
-  </svg>
-);
-export const IconFlip = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M3 4V10M3 4L1 6M3 4L5 6" {...s} strokeWidth="1.4" />
-    <path d="M11 10V4M11 10L9 8M11 10L13 8" {...s} strokeWidth="1.4" />
-    <path d="M7 2v10" {...s} strokeWidth="1.2" strokeDasharray="2 2" />
-  </svg>
-);
 export const IconPalette = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path
