@@ -209,7 +209,7 @@ function SupportGroup(p: {
 }
 
 function Slider(p: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label?: string;
   title: string;
   value: number;
@@ -223,7 +223,7 @@ function Slider(p: {
 }) {
   return (
     <div className="ex-slider-group" title={p.title}>
-      <span className="ex-slider-icon">{p.icon}</span>
+      {p.icon && <span className="ex-slider-icon">{p.icon}</span>}
       {p.label && <span className="ex-slider-label">{p.label}</span>}
       <input
         className="ex-slider"
@@ -276,7 +276,6 @@ function SizeSliders({ viewer, radial }: { viewer: TreeViewer | null; radial: bo
   return (
     <>
       <Slider
-        icon={<I.IconWidth />}
         label={radial ? 'Size' : 'Width'}
         title="Width"
         value={hScale}
@@ -289,17 +288,7 @@ function SizeSliders({ viewer, radial }: { viewer: TreeViewer | null; radial: bo
       {!radial && (
         <>
           <div className="ex-divider" />
-          <Slider
-            icon={<I.IconHeight />}
-            title="Height"
-            label="Height"
-            value={vScale}
-            min={0.3}
-            max={4}
-            step={0.05}
-            reset={1}
-            onChange={(v) => setScales(hScale, v)}
-          />
+          <Slider title="Height" label="Height" value={vScale} min={0.3} max={4} step={0.05} reset={1} onChange={(v) => setScales(hScale, v)} />
         </>
       )}
     </>
@@ -950,9 +939,9 @@ export function Explorer({
     );
     switch (mode) {
       case 'reroot':
-        return tag('reroot', <I.IconReroot size={11} />, 'Set as root');
+        return tag('reroot', null, 'Set as root');
       case 'flip':
-        return tag('flip', <I.IconFlip />, 'Flip subtree');
+        return tag('flip', null, 'Flip subtree');
       case 'swap':
         return tag(
           'swap',
@@ -1270,7 +1259,6 @@ export function Explorer({
           title={mode === 'reroot' ? 'Exit reroot mode (Esc)' : 'Reroot — click any node'}
           onClick={() => toggleMode('reroot')}
         >
-          <I.IconReroot />
           {mode === 'reroot' ? (
             <>
               Click… <span className="ex-dot" />
@@ -1289,7 +1277,6 @@ export function Explorer({
             apply(ops.midpointRoot, 'Midpoint');
           }}
         >
-          <I.IconMidpoint />
           Midpoint
         </button>
         <button
@@ -1299,7 +1286,6 @@ export function Explorer({
           title={mode === 'flip' ? 'Exit flip mode (Esc)' : 'Flip — reverse children order at a node'}
           onClick={() => toggleMode('flip')}
         >
-          <I.IconFlip />
           Flip
           {mode === 'flip' && <span className="ex-dot" />}
         </button>
@@ -1310,7 +1296,6 @@ export function Explorer({
           title={mode === 'swap' ? 'Exit swap mode (Esc)' : 'Swap — exchange two sibling branches'}
           onClick={() => toggleMode('swap')}
         >
-          <I.IconSwap />
           Swap
           {mode === 'swap' && (
             <span className="ex-steps">
@@ -1408,7 +1393,6 @@ export function Explorer({
             title={showAlignment ? 'Hide alignment track' : 'Show alignment alongside leaf nodes'}
             onClick={() => setShowAlignment((s) => !s)}
           >
-            <I.IconAlnTrack />
             Alignment
           </button>
         )}
@@ -1424,7 +1408,6 @@ export function Explorer({
             }
             onClick={() => setAlignLabels((a) => !a)}
           >
-            <I.IconAlignLabels />
             Align
           </button>
         )}
