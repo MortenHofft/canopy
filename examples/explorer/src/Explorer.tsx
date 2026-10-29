@@ -329,8 +329,8 @@ export function Explorer({
     setSelected(null);
     setInfoOpen(false);
   };
-  const [downloadOpen, setDownloadOpen] = useState(false);
-  const [viewMenuOpen, setViewMenuOpen] = useState(false); // the ⋮ menu: the toggles for legend, minimap, align and truncate, and ladderize
+  // the ⋮ menu: closed, its main list (branch style, toggles, ladderize, Export…) or the export list it opens in its place
+  const [menu, setMenu] = useState<'closed' | 'main' | 'export'>('closed');
   const [toast, setToast] = useState<string | null>(null);
   const [height, setHeight] = useState(defaultHeight);
 
@@ -844,31 +844,18 @@ export function Explorer({
   };
   const exportText = (text: string, name: string) => download(new Blob([text], { type: 'text/plain' }), name);
 
-  // close the export menu on a press outside it
-  const exportRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!downloadOpen) return;
-    const f = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!exportRef.current?.contains(t) && !menuRef.current?.contains(t)) setDownloadOpen(false);
-    };
-    document.addEventListener('pointerdown', f);
-    return () => document.removeEventListener('pointerdown', f);
-  }, [downloadOpen]);
-
-  // the same for the ⋮ menu
+  // close the ⋮ menu on a press outside it
   const viewRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!viewMenuOpen) return;
+    if (menu === 'closed') return;
     const f = (e: PointerEvent) => {
       const t = e.target as Node;
-      if (!viewRef.current?.contains(t) && !viewMenuRef.current?.contains(t)) setViewMenuOpen(false);
+      if (!viewRef.current?.contains(t) && !viewMenuRef.current?.contains(t)) setMenu('closed');
     };
     document.addEventListener('pointerdown', f);
     return () => document.removeEventListener('pointerdown', f);
-  }, [viewMenuOpen]);
+  }, [menu]);
 
   // ---- resize handle: drag the bottom edge of the pane
   const onResizeDown = (e: React.PointerEvent) => {
@@ -935,28 +922,6 @@ export function Explorer({
             <I.IconCirc />
           </button>
         </div>
-        <div className="ex-divider" />
-        <div className="ex-group">
-          <button
-            type="button"
-            className={phylogram ? 'active' : ''}
-            aria-pressed={phylogram}
-            disabled={!tree.hasLengths}
-            title="Phylogram — branch lengths proportional"
-            onClick={() => setPhylogram(true)}
-          >
-            <I.IconPhylo />
-          </button>
-          <button
-            type="button"
-            className={!phylogram ? 'active' : ''}
-            aria-pressed={!phylogram}
-            title="Cladogram — topology only"
-            onClick={() => setPhylogram(false)}
-          >
-            <I.IconClado />
-          </button>
-        </div>
         <div className="ex-spacer" />
         <div className="ex-pinned">
           <button
@@ -973,36 +938,15 @@ export function Explorer({
             <I.IconSearch />
           </button>
           <div className="ex-divider" />
-          <div className="ex-export" ref={exportRef}>
-            <button
-              type="button"
-              className={`ex-btn${downloadOpen ? ' open' : ''}`}
-              aria-haspopup="menu"
-              aria-expanded={downloadOpen}
-              title="Export tree"
-              onClick={() => {
-                setDownloadOpen((o) => !o);
-                setViewMenuOpen(false);
-              }}
-            >
-              <I.IconExport />
-              Export
-              <I.IconChevronDown />
-            </button>
-          </div>
-          <div className="ex-divider" />
           <div className="ex-export" ref={viewRef}>
             <button
               type="button"
-              className={`ex-btn${viewMenuOpen ? ' open' : ''}`}
+              className={`ex-btn${menu !== 'closed' ? ' open' : ''}`}
               aria-label="More options"
               aria-haspopup="menu"
-              aria-expanded={viewMenuOpen}
-              title="Legend, minimap, align, truncate and ladderize"
-              onClick={() => {
-                setViewMenuOpen((o) => !o);
-                setDownloadOpen(false);
-              }}
+              aria-expanded={menu !== 'closed'}
+              title="Tree style, labels, ladderize and export"
+              onClick={() => setMenu((m) => (m === 'closed' ? 'main' : 'closed'))}
             >
               <J.IconMore />
             </button>
@@ -1329,87 +1273,123 @@ export function Explorer({
 
       <DebugPanel viewer={viewer} debug={debug} collapsed={collapsedIds} columns={columns.length} asLoaded={shown === published} />
 
-      {downloadOpen && (
-        <div className="ex-menu" role="menu" ref={menuRef}>
-          {(
-            [
-              ['PNG 1×', 'Screen size', <I.IconFilePng key="i" />, () => exportPng(1)],
-              ['PNG 2×', 'Twice', <I.IconFilePng key="i" />, () => exportPng(2)],
-              ['PNG 4×', 'Print', <I.IconFilePng key="i" />, () => exportPng(4)],
-              null,
-              ['Newick', 'Tree', <I.IconFileNewick key="i" />, () => exportText(toNewick(tree), 'phylotree.nwk')],
-              ['NEXUS', 'Tree', <I.IconFileNexus key="i" />, () => exportText(toNexus(tree), 'phylotree.nex')],
-            ] as const
-          ).map((item, k) =>
-            item === null ? (
-              <div key={k} className="ex-menu-divider" />
-            ) : (
-              <button
-                key={item[0]}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  item[3]();
-                  setDownloadOpen(false);
-                }}
-              >
-                <span className="ex-menu-icon">{item[2]}</span>
-                <span className="ex-menu-label">{item[0]}</span>
-                <span className="ex-menu-desc">{item[1]}</span>
+      {menu !== 'closed' && (
+        <div className="ex-menu" role="menu" aria-label={menu === 'export' ? 'Export' : 'More options'} ref={viewMenuRef}>
+          {menu === 'export' ? (
+            <>
+              <button type="button" role="menuitem" onClick={() => setMenu('main')}>
+                <span className="ex-menu-icon">‹</span>
+                <span className="ex-menu-label">Back</span>
               </button>
-            ),
+              <div className="ex-menu-divider" />
+              {(
+                [
+                  ['PNG 1×', 'Screen size', <I.IconFilePng key="i" />, () => exportPng(1)],
+                  ['PNG 2×', 'Twice', <I.IconFilePng key="i" />, () => exportPng(2)],
+                  ['PNG 4×', 'Print', <I.IconFilePng key="i" />, () => exportPng(4)],
+                  null,
+                  ['Newick', 'Tree', <I.IconFileNewick key="i" />, () => exportText(toNewick(tree), 'phylotree.nwk')],
+                  ['NEXUS', 'Tree', <I.IconFileNexus key="i" />, () => exportText(toNexus(tree), 'phylotree.nex')],
+                ] as const
+              ).map((item, k) =>
+                item === null ? (
+                  <div key={k} className="ex-menu-divider" />
+                ) : (
+                  <button
+                    key={item[0]}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      item[3]();
+                      setMenu('closed');
+                    }}
+                  >
+                    <span className="ex-menu-icon">{item[2]}</span>
+                    <span className="ex-menu-label">{item[0]}</span>
+                    <span className="ex-menu-desc">{item[1]}</span>
+                  </button>
+                ),
+              )}
+            </>
+          ) : (
+            <>
+              <div className="ex-menu-head">Branches</div>
+              {(
+                [
+                  ['Phylogram', 'Lengths proportional', true, tree.hasLengths],
+                  ['Cladogram', 'Topology only', false, true],
+                ] as const
+              ).map(([label, desc, value, enabled]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={phylogram === value}
+                  disabled={!enabled}
+                  onClick={() => setPhylogram(value)}
+                >
+                  <span className="ex-menu-check">{phylogram === value && '●'}</span>
+                  <span className="ex-menu-label">{label}</span>
+                  <span className="ex-menu-desc">{desc}</span>
+                </button>
+              ))}
+              <div className="ex-menu-divider" />
+              {(
+                [
+                  ['Legend', showLegend, () => setShowLegend((x) => !x), true],
+                  ['Minimap', showOverview, () => setShowOverview((x) => !x), true],
+                  ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths],
+                  ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable],
+                  ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), hasSupport],
+                  ['Show branch length', labelMode === 'length', () => setLabelMode((m) => (m === 'length' ? 'none' : 'length')), tree.hasLengths],
+                ] as const
+              ).map(([label, on, toggle, enabled]) => (
+                <button key={label} type="button" role="menuitemcheckbox" aria-checked={on} disabled={!enabled} onClick={toggle}>
+                  <span className="ex-menu-check">{on && '✓'}</span>
+                  <span className="ex-menu-label">{label}</span>
+                </button>
+              ))}
+              <div className="ex-menu-divider" />
+              {(
+                [
+                  [
+                    'Ladderize ascending',
+                    'Smallest clades at top',
+                    <J.IconLadderBy key="i" />,
+                    () => apply((t) => ops.ladderise(t, { by: 'tips' }), 'Ladderize'),
+                  ],
+                  [
+                    'Ladderize descending',
+                    'Largest clades at top',
+                    <J.IconLadderBy key="i" descending />,
+                    () => apply((t) => ops.ladderise(t, { by: 'tips', order: 'decreasing' }), 'Ladderize'),
+                  ],
+                ] as const
+              ).map(([label, desc, icon, run]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    run();
+                    setMenu('closed');
+                  }}
+                >
+                  <span className="ex-menu-icon">{icon}</span>
+                  <span className="ex-menu-label">{label}</span>
+                  <span className="ex-menu-desc">{desc}</span>
+                </button>
+              ))}
+              <div className="ex-menu-divider" />
+              <button type="button" role="menuitem" onClick={() => setMenu('export')}>
+                <span className="ex-menu-icon">
+                  <I.IconExport />
+                </span>
+                <span className="ex-menu-label">Export…</span>
+                <span className="ex-menu-desc">›</span>
+              </button>
+            </>
           )}
-        </div>
-      )}
-
-      {viewMenuOpen && (
-        <div className="ex-menu" role="menu" aria-label="More options" ref={viewMenuRef}>
-          {(
-            [
-              ['Legend', showLegend, () => setShowLegend((x) => !x), true],
-              ['Minimap', showOverview, () => setShowOverview((x) => !x), true],
-              ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths],
-              ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable],
-              ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), hasSupport],
-              ['Show branch length', labelMode === 'length', () => setLabelMode((m) => (m === 'length' ? 'none' : 'length')), tree.hasLengths],
-            ] as const
-          ).map(([label, on, toggle, enabled]) => (
-            <button key={label} type="button" role="menuitemcheckbox" aria-checked={on} disabled={!enabled} onClick={toggle}>
-              <span className="ex-menu-check">{on && '✓'}</span>
-              <span className="ex-menu-label">{label}</span>
-            </button>
-          ))}
-          <div className="ex-menu-divider" />
-          {(
-            [
-              [
-                'Ladderize ascending',
-                'Smallest clades at top',
-                <J.IconLadderBy key="i" />,
-                () => apply((t) => ops.ladderise(t, { by: 'tips' }), 'Ladderize'),
-              ],
-              [
-                'Ladderize descending',
-                'Largest clades at top',
-                <J.IconLadderBy key="i" descending />,
-                () => apply((t) => ops.ladderise(t, { by: 'tips', order: 'decreasing' }), 'Ladderize'),
-              ],
-            ] as const
-          ).map(([label, desc, icon, run]) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                run();
-                setViewMenuOpen(false);
-              }}
-            >
-              <span className="ex-menu-icon">{icon}</span>
-              <span className="ex-menu-label">{label}</span>
-              <span className="ex-menu-desc">{desc}</span>
-            </button>
-          ))}
         </div>
       )}
 

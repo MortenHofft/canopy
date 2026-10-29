@@ -541,6 +541,11 @@ body {
   display: flex;
   color: var(--ex-muted);
 }
+.ex-menu-head {
+  padding: 4px 10px 2px;
+  font-size: 10.5px;
+  color: var(--ex-muted);
+}
 .ex-menu-check {
   width: 12px;
   color: var(--ex-primary);

@@ -93,9 +93,9 @@ const click = async (p) => {
   await page.waitForTimeout(150);
 };
 const btn = (text) => page.locator('.ex-outer button', { hasText: text }).first();
-// the ⋮ menu (legend, minimap, align labels, truncate names, ladderize): open it, use an item; a toggle leaves it open, so close it
+// the ⋮ menu (branch style, legend, minimap, align labels, truncate names, support, length, ladderize, export): open it, use an item; a toggle leaves it open, so close it
 const moreButton = () => page.locator('button[aria-label="More options"]');
-const moreMenu = () => page.locator('.ex-menu[aria-label="More options"]');
+const moreMenu = () => page.locator('.ex-menu');
 const moreItem = (name) => moreMenu().locator('[role^=menuitem]', { hasText: name });
 const more = async (name) => {
   if (!(await moreMenu().count())) await moreButton().click();
@@ -208,10 +208,10 @@ await page.locator('button[title=Circular]').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'radial', 'Circular: radial layout');
 await page.locator('button[title=Rectangular]').click();
-await page.locator('button[title^=Cladogram]').click();
+await moreToggle('Cladogram');
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'rectangular' && (await ev(() => __v().options.branchLengths)) === false, 'Rectangular, Cladogram');
-await page.locator('button[title^=Phylogram]').click();
+await moreToggle('Phylogram');
 const longest = await ev(() =>
   __v()
     .getTree()
@@ -409,9 +409,9 @@ ok(
   ok(await ev(() => __v().vs.fitted), 'Circular: the view is fitted, as it was: a switch does not go to the selection (#56)');
   await page.locator('button[title=Rectangular]').click();
   await keeps('back to Rectangular');
-  await page.locator('button[title^=Cladogram]').click();
+  await moreToggle('Cladogram');
   await keeps('Cladogram');
-  await page.locator('button[title^=Phylogram]').click();
+  await moreToggle('Phylogram');
   await keeps('back to Phylogram');
   await page.locator('.ex-btn[title="Fit tree"]').click();
   await page.waitForTimeout(200);
@@ -717,14 +717,21 @@ await page.waitForTimeout(150);
 ok(o3 !== o2 && (await ev(() => __order())) !== o3, 'Ladderize both ways');
 
 console.log('export');
-await btn('Export').click();
+await moreButton().click();
+await moreItem('Export…').click();
 ok(
-  (await page.locator('.ex-menu button').allInnerTexts()).map((s) => s.split('\n')[0]).join(',') === 'PNG 1×,PNG 2×,PNG 4×,Newick,NEXUS',
-  'menu: PNG 1×, 2×, 4×, Newick, NEXUS',
+  (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join(',') === 'Back,PNG 1×,PNG 2×,PNG 4×,Newick,NEXUS',
+  'Export… opens the export list in place of the menu: Back, PNG 1×, 2×, 4×, Newick, NEXUS',
 );
+await moreItem('Back').click();
+ok((await moreItem('Export…').count()) === 1, 'Back returns to the main list');
+await moreItem('Export…').click();
 const pngSize = await ev(() => ({ w: __v().size.width, h: __v().size.height }));
 const download = async (label) => {
-  if ((await page.locator('.ex-menu').count()) === 0) await btn('Export').click();
+  if ((await page.locator('.ex-menu[aria-label="Export"]').count()) === 0) {
+    if ((await moreMenu().count()) === 0) await moreButton().click();
+    await moreItem('Export…').click();
+  }
   const dl = page.waitForEvent('download');
   await page.locator('.ex-menu button', { hasText: label }).click();
   const d = await dl;
@@ -1414,37 +1421,31 @@ for (const w of [1280, 1024, 600]) {
       return r.width > 0 && r.left >= o.left && r.right <= o.right;
     }),
   );
-  ok(vis[0] && vis[1], `${w} px: Export and Search are inside the toolbar`);
+  ok(vis[0] && vis[1], `${w} px: ⋮ and Search are inside the toolbar`);
   const row1 = await ev(() => {
     const r = document.querySelector('.ex-row');
     return { over: r.scrollWidth > r.clientWidth + 1, end: r.hasAttribute('data-end'), start: r.hasAttribute('data-start') };
   });
   ok(row1.over === row1.end && !row1.start, `${w} px: the View row ${row1.over ? 'overflows and shows the fade' : 'fits, no fade'}`);
-  await btn('Export').click();
+  await moreButton().click();
   ok(
     (await page.locator('.ex-menu').count()) === 1 && (await page.locator('.ex-menu button').first().isVisible()),
-    `${w} px: Export is clickable and opens its menu`,
+    `${w} px: the ⋮ button is clickable and opens its menu`,
   );
-  await btn('Export').click();
+  await moreButton().click();
 }
 await page.setViewportSize({ width: 340, height: 860 });
 await open('rich-fish-carangaria-135');
+// the Edit row scrolls sideways at this width (the View row, with Search and ⋮, no longer overflows): scrolled to its end, the start fades
 await page
   .locator('.ex-row')
-  .first()
-  .evaluate((r) => (r.scrollLeft = 0));
-// the row is scrolled to its end: the start fades, Export is still where it was
-const exportX = await ev(() => document.querySelector('.ex-export button').getBoundingClientRect().left);
-await page
-  .locator('.ex-row')
-  .first()
+  .nth(1)
   .evaluate((r) => (r.scrollLeft = r.scrollWidth));
 await page.waitForTimeout(150);
 ok(
-  (await ev(() => document.querySelector('.ex-row').hasAttribute('data-start'))) &&
-    !(await ev(() => document.querySelector('.ex-row').hasAttribute('data-end'))) &&
-    Math.abs((await ev(() => document.querySelector('.ex-export button').getBoundingClientRect().left)) - exportX) < 1,
-  '340 px: scrolled to its end the row fades at the start and Export has not moved',
+  (await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-start'))) &&
+    !(await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-end'))),
+  '340 px: the Edit row scrolled to its end fades at the start',
 );
 await page.mouse.click(
   ...Object.values(
@@ -1454,43 +1455,8 @@ await page.mouse.click(
     }),
   ),
 );
-ok((await page.locator('.ex-menu').count()) === 1, '340 px: a real click on Export (after scrolling) opens the menu');
+ok((await page.locator('.ex-menu').count()) === 1, '340 px: a real click on ⋮ (after scrolling) opens the menu');
 await page.keyboard.press('Escape');
-await page.setViewportSize({ width: 1280, height: 860 });
-
-// Tab through the View row at 600 px: a focused control is scrolled clear of the pinned Search / Export group, inside the row
-console.log('keyboard focus in the scrolling toolbar');
-await page.setViewportSize({ width: 340, height: 860 });
-await open('rich-fish-carangaria-135');
-await page.locator('.ex-row').first().locator('button, input').first().focus();
-const hidden = [];
-let visited = 0;
-for (let i = 0; i < 40; i++) {
-  await page.waitForTimeout(60);
-  const st = await ev(() => {
-    const a = document.activeElement;
-    const row = document.querySelector('.ex-row');
-    if (!a || !row.contains(a) || a.closest('.ex-pinned')) return null;
-    const r = a.getBoundingClientRect(),
-      p = document.querySelector('.ex-pinned').getBoundingClientRect(),
-      w = row.getBoundingClientRect();
-    const label = a.getAttribute('aria-label') || a.title || a.textContent;
-    return {
-      label,
-      geo: [r.left, r.right, p.left, p.right, w.left, w.right],
-      clash: r.left < p.right && r.right > p.left,
-      outside: r.left < w.left - 0.5 || r.right > w.right + 0.5,
-    };
-  });
-  if (st === null) break;
-  visited++;
-  if (st.clash || st.outside) hidden.push(st.label + JSON.stringify(st.geo));
-  await page.keyboard.press('Tab');
-}
-ok(
-  visited >= 4 && hidden.length === 0,
-  `340 px: Tab through the View row keeps every control clear of Search and Export (${visited} controls${hidden.length ? ', hidden: ' + hidden.join(', ') : ''})`,
-);
 await page.setViewportSize({ width: 1280, height: 860 });
 
 // ---------------------------------------------------------------- collapse by support
@@ -1703,13 +1669,25 @@ await open('rich-hcv-19');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
-    'Legend|Minimap|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending',
-  'the ⋮ menu: Legend, Minimap, Align labels, Truncate names, Show support, Show branch length, then Ladderize ascending and descending',
+    'Phylogram|Cladogram|Legend|Minimap|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending|Export…',
+  'the ⋮ menu: Phylogram and Cladogram, the toggles, Ladderize ascending and descending, Export…',
 );
 ok(
   (await moreItem('Legend').getAttribute('aria-checked')) === 'true' && (await moreItem('Minimap').getAttribute('aria-checked')) === 'false',
   'the toggles show their state (Legend on, Minimap off)',
 );
+ok(
+  (await moreItem('Phylogram').getAttribute('aria-checked')) === 'true' && (await moreItem('Cladogram').getAttribute('aria-checked')) === 'false',
+  'Phylogram and Cladogram are radio items, Phylogram checked',
+);
+await moreItem('Cladogram').click();
+ok(
+  (await moreItem('Phylogram').getAttribute('aria-checked')) === 'false' &&
+    (await moreItem('Cladogram').getAttribute('aria-checked')) === 'true' &&
+    (await ev(() => __v().options.branchLengths)) === false,
+  'choosing Cladogram unchecks Phylogram and drops the branch lengths',
+);
+await moreItem('Phylogram').click();
 await moreItem('Minimap').click();
 ok((await moreMenu().count()) === 1, 'a toggle leaves the menu open');
 await page.waitForTimeout(200);
