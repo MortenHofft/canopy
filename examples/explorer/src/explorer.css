@@ -268,9 +268,6 @@ body {
   outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
 }
-.ex-fade {
-  animation: ex-fade 0.2s ease;
-}
 .ex-undo-note {
   font-size: 11px;
   color: var(--ex-muted);
@@ -917,11 +914,6 @@ body {
   }
   50% {
     opacity: 0.3;
-  }
-}
-@keyframes ex-fade {
-  from {
-    opacity: 0;
   }
 }
 @keyframes ex-pop {

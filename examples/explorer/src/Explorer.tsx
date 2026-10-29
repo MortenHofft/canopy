@@ -78,20 +78,14 @@ function trimHistory(h: Step[], budget: number): Step[] {
   return h;
 }
 
-/** Reset, shown once there is an edit (Undo is Ctrl/Cmd+Z, with no button); a note says why when Undo is off for the tree or stops at
- *  a dropped step. */
-function UndoControls(p: { canUndo: boolean; undoOn: boolean; onReset: () => void }) {
+/** A note, shown once there is an edit, that says why Undo (Ctrl/Cmd+Z, with no button) is off for the tree or stops at a dropped step. */
+function UndoNote(p: { canUndo: boolean; undoOn: boolean }) {
+  if (p.canUndo) return null;
   return (
     <>
-      <button type="button" className="ex-btn ex-fade" title="Back to the tree as published" onClick={p.onReset}>
-        <J.IconReset />
-        Reset
-      </button>
-      {!p.canUndo && (
-        <span className="ex-undo-note">
-          {p.undoOn ? 'Older steps were dropped to save memory' : 'Undo is off: the tree is too large to keep earlier versions'}
-        </span>
-      )}
+      <span className="ex-undo-note">
+        {p.undoOn ? 'Older steps were dropped to save memory' : 'Undo is off: the tree is too large to keep earlier versions'}
+      </span>
       <div className="ex-divider" />
     </>
   );
@@ -572,7 +566,7 @@ export function Explorer({
         if (e.node === 0) return flash('This is the clade shown already');
         return navigate(ops.focusOn(tree, focus, v));
       case 'colour':
-        return paint(v, nextColour());
+        return paint(v, clades.some((c) => c.node === v) ? ERASE : nextColour()); // a second click takes the colour off
     }
   };
 
@@ -632,7 +626,7 @@ export function Explorer({
         label: 'Up one level',
         onSelect: () => navigate(ops.focusUp(tree, focus)),
       });
-      items.push({ id: 'reset', label: 'Reset', onSelect: () => navigate(ops.NO_FOCUS) });
+      items.push({ id: 'root', label: 'Back to root', onSelect: () => navigate(ops.NO_FOCUS) });
     }
     items.push(info);
     if (trueRoot) return [...items, colour];
@@ -820,12 +814,12 @@ export function Explorer({
 
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
-        {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onReset={() => back(0)} />}
+        {history.length > 1 && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
         {ops.focusedNode(focus) >= 0 && (
           <div className="ex-group" role="group" aria-label="Clade shown">
-            <button type="button" aria-label="Reset" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
+            <button type="button" aria-label="Back to root" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
               <J.IconReset />
-              <span className="ex-btn-text">Reset</span>
+              <span className="ex-btn-text">Back to root</span>
             </button>
             <button
               type="button"
@@ -1205,9 +1199,10 @@ export function Explorer({
                     true,
                   ],
                   ['Midpoint root', 'Middle of the longest path', null, () => apply(ops.midpointRoot, 'Midpoint'), tree.hasLengths],
+                  ['Reset', 'Back to the tree as published', null, () => back(0), history.length > 1],
                 ] as const
               )
-                .filter((item) => item[4]) // the midpoint needs branch lengths: without them it is not offered
+                .filter((item) => item[4]) // not offered: the midpoint without branch lengths, Reset on the tree as published
                 .map(([label, desc, icon, run, enabled]) => (
                   <button
                     key={label}
