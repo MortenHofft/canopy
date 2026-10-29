@@ -9,9 +9,7 @@ import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@canopy/io';
 import * as ops from '@canopy/tree-ops';
 import { TreeView, useTreeTheme, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
 import {
-  cladeName,
   defaultControls,
-  defaultFormatCollapsedLabel,
   defaultFormatNodeLabel,
   detectAlphabet,
   InMemorySource,
@@ -39,15 +37,13 @@ const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up
 /** Drill-down (tree-ops autoCollapse): the rows of the overview of the clade shown, and of a collapsed clade expanded in place. */
 const OVERVIEW_ROWS = 50;
 const EXPAND_ROWS = 20;
-/** Open Tree's unnamed clades are labelled 'mrcaott99343ott3606205': no name, so they are not named in labels, summaries or the legend,
- *  and "Prefer named clades" does not stop at them. */
+/** Open Tree's unnamed clades are labelled 'mrcaott99343ott3606205': no name, so they are not named in labels, summaries or the legend. */
 const OTL_SYNTHETIC = /^mrcaott\d+ott\d+$/;
 const cladeLabel: CladeLabelFn = (node, t) => {
   const name = internalName(t.labels[t.toLocal(node)] ?? '');
   return OTL_SYNTHETIC.test(name) ? null : name;
 };
-/** How many named descendants a collapsed clade's hover box and Info panel list. */
-const SUMMARY_NAMES = 5;
+/** How many named descendants a collapsed clade's Info panel lists. */
 const INFO_NAMES = 12;
 
 /** Reactree's 12 swatches; the colours themselves are CSS custom properties (--ex-palette-<name>) in explorer.css. */
@@ -180,21 +176,46 @@ function SupportGroup(p: {
 type Inside = { names: NamedDescendant[]; more: boolean };
 type Snapshot = ReturnType<InMemorySource['snapshot']>;
 
-/** The hover box of a collapsed clade: what a click does, its label, and the highest named clades inside it. */
-function CladeHoverBox(p: { action: string; label: string; inside: Inside }) {
+type HoverFacts = { title: string; support: number | null; length: number | null; tips: number | null; first: string; last: string };
+
+/** At most two decimals, no trailing zeros. */
+const twoDecimals = (x: number) => String(Number(x.toFixed(2)));
+
+/** The hover box of a node: a tip's full name, or a clade's (collapsed or open) tips and its first and last tip; both with the support
+ *  and the branch length when the tree has them. */
+function NodeHoverBox(p: { facts: HoverFacts }) {
+  const f = p.facts;
   return (
-    <span className="ex-tip ex-tip--menu ex-tip--clade">
-      {p.action}
-      <span className="ex-tip-clade">{p.label}</span>
-      {p.inside.names.length > 0 && (
-        <span className="ex-tip-inside">
-          <span className="ex-tip-inside-head">Inside</span>
-          {p.inside.names.map((d) => (
-            <span key={d.node}>{d.name}</span>
-          ))}
-          {p.inside.more && <span>…</span>}
-        </span>
-      )}
+    <span className="ex-tip ex-tip--node">
+      {f.title && <span className="ex-tip-title">{f.title}</span>}
+      <dl className="ex-tip-rows">
+        {f.tips !== null && (
+          <>
+            <dt>Tips</dt>
+            <dd>{f.tips.toLocaleString('en')}</dd>
+          </>
+        )}
+        {f.support !== null && (
+          <>
+            <dt>Support</dt>
+            <dd>{twoDecimals(f.support)}</dd>
+          </>
+        )}
+        {f.length !== null && (
+          <>
+            <dt>Branch length</dt>
+            <dd>{twoDecimals(f.length)}</dd>
+          </>
+        )}
+        {f.tips !== null && (
+          <>
+            <dt>First</dt>
+            <dd>{f.first}</dd>
+            <dt>Last</dt>
+            <dd>{f.last}</dd>
+          </>
+        )}
+      </dl>
     </span>
   );
 }
@@ -422,16 +443,6 @@ export function Explorer({
   );
   // `tree` as the viewer's helpers read it (cladeName, namedDescendants): node ids of `tree`, the ids the actions and the inspector use
   const treeSnap = useMemo(() => new InMemorySource(tree).snapshot(), [tree]);
-  /** The summary of the clade `v` of `tree`: its label as the viewer draws it when collapsed (the default formatCollapsedLabel), and
-   *  its highest named descendants. */
-  const summaryOf = (v: number, max: number): { label: string; inside: { names: NamedDescendant[]; more: boolean } } => {
-    const opts = { formatLabel, cladeLabel };
-    return {
-      label: defaultFormatCollapsedLabel(cladeName(treeSnap, v, opts), tree.tipCountOf(v)),
-      inside: namedDescendants(treeSnap, v, opts, { max }),
-    };
-  };
-
   // ---- search: case-insensitive substring of the displayed name (Reactree's rule; an underscore and a space are the same); matches
   // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label (about 0.1 s on 2.4
   // million labels), and every match kept: highlighting a million tips costs little (docs/design/highlight-cost.md, #58).
@@ -785,15 +796,19 @@ export function Explorer({
           activeColor === ERASE ? 'Erase color' : `Paint ${activeColor}`,
         );
       default: {
-        const action = expandsOnClick(e) ? 'Click to expand' : 'Click for actions';
-        // a collapsed clade: its label and the highest named clades inside it
-        if (e.collapsed) return <CladeHoverBox action={action} {...summaryOf(v, SUMMARY_NAMES)} />;
-        return (
-          <span className="ex-tip ex-tip--menu">
-            {action}
-            <span className="ex-tip-name">{name}</span>
-          </span>
-        );
+        const clean = (l: string) => l.replace(/_/g, ' ');
+        const sup = e.isTip ? (v > 0 ? tree.support[tree.parent[v]] : NaN) : tree.support[v];
+        const len = tree.length[v];
+        const [r0, r1] = tree.tipRange(v);
+        const facts: HoverFacts = {
+          title: e.isTip ? clean(tree.labels[v]) : clean(splitInternalLabel(tree.labels[v]).name),
+          support: Number.isNaN(sup) ? null : sup,
+          length: Number.isNaN(len) ? null : len,
+          tips: e.isTip ? null : r1 - r0,
+          first: clean(tree.tipLabels[r0]),
+          last: clean(tree.tipLabels[r1 - 1]),
+        };
+        return <NodeHoverBox facts={facts} />;
       }
     }
   };

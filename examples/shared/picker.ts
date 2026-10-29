@@ -1,4 +1,4 @@
-// The tree picker of the pages without a framework (the playground, the table view, the unrooted page): a <select> of trees in
+// The tree picker of the pages without a framework (the playground): a <select> of trees in
 // <optgroup>s, with a last group "your own" whose one option opens a file input, and that file input. The explorer (React) renders the
 // same in src/TreePicker.tsx with FILE_OPTION and TREE_FILE_ACCEPT. Reading the file is loadTreeFile in data.ts.
 
@@ -12,7 +12,7 @@ export const FILE_SHOWN = '__file-shown';
 
 export interface PickerItem {
   label: string;
-  /** Listed but not selectable (the unrooted page: a tree above its node limit). */
+  /** Listed but not selectable (a tree the page cannot draw). */
   disabled?: boolean;
 }
 

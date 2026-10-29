@@ -11,7 +11,7 @@
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
-// radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-hover-tip for the box alone (#74); dark mode reaches
+// radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
 // (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
 // (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
@@ -339,10 +339,14 @@ ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back
 
 console.log('node menu, inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);
-// the hover box says what a click does
+// the hover box of a tip: its full name, with support and branch length when the tree has them
 await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), tip0)));
 await page.waitForTimeout(250);
-ok((await page.locator('.phylo-tooltip').innerText()).includes('Click for actions'), 'the hover box says "Click for actions"');
+{
+  const box = await page.locator('.phylo-tooltip .ex-tip--node').innerText();
+  const full = await ev((l) => l.replace(/_/g, ' '), tip0);
+  ok(box.includes(full) && !box.includes('Click'), `the hover box of a tip gives its full name: "${box.replace(/\n/g, ' | ')}"`);
+}
 // a tip: Info, Reroot here, Colour…
 await openMenu(await ev((l) => __tipAt(l), tip0));
 ok((await menuItems()).join('|') === 'Info|Reroot here|Colour…', `a tip's menu: ${(await menuItems()).join(' | ')}`);
@@ -1215,7 +1219,7 @@ console.log('a visible tooltip while the tree changes: no page errors');
     await page.waitForTimeout(400);
   };
   await hoverUntilTooltip(await lastTip());
-  ok((await page.locator('.phylo-tooltip').innerText()).includes('Click for actions'), 'the tooltip of the last tip is showing');
+  ok((await page.locator('.phylo-tooltip .ex-tip--node').count()) === 1, 'the tooltip of the last tip is showing');
   await pressOnButton('button[aria-label="Collapse by support"]'); // it crashed with 'replace' of undefined
   ok((await ev(() => __v().getTree().nodeCount)) > 0, 'collapse by support with the tooltip showing');
   await pressOnButton('button[aria-label="Collapse by support"]');
@@ -1970,9 +1974,9 @@ console.log('one action colour (#74)');
       await page.waitForTimeout(100);
     }
     await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3]))));
-    await page.locator('.ex-tip--menu').waitFor({ timeout: 3000 });
+    await page.locator('.ex-tip--node').waitFor({ timeout: 3000 });
     await page.waitForTimeout(250);
-    text['hover box'] = await colourOf(page.locator('.ex-tip--menu'));
+    text['hover box'] = await colourOf(page.locator('.ex-tip--node'));
     await page.mouse.move(5, 5);
     return { text, background };
   };
@@ -1982,20 +1986,28 @@ console.log('one action colour (#74)');
     const { text, background } = await states();
     ok(text['labels No labels'] === 'inactive', `${theme}: "No labels" looks inactive`);
     delete text['labels No labels'];
+    // the hover box is white on #333 whatever the theme, from its own variables
+    ok(
+      text['hover box'] === (await computed('var(--ex-tooltip-text)')) && text['hover box'] === 'rgb(255, 255, 255)',
+      `${theme}: the hover box has white text (${text['hover box']})`,
+    );
+    delete text['hover box'];
     const off = Object.entries(text).filter(([, c]) => c !== primary);
     ok(
-      Object.keys(text).length >= 3 && off.length === 0,
-      `${theme}: the label button and the hover box have the text colour --ex-primary (${primary})${off.length ? `, not ${JSON.stringify(off)}` : ''}`,
+      Object.keys(text).length >= 2 && off.length === 0,
+      `${theme}: the label button has the text colour --ex-primary (${primary})${off.length ? `, not ${JSON.stringify(off)}` : ''}`,
     );
     ok(
       Object.values(background).every((c) => c === primary),
       `${theme}: Reroot, active, has the background --ex-primary (${JSON.stringify(background)})`,
     );
-    // a theme sets the hover box's own variable: only the box changes
-    await ev(() => document.documentElement.style.setProperty('--ex-hover-tip', 'rgb(200, 30, 30)'));
+    // a theme sets the hover box's own variables: only the box changes
+    await ev(() => document.documentElement.style.setProperty('--ex-tooltip-text', 'rgb(200, 30, 30)'));
+    await ev(() => document.documentElement.style.setProperty('--ex-tooltip-bg', 'rgb(10, 20, 30)'));
     const themed = await states();
-    await ev(() => document.documentElement.style.removeProperty('--ex-hover-tip'));
-    ok(themed.text['hover box'] === 'rgb(200, 30, 30)', `${theme}: --ex-hover-tip colours the hover box (${themed.text['hover box']})`);
+    await ev(() => document.documentElement.style.removeProperty('--ex-tooltip-text'));
+    await ev(() => document.documentElement.style.removeProperty('--ex-tooltip-bg'));
+    ok(themed.text['hover box'] === 'rgb(200, 30, 30)', `${theme}: --ex-tooltip-text colours the hover box (${themed.text['hover box']})`);
     delete themed.text['hover box'];
     delete themed.text['labels No labels'];
     ok(
@@ -2173,12 +2185,12 @@ const drillDown = async (tips) => {
   const big = await largest([]);
   await page.mouse.move(big.tri.x, big.tri.y);
   await page.waitForTimeout(300);
-  ok((await page.locator('.ex-tip--menu').innerText()).startsWith('Click to expand'), 'the hover box on a collapsed clade says a click expands it');
-  const clade = await page.locator('.ex-tip-clade').innerText();
-  const insideBox = (await page.locator('.ex-tip-inside').count()) ? await page.locator('.ex-tip-inside').innerText() : '';
+  const facts = Object.fromEntries(
+    await page.locator('.ex-tip--node .ex-tip-rows dt').evaluateAll((dts) => dts.map((d) => [d.textContent, d.nextElementSibling.textContent])),
+  );
   ok(
-    clade.endsWith(`${big.tips.toLocaleString('en')} tips`) && /^Inside\n\S/.test(insideBox),
-    `and gives its label and the highest named clades inside it: "${clade}", "${insideBox.replace(/\n/g, ' | ').slice(0, 70)}…"`,
+    facts.Tips === big.tips.toLocaleString('en') && facts.First && facts.Last,
+    `the hover box on a collapsed clade gives its tips and its first and last tip: ${JSON.stringify(facts)}`,
   );
   await click(big.tri);
   const r1 = await rows();
