@@ -50,7 +50,8 @@ jobs:
 
   # Slower and needing a browser, so a separate job: lint and unit failures are reported without waiting for it.
   test-browser:
-    runs-on: ubuntu-latest
+    # pinned: Playwright 1.56 cannot install chromium on ubuntu-latest (Ubuntu 26.04)
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
