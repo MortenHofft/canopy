@@ -10,7 +10,6 @@ import * as ops from '@canopy/tree-ops';
 import { TreeView, useTreeTheme, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
 import {
   defaultControls,
-  defaultFormatNodeLabel,
   detectAlphabet,
   InMemorySource,
   internalName,
@@ -29,7 +28,7 @@ import { restoredSettings, type DebugInfo } from './debug.ts';
 
 type Mode = 'none' | 'reroot' | 'color';
 type Layout = 'rectangular' | 'radial';
-type NodeLabelMode = 'none' | 'bootstrap' | 'branchlength';
+type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
 /** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
@@ -296,7 +295,6 @@ export function Explorer({
   const [supportOn, setSupportOn] = useState(false); // collapse the branches below `minSupport` (a view, tree-ops collapseBySupport)
   const [minSupport, setMinSupport] = useState<number | null>(null); // null: the default for the tree's support scale
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
-  const [supportPercent, setSupportPercent] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
   // a click does not count, and a new tree or layout does not bring it back
@@ -493,15 +491,7 @@ export function Explorer({
   // ---- node labels: the viewer draws them (`nodeLabels`). 'support' reads `support` of the tree, which is the same for a support in
   // the labels (0.95, 100) and for one that load() copied there from an annotation (BEAST posterior). A collapsed clade shows its own
   // support or length on its stem.
-  const nodeLabels = labelMode === 'bootstrap' ? 'support' : labelMode === 'branchlength' ? 'length' : 'none';
-  // support as a percentage (0.95 as 95): a `formatNodeLabel`; a support above 1 is one already, and lengths keep the default
-  const formatNodeLabel = useMemo(
-    () =>
-      supportPercent
-        ? (v: number, kind: 'support' | 'length') => (kind === 'support' && v <= 1 ? String(Math.round(v * 100)) : defaultFormatNodeLabel(v, kind))
-        : undefined,
-    [supportPercent],
-  );
+  const nodeLabels = labelMode;
   // the viewer's own overview and clade legend, over the tree; its zoom and fit buttons are not shown (the toolbar has Fit)
   const controls = useMemo(
     () => defaultControls({ zoom: false, fit: false, overview: showOverview, legend: showLegend }),
@@ -917,8 +907,6 @@ export function Explorer({
     };
   }, [infoOpen, selected, tree, treeSnap, collapsed, formatLabel]);
 
-  const labelCycle: NodeLabelMode[] = ['none', ...(hasSupport ? ['bootstrap' as const] : []), ...(tree.hasLengths ? ['branchlength' as const] : [])];
-  const nextLabel = labelCycle[(labelCycle.indexOf(labelMode) + 1) % labelCycle.length];
   const theme = useMemo(() => ({ labelSize: LABEL_SIZE * init.fontScale, branchWidth: 1.5, cladeBranchWidth: 2.2 }), [init.fontScale]);
   const activeHex = activeColor === ERASE ? 'var(--ex-muted)' : `var(--ex-palette-${activeColor.toLowerCase()})`;
   const feedback = hoveredSwatch ?? (activeColor === ERASE ? 'Erase' : activeColor);
@@ -1152,29 +1140,6 @@ export function Explorer({
             Alignment
           </button>
         )}
-        {labelCycle.length > 1 && (
-          <button
-            type="button"
-            className={`ex-btn ex-toggle ex-labels${labelMode !== 'none' ? ' active' : ''}`}
-            title={`Node labels: ${labelMode === 'none' ? 'hidden' : labelMode === 'bootstrap' ? 'support values' : 'branch lengths'} — click to cycle`}
-            onClick={() => setLabelMode(nextLabel)}
-          >
-            {labelMode === 'bootstrap' ? <I.IconBootstrap /> : labelMode === 'branchlength' ? <I.IconBranchLen /> : <I.IconLabelsOff />}
-            {labelMode === 'bootstrap' ? 'Bootstrap' : labelMode === 'branchlength' ? 'Length' : 'No labels'}
-          </button>
-        )}
-        {labelMode === 'bootstrap' && (
-          <button
-            type="button"
-            className={`ex-btn ex-toggle${supportPercent ? ' active' : ''}`}
-            aria-label="Support as percent"
-            aria-pressed={supportPercent}
-            title={supportPercent ? 'Support shown as a percentage (95)' : 'Show support as a percentage (0.95 as 95)'}
-            onClick={() => setSupportPercent((p) => !p)}
-          >
-            <J.IconPercent />%
-          </button>
-        )}
       </Scroller>
 
       {/* ── Body: the tree ── */}
@@ -1214,7 +1179,6 @@ export function Explorer({
             highlightStyle,
             alignLabels,
             nodeLabels,
-            formatNodeLabel,
             // with the alignment shown, the tree takes 40% of the width and the 'fill' column the rest
             treeWidth: columns.length ? '40%' : undefined,
             themeObserver: 'document',
@@ -1406,6 +1370,8 @@ export function Explorer({
               ['Minimap', showOverview, () => setShowOverview((x) => !x), true],
               ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths],
               ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable],
+              ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), hasSupport],
+              ['Show branch length', labelMode === 'length', () => setLabelMode((m) => (m === 'length' ? 'none' : 'length')), tree.hasLengths],
             ] as const
           ).map(([label, on, toggle, enabled]) => (
             <button key={label} type="button" role="menuitemcheckbox" aria-checked={on} disabled={!enabled} onClick={toggle}>

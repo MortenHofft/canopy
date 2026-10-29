@@ -64,14 +64,6 @@ export const IconLegend = () => (
     <path d="M6.5 4h6M6.5 10h6" {...s} strokeWidth="1.4" />
   </svg>
 );
-/** Percent: support shown as 95 instead of 0.95. */
-export const IconPercent = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M11.5 2.5l-9 9" {...s} strokeWidth="1.4" />
-    <circle cx="3.9" cy="3.9" r="1.6" {...s} strokeWidth="1.3" />
-    <circle cx="10.1" cy="10.1" r="1.6" {...s} strokeWidth="1.3" />
-  </svg>
-);
 /** Highlight style: a marker over a line of text. */
 export const IconHighlight = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

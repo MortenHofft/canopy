@@ -10,7 +10,7 @@
 // and Back; collapse by support with a clade the user collapsed kept; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
-// node labels (support, length, support as percent); aligned labels (one x for the label anchors, a click on one opens the menu; in
+// node labels (support and length from the ⋮ menu); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
 // (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
@@ -843,26 +843,24 @@ const drawn = async () => {
   return ev(() => window.__nodeTexts);
 };
 await open('edge-internal-support');
-await btn('No labels').click();
+await moreToggle('Show support');
 await page.waitForTimeout(200);
-ok((await ev(() => __v().options.nodeLabels)) === 'support', "Bootstrap sets nodeLabels to 'support' (no control of our own any more)");
+ok((await ev(() => __v().options.nodeLabels)) === 'support', "Show support sets nodeLabels to 'support'");
 let labels = await drawn();
-ok(labels.includes('100') && labels.includes('0.95'), `Bootstrap: support values drawn (${labels.join(' ')})`);
+ok(labels.includes('100') && labels.includes('0.95'), `Show support: support values drawn (${labels.join(' ')})`);
 ok(labels.length === 2, 'only the two numeric support values; node_EF and the root get none');
-await btn('Bootstrap').click();
+await moreToggle('Show branch length');
 await page.waitForTimeout(200);
-ok((await ev(() => __v().options.nodeLabels)) === 'length', 'Length sets nodeLabels to length');
+ok((await ev(() => __v().options.nodeLabels)) === 'length', 'Show branch length sets nodeLabels to length, and takes support off');
 labels = await drawn();
 ok(labels.includes('0.3') && labels.includes('0.4') && labels.includes('0.1'), `Length: branch lengths drawn (${labels.join(' ')})`);
-await btn('Length').click();
+await moreToggle('Show branch length');
 await page.waitForTimeout(200);
-ok((await drawn()).length === 0 && (await ev(() => __v().options.nodeLabels)) === 'none', 'No labels');
+ok((await drawn()).length === 0 && (await ev(() => __v().options.nodeLabels)) === 'none', 'Both off: no labels');
 // lengths on the HCV tree: every label is the length of a node, and the long tip branches have theirs (#66)
 await open('rich-hcv-19');
-for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'length'; k++) {
-  await page.locator('.ex-labels').click(); // None, (Bootstrap if the tree has support), Length
-  await page.waitForTimeout(150);
-}
+await moreToggle('Show branch length');
+await page.waitForTimeout(150);
 labels = await drawn();
 const hcvLengths = await ev(() => {
   const t = __v().getTree();
@@ -913,9 +911,9 @@ ok(
 // posterior on the BEAST MCC tree: the labels hold no support, the posterior is in [&posterior=...] (io annotations, supportFrom)
 await open('rich-fish-carangaria-135');
 ok((await drawn()).length === 0, 'Carangaria: no node labels by default');
-await page.locator('.ex-labels').click();
+ok(await moreEnabled('Show support'), 'the menu offers Show support on a tree whose support is an annotation');
+await moreToggle('Show support');
 await page.waitForTimeout(150);
-ok((await page.locator('.ex-labels').innerText()).includes('Bootstrap'), 'the button offers Bootstrap on a tree whose support is an annotation');
 // 135 tips in one view are under the density threshold: show the top of the tree
 await ev(() => {
   const v = __v();
@@ -941,8 +939,8 @@ ok(
 // ---------------------------------------------------------------- length labels sit on their branch (#53)
 console.log('length labels on the branch');
 await open('rich-fish-carangaria-135');
-for (let k = 0; k < 3 && !(await page.locator('.ex-labels').innerText()).includes('Length'); k++) await page.locator('.ex-labels').click();
-ok((await page.locator('.ex-labels').innerText()).includes('Length'), 'lengths on');
+await moreToggle('Show branch length');
+ok((await ev(() => __v().options.nodeLabels)) === 'length', 'lengths on');
 // every drawn length is centred on the visible part of its own horizontal branch (the viewer's clip), at two zooms
 const lengthLabelsOff = async (vp) =>
   ev(async (vp) => {
@@ -1636,10 +1634,8 @@ console.log('support on every synthetic tree');
   ok(synthetic.length >= 4, `the synthetic trees: ${synthetic.join(', ')}`);
   for (const id of synthetic) {
     await open(id);
-    for (let k = 0; k < 3 && (await ev(() => __v().options.nodeLabels)) !== 'support'; k++) {
-      await page.locator('.ex-labels').click(); // None, Bootstrap (the tree has support), Length
-      await page.waitForTimeout(150);
-    }
+    await moreToggle('Show support');
+    await page.waitForTimeout(150);
     // labels need room: frame a clade of a few dozen tips, then stretch x (Shift + wheel) until a branch is long enough for one
     const at = await ev(() => {
       const t = __v().getTree();
@@ -1707,8 +1703,8 @@ await open('rich-hcv-19');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
-    'Legend|Minimap|Align labels|Truncate names|Ladderize ascending|Ladderize descending',
-  'the ⋮ menu: Legend, Minimap, Align labels, Truncate names, then Ladderize ascending and descending',
+    'Legend|Minimap|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending',
+  'the ⋮ menu: Legend, Minimap, Align labels, Truncate names, Show support, Show branch length, then Ladderize ascending and descending',
 );
 ok(
   (await moreItem('Legend').getAttribute('aria-checked')) === 'true' && (await moreItem('Minimap').getAttribute('aria-checked')) === 'false',
@@ -1740,28 +1736,6 @@ for (const k of ['band', 'both', 'dim']) {
   ok((await ev(() => __v().options.highlightStyle)) === k, `highlight style ${k} reaches the viewer`);
 }
 await page.keyboard.press('Escape');
-
-// ---------------------------------------------------------------- support as percent
-console.log('support as percent');
-await open('edge-internal-support');
-const drawnNow = async () => {
-  await ev(() => {
-    window.__nodeTexts = [];
-    __v().invalidate();
-    __v().renderNow();
-  });
-  return ev(() => window.__nodeTexts);
-};
-ok((await page.locator('button[aria-label="Support as percent"]').count()) === 0, 'As percent shows only with support labels on');
-await page.locator('.ex-labels').click();
-await page.waitForTimeout(200);
-ok((await drawnNow()).includes('0.95'), 'support 0.95 by default');
-await page.locator('button[aria-label="Support as percent"]').click();
-await page.waitForTimeout(200);
-{
-  const t = await drawnNow();
-  ok(t.includes('95') && t.includes('100') && !t.includes('0.95'), `as percent: ${t.join(' ')}`);
-}
 
 // ---------------------------------------------------------------- Align in radial
 console.log('Align in radial');
@@ -1953,17 +1927,9 @@ console.log('one action colour (#74)');
       return v;
     }, c);
   const colourOf = (loc, prop = 'color') => loc.evaluate((e, prop) => getComputedStyle(e)[prop], prop);
-  const label = page.locator('.ex-labels');
-  // the toggles and the label button in each of their on states, the tools when active and the hover box
+  // the tools when active and the hover box
   const states = async () => {
     const text = {};
-    for (let k = 0; k < 3; k++) {
-      const name = (await label.innerText()).trim().split('\n').pop();
-      text[`labels ${name}`] = (await label.evaluate((e) => e.classList.contains('active'))) ? await colourOf(label) : 'inactive';
-      await label.click();
-      await page.mouse.move(5, 5);
-      await page.waitForTimeout(250);
-    }
     const background = {};
     for (const t of ['Reroot']) {
       await page.locator('.ex-tool', { hasText: t }).click();
@@ -1984,19 +1950,12 @@ console.log('one action colour (#74)');
     const theme = (await ev(() => document.documentElement.dataset.theme)) || 'light';
     const primary = await computed('var(--ex-primary)');
     const { text, background } = await states();
-    ok(text['labels No labels'] === 'inactive', `${theme}: "No labels" looks inactive`);
-    delete text['labels No labels'];
     // the hover box is white on #333 whatever the theme, from its own variables
     ok(
       text['hover box'] === (await computed('var(--ex-tooltip-text)')) && text['hover box'] === 'rgb(255, 255, 255)',
       `${theme}: the hover box has white text (${text['hover box']})`,
     );
     delete text['hover box'];
-    const off = Object.entries(text).filter(([, c]) => c !== primary);
-    ok(
-      Object.keys(text).length >= 2 && off.length === 0,
-      `${theme}: the label button has the text colour --ex-primary (${primary})${off.length ? `, not ${JSON.stringify(off)}` : ''}`,
-    );
     ok(
       Object.values(background).every((c) => c === primary),
       `${theme}: Reroot, active, has the background --ex-primary (${JSON.stringify(background)})`,
@@ -2009,9 +1968,8 @@ console.log('one action colour (#74)');
     await ev(() => document.documentElement.style.removeProperty('--ex-tooltip-bg'));
     ok(themed.text['hover box'] === 'rgb(200, 30, 30)', `${theme}: --ex-tooltip-text colours the hover box (${themed.text['hover box']})`);
     delete themed.text['hover box'];
-    delete themed.text['labels No labels'];
     ok(
-      Object.values(themed.text).every((c) => c === primary) && Object.values(themed.background).every((c) => c === primary),
+      Object.values(themed.background).every((c) => c === primary),
       `${theme}: and nothing else`,
     );
     await page.locator('.theme-toggle').click();
