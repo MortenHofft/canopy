@@ -237,7 +237,7 @@ export function Explorer({
   const [move, setMove] = useState<{ from: TreeModel; to: TreeModel; map: Int32Array } | null>(null);
   const [clades, setClades] = useState<CladeProp[]>([]);
   const [collapsed, setCollapsed] = useState<number[]>(init.collapsed); // clades the user collapsed (ids of `tree`)
-  const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Back and Up one level (tree-ops focus)
+  const [focus, setFocus] = useState<ops.Focus>(ops.NO_FOCUS); // the clade shown alone, with Reset and Up one level (tree-ops focus)
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('dim');
   const [showOverview, setShowOverview] = useState(false);
   // the "Scroll to zoom · Drag to pan" hint goes for good once the user zooms or pans (a wheel turn, a drag or pinch, a zoom or arrow key);
@@ -297,7 +297,7 @@ export function Explorer({
   }, [tree, focus]);
   const shown = view?.tree ?? tree;
   // a node of what is shown -> the node of `tree` an action works on; -1 for an id the shown tree does not have. The hover box is rendered
-  // with the last hover event, which can hold an id of the tree shown BEFORE Show only / Up / Back changed it.
+  // with the last hover event, which can hold an id of the tree shown BEFORE Show only / Up / Reset changed it.
   const toTree = (k: number) => {
     const v = view ? view.toTree[k] : k;
     return v === undefined || v < 0 || v >= tree.nodeCount ? -1 : v;
@@ -507,7 +507,7 @@ export function Explorer({
     setPick(null);
     ref.current?.renderer()?.focus(); // back to the tree
   };
-  // ---- show only a clade: a navigation, not an edit, so it is not in the undo history. Back and Up one level come from tree-ops' focus.
+  // ---- show only a clade: a navigation, not an edit, so it is not in the undo history. Reset and Up one level come from tree-ops' focus.
   const navigate = (f: ops.Focus) => {
     setFocus(f);
     deselect();
@@ -520,7 +520,7 @@ export function Explorer({
   const overviewOfShown = () => {
     const root = Math.max(0, ops.focusedNode(focus));
     const next = ops.mergeAutoCollapse(tree, collapsed, { root, maxRows: OVERVIEW_ROWS });
-    // the clade shown alone stays collapsed in the view around it (as jumpInto leaves it), so Back returns to that view
+    // the clade shown alone stays collapsed in the view around it (as jumpInto leaves it), so Reset returns to that view
     if (root > 0 && collapsed.includes(root)) {
       next.push(root);
       next.sort((a, b) => a - b);
@@ -532,7 +532,7 @@ export function Explorer({
   };
   /** Open the collapsed clade `v` (of `tree`) with its own overview of about EXPAND_ROWS rows inside. */
   const expandInPlace = (v: number) => setCollapsed((cs) => ops.mergeAutoCollapse(tree, cs, { root: v, maxRows: EXPAND_ROWS }));
-  /** Show only the collapsed clade `v`, with its overview inside. It stays collapsed in the view around it, so Back returns to that view. */
+  /** Show only the collapsed clade `v`, with its overview inside. It stays collapsed in the view around it, so Reset returns to that view. */
   const jumpInto = (v: number) => {
     setCollapsed((cs) => [...ops.mergeAutoCollapse(tree, cs, { root: v, maxRows: OVERVIEW_ROWS }), v].sort((a, b) => a - b));
     navigate(ops.focusOn(tree, focus, v));
@@ -632,7 +632,7 @@ export function Explorer({
         label: 'Up one level',
         onSelect: () => navigate(ops.focusUp(tree, focus)),
       });
-      items.push({ id: 'back', label: 'Back', onSelect: () => navigate(ops.focusBack(focus)) });
+      items.push({ id: 'reset', label: 'Reset', onSelect: () => navigate(ops.NO_FOCUS) });
     }
     items.push(info);
     if (trueRoot) return [...items, colour];
@@ -821,39 +821,22 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onReset={() => back(0)} />}
-        {(ops.canGoBack(focus) || ops.canGoUp(focus)) && (
-          <>
-            <div className="ex-group" role="group" aria-label="Clade shown">
-              <button
-                type="button"
-                disabled={!ops.canGoBack(focus)}
-                title="Back to the view before (Show only this clade / Up one level)"
-                onClick={() => navigate(ops.focusBack(focus))}
-              >
-                <J.IconBack />
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={!ops.canGoUp(focus)}
-                title="Up one level: show the clade that contains the one shown"
-                onClick={() => navigate(ops.focusUp(tree, focus))}
-              >
-                <J.IconUpLevel />
-                Up one level
-              </button>
-            </div>
-            <span className="ex-chip" title="Only this clade is shown">
-              <J.IconSubtree />
-              {ops.canGoUp(focus) ? (
-                <span>
-                  Clade of <span className="ex-mono">{shown.tipCount.toLocaleString('en')}</span> tips
-                </span>
-              ) : (
-                'Whole tree'
-              )}
-            </span>
-          </>
+        {ops.focusedNode(focus) >= 0 && (
+          <div className="ex-group" role="group" aria-label="Clade shown">
+            <button type="button" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
+              <J.IconReset />
+              Reset
+            </button>
+            <button
+              type="button"
+              disabled={!ops.canGoUp(focus)}
+              title="Up one level: show the clade that contains the one shown"
+              onClick={() => navigate(ops.focusUp(tree, focus))}
+            >
+              <J.IconUpLevel />
+              Up one level
+            </button>
+          </div>
         )}
         <div className="ex-divider" />
         <label className="ex-select" title="What a click on a node or tip does">

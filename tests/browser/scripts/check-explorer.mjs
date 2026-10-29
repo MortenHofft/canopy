@@ -7,14 +7,14 @@
 // click on a collapsed clade's triangle expands it)
 // and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, colour, erase and the innermost-colour-wins order; reroot, midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
 // (?undo-budget: the oldest step dropped first, Reset only for a tree larger than the budget, #44); show only a clade, Up one level
-// and Back; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
+// and Reset; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support and length from the ⋮ menu); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
 // (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
-// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back returns); the debug panel (?debug=1)
+// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Reset returns); the debug panel (?debug=1)
 // shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
@@ -94,6 +94,8 @@ const click = async (p) => {
 };
 const btn = (text) => page.locator('.ex-outer button', { hasText: text }).first();
 // the ⋮ menu (branch style, legend, minimap, align labels, truncate names, support, length, ladderize, export): open it, use an item; a toggle leaves it open, so close it
+// Reset of the clade shown alone (the Reset of the edits is another button): the whole tree again
+const resetView = () => page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: 'Reset' }).click();
 // Undo has no button: Ctrl+Z with the focus on the tree
 const undo = async () => {
   await page.locator('.phylo-tree').focus();
@@ -668,10 +670,10 @@ console.log('click actions');
   await click(await ev(() => __clade(20, 40)));
   await page.waitForTimeout(300);
   ok(
-    (await btn('Back').count()) === 1 && (await menu.count()) === 0,
-    'Subtree: a click on a clade shows only that clade (Back is offered), and no menu opens',
+    (await page.locator('.ex-group[aria-label="Clade shown"]').count()) === 1 && (await menu.count()) === 0,
+    'Subtree: a click on a clade shows only that clade (Reset is offered), and no menu opens',
   );
-  await btn('Back').click();
+  await resetView();
   await page.waitForTimeout(300);
   await sel.selectOption('colour');
   const palette = await ev(() =>
@@ -890,7 +892,7 @@ ok(
   );
   const subNex = await download('NEXUS');
   ok(subNex.name === 'subtree.nex' && subNex.data.toString().includes(`NTAX=${subTips};`), 'and NEXUS of it: subtree.nex');
-  await btn('Back').click();
+  await resetView();
   await page.waitForTimeout(300);
 }
 
@@ -1194,18 +1196,20 @@ ok(
   'Alignment off',
 );
 
-// ---------------------------------------------------------------- show only a clade, Up one level, Back
-console.log('show only this clade, Up one level, Back');
+// ---------------------------------------------------------------- show only a clade, Up one level, Reset
+console.log('show only this clade, Up one level, Reset');
 await open('rich-fish-carangaria-135');
 const tipCount = () => ev(() => __v().getTree().tipCount);
 const whole = await tipCount();
-ok((await btn('Up one level').count()) === 0, 'no Up / Back while the whole tree is shown');
+ok((await page.locator('.ex-group[aria-label="Clade shown"]').count()) === 0, 'no Reset / Up while the whole tree is shown');
 const c60 = await ev(() => __clade(20, 60));
 await openMenu(c60);
 await act('subtree');
 ok((await tipCount()) === c60.tips, `Show only this clade shows its ${c60.tips} tips (${await tipCount()})`);
-ok((await page.locator('.ex-chip').innerText()).includes(`${c60.tips} tips`), 'and a chip says which clade');
-ok((await btn('Back').isEnabled()) && (await btn('Up one level').isEnabled()), 'Back and Up one level are enabled');
+ok(
+  (await page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: 'Reset' }).isEnabled()) && (await btn('Up one level').isEnabled()),
+  'Reset and Up one level are enabled',
+);
 await page.waitForTimeout(300);
 const rootPos = await ev(() => {
   const q = __v().locateNode(0);
@@ -1213,7 +1217,7 @@ const rootPos = await ev(() => {
 });
 await openMenu(rootPos);
 ok(
-  (await menuItems()).slice(0, 2).join('|') === 'Up one level|Back',
+  (await menuItems()).slice(0, 2).join('|') === 'Up one level|Reset',
   `the root of the clade shown leads out of it: ${(await menuItems()).join(' | ')}`,
 );
 await page.keyboard.press('Escape');
@@ -1222,12 +1226,12 @@ await btn('Up one level').click();
 await page.waitForTimeout(300);
 const up = await tipCount();
 ok(up > c60.tips, `Up one level shows the clade that contains it (${up} tips)`);
-await btn('Back').click();
+await resetView();
 await page.waitForTimeout(300);
-ok((await tipCount()) === c60.tips, 'Back returns to the clade');
-await btn('Back').click();
-await page.waitForTimeout(300);
-ok((await tipCount()) === whole && (await btn('Up one level').count()) === 0, 'Back again returns to the whole tree');
+ok(
+  (await tipCount()) === whole && (await page.locator('.ex-group[aria-label="Clade shown"]').count()) === 0,
+  'Reset returns to the whole tree, and the two buttons go',
+);
 // an edit keeps the clade shown: Ladderize while a clade is shown alone
 await openMenu(await ev(() => __clade(20, 60)));
 await act('subtree');
@@ -1240,9 +1244,9 @@ await page.waitForTimeout(300);
 ok((await tipCount()) === c60.tips, 'and so does Undo');
 
 // the crash path: the hover box is rendered with the last hover event, which held a node id of the tree shown before the change.
-// Hover, then Show only / Up / Back with colours, a collapsed clade and the pointer moving over the new tree
+// Hover, then Show only / Up / Reset with colours, a collapsed clade and the pointer moving over the new tree
 // (any page error or console.error fails the run, see the handlers at the top)
-console.log('Show only, Up, Back with hover, colours and collapse: no page errors');
+console.log('Show only, Up, Reset with hover, colours and collapse: no page errors');
 {
   const errorsBefore = failures;
   await open('rich-fish-carangaria-135');
@@ -1265,13 +1269,16 @@ console.log('Show only, Up, Back with hover, colours and collapse: no page error
     await page.waitForTimeout(150);
     await openMenu(c);
     await act('subtree');
-    for (const step of [null, 'Up one level', 'Back', 'Back']) {
-      if (step) await btn(step).click();
+    for (const step of [null, 'Up one level', 'Reset']) {
+      if (step) {
+        const b = page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: step });
+        if (await b.count()) await b.click(); // Up one level can end on the whole tree, where there is no Reset
+      }
       for (let k = 0; k < 6; k++) await page.mouse.move(300 + k * 90, 300 + k * 20);
       await page.waitForTimeout(250);
     }
   }
-  ok(failures === errorsBefore, 'no page error or console.error during Show only, Up and Back');
+  ok(failures === errorsBefore, 'no page error or console.error during Show only, Up and Reset');
 }
 
 // the tooltip function was called on every render with the last hover event, also after the tree had changed and the box was hidden
@@ -1313,8 +1320,8 @@ console.log('a visible tooltip while the tree changes: no page errors');
   await hoverUntilTooltip(inClade);
   await pressOnButton('.ex-group[aria-label="Clade shown"] button:last-child'); // Up one level, with the tooltip showing
   await hoverUntilTooltip(await lastTip().catch(() => inClade)).catch(() => {});
-  await pressOnButton('.ex-group[aria-label="Clade shown"] button:first-child'); // Back
-  ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during Show only, Up and Back');
+  await pressOnButton('.ex-group[aria-label="Clade shown"] button:first-child'); // Reset
+  ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during Show only, Up and Reset');
 }
 
 // Reroot inside a clade shown alone would split it: the menu leaves it out
@@ -1340,10 +1347,10 @@ console.log('reroot inside a clade shown alone');
   ok((await menuItems()).includes('Reroot here'), 'the root of the clade shown still offers Reroot here');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
-  // Undo does not undo navigation: Ladderize inside the clade, Back to the whole tree, Undo: still the whole tree
+  // Undo does not undo navigation: Ladderize inside the clade, Reset to the whole tree, Undo: still the whole tree
   await ladder('descending');
   await page.waitForTimeout(300);
-  await btn('Back').click();
+  await resetView();
   await page.waitForTimeout(300);
   const wholeTips = await tipCount();
   await undo();
@@ -1977,7 +1984,7 @@ console.log('\na file of one’s own, through the picker’s file input (example
   await page.evaluate(HELPERS);
 }
 // Drill-down (#57) on a large tree: Collapse to 50 clades gives about 50 rows, a click on a collapsed clade expands it in place (its children
-// in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Back returns
+// in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Reset returns
 const drillDown = async (tips) => {
   const collapsedNodes = () =>
     ev(() => {
@@ -2042,7 +2049,7 @@ const drillDown = async (tips) => {
     c0.every((i) => i === big.node || c1.includes(i)) && kids.every(Boolean) && inside.length > 0,
     `its children come in (${kids.length}), its large subclades collapsed (${inside.length}), the other collapsed clades stay`,
   );
-  // jump into another collapsed clade: Show only from its menu (a click on its branch), with an overview inside; Back returns
+  // jump into another collapsed clade: Show only from its menu (a click on its branch), with an overview inside; Reset returns
   const other = await largest([big.node]);
   // its Info panel lists the named clades inside it
   await openMenu(await ev((n) => __stem(n), other.node));
@@ -2061,15 +2068,15 @@ const drillDown = async (tips) => {
     (await tipCount()) === other.tips && r2 <= 50 && r2 >= 20,
     `Show only jumps into a collapsed clade of ${other.tips} tips, with its overview: ${r2} rows`,
   );
-  // Collapse inside the clade shown keeps it collapsed outside, so Back still returns to the view before
+  // Collapse inside the clade shown keeps it collapsed outside, so Reset still returns to the view before
   await btn('Collapse to 50 clades').click();
   await page.waitForTimeout(400);
   ok((await rows()) === r2, `Collapse to 50 clades inside it gives the same overview (${await rows()} rows)`);
-  await btn('Back').click();
+  await resetView();
   await page.waitForTimeout(400);
   ok(
     (await tipCount()) === tips && (await rows()) === r1 && (await ev((n) => __v().layout.collapsed?.[n] === 1, other.node)),
-    `Back returns to the tree as it was (${await rows()} rows, the clade jumped into collapsed again)`,
+    `Reset returns to the tree as it was (${await rows()} rows, the clade jumped into collapsed again)`,
   );
   // Expand in the menu opens a collapsed clade whole, unlike the click (not the clade jumped into: the clades collapsed inside it stay)
   const whole = await ev((skip) => {

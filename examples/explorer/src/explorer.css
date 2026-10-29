@@ -367,20 +367,6 @@ body {
   font-family: var(--ex-mono);
   font-size: 0.95em;
 }
-.ex-chip {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 999px;
-  color: var(--ex-primary);
-  background: var(--ex-tonal);
-  border: 1px solid var(--ex-primary-soft);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 .ex-select {
   display: flex;
   align-items: center;
