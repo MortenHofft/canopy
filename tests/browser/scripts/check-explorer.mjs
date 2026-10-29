@@ -642,18 +642,18 @@ console.log('tree operations');
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
-await btn('Reroot').click();
 const rt = await ev(() => __v().getTree().tipLabels[5]);
-await click(await ev((l) => __tipAt(l), rt));
+await openMenu(await ev((l) => __tipAt(l), rt));
+await act('reroot');
 await page.waitForTimeout(200);
-ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'reroot on a tip changes the tree, Undo appears');
+ok((await ev(() => __order())) !== o0 && (await btn('Undo').count()) === 1, 'Reroot here on a tip changes the tree, Undo appears');
 await page.locator('.ex-outer').press('Escape');
 await btn('Undo').click();
 await page.waitForTimeout(200);
 ok((await ev(() => __order())) === o0 && (await btn('Undo').count()) === 0, 'Undo restores the tree');
 ok((await ev(() => __v().getClades().length)) === 1, 'and the colour');
-await btn('Reroot').click();
-await click(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[9])));
+await openMenu(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[9])));
+await act('reroot');
 await page.waitForTimeout(200);
 const o1 = await ev(() => __order());
 ok(o1 !== o0, 'a second reroot changes the tree');
@@ -706,7 +706,7 @@ ok((await ev(() => __order())) === orderZ, 'Undo returns the tree');
 ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
 await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(200);
-await btn('Midpoint').click();
+await more('Midpoint root');
 ok((await toast()).includes('nothing to change'), 'Midpoint on a dated tree: nothing to change');
 const o2 = await ev(() => __order());
 await ladder('descending');
@@ -1246,7 +1246,7 @@ console.log('a visible tooltip while the tree changes: no page errors');
   ok(failures === errorsBefore, 'no page error or console.error with the tooltip showing during collapse by support, Up and Back');
 }
 
-// Reroot inside a clade shown alone would split it: the menu leaves it out, the tool says why, and the view is kept
+// Reroot inside a clade shown alone would split it: the menu leaves it out
 console.log('reroot inside a clade shown alone');
 {
   await open('rich-fish-carangaria-135');
@@ -1259,13 +1259,6 @@ console.log('reroot inside a clade shown alone');
   ok(!(await menuItems()).includes('Reroot here'), `no Reroot here for a node strictly inside the clade shown (${(await menuItems()).join(' | ')})`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
-  await btn('Reroot').click();
-  await click(inner);
-  ok(
-    (await toast()).includes('would split it') && (await tipCount()) === c.tips,
-    'the Reroot tool says why it does nothing, and the clade stays shown',
-  );
-  await page.keyboard.press('Escape');
   // the root of the clade shown may be rooted on
   await openMenu(
     await ev(() => {
@@ -1669,8 +1662,8 @@ await open('rich-hcv-19');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
-    'Phylogram|Cladogram|Legend|Minimap|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending|Export…',
-  'the ⋮ menu: Phylogram and Cladogram, the toggles, Ladderize ascending and descending, Export…',
+    'Phylogram|Cladogram|Legend|Minimap|Tooltips|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending|Midpoint root|Export…',
+  'the ⋮ menu: Phylogram and Cladogram, the toggles, Ladderize ascending and descending, Midpoint root, Export…',
 );
 ok(
   (await moreItem('Legend').getAttribute('aria-checked')) === 'true' && (await moreItem('Minimap').getAttribute('aria-checked')) === 'false',
@@ -1693,6 +1686,25 @@ ok((await moreMenu().count()) === 1, 'a toggle leaves the menu open');
 await page.waitForTimeout(200);
 ok((await page.locator('.phylo-overview').count()) === 1 && (await moreItem('Minimap').getAttribute('aria-checked')) === 'true', 'Minimap on');
 await moreItem('Minimap').click();
+ok((await moreItem('Tooltips').getAttribute('aria-checked')) === 'true', 'Tooltips are on by default');
+await moreItem('Tooltips').click();
+await moreClose();
+{
+  const at = await ev(() => __tipAt(__v().getTree().tipLabels[3]));
+  await page.mouse.move(at.x, at.y);
+  await page.waitForTimeout(300);
+  ok((await page.locator('.phylo-tooltip:not([hidden]) .ex-tip--node').count()) === 0, 'Tooltips off: no hover box on a tip');
+  await page.mouse.move(5, 5);
+}
+await moreToggle('Tooltips');
+{
+  const at = await ev(() => __tipAt(__v().getTree().tipLabels[3]));
+  await page.mouse.move(at.x, at.y);
+  await page.waitForTimeout(300);
+  ok((await page.locator('.phylo-tooltip .ex-tip--node').count()) === 1, 'Tooltips back on: the hover box shows again');
+  await page.mouse.move(5, 5);
+}
+await moreButton().click();
 await moreItem('Ladderize ascending').click();
 ok((await moreMenu().count()) === 0, 'a ladderize item closes the menu');
 await btn('Undo').click();
@@ -1905,51 +1917,31 @@ console.log('one action colour (#74)');
       return v;
     }, c);
   const colourOf = (loc, prop = 'color') => loc.evaluate((e, prop) => getComputedStyle(e)[prop], prop);
-  // the tools when active and the hover box
+  // the hover box
   const states = async () => {
     const text = {};
-    const background = {};
-    for (const t of ['Reroot']) {
-      await page.locator('.ex-tool', { hasText: t }).click();
-      await page.mouse.move(5, 5);
-      await page.waitForTimeout(200);
-      background[t] = await colourOf(page.locator('.ex-tool.active'), 'backgroundColor');
-      await page.locator('.ex-outer').press('Escape');
-      await page.waitForTimeout(100);
-    }
     await page.mouse.move(...Object.values(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3]))));
     await page.locator('.ex-tip--node').waitFor({ timeout: 3000 });
     await page.waitForTimeout(250);
     text['hover box'] = await colourOf(page.locator('.ex-tip--node'));
     await page.mouse.move(5, 5);
-    return { text, background };
+    return { text };
   };
   for (let pass = 0; pass < 2; pass++) {
     const theme = (await ev(() => document.documentElement.dataset.theme)) || 'light';
-    const primary = await computed('var(--ex-primary)');
-    const { text, background } = await states();
+    const { text } = await states();
     // the hover box is white on #333 whatever the theme, from its own variables
     ok(
       text['hover box'] === (await computed('var(--ex-tooltip-text)')) && text['hover box'] === 'rgb(255, 255, 255)',
       `${theme}: the hover box has white text (${text['hover box']})`,
     );
-    delete text['hover box'];
-    ok(
-      Object.values(background).every((c) => c === primary),
-      `${theme}: Reroot, active, has the background --ex-primary (${JSON.stringify(background)})`,
-    );
-    // a theme sets the hover box's own variables: only the box changes
+    // a theme sets the hover box's own variables
     await ev(() => document.documentElement.style.setProperty('--ex-tooltip-text', 'rgb(200, 30, 30)'));
     await ev(() => document.documentElement.style.setProperty('--ex-tooltip-bg', 'rgb(10, 20, 30)'));
     const themed = await states();
     await ev(() => document.documentElement.style.removeProperty('--ex-tooltip-text'));
     await ev(() => document.documentElement.style.removeProperty('--ex-tooltip-bg'));
     ok(themed.text['hover box'] === 'rgb(200, 30, 30)', `${theme}: --ex-tooltip-text colours the hover box (${themed.text['hover box']})`);
-    delete themed.text['hover box'];
-    ok(
-      Object.values(themed.background).every((c) => c === primary),
-      `${theme}: and nothing else`,
-    );
     await page.locator('.theme-toggle').click();
     await page.waitForTimeout(300);
   }
@@ -2274,10 +2266,10 @@ for (const [id, tipsWanted] of [
   const n2 = await tipCount();
   ok(n2 > 150000, `gtdb-190k-bacteria: ${n2} tips (${ms2} ms)`);
   ok(
-    (await page.locator('.ex-note').count()) === 0 && (await btn('Midpoint').isEnabled()) && (await moreButton().isEnabled()),
+    (await page.locator('.ex-note').count()) === 0 && (await moreEnabled('Midpoint root')) && (await moreButton().isEnabled()),
     'nothing is disabled on a large tree',
   );
-  ok((await btn('Reroot').isEnabled()) && (await btn('Color').isEnabled()), 'and the tools are on');
+  ok(await btn('Color').isEnabled(), 'and the Color tool is on');
   // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
   // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
   // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates

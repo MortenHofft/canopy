@@ -26,13 +26,11 @@ import { Scroller } from './Scroller.tsx';
 import { DebugPanel } from './DebugPanel.tsx';
 import { restoredSettings, type DebugInfo } from './debug.ts';
 
-type Mode = 'none' | 'reroot' | 'color';
+type Mode = 'none' | 'color';
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
 const NO_NODES: number[] = [];
-/** Rooting inside a clade shown alone puts its tips on both sides of the new root, so it would no longer be one clade. */
-const REROOT_IN_FOCUS = 'Reroot inside a clade shown alone would split it: go Up one level or Back to the whole tree first';
 /** Drill-down (tree-ops autoCollapse): the rows of the overview of the clade shown, and of a collapsed clade expanded in place. */
 const OVERVIEW_ROWS = 50;
 const EXPAND_ROWS = 20;
@@ -311,6 +309,7 @@ export function Explorer({
   const [alignLabels, setAlignLabels] = useState(init.alignLabels);
 
   const [mode, setMode] = useState<Mode>('none');
+  const [showTooltips, setShowTooltips] = useState(true); // the hover box on the tree
   const [activeColor, setActiveColor] = useState('Red');
   const [hoveredSwatch, setHoveredSwatch] = useState<string | null>(null);
   const [pickAt, setPick] = useState<{ node: number; x: number; y: number } | null>(null); // the node (of `tree`) the menu's Colour… is for, and where the palette opens (px in the component)
@@ -684,10 +683,6 @@ export function Explorer({
     const v = toTree(e.node);
     if (v < 0) return;
     switch (mode) {
-      case 'reroot':
-        if (v === 0) return flash('Already the root');
-        if (ops.canGoUp(focus) && e.node !== 0) return flash(REROOT_IN_FOCUS);
-        return apply((t) => ops.reroot(t, v), 'Reroot');
       case 'color':
         return paint(v, activeColor);
     }
@@ -739,7 +734,7 @@ export function Explorer({
     };
     const copy: NodeMenuItem = { id: 'copy', label: 'Copy Newick', onSelect: () => copyNewick(v) };
     if (isCollapsed) return [expand, info, { ...only, onSelect: () => jumpInto(v) }, colour];
-    // inside a clade shown alone a reroot would split it (REROOT_IN_FOCUS): the menu leaves it out there
+    // inside a clade shown alone a reroot would split it: the menu leaves it out there
     const canReroot = !ops.canGoUp(focus) || shownRoot;
     if (isTip) return canReroot ? [info, reroot, colour] : [info, colour];
     const items: NodeMenuItem[] = [];
@@ -774,8 +769,6 @@ export function Explorer({
       </span>
     );
     switch (mode) {
-      case 'reroot':
-        return tag('reroot', null, 'Set as root');
       case 'color':
         return tag(
           'color',
@@ -922,6 +915,11 @@ export function Explorer({
             <I.IconCirc />
           </button>
         </div>
+        <div className="ex-divider" />
+        <button type="button" className="ex-btn" title="Fit tree" onClick={() => viewer?.fit(false)}>
+          <J.IconFit />
+          Fit
+        </button>
         <div className="ex-spacer" />
         <div className="ex-pinned">
           <button
@@ -957,10 +955,6 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoControls canUndo={canUndo} undoOn={undoOn} onUndo={undo} onReset={() => back(0)} />}
-        <button type="button" className="ex-btn" title="Fit tree" onClick={() => viewer?.fit(false)}>
-          <J.IconFit />
-          Fit
-        </button>
         {(ops.canGoBack(focus) || ops.canGoUp(focus)) && (
           <>
             <div className="ex-group" role="group" aria-label="Clade shown">
@@ -996,33 +990,6 @@ export function Explorer({
           </>
         )}
         <div className="ex-divider" />
-        <button
-          type="button"
-          className={`ex-btn ex-tool${mode === 'reroot' ? ' active' : ''}`}
-          aria-pressed={mode === 'reroot'}
-          title={mode === 'reroot' ? 'Exit reroot mode (Esc)' : 'Reroot — click any node'}
-          onClick={() => toggleMode('reroot')}
-        >
-          {mode === 'reroot' ? (
-            <>
-              Click… <span className="ex-dot" />
-            </>
-          ) : (
-            'Reroot'
-          )}
-        </button>
-        <button
-          type="button"
-          className="ex-btn ex-tool"
-          disabled={!tree.hasLengths}
-          title={tree.hasLengths ? 'Midpoint root — place root at the midpoint of the longest path' : 'Midpoint root requires branch lengths'}
-          onClick={() => {
-            exitModes();
-            apply(ops.midpointRoot, 'Midpoint');
-          }}
-        >
-          Midpoint
-        </button>
         <button
           type="button"
           className={`ex-btn ex-color${mode === 'color' ? ' active' : ''}`}
@@ -1131,7 +1098,7 @@ export function Explorer({
             // a view restored (?view=) sets the level-of-detail options it was copied with
             ...init.options,
           }}
-          tooltip={tooltip}
+          tooltip={showTooltips ? tooltip : false}
           tooltipBare
           nodeMenu={nodeMenu}
           onNodeClick={onToolClick}
@@ -1338,6 +1305,7 @@ export function Explorer({
                 [
                   ['Legend', showLegend, () => setShowLegend((x) => !x), true],
                   ['Minimap', showOverview, () => setShowOverview((x) => !x), true],
+                  ['Tooltips', showTooltips, () => setShowTooltips((x) => !x), true],
                   ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths],
                   ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable],
                   ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), hasSupport],
@@ -1357,19 +1325,23 @@ export function Explorer({
                     'Smallest clades at top',
                     <J.IconLadderBy key="i" />,
                     () => apply((t) => ops.ladderise(t, { by: 'tips' }), 'Ladderize'),
+                    true,
                   ],
                   [
                     'Ladderize descending',
                     'Largest clades at top',
                     <J.IconLadderBy key="i" descending />,
                     () => apply((t) => ops.ladderise(t, { by: 'tips', order: 'decreasing' }), 'Ladderize'),
+                    true,
                   ],
+                  ['Midpoint root', 'Needs branch lengths', null, () => apply(ops.midpointRoot, 'Midpoint'), tree.hasLengths],
                 ] as const
-              ).map(([label, desc, icon, run]) => (
+              ).map(([label, desc, icon, run, enabled]) => (
                 <button
                   key={label}
                   type="button"
                   role="menuitem"
+                  disabled={!enabled}
                   onClick={() => {
                     run();
                     setMenu('closed');
