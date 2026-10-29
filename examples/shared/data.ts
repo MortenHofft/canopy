@@ -1,4 +1,4 @@
-// Loading shared by the examples that show the repository's trees (the playground, the explorer, the table view and the unrooted page):
+// Loading shared by the examples that show the repository's trees (the playground and the explorer):
 // the catalogue of trees in data/ (served at /data/ by the dev server and copied there by the site build), fetching a file from it (gzip
 // by content, a `remote` URL as the fallback), reading a tree file of the user's own, parsing a tree and a FASTA. The tree picker that
 // offers both is picker.ts. Not a package: a folder the examples import by relative path.
@@ -14,7 +14,7 @@ export interface Entry {
   fasta?: string;
   /** Where the file lives when it is too large for main (the data/otl-large branch): used when /data/<path> is not there. */
   remote?: string;
-  /** Node count (tips and internal nodes) of the tree, for a page that cannot draw every tree (the unrooted page's node limit). */
+  /** Node count (tips and internal nodes) of the tree, for a page that cannot draw every tree. */
   nodes?: number;
 }
 

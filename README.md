@@ -21,10 +21,6 @@ Examples:
 - [`examples/react`](examples/react): `<TreeView>` with tree operations.
 - [`examples/playground`](examples/playground): every option, theme token and built-in control in a side panel, on any tree.
 - [`examples/explorer`](examples/explorer): the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree), with a table of which control uses which API.
-- [`examples/table`](examples/table): a table view like TBrowse: fixed rows that scroll without zooming, the tree as one column among data
-  columns with a header row and resizable columns; its README lists what the viewer cannot do for it yet.
-- [`examples/unrooted`](examples/unrooted): the page of the unrooted layout spike (#42): the equal-angle layout of one tree drawn on a
-  plain canvas, every branch and no zoom. It uses the layout from the viewer's source, which the viewer does not export yet.
 - [`examples/no-build`](examples/no-build): plain HTML with an import map; no bundler and no npm on the page's side. Browser checks and benchmarks are in [`tests/browser`](tests/browser). Test trees are in
 [`data/`](data); see [data/README.md](data/README.md) for what each tree is for and its licence. Design notes and the measurements behind
 the viewer are in [`docs/design`](docs/design).
@@ -60,8 +56,6 @@ npm run dev -w examples/vanilla         # the framework-free example on http://1
 npm run dev -w examples/react           # the React example on http://127.0.0.1:5307
 npm run dev -w examples/explorer        # the tree explorer on http://127.0.0.1:5309
 npm run dev -w examples/playground      # the playground on http://127.0.0.1:5310
-npm run dev -w examples/table           # the table view on http://127.0.0.1:5312
-npm run dev -w examples/unrooted        # the unrooted layout spike on http://127.0.0.1:5313
 npm run build:site                      # the demo site (hub, playground, showcases, data) into site-dist/, as Vercel builds it
 ```
 

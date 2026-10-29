@@ -12,10 +12,10 @@ its preview) or starts with `claude/`. Every other branch (`main`, a shift branc
 - Each page is built with the absolute base `/<id>/`. Vercel's `trailingSlash: false` serves `/<id>/` as `/<id>`, where a relative
   `./assets` would resolve from the site root.
 - `public/thumbs/<id>.jpg` are the cards' pictures, made by [`scripts/capture-thumbs.mjs`](scripts/capture-thumbs.mjs) from a built site
-  (`npm run build:site && node site/scripts/capture-thumbs.mjs unrooted`, then build again). Give the ids of the pages to capture;
+  (`npm run build:site && node site/scripts/capture-thumbs.mjs explorer`, then build again). Give the ids of the pages to capture;
   with none it captures every page, which rewrites all the pictures.
 - `public/favicon.svg` is ours (Apache-2.0, like the rest).
 
 Check it the way Vercel serves it: `node tests/browser/scripts/check-site.mjs` builds the site, serves `site-dist/` with vercel.json's URL
-rules (`tests/browser/scripts/static-site.mjs`) and runs the hub, playground, explorer and table checks. To look at it by hand:
+rules (`tests/browser/scripts/static-site.mjs`) and runs the hub, playground and explorer checks. To look at it by hand:
 `node tests/browser/scripts/static-site.mjs site-dist`.
