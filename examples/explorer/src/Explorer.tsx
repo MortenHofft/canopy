@@ -22,12 +22,14 @@ import {
 } from '@canopy/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
+import * as K from './icons-click.tsx';
 import { Scroller } from './Scroller.tsx';
 import { DebugPanel } from './DebugPanel.tsx';
 import { restoredSettings, type DebugInfo } from './debug.ts';
 
 /** What a click on a node or tip does: the node menu (inspect), or one action at once. */
-type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'colour';
+type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'reroot' | 'colour';
+const CLICK_ICONS = { inspect: K.IconInspect, collapse: K.IconCollapse, subtree: K.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
@@ -565,6 +567,11 @@ export function Explorer({
         if (e.isTip) return flash('Show only needs a clade');
         if (e.node === 0) return flash('This is the clade shown already');
         return navigate(ops.focusOn(tree, focus, v));
+      case 'reroot':
+        if (e.collapsed) return flash('Reroot needs a tip or an open clade');
+        if (v === 0) return flash('This is the root already');
+        if (ops.canGoUp(focus) && e.node !== 0) return flash('Back to root to reroot the whole tree');
+        return apply((t) => ops.reroot(t, v), 'Reroot');
       case 'colour':
         return paint(v, clades.some((c) => c.node === v) ? ERASE : nextColour()); // a second click takes the colour off
     }
@@ -764,6 +771,30 @@ export function Explorer({
     <div className={`ex-outer ex-click-${clickAction}`} ref={outer} onKeyDown={onKeyDown}>
       {/* ── Row 1: view settings ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="View">
+        <label
+          className={`ex-select${clickAction !== 'inspect' ? ' ex-select--active' : ''}`}
+          title="What a click on a node or tip does (blue while it is not Inspect)"
+        >
+          <span className="ex-select-icon" aria-hidden="true">
+            {React.createElement(CLICK_ICONS[clickAction])}
+          </span>
+          <select
+            aria-label="Click action"
+            value={clickAction}
+            onChange={(e) => {
+              setClickAction(e.target.value as ClickAction);
+              setPick(null);
+            }}
+          >
+            <option value="inspect">Inspect</option>
+            <option value="collapse">Collapse</option>
+            <option value="subtree">Subtree</option>
+            <option value="reroot">Reroot</option>
+            <option value="colour">Colour</option>
+          </select>
+          <span className="ex-select-caret" aria-hidden="true" />
+        </label>
+        <div className="ex-divider" />
         <button type="button" className="ex-btn" aria-label="Fit tree" title="Fit tree" onClick={() => viewer?.fit(false)}>
           <J.IconFit />
         </button>
@@ -823,24 +854,6 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
-        <label
-          className={`ex-select${clickAction !== 'inspect' ? ' ex-select--active' : ''}`}
-          title="What a click on a node or tip does (blue while it is not Inspect)"
-        >
-          <select
-            aria-label="Click action"
-            value={clickAction}
-            onChange={(e) => {
-              setClickAction(e.target.value as ClickAction);
-              setPick(null);
-            }}
-          >
-            <option value="inspect">Inspect</option>
-            <option value="collapse">Collapse</option>
-            <option value="subtree">Subtree</option>
-            <option value="colour">Colour</option>
-          </select>
-        </label>
         {ops.focusedNode(focus) >= 0 && (
           <div className="ex-group" role="group" aria-label="Clade shown">
             <button type="button" aria-label="Back to root" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>

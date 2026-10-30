@@ -24,3 +24,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
 FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+--------------------------------------------------------------------------------
+Click action icons of the tree explorer (examples/explorer)
+
+Source: SVG paths copied from react-icons 5.5.0, https://github.com/react-icons/react-icons (each icon under its own set's licence)
+Used in: examples/explorer/src/icons-click.tsx
+
+  Inspect   HiEye                   Heroicons 2, https://github.com/tailwindlabs/heroicons, MIT, Copyright (c) Tailwind Labs, Inc.
+  Collapse  RiCollapseVerticalFill  Remix Icon, https://github.com/Remix-Design/RemixIcon, Apache-2.0
+  Colour    IoMdColorFill           Ionicons 4, https://github.com/ionic-team/ionicons, MIT, Copyright (c) 2015-present Ionic
+  Subtree   FaFilter                Font Awesome Free 6, https://fontawesome.com, icons CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Reroot    BsFillSkipStartFill     Bootstrap Icons, https://github.com/twbs/icons, MIT, Copyright (c) 2019-2024 The Bootstrap Authors
+
+The MIT licence text above applies to the MIT-licensed icons, with these copyright lines.
