@@ -129,7 +129,8 @@ export interface TreeTheme extends ResidueTheme {
   cladeBackgroundPadding: number;
   /** Largest radius of a tip dot (it shrinks with the row height), CSS px. */
   tipRadius: number;
-  /** Side of the square marker on internal nodes big enough to click, CSS px. */
+  /** Side of the square marker on internal nodes big enough to click, CSS px. With the option `namedNodeMarkers` (default) the main
+   *  view uses `namedNodeMarkerSize` and `unnamedNodeMarkerSize` instead; the overview and `namedNodeMarkers: false` use this. */
   nodeMarkerSize: number;
   /** With the option `namedNodeMarkers`, internal nodes with a name get a round marker of this diameter in `namedNodeColour` ('' =
    *  `foreground`), and the other internal nodes a square marker of `unnamedNodeMarkerSize` instead of `nodeMarkerSize`, CSS px. */

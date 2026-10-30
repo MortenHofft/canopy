@@ -320,11 +320,13 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const maxN = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
   const sc = S.scale;
   const centred = mode === 'length'; // a function's text is placed and coloured like support
-  const marker = S.namedNode ? Math.max(theme.unnamedNodeMarkerSize, theme.namedNodeMarkerSize) : theme.nodeMarkerSize;
-  const gap = Math.max(NODE_LABEL_GAP_PX, marker / 2 + 1); // a support value clears the node's marker
-  const pad = Math.max(NODE_LABEL_PAD_PX, marker / 2 + 1); // a length keeps clear of the node marker at one end and the connector at the other
-  const fit = centred ? 2 * pad : gap + NODE_LABEL_PAD_PX; // the room a label needs besides its text
-  const fitTip = 2 * Math.max(pad, theme.tipRadius + 1); // a tip's length (the only label of a tip) keeps clear of the tip dot too
+  const { namedNode } = S;
+  const plainMarker = namedNode ? theme.unnamedNodeMarkerSize : theme.nodeMarkerSize; // the marker a node has unless it is named (namedNodeMarkers)
+  const plainGap = Math.max(NODE_LABEL_GAP_PX, plainMarker / 2 + 1); // a support value clears the node's marker
+  const plainPad = Math.max(NODE_LABEL_PAD_PX, plainMarker / 2 + 1); // a length keeps clear of the node marker at one end and the connector at the other
+  const namedGap = namedNode ? Math.max(NODE_LABEL_GAP_PX, theme.namedNodeMarkerSize / 2 + 1) : plainGap; // a named node's larger marker
+  const namedPad = namedNode ? Math.max(NODE_LABEL_PAD_PX, theme.namedNodeMarkerSize / 2 + 1) : plainPad;
+  const fitTip = 2 * Math.max(plainPad, theme.tipRadius + 1); // a tip's length (the only label of a tip) keeps clear of the tip dot too
   const colSupport = theme.supportColour || theme.muted,
     colLength = theme.lengthColour || theme.muted;
   const p: Pt = { x: 0, y: 0 },
@@ -369,6 +371,9 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
       const text = nodeText(S, i);
       if (text === null) continue;
       const w = S.measure.width(ctx, text, font);
+      const big = namedNode && kind !== K_TIP && namedNode(i) === true; // this node has the larger marker
+      const gap = big ? namedGap : plainGap;
+      const fit = centred ? 2 * (big ? namedPad : plainPad) : gap + NODE_LABEL_PAD_PX; // the room a label needs besides its text
       if (w + (kind === K_TIP ? fitTip : fit) > room) continue; // no room: not drawn, never moved to the node
       const fill = centred ? colLength : colSupport;
       if (fill !== lastFill) {

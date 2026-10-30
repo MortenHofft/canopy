@@ -366,6 +366,7 @@ export const SETTINGS: Setting[] = [
   {
     id: 'nodeMarkerSize',
     label: 'Node marker size',
+    hint: 'used with "Mark named nodes" off, and by the overview',
     group: 'Theme',
     to: 'theme',
     kind: 'range',
