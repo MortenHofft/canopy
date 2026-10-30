@@ -13,7 +13,7 @@
 // node labels (support and length from the ⋮ menu); aligned labels (one x for the label anchors, a click on one opens the menu; in
 // radial one distance from the root, toBlob equal to the screen); the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
-// (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on the 135-tip Carangaria tree
+// (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on the 10k-tip GTDB archaea tree, its overview set through ?view=
 // (#57: a click expands a collapsed clade in place, Show only jumps into one, Back to root returns); the debug panel (?debug=1)
 // shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
