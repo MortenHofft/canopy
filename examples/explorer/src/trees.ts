@@ -2,7 +2,7 @@
 // so the two examples cannot drift apart) plus this example's own, in trees.json: `extras` (more trees, by group) and `overrides` (a
 // field of a catalogue tree this example sets, e.g. the Carangaria `supportKey`). Files come from the repository's data/ folder (served
 // at /data/ by the dev server, copied there by the site build, which reads both JSON files); a tree too large for main falls back to
-// its `remote` URL. Gzipped files are inflated by content, whatever the host does (in the parse worker, or data.ts for the FASTA).
+// its `remote` URL. Gzipped files are inflated by content, whatever the host does (in the parse worker).
 
 import { supportFrom, type TreeModel } from '@canopy/io';
 import { parseInWorker, type ParseProgress } from '@canopy/io/worker';
