@@ -2348,8 +2348,10 @@ for (const [id, tipsWanted] of [
     await page.waitForTimeout(400);
     ok((await page.locator('.ex-search-count').innerText()) !== 'No match', `a clade is found by its name ("${clade.query}")`);
     ok((await ev(() => __v().getHighlighted().length)) >= clade.tips, `its ${clade.tips} tips are highlighted`);
+    ok((await ev(() => __v().getMarked().length)) === 1, 'the current match is ringed (marked)');
   }
   await page.keyboard.press('Escape');
+  ok((await ev(() => __v().getMarked().length)) === 0, 'closing the search removes the ring');
 }
 
 // ---------------------------------------------------------------- a layout switch keeps the place (#56)

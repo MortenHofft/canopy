@@ -49,7 +49,7 @@ lookup that returns one tip (`tipNode`, `<TreeView>`'s `focus`, `focusTip`, `loc
 preorder; `focus` and `focusTip` warn (`console.warn`) when the label is on several tips, so pass the node id to reach another one.
 `tipNodes(label)` lists them all. Column `values` keyed by label give every tip with the label the same value; for values that belong to one
 tip, key them by node id in `nodeValues`. The built-in `Search` lists each matching tip (with '2 of 3' when its label is on several) and
-focuses and highlights the chosen one by node id. `@canopy/io` reports the labels that more than one tip carries
+focuses and rings the chosen one by node id; it finds clades by name too, and zooms to the one chosen. `@canopy/io` reports the labels that more than one tip carries
 (`tree.duplicateTipLabels()`), so an app can warn about them after parsing; `TreeData.tipIndices(label)` is how the viewer finds every tip
 of a label (a `TreeData` without it names only the tip `tipIndex` returns). Labels stay the join key to your data (GBIF taxa, where many
 tips can map to one taxon), so nothing here requires them to be unique.
@@ -242,10 +242,11 @@ listen to the events that change it, and call the methods an interaction would c
 | What                | State to read                                           | Events that change it                                                                   | On interaction                   |
 | ------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
 | The clade legend    | `legendItems(viewer, { cladeLabel? })`: `LegendItem[]`  | `cladeschange`, `treechange`, `sourcechange`, `optionschange` (`formatLabel`, `cladeLabel`) | `viewer.zoomToNode(item.node, true)` |
+| Search              | `createSearchIndex(viewer.getTree(), { formatLabel, cladeLabel }).find(query, max)`: `{ hits: { node, clade }[], total }` | `treechange`, `sourcechange`, `optionschange` (`formatLabel`, `cladeLabel`) | a tip: `viewer.focusTip(hit.node, true)`; a clade: `viewer.zoomToNode(hit.node, true)`; then `viewer.setMarked([hit.node])` |
 | A colour-by legend  | `colourBy(...).items`, plain data                       | your own (you decide when the column changes)                                           | none (entries have no node)      |
 
 `legendItems` is the function the `Legend` control calls, so a legend of your own names its clades exactly as the built-in one does. It is in
-its own module: importing it does not bring the control classes.
+its own module: importing it does not bring the control classes. The same goes for `createSearchIndex`, which the `Search` control calls: it matches tips by label and internal nodes by name (prefix first, a run of spaces and underscores counting as one), and the index is built once, so keep it until one of those events.
 
 ```ts
 import { legendItems } from '@canopy/viewer';

@@ -12,6 +12,7 @@ import {
   defaultControls,
   detectAlphabet,
   InMemorySource,
+  createSearchIndex,
   internalName,
   namedDescendants,
   residueColours,
@@ -353,42 +354,31 @@ export function Explorer({
   );
   // `tree` as the viewer's helpers read it (cladeName, namedDescendants): node ids of `tree`, the ids the actions and the inspector use
   const treeSnap = useMemo(() => new InMemorySource(tree).snapshot(), [tree]);
-  // ---- search: case-insensitive substring of the displayed name (Reactree's rule; a run of underscores and spaces is the same as any
-  // other, so 'c spirochaetia' finds 'c__Spirochaetia'), over the tips and the named internal nodes (clades); matches highlighted, the
-  // current one centred (a clade is zoomed to, and highlights its tips). One regular expression over the labels, not a string rebuilt
-  // per label (about 0.1 s on 2.4 million labels), and every match kept: highlighting a million tips costs little (docs/design/highlight-cost.md, #58).
+  // ---- search: the viewer's createSearchIndex (case-insensitive substring of the name, a run of underscores and spaces is one separator, so
+  // 'c spirochaetia' finds 'c__Spirochaetia'), over the tips and the named internal nodes (clades); matches highlighted, the current one
+  // ringed and centred (a clade is zoomed to, and highlights its tips). Every match kept: highlighting a million tips costs little
+  // (docs/design/highlight-cost.md, #58). The index is built once per tree shown (about 1 s on 2.4 million names).
+  const searchIndex = useMemo(() => createSearchIndex(new InMemorySource(shown).snapshot(), { formatLabel: (s) => s, cladeLabel }), [shown]);
   const { matches, highlighted } = useMemo(() => {
-    const q = query.trim();
-    if (!q) return { matches: [], highlighted: [] };
-    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ _]+/g, '[ _]+'), 'i');
+    if (!query.trim()) return { matches: [], highlighted: [] };
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
-    const out: number[] = [];
-    const { labels, childCount, leafStart, leafEnd, tipRank } = shown;
+    const out = searchIndex.find(query).hits.map((h) => h.node);
+    const { childCount, leafStart, leafEnd, tipRank } = shown;
     const hl = new Uint8Array(shown.tipCount);
-    let covered = 0; // tip ranks below this are already marked by a clade matched before (preorder: its clades come first)
-    for (let i = 0; i < shown.nodeCount; i++) {
-      const label = labels[i];
-      if (!re.test(label)) continue;
-      if (childCount[i] === 0) {
-        out.push(i);
-        hl[tipRank[i]] = 1;
-        continue;
-      }
-      const name = internalName(label); // not a support value, nor Open Tree's mrcaott names
-      if (!name || OTL_SYNTHETIC.test(name) || !re.test(name)) continue;
-      out.push(i);
-      for (let r = Math.max(leafStart[i], covered); r < leafEnd[i]; r++) hl[r] = 1;
-      covered = Math.max(covered, leafEnd[i]);
+    for (const n of out) {
+      if (childCount[n] === 0) hl[tipRank[n]] = 1;
+      else hl.fill(1, leafStart[n], leafEnd[n]);
     }
     const ids: number[] = [];
     for (let r = 0; r < hl.length; r++) if (hl[r]) ids.push(shown.tipNode[r]);
     return { matches: out, highlighted: ids };
-  }, [query, shown]);
+  }, [query, searchIndex, shown]);
   const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
   const current = currentIdx >= 0 ? matches[currentIdx] : null;
   const currentClade = current !== null && shown.childCount[current] > 0;
   const [focusSeq, setFocusSeq] = useState(0);
   useEffect(() => setFocusSeq((s) => s + 1), [current]);
+  const markedMatch = useMemo(() => (current === null ? [] : [current]), [current]); // ringed, so the current match is easy to find
   const zoomTo = useRef<number | null>(null);
   zoomTo.current = currentClade ? current : null;
   useEffect(() => {
@@ -953,6 +943,7 @@ export function Explorer({
           branchLengths={phylogram}
           clades={shownClades}
           highlighted={highlighted}
+          marked={markedMatch}
           collapsed={collapsedIds}
           columns={columns}
           controls={controls}

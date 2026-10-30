@@ -17,5 +17,6 @@ export { internalSupport, defaultFormatNodeLabel, type NodeLabelFn, type NodeLab
 export { themeFromCss, THEME_CSS_VARS } from './theme.ts';
 export { tipRow, type TipLookup } from './tip-row.ts';
 export { legendItems } from './legend-items.ts';
+export { createSearchIndex, type SearchHit, type SearchIndex, type SearchResult } from './search-index.ts';
 export { colourBy, type ColourBy, type ColourByCategories, type ColourByOptions, type ColourByTree } from './colour-by.ts';
 export { residueColours, residueGroups, detectAlphabet, type Alphabet, type ResolvedAlphabet, type ResidueGroup } from './residues.ts';
