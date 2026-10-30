@@ -804,6 +804,7 @@ export function Explorer({
 
   const theme = useMemo(() => ({ labelSize: LABEL_SIZE * init.fontScale, branchWidth: 1.5, cladeBranchWidth: 2.2 }), [init.fontScale]);
 
+  const undoNote = history.length > 1 && !canUndo;
   // Back to root and Up one level, icons only; on a wide screen they lead the View row, with a divider before the click action
   const cladeShown =
     ops.focusedNode(focus) >= 0 ? (
@@ -915,12 +916,14 @@ export function Explorer({
         </div>
       </Scroller>
 
-      {/* ── Row 2: interaction tools ── */}
-      <Scroller className="ex-row" role="toolbar" aria-label="Edit">
-        {history.length > 1 && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
-        {phone && cladeShown}
-        <div className="ex-spacer" />
-      </Scroller>
+      {/* ── Row 2: only when it has something: the undo note, and on a phone the clade buttons ── */}
+      {(undoNote || (phone && cladeShown)) && (
+        <Scroller className="ex-row" role="toolbar" aria-label="Edit">
+          {undoNote && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
+          {phone && cladeShown}
+          <div className="ex-spacer" />
+        </Scroller>
+      )}
 
       {/* ── Body: the tree ── */}
       <div
@@ -1200,7 +1203,7 @@ export function Explorer({
                   [
                     `Collapse to ${OVERVIEW_ROWS} clades`,
                     'Largest clades open, the rest collapsed',
-                    <J.IconClades key="i" />,
+                    <F.IconCollapse key="i" />,
                     overviewOfShown,
                     shown.tipCount > OVERVIEW_ROWS,
                   ],

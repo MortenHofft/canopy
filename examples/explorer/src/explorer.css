@@ -192,7 +192,7 @@ textarea {
   flex-wrap: nowrap;
   min-width: 0;
   box-sizing: border-box;
-  min-height: 41px; /* the Edit row is often empty and then fills with a button: its height stays, so the tree does not jump */
+  min-height: 41px;
 }
 /* narrower than the toolbar, a row scrolls sideways (thin bar), keeping the two rows. A fade marks the end that has more: data-start /
  * data-end are set by the Scroller. Search and Export (.ex-pinned) stay at the right edge whatever the scroll */
@@ -233,7 +233,8 @@ textarea {
 .ex-row:first-child {
   border-bottom: 1px solid var(--ex-surface-20);
 }
-.ex-row:nth-child(2) {
+.ex-row:nth-child(2),
+.ex-row:first-child:has(+ .ex-pane) {
   border-bottom: 1px solid var(--ex-surface-30);
 }
 .ex-divider {

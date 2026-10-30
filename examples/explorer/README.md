@@ -5,7 +5,7 @@ option and theme token in a panel); this is what an application built on the lib
 a node menu, panels and an export menu around `<TreeView>`. The drawing, the events and the views come from the viewer, the edits and the
 views of the tree from `@canopy/tree-ops`. It is also the seed of a drop-in widget. Its look started from
 [Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3), and most icons in `src/icons.tsx` are Reactree's, used under its MIT
-licence; the click action icons in `src/icons-click.tsx` are paths copied from react-icons (each under its set's licence, in `THIRD_PARTY_NOTICES`); Inspect, Fit, Subtree, Collapse, Expand all, Up one level and Back to root in `src/icons-feather.tsx` are Feather's (MIT, copied, two with an arrow mirrored); the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
+licence; the click action icons in `src/icons-click.tsx` are paths copied from react-icons (each under its set's licence, in `THIRD_PARTY_NOTICES`); Inspect, Fit, Subtree, Collapse (also on Collapse to 50 clades), Expand all, Up one level and Back to root in `src/icons-feather.tsx` are Feather's (MIT, copied, two with an arrow mirrored); the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
 
 ```
 npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark, ?debug=1)
@@ -77,4 +77,4 @@ and highlighting a million matches about 0.05 s plus a frame of under 30 ms (hea
 - **Undo** is a history of trees owned by this component, bounded by memory ([#44](https://github.com/MortenHofft/canopy/issues/44)): about 45 to 60 steps of a 10k-tip tree, two of the 190k-tip GTDB tree, Reset only from about a million tips (figures in [docs/design/undo-memory.md](../../docs/design/undo-memory.md)). Views are not in it: Show only and collapsing. Undo keeps the clade shown (it follows the tips through the inverse map).
 - **Colour… is a palette, not a submenu.** `NodeMenuItem` is a flat list (`id`, `label`, `hint`, `disabled`, `onSelect`), so *Colour…* opens the
   explorer's own palette for that one clade, at the click, with focus in it.
-- **Toolbar width.** Two rows down to about 1250 px; narrower, a row scrolls sideways.
+- **Toolbar width.** One row, and a second only when it has something in it (the note that Undo is off, and on a phone the buttons for a clade shown alone). Narrower than about 1250 px a row scrolls sideways.

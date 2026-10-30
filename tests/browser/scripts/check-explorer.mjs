@@ -200,7 +200,7 @@ await page.addInitScript(() => {
 
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
-ok((await page.locator('.ex-row').count()) === 2, 'two toolbar rows');
+ok((await page.locator('.ex-row').count()) === 1, 'one toolbar row (a second only when it has something in it)');
 const span = () =>
   ev(() => {
     const p = __v().getViewport();
@@ -1286,6 +1286,7 @@ ok(
     return [x('.ex-group[aria-label="Clade shown"]'), x('.ex-select')];
   });
   ok(xs[0] < xs[1], 'at 1280 px the clade buttons are left of the click action');
+  ok((await page.locator('[aria-label="Edit"]').count()) === 0, 'at 1280 px there is no second row while it has nothing in it');
   await page.setViewportSize({ width: 400, height: 860 });
   await page.waitForTimeout(200);
   ok((await page.locator('[aria-label="Edit"] .ex-group[aria-label="Clade shown"]').count()) === 1, 'at 400 px they are in the Edit row');
@@ -1528,14 +1529,14 @@ console.log('one popover radius, the node menu styled as the inspector');
   );
 }
 
-// the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
+// the toolbar keeps its one row at 1280, 1024 and 600 px (below that it scrolls sideways)
 console.log('toolbar rows');
 for (const w of [1280, 1024, 600]) {
   await page.setViewportSize({ width: w, height: 860 });
   await open('rich-fish-carangaria-135');
   await page.waitForTimeout(200);
   const rows = await page.locator('.ex-row').evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect().height)));
-  ok(rows.length === 2 && rows.every((h) => h < 50), `${w} px: two single-line rows (${rows.join(', ')} px)`);
+  ok(rows.length === 1 && rows.every((h) => h < 50), `${w} px: one single-line row (${rows.join(', ')} px)`);
   // Export and Search stay in view whatever the row scrolls; a row that overflows says so (data-end on the scroller, a fade)
   const vis = await ev(() =>
     ['.ex-export button', 'button[aria-label="Search tips"]'].map((q) => {

@@ -25,13 +25,6 @@ export const IconLadderBy = ({ descending = false }: { descending?: boolean }) =
     <path d={descending ? 'M2 3h10M2 7h6M2 11h3' : 'M2 3h3M2 7h6M2 11h10'} {...s} strokeWidth="1.6" />
   </svg>
 );
-/** Overview of the largest clades: a tree whose branches end in collapsed clades (triangles). */
-export const IconClades = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M1.5 7h2M3.5 3v8M3.5 3h3M3.5 11h3M3.5 7h3" {...s} strokeWidth="1.3" />
-    <path d="M6.5 3l6-1.5v3zM6.5 7l5-1.2v2.4zM6.5 11l6-1.5v3z" {...s} strokeWidth="1.1" />
-  </svg>
-);
 /** More: three vertical dots, the menu button. */
 export const IconMore = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
