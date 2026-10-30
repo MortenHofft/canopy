@@ -54,6 +54,7 @@
   --phylo-highlight: var(--ex-primary);
   --phylo-summary: var(--ex-text-2); /* collapsed clades: the branch grey, faint: more tree here, not a selection or a colour */
   --phylo-summary-opacity: 0.28;
+  --phylo-summary-stripe-opacity: 0; /* a plain grey fill, no hairline stripes over it */
   --phylo-highlight-opacity: 0.14;
   --phylo-font-family: var(--ex-font);
   --phylo-surface: var(--ex-surface-0);
@@ -85,6 +86,7 @@
   --phylo-branch: #cbd5e1;
   --phylo-summary: var(--ex-text-2);
   --phylo-summary-opacity: 0.3;
+  --phylo-summary-stripe-opacity: 0;
   color-scheme: dark;
 }
 
