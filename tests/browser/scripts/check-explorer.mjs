@@ -180,6 +180,8 @@ await page.addInitScript(() => {
   const ft = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
     if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
+    // the labels of collapsed clades (#57): 'Name · 12,345 tips' or '12,345 tips'
+    if (/^(.+ · )?[\d,]+ tips?$/.test(String(text))) (window.__cladeLabels ??= new Set()).add(String(text));
     // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout (the radial scale bar has it too)
     if (this.textBaseline === 'bottom') {
       (window.__nodeTexts ??= []).push(String(text));
@@ -1992,7 +1994,7 @@ console.log('\na file of one’s own, through the picker’s file input (example
   }
   await page.evaluate(HELPERS);
 }
-// Drill-down (#57) on a small tree (clades drawn as nodes, so they can be clicked; the large-tree case is not covered here): a few large clades collapsed with the Collapse click action, a click on a collapsed clade expands it in place (its children
+// Drill-down (#57) on an overview set through ?view= (the clades collapsed, as the old Collapse to 50 clades button left them), a click on a collapsed clade expands it in place (its children
 // in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Back to root returns
 const drillDown = async (tips) => {
   const collapsedNodes = () =>
@@ -2015,37 +2017,17 @@ const drillDown = async (tips) => {
       },
       [skip],
     );
-  // the Collapse click action on clades drawn open, not the biggest ones, until about 45 rows are left: an overview
-  const sel = page.locator('select[aria-label="Click action"]');
-  await sel.selectOption('collapse');
-  for (let k = 0; k < 30 && (await rows()) > 45; k++) {
-    // the clades drawn at this zoom (a node, or a summary when the tree is large): hit-tested down a line through the plot, the largest wins
-    const at = await ev(() => {
-      const v = __v();
-      const t = v.getTree();
-      const r = v.treeElement.getBoundingClientRect();
-      let best = null;
-      for (let y = 4; y < r.height - 4; y += 6)
-        for (const fx of [0.1, 0.2, 0.3, 0.4]) {
-          const h = v.hitTest(r.width * fx, y);
-          if (!h || h.run || h.node <= 0 || t.firstChild[h.node] < 0 || v.layout.collapsed?.[h.node]) continue;
-          const n = t.leafEnd[h.node] - t.leafStart[h.node];
-          if (n < 4 || n > 40) continue; // not the big ones, so the tree is not reduced to a few rows
-          if (!best || n > best.n) best = { n, x: r.left + r.width * fx, y: r.top + y };
-        }
-      return best;
-    });
-    if (!at) break;
-    await click(at);
-    await page.waitForTimeout(150);
-  }
-  await sel.selectOption('inspect');
   await page.waitForTimeout(400);
   const r0 = await rows();
   const c0 = await collapsedNodes();
   ok(
-    c0.length >= 3 && (await tipCount()) === tips,
-    `collapsing some clades with the Collapse click action: ${r0} rows, ${c0.length} collapsed clades, all ${tips} tips kept`,
+    c0.length >= 10 && r0 <= 50 && r0 >= 40 && (await tipCount()) === tips,
+    `an overview of the tree: ${r0} rows (40 to 50), ${c0.length} collapsed clades, all ${tips} tips kept`,
+  );
+  const labels = await ev(() => [...(window.__cladeLabels ?? [])]);
+  ok(
+    labels.some((l) => / · [\d,]+ tips$/.test(l)) && labels.some((l) => /^[\d,]+ tips$/.test(l)),
+    `collapsed clades are labelled 'Name · N tips' or 'N tips': ${labels.slice(0, 3).join(' | ')}`,
   );
   const big = await largest([]);
   await page.mouse.move(big.tri.x, big.tri.y);
@@ -2073,17 +2055,26 @@ const drillDown = async (tips) => {
     `a click expands the largest collapsed clade (${big.tips} tips) in place: ${r0} → ${r1} rows, at most 19 more`,
   );
   ok(
-    c0.every((i) => i === big.node || c1.includes(i)) && kids.every(Boolean),
+    c0.every((i) => i === big.node || c1.includes(i)) && kids.every(Boolean) && inside.length > 0,
     `its children come in (${kids.length}), its large subclades collapsed (${inside.length}), the other collapsed clades stay`,
   );
   // jump into another collapsed clade: Show only from its menu (a click on its branch), with an overview inside; Back to root returns
   const other = await largest([big.node]);
+  // its Info panel lists the named clades inside it
+  await openMenu(await ev((n) => __stem(n), other.node));
+  await act('info');
+  const infoNames = await page.locator('.ex-info-inside li').allInnerTexts();
+  ok(
+    (await page.locator('.ex-info-rows dt', { hasText: 'Tips' }).count()) === 1 && infoNames.length > 0,
+    `the Info panel of a collapsed clade lists the named clades inside it (${infoNames.length}: ${infoNames.slice(0, 2).join(', ').replace(/\n/g, ' ')})`,
+  );
+  await page.locator('.ex-info-head button').click();
   await openMenu(await ev((n) => __stem(n), other.node));
   await act('subtree');
   await page.waitForTimeout(400);
   const r2 = await rows();
   ok(
-    (await tipCount()) === other.tips && r2 <= 50 && r2 >= 5,
+    (await tipCount()) === other.tips && r2 <= 50 && r2 >= 20,
     `Show only jumps into a collapsed clade of ${other.tips} tips, with its overview: ${r2} rows`,
   );
   await toRoot();
@@ -2137,8 +2128,36 @@ for (const [id, tipsWanted] of [
   ok(n === tipsWanted, `${id}: ${n} tips shown (${ms} ms)`);
 }
 // the drill-down needs a tree whose clades are drawn as nodes at the fit zoom, to be clicked
-await loadVia('rich-fish-carangaria-135');
-await drillDown(135);
+{
+  // the overview of the 10k-tip GTDB archaea: the frontier of the tree opened from the root, the largest clade first, until 45 rows. The
+  // collapsed clades go in through ?view= (the debug panel's saved view, with its collapsed ids), the way a view is restored
+  await open('gtdb-10k-archaea', '&debug=1');
+  const frontier = await ev(() => {
+    const t = __v().getTree();
+    const open = [0];
+    const size = (i) => t.leafEnd[i] - t.leafStart[i];
+    while (open.length < 45) {
+      let k = 0;
+      for (let j = 1; j < open.length; j++) if (size(open[j]) > size(open[k])) k = j;
+      const [v] = open.splice(k, 1);
+      for (let c = t.firstChild[v]; c >= 0; c = t.nextSibling[c]) open.push(c);
+    }
+    return open.filter((i) => t.firstChild[i] >= 0);
+  });
+  const panel = page.locator('.ex-debug');
+  await panel.locator('button', { hasText: 'Copy view' }).click();
+  await panel.locator('textarea').waitFor();
+  const saved = JSON.parse(await panel.locator('textarea').inputValue());
+  saved.collapsed = frontier;
+  saved.asLoaded = true;
+  const encoded = Buffer.from(JSON.stringify(saved)).toString('base64url');
+  await page.goto(`${url}?debug=1&view=${encoded}`);
+  await page.waitForSelector('.ex-outer canvas', { timeout: 60000 });
+  await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
+  await page.evaluate(HELPERS);
+  await page.waitForTimeout(400);
+  await drillDown(10122);
+}
 {
   // a large tree: the Open Tree vertebrates, 91k tips; then the 190k-tip GTDB bacteria. Nothing is disabled on either
   const ms = await loadVia('otl-100k-vertebrata');
