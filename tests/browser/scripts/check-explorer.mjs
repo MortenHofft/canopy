@@ -668,8 +668,8 @@ console.log('click actions');
   });
   ok((await lit()).active === false && (await lit()).bg !== primary, 'Inspect: the select is not highlighted');
   ok(
-    (await sel.locator('option').allInnerTexts()).join() === 'Inspect,Collapse,Subtree,Colour',
-    'the click actions: Inspect, Collapse, Subtree, Colour',
+    (await sel.locator('option').allInnerTexts()).join() === 'Inspect,Collapse,Subtree,Reroot,Colour',
+    'the click actions: Inspect, Collapse, Subtree, Reroot, Colour',
   );
   const rows0 = await rows();
   await sel.selectOption('collapse');
@@ -696,6 +696,16 @@ console.log('click actions');
     'Subtree: a click on a clade shows only that clade (Back to root is offered), and no menu opens',
   );
   await toRoot();
+  await page.waitForTimeout(300);
+  await sel.selectOption('reroot');
+  const order0 = await ev(() => __order());
+  await click(await ev((l) => __tipAt(l), await ev(() => __v().getTree().tipLabels[3])));
+  await page.waitForTimeout(300);
+  ok(
+    JSON.stringify(await ev(() => __order())) !== JSON.stringify(order0) && (await menu.count()) === 0,
+    'Reroot: a click on a tip roots the tree there, and no menu opens',
+  );
+  await page.locator('.ex-outer').press('Control+z');
   await page.waitForTimeout(300);
   await sel.selectOption('colour');
   const palette = await ev(() =>
@@ -1521,16 +1531,16 @@ for (const w of [1280, 1024, 600]) {
 }
 await page.setViewportSize({ width: 260, height: 860 });
 await open('rich-fish-carangaria-135');
-// the Edit row scrolls sideways at this width (the View row, with Search and ⋮, no longer overflows): scrolled to its end, the start fades
+// the View row scrolls sideways at this width, Search and ⋮ staying pinned at its right: scrolled to its end, the start fades
 await page
   .locator('.ex-row')
-  .nth(1)
+  .first()
   .evaluate((r) => (r.scrollLeft = r.scrollWidth));
 await page.waitForTimeout(150);
 ok(
-  (await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-start'))) &&
-    !(await ev(() => document.querySelectorAll('.ex-row')[1].hasAttribute('data-end'))),
-  '260 px: the Edit row scrolled to its end fades at the start',
+  (await ev(() => document.querySelectorAll('.ex-row')[0].hasAttribute('data-start'))) &&
+    !(await ev(() => document.querySelectorAll('.ex-row')[0].hasAttribute('data-end'))),
+  '260 px: the View row scrolled to its end fades at the start',
 );
 await page.mouse.click(
   ...Object.values(
