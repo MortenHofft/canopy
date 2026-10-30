@@ -1607,7 +1607,7 @@ await open('rich-fish-carangaria-135');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
-    'Phylogram|Cladogram|Legend|Minimap|Tooltips|Align labels|Truncate names|Show support|Show branch length|Collapse to 50 clades|Ladderize ascending|Ladderize descending|Midpoint root|Export…',
+    'Phylogram|Cladogram|Legend|Minimap|Tooltips|Align labels|Mark named nodes|Truncate names|Show support|Show branch length|Collapse to 50 clades|Ladderize ascending|Ladderize descending|Midpoint root|Export…',
   'the ⋮ menu: Phylogram and Cladogram, the toggles, Collapse to 50 clades (135 tips), Ladderize ascending and descending, Midpoint root, Export…',
 );
 ok(
