@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Clean the internal-node labels of an Open Tree of Life Newick tree.
+"""Clean the labels of an Open Tree of Life Newick tree.
 
     python3 -I relabel_otl.py IN.nwk[.gz] OUT.nwk[.gz]
 
-The synthesis tree names every internal node, many with a placeholder. Internal nodes only (tips are copied as they are):
+The synthesis tree names every internal node, many with a placeholder, and every tip ends in its ott id.
 
-  1. A label starting with "mrcaott" (a placeholder made of two ott ids) is removed.
-  2. A trailing "_ott<digits>" (or " ott<digits>" in a quoted label) is removed.
-  3. If a name is then no longer unique in the tree, every node that would share it keeps its ott id. Unique means unique
-     among all labels after cleaning, with "_" and " " taken as the same (as Newick does for unquoted labels).
+  1. An internal label starting with "mrcaott" (a placeholder made of two ott ids) is removed. Tips are not checked for it.
+  2. A trailing "_ott<digits>" (or " ott<digits>" in a quoted label) is removed, from internal nodes and from tips.
+  3. If a name is then no longer unique in the tree, every node that would share it, tips and internal nodes together, keeps its
+     ott id. Unique means unique among all labels after cleaning, with "_" and " " taken as the same (as Newick does for unquoted labels).
 
 The tree shape is not touched. OUT ending in .gz is written at gzip level 9 with mtime 0 and no file name. Prints the counts.
 Standard library only; the input is parsed, never executed, and the tokenizer is a loop (no recursion).
@@ -46,9 +46,8 @@ def quote(name, was_quoted):
 
 
 def relabel(text):
-    out = []  # the tokens, with the internal labels as they are until the second pass
-    internal = []  # index in out of each internal label that is not a placeholder
-    tip_keys = set()
+    out = []  # the tokens, with the labels as they are until the second pass
+    labels = []  # (index in out, "tip" or "internal") of each label that is not a placeholder
     counts = collections.Counter()
     stats = collections.Counter()
     prev = None
@@ -61,39 +60,34 @@ def relabel(text):
             prev = tok
             out.append(tok)
             continue
-        if prev == ")":
-            stats["internal"] += 1
-            name = unquote(tok)
-            if name.startswith("mrcaott"):
-                stats["placeholder removed"] += 1
-                out.append("")
-            else:
-                internal.append(len(out))
-                counts[OTT.sub("", name).replace("_", " ")] += 1
-                out.append(tok)
+        kind = "internal" if prev == ")" else "tip"
+        stats[kind + "s"] += 1
+        name = unquote(tok)
+        if kind == "internal" and name.startswith("mrcaott"):
+            stats["placeholders removed"] += 1
+            out.append("")
         else:
-            stats["tips"] += 1
-            tip_keys.add(unquote(tok).replace("_", " "))
+            labels.append((len(out), kind))
+            counts[OTT.sub("", name).replace("_", " ")] += 1
             out.append(tok)
         prev = "label"
 
-    for i in internal:
+    for i, kind in labels:
         tok = out[i]
         name = unquote(tok)
         stripped = OTT.sub("", name)
-        key = stripped.replace("_", " ")
         if stripped == name:
-            stats["no ott suffix, kept"] += 1
-        elif counts[key] > 1 or key in tip_keys:
-            stats["ott kept, name not unique"] += 1
+            stats[kind + " without ott suffix, kept"] += 1
+        elif counts[stripped.replace("_", " ")] > 1:
+            stats[kind + " ott kept, name not unique"] += 1
         else:
-            stats["ott removed"] += 1
+            stats[kind + " ott removed"] += 1
             out[i] = quote(stripped, tok[0] == "'")
     return "".join(out), stats
 
 
 def check_unique(text):
-    """Internal labels that are not empty must stay distinct from each other and from the tips (underscore = space)."""
+    """Labels that are not empty must stay distinct (underscore = space): the names shared by two or more nodes."""
     seen = collections.Counter()
     prev = None
     for m in TOKEN.finditer(text):
