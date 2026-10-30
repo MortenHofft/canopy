@@ -1095,7 +1095,7 @@ export function Explorer({
                   disabled={!enabled}
                   onClick={() => setPhylogram(value)}
                 >
-                  <span className="ex-menu-check">{drawsLengths === value && '●'}</span>
+                  <span className="ex-menu-check ex-menu-dot">{drawsLengths === value && '●'}</span>
                   <span className="ex-menu-label">{label}</span>
                   <span className="ex-menu-desc">{desc}</span>
                 </button>

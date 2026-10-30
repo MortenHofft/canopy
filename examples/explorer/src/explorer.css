@@ -484,6 +484,9 @@ textarea {
   width: 12px;
   color: var(--ex-primary);
 }
+.ex-menu-dot {
+  font-size: 8px;
+}
 .ex-menu-label {
   flex: 1;
 }
