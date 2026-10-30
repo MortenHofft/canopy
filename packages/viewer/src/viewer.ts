@@ -2059,6 +2059,7 @@ export class TreeViewer {
       format: opts.formatLabel,
       cladeText: (row) => this.cladeText(row),
       nodeLabels: opts.nodeLabels,
+      namedNodeMarkers: opts.namedNodeMarkers,
       formatNode: opts.formatNodeLabel,
       scale,
       thin: rect ? 0 : Math.min(1, Math.max(0, (this.list.count - THIN_FROM) / (THIN_TO - THIN_FROM))),

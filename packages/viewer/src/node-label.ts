@@ -18,6 +18,16 @@ export function defaultFormatNodeLabel(value: number, kind: NodeLabelKind): stri
 
 const SUPPORT_PREFIX = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(?::.*)?$/s;
 
+/** Whether an internal node label holds a name: it is not empty and not only a support value (`'Aves'`, `'98:Aves'` and `'0.95/Aves'` do,
+ *  `'95'`, `'0.98'` and `'98:'` do not). Allocation-free for the common name and the common empty label. */
+export function hasInternalName(label: string): boolean {
+  if (label === '') return false;
+  if (label.charCodeAt(0) > 57 && label.charCodeAt(0) < 128) return true; // an ASCII letter: a name (as in internalSupport)
+  if (Number.isNaN(internalSupport(label))) return label.trim() !== '';
+  const colon = label.indexOf(':');
+  return colon >= 0 && label.slice(colon + 1).trim() !== ''; // a number with text after its colon: a support and a name
+}
+
 /** The support value of an internal node label: its numeric prefix (`'0.95'`, `'100'`, `'98.0:c__Nitrososphaeria'`), NaN when the label
  *  is empty or a name. The same rule as `splitInternalLabel` in @canopy/io, which the viewer does not depend on. */
 export function internalSupport(label: string): number {

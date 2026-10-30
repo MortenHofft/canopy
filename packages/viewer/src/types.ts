@@ -131,6 +131,11 @@ export interface TreeTheme extends ResidueTheme {
   tipRadius: number;
   /** Side of the square marker on internal nodes big enough to click, CSS px. */
   nodeMarkerSize: number;
+  /** With the option `namedNodeMarkers`, internal nodes with a name get a round marker of this diameter in `namedNodeColour` ('' =
+   *  `foreground`), and the other internal nodes a square marker of `unnamedNodeMarkerSize` instead of `nodeMarkerSize`, CSS px. */
+  namedNodeMarkerSize: number;
+  unnamedNodeMarkerSize: number;
+  namedNodeColour: string;
   /** Opacity of the background fill of summaries: the faint shape that says "more tree here". */
   summaryOpacity: number;
   /** Opacity of the hairline stripes over a summary's background (see api.md, "Summaries"). */
@@ -206,6 +211,9 @@ export const FALLBACK_THEME: TreeTheme = {
   cladeBackgroundPadding: 4,
   tipRadius: 3.2,
   nodeMarkerSize: 4,
+  namedNodeMarkerSize: 8,
+  unnamedNodeMarkerSize: 3,
+  namedNodeColour: '',
   summaryOpacity: 0.25,
   summaryStripeOpacity: 0.5,
   summaryLineOpacity: 0.7,
@@ -397,6 +405,11 @@ export interface ViewerOptions {
    * `lengthColour`, `nodeLabelSize`.
    */
   nodeLabels: NodeLabelsOption;
+  /** Mark the internal nodes that have a name (a label that is not only a support value) with a larger round marker in its own colour,
+   *  and draw the other internal nodes' markers smaller, so the named ones are easy to find. All of them stay clickable and hoverable.
+   *  Sizes and colour: the theme's `namedNodeMarkerSize`, `unnamedNodeMarkerSize` and `namedNodeColour`. `false`: one square marker
+   *  (`nodeMarkerSize`) on every internal node. */
+  namedNodeMarkers: boolean;
   /** Text of a number shown by `nodeLabels` ('support', 'length', or a number a function returned): `(value, 'support')` 0.95 or 95. */
   formatNodeLabel: (value: number, kind: NodeLabelKind) => string;
   /** How highlighted tips (`setHighlighted`) stand out: bands, or dimming what is not highlighted (see `HighlightStyle`). */
@@ -494,6 +507,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   hoverPath: true,
   hoverAnimation: true,
   nodeLabels: 'none',
+  namedNodeMarkers: true,
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
   cladeStyle: 'branches',
