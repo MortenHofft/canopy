@@ -34,6 +34,8 @@
   font-size: var(--phylo-font-size, 13px);
   color: var(--phylo-foreground, #162d3d);
   background: var(--phylo-background, #ffffff);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .phylo-tree:focus-visible {
@@ -67,6 +69,8 @@
   box-sizing: border-box;
   font: inherit;
   color: var(--phylo-foreground, #162d3d);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ---- buttons: square icon buttons; .phylo-bar joins them into one box */
@@ -130,6 +134,8 @@
   border: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
   border-radius: var(--phylo-radius, 6px);
   box-shadow: var(--phylo-popup-shadow, 0 4px 16px rgba(0, 0, 0, 0.18));
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .phylo-tooltip {
@@ -264,6 +270,8 @@
   color: inherit;
   font: inherit;
   outline: none;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .phylo-search__list {

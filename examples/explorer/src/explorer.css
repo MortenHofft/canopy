@@ -94,6 +94,15 @@ body {
   background: var(--ex-surface-20);
   color: var(--ex-text);
   font-family: var(--ex-font);
+  /* dragging over the toolbar, menus and the tree must not select text; the inspector and form fields keep it */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ex-info,
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 .page {
   max-width: 1200px;
@@ -381,6 +390,16 @@ body {
 .ex-select option {
   color: var(--ex-text);
   background: var(--ex-surface-0);
+}
+.ex-select {
+  position: relative;
+}
+.ex-select-icon {
+  display: flex;
+  font-size: 14px;
+}
+.ex-select-caret {
+  display: none;
 }
 .ex-select:focus-within {
   outline: 2px solid var(--ex-primary);
@@ -1030,5 +1049,24 @@ body {
 @media (max-width: 640px) {
   .ex-group .ex-btn-text {
     display: none;
+  }
+  /* the click action select: the icon of the action and a caret; the native select lies over it, transparent, so its list (with the
+   * words) opens on a tap */
+  .ex-select {
+    padding: 0 6px;
+    gap: 3px;
+    min-height: 28px;
+  }
+  .ex-select select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+  }
+  .ex-select-caret {
+    display: block;
+    border: 3.5px solid transparent;
+    border-top-color: currentColor;
+    border-bottom-width: 0;
   }
 }
