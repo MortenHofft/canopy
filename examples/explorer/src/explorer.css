@@ -288,9 +288,8 @@ body {
   color: white;
   box-sizing: border-box;
 }
-/* the active Search button and Expand all: the tone of the action colour, as an open button */
-.ex-search-active,
-.ex-expand {
+/* the active Search button: the tone of the action colour, as an open button */
+.ex-search-active {
   border-color: var(--ex-primary-soft);
   color: var(--ex-primary);
   background: var(--ex-tonal);

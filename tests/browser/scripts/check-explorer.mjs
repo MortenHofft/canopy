@@ -130,6 +130,12 @@ const moreRead = async (name, how) => {
   await moreClose();
   return r;
 };
+const moreHas = async (name) => {
+  if (!(await moreMenu().count())) await moreButton().click();
+  const n = await moreItem(name).count();
+  await moreClose();
+  return n > 0;
+};
 const moreChecked = (name) => moreRead(name, (i) => i.getAttribute('aria-checked').then((v) => v === 'true'));
 const moreEnabled = (name) => moreRead(name, (i) => i.isEnabled());
 const ladder = (dir) => more(`Ladderize ${dir}`);
@@ -502,7 +508,10 @@ await collapseAt(c1);
 const after = await rows();
 ok(after === before - c1.tips + 1, `Collapse in the menu collapses the clade (${before} → ${after} rows)`);
 ok((await ev(() => __v().getTree().tipCount)) === tips, 'and the tree still has all its tips');
-ok((await btn('Expand all').count()) === 1 && (await page.locator('.ex-expand .ex-count').innerText()) === '1', 'Expand all appears with the count');
+ok(
+  (await moreHas('Expand all')) && (await moreRead('Expand all', (i) => i.innerText())).includes('1 collapsed'),
+  'Expand all is in the ⋮ menu once a clade is collapsed, with the count',
+);
 const tri = await ev((n) => {
   const b = __v().nodeBounds(n);
   return b ? { x: b.x + b.width * 0.8, y: b.y + b.height / 2 } : null;
@@ -510,13 +519,13 @@ const tri = await ev((n) => {
 ok(tri !== null, 'the collapsed clade is one triangle with the id of the clade');
 // a click on the triangle expands it (drill-down, #57): no menu; a clade this small opens whole
 await click(tri);
-ok((await menu.count()) === 0 && (await rows()) === before && (await btn('Expand all').count()) === 0, 'a click on a collapsed clade expands it');
+ok((await menu.count()) === 0 && (await rows()) === before && !(await moreHas('Expand all')), 'a click on a collapsed clade expands it');
 await collapseAt(c1);
 // a collapsed clade's menu, from a click on its branch: Expand, Info, Show only, Colour…
 await openMenu(await ev((n) => __stem(n), c1.node));
 ok((await menuItems()).join('|') === 'Expand|Info|Show only|Colour…', `a collapsed clade's menu: ${(await menuItems()).join(' | ')}`);
 await act('expand');
-ok((await rows()) === before && (await btn('Expand all').count()) === 0, 'Expand in the menu opens it again');
+ok((await rows()) === before && !(await moreHas('Expand all')), 'Expand in the menu opens it again');
 await collapseAt(await ev(() => __clade(4, 10)));
 await collapseAt(await ev(() => __clade(4, 10, 3)));
 await collapseAt(await ev(() => __clade(2, 2)));
@@ -524,9 +533,20 @@ await collapseAt(await ev(() => __clade(2, 2, 2)));
 const labs = await ev(() => __v().getTree().tipLabels);
 ok(new Set(labs).size === labs.length && labs.length === tips, 'four collapsed clades: no tip label is made up, tip labels are still unique');
 ok((await rows()) < before - 4, `four collapsed clades are four rows (${await rows()} of ${before})`);
-await btn('Expand all').click();
+await more('Expand all');
 await page.waitForTimeout(150);
 ok((await rows()) === before, 'Expand all');
+ok(await moreHas('Collapse to 50 clades'), 'Collapse to 50 clades is in the ⋮ menu on a clade of more than 50 tips');
+await more('Collapse to 50 clades');
+await page.waitForTimeout(300);
+const overviewRows = await rows();
+ok(
+  overviewRows <= 50 && overviewRows < before && (await ev(() => __v().getTree().tipCount)) === 135,
+  `Collapse to 50 clades: ${overviewRows} rows (at most 50), all tips kept`,
+);
+await more('Expand all');
+await page.waitForTimeout(300);
+ok((await rows()) === before, 'Expand all opens them again');
 // the root: Info, Colour… (no Reroot)
 await openMenu(
   await ev(() => {
@@ -575,7 +595,7 @@ await page.waitForTimeout(200);
     `collapsing does not reset the zoom (${z0.h.toFixed(1)} rows in view before, ${z1.h.toFixed(1)} after)`,
   );
   ok(/^time before tips/.test(await axis()), `after a collapse the axis stays: "${await axis()}"`);
-  await btn('Expand all').click();
+  await more('Expand all');
   await ev(() => __v().fit(false));
   await page.waitForTimeout(150);
 }
@@ -1587,8 +1607,8 @@ await open('rich-fish-carangaria-135');
 await moreButton().click();
 ok(
   (await moreMenu().locator('.ex-menu-label').allInnerTexts()).join('|') ===
-    'Phylogram|Cladogram|Legend|Minimap|Tooltips|Align labels|Truncate names|Show support|Show branch length|Ladderize ascending|Ladderize descending|Midpoint root|Export…',
-  'the ⋮ menu: Phylogram and Cladogram, the toggles, Ladderize ascending and descending, Midpoint root, Export…',
+    'Phylogram|Cladogram|Legend|Minimap|Tooltips|Align labels|Truncate names|Show support|Show branch length|Collapse to 50 clades|Ladderize ascending|Ladderize descending|Midpoint root|Export…',
+  'the ⋮ menu: Phylogram and Cladogram, the toggles, Collapse to 50 clades (135 tips), Ladderize ascending and descending, Midpoint root, Export…',
 );
 ok(
   (await moreItem('Legend').getAttribute('aria-checked')) === 'true' && (await moreItem('Minimap').getAttribute('aria-checked')) === 'false',
@@ -2097,7 +2117,7 @@ const drillDown = async (tips) => {
   await openMenu(whole.stem);
   await act('expand');
   ok((await rows()) === r1 - 1 + whole.tips, `Expand in the menu opens a clade of ${whole.tips} tips whole (${r1} → ${await rows()} rows)`);
-  await btn('Expand all').click();
+  await more('Expand all');
   await page.waitForTimeout(300);
 };
 const loadVia = async (id) => {

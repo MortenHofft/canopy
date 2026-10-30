@@ -184,6 +184,12 @@ function infoClade(tree: TreeModel, snap: Snapshot, v: number, collapsed: number
   return { tips: tree.tipCountOf(v), inside };
 }
 
+/** The toast after Collapse to 50 clades, `n` clades collapsed inside the clade shown. */
+function collapseMessage(n: number): string {
+  if (!n) return 'The clade shown fits open';
+  return `Collapsed to ${OVERVIEW_ROWS} rows: the largest clades open, ${n.toLocaleString('en')} collapsed. Click one to expand it`;
+}
+
 export function Explorer({
   published,
   defaultHeight = 520,
@@ -460,8 +466,22 @@ export function Explorer({
     const v = ops.focusedNode(f);
     flash(v < 0 ? 'Showing the whole tree' : `Showing only a clade of ${tree.tipCountOf(v).toLocaleString('en')} tips`);
   };
-  // ---- drill-down (#57): on a collapsed clade expand in place (a click) or jump into it (Show only). tree-ops mergeAutoCollapse replaces the collapsed clades
+  // ---- drill-down (#57): the overview of the clade shown (its largest clades open, the rest collapsed, about OVERVIEW_ROWS rows), and
+  // on a collapsed clade expand in place (a click) or jump into it (Show only). tree-ops mergeAutoCollapse replaces the collapsed clades
   // inside the clade by its own overview and keeps the others. Rows are counted on `tree`.
+  const overviewOfShown = () => {
+    const root = Math.max(0, ops.focusedNode(focus));
+    const next = ops.mergeAutoCollapse(tree, collapsed, { root, maxRows: OVERVIEW_ROWS });
+    // the clade shown alone stays collapsed in the view around it (as jumpInto leaves it), so Reset returns to that view
+    if (root > 0 && collapsed.includes(root)) {
+      next.push(root);
+      next.sort((a, b) => a - b);
+    }
+    setCollapsed(next);
+    deselect();
+    const n = next.filter((v) => v > root && v < tree.subtreeEnd[root]).length;
+    flash(collapseMessage(n));
+  };
   /** Open the collapsed clade `v` (of `tree`) with its own overview of about EXPAND_ROWS rows inside. */
   const expandInPlace = (v: number) => setCollapsed((cs) => ops.mergeAutoCollapse(tree, cs, { root: v, maxRows: EXPAND_ROWS }));
   /** Show only the collapsed clade `v`, with its overview inside. It stays collapsed in the view around it, so Reset returns to that view. */
@@ -814,21 +834,6 @@ export function Explorer({
             <span className="ex-count">{clades.length}</span>
           </button>
         )}
-        {collapsed.length > 0 && <div className="ex-divider" />}
-        {collapsed.length > 0 && (
-          <>
-            <button
-              type="button"
-              className="ex-btn ex-expand"
-              title={`Expand all collapsed clades (${collapsed.length})`}
-              onClick={() => setCollapsed([])}
-            >
-              <I.IconExpandAll />
-              Expand all
-              <span className="ex-count">{collapsed.length}</span>
-            </button>
-          </>
-        )}
         <div className="ex-spacer" />
       </Scroller>
 
@@ -1097,6 +1102,20 @@ export function Explorer({
               {(
                 [
                   [
+                    `Collapse to ${OVERVIEW_ROWS} clades`,
+                    'Largest clades open, the rest collapsed',
+                    <J.IconClades key="i" />,
+                    overviewOfShown,
+                    shown.tipCount > OVERVIEW_ROWS,
+                  ],
+                  [
+                    'Expand all',
+                    `${collapsed.length} collapsed clades open again`,
+                    <I.IconExpandAll key="i" />,
+                    () => setCollapsed([]),
+                    collapsed.length > 0,
+                  ],
+                  [
                     'Ladderize ascending',
                     'Smallest clades at top',
                     <J.IconLadderBy key="i" />,
@@ -1114,7 +1133,7 @@ export function Explorer({
                   ['Reset', 'Back to the tree as published', null, () => back(0), history.length > 1],
                 ] as const
               )
-                .filter((item) => item[4]) // not offered: the midpoint without branch lengths, Reset on the tree as published
+                .filter((item) => item[4]) // not offered: the overview on a small clade, Expand all without collapsed clades, the midpoint without branch lengths, Reset on the tree as published
                 .map(([label, desc, icon, run, enabled]) => (
                   <button
                     key={label}
