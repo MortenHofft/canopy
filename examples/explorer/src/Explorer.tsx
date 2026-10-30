@@ -9,6 +9,7 @@ import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@canopy/io';
 import * as ops from '@canopy/tree-ops';
 import { TreeView, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
 import {
+  cladeName,
   defaultControls,
   InMemorySource,
   createSearchIndex,
@@ -17,6 +18,7 @@ import {
   type CladeLabelFn,
   type NamedDescendant,
   type SearchIndex,
+  type TreeSnapshot,
 } from '@canopy/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
@@ -48,6 +50,8 @@ const PALETTE = ['Red', 'Orange', 'Amber', 'Lime', 'Emerald', 'Teal', 'Sky', 'In
 const ERASE = 'reset';
 /** The colour action steps through the palette by 5 of its 12 swatches, so two clades painted one after the other are far apart. */
 const COLOUR_STRIDE = 5;
+const SUGGEST_MAX = 8; // names offered under the search field
+const SUGGEST_SCAN = 200; // matches read for them: a label on several tips is several matches, so a few more than the names wanted
 const TRUNCATE_AT = 30; // Reactree: names longer than 30 characters become 28 plus an ellipsis
 const LABEL_SIZE = 11.5; // the tip labels' size at a font scale of 1
 
@@ -353,13 +357,13 @@ export function Explorer({
   // 'c spirochaetia' finds 'c__Spirochaetia'), over the tips and the named internal nodes (clades); matches highlighted, the current one
   // ringed and centred (a clade is zoomed to, and highlights its tips). Every match kept: highlighting a million tips costs little
   // (docs/design/highlight-cost.md, #58). The index is built when a query is first typed on a tree shown (about 1 s on 2.4 million names).
-  const searchIndex = useRef<{ of: TreeModel; index: SearchIndex } | null>(null); // built when a query is first typed on this tree, not on every edit
+  const searchIndex = useRef<{ of: TreeModel; index: SearchIndex; snap: TreeSnapshot } | null>(null); // built when a query is first typed on this tree, not on every edit
   const { matches, highlighted } = useMemo(() => {
     if (!query.trim()) return { matches: [], highlighted: [] };
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
     if (searchIndex.current?.of !== shown) {
-      const index = createSearchIndex(new InMemorySource(shown).snapshot(), { formatLabel: (s) => s, cladeLabel });
-      searchIndex.current = { of: shown, index };
+      const snap = new InMemorySource(shown).snapshot();
+      searchIndex.current = { of: shown, index: createSearchIndex(snap, { formatLabel: (s) => s, cladeLabel }), snap };
     }
     const out = searchIndex.current.index.find(query).hits.map((h) => h.node);
     const { childCount, leafStart, leafEnd, tipRank } = shown;
@@ -372,6 +376,29 @@ export function Explorer({
     for (let r = 0; r < hl.length; r++) if (hl[r]) ids.push(shown.tipNode[r]);
     return { matches: out, highlighted: ids };
   }, [query, shown]);
+  // suggestions under the field: the names of the first matches (prefix matches first, as the index orders them), each name once, to pick
+  // from instead of typing it out. `matches` is in the same order, so they are read off its start (a tip label carried by several tips is
+  // several matches, hence the scan past the first few). Picking one makes it the query.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestIdx, setSuggestIdx] = useState(-1);
+  const suggestions = useMemo(() => {
+    const idx = searchIndex.current;
+    if (!suggestOpen || !idx || !matches.length) return [];
+    const names = new Set<string>();
+    for (let k = 0; k < Math.min(matches.length, SUGGEST_SCAN) && names.size < SUGGEST_MAX; k++) {
+      const name = cladeName(idx.snap, matches[k], { formatLabel: (s) => s, cladeLabel });
+      if (name) names.add(name.replace(/_/g, ' '));
+    }
+    const out = [...names];
+    return out.length === 1 && out[0] === query.trim() ? [] : out; // nothing to offer when it is already typed out
+  }, [suggestOpen, matches, query]);
+  const pickSuggestion = (name: string) => {
+    setQuery(name);
+    setMatchIdx(0);
+    setSuggestOpen(false);
+    setSuggestIdx(-1);
+    searchInput.current?.focus();
+  };
   const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
   const current = currentIdx >= 0 ? matches[currentIdx] : null;
   const currentClade = current !== null && shown.childCount[current] > 0;
@@ -669,6 +696,8 @@ export function Explorer({
     setSearchOpen(false);
     setQuery('');
     setMatchIdx(0);
+    setSuggestOpen(false);
+    setSuggestIdx(-1);
   };
 
   // ---- export: PNG is the viewer's toBlob; Newick and NEXUS through @canopy/io
@@ -925,12 +954,28 @@ export function Explorer({
               aria-label="Search tips and clades"
               placeholder="Search tips and clades…"
               value={query}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={suggestions.length > 0}
+              aria-controls="ex-search-suggestions"
+              aria-activedescendant={suggestIdx >= 0 ? `ex-search-suggestion-${suggestIdx}` : undefined}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setMatchIdx(0);
+                setSuggestOpen(true);
+                setSuggestIdx(-1);
               }}
+              onBlur={() => setSuggestOpen(false)}
               onKeyDown={(e) => {
-                if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                const n = suggestions.length;
+                if (n && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                  // while the list is open the arrows walk it; Enter on a suggestion picks it, and once picked they step through the matches again
+                  e.preventDefault();
+                  setSuggestIdx((i) => (e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n));
+                } else if (e.key === 'Enter' && suggestIdx >= 0 && suggestions[suggestIdx]) {
+                  e.preventDefault();
+                  pickSuggestion(suggestions[suggestIdx]);
+                } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
                   e.preventDefault();
                   setMatchIdx((i) => i + 1);
                 } else if (e.key === 'ArrowUp') {
@@ -965,6 +1010,23 @@ export function Explorer({
             <button type="button" className="ex-search-close" title="Close search (Esc)" onClick={closeSearch}>
               <I.IconClose />
             </button>
+            {suggestions.length > 0 && (
+              <ul className="ex-search-suggestions" id="ex-search-suggestions" role="listbox" aria-label="Suggestions">
+                {suggestions.map((name, k) => (
+                  <li
+                    key={name}
+                    id={`ex-search-suggestion-${k}`}
+                    role="option"
+                    aria-selected={k === suggestIdx}
+                    className={k === suggestIdx ? 'active' : undefined}
+                    onPointerDown={(e) => e.preventDefault()} // keep focus in the field
+                    onClick={() => pickSuggestion(name)}
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

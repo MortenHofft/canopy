@@ -359,6 +359,31 @@ await page.locator('.ex-btn[title="Fit tree"]').click();
 await page.waitForTimeout(300);
 ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back at full strength after the search');
 
+console.log('search: suggestions');
+await page.locator('button[aria-label="Search tips"]').click();
+await page.keyboard.type('bothus');
+await page.waitForTimeout(200);
+const sugg = await page.locator('.ex-search-suggestions li').allInnerTexts();
+ok(sugg.length === 2 && new Set(sugg).size === 2, `typing lists the names that match, each once (${sugg.join(' | ')})`);
+ok((await page.locator('.ex-search input').getAttribute('aria-expanded')) === 'true', 'the field says its list is open');
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+ok((await page.locator('.ex-search-suggestions li.active').innerText()) === sugg[1], 'the arrows walk the list');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(250);
+ok((await page.locator('.ex-search input').inputValue()) === sugg[1], 'Enter picks the suggestion: it becomes the query');
+ok((await page.locator('.ex-search-suggestions').count()) === 0, 'and the list closes');
+ok((await page.locator('.ex-search-count').innerText()) === '1 / 1', 'one match, the name picked');
+await page.keyboard.press('Control+a');
+await page.keyboard.type('bothus');
+await page.waitForTimeout(200);
+await page.locator('.ex-search-suggestions li').first().click();
+await page.waitForTimeout(250);
+ok((await page.locator('.ex-search input').inputValue()) === sugg[0], 'a click on a suggestion picks it too');
+await page.keyboard.press('Escape');
+await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.waitForTimeout(300);
+
 console.log('node menu, inspector, collapse, expand');
 const tip0 = await ev(() => __v().getTree().tipLabels[3]);
 // the hover box of a tip: its full name, with support and branch length when the tree has them
