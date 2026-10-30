@@ -344,6 +344,10 @@
 }
 
 .phylo-legend__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 4px;
   font-size: 11px;
   font-weight: 600;
@@ -393,6 +397,46 @@ button.phylo-legend__label {
 }
 
 button.phylo-legend__label:hover {
+  text-decoration: underline;
+}
+
+.phylo-legend__close {
+  padding: 0 0.15em;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.3em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.phylo-legend__close:focus-visible,
+.phylo-legend__action:focus-visible {
+  outline: 2px solid var(--phylo-highlight, #4c9b45);
+  outline-offset: 1px;
+}
+
+.phylo-legend__close:hover {
+  color: var(--phylo-foreground, #162d3d);
+}
+
+.phylo-legend__actions {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--phylo-border, color-mix(in srgb, var(--phylo-foreground, #162d3d) 18%, transparent));
+}
+
+.phylo-legend__action {
+  padding: 0.15em 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.phylo-legend__action:hover {
   text-decoration: underline;
 }
 

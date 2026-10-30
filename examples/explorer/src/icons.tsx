@@ -73,11 +73,6 @@ export const IconEraser = () => (
     <path d="M2 11h9" {...s} strokeWidth="1.4" />
   </svg>
 );
-export const IconExpandAll = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-    <path d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11" {...s} strokeWidth="1.4" />
-  </svg>
-);
 export const IconCopy = () => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
     <rect x="3.5" y="3.5" width="6" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
