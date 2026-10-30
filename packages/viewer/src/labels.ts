@@ -320,7 +320,7 @@ export function drawNodeLabels(ctx: CanvasRenderingContext2D, S: Scene): void {
   const maxN = rect ? MAX_RECT_LABELS : RADIAL_LABEL_CAP;
   const sc = S.scale;
   const centred = mode === 'length'; // a function's text is placed and coloured like support
-  const marker = S.namedNodeMarkers ? Math.max(theme.unnamedNodeMarkerSize, theme.namedNodeMarkerSize) : theme.nodeMarkerSize;
+  const marker = S.namedNode ? Math.max(theme.unnamedNodeMarkerSize, theme.namedNodeMarkerSize) : theme.nodeMarkerSize;
   const gap = Math.max(NODE_LABEL_GAP_PX, marker / 2 + 1); // a support value clears the node's marker
   const pad = Math.max(NODE_LABEL_PAD_PX, marker / 2 + 1); // a length keeps clear of the node marker at one end and the connector at the other
   const fit = centred ? 2 * pad : gap + NODE_LABEL_PAD_PX; // the room a label needs besides its text

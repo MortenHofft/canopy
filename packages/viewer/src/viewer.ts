@@ -19,6 +19,7 @@
 // (The focus rings of the tree and of the label anchors are CSS, viewer.css.)
 
 import { cladeName } from './clade-name.ts';
+import { namedNodeTest } from './named-nodes.ts';
 import type { Control } from './control.ts';
 import { ControlLayer } from './control-layer.ts';
 import { cellRect, columnsFixed, columnsWidth, drawColumns, layoutColumns, recolourColumns, updateColumns, type CompiledColumn } from './columns.ts';
@@ -334,6 +335,7 @@ export class TreeViewer {
   /** The tree as of the last source version we looked at. Re-read through source.snapshot() when the version changes (syncSource),
    *  so a frame always works on one consistent set of arrays. For an in-memory source the version never changes. */
   private tree: TreeSnapshot;
+  private namedNodes: { tree: TreeSnapshot; format: unknown; clade: unknown; test: (row: number) => boolean } | null = null;
   private source: TreeSource;
   private srcVersion: number;
   private unsubscribe: () => void;
@@ -1470,6 +1472,16 @@ export class TreeViewer {
     this.zoomToRow(row, animate);
   }
 
+  /** The named-node test of `tree` (`namedNodeMarkers`), kept while the snapshot, `formatLabel` and `cladeLabel` stay the same. */
+  private namedNodeFor(tree: TreeSnapshot): (row: number) => boolean {
+    const { formatLabel, cladeLabel } = this.opts;
+    const c = this.namedNodes;
+    if (c && c.tree === tree && c.format === formatLabel && c.clade === cladeLabel) return c.test;
+    const test = namedNodeTest(tree, this.opts);
+    this.namedNodes = { tree, format: formatLabel, clade: cladeLabel, test };
+    return test;
+  }
+
   /** The label of a collapsed clade (row of the snapshot): `formatCollapsedLabel` of its name and size. */
   private cladeText(row: number): string {
     const t = this.tree;
@@ -2059,7 +2071,7 @@ export class TreeViewer {
       format: opts.formatLabel,
       cladeText: (row) => this.cladeText(row),
       nodeLabels: opts.nodeLabels,
-      namedNodeMarkers: opts.namedNodeMarkers,
+      namedNode: opts.namedNodeMarkers ? this.namedNodeFor(this.tree) : null,
       formatNode: opts.formatNodeLabel,
       scale,
       thin: rect ? 0 : Math.min(1, Math.max(0, (this.list.count - THIN_FROM) / (THIN_TO - THIN_FROM))),
