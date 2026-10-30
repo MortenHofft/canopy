@@ -41,7 +41,7 @@ Each control and the API behind it.
 | Rectangular / circular; **Phylogram / Cladogram** (⋮ menu, a radio pair) | the `layout` and `branchLengths` props |
 | **Truncate names** (⋮ menu) | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
 | **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels; every match is highlighted and counted |
-| **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the columns stay at full strength) |
+| **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the tip labels stay at full strength) |
 | **Midpoint root**, **Ladderize ascending / descending** (⋮ menu, by number of tips) | tree-ops `midpointRoot`, `ladderise(t, { order, by: 'tips' })` |
 | **Tooltips** (⋮ menu) | `<TreeView tooltip>`: the hover box is `false` while it is off |
 | Reroot here (node menu), Undo (⌘Z) | tree-ops `reroot`; a history of trees, each edit a function returning a new tree. Colours, collapsed clades and the focus follow the tips (`followClades`, `remapFocus`) and the view stays (`treeMap`, the op's node map) |

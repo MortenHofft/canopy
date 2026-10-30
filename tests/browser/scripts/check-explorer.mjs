@@ -1994,7 +1994,7 @@ console.log('\na file of one’s own, through the picker’s file input (example
   }
   await page.evaluate(HELPERS);
 }
-// Drill-down (#57) on an overview set through ?view= (the clades collapsed, as the old Collapse to 50 clades button left them), a click on a collapsed clade expands it in place (its children
+// Drill-down (#57) on an overview set through ?view= (a frontier of the tree, collapsed, about 45 rows), a click on a collapsed clade expands it in place (its children
 // in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Back to root returns
 const drillDown = async (tips) => {
   const collapsedNodes = () =>
@@ -2127,7 +2127,7 @@ for (const [id, tipsWanted] of [
   const n = await tipCount();
   ok(n === tipsWanted, `${id}: ${n} tips shown (${ms} ms)`);
 }
-// the drill-down needs a tree whose clades are drawn as nodes at the fit zoom, to be clicked
+// the drill-down (#57) on a tree with named clades. It depends on the debug panel (Copy view, the ?view= link) to set its overview
 {
   // the overview of the 10k-tip GTDB archaea: the frontier of the tree opened from the root, the largest clade first, until 45 rows. The
   // collapsed clades go in through ?view= (the debug panel's saved view, with its collapsed ids), the way a view is restored
@@ -2156,6 +2156,10 @@ for (const [id, tipsWanted] of [
   await page.waitForFunction(() => typeof window.__explorer === 'function' && window.__explorer() !== null);
   await page.evaluate(HELPERS);
   await page.waitForTimeout(400);
+  // the restored viewport is the uncollapsed tree's: fit the 45 rows, counting only the labels drawn from then on
+  await ev(() => (window.__cladeLabels = new Set()));
+  await page.locator('.ex-btn[title="Fit tree"]').click();
+  await page.waitForTimeout(800);
   await drillDown(10122);
 }
 {
