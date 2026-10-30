@@ -1529,14 +1529,17 @@ console.log('one popover radius, the node menu styled as the inspector');
   );
 }
 
-// the toolbar keeps its one row at 1280, 1024 and 600 px (below that it scrolls sideways)
+// the toolbar is one row at 1280 and 1024 px, two on a phone (600 px); below that it scrolls sideways
 console.log('toolbar rows');
 for (const w of [1280, 1024, 600]) {
   await page.setViewportSize({ width: w, height: 860 });
   await open('rich-fish-carangaria-135');
   await page.waitForTimeout(200);
   const rows = await page.locator('.ex-row').evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect().height)));
-  ok(rows.length === 1 && rows.every((h) => h < 50), `${w} px: one single-line row (${rows.join(', ')} px)`);
+  ok(
+    rows.length === (w > 640 ? 1 : 2) && rows.every((h) => h < 50),
+    `${w} px: ${w > 640 ? 'one' : 'two (a phone keeps its second)'} single-line row${w > 640 ? '' : 's'} (${rows.join(', ')} px)`,
+  );
   // Export and Search stay in view whatever the row scrolls; a row that overflows says so (data-end on the scroller, a fade)
   const vis = await ev(() =>
     ['.ex-export button', 'button[aria-label="Search tips"]'].map((q) => {

@@ -250,7 +250,9 @@ export function Explorer({
   // Shift or Ctrl held: the click action is Inspect for the moment, or Subtree when it is Inspect already (a quick way to explore). The select shows it.
   const [modHeld, setModHeld] = useState(false);
   useEffect(() => {
-    const held = (e: KeyboardEvent) => setModHeld(e.shiftKey || e.ctrlKey);
+    // a capital letter typed in the search box is not the key held for a click: only a key pressed outside a text field counts
+    const held = (e: KeyboardEvent) =>
+      setModHeld((e.shiftKey || e.ctrlKey) && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement));
     const off = () => setModHeld(false);
     window.addEventListener('keydown', held);
     window.addEventListener('keyup', held);
@@ -272,6 +274,8 @@ export function Explorer({
   }, []);
   // the instant tooltip of the toolbar buttons (data-tip): one box, placed under the button the pointer or the keyboard is on
   const [barTip, setBarTip] = useState<{ text: string; y: number; left?: number; right?: number; centre?: number } | null>(null);
+  // a button that goes or is disabled sends no pointerout: the box goes with the change of what is shown
+  useEffect(() => setBarTip(null), [focus, history, phone]);
   const showBarTip = (e: React.SyntheticEvent) => {
     const el = (e.target as Element).closest<HTMLElement>('[data-tip]');
     if (!el) return setBarTip(null);
@@ -916,8 +920,8 @@ export function Explorer({
         </div>
       </Scroller>
 
-      {/* ── Row 2: only when it has something: the undo note, and on a phone the clade buttons ── */}
-      {(undoNote || (phone && cladeShown)) && (
+      {/* ── Row 2: the undo note, and on a phone the clade buttons. A phone always has it, so the tree does not jump when they appear ── */}
+      {(undoNote || phone) && (
         <Scroller className="ex-row" role="toolbar" aria-label="Edit">
           {undoNote && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
           {phone && cladeShown}

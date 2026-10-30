@@ -77,4 +77,4 @@ and highlighting a million matches about 0.05 s plus a frame of under 30 ms (hea
 - **Undo** is a history of trees owned by this component, bounded by memory ([#44](https://github.com/MortenHofft/canopy/issues/44)): about 45 to 60 steps of a 10k-tip tree, two of the 190k-tip GTDB tree, Reset only from about a million tips (figures in [docs/design/undo-memory.md](../../docs/design/undo-memory.md)). Views are not in it: Show only and collapsing. Undo keeps the clade shown (it follows the tips through the inverse map).
 - **Colour… is a palette, not a submenu.** `NodeMenuItem` is a flat list (`id`, `label`, `hint`, `disabled`, `onSelect`), so *Colour…* opens the
   explorer's own palette for that one clade, at the click, with focus in it.
-- **Toolbar width.** One row, and a second only when it has something in it (the note that Undo is off, and on a phone the buttons for a clade shown alone). Narrower than about 1250 px a row scrolls sideways.
+- **Toolbar width.** One row, and a second for the note that Undo is off and, on a phone, always (the buttons for a clade shown alone). Narrower than about 1250 px a row scrolls sideways.

@@ -401,14 +401,20 @@ button.phylo-legend__label:hover {
 }
 
 .phylo-legend__close {
-  padding: 0 2px;
+  padding: 0 0.15em;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 16px;
+  font-size: 1.3em;
   line-height: 1;
   cursor: pointer;
+}
+
+.phylo-legend__close:focus-visible,
+.phylo-legend__action:focus-visible {
+  outline: 2px solid var(--phylo-highlight, #4c9b45);
+  outline-offset: 1px;
 }
 
 .phylo-legend__close:hover {
@@ -422,7 +428,7 @@ button.phylo-legend__label:hover {
 }
 
 .phylo-legend__action {
-  padding: 2px 0;
+  padding: 0.15em 0;
   border: 0;
   background: none;
   color: inherit;

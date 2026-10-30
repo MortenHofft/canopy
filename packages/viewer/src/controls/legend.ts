@@ -52,7 +52,6 @@ export class Legend extends BaseControl {
       close.className = 'phylo-legend__close';
       close.textContent = '×';
       close.setAttribute('aria-label', 'Close legend');
-      this.domListen(close, 'click', () => opts.onClose?.());
       this.heading.append(close);
     }
     this.list = document.createElement('ul');
@@ -66,7 +65,7 @@ export class Legend extends BaseControl {
         b.type = 'button';
         b.className = 'phylo-legend__action';
         b.textContent = a.label;
-        this.domListen(b, 'click', () => a.onSelect());
+        b.dataset.action = String(opts.actions.indexOf(a));
         actions.append(b);
       }
       this.element.append(actions);
@@ -81,6 +80,13 @@ export class Legend extends BaseControl {
     this.listen(v.on('treechange', () => this.render(v)));
     // formatLabel and cladeLabel change the names
     this.listen(v.on('optionschange', (e) => (e.changed.includes('formatLabel') || e.changed.includes('cladeLabel')) && this.render(v)));
+    // the close button and the actions are listened to here, not in the constructor, so they work again after a detach
+    this.domListen(this.element, 'click', (e) => {
+      const b = (e.target as Element).closest('button');
+      if (!b || b.closest('ul')) return;
+      if (b.classList.contains('phylo-legend__close')) this.opts.onClose?.();
+      else if (b.dataset.action !== undefined) this.opts.actions?.[Number(b.dataset.action)]?.onSelect();
+    });
     this.domListen(this.list, 'click', (e) => {
       const b = (e.target as Element).closest('button');
       if (b?.dataset.node) v.zoomToNode(Number(b.dataset.node), true);

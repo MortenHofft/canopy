@@ -356,6 +356,11 @@ test('Legend: onClose adds a close button, actions a separated row of buttons; t
   assert.equal(l.element.querySelector('.phylo-legend__actions').children.length, 1);
   l.element.querySelector('.phylo-legend__action').click();
   assert.deepEqual(seen, ['close', 'clear']);
+  l.setViewer(null);
+  l.setViewer(v);
+  close.click();
+  l.element.querySelector('.phylo-legend__action').click();
+  assert.deepEqual(seen, ['close', 'clear', 'close', 'clear'], 'still work after the control was removed and added again');
   assert.equal(new Legend().element.querySelector('.phylo-legend__close'), null);
   assert.equal(new Legend().element.querySelector('.phylo-legend__actions'), null);
 });
