@@ -94,6 +94,15 @@ body {
   background: var(--ex-surface-20);
   color: var(--ex-text);
   font-family: var(--ex-font);
+  /* dragging over the toolbar, menus and the tree must not select text; the inspector and form fields keep it */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ex-info,
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 .page {
   max-width: 1200px;

@@ -183,6 +183,11 @@ const SCENARIOS = [
     forbid: ['packages/viewer/dist/controls/', 'packages/viewer/dist/control.js'],
   },
   {
+    name: 'viewer: createSearchIndex (no control classes)',
+    code: `import { createSearchIndex } from '@canopy/viewer'; console.log(createSearchIndex);`,
+    forbid: ['packages/viewer/dist/controls/', 'packages/viewer/dist/control.js', 'packages/viewer/dist/viewer.js'],
+  },
+  {
     name: 'viewer: TreeViewer + Zoom',
     code: `import { TreeViewer, Zoom } from '@canopy/viewer'; console.log(TreeViewer, Zoom);`,
     forbid: ['packages/viewer/dist/overview.js', 'controls/search.js', 'controls/legend.js', 'controls/defaults.js'],

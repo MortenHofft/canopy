@@ -149,6 +149,13 @@
       "format": "newick",
       "remote": "https://raw.githubusercontent.com/MortenHofft/canopy/data/otl-large/trees/otl-2m-full.nwk.gz",
       "nodes": 2725682
+    },
+    "otl-2m-relabelled": {
+      "label": "Open Tree, all life (2.39M tips, 15 MB) (relabelled)",
+      "path": "real-ladder/fetched/otl-2m-relabelled.nwk.gz",
+      "format": "newick",
+      "remote": "https://raw.githubusercontent.com/MortenHofft/canopy/data/otl-large/trees/otl-2m-relabelled.nwk.gz",
+      "nodes": 2725682
     }
   }
 }

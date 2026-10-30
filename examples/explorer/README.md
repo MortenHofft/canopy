@@ -40,7 +40,7 @@ Each control and the API behind it.
 | **Collapse** a clade, **Collapse to 50 clades** and **Expand all** (⋮ menu; the first only on a clade of more than 50 tips, the second once a clade is collapsed) | the `collapsed` prop (`viewer.setCollapsed`, a view in the viewer: the tree is not changed and ids are the full tree's). Collapse to 50 clades is tree-ops `mergeAutoCollapse(tree, collapsed, { root, maxRows: 50 })`: the clades collapsed inside the clade shown are replaced by `autoCollapse`'s overview, the others kept (#57) |
 | Rectangular / circular; **Phylogram / Cladogram** (⋮ menu, a radio pair) | the `layout` and `branchLengths` props |
 | **Truncate names** (⋮ menu) | `options.formatLabel` (28 characters and an ellipsis above 30, Reactree's rule) |
-| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one. A regular expression over the tip labels; every match is highlighted and counted |
+| **Search** (⌘F, count, ↑ ↓, Enter) | the `highlighted` prop for the matches and `focus` to centre the current one (a clade: `zoomToNode`). A regular expression over the tip labels and the names of the internal nodes (clades); every match is counted, and the tips of a matching clade are highlighted |
 | **Highlight style** (band / dim / both) | `options.highlightStyle`; `dim` is the default here (what does not match fades to `--phylo-dim-opacity`, the tip labels stay at full strength) |
 | **Midpoint root**, **Ladderize ascending / descending** (⋮ menu, by number of tips) | tree-ops `midpointRoot`, `ladderise(t, { order, by: 'tips' })` |
 | **Tooltips** (⋮ menu) | `<TreeView tooltip>`: the hover box is `false` while it is off |

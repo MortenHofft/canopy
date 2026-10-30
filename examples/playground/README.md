@@ -12,7 +12,7 @@ npm run dev -w examples/playground    # http://127.0.0.1:5310 (?tree=<id> from .
   or the page's own (presets, transparent background, tip links, the click action, highlighting by text). To expose a new option or
   token, add one line there.
 - [`../shared/catalogue.json`](../shared/catalogue.json) lists the trees, with their per-tip data (a TSV whose first column is the tip label) and
-  alignments. The site build copies exactly these files. The two largest Open Tree of Life trees are not on `main`. They come from the
+  alignments. The site build copies exactly these files. The large Open Tree of Life trees are not on `main`. They come from the
   `data/otl-large` branch: the site build downloads them, and the dev server falls back to the branch's raw URL. Each entry has its
   node count (`nodes`).
 - The tree picker and the file of your own are shared with the explorer:

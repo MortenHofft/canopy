@@ -8,7 +8,16 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@canopy/io';
 import * as ops from '@canopy/tree-ops';
 import { TreeView, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
-import { defaultControls, InMemorySource, internalName, namedDescendants, type CladeLabelFn, type NamedDescendant } from '@canopy/viewer';
+import {
+  defaultControls,
+  InMemorySource,
+  createSearchIndex,
+  internalName,
+  namedDescendants,
+  type CladeLabelFn,
+  type NamedDescendant,
+  type SearchIndex,
+} from '@canopy/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
 import * as K from './icons-click.tsx';
@@ -340,23 +349,40 @@ export function Explorer({
   );
   // `tree` as the viewer's helpers read it (cladeName, namedDescendants): node ids of `tree`, the ids the actions and the inspector use
   const treeSnap = useMemo(() => new InMemorySource(tree).snapshot(), [tree]);
-  // ---- search: case-insensitive substring of the displayed name (Reactree's rule; an underscore and a space are the same); matches
-  // highlighted, the current one centred. One regular expression over the labels, not a string rebuilt per label (about 0.1 s on 2.4
-  // million labels), and every match kept: highlighting a million tips costs little (docs/design/highlight-cost.md, #58).
-  const matches = useMemo(() => {
-    const q = query.trim();
-    if (!q) return [];
-    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ _]/g, '[ _]'), 'i');
+  // ---- search: the viewer's createSearchIndex (case-insensitive substring of the name, a run of underscores and spaces is one separator, so
+  // 'c spirochaetia' finds 'c__Spirochaetia'), over the tips and the named internal nodes (clades); matches highlighted, the current one
+  // ringed and centred (a clade is zoomed to, and highlights its tips). Every match kept: highlighting a million tips costs little
+  // (docs/design/highlight-cost.md, #58). The index is built when a query is first typed on a tree shown (about 1 s on 2.4 million names).
+  const searchIndex = useRef<{ of: TreeModel; index: SearchIndex } | null>(null); // built when a query is first typed on this tree, not on every edit
+  const { matches, highlighted } = useMemo(() => {
+    if (!query.trim()) return { matches: [], highlighted: [] };
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
-    const out: number[] = [];
-    const labels = shown.tipLabels;
-    for (let r = 0; r < labels.length; r++) if (re.test(labels[r])) out.push(shown.tipNode[r]);
-    return out;
+    if (searchIndex.current?.of !== shown) {
+      const index = createSearchIndex(new InMemorySource(shown).snapshot(), { formatLabel: (s) => s, cladeLabel });
+      searchIndex.current = { of: shown, index };
+    }
+    const out = searchIndex.current.index.find(query).hits.map((h) => h.node);
+    const { childCount, leafStart, leafEnd, tipRank } = shown;
+    const hl = new Uint8Array(shown.tipCount);
+    for (const n of out) {
+      if (childCount[n] === 0) hl[tipRank[n]] = 1;
+      else hl.fill(1, leafStart[n], leafEnd[n]);
+    }
+    const ids: number[] = [];
+    for (let r = 0; r < hl.length; r++) if (hl[r]) ids.push(shown.tipNode[r]);
+    return { matches: out, highlighted: ids };
   }, [query, shown]);
   const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
   const current = currentIdx >= 0 ? matches[currentIdx] : null;
+  const currentClade = current !== null && shown.childCount[current] > 0;
   const [focusSeq, setFocusSeq] = useState(0);
   useEffect(() => setFocusSeq((s) => s + 1), [current]);
+  const markedMatch = useMemo(() => (current === null ? [] : [current]), [current]); // ringed, so the current match is easy to find
+  const zoomTo = useRef<number | null>(null);
+  zoomTo.current = currentClade ? current : null;
+  useEffect(() => {
+    if (zoomTo.current !== null) ref.current?.renderer()?.zoomToNode(zoomTo.current, true);
+  }, [focusSeq]);
 
   // ---- node labels: the viewer draws them (`nodeLabels`). 'support' reads `support` of the tree, which is the same for a support in
   // the labels (0.95, 100) and for one that load() copied there from an annotation (BEAST posterior). A collapsed clade shows its own
@@ -781,7 +807,7 @@ export function Explorer({
             type="button"
             className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
             aria-label="Search tips"
-            title="Search tips (⌘F)"
+            title="Search tips and clades (⌘F)"
             onClick={() => {
               if (searchOpen) return closeSearch();
               setSearchOpen(true);
@@ -859,11 +885,12 @@ export function Explorer({
           layout={layout}
           branchLengths={phylogram}
           clades={shownClades}
-          highlighted={matches}
+          highlighted={highlighted}
+          marked={markedMatch}
           collapsed={collapsedIds}
           controls={controls}
           theme={theme}
-          focus={current ? { tipId: current, seq: focusSeq } : null}
+          focus={current !== null && !currentClade ? { tipId: current, seq: focusSeq } : null}
           selected={selectedShown}
           onSelectionChange={(k) => setSelected(k === null || toTree(k) < 0 ? null : toTree(k))}
           options={{
@@ -895,8 +922,8 @@ export function Explorer({
               ref={searchInput}
               autoFocus
               type="text"
-              aria-label="Search tips"
-              placeholder="Search tips…"
+              aria-label="Search tips and clades"
+              placeholder="Search tips and clades…"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
