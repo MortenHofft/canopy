@@ -15,12 +15,22 @@ export interface LegendItem {
   node?: number;
 }
 
+/** A row under the entries, set apart from them: a button that calls `onSelect`. */
+export interface LegendAction {
+  label: string;
+  onSelect: () => void;
+}
+
 export interface LegendOptions extends ControlOptions {
   title?: string;
   /** A fixed list instead of the viewer's clade colours. */
   items?: LegendItem[];
   /** Overrides the viewer's `cladeLabel` option (what names an internal node) for this legend. */
   cladeLabel?: CladeLabelFn;
+  /** Adds a close button to the title; the app decides what closing does (the legend does not hide itself). */
+  onClose?: () => void;
+  /** Rows under the entries, after a separator, such as 'Clear selection'. Shown with the entries, so hidden while there are none. */
+  actions?: LegendAction[];
 }
 
 export class Legend extends BaseControl {
@@ -33,10 +43,34 @@ export class Legend extends BaseControl {
     this.opts = opts;
     this.heading = document.createElement('div');
     this.heading.className = 'phylo-legend__title';
-    this.heading.textContent = opts.title ?? 'Clades';
+    const title = document.createElement('span');
+    title.textContent = opts.title ?? 'Clades';
+    this.heading.append(title);
+    if (opts.onClose) {
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'phylo-legend__close';
+      close.textContent = '×';
+      close.setAttribute('aria-label', 'Close legend');
+      this.domListen(close, 'click', () => opts.onClose?.());
+      this.heading.append(close);
+    }
     this.list = document.createElement('ul');
     this.list.className = 'phylo-legend__list';
     this.element.append(this.heading, this.list);
+    if (opts.actions?.length) {
+      const actions = document.createElement('div');
+      actions.className = 'phylo-legend__actions';
+      for (const a of opts.actions) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'phylo-legend__action';
+        b.textContent = a.label;
+        this.domListen(b, 'click', () => a.onSelect());
+        actions.append(b);
+      }
+      this.element.append(actions);
+    }
     this.element.dataset.phyloScroll = ''; // scrolls itself (long lists): the wheel over it does not zoom the tree
     this.element.hidden = true;
   }

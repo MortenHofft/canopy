@@ -346,6 +346,20 @@ test('Legend: one entry per coloured clade, named by label, node name or tip cou
   );
 });
 
+test('Legend: onClose adds a close button, actions a separated row of buttons; the app decides what they do', () => {
+  const v = fakeViewer();
+  const seen = [];
+  const l = new Legend({ onClose: () => seen.push('close'), actions: [{ label: 'Clear selection', onSelect: () => seen.push('clear') }] });
+  l.setViewer(v);
+  const close = l.element.querySelector('.phylo-legend__close');
+  close.click();
+  assert.equal(l.element.querySelector('.phylo-legend__actions').children.length, 1);
+  l.element.querySelector('.phylo-legend__action').click();
+  assert.deepEqual(seen, ['close', 'clear']);
+  assert.equal(new Legend().element.querySelector('.phylo-legend__close'), null);
+  assert.equal(new Legend().element.querySelector('.phylo-legend__actions'), null);
+});
+
 test('legendItems: the same entries as the Legend control, with node ids to zoom to, and the cladeLabel override', () => {
   const v = fakeViewer();
   v.clades = [

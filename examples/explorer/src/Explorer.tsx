@@ -25,6 +25,7 @@ import { Scroller } from './Scroller.tsx';
 import { DebugPanel } from './DebugPanel.tsx';
 import { restoredSettings, type DebugInfo } from './debug.ts';
 
+const PHONE = '(max-width: 640px)';
 /** What a click on a node or tip does: the node menu (inspect), or one action at once. */
 type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'reroot' | 'colour';
 const CLICK_ICONS = { inspect: K.IconInspect, collapse: K.IconCollapse, subtree: K.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
@@ -245,6 +246,43 @@ export function Explorer({
   const [alignLabels, setAlignLabels] = useState(init.alignLabels);
 
   const [clickAction, setClickAction] = useState<ClickAction>('inspect');
+  // Shift or Ctrl held: the click action is Inspect for the moment, or Subtree when it is Inspect already (a quick way to explore). The select shows it.
+  const [modHeld, setModHeld] = useState(false);
+  useEffect(() => {
+    const held = (e: KeyboardEvent) => setModHeld(e.shiftKey || e.ctrlKey);
+    const off = () => setModHeld(false);
+    window.addEventListener('keydown', held);
+    window.addEventListener('keyup', held);
+    window.addEventListener('blur', off);
+    return () => {
+      window.removeEventListener('keydown', held);
+      window.removeEventListener('keyup', held);
+      window.removeEventListener('blur', off);
+    };
+  }, []);
+  const action: ClickAction = modHeld ? (clickAction === 'inspect' ? 'subtree' : 'inspect') : clickAction;
+  // on a phone the buttons that show a clade alone stay in the Edit row; wider, they are the first of the View row
+  const [phone, setPhone] = useState(() => window.matchMedia(PHONE).matches);
+  useEffect(() => {
+    const m = window.matchMedia(PHONE);
+    const f = () => setPhone(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, []);
+  // the instant tooltip of the toolbar buttons (data-tip): one box, placed under the button the pointer or the keyboard is on
+  const [barTip, setBarTip] = useState<{ text: string; y: number; left?: number; right?: number; centre?: number } | null>(null);
+  const showBarTip = (e: React.SyntheticEvent) => {
+    const el = (e.target as Element).closest<HTMLElement>('[data-tip]');
+    if (!el) return setBarTip(null);
+    const r = el.getBoundingClientRect();
+    const mid = r.left + r.width / 2;
+    const y = r.bottom + 6;
+    const text = el.dataset.tip!;
+    // centred under the button, or flush with its left or right edge near the sides of the window, so the box stays on screen
+    if (mid < 140) setBarTip({ text, y, left: r.left });
+    else if (mid > window.innerWidth - 140) setBarTip({ text, y, right: window.innerWidth - r.right });
+    else setBarTip({ text, y, centre: mid });
+  };
   const colourStep = useRef(0); // the colour action's place in the palette
   const [showTooltips, setShowTooltips] = useState(true); // the hover box on the tree
   const [pickAt, setPick] = useState<{ node: number; x: number; y: number } | null>(null); // the node (of `tree`) the menu's Colour… is for, and where the palette opens (px in the component)
@@ -390,7 +428,13 @@ export function Explorer({
   const nodeLabels = labelMode;
   // the viewer's own overview and clade legend, over the tree; its zoom and fit buttons are not shown (the toolbar has Fit)
   const controls = useMemo(
-    () => defaultControls({ zoom: false, fit: false, overview: showOverview, legend: showLegend }),
+    () =>
+      defaultControls({
+        zoom: false,
+        fit: false,
+        overview: showOverview,
+        legend: showLegend && { onClose: () => setShowLegend(false), actions: [{ label: 'Clear selection', onSelect: () => setClades([]) }] },
+      }),
     [showOverview, showLegend],
   );
 
@@ -526,7 +570,7 @@ export function Explorer({
   // ---- clicks: with the click action Inspect, the viewer's node menu opens (nodeMenu below) and a click on the triangle of a collapsed
   // clade expands it; any other action acts on the click at once, with no selection and no menu.
   const onToolClick = (e: TreeNodeEvent) => {
-    if (clickAction === 'inspect') {
+    if (action === 'inspect') {
       if (expandsOnClick(e)) {
         e.preventDefault();
         const v = toTree(e.node);
@@ -534,11 +578,13 @@ export function Explorer({
       }
       return;
     }
+    // the root of what is shown with Collapse: its menu (Collapse to 50 clades, Expand all) opens, when it has any of them
+    if (action === 'collapse' && e.node === 0 && !e.isTip && !e.collapsed && !e.run && rootItems().length > 0) return;
     e.preventDefault();
     if (e.run) return flash('Zoom in: this is a run of small clades drawn as one');
     const v = toTree(e.node);
     if (v < 0) return;
-    switch (clickAction) {
+    switch (action) {
       case 'collapse':
         if (e.collapsed) return expandInPlace(v);
         if (e.isTip) return flash('Collapse needs a clade');
@@ -560,9 +606,16 @@ export function Explorer({
   };
 
   // the node menu: what a click on this tip or clade offers. Not while another click action is chosen, which acts on the click itself.
+  const rootItems = (): NodeMenuItem[] => [
+    ...(shown.tipCount > OVERVIEW_ROWS ? [{ id: 'overview', label: `Collapse to ${OVERVIEW_ROWS} clades`, onSelect: overviewOfShown }] : []),
+    ...(collapsed.length > 0 ? [{ id: 'expand-all', label: 'Expand all', onSelect: () => setCollapsed([]) }] : []),
+  ];
   const nodeMenu = (e: TreeNodeEvent): NodeMenuItem[] | null => {
     const v = toTree(e.node);
-    if (clickAction !== 'inspect' || e.run || v < 0) return null;
+    if (e.run || v < 0) return null;
+    // Collapse acts on the click itself, but the root of what is shown cannot be collapsed: it offers the two whole-tree actions
+    if (action === 'collapse') return e.node === 0 && !e.isTip && !e.collapsed ? rootItems() : null;
+    if (action !== 'inspect') return null;
     const isTip = e.isTip;
     const isCollapsed = e.collapsed;
     const shownRoot = e.node === 0; // the root of what is shown: the tree's, or the clade shown alone
@@ -618,6 +671,7 @@ export function Explorer({
       items.push({ id: 'root', label: 'Back to root', onSelect: () => navigate(ops.NO_FOCUS) });
     }
     items.push(info);
+    if (shownRoot) items.push(...rootItems());
     if (trueRoot) return [...items, colour];
     // the root of what is shown is not collapsed or shown alone again
     if (!shownRoot) items.push(collapse, only);
@@ -749,20 +803,52 @@ export function Explorer({
 
   const theme = useMemo(() => ({ labelSize: LABEL_SIZE * init.fontScale, branchWidth: 1.5, cladeBranchWidth: 2.2 }), [init.fontScale]);
 
+  // Back to root and Up one level, icons only; on a wide screen they lead the View row, with a divider before the click action
+  const cladeShown =
+    ops.focusedNode(focus) >= 0 ? (
+      <>
+        <div className="ex-group" role="group" aria-label="Clade shown">
+          <button type="button" aria-label="Back to root" data-tip="Back to root: show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
+            <J.IconReset />
+          </button>
+          <button
+            type="button"
+            aria-label="Up one level"
+            disabled={!ops.canGoUp(focus)}
+            data-tip="Up one level: show the clade that contains the one shown"
+            onClick={() => navigate(ops.focusUp(tree, focus))}
+          >
+            <J.IconUpLevel />
+          </button>
+        </div>
+        {!phone && <div className="ex-divider" />}
+      </>
+    ) : null;
+
   return (
-    <div className={`ex-outer ex-click-${clickAction}`} ref={outer} onKeyDown={onKeyDown}>
-      {/* ── Row 1: view settings ── */}
-      <Scroller className="ex-row" role="toolbar" aria-label="View">
+    <div className={`ex-outer ex-click-${action}`} ref={outer} onKeyDown={onKeyDown}>
+      {/* ── Row 1: the clade shown, the click action, then (right) layout, fit, search and the ⋮ menu ── */}
+      <Scroller
+        className="ex-row"
+        role="toolbar"
+        aria-label="View"
+        onPointerOver={showBarTip}
+        onPointerOut={() => setBarTip(null)}
+        onFocus={showBarTip}
+        onBlur={() => setBarTip(null)}
+        onClick={() => setBarTip(null)}
+      >
+        {!phone && cladeShown}
         <label
-          className={`ex-select${clickAction !== 'inspect' ? ' ex-select--active' : ''}`}
-          title="What a click on a node or tip does (blue while it is not Inspect)"
+          className={`ex-select${action !== 'inspect' ? ' ex-select--active' : ''}`}
+          data-tip="What a click on a node or tip does (blue while it is not Inspect). Hold Shift or Ctrl to switch it for a moment"
         >
           <span className="ex-select-icon" aria-hidden="true">
-            {React.createElement(CLICK_ICONS[clickAction])}
+            {React.createElement(CLICK_ICONS[action])}
           </span>
           <select
             aria-label="Click action"
-            value={clickAction}
+            value={action}
             onChange={(e) => {
               setClickAction(e.target.value as ClickAction);
               setPick(null);
@@ -776,17 +862,14 @@ export function Explorer({
           </select>
           <span className="ex-select-caret" aria-hidden="true" />
         </label>
-        <div className="ex-divider" />
-        <button type="button" className="ex-btn" aria-label="Fit tree" title="Fit tree" onClick={() => viewer?.fit(false)}>
-          <J.IconFit />
-        </button>
-        <div className="ex-divider" />
+        <div className="ex-spacer" />
         <div className="ex-group">
           <button
             type="button"
             className={layout === 'rectangular' ? 'active' : ''}
             aria-pressed={layout === 'rectangular'}
-            title="Rectangular"
+            aria-label="Rectangular"
+            data-tip="Rectangular"
             onClick={() => setLayout('rectangular')}
           >
             <I.IconRect />
@@ -795,19 +878,22 @@ export function Explorer({
             type="button"
             className={layout === 'radial' ? 'active' : ''}
             aria-pressed={layout === 'radial'}
-            title="Circular"
+            aria-label="Circular"
+            data-tip="Circular"
             onClick={() => setLayout('radial')}
           >
             <I.IconCirc />
           </button>
         </div>
-        <div className="ex-spacer" />
+        <button type="button" className="ex-btn" aria-label="Fit tree" data-tip="Fit tree" onClick={() => viewer?.fit(false)}>
+          <J.IconFit />
+        </button>
         <div className="ex-pinned">
           <button
             type="button"
             className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
             aria-label="Search tips"
-            title="Search tips and clades (⌘F)"
+            data-tip="Search tips and clades (⌘F)"
             onClick={() => {
               if (searchOpen) return closeSearch();
               setSearchOpen(true);
@@ -824,7 +910,7 @@ export function Explorer({
               aria-label="More options"
               aria-haspopup="menu"
               aria-expanded={menu !== 'closed'}
-              title="Tree style, labels, ladderize and export"
+              data-tip="Tree style, labels, ladderize and export"
               onClick={() => setMenu((m) => (m === 'closed' ? 'main' : 'closed'))}
             >
               <J.IconMore />
@@ -836,30 +922,7 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
-        {ops.focusedNode(focus) >= 0 && (
-          <div className="ex-group" role="group" aria-label="Clade shown">
-            <button type="button" aria-label="Back to root" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
-              <J.IconReset />
-              <span className="ex-btn-text">Back to root</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Up one level"
-              disabled={!ops.canGoUp(focus)}
-              title="Up one level: show the clade that contains the one shown"
-              onClick={() => navigate(ops.focusUp(tree, focus))}
-            >
-              <J.IconUpLevel />
-              <span className="ex-btn-text">Up one level</span>
-            </button>
-          </div>
-        )}
-        {clades.length > 0 && (
-          <button type="button" className="ex-btn" title="Remove every colour" onClick={() => setClades([])}>
-            Clear colours
-            <span className="ex-count">{clades.length}</span>
-          </button>
-        )}
+        {phone && cladeShown}
         <div className="ex-spacer" />
       </Scroller>
 
@@ -1025,6 +1088,16 @@ export function Explorer({
           <div className="ex-grip" />
         </div>
       </div>
+
+      {barTip && (
+        <div
+          className={`ex-bartip${barTip.centre !== undefined ? ' ex-bartip--centre' : ''}`}
+          role="tooltip"
+          style={{ left: barTip.centre ?? barTip.left, right: barTip.right, top: barTip.y }}
+        >
+          {barTip.text}
+        </div>
+      )}
 
       <DebugPanel viewer={viewer} debug={debug} collapsed={collapsedIds} asLoaded={shown === published} />
 

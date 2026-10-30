@@ -597,6 +597,23 @@ textarea {
   border: 1px solid var(--ex-surface-30);
 }
 
+/* the instant tooltip of the toolbar buttons (data-tip): the look of the hover box on the tree; fixed, so a row that scrolls does not clip it */
+.ex-bartip {
+  position: fixed;
+  z-index: 100;
+  max-width: 260px;
+  padding: 5px 10px;
+  border-radius: var(--ex-popover-radius);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+  background: var(--ex-tooltip-bg);
+  color: var(--ex-tooltip-text);
+}
+.ex-bartip--centre {
+  transform: translateX(-50%);
+}
+
 /* floating search */
 .ex-search {
   position: absolute;
@@ -995,11 +1012,7 @@ textarea {
   resize: vertical;
 }
 
-/* a phone: the buttons that show a clade alone keep their icon and lose their words */
 @media (max-width: 640px) {
-  .ex-group .ex-btn-text {
-    display: none;
-  }
   /* the click action select: the icon of the action and a caret; the native select lies over it, transparent, so its list (with the
    * words) opens on a tap */
   .ex-select {
