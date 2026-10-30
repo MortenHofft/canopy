@@ -4,7 +4,7 @@
 //   IconCollapse  Feather minimize-2, its lower-left arrow mirrored to the right, below the upper-right one (both arrows on the right)
 //   IconExpand    Feather maximize-2, its lower-left arrow mirrored the same way, so it points down-right, not down-left
 //
-//   IconSubtree   FiArrowDownRight   IconUpLevel  FiArrowUpLeft   IconReset  FiCornerUpLeft   IconFit  FiMaximize
+//   IconSubtree   FiArrowDownRight   IconUpLevel  FiArrowUpLeft   IconReset  FiCornerUpLeft   IconFit  FiMaximize   IconInspect  FiMousePointer
 
 import React from 'react';
 
@@ -64,3 +64,10 @@ export const IconExpand = () =>
     </>,
   );
 export const IconFit = () => icon(<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />);
+export const IconInspect = () =>
+  icon(
+    <>
+      <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+      <path d="M13 13l6 6" />
+    </>,
+  );

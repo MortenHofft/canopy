@@ -5,7 +5,7 @@ option and theme token in a panel); this is what an application built on the lib
 a node menu, panels and an export menu around `<TreeView>`. The drawing, the events and the views come from the viewer, the edits and the
 views of the tree from `@canopy/tree-ops`. It is also the seed of a drop-in widget. Its look started from
 [Reactree](https://github.com/vaaloo/reactreejs) (reactreejs 1.0.3), and most icons in `src/icons.tsx` are Reactree's, used under its MIT
-licence; the click action icons in `src/icons-click.tsx` are paths copied from react-icons (each under its set's licence, in `THIRD_PARTY_NOTICES`); Fit, Subtree, Collapse, Expand all, Up one level and Back to root in `src/icons-feather.tsx` are Feather's (MIT, copied, two with an arrow mirrored); the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
+licence; the click action icons in `src/icons-click.tsx` are paths copied from react-icons (each under its set's licence, in `THIRD_PARTY_NOTICES`); Inspect, Fit, Subtree, Collapse, Expand all, Up one level and Back to root in `src/icons-feather.tsx` are Feather's (MIT, copied, two with an arrow mirrored); the newer controls have icons drawn for this repository in `src/icons-ours.tsx`.
 
 ```
 npm run dev -w examples/explorer    # http://127.0.0.1:5309 (?tree=<id> from src/trees.ts, ?theme=dark, ?debug=1)
@@ -19,7 +19,7 @@ Chromium).
 | [`src/Explorer.tsx`](src/Explorer.tsx) | the component: toolbars, tools, node menu, panels, `<TreeView>` |
 | [`src/explorer.css`](src/explorer.css) | the look as `--ex-*` custom properties, mapped onto the viewer's `--phylo-*` theme (light and dark) |
 | [`src/icons.tsx`](src/icons.tsx) | Reactree's SVG icons, copied under its MIT licence (notice in the file) |
-| [`src/icons-feather.tsx`](src/icons-feather.tsx) | Feather icons copied as SVG (the `fi` set of react-icons has them): Fit, Subtree, Up one level, Back to root, and Collapse and Expand with the lower-left arrow mirrored to the right |
+| [`src/icons-feather.tsx`](src/icons-feather.tsx) | Feather icons copied as SVG (the `fi` set of react-icons has them): Fit, Inspect, Subtree, Up one level, Back to root, and Collapse and Expand with the lower-left arrow mirrored to the right |
 | [`src/icons-ours.tsx`](src/icons-ours.tsx) | icons drawn for this repository, in the same style (14 px, `currentColor`) |
 | [`src/trees.ts`](src/trees.ts), [`src/trees.json`](src/trees.json) | the trees: the playground's catalogue (`../shared/catalogue.json`, shared) plus this example's `extras` and `overrides` |
 | [`src/DebugPanel.tsx`](src/DebugPanel.tsx), [`src/debug.ts`](src/debug.ts) | the debug panel (`?debug=1`) and a view written down and restored (`?view=`) |

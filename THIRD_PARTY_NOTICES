@@ -31,7 +31,6 @@ Click action icons of the tree explorer (examples/explorer)
 Source: SVG paths copied from react-icons 5.5.0, https://github.com/react-icons/react-icons (each icon under its own set's licence)
 Used in: examples/explorer/src/icons-click.tsx
 
-  Inspect   HiEye                   Heroicons 2, https://github.com/tailwindlabs/heroicons, MIT, Copyright (c) Tailwind Labs, Inc.
   Colour    IoMdColorFill           Ionicons 4, https://github.com/ionic-team/ionicons, MIT, Copyright (c) 2015-present Ionic
   Reroot    BsFillSkipStartFill     Bootstrap Icons, https://github.com/twbs/icons, MIT, Copyright (c) 2019-2024 The Bootstrap Authors
 
@@ -41,7 +40,7 @@ Source: SVG paths copied from Feather 4.29.2, https://github.com/feathericons/fe
 Used in: examples/explorer/src/icons-feather.tsx
 
   Subtree, Up one level, Back to root  arrow-down-right, arrow-up-left, corner-up-left
-  Fit                                  maximize
+  Fit, Inspect                         maximize, mouse-pointer
   Collapse, Expand all                 minimize-2, maximize-2, each with its lower-left arrow mirrored to the right
 
 The MIT licence text above applies to the MIT-licensed icons, with these copyright lines.

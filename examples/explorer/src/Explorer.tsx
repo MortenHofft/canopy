@@ -29,7 +29,7 @@ import { restoredSettings, type DebugInfo } from './debug.ts';
 const PHONE = '(max-width: 640px)';
 /** What a click on a node or tip does: the node menu (inspect), or one action at once. */
 type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'reroot' | 'colour';
-const CLICK_ICONS = { inspect: K.IconInspect, collapse: F.IconCollapse, subtree: F.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
+const CLICK_ICONS = { inspect: F.IconInspect, collapse: F.IconCollapse, subtree: F.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
