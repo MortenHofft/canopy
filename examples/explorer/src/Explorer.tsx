@@ -21,6 +21,7 @@ import {
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
 import * as K from './icons-click.tsx';
+import * as F from './icons-feather.tsx';
 import { Scroller } from './Scroller.tsx';
 import { DebugPanel } from './DebugPanel.tsx';
 import { restoredSettings, type DebugInfo } from './debug.ts';
@@ -28,7 +29,7 @@ import { restoredSettings, type DebugInfo } from './debug.ts';
 const PHONE = '(max-width: 640px)';
 /** What a click on a node or tip does: the node menu (inspect), or one action at once. */
 type ClickAction = 'inspect' | 'collapse' | 'subtree' | 'reroot' | 'colour';
-const CLICK_ICONS = { inspect: K.IconInspect, collapse: K.IconCollapse, subtree: K.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
+const CLICK_ICONS = { inspect: K.IconInspect, collapse: F.IconCollapse, subtree: F.IconSubtree, reroot: K.IconReroot, colour: K.IconColour };
 type Layout = 'rectangular' | 'radial';
 type NodeLabelMode = 'none' | 'support' | 'length';
 type HighlightStyle = 'band' | 'dim' | 'both';
@@ -809,7 +810,7 @@ export function Explorer({
       <>
         <div className="ex-group" role="group" aria-label="Clade shown">
           <button type="button" aria-label="Back to root" data-tip="Back to root: show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
-            <J.IconReset />
+            <F.IconReset />
           </button>
           <button
             type="button"
@@ -818,7 +819,7 @@ export function Explorer({
             data-tip="Up one level: show the clade that contains the one shown"
             onClick={() => navigate(ops.focusUp(tree, focus))}
           >
-            <J.IconUpLevel />
+            <F.IconUpLevel />
           </button>
         </div>
         {!phone && <div className="ex-divider" />}
@@ -883,7 +884,7 @@ export function Explorer({
           </button>
         </div>
         <button type="button" className="ex-btn" aria-label="Fit tree" data-tip="Fit tree" onClick={() => viewer?.fit(false)}>
-          <J.IconFit />
+          <F.IconFit />
         </button>
         <div className="ex-pinned">
           <button
@@ -1206,7 +1207,7 @@ export function Explorer({
                   [
                     'Expand all',
                     `${collapsed.length} collapsed clades open again`,
-                    <I.IconExpandAll key="i" />,
+                    <F.IconExpand key="i" />,
                     () => setCollapsed([]),
                     collapsed.length > 0,
                   ],
