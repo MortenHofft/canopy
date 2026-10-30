@@ -235,73 +235,6 @@ body {
   flex: 1;
 }
 
-.ex-slider-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.ex-slider-icon {
-  display: flex;
-  color: var(--ex-muted);
-}
-.ex-slider-label {
-  font-size: 11.5px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.ex-slider {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 72px;
-  height: 4px;
-  border-radius: 4px;
-  outline: none;
-  cursor: pointer;
-  background: linear-gradient(to right, var(--ex-primary) var(--ex-fill), var(--ex-surface-30) var(--ex-fill));
-}
-.ex-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  border: 2.5px solid var(--ex-primary);
-  box-shadow: 0 1px 4px rgba(0, 113, 242, 0.3);
-  transition: transform 0.12s;
-}
-.ex-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-.ex-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  border: 2.5px solid var(--ex-primary);
-}
-.ex-slider:focus-visible {
-  outline: 2px solid var(--ex-primary);
-  outline-offset: 4px;
-}
-.ex-slider-val {
-  font: inherit;
-  font-family: var(--ex-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--ex-primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  min-width: 30px;
-  text-align: right;
-}
-.ex-slider-val:hover {
-  background: var(--ex-tonal);
-}
-
 /* buttons */
 .ex-btn {
   display: flex;
@@ -334,63 +267,6 @@ body {
 .ex-group button:focus-visible {
   outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
-}
-.ex-fade {
-  animation: ex-fade 0.2s ease;
-}
-.ex-tool.active {
-  background: var(--ex-primary);
-  border-color: var(--ex-primary);
-  color: white;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--ex-primary) 35%, transparent);
-}
-.ex-tool.active:hover:not(:disabled) {
-  background: var(--ex-primary-hover);
-  border-color: var(--ex-primary-hover);
-  color: white;
-}
-.ex-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  margin-left: 2px;
-  animation: ex-pulse 1.4s ease-in-out infinite;
-}
-.ex-steps {
-  display: inline-flex;
-  gap: 3px;
-  align-items: center;
-  font-size: 10px;
-  margin-left: 2px;
-}
-.ex-steps span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.25);
-}
-.ex-steps span.on {
-  background: white;
-  color: var(--ex-primary);
-  font-weight: 600;
-}
-.ex-steps span.done {
-  background: rgba(255, 255, 255, 0.6);
-}
-.ex-color.active {
-  border-color: var(--ex-active);
-  color: var(--ex-active);
-  background: color-mix(in srgb, var(--ex-active) 8%, var(--ex-surface-0));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ex-active) 15%, transparent);
-}
-.ex-color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
 }
 .ex-undo-note {
   font-size: 11px;
@@ -458,23 +334,6 @@ body {
   cursor: not-allowed;
 }
 
-/* the "ladderize by" select as the last segment of a group: same height and look as the buttons */
-.ex-group-select {
-  display: flex;
-  align-items: center;
-  padding: 0 4px 0 8px;
-  color: var(--ex-text-2);
-  background: var(--ex-surface-10);
-  border-left: 1px solid var(--ex-surface-30);
-}
-.ex-group-select:hover:has(select:not(:disabled)) {
-  background: var(--ex-tonal);
-  color: var(--ex-primary);
-}
-.ex-group-select:focus-within {
-  outline: 2px solid var(--ex-primary);
-  outline-offset: -2px;
-}
 
 /* a group button with text, the clade chip, the selects and the number input of the newer controls */
 .ex-group button {
@@ -488,20 +347,6 @@ body {
   font-family: var(--ex-mono);
   font-size: 0.95em;
 }
-.ex-chip {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 999px;
-  color: var(--ex-primary);
-  background: var(--ex-tonal);
-  border: 1px solid var(--ex-primary-soft);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 .ex-select {
   display: flex;
   align-items: center;
@@ -513,8 +358,7 @@ body {
   border-radius: 7px;
   background: var(--ex-surface-10);
 }
-.ex-select select,
-.ex-group-select select {
+.ex-select select {
   font: inherit;
   font-size: 11.5px;
   font-weight: 500;
@@ -529,6 +373,15 @@ body {
   opacity: 0.38;
   cursor: not-allowed;
 }
+.ex-select--active {
+  color: white;
+  background: var(--ex-primary);
+  border-color: var(--ex-primary);
+}
+.ex-select option {
+  color: var(--ex-text);
+  background: var(--ex-surface-0);
+}
 .ex-select:focus-within {
   outline: 2px solid var(--ex-primary);
   outline-offset: 1px;
@@ -537,33 +390,6 @@ body {
   padding: 0 2px 0 6px;
   border-color: transparent;
   background: var(--ex-surface-20);
-}
-.ex-support {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.ex-num {
-  width: 58px;
-  font: inherit;
-  font-family: var(--ex-mono);
-  font-size: 11px;
-  padding: 4px 6px;
-  color: var(--ex-text);
-  background: var(--ex-surface-10);
-  border: 1px solid var(--ex-surface-30);
-  border-radius: 7px;
-}
-.ex-num:focus-visible {
-  outline: 2px solid var(--ex-primary);
-  outline-offset: 1px;
-}
-.ex-support-n {
-  font-family: var(--ex-mono);
-  font-size: 10.5px;
-  color: var(--ex-muted);
-  white-space: nowrap;
 }
 .ex-note {
   margin: 0;
@@ -596,6 +422,8 @@ body {
   box-shadow: var(--ex-pop-shadow);
   padding: 5px;
   min-width: 150px;
+  max-height: calc(100% - 52px); /* a short pane scrolls the menu instead of clipping it */
+  overflow-y: auto;
   animation: ex-pop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* the items of the toolbar menus and of the node menu */
@@ -631,6 +459,15 @@ body {
   display: flex;
   color: var(--ex-muted);
 }
+.ex-menu-head {
+  padding: 4px 10px 2px;
+  font-size: 10.5px;
+  color: var(--ex-muted);
+}
+.ex-menu-check {
+  width: 12px;
+  color: var(--ex-primary);
+}
 .ex-menu-label {
   flex: 1;
 }
@@ -654,10 +491,9 @@ body {
   background-color: var(--ex-surface-10);
   flex-shrink: 0;
 }
-.ex-mode-reroot .ex-pane,
-.ex-mode-flip .ex-pane,
-.ex-mode-swap .ex-pane,
-.ex-mode-color .ex-pane {
+.ex-click-collapse .ex-pane,
+.ex-click-subtree .ex-pane,
+.ex-click-colour .ex-pane {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ex-primary) 35%, transparent);
 }
 .ex-pane .phylo-tree {
@@ -666,10 +502,9 @@ body {
 .ex-pane .phylo-tree:active {
   cursor: grabbing;
 }
-.ex-mode-reroot .phylo-tree,
-.ex-mode-flip .phylo-tree,
-.ex-mode-swap .phylo-tree,
-.ex-mode-color .phylo-tree {
+.ex-click-collapse .phylo-tree,
+.ex-click-subtree .phylo-tree,
+.ex-click-colour .phylo-tree {
   cursor: crosshair;
 }
 
@@ -744,36 +579,6 @@ body {
   background: var(--ex-surface-0);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--ex-surface-30);
-}
-.ex-tip--reroot,
-.ex-tip--flip,
-.ex-tip--swap {
-  background: var(--ex-primary);
-  border-color: var(--ex-primary);
-  color: white;
-}
-.ex-tip--color {
-  color: var(--ex-text);
-}
-.ex-tip-name {
-  font-weight: 400;
-  opacity: 0.75;
-  font-style: italic;
-}
-.ex-tip-step {
-  font-family: var(--ex-mono);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.25);
-}
-.ex-tip-dot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 /* floating search */
@@ -1062,8 +867,7 @@ body {
   gap: 8px;
   font-size: 11px;
 }
-.ex-erase,
-.ex-clear {
+.ex-erase {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1081,33 +885,7 @@ body {
   background: var(--ex-surface-20);
   color: var(--ex-text);
 }
-.ex-clear:hover {
-  color: var(--ex-danger);
-  border-color: color-mix(in srgb, var(--ex-danger) 40%, transparent);
-}
-.ex-palette-feedback {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  color: var(--ex-text-2);
-}
 
-@keyframes ex-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-@keyframes ex-fade {
-  from {
-    opacity: 0;
-  }
-}
 @keyframes ex-pop {
   from {
     opacity: 0;
@@ -1246,4 +1024,11 @@ body {
   border-radius: calc(var(--ex-popover-radius) * 0.6);
   padding: 3px 6px;
   resize: vertical;
+}
+
+/* a phone: the buttons that show a clade alone keep their icon and lose their words */
+@media (max-width: 640px) {
+  .ex-group .ex-btn-text {
+    display: none;
+  }
 }

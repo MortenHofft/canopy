@@ -44,7 +44,7 @@ export interface SavedView {
   columns: number;
   /** The collapsed clades, ids of the tree shown. */
   collapsed: number[];
-  /** False when the tree shown was not the tree as loaded (an edit, Show only, collapse by support): the restore loads it as loaded. */
+  /** False when the tree shown was not the tree as loaded (an edit, Show only): the restore loads it as loaded. */
   asLoaded: boolean;
 }
 

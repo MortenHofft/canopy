@@ -18,7 +18,7 @@
     "dir": "examples/explorer",
     "kind": "showcase",
     "title": "Tree explorer",
-    "description": "The styled showcase of the library, an alternative to the playground: toolbars, tools, a node menu on click, show only a clade, collapse by support, ladderise, search, overview, alignment and export, built on <TreeView> and tree-ops, with a theme made only of CSS custom properties. Every tree of the playground, up to 2.4 million tips, or a file of your own.",
+    "description": "The styled showcase of the library, an alternative to the playground: a toolbar and a ⋮ menu, a choice of what a click does, a node menu, show only a clade, ladderise, search, minimap, alignment and export, built on <TreeView> and tree-ops, with a theme made only of CSS custom properties. Every tree of the playground, up to 2.4 million tips, or a file of your own.",
     "tags": [
       "React",
       "tree-ops",
