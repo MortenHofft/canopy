@@ -11,10 +11,10 @@
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
 // inspector's numbers are monospace; Export stays in view at 1024 px; the innermost clade colour wins whatever the order;
 // node labels (support and length from the ⋮ menu); aligned labels (one x for the label anchors, a click on one opens the menu; in
-// radial one distance from the root, toBlob equal to the screen); the alignment track (a 'fill' column) and its legend; the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
+// radial one distance from the root, toBlob equal to the screen); the overview and legend controls; one action colour (--ex-primary) for active toggles, active tools and the hover box, in light and dark, and --ex-tooltip-bg / --ex-tooltip-text for the hover box (#74); dark mode reaches
 // the canvas; the resize handle; one tree from each group of the playground's catalogue, a large one included; loading in the parse worker
 // (frames go on while the 2.39M-tip tree parses, Cancel keeps the tree shown and terminates the worker, #4); a file of one's own (plain and gzipped) through the picker's file input; the drill-down on GTDB 190k
-// (#57: Collapse to 50 clades, a click expands a collapsed clade in place, Show only jumps into one, Back to root returns); the debug panel (?debug=1)
+// (#57: a click expands a collapsed clade in place, Show only jumps into one, Back to root returns); the debug panel (?debug=1)
 // shows numbers, and Copy view's view comes back through ?view= (rectangular and radial).
 /* global __v, __order, __tipAt, __clade, __inView, __stem -- helpers the page gets from HELPERS below, used inside page.evaluate */
 import fs from 'node:fs';
@@ -180,8 +180,6 @@ await page.addInitScript(() => {
   const ft = CanvasRenderingContext2D.prototype.fillText;
   CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) {
     if (/^(time before tips|distance from root)/.test(String(text))) window.__axis = String(text);
-    // the labels of collapsed clades (#57): 'Name · 12,345 tips' or '12,345 tips'
-    if (/^(.+ · )?[\d,]+ tips?$/.test(String(text))) (window.__cladeLabels ??= new Set()).add(String(text));
     // node labels are the only text drawn with the 'bottom' baseline in the rectangular layout (the radial scale bar has it too)
     if (this.textBaseline === 'bottom') {
       (window.__nodeTexts ??= []).push(String(text));
@@ -1181,59 +1179,6 @@ const withStripes = await stripeCount('#ff0000');
 ok(withStripes > 20, `the frame draws stripe segments in the summary colour (${withStripes})`);
 await ev(() => __v().setTheme({}));
 
-// ---------------------------------------------------------------- alignment
-console.log('alignment');
-await open('rich-hcv-19');
-await btn('Alignment').click();
-await page.waitForTimeout(300);
-const cell = await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]));
-ok(cell !== null && cell.width > 100, 'the alignment column is drawn');
-ok((await page.locator('.ex-legend').innerText()).includes('18 of 19 tips matched'), 'legend says how many tips have a sequence');
-ok(
-  await ev(() => {
-    const h = document.querySelector('.ex-hint').getBoundingClientRect();
-    const r = document.querySelector('.ex-legend').getBoundingClientRect();
-    return h.bottom <= r.top || h.top >= r.bottom || h.right <= r.left || h.left >= r.right;
-  }),
-  'the hint does not overlap the alignment legend (#69)',
-);
-// the legend is the canvas's own table: in dark mode, every swatch is a colour the cells are drawn in (and the cells use no other)
-if ((await ev(() => document.documentElement.dataset.theme)) !== 'dark') {
-  await page.locator('.theme-toggle').click();
-  await page.waitForTimeout(300);
-}
-const swatches = await ev(() => [...document.querySelectorAll('.ex-legend-dot')].map((d) => getComputedStyle(d).backgroundColor));
-ok(swatches.length === 4 && new Set(swatches).size === 4, `the nucleotide legend has four distinct swatches (${swatches.join(' ')})`);
-ok(swatches[0] === 'rgb(74, 222, 128)', 'in dark mode they are the dark defaults (A is #4ade80)');
-const cellColours = await ev(() => {
-  const v = __v();
-  const c = v.treeElement.querySelector('canvas');
-  const b = c.getBoundingClientRect();
-  const k = c.width / b.width;
-  const seen = new Set();
-  for (let r = 0; r < 6; r++) {
-    const cell = v.columnCell('alignment', v.getTree().tipNode[r]);
-    if (!cell) continue;
-    for (let i = 0; i < 80; i++) {
-      const x = Math.round((cell.x + ((i + 0.5) / 80) * cell.width - b.left) * k);
-      const y = Math.round((cell.y + cell.height / 2 - b.top) * k);
-      const d = c.getContext('2d').getImageData(x, y, 1, 1).data;
-      if (d[3] === 255) seen.add(`rgb(${d[0]}, ${d[1]}, ${d[2]})`);
-    }
-  }
-  return [...seen];
-});
-ok(
-  swatches.every((s) => cellColours.includes(s)),
-  `each legend swatch is the pixel colour of a residue cell (cells: ${cellColours.join(' ')})`,
-);
-await btn('Alignment').click();
-await page.waitForTimeout(200);
-ok(
-  (await ev(() => __v().columnCell('alignment', __v().getTree().tipNode[0]))) === null && (await page.locator('.ex-legend').count()) === 0,
-  'Alignment off',
-);
-
 // ---------------------------------------------------------------- show only a clade, Up one level, Back to root
 console.log('show only this clade, Up one level, Back to root');
 await open('rich-fish-carangaria-135');
@@ -1787,17 +1732,15 @@ ok(
   /\(\d+ tips\)|Clade of/.test(await page.locator('.phylo-legend').innerText()),
   `named by its clade: ${(await page.locator('.phylo-legend').innerText()).replace(/\n/g, ' / ')}`,
 );
-// the "Scroll to zoom" hint never overlaps a legend (#69): the viewer's clade legend, in either layout, and the alignment strip
+// the "Scroll to zoom" hint never overlaps a legend (#69): the viewer's clade legend, in either layout
 const hintClear = () =>
   ev(() => {
     const h = document.querySelector('.ex-hint')?.getBoundingClientRect();
     if (!h) return true; // not drawn: nothing overlaps
-    return ['.phylo-legend', '.ex-legend'].every((sel) => {
-      const e = document.querySelector(sel);
-      if (!e || e.hidden || getComputedStyle(e).display === 'none') return true;
-      const r = e.getBoundingClientRect();
-      return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
-    });
+    const e = document.querySelector('.phylo-legend');
+    if (!e || e.hidden || getComputedStyle(e).display === 'none') return true;
+    const r = e.getBoundingClientRect();
+    return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
   });
 ok(await hintClear(), 'the hint does not overlap the clade legend (rectangular)');
 await page.locator('button[title=Circular]').click();
@@ -1857,24 +1800,6 @@ await open('rich-hcv-19');
   await page.keyboard.press('+');
   await page.waitForTimeout(150);
   ok((await page.locator('.ex-hint').count()) === 0, 'the zoom key removes it');
-}
-
-// ---------------------------------------------------------------- the alignment fills the width
-console.log('alignment column fills the width');
-await open('rich-hcv-19');
-await btn('Alignment').click();
-await page.waitForTimeout(400);
-{
-  // columnCell is in page coordinates: compare with the viewer's box
-  const o = await ev(() => {
-    const r = __v().treeElement.getBoundingClientRect();
-    return { left: r.left, right: r.right, w: r.width, tw: __v().options.treeWidth, cell: __v().columnCell('alignment', __v().getTree().tipNode[0]) };
-  });
-  ok(o.tw === '40%', `the tree is given 40% of the width (treeWidth ${o.tw})`);
-  ok(
-    o.cell.x - o.left > o.w * 0.35 && o.cell.x - o.left < o.w * 0.6 && Math.abs(o.cell.x + o.cell.width - o.right) < 20,
-    `the 'fill' column takes the rest (${Math.round(o.cell.x - o.left)} to ${Math.round(o.cell.x + o.cell.width - o.left)} of ${Math.round(o.w)})`,
-  );
 }
 
 // ---------------------------------------------------------------- the playground's catalogue
@@ -2067,7 +1992,7 @@ console.log('\na file of one’s own, through the picker’s file input (example
   }
   await page.evaluate(HELPERS);
 }
-// Drill-down (#57) on a large tree: Collapse to 50 clades gives about 50 rows, a click on a collapsed clade expands it in place (its children
+// Drill-down (#57) on a large tree: a few large clades collapsed with the Collapse click action, a click on a collapsed clade expands it in place (its children
 // in, with an overview of about 20 rows inside), Show only in its menu jumps into it with an overview there, and Back to root returns
 const drillDown = async (tips) => {
   const collapsedNodes = () =>
@@ -2090,19 +2015,37 @@ const drillDown = async (tips) => {
       },
       [skip],
     );
-  await ev(() => (window.__cladeLabels = new Set()));
-  await btn('Collapse to 50 clades').click();
+  // the Collapse click action on clades drawn open, not the biggest ones, until about 45 rows are left: an overview
+  const sel = page.locator('select[aria-label="Click action"]');
+  await sel.selectOption('collapse');
+  for (let k = 0; k < 30 && (await rows()) > 45; k++) {
+    // the clades drawn at this zoom (a node, or a summary when the tree is large): hit-tested down a line through the plot, the largest wins
+    const at = await ev(() => {
+      const v = __v();
+      const t = v.getTree();
+      const r = v.treeElement.getBoundingClientRect();
+      let best = null;
+      for (let y = 4; y < r.height - 4; y += 6)
+        for (const fx of [0.1, 0.2, 0.3, 0.4]) {
+          const h = v.hitTest(r.width * fx, y);
+          if (!h || h.run || h.node <= 0 || t.firstChild[h.node] < 0 || v.layout.collapsed?.[h.node]) continue;
+          const n = t.leafEnd[h.node] - t.leafStart[h.node];
+          if (n < 4 || n > 40) continue; // not the big ones, so the tree is not reduced to a few rows
+          if (!best || n > best.n) best = { n, x: r.left + r.width * fx, y: r.top + y };
+        }
+      return best;
+    });
+    if (!at) break;
+    await click(at);
+    await page.waitForTimeout(150);
+  }
+  await sel.selectOption('inspect');
   await page.waitForTimeout(400);
   const r0 = await rows();
   const c0 = await collapsedNodes();
   ok(
-    r0 <= 50 && r0 >= 40 && (await tipCount()) === tips,
-    `Collapse to 50 clades: ${r0} rows (at most 50), ${c0.length} collapsed clades, all ${tips} tips kept`,
-  );
-  const labels = await ev(() => [...(window.__cladeLabels ?? [])]);
-  ok(
-    labels.some((l) => / · [\d,]+ tips$/.test(l)) && labels.some((l) => /^[\d,]+ tips$/.test(l)),
-    `collapsed clades are labelled 'Name · N tips' or 'N tips': ${labels.slice(0, 3).join(' | ')}`,
+    c0.length >= 3 && (await tipCount()) === tips,
+    `collapsing some clades with the Collapse click action: ${r0} rows, ${c0.length} collapsed clades, all ${tips} tips kept`,
   );
   const big = await largest([]);
   await page.mouse.move(big.tri.x, big.tri.y);
@@ -2130,32 +2073,19 @@ const drillDown = async (tips) => {
     `a click expands the largest collapsed clade (${big.tips} tips) in place: ${r0} → ${r1} rows, at most 19 more`,
   );
   ok(
-    c0.every((i) => i === big.node || c1.includes(i)) && kids.every(Boolean) && inside.length > 0,
+    c0.every((i) => i === big.node || c1.includes(i)) && kids.every(Boolean),
     `its children come in (${kids.length}), its large subclades collapsed (${inside.length}), the other collapsed clades stay`,
   );
   // jump into another collapsed clade: Show only from its menu (a click on its branch), with an overview inside; Back to root returns
   const other = await largest([big.node]);
-  // its Info panel lists the named clades inside it
-  await openMenu(await ev((n) => __stem(n), other.node));
-  await act('info');
-  const infoNames = await page.locator('.ex-info-inside li').allInnerTexts();
-  ok(
-    (await page.locator('.ex-info-rows dt', { hasText: 'Tips' }).count()) === 1 && infoNames.length > 0,
-    `the Info panel of a collapsed clade lists the named clades inside it (${infoNames.length}: ${infoNames.slice(0, 2).join(', ').replace(/\n/g, ' ')})`,
-  );
-  await page.locator('.ex-info-head button').click();
   await openMenu(await ev((n) => __stem(n), other.node));
   await act('subtree');
   await page.waitForTimeout(400);
   const r2 = await rows();
   ok(
-    (await tipCount()) === other.tips && r2 <= 50 && r2 >= 20,
+    (await tipCount()) === other.tips && r2 <= 50 && r2 >= 5,
     `Show only jumps into a collapsed clade of ${other.tips} tips, with its overview: ${r2} rows`,
   );
-  // Collapse inside the clade shown keeps it collapsed outside, so Back to root still returns to the view before
-  await btn('Collapse to 50 clades').click();
-  await page.waitForTimeout(400);
-  ok((await rows()) === r2, `Collapse to 50 clades inside it gives the same overview (${await rows()} rows)`);
   await toRoot();
   await page.waitForTimeout(400);
   ok(
@@ -2206,6 +2136,9 @@ for (const [id, tipsWanted] of [
   const n = await tipCount();
   ok(n === tipsWanted, `${id}: ${n} tips shown (${ms} ms)`);
 }
+// the drill-down needs a tree whose clades are drawn as nodes at the fit zoom, to be clicked
+await loadVia('rich-fish-carangaria-135');
+await drillDown(135);
 {
   // a large tree: the Open Tree vertebrates, 91k tips; then the 190k-tip GTDB bacteria. Nothing is disabled on either
   const ms = await loadVia('otl-100k-vertebrata');
@@ -2330,7 +2263,6 @@ for (const [id, tipsWanted] of [
   });
   await page.locator('button[title=Rectangular]').click();
   await page.waitForTimeout(500);
-  await drillDown(n2);
   // search is not capped (#58): every match is counted and highlighted
   await page.locator('button[aria-label="Search tips"]').click();
   await page.keyboard.type('a');

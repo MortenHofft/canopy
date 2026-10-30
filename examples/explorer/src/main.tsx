@@ -113,7 +113,7 @@ function App() {
         </p>
       )}
       {/* a new tree is a new component: Reactree, too, resets everything when its newick prop changes */}
-      {data && <Explorer key={data.id} published={data.tree} fasta={data.fasta} undoBudget={undoBudget} debug={debugInfo(debug, data.pick)} />}
+      {data && <Explorer key={data.id} published={data.tree} undoBudget={undoBudget} debug={debugInfo(debug, data.pick)} />}
       <p className="page-foot">
         Most toolbar icons are from <a href="https://github.com/vaaloo/reactreejs">reactreejs</a> (MIT), the look started there too. Everything else
         is @canopy: the README lists which control uses which API.

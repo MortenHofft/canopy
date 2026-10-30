@@ -39,9 +39,8 @@ export interface SavedView {
   labelSize: number;
   alignLabels: boolean;
   options: ViewOptions;
-  /** For the record only, not restored: the tree area's width ('auto' or the explorer's '40%' with the alignment), the columns shown. */
+  /** For the record only, not restored: the tree area's width. */
   treeWidth: ViewerOptions['treeWidth'];
-  columns: number;
   /** The collapsed clades, ids of the tree shown. */
   collapsed: number[];
   /** False when the tree shown was not the tree as loaded (an edit, Show only): the restore loads it as loaded. */
