@@ -31,7 +31,14 @@ function fakeViewer(newick = '((Apis_mellifera:1,Apis_cerana:1)Apis:1,(Bombus_te
     focusTip: (r, a) => calls.push(['focusTip', r, a]),
     zoomToNode: (n, a) => calls.push(['zoomToNode', n, a]),
     setHighlighted: (ids) => calls.push(['setHighlighted', ids]),
-    setMarked: (ids) => calls.push(['setMarked', ids]),
+    marks: [],
+    setMarked(ids) {
+      calls.push(['setMarked', ids]);
+      this.marks = ids;
+    },
+    getMarked() {
+      return this.marks;
+    },
     setOptions(p) {
       calls.push(['setOptions', p]);
       Object.assign(this.options, p);
@@ -276,6 +283,39 @@ test('Search: choosing a clade zooms to it and rings it; the ring goes when the 
       assert.deepEqual(v.calls, [['setMarked', []]]);
       s.setViewer(null);
       assert.deepEqual(v.calls, [['setMarked', []]], 'nothing more to take off when the control is removed');
+    });
+});
+
+test("Search: the ring goes with a new tree, but an app's own marks are left alone; onSelect gets a clade's name", () => {
+  const v = fakeViewer("((Apis_mellifera:1,Apis_cerana:1)'100:Apis':1,(Bombus_terrestris:1,Xylocopa_violacea:1):1)root;");
+  const picked = [];
+  const s = new Search({ onSelect: (id, _v, node) => picked.push([id, node]) });
+  s.setViewer(v);
+  const typed = (q) =>
+    new Promise((done) => {
+      s.input.value = q;
+      s.input.dispatch('input');
+      setTimeout(done, 150);
+    });
+  return typed('apis')
+    .then(() => {
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(picked[0], ['Apis', 1], 'a clade: its name, not the label with the support');
+      s.opts.onSelect = undefined;
+      return typed('apis');
+    })
+    .then(() => {
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(v.marks, [1]);
+      v.emit('treechange', { map: null });
+      assert.deepEqual(v.marks, [], 'the ring goes when the tree changes');
+      s.input.dispatch('keydown', { key: 'Enter' });
+      v.setMarked([5]); // the app marks something of its own
+      return typed('');
+    })
+    .then(() => {
+      assert.deepEqual(v.marks, [5], "emptying the field leaves the app's mark");
+      s.setViewer(null);
     });
 });
 

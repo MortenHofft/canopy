@@ -43,7 +43,7 @@ export class Search extends BaseControl {
   private opts: SearchOptions;
   private index: SearchIndex | null = null;
   private results: SearchHit[] = [];
-  private marked = false; // this control's ring is on
+  private marked = -1; // the node this control ringed, -1 for none
   private total = 0;
   private active = -1;
   private timer = 0;
@@ -58,11 +58,11 @@ export class Search extends BaseControl {
     this.input = document.createElement('input');
     this.input.type = 'search';
     this.input.className = 'phylo-search__input';
-    this.input.placeholder = opts.placeholder ?? 'Find a tip';
+    this.input.placeholder = opts.placeholder ?? 'Find a tip or clade';
     this.input.autocomplete = 'off';
     this.input.spellcheck = false;
     this.input.setAttribute('role', 'combobox');
-    this.input.setAttribute('aria-label', 'Find a tip');
+    this.input.setAttribute('aria-label', 'Find a tip or clade');
     this.input.setAttribute('aria-autocomplete', 'list');
     this.input.setAttribute('aria-expanded', 'false');
     this.input.setAttribute('aria-controls', id);
@@ -88,7 +88,7 @@ export class Search extends BaseControl {
     this.listen(
       v.on('treechange', () => {
         stale();
-        this.marked = false; // the viewer keeps or drops the ring by its map
+        this.unmark(); // the ring would follow the tree's map: it goes with the tree
         this.results = [];
         this.close();
       }),
@@ -207,20 +207,22 @@ export class Search extends BaseControl {
     if (row < 0 || name === null) return;
     this.close();
     this.input.value = name;
-    if (this.opts.onSelect) return this.opts.onSelect(t.labels[row] ?? name, v, hit.node);
+    if (this.opts.onSelect) return this.opts.onSelect(hit.clade ? name : (t.labels[row] ?? name), v, hit.node);
     if (this.opts.highlight) v.setHighlighted(hit.clade ? [] : [hit.node]); // the node: this tip, not every tip with its label
     if (this.opts.mark !== false) {
       v.setMarked([hit.node]);
-      this.marked = true;
+      this.marked = hit.node;
     }
     if (hit.clade) v.zoomToNode(hit.node, true);
     else v.focusTip(hit.node, true);
   }
 
-  /** Take this control's ring off (the field was emptied or the control removed). */
+  /** Take this control's ring off (the field was emptied, the tree changed or the control was removed), unless the app has marked something
+   *  else since: its marks are not ours to clear. */
   private unmark(): void {
-    if (this.marked) this.viewer?.setMarked([]);
-    this.marked = false;
+    const marks = this.viewer?.getMarked();
+    if (this.marked >= 0 && marks?.length === 1 && marks[0] === this.marked) this.viewer?.setMarked([]);
+    this.marked = -1;
   }
 
   private close(): void {

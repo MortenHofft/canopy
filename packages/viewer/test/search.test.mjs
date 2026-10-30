@@ -40,3 +40,9 @@ test('the index: a run of spaces and underscores is one separator, prefix matche
   assert.ok(idx.find('i', 1).total > 1);
   assert.equal(tree.tipCount, 8);
 });
+
+test('the index: a trailing underscore is part of the query, white space round it is not', () => {
+  const { idx } = index(parseNewick('(a_b:1,a:1,ab:1)r;'));
+  assert.equal(idx.find('a_').total, 1);
+  assert.equal(idx.find(' a ').total, 3);
+});

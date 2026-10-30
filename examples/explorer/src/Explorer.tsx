@@ -20,6 +20,7 @@ import {
   type CladeLabelFn,
   type Column,
   type NamedDescendant,
+  type SearchIndex,
 } from '@canopy/viewer';
 import * as I from './icons.tsx';
 import * as J from './icons-ours.tsx';
@@ -357,12 +358,16 @@ export function Explorer({
   // ---- search: the viewer's createSearchIndex (case-insensitive substring of the name, a run of underscores and spaces is one separator, so
   // 'c spirochaetia' finds 'c__Spirochaetia'), over the tips and the named internal nodes (clades); matches highlighted, the current one
   // ringed and centred (a clade is zoomed to, and highlights its tips). Every match kept: highlighting a million tips costs little
-  // (docs/design/highlight-cost.md, #58). The index is built once per tree shown (about 1 s on 2.4 million names).
-  const searchIndex = useMemo(() => createSearchIndex(new InMemorySource(shown).snapshot(), { formatLabel: (s) => s, cladeLabel }), [shown]);
+  // (docs/design/highlight-cost.md, #58). The index is built when a query is first typed on a tree shown (about 1 s on 2.4 million names).
+  const searchIndex = useRef<{ of: TreeModel; index: SearchIndex } | null>(null); // built when a query is first typed on this tree, not on every edit
   const { matches, highlighted } = useMemo(() => {
     if (!query.trim()) return { matches: [], highlighted: [] };
     // node ids, not labels: a label that several tips carry is several matches, each focused in turn and counted
-    const out = searchIndex.find(query).hits.map((h) => h.node);
+    if (searchIndex.current?.of !== shown) {
+      const index = createSearchIndex(new InMemorySource(shown).snapshot(), { formatLabel: (s) => s, cladeLabel });
+      searchIndex.current = { of: shown, index };
+    }
+    const out = searchIndex.current.index.find(query).hits.map((h) => h.node);
     const { childCount, leafStart, leafEnd, tipRank } = shown;
     const hl = new Uint8Array(shown.tipCount);
     for (const n of out) {
@@ -372,7 +377,7 @@ export function Explorer({
     const ids: number[] = [];
     for (let r = 0; r < hl.length; r++) if (hl[r]) ids.push(shown.tipNode[r]);
     return { matches: out, highlighted: ids };
-  }, [query, searchIndex, shown]);
+  }, [query, shown]);
   const currentIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : -1;
   const current = currentIdx >= 0 ? matches[currentIdx] : null;
   const currentClade = current !== null && shown.childCount[current] > 0;

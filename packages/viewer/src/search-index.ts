@@ -25,7 +25,7 @@ export interface SearchIndex {
 }
 
 const SEPARATORS = /[\s_]+/g;
-const normalise = (s: string): string => s.toLowerCase().replace(SEPARATORS, ' ').trim();
+const normalise = (s: string): string => s.toLowerCase().replace(SEPARATORS, ' ');
 
 /** The search index of a snapshot: `formatLabel` and `cladeLabel` are the viewer's options of those names. */
 export function createSearchIndex(tree: TreeSnapshot, opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null }): SearchIndex {
@@ -39,7 +39,7 @@ export function createSearchIndex(tree: TreeSnapshot, opts: { formatLabel: (s: s
   }
   return {
     find(query, max = Infinity) {
-      const q = normalise(query);
+      const q = normalise(query.trim()); // white space round the query goes, a trailing underscore stays: 'homo_' is not 'homo'
       if (!q) return { hits: [], total: 0 };
       const pre: number[] = [];
       const any: number[] = [];
