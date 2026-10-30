@@ -380,21 +380,26 @@ export function Explorer({
   // from instead of typing it out. `matches` is in the same order, so they are read off its start (a tip label carried by several tips is
   // several matches, hence the scan past the first few). Picking one makes it the query.
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const [suggestIdx, setSuggestIdx] = useState(-1);
+  const [suggestIdxRaw, setSuggestIdx] = useState(-1);
   const suggestions = useMemo(() => {
     const idx = searchIndex.current;
     if (!suggestOpen || !idx || !matches.length) return [];
-    const names = new Set<string>();
-    for (let k = 0; k < Math.min(matches.length, SUGGEST_SCAN) && names.size < SUGGEST_MAX; k++) {
+    const byName = new Map<string, number>(); // the first node carrying each name
+    for (let k = 0; k < Math.min(matches.length, SUGGEST_SCAN) && byName.size < SUGGEST_MAX; k++) {
       const name = cladeName(idx.snap, matches[k], { formatLabel: (s) => s, cladeLabel });
-      if (name) names.add(name.replace(/_/g, ' '));
+      if (name && !byName.has(name.replace(/_/g, ' '))) byName.set(name.replace(/_/g, ' '), matches[k]);
     }
-    const out = [...names];
-    return out.length === 1 && out[0] === query.trim() ? [] : out; // nothing to offer when it is already typed out
+    const out = [...byName].map(([name, node]) => ({ name, node }));
+    // nothing to offer when it is already typed out (as the index reads it: any case, a run of spaces and underscores as one)
+    const same = (a: string, b: string) => a.toLowerCase().replace(/[\s_]+/g, ' ') === b.toLowerCase().replace(/[\s_]+/g, ' ');
+    return out.length === 1 && same(out[0].name, query.trim()) ? [] : out;
   }, [suggestOpen, matches, query]);
-  const pickSuggestion = (name: string) => {
+  // a name can also be part of others ('Homo sapiens' of 'Homo sapiens neanderthalensis'), which may come first: the match to start on
+  // is the picked node, not the first
+  const suggestIdx = suggestIdxRaw < suggestions.length ? suggestIdxRaw : -1; // the list may have shrunk under it (the tree changed)
+  const pickSuggestion = ({ name, node }: { name: string; node: number }) => {
     setQuery(name);
-    setMatchIdx(0);
+    setMatchIdx(Math.max(0, searchIndex.current?.index.find(name).hits.findIndex((h) => h.node === node) ?? 0));
     setSuggestOpen(false);
     setSuggestIdx(-1);
     searchInput.current?.focus();
@@ -967,6 +972,7 @@ export function Explorer({
               }}
               onBlur={() => setSuggestOpen(false)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return; // Enter and the arrows belong to the input method until it commits
                 const n = suggestions.length;
                 if (n && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                   // while the list is open the arrows walk it; Enter on a suggestion picks it, and once picked they step through the matches again
@@ -1012,17 +1018,17 @@ export function Explorer({
             </button>
             {suggestions.length > 0 && (
               <ul className="ex-search-suggestions" id="ex-search-suggestions" role="listbox" aria-label="Suggestions">
-                {suggestions.map((name, k) => (
+                {suggestions.map((sug, k) => (
                   <li
-                    key={name}
+                    key={sug.name}
                     id={`ex-search-suggestion-${k}`}
                     role="option"
                     aria-selected={k === suggestIdx}
                     className={k === suggestIdx ? 'active' : undefined}
                     onPointerDown={(e) => e.preventDefault()} // keep focus in the field
-                    onClick={() => pickSuggestion(name)}
+                    onClick={() => pickSuggestion(sug)}
                   >
-                    {name}
+                    {sug.name}
                   </li>
                 ))}
               </ul>

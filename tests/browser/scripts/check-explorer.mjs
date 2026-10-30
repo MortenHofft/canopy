@@ -1874,6 +1874,40 @@ const focused = await ev(() => window.__focused.filter((r, i, a) => i === 0 || r
 ok(JSON.stringify(focused.slice(-4)) === '[0,1,3,0]', `each step focuses the next of the three tips (ranks ${JSON.stringify(focused)})`);
 await page.keyboard.press('Escape');
 
+console.log('search: picking a name that is part of another');
+// 'Homo sapiens' is the start of the tip before it in the tree: the pick must still focus the tip picked (the index lists prefix matches in preorder)
+await page.route('**/data/rich/edge-cases/duplicate-tip-labels.nwk', (r) =>
+  r.fulfill({ contentType: 'text/plain', body: '((Homo_sapiens_neanderthalensis,Homo_sapiens),(a,b));' }),
+);
+await open('edge-duplicate-labels');
+await ev(() => {
+  const v = __v();
+  const focusTip = v.focusTip.bind(v);
+  window.__focused = [];
+  v.focusTip = (n, a) => (window.__focused.push(v.getTree().tipRank[n]), focusTip(n, a));
+});
+await page.locator('button[aria-label="Search tips"]').click();
+await page.keyboard.type('homo');
+await page.waitForTimeout(250);
+ok(
+  (await page.locator('.ex-search-suggestions li').allInnerTexts()).join('|') === 'Homo sapiens neanderthalensis|Homo sapiens',
+  'both names are offered',
+);
+await page.locator('.ex-search-suggestions li', { hasText: /^Homo sapiens$/ }).click();
+await page.waitForTimeout(300);
+ok((await page.locator('.ex-search-count').innerText()) === '2 / 2', 'the pick matches two tips and starts on the second, the one picked');
+ok(
+  (await ev(() => window.__focused.at(-1))) === 1,
+  `the tip picked is focused, not the longer name's (rank ${await ev(() => window.__focused.at(-1))})`,
+);
+// typed out in another case: nothing left to suggest
+await page.keyboard.press('Control+a');
+await page.keyboard.type('HOMO_SAPIENS_NEANDERTHALENSIS');
+await page.waitForTimeout(250);
+ok((await page.locator('.ex-search-suggestions').count()) === 0, 'a name typed out in another case offers no list');
+await page.keyboard.press('Escape');
+await page.unroute('**/data/rich/edge-cases/duplicate-tip-labels.nwk');
+
 console.log('one action colour (#74)');
 {
   await open('rich-fish-carangaria-135');
