@@ -31,6 +31,14 @@ function fakeViewer(newick = '((Apis_mellifera:1,Apis_cerana:1)Apis:1,(Bombus_te
     focusTip: (r, a) => calls.push(['focusTip', r, a]),
     zoomToNode: (n, a) => calls.push(['zoomToNode', n, a]),
     setHighlighted: (ids) => calls.push(['setHighlighted', ids]),
+    marks: [],
+    setMarked(ids) {
+      calls.push(['setMarked', ids]);
+      this.marks = ids;
+    },
+    getMarked() {
+      return this.marks;
+    },
     setOptions(p) {
       calls.push(['setOptions', p]);
       Object.assign(this.options, p);
@@ -116,11 +124,11 @@ test('Search: prefix matches first, case-insensitive on the displayed label, cap
   const v = fakeViewer();
   const s = new Search({ maxResults: 3 });
   s.setViewer(v);
-  const labels = ({ ranks }) => ranks.map((r) => v.getTree().tipLabels[r]);
-  assert.deepEqual(labels(s.find(v, 'apis')), ['Apis_mellifera', 'Apis_cerana']);
+  const labels = ({ hits }) => hits.map((h) => v.getTree().labels[h.node]);
+  assert.deepEqual(labels(s.find(v, 'apis')), ['Apis', 'Apis_mellifera', 'Apis_cerana'], 'the clade Apis is found too');
   assert.deepEqual(labels(s.find(v, 'IS M')), ['Apis_mellifera'], 'underscores show as spaces');
-  assert.deepEqual(labels(s.find(v, 'a')), ['Apis_mellifera', 'Apis_cerana', 'Xylocopa_violacea'], 'prefix first, then anywhere, capped');
-  assert.deepEqual(s.find(v, '   '), { ranks: [], total: 0 });
+  assert.deepEqual(labels(s.find(v, 'a')), ['Apis', 'Apis_mellifera', 'Apis_cerana'], 'prefix first, then anywhere, capped');
+  assert.deepEqual(s.find(v, '   '), { hits: [], total: 0 });
   // type, wait for the debounce, choose with the keyboard
   s.input.value = 'cer';
   s.input.dispatch('input');
@@ -130,7 +138,10 @@ test('Search: prefix matches first, case-insensitive on the displayed label, cap
       assert.equal(s.list.children.length, 1);
       assert.equal(s.input.getAttribute('aria-expanded'), 'true');
       s.input.dispatch('keydown', { key: 'Enter' });
-      assert.deepEqual(v.calls, [['focusTip', 3, true]]);
+      assert.deepEqual(v.calls, [
+        ['setMarked', [3]],
+        ['focusTip', 3, true],
+      ]);
       assert.equal(s.list.hidden, true);
       assert.equal(s.input.value, 'Apis cerana');
       s.setViewer(null);
@@ -143,7 +154,17 @@ test('Search: the list says "N of M" when more tips match than it shows, and the
   const v = fakeViewer();
   const s = new Search({ maxResults: 2 });
   s.setViewer(v);
-  assert.deepEqual(s.find(v, 'a'), { ranks: [0, 1], total: 3 }, 'every match is counted, beyond maxResults');
+  assert.deepEqual(
+    s.find(v, 'a'),
+    {
+      hits: [
+        { node: 1, clade: true },
+        { node: 2, clade: false },
+      ],
+      total: 4,
+    },
+    'every match is counted, beyond maxResults',
+  );
   assert.equal(s.status.getAttribute('aria-live'), 'polite');
   const typed = (q) =>
     new Promise((done) => {
@@ -156,19 +177,19 @@ test('Search: the list says "N of M" when more tips match than it shows, and the
       const items = [...s.list.children];
       assert.deepEqual(
         items.map((li) => li.textContent),
-        ['Apis mellifera', 'Apis cerana', '2 of 3 matches'],
+        ['Apis 2 tips', 'Apis mellifera', '2 of 4 matches'],
       );
       assert.equal(items[2].getAttribute('role'), 'none', 'the count line is not an option');
-      assert.equal(s.status.textContent, '2 of 3 matches');
+      assert.equal(s.status.textContent, '2 of 4 matches');
       items[2].click();
       assert.deepEqual(v.calls, [], 'clicking the count line chooses nothing');
       s.input.dispatch('keydown', { key: 'ArrowUp' });
       assert.equal(s.input.getAttribute('aria-activedescendant'), `${s.list.id}-1`, 'the arrow keys skip the count line');
-      return typed('apis');
+      return typed('cerana');
     })
     .then(() => {
-      assert.equal(s.list.children.length, 2, 'no count line when every match is listed');
-      assert.equal(s.status.textContent, '2 matches');
+      assert.equal(s.list.children.length, 1, 'no count line when every match is listed');
+      assert.equal(s.status.textContent, '1 match');
       return typed('zzz');
     })
     .then(() => {
@@ -184,11 +205,12 @@ test('Search: highlight and onSelect', () => {
   s.find(v, 'bombus');
   s.list.replaceChildren(); // choose through a click on an option element
   const li = document.createElement('li');
-  li.dataset.rank = '2';
+  li.dataset.node = '5';
   s.list.appendChild(li);
   li.click();
   assert.deepEqual(v.calls, [
     ['setHighlighted', [5]],
+    ['setMarked', [5]],
     ['focusTip', 5, true],
   ]);
   const picked = [];
@@ -196,7 +218,7 @@ test('Search: highlight and onSelect', () => {
   const v2 = fakeViewer();
   s2.setViewer(v2);
   const li2 = document.createElement('li');
-  li2.dataset.rank = '3';
+  li2.dataset.node = '6';
   s2.list.appendChild(li2);
   li2.click();
   assert.deepEqual(picked, ['Xylocopa_violacea', 6]);
@@ -208,7 +230,11 @@ test('Search: a label that several tips carry lists each tip, says which it is, 
   const v = fakeViewer('((Homo_sapiens:1,Homo_sapiens:1):1,Pan_troglodytes:1,Homo_sapiens:1)root;');
   const s = new Search({ highlight: true });
   s.setViewer(v);
-  assert.deepEqual(s.find(v, 'homo'), { ranks: [0, 1, 3], total: 3 }, 'every tip with the label is a suggestion');
+  assert.deepEqual(
+    s.find(v, 'homo').hits.map((h) => h.node),
+    [2, 3, 5],
+    'every tip with the label is a suggestion',
+  );
   s.input.value = 'homo';
   s.input.dispatch('input');
   return new Promise((done) =>
@@ -223,12 +249,74 @@ test('Search: a label that several tips carry lists each tip, says which it is, 
       s.input.dispatch('keydown', { key: 'Enter' });
       assert.deepEqual(v.calls, [
         ['setHighlighted', [5]],
+        ['setMarked', [5]],
         ['focusTip', 5, true],
       ]);
       s.setViewer(null);
       done();
     }, 150),
   );
+});
+
+test('Search: choosing a clade zooms to it and rings it; the ring goes when the field is emptied', () => {
+  const v = fakeViewer();
+  const s = new Search();
+  s.setViewer(v);
+  const typed = (q) =>
+    new Promise((done) => {
+      s.input.value = q;
+      s.input.dispatch('input');
+      setTimeout(done, 150);
+    });
+  return typed('apis')
+    .then(() => {
+      assert.equal(s.list.children[0].textContent, 'Apis 2 tips');
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(v.calls, [
+        ['setMarked', [1]],
+        ['zoomToNode', 1, true],
+      ]);
+      v.calls.length = 0;
+      return typed('');
+    })
+    .then(() => {
+      assert.deepEqual(v.calls, [['setMarked', []]]);
+      s.setViewer(null);
+      assert.deepEqual(v.calls, [['setMarked', []]], 'nothing more to take off when the control is removed');
+    });
+});
+
+test("Search: the ring goes with a new tree, but an app's own marks are left alone; onSelect gets a clade's name", () => {
+  const v = fakeViewer("((Apis_mellifera:1,Apis_cerana:1)'100:Apis':1,(Bombus_terrestris:1,Xylocopa_violacea:1):1)root;");
+  const picked = [];
+  const s = new Search({ onSelect: (id, _v, node) => picked.push([id, node]) });
+  s.setViewer(v);
+  const typed = (q) =>
+    new Promise((done) => {
+      s.input.value = q;
+      s.input.dispatch('input');
+      setTimeout(done, 150);
+    });
+  return typed('apis')
+    .then(() => {
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(picked[0], ['Apis', 1], 'a clade: its name, not the label with the support');
+      s.opts.onSelect = undefined;
+      return typed('apis');
+    })
+    .then(() => {
+      s.input.dispatch('keydown', { key: 'Enter' });
+      assert.deepEqual(v.marks, [1]);
+      v.emit('treechange', { map: null });
+      assert.deepEqual(v.marks, [], 'the ring goes when the tree changes');
+      s.input.dispatch('keydown', { key: 'Enter' });
+      v.setMarked([5]); // the app marks something of its own
+      return typed('');
+    })
+    .then(() => {
+      assert.deepEqual(v.marks, [5], "emptying the field leaves the app's mark");
+      s.setViewer(null);
+    });
 });
 
 test('Legend: one entry per coloured clade, named by label, node name or tip count; click zooms; hidden when empty', () => {

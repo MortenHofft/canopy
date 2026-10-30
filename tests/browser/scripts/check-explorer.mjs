@@ -2338,9 +2338,30 @@ for (const [id, tipsWanted] of [
   const all = await ev(() => __v().getHighlighted().length);
   const count = await page.locator('.ex-search-count').innerText();
   ok(
-    all > 5000 && count === `1 / ${all.toLocaleString('en')}`,
+    all > 5000 && Number(count.replace(/^1 \/ /, '').replace(/,/g, '')) > 5000,
     `search highlights and counts every match, past the old 5,000 cap (${count}, ${all} highlighted)`,
   );
+  // a clade by its name (GTDB's 'c__Spirochaetia'): the named internal nodes are searched too, a space matches the double underscore, and the
+  // clade's tips are highlighted
+  await page.keyboard.press('Control+a');
+  const clade = await ev(() => {
+    const t = __v().getTree();
+    for (let i = 0; i < t.nodeCount; i++) {
+      const m = /^[\d.]+:([a-z])__(\w+)$/.exec(t.labels[i]);
+      if (t.childCount[i] > 0 && m) return { query: `${m[1]} ${m[2]}`, tips: t.leafEnd[i] - t.leafStart[i] };
+    }
+    return null;
+  });
+  ok(clade !== null, 'the tree has a named internal node');
+  if (clade) {
+    await page.keyboard.type(clade.query);
+    await page.waitForTimeout(400);
+    ok((await page.locator('.ex-search-count').innerText()) !== 'No match', `a clade is found by its name ("${clade.query}")`);
+    ok((await ev(() => __v().getHighlighted().length)) >= clade.tips, `its ${clade.tips} tips are highlighted`);
+    ok((await ev(() => __v().getMarked().length)) === 1, 'the current match is ringed (marked)');
+  }
+  await page.keyboard.press('Escape');
+  ok((await ev(() => __v().getMarked().length)) === 0, 'closing the search removes the ring');
 }
 
 // ---------------------------------------------------------------- a layout switch keeps the place (#56)
