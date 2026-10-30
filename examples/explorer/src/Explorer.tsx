@@ -839,10 +839,7 @@ export function Explorer({
         onClick={() => setBarTip(null)}
       >
         {!phone && cladeShown}
-        <label
-          className={`ex-select${action !== 'inspect' ? ' ex-select--active' : ''}`}
-          data-tip="What a click on a node or tip does (blue while it is not Inspect). Hold Shift or Ctrl to switch it for a moment"
-        >
+        <label className={`ex-select${action !== 'inspect' ? ' ex-select--active' : ''}`} data-tip="Active tool. Hold shift to toggle">
           <span className="ex-select-icon" aria-hidden="true">
             {React.createElement(CLICK_ICONS[action])}
           </span>
@@ -893,7 +890,6 @@ export function Explorer({
             type="button"
             className={`ex-btn${searchOpen ? ' ex-search-active' : ''}`}
             aria-label="Search tips"
-            data-tip="Search tips and clades (⌘F)"
             onClick={() => {
               if (searchOpen) return closeSearch();
               setSearchOpen(true);
@@ -910,7 +906,6 @@ export function Explorer({
               aria-label="More options"
               aria-haspopup="menu"
               aria-expanded={menu !== 'closed'}
-              data-tip="Tree style, labels, ladderize and export"
               onClick={() => setMenu((m) => (m === 'closed' ? 'main' : 'closed'))}
             >
               <J.IconMore />
