@@ -15,6 +15,7 @@
  *               --phylo-axis-font-size  --phylo-summary-opacity  --phylo-marker-opacity  --phylo-highlight-opacity  --phylo-dim-opacity  --phylo-dark
  *               --phylo-summary-stripe-opacity  --phylo-summary-stripe-gap
  *               --phylo-clade-background-opacity  --phylo-clade-background-padding
+ *               --phylo-named-node-marker-size  --phylo-unnamed-node-marker-size  --phylo-named-node-colour
  *               --phylo-leader-colour  --phylo-leader-dash  --phylo-leader-width  --phylo-leader-opacity
  *               --phylo-node-label-size  --phylo-support-colour  --phylo-length-colour
  *               --phylo-selection-colour  --phylo-selection-width  --phylo-selection-radius
