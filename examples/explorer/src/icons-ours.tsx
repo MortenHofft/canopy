@@ -27,22 +27,6 @@ export const IconInfo = () => (
     <path d="M7 6.2v3.3M7 4.3v.1" {...s} strokeWidth="1.5" />
   </svg>
 );
-/** Overview: the whole tree in small with the window box. */
-export const IconOverview = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" {...s} strokeWidth="1.3" />
-    <path d="M3.5 4.5h3M3.5 7h4M3.5 9.5h2.5" {...s} strokeWidth="1.1" />
-    <rect x="7.5" y="5" width="3.5" height="4.5" rx="0.8" {...s} strokeWidth="1.1" />
-  </svg>
-);
-/** Legend: swatches with a line of text each. */
-export const IconLegend = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <circle cx="3.2" cy="4" r="1.3" {...s} strokeWidth="1.2" />
-    <circle cx="3.2" cy="10" r="1.3" {...s} strokeWidth="1.2" />
-    <path d="M6.5 4h6M6.5 10h6" {...s} strokeWidth="1.4" />
-  </svg>
-);
 /** Highlight style: a marker over a line of text. */
 export const IconHighlight = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

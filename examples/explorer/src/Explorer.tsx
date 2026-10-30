@@ -217,8 +217,7 @@ export function Explorer({
   // the starting state: the explorer's defaults, or the view restored
   const [init] = useState(() => restoredSettings(debug, LABEL_SIZE));
   const ref = useRef<TreeViewHandle>(null);
-  // the viewer as state, and the theme in force: React follows every theme change, whoever made it (the viewport is read by
-  // <SizeSliders> alone, so a pan or zoom renders only the sliders)
+  // the viewer as state, and the theme in force: React follows every theme change, whoever made it
   const viewer = useTreeViewer(ref);
   const treeTheme = useTreeTheme(viewer);
   const outer = useRef<HTMLDivElement>(null);
@@ -243,6 +242,7 @@ export function Explorer({
 
   const [layout, setLayout] = useState<Layout>(init.layout);
   const [phylogram, setPhylogram] = useState(init.phylogram);
+  const drawsLengths = phylogram && tree.hasLengths; // a tree without branch lengths is a cladogram, whatever was asked
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [showAlignment, setShowAlignment] = useState(false);
@@ -667,7 +667,10 @@ export function Explorer({
       e.preventDefault();
       undo();
     } else if (e.key === 'Escape') {
-      if (pick !== null) closePick();
+      if (menu !== 'closed') {
+        setMenu('closed');
+        viewRef.current?.querySelector('button')?.focus(); // back to the ⋮ button
+      } else if (pick !== null) closePick();
       else if (clickAction !== 'inspect') setClickAction('inspect');
       else if (searchOpen) closeSearch();
       else setInfoOpen(false);
@@ -711,6 +714,11 @@ export function Explorer({
     };
     document.addEventListener('pointerdown', f);
     return () => document.removeEventListener('pointerdown', f);
+  }, [menu]);
+
+  // the focus goes into the ⋮ menu when it opens and when it swaps lists (the button that had it is gone), so the keyboard works there
+  useEffect(() => {
+    if (menu !== 'closed') viewMenuRef.current?.querySelector<HTMLElement>('button:not(:disabled)')?.focus();
   }, [menu]);
 
   // ---- resize handle: drag the bottom edge of the pane
@@ -1093,7 +1101,7 @@ export function Explorer({
                 <span className="ex-menu-icon">‹</span>
                 <span className="ex-menu-label">Back</span>
               </button>
-              <div className="ex-menu-divider" />
+              <div className="ex-menu-divider" role="separator" />
               {(
                 [
                   ['PNG 1×', 'Screen size', <I.IconFilePng key="i" />, () => exportPng(1)],
@@ -1115,7 +1123,7 @@ export function Explorer({
                 ] as const
               ).map((item, k) =>
                 item === null ? (
-                  <div key={k} className="ex-menu-divider" />
+                  <div key={k} className="ex-menu-divider" role="separator" />
                 ) : (
                   <button
                     key={item[0]}
@@ -1135,7 +1143,9 @@ export function Explorer({
             </>
           ) : (
             <>
-              <div className="ex-menu-head">Branches</div>
+              <div className="ex-menu-head" role="presentation">
+                Branches
+              </div>
               {(
                 [
                   ['Phylogram', 'Lengths proportional', true, tree.hasLengths],
@@ -1146,22 +1156,22 @@ export function Explorer({
                   key={label}
                   type="button"
                   role="menuitemradio"
-                  aria-checked={phylogram === value}
+                  aria-checked={drawsLengths === value}
                   disabled={!enabled}
                   onClick={() => setPhylogram(value)}
                 >
-                  <span className="ex-menu-check">{phylogram === value && '●'}</span>
+                  <span className="ex-menu-check">{drawsLengths === value && '●'}</span>
                   <span className="ex-menu-label">{label}</span>
                   <span className="ex-menu-desc">{desc}</span>
                 </button>
               ))}
-              <div className="ex-menu-divider" />
+              <div className="ex-menu-divider" role="separator" />
               {(
                 [
                   ['Legend', showLegend, () => setShowLegend((x) => !x), true, true],
                   ['Minimap', showOverview, () => setShowOverview((x) => !x), true, true],
                   ['Tooltips', showTooltips, () => setShowTooltips((x) => !x), true, true],
-                  ['Align labels', alignLabels, () => setAlignLabels((x) => !x), phylogram && tree.hasLengths, true],
+                  ['Align labels', alignLabels, () => setAlignLabels((x) => !x), drawsLengths, true],
                   ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable, true],
                   ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), true, hasSupport],
                   [
@@ -1180,7 +1190,7 @@ export function Explorer({
                     <span className="ex-menu-label">{label}</span>
                   </button>
                 ))}
-              <div className="ex-menu-divider" />
+              <div className="ex-menu-divider" role="separator" />
               {(
                 [
                   [
@@ -1218,7 +1228,7 @@ export function Explorer({
                     <span className="ex-menu-desc">{desc}</span>
                   </button>
                 ))}
-              <div className="ex-menu-divider" />
+              <div className="ex-menu-divider" role="separator" />
               <button type="button" role="menuitem" onClick={() => setMenu('export')}>
                 <span className="ex-menu-icon">
                   <I.IconExport />

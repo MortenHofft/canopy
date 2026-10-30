@@ -15,23 +15,6 @@ import React from 'react';
 
 const s = { stroke: 'currentColor', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
-export const IconFont = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-    <text x="0" y="11" fontSize="11" fontFamily="system-ui" fontWeight="600">
-      A
-    </text>
-    <text x="9" y="13" fontSize="7" fontFamily="system-ui">
-      a
-    </text>
-  </svg>
-);
-export const IconBranchWidth = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M1 4h12" {...s} strokeWidth="1" />
-    <path d="M1 7.5h12" {...s} strokeWidth="2" />
-    <path d="M1 11.5h12" {...s} strokeWidth="3" />
-  </svg>
-);
 export const IconRect = () => (
   <svg width="15" height="13" viewBox="0 0 15 13" fill="none">
     <path d="M1,2h1M2,2v5.5M2,4h4.3M2,7.5h8M4.8,7.9v3.3M4.8,11.3h4.4" {...s} strokeWidth="1.4" />
@@ -44,24 +27,6 @@ export const IconCirc = () => (
     <circle cx="7" cy="7" r="1.2" fill="currentColor" />
   </svg>
 );
-export const IconPhylo = () => (
-  <svg width="16" height="11" viewBox="0 0 16 11" fill="none">
-    <path d="M1 2h9M1 6h13M1 10h6" {...s} strokeWidth="1.4" />
-  </svg>
-);
-export const IconClado = () => (
-  <svg width="16" height="11" viewBox="0 0 16 11" fill="none">
-    <path d="M1 2h10M1 6h10M1 10h10" {...s} strokeWidth="1.4" />
-  </svg>
-);
-export const IconTruncate = () => (
-  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-    <path d="M1 3.5h12M1 7h7M1 10.5h12" {...s} strokeWidth="1.4" />
-    <circle cx="9.5" cy="7" r="0.8" fill="currentColor" />
-    <circle cx="11.5" cy="7" r="0.8" fill="currentColor" />
-    <circle cx="13.5" cy="7" r="0.8" fill="currentColor" />
-  </svg>
-);
 export const IconSearch = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
     <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5" />
@@ -72,11 +37,6 @@ export const IconExport = () => (
   <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
     <path d="M7 1v8M4 6l3 3 3-3" {...s} strokeWidth="1.6" />
     <path d="M2 11h10" {...s} strokeWidth="1.6" />
-  </svg>
-);
-export const IconChevronDown = ({ size = 9 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 9 9" fill="none">
-    <path d="M2 3.5l2.5 2.5L7 3.5" {...s} strokeWidth="1.4" />
   </svg>
 );
 export const IconUp = () => (
@@ -92,12 +52,6 @@ export const IconDown = () => (
 export const IconClose = () => (
   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
     <path d="M2 2l6 6M8 2l-6 6" {...s} strokeWidth="1.5" />
-  </svg>
-);
-export const IconUndo = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-    <path d="M2 6.5A4.5 4.5 0 1 1 6.5 11" {...s} strokeWidth="1.5" />
-    <path d="M2 3.5V7h3.5" {...s} strokeWidth="1.5" />
   </svg>
 );
 export const IconPalette = () => (
@@ -122,25 +76,6 @@ export const IconEraser = () => (
 export const IconExpandAll = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
     <path d="M2 6.5h9M6.5 2l4.5 4.5L6.5 11" {...s} strokeWidth="1.4" />
-  </svg>
-);
-export const IconBootstrap = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />
-    <text x="7" y="10" textAnchor="middle" fontSize="7" fontWeight="600" fill="currentColor">
-      %
-    </text>
-  </svg>
-);
-export const IconLabelsOff = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" strokeDasharray="2.8 1.8" />
-  </svg>
-);
-export const IconBranchLen = () => (
-  <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
-    <path d="M1 5.5h13M1 2v7M14 2v7" {...s} strokeWidth="1.4" />
-    <path d="M5 4l-1.5 1.5L5 7M10 4l1.5 1.5L10 7" {...s} strokeWidth="1.2" />
   </svg>
 );
 export const IconCopy = () => (

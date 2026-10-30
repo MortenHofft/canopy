@@ -1,11 +1,11 @@
 // Browser check of the explorer (examples/explorer; start it with `npm run dev` there, which serves on port 5309).
 //   node tests/browser/scripts/check-explorer.mjs [--port 5309] [--url <page URL, default http://127.0.0.1:<port>/>]
-// Every toolbar control is driven as a user would (clicks, the keyboard, the sliders) and its effect read back from the viewer
+// Every toolbar control is driven as a user would (clicks, the keyboard) and its effect read back from the viewer
 // (window.__explorer() returns the TreeViewer): layout and
-// tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with no tool a
+// tree type the options, truncation the label format; search counts, highlights, steps and the highlight style; with the click action Inspect a
 // click opens the node menu (each kind of node: tip, clade, collapsed clade from its branch, root; Escape closes it; a plain click collapses nothing; a
 // click on a collapsed clade's triangle expands it)
-// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, colour, erase and the innermost-colour-wins order; reroot, midpoint, ladderise (by tips, depth, height) and undo (button and Ctrl+Z); undo within a memory budget
+// and Collapse, Expand and Info are its items; the tip Info is on stays selected across Layout and Phylo/Clado switches (#61); the node the menu is for keeps its ring with the pointer in the menu, colour, erase and the innermost-colour-wins order; reroot, midpoint, ladderise (by tips, depth, height) and undo (Ctrl+Z; Reset in the menu); undo within a memory budget
 // (?undo-budget: the oldest step dropped first, Reset only for a tree larger than the budget, #44); show only a clade, Up one level
 // and Back to root; export (PNG at 1x, 2x and 4x, Newick and NEXUS downloads);
 // the opaque background (the pane's grey, no dotted grid) leaves no trace of earlier frames; the page font is a system-ui stack and the
@@ -1615,6 +1615,12 @@ ok(
     (await moreItem('Midpoint root').count()) === 0,
   'without branch lengths and support the menu does not offer Show branch length, Show support or Midpoint root',
 );
+ok(
+  (await moreItem('Phylogram').getAttribute('aria-checked')) === 'false' &&
+    (await moreItem('Phylogram').isDisabled()) &&
+    (await moreItem('Cladogram').getAttribute('aria-checked')) === 'true',
+  'without branch lengths the menu shows Cladogram as the one in force, and Phylogram off',
+);
 await moreClose();
 await page.unroute('**/data/rich/edge-cases/duplicate-tip-labels.nwk');
 
@@ -1665,6 +1671,31 @@ await moreToggle('Tooltips');
   await page.waitForTimeout(300);
   ok((await page.locator('.phylo-tooltip .ex-tip--node').count()) === 1, 'Tooltips back on: the hover box shows again');
   await page.mouse.move(5, 5);
+}
+await moreButton().click();
+ok(await ev(() => document.activeElement?.closest('.ex-menu') !== null), 'the focus goes into the ⋮ menu when it opens');
+await moreItem('Export…').click();
+ok(await ev(() => document.activeElement?.closest('.ex-menu') !== null), 'and stays in it when Export… swaps the list');
+await page.keyboard.press('Escape');
+ok(
+  (await moreMenu().count()) === 0 && (await ev(() => document.activeElement?.getAttribute('aria-label'))) === 'More options',
+  'Escape closes the menu and gives the focus back to the ⋮ button',
+);
+{
+  // a short pane: the menu scrolls rather than being cut off
+  await ev(() => (document.querySelector('.ex-pane').style.height = '160px'));
+  await moreButton().click();
+  const fit = await ev(() => {
+    const m = document.querySelector('.ex-menu').getBoundingClientRect();
+    const o = document.querySelector('.ex-outer').getBoundingClientRect();
+    return {
+      inside: m.bottom <= o.bottom + 1,
+      scrolls: document.querySelector('.ex-menu').scrollHeight > document.querySelector('.ex-menu').clientHeight,
+    };
+  });
+  ok(fit.inside && fit.scrolls, `in a short pane the menu stays inside it and scrolls (${JSON.stringify(fit)})`);
+  await moreClose();
+  await ev(() => (document.querySelector('.ex-pane').style.height = ''));
 }
 await moreButton().click();
 await moreItem('Ladderize ascending').click();
