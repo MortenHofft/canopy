@@ -1,24 +1,20 @@
 // The explorer: the styled showcase of the library. Its look started from Reactree (reactreejs 1.0.3: two toolbar rows over a dotted tree
 // pane, an inspector, a floating search, a colour palette, an export menu); it is built only from the public API of @canopy:
-// <TreeView> and its handle for the drawing, its props for clades / highlights / collapsed clades / columns / theme / the node menu,
+// <TreeView> and its handle for the drawing, its props for clades / highlights / collapsed clades / theme / the node menu,
 // its callbacks for clicks and hovers, tree-ops for every edit and view (focus) and the viewer's options and controls.
 // Which control uses which API is the table in ../README.md.
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TreeModel, toNewick, toNexus, splitInternalLabel } from '@canopy/io';
 import * as ops from '@canopy/tree-ops';
-import { TreeView, useTreeTheme, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
+import { TreeView, useTreeViewer, type CladeProp, type NodeMenuItem, type TreeNodeEvent, type TreeViewHandle } from '@canopy/react';
 import {
   defaultControls,
-  detectAlphabet,
   InMemorySource,
   createSearchIndex,
   internalName,
   namedDescendants,
-  residueColours,
-  residueGroups,
   type CladeLabelFn,
-  type Column,
   type NamedDescendant,
   type SearchIndex,
 } from '@canopy/viewer';
@@ -205,13 +201,11 @@ function collapseMessage(n: number): string {
 
 export function Explorer({
   published,
-  fasta,
   defaultHeight = 520,
   undoBudget = UNDO_BUDGET,
   debug,
 }: {
   published: TreeModel;
-  fasta: Record<string, string> | null;
   defaultHeight?: number;
   /** Bytes the trees kept for Undo may take ({@link UNDO_BUDGET}); a tree larger than this has Reset only. */
   undoBudget?: number;
@@ -223,7 +217,6 @@ export function Explorer({
   const ref = useRef<TreeViewHandle>(null);
   // the viewer as state, and the theme in force: React follows every theme change, whoever made it
   const viewer = useTreeViewer(ref);
-  const treeTheme = useTreeTheme(viewer);
   const outer = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Step[]>([{ tree: published, clades: [], collapsed: [] }]);
   const tree = history[history.length - 1].tree;
@@ -249,7 +242,6 @@ export function Explorer({
   const drawsLengths = phylogram && tree.hasLengths; // a tree without branch lengths is a cladogram, whatever was asked
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
-  const [showAlignment, setShowAlignment] = useState(false);
   const [alignLabels, setAlignLabels] = useState(init.alignLabels);
 
   const [clickAction, setClickAction] = useState<ClickAction>('inspect');
@@ -391,35 +383,6 @@ export function Explorer({
   useEffect(() => {
     if (zoomTo.current !== null) ref.current?.renderer()?.zoomToNode(zoomTo.current, true);
   }, [focusSeq]);
-
-  // ---- the alignment column (one `values` object per FASTA, so the viewer compiles it once)
-  const alignment = useMemo(() => {
-    if (!fasta) return null;
-    const values: Record<string, string> = {};
-    let matched = 0;
-    let sites = 0;
-    for (const l of published.tipLabels) {
-      const sq = fasta[l];
-      if (sq === undefined) continue;
-      values[l] = sq;
-      matched++;
-      sites = Math.max(sites, sq.length);
-    }
-    const alphabet = detectAlphabet(Object.values(values)); // the column would pick the same; it is passed so the legend cannot disagree
-    const column: Column = { id: 'alignment', kind: 'alignment', header: 'Alignment', width: 'fill', values, alphabet };
-    return { column, matched, sites, alphabet };
-  }, [fasta, published]);
-  // the legend: the viewer's own table (default for dark or light, --phylo-residue-* overrides), one swatch per group. It reads the
-  // residue colours of the theme in force, so it follows every theme change, whoever made it
-  const legend = useMemo(() => {
-    if (!alignment) return [];
-    const colours = residueColours(treeTheme ?? {}, alignment.alphabet);
-    return residueGroups(alignment.alphabet).map((g) => ({ label: g.label, colour: colours[g.residues[0]] }));
-  }, [alignment, treeTheme]);
-  const columns = useMemo(
-    () => (showAlignment && alignment && layout === 'rectangular' ? [alignment.column] : []),
-    [showAlignment, alignment, layout],
-  );
 
   // ---- node labels: the viewer draws them (`nodeLabels`). 'support' reads `support` of the tree, which is the same for a support in
   // the labels (0.95, 100) and for one that load() copied there from an annotation (BEAST posterior). A collapsed clade shows its own
@@ -897,45 +860,7 @@ export function Explorer({
             <span className="ex-count">{clades.length}</span>
           </button>
         )}
-        {(collapsed.length > 0 || shown.tipCount > OVERVIEW_ROWS) && <div className="ex-divider" />}
-        {shown.tipCount > OVERVIEW_ROWS && (
-          <>
-            <button
-              type="button"
-              className="ex-btn ex-clades"
-              title={`Collapse the clade shown to about ${OVERVIEW_ROWS} rows, its largest clades open. Click a collapsed clade to expand it; Show only in its menu (its branch, or Enter) jumps into it`}
-              onClick={overviewOfShown}
-            >
-              <J.IconClades />
-              Collapse to {OVERVIEW_ROWS} clades
-            </button>
-          </>
-        )}
-        {collapsed.length > 0 && (
-          <>
-            <button
-              type="button"
-              className="ex-btn ex-expand"
-              title={`Expand all collapsed clades (${collapsed.length})`}
-              onClick={() => setCollapsed([])}
-            >
-              <I.IconExpandAll />
-              Expand all
-              <span className="ex-count">{collapsed.length}</span>
-            </button>
-          </>
-        )}
         <div className="ex-spacer" />
-        {alignment && layout === 'rectangular' && (
-          <button
-            type="button"
-            className={`ex-btn ex-toggle${showAlignment ? ' active' : ''}`}
-            title={showAlignment ? 'Hide alignment track' : 'Show alignment alongside leaf nodes'}
-            onClick={() => setShowAlignment((s) => !s)}
-          >
-            Alignment
-          </button>
-        )}
       </Scroller>
 
       {/* ── Body: the tree ── */}
@@ -963,7 +888,6 @@ export function Explorer({
           highlighted={highlighted}
           marked={markedMatch}
           collapsed={collapsedIds}
-          columns={columns}
           controls={controls}
           theme={theme}
           focus={current !== null && !currentClade ? { tipId: current, seq: focusSeq } : null}
@@ -976,8 +900,6 @@ export function Explorer({
             highlightStyle,
             alignLabels,
             nodeLabels,
-            // with the alignment shown, the tree takes 40% of the width and the 'fill' column the rest
-            treeWidth: columns.length ? '40%' : undefined,
             themeObserver: 'document',
             // the hover ring grows in, as in Reactree (the default; said here as the look depends on it)
             hoverAnimation: true,
@@ -1104,27 +1026,7 @@ export function Explorer({
         </div>
       </div>
 
-      {columns.length > 0 && alignment && (
-        <div className="ex-legend">
-          <span className={`ex-legend-type${alignment.alphabet === 'protein' ? ' aa' : ''}`}>{alignment.alphabet === 'protein' ? 'AA' : 'NT'}</span>
-          <span className="ex-legend-meta">
-            {alignment.sites.toLocaleString('en')} sites · {alignment.matched} of {published.tipCount} tips matched
-          </span>
-          <span className="ex-legend-divider" />
-          {legend.map((l) => (
-            <span key={l.label} className="ex-legend-item">
-              <span className="ex-legend-dot" style={{ background: l.colour }} />
-              {l.label}
-            </span>
-          ))}
-          <span className="ex-legend-item">
-            <span className="ex-legend-dash" />
-            Gap
-          </span>
-        </div>
-      )}
-
-      <DebugPanel viewer={viewer} debug={debug} collapsed={collapsedIds} columns={columns.length} asLoaded={shown === published} />
+      <DebugPanel viewer={viewer} debug={debug} collapsed={collapsedIds} asLoaded={shown === published} />
 
       {menu !== 'closed' && (
         <div className="ex-menu" role="menu" aria-label={menu === 'export' ? 'Export' : 'More options'} ref={viewMenuRef}>
@@ -1227,6 +1129,20 @@ export function Explorer({
               {(
                 [
                   [
+                    `Collapse to ${OVERVIEW_ROWS} clades`,
+                    'Largest clades open, the rest collapsed',
+                    <J.IconClades key="i" />,
+                    overviewOfShown,
+                    shown.tipCount > OVERVIEW_ROWS,
+                  ],
+                  [
+                    'Expand all',
+                    `${collapsed.length} collapsed clades open again`,
+                    <I.IconExpandAll key="i" />,
+                    () => setCollapsed([]),
+                    collapsed.length > 0,
+                  ],
+                  [
                     'Ladderize ascending',
                     'Smallest clades at top',
                     <J.IconLadderBy key="i" />,
@@ -1244,7 +1160,7 @@ export function Explorer({
                   ['Reset', 'Back to the tree as published', null, () => back(0), history.length > 1],
                 ] as const
               )
-                .filter((item) => item[4]) // not offered: the midpoint without branch lengths, Reset on the tree as published
+                .filter((item) => item[4]) // not offered: the overview on a small clade, Expand all without collapsed clades, the midpoint without branch lengths, Reset on the tree as published
                 .map(([label, desc, icon, run, enabled]) => (
                   <button
                     key={label}

@@ -191,6 +191,8 @@ textarea {
   background: var(--ex-surface-0);
   flex-wrap: nowrap;
   min-width: 0;
+  box-sizing: border-box;
+  min-height: 41px; /* the Edit row is often empty and then fills with a button: its height stays, so the tree does not jump */
 }
 /* narrower than the toolbar, a row scrolls sideways (thin bar), keeping the two rows. A fade marks the end that has more: data-start /
  * data-end are set by the Scroller. Search and Export (.ex-pinned) stay at the right edge whatever the scroll */
@@ -295,13 +297,8 @@ textarea {
   color: white;
   box-sizing: border-box;
 }
-.ex-toggle {
-  padding: 4px 9px;
-}
-/* an active toggle (Truncate, Overview, Legend, Search, node labels, ...) and Expand all: the tone of the action colour, as an open button */
-.ex-toggle.active,
-.ex-search-active,
-.ex-expand {
+/* the active Search button: the tone of the action colour, as an open button */
+.ex-search-active {
   border-color: var(--ex-primary-soft);
   color: var(--ex-primary);
   background: var(--ex-tonal);
@@ -770,53 +767,6 @@ textarea {
 .ex-info-copy:hover {
   background: var(--ex-tonal);
   color: var(--ex-primary);
-}
-
-/* alignment legend */
-.ex-legend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 6px 12px;
-  font-size: 10.5px;
-  border-top: 1px solid var(--ex-surface-30);
-  background: var(--ex-surface-0);
-}
-.ex-legend-type {
-  font-weight: 600;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: #059669;
-  background: rgba(5, 150, 105, 0.1);
-}
-.ex-legend-type.aa {
-  color: #4f46e5;
-  background: rgba(79, 70, 229, 0.1);
-}
-.ex-legend-meta {
-  color: var(--ex-muted);
-}
-.ex-legend-divider {
-  width: 1px;
-  height: 14px;
-  background: var(--ex-surface-30);
-}
-.ex-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.ex-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.ex-legend-dash {
-  width: 10px;
-  height: 2px;
-  background: var(--ex-surface-40);
 }
 
 /* colour palette */
