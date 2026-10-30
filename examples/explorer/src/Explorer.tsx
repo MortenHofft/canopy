@@ -815,25 +815,6 @@ export function Explorer({
       {/* ── Row 2: interaction tools ── */}
       <Scroller className="ex-row" role="toolbar" aria-label="Edit">
         {history.length > 1 && <UndoNote canUndo={canUndo} undoOn={undoOn} />}
-        {ops.focusedNode(focus) >= 0 && (
-          <div className="ex-group" role="group" aria-label="Clade shown">
-            <button type="button" aria-label="Back to root" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
-              <J.IconReset />
-              <span className="ex-btn-text">Back to root</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Up one level"
-              disabled={!ops.canGoUp(focus)}
-              title="Up one level: show the clade that contains the one shown"
-              onClick={() => navigate(ops.focusUp(tree, focus))}
-            >
-              <J.IconUpLevel />
-              <span className="ex-btn-text">Up one level</span>
-            </button>
-          </div>
-        )}
-        {ops.focusedNode(focus) >= 0 && <div className="ex-divider" />}
         <label
           className={`ex-select${clickAction !== 'inspect' ? ' ex-select--active' : ''}`}
           title="What a click on a node or tip does (blue while it is not Inspect)"
@@ -852,6 +833,24 @@ export function Explorer({
             <option value="colour">Colour</option>
           </select>
         </label>
+        {ops.focusedNode(focus) >= 0 && (
+          <div className="ex-group" role="group" aria-label="Clade shown">
+            <button type="button" aria-label="Back to root" title="Show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
+              <J.IconReset />
+              <span className="ex-btn-text">Back to root</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Up one level"
+              disabled={!ops.canGoUp(focus)}
+              title="Up one level: show the clade that contains the one shown"
+              onClick={() => navigate(ops.focusUp(tree, focus))}
+            >
+              <J.IconUpLevel />
+              <span className="ex-btn-text">Up one level</span>
+            </button>
+          </div>
+        )}
         {clades.length > 0 && (
           <button type="button" className="ex-btn" title="Remove every colour" onClick={() => setClades([])}>
             Clear colours
