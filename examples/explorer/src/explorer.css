@@ -192,7 +192,7 @@ textarea {
   flex-wrap: nowrap;
   min-width: 0;
   box-sizing: border-box;
-  min-height: 41px; /* the Edit row is often empty and then fills with a button: its height stays, so the tree does not jump */
+  min-height: 41px;
 }
 /* narrower than the toolbar, a row scrolls sideways (thin bar), keeping the two rows. A fade marks the end that has more: data-start /
  * data-end are set by the Scroller. Search and Export (.ex-pinned) stay at the right edge whatever the scroll */
@@ -233,7 +233,8 @@ textarea {
 .ex-row:first-child {
   border-bottom: 1px solid var(--ex-surface-20);
 }
-.ex-row:nth-child(2) {
+.ex-row:nth-child(2),
+.ex-row:first-child:has(+ .ex-pane) {
   border-bottom: 1px solid var(--ex-surface-30);
 }
 .ex-divider {
@@ -595,6 +596,23 @@ textarea {
   background: var(--ex-surface-0);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--ex-surface-30);
+}
+
+/* the instant tooltip of the toolbar buttons (data-tip): the look of the hover box on the tree; fixed, so a row that scrolls does not clip it */
+.ex-bartip {
+  position: fixed;
+  z-index: 100;
+  max-width: 260px;
+  padding: 5px 10px;
+  border-radius: var(--ex-popover-radius);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+  background: var(--ex-tooltip-bg);
+  color: var(--ex-tooltip-text);
+}
+.ex-bartip--centre {
+  transform: translateX(-50%);
 }
 
 /* floating search */
@@ -995,11 +1013,7 @@ textarea {
   resize: vertical;
 }
 
-/* a phone: the buttons that show a clade alone keep their icon and lose their words */
 @media (max-width: 640px) {
-  .ex-group .ex-btn-text {
-    display: none;
-  }
   /* the click action select: the icon of the action and a caret; the native select lies over it, transparent, so its list (with the
    * words) opens on a tap */
   .ex-select {

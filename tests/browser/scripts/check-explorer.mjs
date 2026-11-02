@@ -92,10 +92,11 @@ const click = async (p) => {
   await page.mouse.click(p.x, p.y);
   await page.waitForTimeout(150);
 };
-const btn = (text) => page.locator('.ex-outer button', { hasText: text }).first();
 // the ⋮ menu (branch style, legend, minimap, align labels, truncate names, support, length, ladderize, export): open it, use an item; a toggle leaves it open, so close it
 // Back to root: the whole tree again, from a clade shown alone
-const toRoot = () => page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: 'Back to root' }).click();
+const toRoot = () => page.locator('.ex-group[aria-label="Clade shown"] button[aria-label="Back to root"]').click();
+// the legend's last row: removes every colour
+const clearSelection = () => page.locator('.phylo-legend .phylo-legend__action', { hasText: 'Clear selection' }).click();
 // Reset, in the ⋮ menu only once there is an edit: the tree as published
 const hasReset = async () => {
   if (!(await moreMenu().count())) await moreButton().click();
@@ -199,7 +200,7 @@ await page.addInitScript(() => {
 
 console.log('Carangaria MCC: view settings');
 await open('rich-fish-carangaria-135');
-ok((await page.locator('.ex-row').count()) === 2, 'two toolbar rows');
+ok((await page.locator('.ex-row').count()) === 1, 'one toolbar row (a second only when it has something in it)');
 const span = () =>
   ev(() => {
     const p = __v().getViewport();
@@ -226,10 +227,10 @@ ok(th.supportColour !== '' && th.supportColour === th.lengthColour, `light: supp
   });
   await page.waitForTimeout(250);
 }
-await page.locator('button[title=Circular]').click();
+await page.locator('button[aria-label=Circular]').click();
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'radial', 'Circular: radial layout');
-await page.locator('button[title=Rectangular]').click();
+await page.locator('button[aria-label=Rectangular]').click();
 await moreToggle('Cladogram');
 await page.waitForTimeout(150);
 ok((await ev(() => __v().options.layout)) === 'rectangular' && (await ev(() => __v().options.branchLengths)) === false, 'Rectangular, Cladogram');
@@ -290,7 +291,7 @@ const opaqueShare = () =>
     for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
     return n / (c.width * c.height);
   });
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(200);
 const p0 = await painted();
 const box = await page.locator('.phylo-tree').boundingBox();
@@ -301,7 +302,7 @@ await page.mouse.down();
 await page.mouse.move(box.x + box.width / 2 - 150, box.y + box.height / 2 - 100, { steps: 6 });
 await page.mouse.up();
 await page.waitForTimeout(300);
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(300);
 const p1 = await painted();
 ok(p0 > 0 && p0 < 0.5, `the canvas is the background where nothing is drawn (${(p0 * 100).toFixed(1)}% drawn)`);
@@ -355,7 +356,7 @@ ok(
   (await page.locator('.ex-search').count()) === 0 && (await ev(() => __v().getHighlighted().length)) === 0,
   'Escape closes the search and clears the highlight',
 );
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(300);
 ok(Math.abs((await ink()) - inkBefore) < inkBefore * 0.05, 'and the tree is back at full strength after the search');
 
@@ -426,16 +427,16 @@ ok(
     );
   };
   await keeps('selected');
-  await page.locator('button[title=Circular]').click();
+  await page.locator('button[aria-label=Circular]').click();
   await keeps('Circular');
   ok(await ev(() => __v().vs.fitted), 'Circular: the view is fitted, as it was: a switch does not go to the selection (#56)');
-  await page.locator('button[title=Rectangular]').click();
+  await page.locator('button[aria-label=Rectangular]').click();
   await keeps('back to Rectangular');
   await moreToggle('Cladogram');
   await keeps('Cladogram');
   await moreToggle('Phylogram');
   await keeps('back to Phylogram');
-  await page.locator('.ex-btn[title="Fit tree"]').click();
+  await page.locator('.ex-btn[aria-label="Fit tree"]').click();
   await page.waitForTimeout(200);
 }
 await page.locator('.ex-info-head button').click();
@@ -547,14 +548,66 @@ ok(
 await more('Expand all');
 await page.waitForTimeout(300);
 ok((await rows()) === before, 'Expand all opens them again');
-// the root: Info, Colour… (no Reroot)
-await openMenu(
-  await ev(() => {
+// the root: Info, Collapse to 50 clades (a tree of more than 50 tips), Colour… (no Reroot); Expand all once a clade is collapsed
+const rootPoint = () =>
+  ev(() => {
     const q = __v().locateNode(0);
     return { x: q.x, y: q.y };
-  }),
+  });
+await openMenu(await rootPoint());
+ok((await menuItems()).join('|') === 'Info|Collapse to 50 clades|Colour…', `the root's menu: ${(await menuItems()).join(' | ')}`);
+await act('overview');
+ok((await rows()) === overviewRows, `the root's Collapse to 50 clades: ${await rows()} rows, as in the ⋮ menu`);
+await openMenu(await rootPoint());
+ok(
+  (await menuItems()).join('|') === 'Info|Collapse to 50 clades|Expand all|Colour…',
+  `with clades collapsed the root's menu has Expand all: ${(await menuItems()).join(' | ')}`,
 );
-ok((await menuItems()).join('|') === 'Info|Colour…', `the root's menu: ${(await menuItems()).join(' | ')}`);
+await act('expand-all');
+ok((await rows()) === before, "the root's Expand all opens them again");
+// the Collapse click action: a click on the root opens the same two items, and nothing else
+await page.locator('select[aria-label="Click action"]').selectOption('collapse');
+await openMenu(await rootPoint());
+ok((await menuItems()).join('|') === 'Collapse to 50 clades', `Collapse action, on the root: ${(await menuItems()).join(' | ')}`);
+await act('overview');
+await openMenu(await rootPoint());
+ok(
+  (await menuItems()).join('|') === 'Collapse to 50 clades|Expand all',
+  `Collapse action, on the root, with clades collapsed: ${(await menuItems()).join(' | ')}`,
+);
+await act('expand-all');
+await page.locator('select[aria-label="Click action"]').selectOption('inspect');
+await page.waitForTimeout(150);
+// Shift or Ctrl held: the click action is Inspect for the moment, Subtree when it is Inspect already; the select shows it
+{
+  const sel = page.locator('select[aria-label="Click action"]');
+  await page.locator('.ex-outer').focus();
+  await page.keyboard.down('Shift');
+  ok((await sel.inputValue()) === 'subtree', 'Shift held with Inspect: the select shows Subtree');
+  await page.keyboard.up('Shift');
+  ok((await sel.inputValue()) === 'inspect', 'released: Inspect again');
+  await sel.selectOption('colour');
+  await page.keyboard.down('Control');
+  ok((await sel.inputValue()) === 'inspect', 'Ctrl held with Colour: the select shows Inspect');
+  await page.keyboard.up('Control');
+  ok((await sel.inputValue()) === 'colour', 'released: Colour again');
+  await sel.selectOption('inspect');
+}
+// the instant tooltip of the header buttons: the black box of the tree's hover box, with no delay
+{
+  await page.locator('button[aria-label="Fit tree"]').hover();
+  const tip = page.locator('.ex-bartip');
+  ok((await tip.count()) === 1 && (await tip.innerText()) === 'Fit tree', 'hovering Fit shows its tooltip at once');
+  const css = await tip.evaluate((e) => ({ bg: getComputedStyle(e).backgroundColor, fg: getComputedStyle(e).color }));
+  ok(css.bg === 'rgb(51, 51, 51)' && css.fg === 'rgb(255, 255, 255)', `white on black like the hover box (${css.bg}, ${css.fg})`);
+  await page.mouse.move(5, 5);
+  ok((await page.locator('.ex-bartip').count()) === 0, 'and it goes with the pointer');
+  const order = await page.evaluate(() => {
+    const x = (q) => document.querySelector(q).getBoundingClientRect().left;
+    return [x('button[aria-label=Rectangular]'), x('button[aria-label="Fit tree"]'), x('button[aria-label="Search tips"]')];
+  });
+  ok(order[0] < order[1] && order[1] < order[2], 'Rectangular / Circular, Fit and Search are in that order, on the right');
+}
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 // Colour… offers the palette for this clade
@@ -666,9 +719,15 @@ px = await inner();
 ok(px.teal > 0 && px.teal > px.pink, `the innermost colour still wins (teal ${px.teal}, pink ${px.pink})`);
 await eraseVia(small);
 ok((await page.locator('.ex-palette').count()) === 0, 'the palette closes after a choice');
-ok((await btn('Clear colours').locator('.ex-count').innerText()) === '1', 'Clear colours shows the count');
-await btn('Clear colours').click();
-ok((await ev(() => __v().getClades().length)) === 0 && (await btn('Clear colours').count()) === 0, 'Clear colours removes them all');
+ok(
+  (await page.locator('.ex-outer button', { hasText: 'Clear colours' }).count()) === 0,
+  'no Clear colours button in the header: the legend has Clear selection',
+);
+await clearSelection();
+ok(
+  (await ev(() => __v().getClades().length)) === 0 && (await page.locator('.phylo-legend').isHidden()),
+  'Clear selection in the legend removes every colour, and the legend goes',
+);
 
 console.log('click actions');
 {
@@ -748,13 +807,13 @@ console.log('click actions');
   ok(again.length === 2 && again[1].colour !== palette[0] && again[1].colour !== palette[5], 'and the next click gives it a new colour');
   await page.locator('.ex-outer').press('Escape');
   ok((await sel.inputValue()) === 'inspect', 'Escape goes back to Inspect');
-  await btn('Clear colours').click();
+  await clearSelection();
   await colourVia(big, 'Pink'); // one colour stays for the Undo check below
 }
 
 console.log('tree operations');
 // the earlier steps moved the view and an edit keeps it now: start from the whole tree
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(200);
 const o0 = await ev(() => __order());
 const rt = await ev(() => __v().getTree().tipLabels[5]);
@@ -819,7 +878,7 @@ await undo();
 await page.waitForTimeout(300);
 ok((await ev(() => __order())) === orderZ, 'Undo returns the tree');
 ok(await ev(() => __v() === window.__viewer), 'and still the same renderer');
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(200);
 await more('Midpoint root');
 ok((await toast()).includes('nothing to change'), 'Midpoint on a dated tree: nothing to change');
@@ -1212,24 +1271,27 @@ await openMenu(c60);
 await act('subtree');
 ok((await tipCount()) === c60.tips, `Show only this clade shows its ${c60.tips} tips (${await tipCount()})`);
 ok(
-  (await page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: 'Back to root' }).isEnabled()) &&
-    (await btn('Up one level').isEnabled()),
+  (await page.locator('.ex-group[aria-label="Clade shown"] button[aria-label="Back to root"]').isEnabled()) &&
+    (await page.locator('.ex-group[aria-label="Clade shown"] button[aria-label="Up one level"]').isEnabled()),
   'Back to root and Up one level are enabled',
 );
-// on a phone the two buttons keep their icons and lose their words
-await page.setViewportSize({ width: 400, height: 860 });
+// icons only, named by aria-label and the instant tooltip; on a wide screen they lead the View row, left of the click action (a divider between)
 {
-  const words = await page
-    .locator('.ex-group[aria-label="Clade shown"] .ex-btn-text')
-    .evaluateAll((es) => es.map((e) => getComputedStyle(e).display));
-  const labels = await page.locator('.ex-group[aria-label="Clade shown"] button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label')));
-  ok(
-    words.length === 2 && words.every((d) => d === 'none') && labels.join() === 'Back to root,Up one level',
-    `at 400 px: icons only, still named (${labels.join(', ')})`,
-  );
+  const labels = await page
+    .locator('.ex-group[aria-label="Clade shown"] button')
+    .evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label') + ':' + b.textContent.trim()));
+  ok(labels.join() === 'Back to root:,Up one level:', `icons only, still named (${labels.join(', ')})`);
+  const xs = await page.evaluate(() => {
+    const x = (q) => document.querySelector(q).getBoundingClientRect().left;
+    return [x('.ex-group[aria-label="Clade shown"]'), x('.ex-select')];
+  });
+  ok(xs[0] < xs[1], 'at 1280 px the clade buttons are left of the click action');
+  ok((await page.locator('[aria-label="Edit"]').count()) === 0, 'at 1280 px there is no second row while it has nothing in it');
+  await page.setViewportSize({ width: 400, height: 860 });
+  await page.waitForTimeout(200);
+  ok((await page.locator('[aria-label="Edit"] .ex-group[aria-label="Clade shown"]').count()) === 1, 'at 400 px they are in the Edit row');
+  await page.setViewportSize({ width: 1280, height: 860 });
 }
-await page.setViewportSize({ width: 1280, height: 860 });
-ok(await page.locator('.ex-group[aria-label="Clade shown"] .ex-btn-text').first().isVisible(), 'at 1280 px: with their words');
 await page.waitForTimeout(300);
 const rootPos = await ev(() => {
   const q = __v().locateNode(0);
@@ -1242,7 +1304,7 @@ ok(
 );
 await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
-await btn('Up one level').click();
+await page.locator('.ex-group[aria-label="Clade shown"] button[aria-label="Up one level"]').click();
 await page.waitForTimeout(300);
 const up = await tipCount();
 ok(up > c60.tips, `Up one level shows the clade that contains it (${up} tips)`);
@@ -1291,7 +1353,7 @@ console.log('Show only, Up, Back to root with hover, colours and collapse: no pa
     await act('subtree');
     for (const step of [null, 'Up one level', 'Back to root']) {
       if (step) {
-        const b = page.locator('.ex-group[aria-label="Clade shown"] button', { hasText: step });
+        const b = page.locator(`.ex-group[aria-label="Clade shown"] button[aria-label="${step}"]`);
         if (await b.count()) await b.click(); // Up one level can end on the whole tree, where there is no Back to root
       }
       for (let k = 0; k < 6; k++) await page.mouse.move(300 + k * 90, 300 + k * 20);
@@ -1467,14 +1529,17 @@ console.log('one popover radius, the node menu styled as the inspector');
   );
 }
 
-// the toolbar keeps its two rows at 1280, 1024 and 600 px (below that it scrolls sideways)
+// the toolbar is one row at 1280 and 1024 px, two on a phone (600 px); below that it scrolls sideways
 console.log('toolbar rows');
 for (const w of [1280, 1024, 600]) {
   await page.setViewportSize({ width: w, height: 860 });
   await open('rich-fish-carangaria-135');
   await page.waitForTimeout(200);
   const rows = await page.locator('.ex-row').evaluateAll((rs) => rs.map((r) => Math.round(r.getBoundingClientRect().height)));
-  ok(rows.length === 2 && rows.every((h) => h < 50), `${w} px: two single-line rows (${rows.join(', ')} px)`);
+  ok(
+    rows.length === (w > 640 ? 1 : 2) && rows.every((h) => h < 50),
+    `${w} px: ${w > 640 ? 'one' : 'two (a phone keeps its second)'} single-line row${w > 640 ? '' : 's'} (${rows.join(', ')} px)`,
+  );
   // Export and Search stay in view whatever the row scrolls; a row that overflows says so (data-end on the scroller, a fade)
   const vis = await ev(() =>
     ['.ex-export button', 'button[aria-label="Search tips"]'].map((q) => {
@@ -1700,7 +1765,7 @@ await page.keyboard.press('Escape');
 // ---------------------------------------------------------------- Align in radial
 console.log('Align in radial');
 await open('rich-hcv-19');
-await page.locator('button[title=Circular]').click();
+await page.locator('button[aria-label=Circular]').click();
 await page.waitForTimeout(200);
 {
   // the distances from the root of the label anchors (their translate is the label's place, the vertical centre at half their height)
@@ -1732,7 +1797,7 @@ await page.waitForTimeout(200);
   await moreToggle('Align labels');
   await page.waitForTimeout(300);
   ok(new Set(await anchorRadii()).size > 3, 'Align off: the circular labels follow their tips again');
-  await page.locator('button[title=Rectangular]').click();
+  await page.locator('button[aria-label=Rectangular]').click();
   await page.waitForTimeout(200);
 }
 
@@ -1765,19 +1830,31 @@ const hintClear = () =>
     return h.right <= r.left || h.left >= r.right || h.bottom <= r.top || h.top >= r.bottom;
   });
 ok(await hintClear(), 'the hint does not overlap the clade legend (rectangular)');
-await page.locator('button[title=Circular]').click();
+await page.locator('button[aria-label=Circular]').click();
 await page.waitForTimeout(300);
 ok(
   (await page.locator('.phylo-legend:visible').count()) === 1 && (await page.locator('.ex-hint').count()) === 1,
   'radial keeps its hint, with the legend shown',
 );
 ok(await hintClear(), 'the hint does not overlap the clade legend (radial)');
-await page.locator('button[title=Rectangular]').click();
+await page.locator('button[aria-label=Rectangular]').click();
 await page.waitForTimeout(300);
 await moreToggle('Legend');
 await page.waitForTimeout(200);
 ok((await page.locator('.phylo-legend:visible').count()) === 0, 'Legend off hides it');
 ok((await page.locator('.ex-hint').count()) === 1 && (await hintClear()), 'and the rectangular hint is back');
+// the legend's × closes it (the ⋮ menu's Legend toggle opens it again); its last row, set apart, is Clear selection
+await moreToggle('Legend');
+await page.waitForTimeout(200);
+ok((await page.locator('.phylo-legend:visible').count()) === 1, 'Legend on shows it again');
+ok(
+  (await page.locator('.phylo-legend .phylo-legend__actions .phylo-legend__action').allInnerTexts()).join() === 'Clear selection' &&
+    (await page.locator('.phylo-legend__actions').evaluate((e) => getComputedStyle(e).borderTopWidth)) === '1px',
+  'the legend ends with a separated Clear selection row',
+);
+await page.locator('.phylo-legend .phylo-legend__close').click();
+await page.waitForTimeout(200);
+ok((await page.locator('.phylo-legend:visible').count()) === 0, "the legend's × closes it");
 
 // the hint goes once the user zooms or pans, and stays gone (#69)
 console.log('the hint goes after the first zoom or pan');
@@ -1792,7 +1869,7 @@ ok((await page.locator('.ex-hint').count()) === 1, 'the hint is shown at first')
   await page.mouse.wheel(0, -200);
   await page.waitForTimeout(200);
   ok((await page.locator('.ex-hint').count()) === 0, 'a wheel turn removes it');
-  await page.locator('button[title=Circular]').click();
+  await page.locator('button[aria-label=Circular]').click();
   await page.waitForTimeout(200);
   ok((await page.locator('.ex-hint').count()) === 0, 'and a new layout does not bring it back');
 }
@@ -2178,7 +2255,7 @@ for (const [id, tipsWanted] of [
   await page.waitForTimeout(400);
   // the restored viewport is the uncollapsed tree's: fit the 45 rows, counting only the labels drawn from then on
   await ev(() => (window.__cladeLabels = new Set()));
-  await page.locator('.ex-btn[title="Fit tree"]').click();
+  await page.locator('.ex-btn[aria-label="Fit tree"]').click();
   await page.waitForTimeout(800);
   await drillDown(10122);
 }
@@ -2243,7 +2320,7 @@ for (const [id, tipsWanted] of [
   // the adaptive budget (#114): radial, GTDB 190k at the finest threshold, so the starting budget (2,000) cuts the view. Headless Chromium
   // has no GPU, so this checks the mechanism: the budget moves across settled frames and stays within its limits, a number stays fixed
   // and the 4 degree wedge limit is in force (or has given way, which the debug stats show) rather than frame rates
-  await page.locator('button[title=Circular]').click();
+  await page.locator('button[aria-label=Circular]').click();
   await page.waitForTimeout(500);
   const budgetStats = () =>
     ev(() => {
@@ -2304,7 +2381,7 @@ for (const [id, tipsWanted] of [
     __v().fit(false);
     __v().renderNow();
   });
-  await page.locator('button[title=Rectangular]').click();
+  await page.locator('button[aria-label=Rectangular]').click();
   await page.waitForTimeout(500);
   // search is not capped (#58): every match is counted and highlighted
   await page.locator('button[aria-label="Search tips"]').click();
@@ -2361,7 +2438,7 @@ for (const [id, tipsWanted] of [
     ['Circular', 'radial'],
     ['Rectangular', 'rectangular'],
   ]) {
-    await page.locator(`button[title=${button}]`).click();
+    await page.locator(`button[aria-label=${button}]`).click();
     await page.waitForTimeout(300);
     const b = await inView();
     const kept = a.ranks.filter((r) => b.ranks.includes(r)).length / a.ranks.length;
@@ -2378,7 +2455,7 @@ for (const [id, tipsWanted] of [
   const debugRoundTrip = async (layout) => {
     await open('rich-fish-carangaria-135', '&debug=1');
     const panel = page.locator('.ex-debug');
-    if (layout === 'radial') await page.locator('button[title=Circular]').click();
+    if (layout === 'radial') await page.locator('button[aria-label=Circular]').click();
     const box = await page.locator('.ex-pane canvas').first().boundingBox();
     await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.4);
     for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -200);
