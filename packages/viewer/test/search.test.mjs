@@ -46,3 +46,29 @@ test('the index: a trailing underscore is part of the query, white space round i
   assert.equal(idx.find('a_').total, 1);
   assert.equal(idx.find(' a ').total, 3);
 });
+
+test('formatLabel gets the node id too: tips with one label can be named differently, and an internal name is looked up by node', () => {
+  const tree = parseNewick('((A,A)Genus,B);');
+  const snap = new InMemorySource(tree).snapshot();
+  const calls = [];
+  const names = ['', '', 'Plant one', 'Plant two', 'Bee'];
+  const idx = createSearchIndex(snap, {
+    formatLabel: (label, node) => {
+      calls.push([label, node]);
+      return label === 'Genus' ? 'Genus Mill.' : names[node];
+    },
+  });
+  assert.deepEqual(
+    calls.sort((a, b) => a[1] - b[1]),
+    [
+      ['Genus', 1],
+      ['A', 2],
+      ['A', 3],
+      ['B', 4],
+    ].sort((a, b) => a[1] - b[1]),
+    'every named node, with its own id',
+  );
+  assert.deepEqual(idx.find('plant one').hits, [{ node: 2, clade: false }]);
+  assert.deepEqual(idx.find('plant two').hits, [{ node: 3, clade: false }]);
+  assert.deepEqual(idx.find('genus mill').hits, [{ node: 1, clade: true }]);
+});

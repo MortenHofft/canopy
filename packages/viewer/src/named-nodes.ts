@@ -10,7 +10,7 @@ import type { TreeSnapshot } from './types.ts';
  *  `cladeLabel` changes. */
 export function namedNodeTest(
   tree: TreeSnapshot,
-  opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null },
+  opts: { formatLabel: (s: string, node: number) => string; cladeLabel?: CladeLabelFn | null },
 ): (row: number) => boolean {
   const known = new Uint8Array(tree.nodeCount); // 0 not asked yet, 1 no name, 2 named
   return (row) => {

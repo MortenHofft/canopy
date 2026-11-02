@@ -209,7 +209,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.font = f;
       lastFont = f;
     }
-    const text = col ? S.cladeText!(i) : S.format(tree.tipLabels[r] ?? '');
+    const text = col ? S.cladeText!(i) : S.format(tree.tipLabels[r] ?? '', tree.globalId === null ? i : tree.globalId[i]);
     const w = S.measure.width(ctx, text, f);
     if (f !== lastFont) {
       ctx.font = f;

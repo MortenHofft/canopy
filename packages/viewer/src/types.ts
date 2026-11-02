@@ -442,7 +442,9 @@ export interface ViewerOptions {
   /** Alignment columns: 'residues' = coloured cells (one pixel per residue, as before); 'blocks' = ETE-style grey blocks for the
    *  stretches without gaps joined by a thin line (rows at least 1.5 px tall, otherwise residues). */
   alignStyle: 'residues' | 'blocks';
-  formatLabel: (tipId: string) => string;
+  /** The text of a tip, or of an internal node's name: `(label, node)`, `node` the node id the API speaks (the full-tree preorder id, as `cladeLabel`
+   *  gets), so the text can be looked up by node and not only by label. A function of one argument works as before. */
+  formatLabel: (tipId: string, node: number) => string;
   /**
    * What names an internal node, for the legend, the node menu title, the default tooltip and the keyboard announcement: `(node, tree)`
    * returns the node's name or null for none (the places then say 'Clade of N tips'). `node` is the preorder id in the full tree.

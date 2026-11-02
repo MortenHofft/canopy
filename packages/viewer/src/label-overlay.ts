@@ -12,6 +12,9 @@ import type { LabelList } from './draw.ts';
 import { K_SUMMARY, K_TIP, type DrawList } from './lod.ts';
 import type { LayoutKind, TreeSnapshot, TreeTheme } from './types.ts';
 
+/** The id of snapshot row `row` in the full tree, what `formatLabel` and the public API speak. */
+const globalOf = (tree: TreeSnapshot, row: number): number => (tree.globalId === null ? row : tree.globalId[row]);
+
 const SR_DELAY_MS = 160; // the list of tips in view follows the view this long after its last change
 
 // Only schemes that cannot execute script are allowed as a tip href. A consumer that passes a tip
@@ -30,7 +33,7 @@ function safeHref(h: string): string {
 /** The options the overlay reads. */
 export interface OverlayOptions {
   readonly tipHref: ((tipId: string) => string) | null;
-  readonly formatLabel: (id: string) => string;
+  readonly formatLabel: (id: string, node: number) => string;
 }
 
 /** Size and position an anchor over label `k` of the frame. */
@@ -116,7 +119,7 @@ export class LabelOverlay {
         el = document.createElement(mode);
         el.dataset.tipId = id;
         el.dataset.rank = String(r);
-        el.textContent = opts.formatLabel(id);
+        el.textContent = opts.formatLabel(id, globalOf(tree, tree.tipNode[r]));
         el.tabIndex = 0;
         el.style.cssText = `position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;color:transparent;text-decoration:none;cursor:pointer;outline-offset:1px;font-family:${theme.fontFamily};font-style:${theme.labelFontStyle};transform-origin:0 50%`;
         if (mode === 'a') {
@@ -187,7 +190,7 @@ export class LabelOverlay {
   updateList(
     list: DrawList,
     tree: TreeSnapshot,
-    formatLabel: (id: string) => string,
+    formatLabel: (id: string, node: number) => string,
     collapsed: Uint8Array | null = null,
     cladeText?: (row: number) => string,
   ): void {
@@ -200,7 +203,9 @@ export class LabelOverlay {
       total++;
       if (items.length < SR_LIST_CAP) {
         const li = document.createElement('li');
-        li.textContent = tip ? formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '') : `${cladeText!(list.node[e])}, collapsed`;
+        li.textContent = tip
+          ? formatLabel(tree.tipLabels[tree.tipRank[list.node[e]]] ?? '', globalOf(tree, list.node[e]))
+          : `${cladeText!(list.node[e])}, collapsed`;
         items.push(li);
       }
     }

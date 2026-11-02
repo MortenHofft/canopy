@@ -140,7 +140,7 @@ viewer.addControl(card);
 function showCard(e: TreeEvent): void {
   const m = meta.get(e.tipId!);
   const h = document.createElement('h3');
-  h.textContent = viewer.options.formatLabel(e.tipId!);
+  h.textContent = viewer.options.formatLabel(e.tipId!, e.node);
   const dl = document.createElement('dl');
   for (const [k, v] of [
     ['Occurrences', m ? m.occurrences.toLocaleString('en') : 'no data'],
