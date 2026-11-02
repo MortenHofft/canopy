@@ -33,7 +33,7 @@ function nodeTexts(ctx) {
 const texts = (ctx) => nodeTexts(ctx).map((t) => t.text);
 async function make(options = {}, extra = {}) {
   const m = await makeViewer(extra.tree ?? TREE, {
-    options: { axis: false, ...options },
+    options: { axis: false, namedNodeMarkers: false, ...options },
     theme: { dimOpacity: 0.3, ...extra.theme },
     size: [500, 200],
     ...extra.init,

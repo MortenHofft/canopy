@@ -245,6 +245,7 @@ export function Explorer({
   const [truncate, setTruncate] = useState(true);
   const [labelMode, setLabelMode] = useState<NodeLabelMode>('none');
   const [alignLabels, setAlignLabels] = useState(init.alignLabels);
+  const [namedNodeMarkers, setNamedNodeMarkers] = useState(true); // named internal nodes get their own marker
 
   const [clickAction, setClickAction] = useState<ClickAction>('inspect');
   // Shift or Ctrl held: the click action is Inspect for the moment, or Subtree when it is Inspect already (a quick way to explore). The select shows it.
@@ -966,6 +967,7 @@ export function Explorer({
             highlightStyle,
             alignLabels,
             nodeLabels,
+            namedNodeMarkers,
             themeObserver: 'document',
             // the hover ring grows in, as in Reactree (the default; said here as the look depends on it)
             hoverAnimation: true,
@@ -1183,6 +1185,7 @@ export function Explorer({
                   ['Minimap', showOverview, () => setShowOverview((x) => !x), true, true],
                   ['Tooltips', showTooltips, () => setShowTooltips((x) => !x), true, true],
                   ['Align labels', alignLabels, () => setAlignLabels((x) => !x), drawsLengths, true],
+                  ['Mark named nodes', namedNodeMarkers, () => setNamedNodeMarkers((x) => !x), true, true],
                   ['Truncate names', truncate, () => setTruncate((x) => !x), hasTruncatable, true],
                   ['Show support', labelMode === 'support', () => setLabelMode((m) => (m === 'support' ? 'none' : 'support')), true, hasSupport],
                   [

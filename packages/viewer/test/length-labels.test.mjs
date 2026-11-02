@@ -20,7 +20,7 @@ const padOf = (m, i) => (m.viewer.getTree().firstChild[i] < 0 ? PAD_TIP : PAD);
 
 async function make(options = {}, tree = TREE) {
   const m = await makeViewer(tree, {
-    options: { axis: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular', ...options },
+    options: { axis: false, namedNodeMarkers: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular', ...options },
     size: [700, 360],
   });
   m.env.flush();
@@ -135,7 +135,7 @@ test('1.01x steps of x zoom never move a label off the middle of its branch whil
 test('a label never meets the node marker or a tip label, and its whole text is left of its node', async () => {
   for (const marker of [4, 10]) {
     const m = await makeViewer(TREE, {
-      options: { axis: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular' },
+      options: { axis: false, namedNodeMarkers: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular' },
       theme: { nodeMarkerSize: marker },
       size: [700, 360],
     });
@@ -161,7 +161,7 @@ test('a larger marker takes more room: the padding is at least the marker radius
   // the room of node 1 is set by the viewport, as in node-labels.test.mjs; '1' is 6 px wide
   const drawnAt = async (marker, room) => {
     const m = await makeViewer('((a:30,b:30)1:1,(c:30,d:30)1:1)r;', {
-      options: { axis: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular' },
+      options: { axis: false, namedNodeMarkers: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'rectangular' },
       theme: { nodeMarkerSize: marker },
       size: [700, 360],
     });
@@ -332,7 +332,7 @@ test('radial: a tip near the centre gets no length where tips are closer than th
   const shallow = Array.from({ length: 20 }, (_, i) => `s${i}:3`).join(',');
   const deep = Array.from({ length: 20 }, (_, i) => `d${i}:3`).join(',');
   const m = await makeViewer(`(${shallow},(${deep}):7)r;`, {
-    options: { axis: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'radial' },
+    options: { axis: false, namedNodeMarkers: false, nodeLabels: 'length', formatNodeLabel: (v) => String(v), layout: 'radial' },
     size: [300, 300],
   });
   m.env.flush();

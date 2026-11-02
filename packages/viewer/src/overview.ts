@@ -222,6 +222,7 @@ export class Overview {
       format: (id) => h.formatLabel(id),
       cladeText: null,
       nodeLabels: 'none',
+      namedNode: null,
       formatNode: String,
       scale: h.dpr,
       thin: 0,
