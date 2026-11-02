@@ -382,7 +382,7 @@ await page.locator('.ex-search-suggestions li').first().click();
 await page.waitForTimeout(250);
 ok((await page.locator('.ex-search input').inputValue()) === sugg[0], 'a click on a suggestion picks it too');
 await page.keyboard.press('Escape');
-await page.locator('.ex-btn[title="Fit tree"]').click();
+await page.locator('.ex-btn[aria-label="Fit tree"]').click();
 await page.waitForTimeout(300);
 
 console.log('node menu, inspector, collapse, expand');
