@@ -645,6 +645,36 @@ textarea {
   width: 170px;
   caret-color: var(--ex-primary);
 }
+.ex-search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--ex-surface-0);
+  border: 1px solid var(--ex-surface-30);
+  border-radius: var(--ex-popover-radius);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.ex-search-suggestions li {
+  padding: 4px 8px;
+  border-radius: calc(var(--ex-popover-radius) * 0.6);
+  font-size: 12.5px;
+  color: var(--ex-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ex-search-suggestions li:hover,
+.ex-search-suggestions li.active {
+  background: var(--ex-tonal);
+  color: var(--ex-primary);
+}
 .ex-search-count {
   font-family: var(--ex-mono);
   font-size: 10.5px;
