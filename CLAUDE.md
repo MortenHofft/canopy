@@ -34,8 +34,10 @@ npm workspaces (Node >= 22.7):
 - `packages/io`: Newick, NEXUS and phyloXML parsers and `TreeModel`.
 - `examples/vanilla`: the framework-free example (controls, events, a custom popup and column, a dark theme), checked by
   `tests/browser/scripts/check-vanilla-example.mjs`.
-- `examples/gbif-map`: a tree whose tips are matched to GBIF taxon keys by a CSV sidecar (`data/gbif-map`), with the interpreted name on the tips and a popup linking to gbif.org; the start of a map view, checked by
+- `examples/gbif-map`: "GBIF names and links": a tree whose tips are matched to GBIF taxon keys by a CSV sidecar (`data/gbif-map`), with the interpreted name on the tips and a popup linking to gbif.org, checked by
   `tests/browser/scripts/check-gbif-map.mjs`.
+- `examples/gbif-map-view`: "GBIF map view": the same data with a maplibre map of the occurrences of the clades you click (GBIF's map layers, `checklistKey`), and a legend to colour, hide, reorder and remove them; after phylogeny-tool.gbif.org, checked by
+  `tests/browser/scripts/check-gbif-map-view.mjs` (needs WebGL: SwiftShader in the sandbox).
 - `examples/react`: the React example with tree operations, checked by `tests/browser/scripts/check-node-menu.mjs`.
 - `examples/explorer`: the tree explorer, the styled showcase of the library and the counterpart of the playground (its look started from Reactree; its README is a table of control to API), checked by
   `tests/browser/scripts/check-explorer.mjs`.
@@ -71,10 +73,11 @@ npm workspaces (Node >= 22.7):
   `node --experimental-transform-types scripts/capture-cut-golden.mjs` rewrites `test/cut-golden.json` after a deliberate change of the
   cut. Otherwise a diff of that file is a regression.
 - **Browser tests.**
-  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,gbif-map,react,explorer,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
+  - `npm run test:browser -w tests/browser` (`-- --only test,vanilla,gbif-map,gbif-map-view,react,explorer,playground,no-build,site` to pick pages) builds each page, serves it with `vite preview` on a free port and runs its check:
     - the test page runs `check-radial-ui.mjs`;
     - the vanilla example runs `check-vanilla-example.mjs`;
-    - the GBIF map example runs `check-gbif-map.mjs`;
+    - the GBIF names and links example runs `check-gbif-map.mjs`;
+    - the GBIF map view example runs `check-gbif-map-view.mjs`;
     - the React example runs `check-node-menu.mjs`;
     - the explorer runs `check-explorer.mjs`;
     - the playground runs `check-playground.mjs`;

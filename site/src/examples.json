@@ -42,5 +42,19 @@
       "GBIF taxon keys"
     ],
     "data": "src/catalogue.json"
+  },
+  {
+    "id": "gbif-map-view",
+    "dir": "examples/gbif-map-view",
+    "kind": "showcase",
+    "title": "GBIF map view",
+    "description": "The idea of the proof of concept phylogeny-tool.gbif.org on this viewer: a tree whose tips are matched to GBIF taxon keys by a CSV, and a map of the occurrences of the clades you click. Each click colours a node and adds a layer; the legend changes colours, hides layers, reorders them, zooms the tree and links to the same occurrences on gbif.org. Rectangular or circular, with the minimap.",
+    "tags": [
+      "@canopy/viewer",
+      "maplibre",
+      "GBIF occurrence map",
+      "sidecar"
+    ],
+    "data": "src/catalogue.json"
   }
 ]

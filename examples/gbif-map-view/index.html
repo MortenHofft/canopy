@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GBIF map view</title>
+  </head>
+  <body>
+    <header class="bar">
+      <strong>GBIF map view</strong>
+      <span class="muted">click a node in the tree to see its occurrences on the map</span>
+      <span class="spacer"></span>
+      <label>Basemap <select id="basemap"></select></label>
+    </header>
+    <main>
+      <div id="tree" class="tree"></div>
+      <div class="map-area">
+        <div id="map" class="map"></div>
+        <section id="legend"></section>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
