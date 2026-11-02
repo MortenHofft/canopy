@@ -1,7 +1,6 @@
-# Example: GBIF map view (the tree, first step)
+# Example: GBIF names and links (a tree with a CSV of GBIF matches)
 
-A Newick tree whose tips are not GBIF names, and a CSV that matches them: the tree shown with the library's public API. It is the start of a view like `gbif/labs-phylogeny`, where tips matched to GBIF taxon keys are shown on a map of their
-occurrences; this step has no map yet.
+A Newick tree whose tips are not GBIF names, and a CSV that matches them: the tree shown with the library's public API. The same data with a map of the occurrences of the selected clades is [`examples/gbif-map-view`](../gbif-map-view).
 
 The matching itself (label to taxon key) is assumed done earlier, when the tree was ingested, as GBIF does for occurrences. The CSV is
 its result: `taxonKey`, `scientificName` (the name GBIF interprets the label as) and `nameInTree` (the tip label or node name, the ID column). The tree and the CSV are in
