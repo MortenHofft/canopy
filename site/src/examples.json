@@ -28,5 +28,19 @@
       "src/trees.json",
       "../shared/catalogue.json"
     ]
+  },
+  {
+    "id": "gbif-map",
+    "dir": "examples/gbif-map",
+    "kind": "showcase",
+    "title": "GBIF map view",
+    "description": "A Newick tree whose tips are matched to GBIF taxa by a CSV, shown with the library as it is: tip names as the tree has them, as GBIF interprets them, or both, and a popup per tip linking to the taxon and an occurrence search on gbif.org. A tip with no match is reported, not hidden. The step towards a map of each taxon's occurrences.",
+    "tags": [
+      "@canopy/viewer",
+      "sidecar",
+      "no framework",
+      "GBIF taxon keys"
+    ],
+    "data": "src/catalogue.json"
   }
 ]

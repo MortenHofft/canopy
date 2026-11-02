@@ -11,6 +11,7 @@
     "packages/react",
     "examples/react",
     "examples/vanilla",
+    "examples/gbif-map",
     "examples/explorer",
     "examples/playground",
     "site",
