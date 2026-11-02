@@ -202,3 +202,38 @@ test('round trip: random tables with quotes, delimiters, newlines and CRs read b
     });
   }
 });
+
+test('idColumn: the ID can be any column, first, in the middle or last, quoted or not', () => {
+  const tree = parseNewick(NEWICK);
+  for (const [csv, columns] of [
+    ['name,country,year\nA,Denmark,2019\nB,Kenya,2020\n', ['country', 'year']],
+    ['country,name,year\nDenmark,A,2019\nKenya,B,2020\n', ['country', 'year']],
+    ['country,year,Name\n"Denmark",2019,A\nKenya,2020,"B"\n', ['country', 'year']], // case-insensitive, quoted cells
+  ]) {
+    const sc = parseSidecar(csv, { idColumn: 'name' });
+    assert.deepEqual(sc.columns, columns);
+    assert.equal(sc.cell(0, 0), 'A');
+    assert.equal(sc.cell(1, 1), 'Kenya');
+    assert.equal(sc.cell(1, 2), '2020');
+    assert.deepEqual(sc.row(1), ['B', 'Kenya', '2020']);
+    const b = sc.bind(tree);
+    assert.equal(b.report.matchedRows, 2);
+    assert.equal(b.get(tree.tipIndex('A'), 'country'), 'Denmark');
+    assert.equal(b.get(tree.tipIndex('B'), 'year'), 2020);
+    assert.equal(b.get(tree.tipIndex('B'), 'name'), undefined, 'the ID column is not one of the columns');
+    assert.deepEqual({ ...b.record(tree.tipIndex('B')) }, { country: 'Kenya', year: 2020 });
+    assert.deepEqual(b.categories('country').values.sort(), ['Denmark', 'Kenya']);
+  }
+});
+
+test('idColumn: a short row, a name the file does not have, and the default is unchanged', () => {
+  const tree = parseNewick(NEWICK);
+  const b = parseSidecar('country,name\nDenmark,A\nKenya\n', { idColumn: 'name' }).bind(tree);
+  assert.equal(b.report.matchedRows, 1); // the second row has no ID cell
+  assert.throws(
+    () => parseSidecar('id,x\nA,1\n', { idColumn: 'label' }),
+    (e) => e instanceof SidecarError && /"label".*"id", "x"/.test(e.message),
+  );
+  assert.throws(() => parseSidecar('x,id\n1,A\n'), SidecarError); // without the option the first column must still be ID
+  assert.equal(parseSidecar('ID,x\nA,1\n', {}).cell(0, 1), '1');
+});
