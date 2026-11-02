@@ -716,6 +716,10 @@ ok(
 await setInput('cladeBackgroundOpacity', '0.25');
 await select('cladeStyle', 'branches');
 ok(near(await pixelAt(inBox), plain), 'back to coloured branches: no box');
+ok((await opt('colourLabels')) === false, 'Colour the labels is off by default: the text of a coloured clade stays plain');
+await toggle('colourLabels', true);
+ok((await opt('colourLabels')) === true && query().get('s.colourLabels') === '1', 'Colour the labels: on, kept in the URL');
+await toggle('colourLabels', false);
 await select('click', 'menu');
 await page.mouse.click(clade.x, clade.y);
 ok((await page.locator('[role=menu]').count()) === 1, '"Node menu" opens the menu');

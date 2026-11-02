@@ -264,6 +264,15 @@ export const SETTINGS: Setting[] = [
     ],
   },
   {
+    id: 'colourLabels',
+    label: 'Colour the labels',
+    hint: 'the tip labels of a coloured clade take its colour; off: only branches, markers and summaries are coloured',
+    group: 'Layout and labels',
+    to: 'option',
+    kind: 'toggle',
+    default: O.colourLabels,
+  },
+  {
     id: 'underscores',
     label: 'Underscores as spaces',
     hint: 'the default formatLabel',
