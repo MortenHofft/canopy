@@ -39,7 +39,7 @@ Icons of the tree explorer's toolbar and click actions (examples/explorer)
 Source: SVG paths copied from Feather 4.29.2, https://github.com/feathericons/feather, MIT, Copyright (c) 2013-2023 Cole Bemis
 Used in: examples/explorer/src/icons-feather.tsx
 
-  Subtree, Up one level, Back to root  arrow-down-right, arrow-up-left, corner-up-left
+  Subtree, Up one level, Back to root  arrow-down-right, corner-up-left (Back to root with a bar added)
   Fit, Inspect                         maximize, mouse-pointer
   Collapse, Expand all                 minimize-2, maximize-2, each with its lower-left arrow mirrored to the right
 

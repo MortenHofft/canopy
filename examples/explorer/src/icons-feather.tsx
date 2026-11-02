@@ -1,11 +1,11 @@
 // Icons copied from Feather (https://github.com/feathericons/feather 4.29.2, MIT, Copyright (c) 2013-2023 Cole Bemis; the notice is in
 // THIRD_PARTY_NOTICES at the root), as react-icons' `fi` set has them. Only the JSX wrapper and the names are ours. Three are changed:
 //
-//   IconToStart   Feather corner-up-left moved 4 to the right, with a vertical line left of the arrow: a "back to start" icon
+//   IconToStart   Feather corner-up-left moved 4 to the right, with a vertical line left of the arrow: a "back to start" icon (Back to root; Up one level is IconUpLevel, the same without the bar)
 //   IconCollapse  Feather minimize-2, its lower-left arrow mirrored to the right, below the upper-right one (both arrows on the right)
 //   IconExpand    Feather maximize-2, its lower-left arrow mirrored the same way, so it points down-right, not down-left
 //
-//   IconSubtree   FiArrowDownRight   IconUpLevel  FiArrowUpLeft   IconReset  FiCornerUpLeft   IconFit  FiMaximize   IconInspect  FiMousePointer
+//   IconSubtree   FiArrowDownRight   IconUpLevel  FiCornerUpLeft   IconFit  FiMaximize   IconInspect  FiMousePointer
 
 import React from 'react';
 
@@ -33,13 +33,6 @@ export const IconSubtree = () =>
     </>,
   );
 export const IconUpLevel = () =>
-  icon(
-    <>
-      <line x1="17" y1="17" x2="7" y2="7" />
-      <polyline points="7 17 7 7 17 7" />
-    </>,
-  );
-export const IconReset = () =>
   icon(
     <>
       <polyline points="9 14 4 9 9 4" />
