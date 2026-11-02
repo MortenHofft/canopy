@@ -35,6 +35,8 @@ export interface Scene {
   /** The label of a collapsed clade (node = row of the snapshot): `formatCollapsedLabel` of its name and size. null: collapsed clades get no label. */
   cladeText: ((node: number) => string) | null;
   nodeLabels: NodeLabelsOption; // the option
+  /** Option `namedNodeMarkers`: whether a snapshot row has a name (`namedNodeTest`); null = the option is off. */
+  namedNode: ((row: number) => boolean) | null;
   formatNode: (value: number, kind: NodeLabelKind) => string; // formatNodeLabel
   scale: number; // canvas backing pixels per CSS pixel (after the DPR cap)
   thin: number; // radial and dense: 0 = branches at the theme width, 1 = one device pixel (Skia hairline path, 10x cheaper on CPU raster), between: faded
@@ -695,8 +697,12 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
   const tipPx = proj.tipPitch;
   const dotDepth = proj.minTipDepth(TIP_DOT_PX); // a tip gets a dot when its depth reaches this (radial: where the arc between tips is wide enough, #110)
   const rTip = Math.min(theme.tipRadius, Math.max(Math.min(1.5, theme.tipRadius), tipPx * 0.25));
-  const m = theme.nodeMarkerSize;
-  // internal markers: small filled squares (cheap), only for clades big enough to click
+  const named = S.namedNode ?? null;
+  const m = named ? theme.unnamedNodeMarkerSize : theme.nodeMarkerSize;
+  const rNamed = theme.namedNodeMarkerSize / 2;
+  const namedFill = theme.namedNodeColour || theme.foreground; // a clade colour is not used for the named: they are to be found
+  // internal markers: small filled squares (cheap), only for clades big enough to click; with namedNodeMarkers the named ones are bigger
+  // circles in their own colour, drawn last so they sit over their neighbours
   const passes = S.hlPrefix ? 2 : 1; // second pass: the dimmed entries, at dimOpacity
   for (let pass = 0; pass < passes; pass++)
     for (let cls = 0; cls < colours.length; cls++) {
@@ -704,6 +710,7 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
       ctx.fillStyle = cls === 0 ? theme.branch : colours[cls];
       ctx.beginPath();
       let any = false;
+      let anyNamed = false;
       for (let e = 0; e < list.count; e++) {
         if (list.cls[e] !== cls) continue;
         if (passes > 1 && dimmed(S, e) !== pass) continue;
@@ -718,9 +725,28 @@ export function drawMarkers(ctx: CanvasRenderingContext2D, S: Scene): void {
         } else if (kind === K_NODE) {
           if (proj.cladeSize(i) < MARKER_PX) continue;
           proj.nodeXY(i, p);
+          if (named !== null && named(i)) {
+            anyNamed = true; // drawn below
+            continue;
+          }
           ctx.rect(p.x - m / 2, p.y - m / 2, m, m);
           any = true;
         }
+      }
+      if (any) ctx.fill();
+      if (!anyNamed) continue;
+      ctx.fillStyle = cls === 0 ? namedFill : colours[cls];
+      ctx.beginPath();
+      any = false;
+      for (let e = 0; e < list.count; e++) {
+        if (list.cls[e] !== cls || list.kind[e] !== K_NODE) continue;
+        if (passes > 1 && dimmed(S, e) !== pass) continue;
+        const i = list.node[e];
+        if (proj.cladeSize(i) < MARKER_PX || !named!(i)) continue;
+        proj.nodeXY(i, p);
+        ctx.moveTo(p.x + rNamed, p.y);
+        ctx.arc(p.x, p.y, rNamed, 0, 6.2832);
+        any = true;
       }
       if (any) ctx.fill();
     }
