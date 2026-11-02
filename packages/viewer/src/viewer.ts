@@ -2060,6 +2060,7 @@ export class TreeViewer {
       theme: this.theme,
       colours: this.colours,
       classOf: this.classOf,
+      colourLabels: opts.colourLabels,
       cladeBoxes: this.cladeBoxes,
       labelReach: vs.labelReach(),
       highlight: bands ? this.hl : null,

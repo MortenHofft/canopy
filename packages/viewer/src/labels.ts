@@ -169,6 +169,7 @@ class LabelFonts {
 export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: LabelList): void {
   const { proj, list, theme, classOf, colours, highlight } = S;
   const { tree, L, T } = proj;
+  const labelClasses = S.colourLabels ? classOf : null; // the labels keep the foreground colour unless the option says otherwise
   labels.clear();
   const rect = proj.kind === 'rectangular';
   const ax = alignedX(S); // NaN: labels follow their tips
@@ -215,7 +216,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, S: Scene, labels: Labe
       ctx.font = f;
       lastFont = f;
     } // measure.width may have set the font
-    const cl = classOf ? classOf[i] : 0;
+    const cl = labelClasses ? labelClasses[i] : 0;
     const fill = hl ? theme.highlight : cl ? colours[cl] : theme.foreground;
     if (fill !== lastFill) {
       ctx.fillStyle = fill;

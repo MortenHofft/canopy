@@ -211,6 +211,7 @@ export class Overview {
       theme: h.theme,
       colours: h.colours,
       classOf: h.classOf,
+      colourLabels: false, // the overview draws no labels
       cladeBoxes: null,
       labelReach: 0,
       highlight: null,
