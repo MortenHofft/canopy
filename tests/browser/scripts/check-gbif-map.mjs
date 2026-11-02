@@ -81,6 +81,33 @@ hrefs = await page.locator('.tip-card a').evaluateAll((as) => as.map((a) => a.hr
 ok(hrefs.length === 1 && hrefs[0].includes('verbatimScientificName=Wattle_sp_nov'), 'a tip with no match has no taxon link, only the search');
 ok((await page.locator('.tip-card dd').allInnerTexts()).includes('no match'), 'and says so');
 
+// ---- the root is a named node with a row of its own (Acacia, LV7): a card on its marker, and it is found by its GBIF name
+await page.locator('input[name=names][value=interpreted]').check();
+await sleep(300);
+await page.mouse.click(5, 5); // off the card
+const root = await ev(() => {
+  const v = window.__example.viewer;
+  const p = v.nodePosition(0);
+  const r = v.element.getBoundingClientRect();
+  return p && { x: r.left + p.x, y: r.top + p.y };
+});
+ok(!!root, 'the root has a position');
+await page.mouse.click(root.x, root.y);
+await sleep(250);
+hrefs = await page.locator('.tip-card a').evaluateAll((as) => as.map((a) => a.href));
+ok(
+  (await page.locator('.tip-card h3').innerText()) === 'Acacia Mill.',
+  `a click on the root marker opens its card, headed by the GBIF name (${await page.locator('.tip-card h3').innerText()})`,
+);
+ok(hrefs[0] === 'https://www.gbif.org/taxon/LV7', `the root card links to the taxon (${hrefs[0]})`);
+ok((await page.locator('.tip-card dd').allInnerTexts()).includes('11'), 'and says how many tips it holds');
+await page.locator('.phylo-search input').fill('acacia mill');
+await sleep(300);
+ok(
+  (await page.locator('.phylo-search [role=option]').allInnerTexts()).some((t) => t.includes('Acacia Mill.')),
+  'search finds the root by its GBIF name',
+);
+
 await browser.close();
 console.log(failures ? `FAILED (${failures})` : 'OK');
 process.exit(failures ? 1 : 0);

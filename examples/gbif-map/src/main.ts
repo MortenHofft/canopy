@@ -1,7 +1,8 @@
 // A tree whose tips are matched to GBIF taxa by a sidecar, with the public API of @canopy/viewer and @canopy/io and nothing else:
-//  - a Newick tree and a CSV (ID, taxonKey, scientificName), read with parseNewick and parseSidecar and bound to the tree
-//  - the tip names: the name GBIF interprets the label as, the label as it is in the tree, or both (formatLabel)
-//  - a popup on a tip (an Overlay) with links to the taxon on gbif.org and to an occurrence search on the label
+//  - a Newick tree and a CSV (taxonKey, scientificName, nameInTree), read with parseNewick and parseSidecar (idColumn names the column
+//    that holds the tip labels and node names) and bound to the tree; the root is a named node, Acacia, with a row of its own
+//  - the names: the name GBIF interprets the label as, the label as it is in the tree, or both (formatLabel(label, node))
+//  - a popup on a tip, or on a node that has a row (an Overlay), with links to the taxon on gbif.org and to an occurrence search
 //  - the match report of the sidecar: tips without a row, rows without a tip
 // The matching itself (label to taxon key) is assumed done by an earlier step, as GBIF does for occurrences: the CSV is its result.
 // `npm run dev` in this folder, then open the printed URL. ?cpu=1 uses the CPU canvas (headless browsers without a GPU).
@@ -20,30 +21,20 @@ async function fetchText(path: string): Promise<string> {
 
 const [newick, csv] = await Promise.all([fetchText('gbif-map/acacia.nwk'), fetchText('gbif-map/acacia.taxa.csv')]);
 const tree = parseNewick(newick);
-const binding = parseSidecar(csv).bind(tree);
+const binding = parseSidecar(csv, { idColumn: 'nameInTree' }).bind(tree);
 
 // ---------------------------------------------------------------- names
 
 /** The label as the tree has it, readable: Newick writes a space as an underscore. */
 const original = (label: string): string => label.replace(/_/g, ' ');
 
-// formatLabel gets a tip's label and nothing else, so the GBIF names are looked up by label, once
-const gbifName = new Map<string, string>();
-const taxonKey = new Map<string, string>();
-for (let r = 0; r < tree.tipCount; r++) {
-  const node = tree.tipNode[r];
-  const name = binding.get(node, 'scientificName');
-  if (name !== undefined) gbifName.set(tree.tipLabels[r], String(name));
-  const key = binding.get(node, 'taxonKey');
-  if (key !== undefined) taxonKey.set(tree.tipLabels[r], String(key));
-}
-
 type NameMode = 'interpreted' | 'original' | 'both';
-function formatterFor(mode: NameMode): (label: string) => string {
-  return (label) => {
-    const gbif = gbifName.get(label);
-    if (mode === 'original' || gbif === undefined) return original(label); // a tip with no match keeps the name it came with
-    return mode === 'interpreted' ? gbif : `${gbif} (${original(label)})`;
+/** formatLabel gets the node too, so the name is read from the sidecar by node, for a tip and for a named inner node alike. */
+function formatterFor(mode: NameMode): (label: string, node: number) => string {
+  return (label, node) => {
+    const gbif = binding.get(node, 'scientificName');
+    if (mode === 'original' || gbif === undefined) return original(label); // a node with no match keeps the name it came with
+    return mode === 'interpreted' ? String(gbif) : `${gbif} (${original(label)})`;
   };
 }
 
@@ -75,16 +66,17 @@ function link(href: string, text: string): HTMLAnchorElement {
 }
 
 function showCard(e: TreeEvent): void {
-  const label = e.tipId!;
-  const gbif = gbifName.get(label);
-  const key = taxonKey.get(label);
+  const label = e.isTip ? e.tipId! : tree.nodeName(e.node); // a tip, or a named inner node with a row
+  const gbif = binding.get(e.node, 'scientificName');
+  const key = binding.get(e.node, 'taxonKey');
   const h = document.createElement('h3');
-  h.textContent = gbif ?? original(label);
+  h.textContent = String(gbif ?? original(label));
   const dl = document.createElement('dl');
   const rows: [string, string][] = [
     ['In the tree', label],
-    ['GBIF name', gbif ?? 'no match'],
-    ['Taxon key', key ?? 'no match'],
+    ['GBIF name', String(gbif ?? 'no match')],
+    ['Taxon key', String(key ?? 'no match')],
+    ...(e.isTip ? [] : ([['Tips', String(e.tipCount)]] as [string, string][])),
   ];
   for (const [k, v] of rows) {
     const dt = document.createElement('dt');
@@ -95,7 +87,7 @@ function showCard(e: TreeEvent): void {
   }
   const links = document.createElement('p');
   links.className = 'links';
-  if (key !== undefined) links.append(link(`https://www.gbif.org/taxon/${encodeURIComponent(key)}`, 'Taxon on gbif.org'));
+  if (key !== undefined) links.append(link(`https://www.gbif.org/taxon/${encodeURIComponent(String(key))}`, 'Taxon on gbif.org'));
   links.append(link(`https://www.gbif.org/occurrence/search?verbatimScientificName=${encodeURIComponent(label)}`, 'Occurrences with this name'));
   const close = document.createElement('button');
   close.type = 'button';
@@ -106,8 +98,9 @@ function showCard(e: TreeEvent): void {
   card.setPosition({ node: e.node });
 }
 viewer.on('click', (e) => {
-  if (!e.isTip) return;
-  e.preventDefault(); // a tip gets this card, not the node menu
+  // a tip, or the marker of a named inner node that the CSV has a row for, gets this card; other clades keep what the viewer does
+  if (!e.isTip && !(e.kind === 'node' && binding.rowOf[e.node] >= 0)) return;
+  e.preventDefault();
   showCard(e);
 });
 
