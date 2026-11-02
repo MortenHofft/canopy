@@ -49,7 +49,7 @@ export const IconReset = () =>
 export const IconToStart = () =>
   icon(
     <>
-      <line x1="4" y1="4" x2="4" y2="20" />
+      <line x1="4" y1="4" x2="4" y2="14" />
       <polyline points="13 14 8 9 13 4" />
       <path d="M21 20v-7a4 4 0 0 0-4-4H8" />
     </>,
