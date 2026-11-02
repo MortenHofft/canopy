@@ -1,6 +1,7 @@
 // Icons copied from Feather (https://github.com/feathericons/feather 4.29.2, MIT, Copyright (c) 2013-2023 Cole Bemis; the notice is in
-// THIRD_PARTY_NOTICES at the root), as react-icons' `fi` set has them. Only the JSX wrapper and the names are ours. Two are changed:
+// THIRD_PARTY_NOTICES at the root), as react-icons' `fi` set has them. Only the JSX wrapper and the names are ours. Three are changed:
 //
+//   IconToStart   Feather corner-up-left moved 4 to the right, with a vertical line left of the arrow: a "back to start" icon
 //   IconCollapse  Feather minimize-2, its lower-left arrow mirrored to the right, below the upper-right one (both arrows on the right)
 //   IconExpand    Feather maximize-2, its lower-left arrow mirrored the same way, so it points down-right, not down-left
 //
@@ -43,6 +44,14 @@ export const IconReset = () =>
     <>
       <polyline points="9 14 4 9 9 4" />
       <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+    </>,
+  );
+export const IconToStart = () =>
+  icon(
+    <>
+      <line x1="4" y1="4" x2="4" y2="20" />
+      <polyline points="13 14 8 9 13 4" />
+      <path d="M21 20v-7a4 4 0 0 0-4-4H8" />
     </>,
   );
 export const IconCollapse = () =>

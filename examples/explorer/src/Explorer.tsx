@@ -816,7 +816,7 @@ export function Explorer({
       <>
         <div className="ex-group" role="group" aria-label="Clade shown">
           <button type="button" aria-label="Back to root" data-tip="Back to root: show the whole tree again" onClick={() => navigate(ops.NO_FOCUS)}>
-            <F.IconReset />
+            <F.IconToStart />
           </button>
           <button
             type="button"
