@@ -417,6 +417,10 @@ export interface ViewerOptions {
   highlightStyle: HighlightStyle;
   /** How the clade colours (`setClades`) show: coloured branches, a box behind each clade, or both (see `CladeStyle`). */
   cladeStyle: CladeStyle;
+  /** Whether the tip labels, and the labels of collapsed clades, take the colour of their clade (`setClades`, with `cladeStyle` `'branches'` or
+   *  `'both'`). `false` (the default): the text stays in the foreground colour and only the branches, markers and summaries are coloured. The
+   *  highlight colour wins either way. */
+  colourLabels: boolean;
   /** Fixed height per tip row at the fit view (rectangular): px, `'<n>em'` (n times the theme's `labelSize`), or `'auto'` (1.85 em). em values are rounded to whole px.
    *  null = fit all tips into the height. */
   rowHeight: FontRelative | null;
@@ -512,6 +516,7 @@ export const DEFAULT_OPTIONS: ViewerOptions = {
   formatNodeLabel: defaultFormatNodeLabel,
   highlightStyle: 'band',
   cladeStyle: 'branches',
+  colourLabels: false,
   rowHeight: null,
   maxTipSpacing: 'auto',
   maxViewWidth: RECT_MAX_VIEW_W,

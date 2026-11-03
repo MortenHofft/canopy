@@ -22,6 +22,7 @@ export interface Scene {
   theme: TreeTheme;
   colours: string[]; // colour by class; class 0 = default branch colour
   classOf: Uint8Array | null; // colour class of the branches by row; null = none coloured (no clades, or `cladeStyle: 'background'`)
+  colourLabels: boolean; // the option: the labels take the colour of their clade (classOf); off = the foreground colour
   /** The boxes behind coloured clades (`cladeStyle` 'background' or 'both'), outer clades first; null = none. */
   cladeBoxes: CladeBoxes | null;
   labelReach: number; // the room (px) tip labels take past their tip or aligned column (ViewState.labelReach): where a clade's box ends
