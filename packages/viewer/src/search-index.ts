@@ -28,7 +28,10 @@ const SEPARATORS = /[\s_]+/g;
 const normalise = (s: string): string => s.toLowerCase().replace(SEPARATORS, ' ');
 
 /** The search index of a snapshot: `formatLabel` and `cladeLabel` are the viewer's options of those names. */
-export function createSearchIndex(tree: TreeSnapshot, opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null }): SearchIndex {
+export function createSearchIndex(
+  tree: TreeSnapshot,
+  opts: { formatLabel: (s: string, node: number) => string; cladeLabel?: CladeLabelFn | null },
+): SearchIndex {
   const rows: number[] = [];
   const text: string[] = [];
   for (let row = 0; row < tree.nodeCount; row++) {

@@ -81,6 +81,18 @@ test('construction: a labelled group for the labels, a hidden list, a polite sta
   o.destroy();
 });
 
+test('formatLabel gets the node id of the tip: for the anchors and for the screen-reader list', () => {
+  const seen = [];
+  const o = new LabelOverlay(() => {});
+  const formatLabel = (s, node) => (seen.push([s, node]), `${s}#${node}`);
+  o.update(labels([[2, 100, 60, 14]]), tree, opts({ formatLabel }), theme, 'rectangular');
+  assert.equal(o.layer.children[0].textContent, 'C#' + tree.tipNode[2]);
+  assert.deepEqual(seen, [['C', tree.tipNode[2]]]);
+  o.updateList(tipList([tree.tipNode[2]]), tree, formatLabel);
+  assert.ok([...o.srList.children].some((li) => li.textContent === 'C#' + tree.tipNode[2]));
+  o.destroy();
+});
+
 test('update creates one transparent focusable treeitem per label, named by formatLabel, positioned by transform', () => {
   const o = new LabelOverlay(() => {});
   o.update(

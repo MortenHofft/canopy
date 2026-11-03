@@ -92,7 +92,7 @@ export interface OverviewHost {
   readonly measure: TextMeasurer;
   /** Scratch dedupe set of the renderer (the overview cut runs between the main cut and the next, never concurrently). */
   readonly seen: Seen;
-  formatLabel(id: string): string;
+  formatLabel(id: string, node: number): string;
   /** The user is moving the view: count as interaction. */
   noteInput(): void;
   /** Stop a running animation (a press takes over). */
@@ -220,7 +220,7 @@ export class Overview {
       alignLabels: false,
       labelRoom: 0,
       density: 'sparse',
-      format: (id) => h.formatLabel(id),
+      format: (id, node) => h.formatLabel(id, node),
       cladeText: null,
       nodeLabels: 'none',
       namedNode: null,

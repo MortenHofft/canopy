@@ -92,7 +92,8 @@ tree.tipIndices('Homo_sapiens'); // [3, 4, 7]
 ## Sidecar table (TSV or CSV)
 
 A table next to the tree adds columns to its nodes: country, host, date, even a sequence. The first column is named `ID` (any case) and holds
-a tip label, or the name of an internal node. The delimiter is a tab if the header line has one, else a comma; fields may be "quoted"
+a tip label, or the name of an internal node; `parseSidecar(text, { idColumn: 'nameInTree' })` takes the column of that name instead,
+wherever it is (it is then left out of the other columns). The delimiter is a tab if the header line has one, else a comma; fields may be "quoted"
 (commas, newlines and `""` inside).
 
 The table is kept apart from the tree and is read lazily, so a large table, or a long sequence in every row, does not grow the tree or
@@ -102,7 +103,7 @@ cost anything until it is used:
 import { parseNewick, parseSidecar } from '@canopy/io';
 
 const tree = parseNewick(newickText); // or parseNexus(text).tree
-const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID or a quoted field is not closed; only row positions are indexed
+const sidecar = parseSidecar(tsvText); // throws SidecarError if the first column is not ID (or no column is named idColumn) or a quoted field is not closed; only row positions are indexed
 const b = sidecar.bind(tree); // match rows to nodes: an Int32Array by node (b.rowOf) and a report
 
 b.report.unmatchedIds; // rows that named no tip and no internal node

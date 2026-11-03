@@ -9,7 +9,7 @@ declare const __BUILD__: { commit: string; branch: string; env: string; time: st
 interface Example {
   id: string;
   dir: string;
-  kind: 'playground' | 'showcase' | 'spike';
+  kind: 'playground' | 'showcase';
   title: string;
   description: string;
   tags: string[];

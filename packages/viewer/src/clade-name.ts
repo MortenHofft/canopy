@@ -32,13 +32,13 @@ export function internalName(label: string): string {
 export function cladeName(
   tree: TreeSnapshot,
   row: number,
-  opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null },
+  opts: { formatLabel: (s: string, node: number) => string; cladeLabel?: CladeLabelFn | null },
 ): string | null {
   if (row < 0) return null;
   const label = tree.labels[row] ?? '';
   const node = tree.globalId === null ? row : tree.globalId[row];
   const raw = tree.childCount[row] === 0 ? label : opts.cladeLabel ? opts.cladeLabel(node, tree) : internalName(label);
-  const s = raw ? opts.formatLabel(raw).trim() : '';
+  const s = raw ? opts.formatLabel(raw, node).trim() : '';
   return s === '' ? null : s;
 }
 
@@ -70,7 +70,7 @@ export interface NamedDescendant {
 export function namedDescendants(
   tree: TreeSnapshot,
   row: number,
-  opts: { formatLabel: (s: string) => string; cladeLabel?: CladeLabelFn | null },
+  opts: { formatLabel: (s: string, node: number) => string; cladeLabel?: CladeLabelFn | null },
   limits: { max?: number; maxVisits?: number } = {},
 ): { names: NamedDescendant[]; more: boolean } {
   const max = Math.max(0, Math.floor(limits.max ?? 5));

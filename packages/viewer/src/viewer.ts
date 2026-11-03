@@ -528,7 +528,7 @@ export class TreeViewer {
         seen: () => this.seen,
       },
       {
-        formatLabel: (id) => this.opts.formatLabel(id),
+        formatLabel: (id, node) => this.opts.formatLabel(id, node),
         noteInput: () => this.noteInput(),
         cancelAnim: () => this.vs.cancelAnim(),
         setViewport: (v) => this.vs.setViewport(v),

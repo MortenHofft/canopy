@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GBIF map view</title>
+  </head>
+  <body>
+    <header class="bar">
+      <strong>GBIF map view</strong>
+      <span class="muted">a Newick tree and a CSV of GBIF matches</span>
+      <span class="spacer"></span>
+      <fieldset class="names" aria-label="Tip names">
+        <label><input type="radio" name="names" value="interpreted" checked /> GBIF name</label>
+        <label><input type="radio" name="names" value="original" /> Name in the tree</label>
+        <label><input type="radio" name="names" value="both" /> Both</label>
+      </fieldset>
+    </header>
+    <main>
+      <div id="tree" class="tree"></div>
+      <aside>
+        <h2>Matching</h2>
+        <p id="summary"></p>
+        <h2>Tips without a match</h2>
+        <ul id="unmatched"></ul>
+        <h2>Rows without a tip</h2>
+        <ul id="unused"></ul>
+        <p class="muted note">
+          The occurrence search link uses the name as written in the tree. For these vernacular names it finds nothing: it is only here to
+          show a link built from the original name.
+        </p>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

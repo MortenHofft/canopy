@@ -202,7 +202,7 @@ export class NodeMenu extends BaseControl {
 }
 
 function defaultTitle(e: TreeEvent, v: TreeViewer): string {
-  if (e.isTip) return v.options.formatLabel(e.tipId ?? '');
+  if (e.isTip) return v.options.formatLabel(e.tipId ?? '', e.node);
   const t = v.getTree();
   const row = t.globalId === null ? e.node : t.toLocal(e.node);
   return cladeName(t, row, v.options) ?? `Clade, ${e.tipCount.toLocaleString('en')} tips`;

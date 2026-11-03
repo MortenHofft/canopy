@@ -75,7 +75,7 @@ export function defaultTooltip(e: TreeEvent, v: TreeViewer): Node {
   title.className = 'phylo-tooltip__title';
   if (e.isTip) {
     title.classList.add('phylo-tooltip__title--tip');
-    title.textContent = v.options.formatLabel(e.tipId ?? '');
+    title.textContent = v.options.formatLabel(e.tipId ?? '', e.node);
   } else title.textContent = e.run ? runText(e) : e.kind === 'summary' ? `Collapsed clade, ${n(e.tipCount)} tips` : `Clade, ${n(e.tipCount)} tips`;
   box.append(title);
   const sub = !e.isTip && (e.run ? `under ${name || 'an unnamed node'}` : name);

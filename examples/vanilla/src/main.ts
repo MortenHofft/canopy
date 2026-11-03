@@ -47,9 +47,10 @@ interface TipMeta {
 
 const [newick, tsv] = await Promise.all([fetchText('synthetic/newick/yule_1000.nwk'), fetchText('synthetic/meta/yule_1000.meta.tsv')]);
 const tree = parseNewick(newick);
-// the same table is a sidecar, kept apart from the tree: its first column must be named ID (this file calls it tip_label). Only the
+// the same table is a sidecar, kept apart from the tree: idColumn names the column that holds the tip labels (else it is the first one,
+// named ID). Only the
 // row positions are indexed; a cell is read when it is asked for (the popup below) or when a column colours the tree
-const sidecar = parseSidecar(tsv.replace(/^tip_label/, 'ID')).bind(tree);
+const sidecar = parseSidecar(tsv, { idColumn: 'tip_label' }).bind(tree);
 const meta = new Map<string, TipMeta>();
 for (const line of tsv.split('\n').slice(1)) {
   const [tip, occ, country, trait] = line.split('\t');
@@ -140,7 +141,7 @@ viewer.addControl(card);
 function showCard(e: TreeEvent): void {
   const m = meta.get(e.tipId!);
   const h = document.createElement('h3');
-  h.textContent = viewer.options.formatLabel(e.tipId!);
+  h.textContent = viewer.options.formatLabel(e.tipId!, e.node);
   const dl = document.createElement('dl');
   for (const [k, v] of [
     ['Occurrences', m ? m.occurrences.toLocaleString('en') : 'no data'],

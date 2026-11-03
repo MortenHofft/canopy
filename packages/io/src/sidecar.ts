@@ -1,5 +1,5 @@
 // Sidecar table: a TSV or CSV that sits next to a tree file and adds columns to its nodes (country, host, date, a sequence...). The first
-// column is named `ID` and holds a tip label (or an internal node name).
+// column is named `ID` and holds a tip label (or an internal node name); `idColumn` names another column for that.
 //
 // It is kept apart from the tree, and it is lazy. `parseSidecar` keeps the text and only records where each row starts and ends, so a
 // cell (a 10 kB sequence, say) costs nothing until it is asked for, and then it is a slice of the text. `bind(tree)` matches the rows to
@@ -107,7 +107,7 @@ function splitRow(t: string, s: number, e: number, f: SepFinder, limit = Infinit
 }
 
 export class Sidecar {
-  /** The columns after `ID`, in file order. */
+  /** The columns other than the ID one, in file order. */
   readonly columns: string[];
   /** Number of data rows. */
   readonly rowCount: number;
@@ -117,9 +117,10 @@ export class Sidecar {
   private readonly find: SepFinder;
   private readonly bounds: Int32Array; // start, end of each line (header first), the line break excluded
   private readonly quoted: boolean; // the text has a '"' somewhere: cells are parsed with quotes in mind
+  private readonly idIndex: number; // the position of the ID column in the file
 
   /** @internal use `parseSidecar`. */
-  constructor(text: string) {
+  constructor(text: string, idColumn?: string) {
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
     this.text = text;
     this.quoted = text.includes('"');
@@ -166,10 +167,24 @@ export class Sidecar {
     this.delimiter = text.slice(b[0], b[1]).includes('\t') ? 'tab' : 'comma';
     this.find = new SepFinder(text, this.delimiter === 'tab' ? '\t' : ',');
     const head = splitRow(text, b[0], b[1], this.find).map((h) => h.trim());
-    if (head[0].toLowerCase() !== 'id')
-      throw new SidecarError(`the first column of the sidecar table must be named ID, not ${JSON.stringify(head[0])}`);
-    this.columns = head.slice(1);
+    if (idColumn === undefined) {
+      if (head[0].toLowerCase() !== 'id')
+        throw new SidecarError(`the first column of the sidecar table must be named ID, not ${JSON.stringify(head[0])}`);
+      this.idIndex = 0;
+    } else {
+      this.idIndex = head.findIndex((h) => h.toLowerCase() === idColumn.trim().toLowerCase());
+      if (this.idIndex < 0)
+        throw new SidecarError(
+          `the sidecar table has no column ${JSON.stringify(idColumn)} for the ID, only ${head.map((h) => JSON.stringify(h)).join(', ')}`,
+        );
+    }
+    this.columns = head.filter((_, i) => i !== this.idIndex);
     this.rowCount = b.length / 2 - 1;
+  }
+
+  /** The position in the file of column `col` (0 is the ID, 1 the first of `columns`). */
+  private field(col: number): number {
+    return col === 0 ? this.idIndex : col - 1 < this.idIndex ? col - 1 : col;
   }
 
   /** The cell of data row `row` in column `col` (0 is the ID, 1 the first of `columns`), trimmed; '' if the row is shorter. A slice of the text. */
@@ -177,9 +192,10 @@ export class Sidecar {
     const t = this.text;
     const s = this.bounds[2 * row + 2];
     const e = this.bounds[2 * row + 3];
-    if (this.quoted) return (splitRow(t, s, e, this.find, col + 1)[col] ?? '').trim();
+    const field = this.field(col);
+    if (this.quoted) return (splitRow(t, s, e, this.find, field + 1)[field] ?? '').trim();
     let a = s;
-    for (let c = 0; c < col; c++) {
+    for (let c = 0; c < field; c++) {
       a = this.find.find(a, e);
       if (a >= e) return '';
       a++;
@@ -187,9 +203,13 @@ export class Sidecar {
     return t.slice(a, this.find.find(a, e)).trim();
   }
 
-  /** All the cells of data row `row`, ID first. */
+  /** All the cells of data row `row`, the ID first, then those of `columns` in order. */
   row(row: number): string[] {
-    return splitRow(this.text, this.bounds[2 * row + 2], this.bounds[2 * row + 3], this.find).map((c) => c.trim());
+    const cells = splitRow(this.text, this.bounds[2 * row + 2], this.bounds[2 * row + 3], this.find).map((c) => c.trim());
+    if (this.idIndex === 0) return cells;
+    const id = cells[this.idIndex] ?? '';
+    cells.splice(this.idIndex, 1);
+    return [id, ...cells];
   }
 
   /** Match the rows to the nodes of `tree`: a row goes to every tip that carries its ID (`tipIndices`), else to the internal node with that
@@ -303,9 +323,10 @@ export class SidecarBinding {
   }
 }
 
-/** Read a TSV or CSV whose first column is named `ID` (case-insensitive). The delimiter is a tab if the header line has one, else a comma.
- *  Throws SidecarError for an empty file, a first column that is not `ID`, or an unterminated quote. A row shorter than the header reads as
- *  empty cells; extra cells are ignored. Keeps the text: do not pass a string you will change. */
-export function parseSidecar(text: string): Sidecar {
-  return new Sidecar(text);
+/** Read a TSV or CSV whose first column is named `ID` (case-insensitive), or, with `idColumn`, the column of that name (also
+ *  case-insensitive, wherever it is). The delimiter is a tab if the header line has one, else a comma.
+ *  Throws SidecarError for an empty file, a first column that is not `ID` (or no column named `idColumn`), or an unterminated quote. A row
+ *  shorter than the header reads as empty cells; extra cells are ignored. Keeps the text: do not pass a string you will change. */
+export function parseSidecar(text: string, options: { idColumn?: string } = {}): Sidecar {
+  return new Sidecar(text, options.idColumn);
 }

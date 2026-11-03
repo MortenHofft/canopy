@@ -2,12 +2,13 @@
 // browser check against it and stop the server; exit with the first failing check's exit code (0 when all pass). The pages:
 //   test      this workspace's test page            scripts/check-radial-ui.mjs
 //   vanilla   examples/vanilla (no framework)        scripts/check-vanilla-example.mjs
+//   gbif-map  examples/gbif-map (tree + CSV of GBIF matches)  scripts/check-gbif-map.mjs
 //   react     examples/react (<TreeView>, tree-ops)  scripts/check-node-menu.mjs
 //   explorer  examples/explorer (the styled explorer)    scripts/check-explorer.mjs
 //   playground examples/playground (every setting)     scripts/check-playground.mjs
 //   no-build  examples/no-build (plain HTML)          scripts/check-no-build.mjs (builds the packages, serves static files itself)
 //   site      the demo site as Vercel serves it        scripts/check-site.mjs (runs scripts/build-site.mjs, serves site-dist itself)
-//   node scripts/test-browser.mjs [--only test,vanilla,react,explorer,playground,no-build,site] [--no-build]
+//   node scripts/test-browser.mjs [--only test,vanilla,gbif-map,react,explorer,playground,no-build,site] [--no-build]
 // What is handled, exactly:
 //  - readiness: the preview child must print its "Local:" line for our port and then answer; if it exits first (port taken with --strictPort,
 //    crash) the run fails at once with its output, so a stale server on that port is never tested;
@@ -110,6 +111,12 @@ const SUITES = [
     name: 'vanilla',
     dir: path.join(repo, 'examples/vanilla'),
     check: 'check-vanilla-example.mjs',
+    args: (port) => ['--url', `http://127.0.0.1:${port}/`],
+  },
+  {
+    name: 'gbif-map',
+    dir: path.join(repo, 'examples/gbif-map'),
+    check: 'check-gbif-map.mjs',
     args: (port) => ['--url', `http://127.0.0.1:${port}/`],
   },
   { name: 'react', dir: path.join(repo, 'examples/react'), check: 'check-node-menu.mjs', args: (port) => ['--url', `http://127.0.0.1:${port}/`] },
