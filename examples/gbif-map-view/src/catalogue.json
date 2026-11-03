@@ -1,0 +1,7 @@
+{
+  "gbif-map-view-acacia": {
+    "label": "Acacia, 11 tips (invented tree)",
+    "path": "gbif-map/acacia.nwk",
+    "meta": "gbif-map/acacia.taxa.csv"
+  }
+}

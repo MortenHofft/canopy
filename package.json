@@ -12,6 +12,7 @@
     "examples/react",
     "examples/vanilla",
     "examples/gbif-map",
+    "examples/gbif-map-view",
     "examples/explorer",
     "examples/playground",
     "site",

@@ -1,6 +1,6 @@
 // Screenshots of the built pages for the hub's cards (site/public/thumbs/<id>.jpg, 1024×640 JPEG). Run after `npm run build:site`,
 // then build again to publish them:  node site/scripts/capture-thumbs.mjs [page id ...]
-// With page ids (playground, explorer, gbif-map) only those thumbnails are captured, so adding a page does not rewrite the
+// With page ids (playground, explorer, gbif-map, gbif-map-view) only those thumbnails are captured, so adding a page does not rewrite the
 // others; with none, every page is.
 // Each page is put in a state that shows what it is about (the playground with data columns, the explorer with colours).
 import { createRequire } from 'node:module';
@@ -73,6 +73,24 @@ pages['gbif-map'] = async () => {
   await page.mouse.move(2, 2);
   await page.waitForTimeout(500);
   await page.screenshot({ path: out('gbif-map'), type: 'jpeg', quality: 72 });
+};
+
+// gbif-map-view: two tips picked, their occurrences on the map
+pages['gbif-map-view'] = async () => {
+  await page.goto(`${url}/gbif-map-view?cpu=1`);
+  await page.waitForFunction(() => window.__example?.map?.loaded() && window.__example.viewer.getStats().frames > 0, null, { timeout: 60000 });
+  for (const label of ['Acacia_verticillata', 'Australian_Blackwood']) {
+    const at = await page.evaluate((t) => {
+      const v = window.__example.viewer;
+      const p = v.nodePosition(v.tipNode(t));
+      const r = v.element.getBoundingClientRect();
+      return { x: r.left + p.x, y: r.top + p.y };
+    }, label);
+    await page.mouse.click(at.x, at.y);
+  }
+  await page.mouse.move(2, 2);
+  await page.waitForTimeout(6000); // the occurrence tiles
+  await page.screenshot({ path: out('gbif-map-view'), type: 'jpeg', quality: 72 });
 };
 
 const ids = process.argv.slice(2);

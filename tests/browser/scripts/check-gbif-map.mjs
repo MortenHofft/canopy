@@ -1,4 +1,4 @@
-// Browser check of the GBIF map view example (examples/gbif-map): a Newick tree with a CSV sidecar of GBIF matches, shown with the library
+// Browser check of the GBIF names and links example (examples/gbif-map): a Newick tree with a CSV sidecar of GBIF matches, shown with the library
 // as it is. The tip names follow the toggle (GBIF name, name in the tree, both), a tip with no match keeps its own name and is listed
 // in the match report, and a click on a tip opens a card with the links to gbif.org. No page errors.
 //   node tests/browser/scripts/check-gbif-map.mjs [--url http://127.0.0.1:5311/]   (dev server: npm run dev in examples/gbif-map)

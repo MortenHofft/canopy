@@ -33,13 +33,27 @@
     "id": "gbif-map",
     "dir": "examples/gbif-map",
     "kind": "showcase",
-    "title": "GBIF map view",
-    "description": "A Newick tree whose tips are matched to GBIF taxa by a CSV, shown with the public API: tip names as the tree has them, as GBIF interprets them, or both, and a popup per tip or named node linking to the taxon and an occurrence search on gbif.org. A tip with no match is reported, not hidden. The step towards a map of each taxon's occurrences.",
+    "title": "GBIF names and links",
+    "description": "A Newick tree whose tips are matched to GBIF taxa by a CSV, shown with the public API: tip names as the tree has them, as GBIF interprets them, or both, and a popup per tip or named node linking to the taxon and an occurrence search on gbif.org. A tip with no match is reported, not hidden. The same data on a map is the GBIF map view.",
     "tags": [
       "@canopy/viewer",
       "sidecar",
       "no framework",
       "GBIF taxon keys"
+    ],
+    "data": "src/catalogue.json"
+  },
+  {
+    "id": "gbif-map-view",
+    "dir": "examples/gbif-map-view",
+    "kind": "showcase",
+    "title": "GBIF map view",
+    "description": "The idea of the proof of concept phylogeny-tool.gbif.org on this viewer: a tree whose tips are matched to GBIF taxon keys by a CSV, and a map of the occurrences of the clades you click. Each click colours a node and adds a layer; the legend changes colours, hides layers, reorders them, zooms the tree and links to the same occurrences on gbif.org. Rectangular or circular, with the minimap.",
+    "tags": [
+      "@canopy/viewer",
+      "maplibre",
+      "GBIF occurrence map",
+      "sidecar"
     ],
     "data": "src/catalogue.json"
   }
